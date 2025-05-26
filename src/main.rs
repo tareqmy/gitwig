@@ -4,7 +4,7 @@ use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use serde::Deserialize;
-use std::{error::Error, fs, io, path::PathBuf};
+use std::{env, error::Error, fs, io, path::PathBuf};
 use toml;
 use tui::{
     Terminal,
@@ -14,17 +14,8 @@ use tui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-#[derive(Debug, Deserialize)]
-struct Config {
-    items: Vec<String>,
-}
-
-fn load_config() -> Result<Config, Box<dyn Error>> {
-    let config_path = PathBuf::from("./config/config.toml");
-    let contents = fs::read_to_string(config_path)?;
-    let config: Config = toml::from_str(&contents)?;
-    Ok(config)
-}
+mod config;
+use crate::config::{load_config, Config};
 
 fn main() -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
@@ -33,7 +24,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let config = load_config()?;
+    // Parse optional CLI argument for config path
+    let cli_path = env::args().nth(1).map(PathBuf::from);
+
+    // Setup terminal
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    // Load configuration
+    let config = load_config(cli_path)?;
 
     let res = run_app(&mut terminal, config);
 
