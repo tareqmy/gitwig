@@ -52,7 +52,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, config: Config) -> io::Result<()> {
+fn run_app<B: tui::backend::Backend>(
+    terminal: &mut Terminal<B>,
+    config: Config,
+) -> io::Result<()> {
+    let mut selected_index: usize = 0;
+
     loop {
         terminal.draw(|f| {
             let size = f.size();
@@ -83,16 +88,36 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, config: Config)
                 .split(inner_area);
 
             for (i, item) in config.items.iter().enumerate() {
-                let paragraph =
-                    Paragraph::new(item.as_str()).block(Block::default().borders(Borders::ALL));
+                let style = if i == selected_index {
+                    Style::default().fg(Color::Black).bg(Color::Yellow)
+                } else {
+                    Style::default().fg(Color::White)
+                };
+
+                let paragraph = Paragraph::new(item.as_str())
+                    .style(style)
+                    .block(Block::default().borders(Borders::ALL));
+
                 f.render_widget(paragraph, chunks[i]);
             }
         })?;
 
+        // Handle key events
         if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
-                if key.code == KeyCode::Char('q') {
-                    return Ok(());
+                match key.code {
+                    KeyCode::Char('q') => return Ok(()),
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        if selected_index + 1 < config.items.len() {
+                            selected_index += 1;
+                        }
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        if selected_index > 0 {
+                            selected_index -= 1;
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
