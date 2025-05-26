@@ -1,1 +1,7 @@
-items = ["Repo A", "Repo B", "My Side Project", "Test Repo"]
+items = ["Repo A", "Repo B", "Repo C", "Repo D", "Repo E",
+    "Repo F", "Repo G", "Repo H", "Repo I", "Repo J",
+    "Repo K", "Repo L", "Repo M", "Repo N", "Repo O",
+    "Repo P", "Repo Q", "Repo R", "Repo S", "Repo T",
+    "Repo U", "Repo V", "Repo W", "Repo X", "Repo Y",
+    "Repo Z", "Repo AA", "Repo AB", "Repo AC", "Repo AD",
+]

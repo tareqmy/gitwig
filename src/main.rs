@@ -57,38 +57,37 @@ fn run_app<B: tui::backend::Backend>(
     config: Config,
 ) -> io::Result<()> {
     let mut selected_index: usize = 0;
+    let mut scroll_top: usize = 0;
+    const ITEM_HEIGHT: u16 = 3;
 
     loop {
         terminal.draw(|f| {
             let size = f.size();
 
-            // Main border
             let outer_block = Block::default()
                 .title("Twig")
                 .borders(Borders::ALL)
                 .style(Style::default().fg(Color::White));
             f.render_widget(outer_block, size);
 
-            // Inner layout
             let inner_area = size.inner(&tui::layout::Margin {
                 vertical: 1,
                 horizontal: 1,
             });
 
+            let visible_count = (inner_area.height / ITEM_HEIGHT).min(config.items.len() as u16);
+            let max_scroll = config.items.len().saturating_sub(visible_count as usize);
+
+            let visible_items = &config.items[scroll_top..(scroll_top + visible_count as usize)];
+
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .margin(1)
-                .constraints(
-                    config
-                        .items
-                        .iter()
-                        .map(|_| Constraint::Length(3))
-                        .collect::<Vec<_>>(),
-                )
+                .constraints(vec![Constraint::Length(ITEM_HEIGHT); visible_items.len()])
                 .split(inner_area);
 
-            for (i, item) in config.items.iter().enumerate() {
-                let style = if i == selected_index {
+            for (i, item) in visible_items.iter().enumerate() {
+                let actual_index = i + scroll_top;
+                let style = if actual_index == selected_index {
                     Style::default().fg(Color::Black).bg(Color::Yellow)
                 } else {
                     Style::default().fg(Color::White)
@@ -97,12 +96,10 @@ fn run_app<B: tui::backend::Backend>(
                 let paragraph = Paragraph::new(item.as_str())
                     .style(style)
                     .block(Block::default().borders(Borders::ALL));
-
                 f.render_widget(paragraph, chunks[i]);
             }
         })?;
 
-        // Handle key events
         if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
@@ -110,11 +107,20 @@ fn run_app<B: tui::backend::Backend>(
                     KeyCode::Down | KeyCode::Char('j') => {
                         if selected_index + 1 < config.items.len() {
                             selected_index += 1;
+                            // Scroll down if needed
+                            let bottom = scroll_top + (terminal.size()?.height / ITEM_HEIGHT) as usize;
+                            if selected_index >= bottom {
+                                scroll_top = scroll_top.saturating_add(1);
+                            }
                         }
                     }
                     KeyCode::Up | KeyCode::Char('k') => {
                         if selected_index > 0 {
                             selected_index -= 1;
+                            // Scroll up if needed
+                            if selected_index < scroll_top {
+                                scroll_top = scroll_top.saturating_sub(1);
+                            }
                         }
                     }
                     _ => {}
