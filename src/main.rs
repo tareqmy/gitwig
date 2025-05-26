@@ -1,18 +1,18 @@
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use serde::Deserialize;
 use std::{error::Error, fs, io, path::PathBuf};
+use toml;
 use tui::{
+    Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
     widgets::{Block, Borders, Paragraph},
-    Terminal,
 };
-use serde::Deserialize;
-use toml;
 
 #[derive(Debug, Deserialize)]
 struct Config {
@@ -25,7 +25,6 @@ fn load_config() -> Result<Config, Box<dyn Error>> {
     let config: Config = toml::from_str(&contents)?;
     Ok(config)
 }
-
 
 fn main() -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
@@ -53,10 +52,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn run_app<B: tui::backend::Backend>(
-    terminal: &mut Terminal<B>,
-    config: Config,
-) -> io::Result<()> {
+fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, config: Config) -> io::Result<()> {
     loop {
         terminal.draw(|f| {
             let size = f.size();
@@ -87,8 +83,8 @@ fn run_app<B: tui::backend::Backend>(
                 .split(inner_area);
 
             for (i, item) in config.items.iter().enumerate() {
-                let paragraph = Paragraph::new(item.as_str())
-                    .block(Block::default().borders(Borders::ALL));
+                let paragraph =
+                    Paragraph::new(item.as_str()).block(Block::default().borders(Borders::ALL));
                 f.render_widget(paragraph, chunks[i]);
             }
         })?;
