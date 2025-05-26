@@ -1,0 +1,9 @@
+[package]
+name = "twig"
+version = "0.1.0"
+edition = "2024"
+description = "a rust based tui an alternative to sourcetree"
+
+[dependencies]
+crossterm = "0.29.0"
+tui = "0.19"
