@@ -64,7 +64,6 @@ fn run_app<B: tui::backend::Backend>(
     const STATUS_HEIGHT: u16 = 1;
 
     loop {
-        // We need terminal size here for scroll calculations outside the closure
         let size = terminal.size()?;
         let inner_area = size.inner(&tui::layout::Margin {
             vertical: 1,
@@ -75,7 +74,6 @@ fn run_app<B: tui::backend::Backend>(
         let visible_count_usize = visible_count as usize;
         let max_scroll = config.items.len().saturating_sub(visible_count_usize);
 
-        // Clamp scroll_top if needed (optional safety)
         if scroll_top > max_scroll {
             scroll_top = max_scroll;
         }
@@ -98,7 +96,6 @@ fn run_app<B: tui::backend::Backend>(
                 .constraints(constraints)
                 .split(inner_area);
 
-            // Render items
             for (i, item) in visible_items.iter().enumerate() {
                 let actual_index = i + scroll_top;
                 let style = if actual_index == selected_index {
@@ -114,43 +111,12 @@ fn run_app<B: tui::backend::Backend>(
                 f.render_widget(paragraph, chunks[i]);
             }
 
-            // Status line
             let status_text = "[↑/↓]: Navigate  [q]: Quit";
             let status = Paragraph::new(status_text)
                 .style(Style::default().fg(Color::Blue).add_modifier(Modifier::ITALIC));
             f.render_widget(status, *chunks.last().unwrap());
-
-            // Scrollbar
-            if config.items.len() > visible_count_usize {
-                let scrollbar_height = available_height;
-                let scrollbar_x = inner_area.x + inner_area.width - 1;
-
-                let thumb_height = (scrollbar_height * visible_count) / config.items.len() as u16;
-                let thumb_top =
-                    ((scrollbar_height - thumb_height) * scroll_top as u16) / max_scroll.max(1) as u16;
-
-                for i in 0..scrollbar_height {
-                    let symbol = if i >= thumb_top && i < thumb_top + thumb_height {
-                        "█"
-                    } else {
-                        "│"
-                    };
-
-                    let scrollbar_cell = tui::layout::Rect {
-                        x: scrollbar_x,
-                        y: inner_area.y + i,
-                        width: 1,
-                        height: 1,
-                    };
-
-                    let bar = Paragraph::new(symbol)
-                        .style(Style::default().fg(Color::DarkGray));
-                    f.render_widget(bar, scrollbar_cell);
-                }
-            }
         })?;
 
-        // Handle input
         if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
