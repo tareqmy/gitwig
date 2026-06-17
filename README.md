@@ -1,4 +1,4 @@
-# 🌿 Twig — A Minimal Terminal Git UI
+rustup toolchain install stablerustup default stable# 🌿 Twig — A Minimal Terminal Git UI
 
 **Twig** is a lightweight terminal-based Git UI, designed as a fast and minimal alternative to GUI tools like SourceTree. Built with Rust and `tui-rs`, Twig presents your Git-related items in a clean, bordered layout directly in the terminal.
 

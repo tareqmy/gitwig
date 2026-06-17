@@ -37,15 +37,25 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<Config, Box<dyn Error>> 
     }
 
     // 2. Try to load from local project directory: ./config/config.toml
-    let local_path = Path::new("config/config.toml");
+    // First, check relative to current working directory
+    let mut local_path = PathBuf::from("config/config.toml");
+    if !local_path.exists() {
+        // Fallback: check relative to the executable's directory
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                local_path = exe_dir.join("config/config.toml");
+            }
+        }
+    }
+
     if local_path.exists() {
         let contents = fs::read_to_string(local_path)?;
         let config: Config = toml::from_str(&contents)?;
         return Ok(config);
     }
 
-    // 3. Try to load from user config directory: ~/.config/twig/config.toml
-    if let Some(global_path) = dirs::home_dir().map(|p| p.join(".config/twig/config.toml")) {
+    // 3. Try to load from user config directory: e.g., ~/.config/twig/config.toml
+    if let Some(global_path) = dirs::config_dir().map(|p| p.join("twig/config.toml")) {
         if global_path.exists() {
             let contents = fs::read_to_string(global_path)?;
             let config: Config = toml::from_str(&contents)?;
