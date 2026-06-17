@@ -4,11 +4,21 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+/// How long the event loop waits for input before re-drawing (milliseconds).
+/// Lower values feel more responsive; higher values use less CPU.
+fn default_poll_interval_ms() -> u64 {
+    100
+}
+
 /// Represents the structure of the configuration file.
-/// Currently, it holds a list of strings to display in the UI.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
+    /// Repository/directory paths shown in the main list.
     pub items: Vec<String>,
+    /// Event-loop poll interval in milliseconds (default: 100).
+    /// Lower → more responsive, higher → less CPU. Sane range: 16–500.
+    #[serde(default = "default_poll_interval_ms")]
+    pub poll_interval_ms: u64,
 }
 
 /// Resolves the path that should be used for persisting config edits when
@@ -45,7 +55,13 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
             let config: Config = toml::from_str(&contents)?;
             return Ok((config, path));
         }
-        return Ok((Config { items: vec![] }, path));
+        return Ok((
+            Config {
+                items: vec![],
+                poll_interval_ms: default_poll_interval_ms(),
+            },
+            path,
+        ));
     }
 
     // 2. Try to load from local project directory: ./config/config.toml
@@ -84,6 +100,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
             "Still looking... it's not here either.".to_string(),
             "Try harder next time.".to_string(),
         ],
+        poll_interval_ms: default_poll_interval_ms(),
     };
     Ok((fallback, default_write_path()))
 }

@@ -260,8 +260,9 @@ where
         // Transient feedback disappears after one frame.
         app.status_message = None;
 
-        if event::poll(std::time::Duration::from_millis(100))?
-            && let Event::Key(key) = event::read()?
+        if event::poll(std::time::Duration::from_millis(
+            app.config.poll_interval_ms,
+        ))? && let Event::Key(key) = event::read()?
             && !input::handle_key(&mut app, key.code, visible_count)
         {
             return Ok(());

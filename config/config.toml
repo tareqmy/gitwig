@@ -3,3 +3,7 @@ items = [
     "/Users/tareqmy/development/rustprojects/twig",
     "~/development",
 ]
+
+# How long the event loop waits for input before re-drawing (milliseconds).
+# Lower → more responsive, higher → less CPU. Default: 100. Sane range: 16–500.
+poll_interval_ms = 100

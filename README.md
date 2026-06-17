@@ -116,9 +116,20 @@ Twig writes back to whichever file it loaded from, so edits made in the UI persi
 
 ```toml
 items = ["Repo A", "Repo B", "Side Project", "Test Repo"]
+
+# Event-loop poll interval in milliseconds (default: 100).
+# Lower → more responsive input, higher → less CPU usage. Sane range: 16–500.
+poll_interval_ms = 100
 ```
 
-You can hand-edit this file when Twig isn't running, or let the in-app `a` / `e` / `d` shortcuts maintain it for you.
+### Config keys
+
+| Key | Type | Default | Description |
+| --- | ---- | ------- | ----------- |
+| `items` | `[String]` | `[]` | Paths shown in the main list. Managed by the in-app `a`/`e`/`d` shortcuts. |
+| `poll_interval_ms` | `Integer` | `100` | How long (ms) the event loop waits between input checks. Lower feels snappier; higher saves CPU. |
+
+Twig writes back to whichever file it loaded from, so edits made in the UI persist across runs.
 
 ---
 
