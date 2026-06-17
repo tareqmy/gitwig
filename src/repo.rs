@@ -81,6 +81,8 @@ pub struct RepoInfo {
     /// Configured upstream branch (e.g. "origin/main") if HEAD tracks one.
     pub upstream: Option<String>,
     pub summary: RepoSummary,
+    /// File-level changes, populated by `collect_info` for the Detail view.
+    pub changes: WorktreeChanges,
 }
 
 #[derive(Debug)]
@@ -95,6 +97,26 @@ pub struct HeadInfo {
 pub struct RemoteInfo {
     pub name: String,
     pub url: String,
+}
+
+/// One changed file in the working tree or index.
+#[derive(Debug, Clone)]
+pub struct FileEntry {
+    /// Path relative to the repository root.
+    pub path: String,
+    /// Short human-readable label: "new", "modified", "deleted",
+    /// "renamed", "typechange", "??", or "conflict".
+    pub label: &'static str,
+}
+
+/// File-level working-tree state collected for the Detail view.
+/// Split into four buckets so the UI can render them as separate sections.
+#[derive(Debug, Default, Clone)]
+pub struct WorktreeChanges {
+    pub staged: Vec<FileEntry>,
+    pub unstaged: Vec<FileEntry>,
+    pub untracked: Vec<FileEntry>,
+    pub conflicted: Vec<FileEntry>,
 }
 
 // ── Public entry points ────────────────────────────────────────────────────
@@ -207,7 +229,93 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
         }
     }
 
+    populate_file_changes(&repo, &mut info);
     Ok(info)
+}
+
+/// Maximum file entries collected per bucket. Prevents pathologically large
+/// working trees from overwhelming the detail view.
+const MAX_FILES_PER_SECTION: usize = 100;
+
+/// Walk the working-tree status once more and collect per-file info for
+/// the Detail view. Called only from `collect_info` (i.e. once per Enter
+/// press), never per frame.
+fn populate_file_changes(repo: &Repository, info: &mut RepoInfo) {
+    let mut opts = StatusOptions::new();
+    opts.include_untracked(true)
+        .renames_head_to_index(true)
+        .show(StatusShow::IndexAndWorkdir);
+    let Ok(statuses) = repo.statuses(Some(&mut opts)) else {
+        return;
+    };
+    for entry in statuses.iter() {
+        let path = entry.path().unwrap_or("(unknown)").to_string();
+        let flags = entry.status();
+
+        if flags.is_conflicted() {
+            if info.changes.conflicted.len() < MAX_FILES_PER_SECTION {
+                info.changes.conflicted.push(FileEntry {
+                    path: path.clone(),
+                    label: "conflict",
+                });
+            }
+            continue;
+        }
+
+        // Index (staged) changes
+        if (flags.is_index_new()
+            || flags.is_index_modified()
+            || flags.is_index_deleted()
+            || flags.is_index_renamed()
+            || flags.is_index_typechange())
+            && info.changes.staged.len() < MAX_FILES_PER_SECTION
+        {
+            let label = if flags.is_index_new() {
+                "new"
+            } else if flags.is_index_deleted() {
+                "deleted"
+            } else if flags.is_index_renamed() {
+                "renamed"
+            } else if flags.is_index_typechange() {
+                "typechange"
+            } else {
+                "modified"
+            };
+            info.changes.staged.push(FileEntry {
+                path: path.clone(),
+                label,
+            });
+        }
+
+        // Working-tree changes
+        if flags.is_wt_new() {
+            if info.changes.untracked.len() < MAX_FILES_PER_SECTION {
+                info.changes.untracked.push(FileEntry {
+                    path: path.clone(),
+                    label: "??",
+                });
+            }
+        } else if (flags.is_wt_modified()
+            || flags.is_wt_deleted()
+            || flags.is_wt_renamed()
+            || flags.is_wt_typechange())
+            && info.changes.unstaged.len() < MAX_FILES_PER_SECTION
+        {
+            let label = if flags.is_wt_deleted() {
+                "deleted"
+            } else if flags.is_wt_renamed() {
+                "renamed"
+            } else if flags.is_wt_typechange() {
+                "typechange"
+            } else {
+                "modified"
+            };
+            info.changes.unstaged.push(FileEntry {
+                path: path.clone(),
+                label,
+            });
+        }
+    }
 }
 
 /// Collect the branch name, worktree counts, and ahead/behind for an opened

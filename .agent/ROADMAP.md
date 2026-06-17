@@ -16,7 +16,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Detail view gains **Upstream** and **Sync** rows (powered by `branch_upstream_name` + `graph_ahead_behind`); shows `(not configured)` when the branch has no tracking branch.
 
 ## Phase 2: Working Tree & Status
-- [ ] Display list of changed files (staged and unstaged).
+- [x] Display list of changed files (staged and unstaged).
 - [ ] Support staging/unstaging individual files (shortcut `s` and `u`).
 - [ ] Basic commit functionality (shortcut `c`).
 - [ ] Side-by-side or unified diff view for the selected file.
