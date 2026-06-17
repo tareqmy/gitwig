@@ -63,6 +63,8 @@ pub(crate) fn accent_style() -> Style {
 const HELP_LINES: &[(&str, &str)] = &[
     ("↑ / k", "Move selection up"),
     ("↓ / j", "Move selection down"),
+    ("PgDn", "Jump one page down"),
+    ("PgUp", "Jump one page up"),
     ("Enter", "View selected item details (or commit input)"),
     ("a", "Add a new item"),
     ("e", "Edit selected item"),
@@ -434,6 +436,7 @@ fn normal_status_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
     }
     let entries = [
         ("↑↓", "navigate"),
+        ("PgDn/PgUp", "page"),
         ("a", "add"),
         ("e", "edit"),
         ("d", "delete"),

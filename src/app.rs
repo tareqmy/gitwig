@@ -117,6 +117,23 @@ impl App {
         }
     }
 
+    /// Jump the selection forward by one page (= `visible_count` items).
+    /// The scroll window advances by the same amount so the newly selected
+    /// item is always at the top of the visible area.
+    pub fn page_down(&mut self, visible_count: usize) {
+        let last = self.config.items.len().saturating_sub(1);
+        self.selected_index = (self.selected_index + visible_count).min(last);
+        // Align scroll so the selection lands at the top of the viewport,
+        // then let clamp_scroll cap it at the list end.
+        self.scroll_top = self.selected_index;
+    }
+
+    /// Jump the selection backward by one page (= `visible_count` items).
+    pub fn page_up(&mut self, visible_count: usize) {
+        self.selected_index = self.selected_index.saturating_sub(visible_count);
+        self.scroll_top = self.selected_index;
+    }
+
     pub fn start_add(&mut self) {
         self.input_buffer.clear();
         self.mode = Mode::Adding;

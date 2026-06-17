@@ -15,6 +15,8 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
             KeyCode::Char('q') => return false,
             KeyCode::Down | KeyCode::Char('j') => app.move_down(visible_count),
             KeyCode::Up | KeyCode::Char('k') => app.move_up(),
+            KeyCode::PageDown => app.page_down(visible_count),
+            KeyCode::PageUp => app.page_up(visible_count),
             KeyCode::Char('a') => app.start_add(),
             KeyCode::Char('e') => app.start_edit(),
             KeyCode::Char('d') => app.request_delete(),
