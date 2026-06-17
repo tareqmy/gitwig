@@ -31,6 +31,7 @@
 | `a`                  | Normal          | Add a new item                    |
 | `e`                  | Normal          | Edit the selected item            |
 | `d`                  | Normal          | Delete the selected item (asks)   |
+| `r`                  | Normal          | Refresh status of selected item   |
 | `Enter`              | Normal          | Open Detail view for selected item|
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
 | `q`                  | Normal          | Quit                              |
@@ -61,7 +62,19 @@ Each card shows a colored symbol on the right reflecting the item's filesystem s
 - `○ dir` — the item is a directory, but not a git repository.
 - `✕ missing` — the item is not a directory on this machine (doesn't exist, is a file, or isn't accessible).
 
-Items support `~` and `~/...` expansion, so `~/code/twig` resolves to your home directory. Statuses are recomputed only when you add, edit, or delete an item — they are not polled in the background, so changes you make outside the app won't be reflected until you re-launch.
+For git repositories the indicator also shows compact counts for any non-zero values:
+
+| Suffix | Meaning | Colour |
+| ------ | ------- | ------ |
+| `N+`   | N files staged for commit | Cyan |
+| `N!`   | N files modified but not staged | Yellow |
+| `N?`   | N untracked files | Muted |
+| `N↑`   | N commits ahead of upstream (needs push) | Bold |
+| `N↓`   | N commits behind upstream (needs pull/fetch) | Yellow |
+
+When all counts are zero the indicator shows `● clean`. When the branch has no configured upstream, only the worktree counts appear (no `↑`/`↓`). Press `?` at any time to see the legend inside the app.
+
+Items support `~` and `~/...` expansion, so `~/code/twig` resolves to your home directory. Statuses are recomputed only when you add, edit, or delete an item — they are not polled in the background. Press `r` to manually refresh the selected item's status if you've changed the filesystem outside the app (e.g. `git init` in a directory that was previously `○ dir`); the status bar briefly flashes `Refreshed` so you know the check ran.
 
 ## 🔍 Detail view
 
@@ -73,6 +86,8 @@ For a **git repository** the detail view shows:
 - The current branch (or `(detached HEAD)` / `(empty repository)`).
 - The HEAD commit's short hash, summary, author, and a relative time ("3 days ago").
 - All configured remotes with their URLs.
+- **Upstream** — the tracking branch (e.g. `origin/main`), or `(not configured)` if the branch has no upstream.
+- **Sync** — `in sync`, `N ahead`, `N behind`, or a combination; `—` when no upstream is configured.
 - The working-tree status — `clean`, or counts of staged / modified / untracked / conflicted files.
 
 For a **plain directory** the view confirms the resolved path and explains that no `.git` entry was found.

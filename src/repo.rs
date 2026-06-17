@@ -1,39 +1,73 @@
-//! Richer per-item inspection used by the Detail view.
+//! Filesystem + git repository inspection.
 //!
-//! `status.rs` answers the cheap "is this a git repo" question for the
-//! list-row indicator. This module is invoked on-demand (when the user
-//! presses Enter on an item) and uses `git2` to read branch / HEAD /
-//! remotes / working-tree status. The two split so the cheap path
-//! doesn't pay for libgit2 just to render a row.
+//! This module owns both the "is this a git repo?" classification used by
+//! the per-card indicator AND the richer detail collection used by the
+//! Detail view. They share a single `collect_summary` helper so the same
+//! libgit2 work doesn't run twice.
+//!
+//! The cheap `is_dir()` + `.git`-existence check still gates everything —
+//! we only spin up libgit2 when both checks pass.
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use git2::{Repository, StatusOptions, StatusShow};
 
-use crate::status::expand_tilde;
+// ── Card-level status ──────────────────────────────────────────────────────
+
+/// Per-item filesystem classification carried alongside `config.items`.
+/// `GitRepo`'s inner `Option` is `None` when `.git` exists but libgit2
+/// couldn't open or read the repo — we know it's a repo, we just can't
+/// summarize its state.
+#[derive(Debug, Clone)]
+pub enum ItemStatus {
+    Missing,
+    Directory,
+    GitRepo(Option<RepoSummary>),
+}
+
+/// Compact summary used to draw the per-card indicator. Also embedded in
+/// `RepoInfo` so the Detail view doesn't re-collect the same data.
+#[derive(Debug, Default, Clone)]
+pub struct RepoSummary {
+    pub staged: usize,
+    pub modified: usize,
+    pub untracked: usize,
+    pub conflicted: usize,
+    pub ahead: usize,
+    pub behind: usize,
+}
+
+impl RepoSummary {
+    pub fn is_clean(&self) -> bool {
+        self.staged + self.modified + self.untracked + self.conflicted == 0
+    }
+    pub fn is_synced(&self) -> bool {
+        self.ahead + self.behind == 0
+    }
+    pub fn unchanged(&self) -> bool {
+        self.is_clean() && self.is_synced()
+    }
+}
+
+// ── Detail view ────────────────────────────────────────────────────────────
 
 #[derive(Debug)]
 pub enum ItemDetail {
-    /// Path does not exist or isn't a directory.
     Missing { resolved: PathBuf },
-    /// Directory exists but isn't a git repository.
     Directory { resolved: PathBuf },
-    /// A real git repository, with details collected.
     Repo { resolved: PathBuf, info: RepoInfo },
-    /// The directory looked like a repo but `git2` couldn't read it.
-    /// Surfaces the error to the user instead of pretending.
     Error { resolved: PathBuf, message: String },
 }
 
 #[derive(Debug, Default)]
 pub struct RepoInfo {
-    /// Branch shorthand (e.g. "main"). `None` for detached HEAD or empty repos.
     pub branch: Option<String>,
-    /// HEAD commit summary. `None` for empty repos or read failures.
     pub head: Option<HeadInfo>,
     pub remotes: Vec<RemoteInfo>,
-    pub worktree: WorktreeStatus,
+    /// Configured upstream branch (e.g. "origin/main") if HEAD tracks one.
+    pub upstream: Option<String>,
+    pub summary: RepoSummary,
 }
 
 #[derive(Debug)]
@@ -50,23 +84,39 @@ pub struct RemoteInfo {
     pub url: String,
 }
 
-#[derive(Debug, Default)]
-pub struct WorktreeStatus {
-    pub staged: usize,
-    pub modified: usize,
-    pub untracked: usize,
-    pub conflicted: usize,
+// ── Public entry points ────────────────────────────────────────────────────
+
+/// Expand a leading `~` or `~/` in a user-supplied path to the user's home
+/// directory. Returns the input unchanged if there is no home dir or no
+/// tilde to expand.
+pub fn expand_tilde(s: &str) -> PathBuf {
+    if s == "~" {
+        return dirs::home_dir().unwrap_or_else(|| PathBuf::from(s));
+    }
+    if let Some(stripped) = s.strip_prefix("~/")
+        && let Some(home) = dirs::home_dir()
+    {
+        return home.join(stripped);
+    }
+    PathBuf::from(s)
 }
 
-impl WorktreeStatus {
-    pub fn is_clean(&self) -> bool {
-        self.staged + self.modified + self.untracked + self.conflicted == 0
+/// Classify `item` and produce a card-level summary. Used by the list view.
+pub fn inspect_summary(item: &str) -> ItemStatus {
+    let path = expand_tilde(item);
+    if !path.is_dir() {
+        return ItemStatus::Missing;
+    }
+    if !path.join(".git").exists() {
+        return ItemStatus::Directory;
+    }
+    match Repository::open(&path) {
+        Ok(repo) => ItemStatus::GitRepo(Some(collect_summary(&repo))),
+        Err(_) => ItemStatus::GitRepo(None),
     }
 }
 
-/// Inspect `item` and produce a rich detail report. Uses the same tilde
-/// expansion as the cheap classifier so the resolved path matches what
-/// the user sees in the list.
+/// Inspect `item` and produce the rich detail report shown on Enter.
 pub fn inspect_detail(item: &str) -> ItemDetail {
     let resolved = expand_tilde(item);
     if !resolved.is_dir() {
@@ -75,7 +125,7 @@ pub fn inspect_detail(item: &str) -> ItemDetail {
     if !resolved.join(".git").exists() {
         return ItemDetail::Directory { resolved };
     }
-    match collect_repo_info(&resolved) {
+    match collect_info(&resolved) {
         Ok(info) => ItemDetail::Repo { resolved, info },
         Err(e) => ItemDetail::Error {
             resolved,
@@ -84,18 +134,24 @@ pub fn inspect_detail(item: &str) -> ItemDetail {
     }
 }
 
-fn collect_repo_info(path: &Path) -> Result<RepoInfo, git2::Error> {
+// ── Internal collection ────────────────────────────────────────────────────
+
+fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
     let repo = Repository::open(path)?;
-    let mut info = RepoInfo::default();
+    let summary = collect_summary(&repo);
+    let mut info = RepoInfo {
+        summary,
+        ..RepoInfo::default()
+    };
 
     if let Ok(head) = repo.head() {
-        // git2 0.21: `shorthand()` returns `Result<&str, Error>` and
-        // `summary()` returns `Result<Option<&str>, Error>` — outer = read
-        // success, inner = UTF-8 validity. Collapse both to plain Option.
+        // git2 0.21: shorthand() returns Result<&str, Error>.
         info.branch = head.shorthand().ok().map(String::from);
+
         if let Ok(commit) = head.peel_to_commit() {
             let short_id = format!("{:.7}", commit.id());
-            let summary = commit
+            // summary() returns Result<Option<&str>, Error>.
+            let summary_text = commit
                 .summary()
                 .ok()
                 .flatten()
@@ -110,19 +166,21 @@ fn collect_repo_info(path: &Path) -> Result<RepoInfo, git2::Error> {
             let when = format_relative_time(commit.time().seconds());
             info.head = Some(HeadInfo {
                 short_id,
-                summary,
+                summary: summary_text,
                 author: author_str,
                 when,
             });
+        }
+
+        // Upstream branch (short form, "origin/main"). git2 0.21:
+        // Reference::name returns Result<&str, Error>.
+        if let Ok(head_name) = head.name() {
+            info.upstream = upstream_short_name(&repo, head_name);
         }
     }
 
     if let Ok(remotes) = repo.remotes() {
         for name in remotes.iter() {
-            // `name` is Option<&str> — None means non-UTF-8 remote name,
-            // which we can't address by name through libgit2's safe API.
-            // Iter yields Result<Option<&str>, git2::Error>: skip both
-            // libgit2 errors and non-UTF-8 remote names.
             let Ok(Some(name)) = name else { continue };
             if let Ok(remote) = repo.find_remote(name) {
                 info.remotes.push(RemoteInfo {
@@ -133,44 +191,89 @@ fn collect_repo_info(path: &Path) -> Result<RepoInfo, git2::Error> {
         }
     }
 
+    Ok(info)
+}
+
+/// Collect the worktree counts and ahead/behind for an opened repo. Used
+/// by both `inspect_summary` (card) and `collect_info` (detail) so the
+/// counts shown in both places always agree.
+fn collect_summary(repo: &Repository) -> RepoSummary {
+    let mut s = RepoSummary::default();
+    populate_worktree(repo, &mut s);
+    populate_ahead_behind(repo, &mut s);
+    s
+}
+
+fn populate_worktree(repo: &Repository, s: &mut RepoSummary) {
     let mut opts = StatusOptions::new();
     opts.include_untracked(true)
         .renames_head_to_index(true)
         .show(StatusShow::IndexAndWorkdir);
-    if let Ok(statuses) = repo.statuses(Some(&mut opts)) {
-        for entry in statuses.iter() {
-            let flags = entry.status();
-            if flags.is_conflicted() {
-                info.worktree.conflicted += 1;
-                continue;
-            }
-            if flags.is_wt_new() {
-                info.worktree.untracked += 1;
-            }
-            if flags.is_wt_modified()
-                || flags.is_wt_deleted()
-                || flags.is_wt_renamed()
-                || flags.is_wt_typechange()
-            {
-                info.worktree.modified += 1;
-            }
-            if flags.is_index_new()
-                || flags.is_index_modified()
-                || flags.is_index_deleted()
-                || flags.is_index_renamed()
-                || flags.is_index_typechange()
-            {
-                info.worktree.staged += 1;
-            }
+    let Ok(statuses) = repo.statuses(Some(&mut opts)) else {
+        return;
+    };
+    for entry in statuses.iter() {
+        let flags = entry.status();
+        if flags.is_conflicted() {
+            s.conflicted += 1;
+            continue;
+        }
+        if flags.is_wt_new() {
+            s.untracked += 1;
+        }
+        if flags.is_wt_modified()
+            || flags.is_wt_deleted()
+            || flags.is_wt_renamed()
+            || flags.is_wt_typechange()
+        {
+            s.modified += 1;
+        }
+        if flags.is_index_new()
+            || flags.is_index_modified()
+            || flags.is_index_deleted()
+            || flags.is_index_renamed()
+            || flags.is_index_typechange()
+        {
+            s.staged += 1;
         }
     }
+}
 
-    Ok(info)
+/// Compute commits ahead/behind the upstream branch. Silently leaves
+/// both at 0 if HEAD is detached, the branch has no upstream configured,
+/// or any libgit2 lookup fails — the card simply shows no ↑/↓ then.
+fn populate_ahead_behind(repo: &Repository, s: &mut RepoSummary) {
+    let Ok(head) = repo.head() else { return };
+    let Some(local_oid) = head.target() else {
+        return;
+    };
+    let Ok(head_name) = head.name() else { return };
+    let Ok(upstream_buf) = repo.branch_upstream_name(head_name) else {
+        return;
+    };
+    let Ok(upstream_name) = std::str::from_utf8(&upstream_buf) else {
+        return;
+    };
+    let Ok(upstream_ref) = repo.find_reference(upstream_name) else {
+        return;
+    };
+    let Some(upstream_oid) = upstream_ref.target() else {
+        return;
+    };
+    if let Ok((ahead, behind)) = repo.graph_ahead_behind(local_oid, upstream_oid) {
+        s.ahead = ahead;
+        s.behind = behind;
+    }
+}
+
+/// `"origin/main"`-style short name for HEAD's upstream, or `None`.
+fn upstream_short_name(repo: &Repository, head_name: &str) -> Option<String> {
+    let buf = repo.branch_upstream_name(head_name).ok()?;
+    let raw = std::str::from_utf8(&buf).ok()?;
+    Some(raw.strip_prefix("refs/remotes/").unwrap_or(raw).to_string())
 }
 
 /// Format a unix-epoch timestamp as a relative time string ("3 days ago").
-/// Avoids the `chrono` dependency — exact dates aren't needed for the
-/// detail view, just a rough recency indicator.
 fn format_relative_time(secs: i64) -> String {
     if secs <= 0 {
         return "unknown".to_string();

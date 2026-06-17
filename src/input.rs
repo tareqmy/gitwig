@@ -19,6 +19,7 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
             KeyCode::Char('e') => app.start_edit(),
             KeyCode::Char('d') => app.request_delete(),
             KeyCode::Char('?') => app.open_help(),
+            KeyCode::Char('r') => app.refresh_selected_status(),
             KeyCode::Enter => app.open_detail(),
             _ => {}
         },

@@ -10,7 +10,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Padding, Paragraph, Wrap};
 
-use crate::repo::{HeadInfo, ItemDetail, RemoteInfo, RepoInfo, WorktreeStatus};
+use crate::repo::{HeadInfo, ItemDetail, RemoteInfo, RepoInfo, RepoSummary};
 use crate::ui::{ACCENT, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style};
 
 const FIELD_INDENT: &str = "  ";
@@ -122,6 +122,10 @@ fn append_repo_body(lines: &mut Vec<Line<'static>>, info: &RepoInfo) {
         ));
     }
 
+    // Upstream + sync
+    lines.push(Line::from(""));
+    append_upstream(lines, info);
+
     // Remotes
     lines.push(Line::from(""));
     if info.remotes.is_empty() {
@@ -138,7 +142,56 @@ fn append_repo_body(lines: &mut Vec<Line<'static>>, info: &RepoInfo) {
 
     // Worktree status
     lines.push(Line::from(""));
-    append_worktree(lines, &info.worktree);
+    append_worktree(lines, &info.summary);
+}
+
+fn append_upstream(lines: &mut Vec<Line<'static>>, info: &RepoInfo) {
+    match &info.upstream {
+        None => {
+            lines.push(field_line(
+                "Upstream",
+                Span::styled("(not configured)", muted_style()),
+            ));
+            lines.push(field_line("Sync", Span::styled("—", muted_style())));
+        }
+        Some(name) => {
+            lines.push(field_line(
+                "Upstream",
+                Span::styled(name.clone(), Style::default().fg(ACCENT)),
+            ));
+            let s = &info.summary;
+            if s.is_synced() {
+                lines.push(field_line(
+                    "Sync",
+                    Span::styled("in sync", Style::default().fg(SUCCESS)),
+                ));
+            } else {
+                let mut spans = Vec::new();
+                if s.ahead > 0 {
+                    spans.push(Span::styled(format!("{} ahead", s.ahead), primary_style()));
+                }
+                if s.behind > 0 {
+                    if !spans.is_empty() {
+                        spans.push(Span::raw(", "));
+                    }
+                    spans.push(Span::styled(
+                        format!("{} behind", s.behind),
+                        Style::default().fg(WARNING),
+                    ));
+                }
+                lines.push(Line::from(
+                    [
+                        vec![
+                            Span::raw(FIELD_INDENT),
+                            Span::styled(label("Sync"), muted_style()),
+                        ],
+                        spans,
+                    ]
+                    .concat(),
+                ));
+            }
+        }
+    }
 }
 
 fn append_head(lines: &mut Vec<Line<'static>>, head: &HeadInfo) {
@@ -162,7 +215,7 @@ fn remote_line(remote: &RemoteInfo) -> Line<'static> {
     ])
 }
 
-fn append_worktree(lines: &mut Vec<Line<'static>>, status: &WorktreeStatus) {
+fn append_worktree(lines: &mut Vec<Line<'static>>, status: &RepoSummary) {
     if status.is_clean() {
         lines.push(field_line(
             "Working",

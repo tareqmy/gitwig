@@ -11,7 +11,7 @@ Twig is a Rust-based Terminal User Interface (TUI) for Git, aiming to provide a 
 ## Tech Stack
 - **Language:** Rust (Edition 2024)
 - **TUI Framework:** `ratatui` (0.30) with the `crossterm_0_29` feature, paired with `crossterm` 0.29 for terminal control and input events.
-- **Git Backend:** `git2` (libgit2 bindings), default features off — used only for the on-demand Detail view, not the cheap per-row status indicator.
+- **Git Backend:** `git2` (libgit2 bindings), default features off — used for both the per-card status indicator (`inspect_summary`) and the on-demand Detail view (`inspect_detail`). Both paths share a single `collect_summary` helper inside `repo.rs`.
 - **Configuration:** TOML based. Editable in-app — the UI persists adds/edits/deletes back to the file it loaded from.
 
 ## Architectural Patterns
@@ -19,7 +19,7 @@ Twig is a Rust-based Terminal User Interface (TUI) for Git, aiming to provide a 
 - **Async Operations:** Long-running Git commands (fetch, clone, large diffs) should not block the UI thread.
 - **Component-based UI:** Use modular widgets for different views (History, Working Tree, Branches).
 - **Modal Input:** Keystroke meaning is mode-dependent (Normal / Adding / Editing / ConfirmDelete / Help). The status bar always reflects the current mode so the user can recover orientation at a glance.
-- **Single-responsibility modules:** `main.rs` (entry) → `app.rs` (state + run loop) → `ui.rs` + `ui_detail.rs` (drawing) → `input.rs` (key dispatch) → `config.rs` (TOML load/save) → `status.rs` (cheap fs inspection) → `repo.rs` (on-demand git2 inspection). Files should stay small; see `.agent/INSTRUCTIONS.md` for the splitting rule.
+- **Single-responsibility modules:** `main.rs` (entry) → `app.rs` (state + run loop) → `ui.rs` + `ui_detail.rs` (drawing) → `input.rs` (key dispatch) → `config.rs` (TOML load/save) → `repo.rs` (all repository inspection: card-level `inspect_summary` + Detail-view `inspect_detail`, sharing a `collect_summary` helper). Files should stay small; see `.agent/INSTRUCTIONS.md` for the splitting rule.
 
 ## Development Workflow
 - Follow the Roadmap in `.agent/ROADMAP.md`.

@@ -14,7 +14,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
 
 use crate::app::{App, ITEM_HEIGHT, Mode, STATUS_HEIGHT};
-use crate::status::ItemStatus;
+use crate::repo::{ItemStatus, RepoSummary};
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 // Colors are kept minimal so the app works on both dark and light terminal
@@ -31,9 +31,10 @@ pub(crate) const SUCCESS: Color = Color::Green;
 pub(crate) const CARD_BORDER: BorderType = BorderType::Rounded;
 
 /// Width of the per-item status zone on the right of each card. Wide
-/// enough to fit "✕ missing" (the longest status label) with a little
-/// breathing room.
-const STATUS_ZONE_WIDTH: u16 = 11;
+/// enough to fit a busy repo's worth of indicators ("● 99+ 99! 99? 99↑")
+/// with a little breathing room. Right-aligned, so it crops on the left
+/// for the unusual case of 3-digit counts on every indicator.
+const STATUS_ZONE_WIDTH: u16 = 22;
 
 /// Marker shown on the left edge of the selected card.
 const SELECTION_MARK: &str = "▌ ";
@@ -66,6 +67,7 @@ const HELP_LINES: &[(&str, &str)] = &[
     ("a", "Add a new item"),
     ("e", "Edit selected item"),
     ("d", "Delete selected item"),
+    ("r", "Refresh status of selected item"),
     ("Esc", "Cancel input, close dialog, or leave detail view"),
     ("Backspace", "Erase character while typing"),
     ("?", "Toggle this help overlay"),
@@ -198,30 +200,61 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         ]);
         f.render_widget(Paragraph::new(name_line), card_chunks[0]);
 
-        let status = app
-            .statuses
-            .get(actual_index)
-            .copied()
-            .unwrap_or(ItemStatus::Missing);
+        let fallback = ItemStatus::Missing;
+        let status = app.statuses.get(actual_index).unwrap_or(&fallback);
         let status_line = status_indicator_line(status).alignment(Alignment::Right);
         f.render_widget(Paragraph::new(status_line), card_chunks[1]);
     }
 }
 
-/// Renders the per-item status as a colored symbol followed by a label.
-/// Colors are chosen to read on both light and dark terminals (Green,
-/// Yellow, and Red are mid-luminance ANSI colors).
-fn status_indicator_line(status: ItemStatus) -> Line<'static> {
-    let (symbol, color, label) = match status {
-        ItemStatus::GitRepo => ("●", SUCCESS, "git"),
-        ItemStatus::Directory => ("○", WARNING, "dir"),
-        ItemStatus::Missing => ("✕", DANGER, "missing"),
-    };
-    Line::from(vec![
-        Span::styled(symbol, Style::default().fg(color)),
-        Span::raw(" "),
-        Span::styled(label, muted_style()),
-    ])
+/// Renders the per-item status as a colored symbol + (for git repos) a
+/// compact set of `N+` (staged), `N!` (modified), `N?` (untracked),
+/// `N↑` (commits ahead), `N↓` (commits behind) suffixes. Only non-zero
+/// counts are shown so the indicator stays compact for the common case.
+fn status_indicator_line(status: &ItemStatus) -> Line<'static> {
+    match status {
+        ItemStatus::Missing => Line::from(vec![
+            Span::styled("✕", Style::default().fg(DANGER)),
+            Span::raw(" "),
+            Span::styled("missing", muted_style()),
+        ]),
+        ItemStatus::Directory => Line::from(vec![
+            Span::styled("○", Style::default().fg(WARNING)),
+            Span::raw(" "),
+            Span::styled("dir", muted_style()),
+        ]),
+        ItemStatus::GitRepo(None) => Line::from(vec![
+            Span::styled("●", Style::default().fg(SUCCESS)),
+            Span::raw(" "),
+            Span::styled("?", muted_style()),
+        ]),
+        ItemStatus::GitRepo(Some(summary)) => repo_indicator_line(summary),
+    }
+}
+
+fn repo_indicator_line(summary: &RepoSummary) -> Line<'static> {
+    let mut spans = vec![Span::styled("●", Style::default().fg(SUCCESS))];
+    if summary.unchanged() {
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled("clean", muted_style()));
+        return Line::from(spans);
+    }
+    // Each (count, symbol, style) is rendered only if count > 0. The
+    // ordering matches the Detail view's worktree section for consistency.
+    let parts: [(usize, &str, Style); 5] = [
+        (summary.staged, "+", Style::default().fg(ACCENT)),
+        (summary.modified, "!", Style::default().fg(WARNING)),
+        (summary.untracked, "?", muted_style()),
+        (summary.ahead, "↑", primary_style()),
+        (summary.behind, "↓", Style::default().fg(WARNING)),
+    ];
+    for (count, symbol, style) in parts {
+        if count > 0 {
+            spans.push(Span::raw(" "));
+            spans.push(Span::styled(format!("{}{}", count, symbol), style));
+        }
+    }
+    Line::from(spans)
 }
 
 fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
@@ -319,6 +352,7 @@ fn normal_status_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
         ("a", "add"),
         ("e", "edit"),
         ("d", "delete"),
+        ("r", "refresh"),
         ("?", "help"),
         ("q", "quit"),
     ];
@@ -439,6 +473,40 @@ fn draw_help_overlay(f: &mut Frame, area: Rect) {
         DANGER,
         "missing",
         "Path does not exist or is not a directory",
+    ));
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![
+        Span::raw("  "),
+        Span::styled("Repo state suffixes", primary_style()),
+    ]));
+    let pad_suffix = |sym: &'static str, style: Style, desc: &'static str| {
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(format!("N{}", sym), style),
+            Span::raw("        "),
+            Span::raw(desc),
+        ])
+    };
+    lines.push(pad_suffix(
+        "+",
+        Style::default().fg(ACCENT),
+        "files staged for commit",
+    ));
+    lines.push(pad_suffix(
+        "!",
+        Style::default().fg(WARNING),
+        "files modified but not staged",
+    ));
+    lines.push(pad_suffix("?", muted_style(), "untracked files"));
+    lines.push(pad_suffix(
+        "↑",
+        primary_style(),
+        "commits ahead of upstream (need push)",
+    ));
+    lines.push(pad_suffix(
+        "↓",
+        Style::default().fg(WARNING),
+        "commits behind upstream",
     ));
     lines.push(Line::from(""));
 

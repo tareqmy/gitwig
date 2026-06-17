@@ -15,8 +15,7 @@ use ratatui::layout::{Margin, Rect};
 
 use crate::config::{Config, save_config};
 use crate::input;
-use crate::repo::{self, ItemDetail};
-use crate::status::{self, ItemStatus};
+use crate::repo::{self, ItemDetail, ItemStatus};
 use crate::ui;
 
 /// Height of each item row inside the bordered list area.
@@ -62,7 +61,11 @@ pub struct App {
 
 impl App {
     pub fn new(config: Config, config_path: PathBuf) -> Self {
-        let statuses = config.items.iter().map(|s| status::inspect(s)).collect();
+        let statuses = config
+            .items
+            .iter()
+            .map(|s| repo::inspect_summary(s))
+            .collect();
         Self {
             config,
             config_path,
@@ -134,6 +137,21 @@ impl App {
         self.mode = Mode::Help;
     }
 
+    /// Re-runs the cheap filesystem inspection for the selected item and
+    /// updates its status indicator. Surfaces a transient "Refreshed" /
+    /// "Refresh failed" message in the status bar so the user knows the
+    /// keystroke landed (the indicator alone may not visibly change).
+    pub fn refresh_selected_status(&mut self) {
+        let Some(item) = self.config.items.get(self.selected_index) else {
+            return;
+        };
+        let new_status = repo::inspect_summary(item);
+        if let Some(slot) = self.statuses.get_mut(self.selected_index) {
+            *slot = new_status;
+        }
+        self.status_message = Some("Refreshed".to_string());
+    }
+
     /// Snapshot the selected item's filesystem/git state and enter the
     /// Detail view. The snapshot is held in `current_detail` for as long
     /// as the view is open; closing clears it.
@@ -165,7 +183,7 @@ impl App {
     pub fn commit_add(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
         if !trimmed.is_empty() {
-            self.statuses.push(status::inspect(&trimmed));
+            self.statuses.push(repo::inspect_summary(&trimmed));
             self.config.items.push(trimmed);
             self.selected_index = self.config.items.len() - 1;
             self.persist("Saved");
@@ -181,7 +199,7 @@ impl App {
         {
             *slot = trimmed.clone();
             if let Some(slot) = self.statuses.get_mut(self.selected_index) {
-                *slot = status::inspect(&trimmed);
+                *slot = repo::inspect_summary(&trimmed);
             }
             self.persist("Saved");
         }
