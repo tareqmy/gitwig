@@ -1,0 +1,39 @@
+# Twig Roadmap
+
+This roadmap outlines the progression of Twig from a basic list viewer to a full-featured Git TUI.
+
+## Phase 1: Foundation (Current)
+- [x] Basic TUI setup with `crossterm` and `tui-rs`.
+- [x] Configuration loading (TOML).
+- [ ] **Priority:** Migrate to `ratatui` for modern TUI features and active maintenance.
+- [ ] **Priority:** Integrate `git2-rs` and detect if the current directory is a Git repository.
+
+## Phase 2: Working Tree & Status
+- [ ] Display list of changed files (staged and unstaged).
+- [ ] Support staging/unstaging individual files (shortcut `s` and `u`).
+- [ ] Basic commit functionality (shortcut `c`).
+- [ ] Side-by-side or unified diff view for the selected file.
+
+## Phase 3: History & Log
+- [ ] Display Git commit log with author, date, and message.
+- [ ] Navigate through history.
+- [ ] View diff for a specific commit.
+- [ ] Branch visualization (graph view).
+
+## Phase 4: Branch Management
+- [ ] List local and remote branches.
+- [ ] Checkout branches (shortcut `o`).
+- [ ] Create and delete branches.
+- [ ] Merge and Rebase (basic support).
+
+## Phase 5: Remotes & Sync
+- [ ] Fetch, Pull, and Push operations.
+- [ ] Manage multiple remotes.
+- [ ] Progress bars for network operations.
+
+## Phase 6: Advanced Features
+- [ ] Stashing (list, apply, drop, pop).
+- [ ] Interactive Rebase.
+- [ ] Conflict resolution UI.
+- [ ] Custom themes and keybindings.
+- [ ] Search and filter in history and file lists.
