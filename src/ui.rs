@@ -91,6 +91,8 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_coun
                 .unwrap_or("");
             crate::ui_detail::draw(f, item_name, detail, content_area);
         }
+    } else if app.config.items.is_empty() {
+        draw_empty_state(f, content_area);
     } else {
         let list_chunks = item_chunks(content_area, visible_count);
         draw_items(f, app, &list_chunks);
@@ -205,6 +207,63 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         let status_line = status_indicator_line(status).alignment(Alignment::Right);
         f.render_widget(Paragraph::new(status_line), card_chunks[1]);
     }
+}
+
+/// Renders a centered empty-state message when no items are in the list.
+fn draw_empty_state(f: &mut Frame, area: Rect) {
+    // Vertical: push content to the upper-middle third of the area.
+    let vert = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage(25),
+            Constraint::Min(0),
+            Constraint::Percentage(40),
+        ])
+        .split(area);
+
+    let lines = vec![
+        Line::from(vec![Span::styled(
+            "No repositories tracked yet.",
+            primary_style(),
+        )]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("Press  "),
+            Span::styled("a", accent_style()),
+            Span::raw("  to add a repository or directory path"),
+        ]),
+        Line::from(vec![
+            Span::raw("Press  "),
+            Span::styled("e", accent_style()),
+            Span::raw("  to edit the selected item"),
+        ]),
+        Line::from(vec![
+            Span::raw("Press  "),
+            Span::styled("d", accent_style()),
+            Span::raw("  to delete the selected item"),
+        ]),
+        Line::from(vec![
+            Span::raw("Press  "),
+            Span::styled("?", accent_style()),
+            Span::raw("  to see all shortcuts"),
+        ]),
+        Line::from(vec![
+            Span::raw("Press  "),
+            Span::styled("q", accent_style()),
+            Span::raw("  to quit"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Tip: ", muted_style()),
+            Span::styled(
+                "paths support ~ expansion  (e.g. ~/code/my-project)",
+                muted_style(),
+            ),
+        ]),
+    ];
+
+    let para = Paragraph::new(lines).alignment(Alignment::Center);
+    f.render_widget(para, vert[1]);
 }
 
 /// Renders the per-item status as a colored symbol + (for git repos) a
