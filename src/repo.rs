@@ -99,6 +99,14 @@ pub struct RemoteInfo {
     pub url: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct CommitEntry {
+    pub id: String,
+    pub author: String,
+    pub when: String,
+    pub summary: String,
+}
+
 /// One changed file in the working tree or index.
 #[derive(Debug, Clone)]
 pub struct FileEntry {
@@ -170,6 +178,41 @@ pub fn inspect_detail(item: &str) -> ItemDetail {
             message: e.to_string(),
         },
     }
+}
+
+/// Retrieve the last `limit` commits for a repository.
+pub fn get_commits(item: &str, limit: usize) -> Result<Vec<CommitEntry>, git2::Error> {
+    let path = expand_tilde(item);
+    let repo = Repository::open(&path)?;
+    let mut walk = repo.revwalk()?;
+    if walk.push_head().is_err() {
+        return Ok(Vec::new());
+    }
+    walk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?;
+
+    let mut commits = Vec::new();
+    for id in walk.take(limit) {
+        let oid = id?;
+        if let Ok(commit) = repo.find_commit(oid) {
+            let short_id = format!("{:.7}", commit.id());
+            let summary = commit
+                .summary()
+                .ok()
+                .flatten()
+                .unwrap_or("(no commit message)")
+                .to_string();
+            let author = commit.author();
+            let author_str = author.name().unwrap_or("?").to_string();
+            let when = format_relative_time(commit.time().seconds());
+            commits.push(CommitEntry {
+                id: short_id,
+                author: author_str,
+                when,
+                summary,
+            });
+        }
+    }
+    Ok(commits)
 }
 
 // ── Internal collection ────────────────────────────────────────────────────

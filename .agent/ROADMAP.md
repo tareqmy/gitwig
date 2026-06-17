@@ -22,7 +22,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [ ] Side-by-side or unified diff view for the selected file.
 
 ## Phase 3: History & Log
-- [ ] Display Git commit log with author, date, and message.
+- [x] Display Git commit log with author, date, and message.
 - [ ] Navigate through history.
 - [ ] View diff for a specific commit.
 - [ ] Branch visualization (graph view).
