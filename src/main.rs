@@ -2,24 +2,24 @@
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 
 // Standard library imports
 use std::{env, error::Error, io, path::PathBuf};
 
-// tui-rs is used for terminal-based user interfaces
-use tui::{
+// ratatui is used for terminal-based user interfaces
+use ratatui::{
+    Terminal,
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, Paragraph},
-    Terminal,
 };
 
 // Custom config module
 mod config;
-use crate::config::{load_config, Config};
+use crate::config::{Config, load_config};
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Enable raw mode to capture input without line buffering
@@ -60,19 +60,23 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 /// Main application loop
-fn run_app<B: tui::backend::Backend>(
+fn run_app<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     config: Config,
-) -> io::Result<()> {
+) -> Result<(), Box<dyn Error>>
+where
+    <B as ratatui::backend::Backend>::Error: 'static,
+{
     let mut selected_index: usize = 0; // Currently selected item index
-    let mut scroll_top: usize = 0;     // Index of the topmost visible item
-    const ITEM_HEIGHT: u16 = 3;        // Height of each item block in rows
-    const STATUS_HEIGHT: u16 = 1;      // Height reserved for the status/help bar
+    let mut scroll_top: usize = 0; // Index of the topmost visible item
+    const ITEM_HEIGHT: u16 = 3; // Height of each item block in rows
+    const STATUS_HEIGHT: u16 = 1; // Height reserved for the status/help bar
 
     loop {
         // Determine available screen area
         let size = terminal.size()?;
-        let inner_area = size.inner(&tui::layout::Margin {
+        let area = Rect::new(0, 0, size.width, size.height);
+        let inner_area = area.inner(Margin {
             vertical: 1,
             horizontal: 1,
         });
@@ -94,7 +98,7 @@ fn run_app<B: tui::backend::Backend>(
                 .title("Twig")
                 .borders(Borders::ALL)
                 .style(Style::default().fg(Color::White));
-            f.render_widget(outer_block, size);
+            f.render_widget(outer_block, area);
 
             // Slice visible items based on scroll
             let visible_items = &config.items
@@ -115,7 +119,9 @@ fn run_app<B: tui::backend::Backend>(
 
                 // Highlight the selected item
                 let style = if actual_index == selected_index {
-                    Style::default().fg(Color::Black).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(Color::Black)
+                        .add_modifier(Modifier::BOLD)
                 } else {
                     Style::default().fg(Color::Gray).add_modifier(Modifier::DIM)
                 };
@@ -130,8 +136,11 @@ fn run_app<B: tui::backend::Backend>(
 
             // Status/help bar at the bottom
             let status_text = "[↑/↓]: Navigate  [q]: Quit";
-            let status = Paragraph::new(status_text)
-                .style(Style::default().fg(Color::Blue).add_modifier(Modifier::ITALIC));
+            let status = Paragraph::new(status_text).style(
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(Modifier::ITALIC),
+            );
             f.render_widget(status, *chunks.last().unwrap());
         })?;
 

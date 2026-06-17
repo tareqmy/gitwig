@@ -5,7 +5,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 ## Phase 1: Foundation (Current)
 - [x] Basic TUI setup with `crossterm` and `tui-rs`.
 - [x] Configuration loading (TOML).
-- [ ] **Priority:** Migrate to `ratatui` for modern TUI features and active maintenance.
+- [x] Migrate to `ratatui` (0.30) for modern TUI features and active maintenance.
 - [ ] **Priority:** Integrate `git2-rs` and detect if the current directory is a Git repository.
 
 ## Phase 2: Working Tree & Status

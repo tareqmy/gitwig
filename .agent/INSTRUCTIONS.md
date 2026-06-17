@@ -14,9 +14,18 @@ Welcome, Agent. You are tasked with helping build **Twig**, a high-performance G
 4. **TUI Excellence:** Aim for a responsive UI. Avoid blocking the main thread with heavy Git operations.
 
 ## Working with the Codebase
-- **Migration:** We are migrating from `tui-rs` to `ratatui`. If you see `tui` imports, consider if it's time to refactor to `ratatui`.
+- **TUI Framework:** Use `ratatui` (currently 0.30) with the `crossterm_0_29` feature. Do not reintroduce `tui-rs` imports. Note that ratatui 0.30's `Backend` trait uses an associated `Error` type (not `io::Error`) — return `Result<(), Box<dyn Error>>` from functions that propagate it, with a `where <B as Backend>::Error: 'static` bound where needed.
 - **Git Integration:** Use `git2-rs` for most operations. For complex things like interactive rebase, we may shell out to `git`.
 - **Modularity:** Keep UI logic separate from Git logic. Create traits or structs to abstract Git operations.
+
+## Keeping Docs In Sync
+- **Whenever you change code, update the relevant documentation in the same task.** The docs are the contract for future agents and contributors — stale docs are worse than no docs.
+- `GEMINI.md` — update when the tech stack, architectural patterns, or development workflow change.
+- `.agent/ROADMAP.md` — check off items as they ship; add new ones as scope shifts; never leave a completed feature unchecked.
+- `.agent/INSTRUCTIONS.md` — update when codebase conventions, framework guidance, or working rules change.
+- `.agent/STYLE_GUIDE.md` — update when coding standards, naming, error-handling patterns, or TUI patterns change.
+- `README.md` — update when user-facing behavior, install steps, or CLI surface change.
+- If a change touches multiple concerns, update each affected doc. If you are unsure where something belongs, add it where a future agent is most likely to look.
 
 ## Communication
 - Be concise.

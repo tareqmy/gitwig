@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde::Deserialize;
 use toml;

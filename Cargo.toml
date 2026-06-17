@@ -15,7 +15,7 @@ keywords = ["git", "cli", "terminal", "tui", "rust"]
 
 [dependencies]
 crossterm = "0.29.0"
-tui = "0.19"
+ratatui = { version = "0.30", features = ["crossterm_0_29"] }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
 dirs = "6.0.0"

@@ -10,7 +10,7 @@ Twig is a Rust-based Terminal User Interface (TUI) for Git, aiming to provide a 
 
 ## Tech Stack
 - **Language:** Rust (Edition 2024)
-- **TUI Framework:** Currently `tui-rs`, but migrating to `ratatui` is a priority.
+- **TUI Framework:** `ratatui` (0.30) with the `crossterm_0_29` feature, paired with `crossterm` 0.29 for terminal control and input events.
 - **Git Backend:** To be decided (prefer `git2-rs` or `gix`).
 - **Configuration:** TOML based.
 
