@@ -14,6 +14,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
 
 use crate::app::{App, ITEM_HEIGHT, Mode, STATUS_HEIGHT};
+use crate::status::ItemStatus;
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 // Colors are kept minimal so the app works on both dark and light terminal
@@ -26,7 +27,13 @@ use crate::app::{App, ITEM_HEIGHT, Mode, STATUS_HEIGHT};
 const ACCENT: Color = Color::Cyan;
 const WARNING: Color = Color::Yellow;
 const DANGER: Color = Color::Red;
+const SUCCESS: Color = Color::Green;
 const CARD_BORDER: BorderType = BorderType::Rounded;
+
+/// Width of the per-item status zone on the right of each card. Wide
+/// enough to fit "✕ missing" (the longest status label) with a little
+/// breathing room.
+const STATUS_ZONE_WIDTH: u16 = 11;
 
 /// Marker shown on the left edge of the selected card.
 const SELECTION_MARK: &str = "▌ ";
@@ -144,20 +151,51 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             (UNSELECTED_INDENT, Style::default(), Style::default())
         };
 
-        let line = Line::from(vec![
+        // Render the block first so we can split its inner area into two
+        // horizontal zones (name on the left, status indicator on the right).
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER)
+            .border_style(border_style)
+            .padding(Padding::horizontal(1));
+        let inner = block.inner(chunks[i]);
+        f.render_widget(block, chunks[i]);
+
+        let card_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Min(0), Constraint::Length(STATUS_ZONE_WIDTH)])
+            .split(inner);
+
+        let name_line = Line::from(vec![
             Span::styled(mark, mark_style),
             Span::styled(item.as_str(), text_style),
         ]);
+        f.render_widget(Paragraph::new(name_line), card_chunks[0]);
 
-        let card = Paragraph::new(line).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_type(CARD_BORDER)
-                .border_style(border_style)
-                .padding(Padding::horizontal(1)),
-        );
-        f.render_widget(card, chunks[i]);
+        let status = app
+            .statuses
+            .get(actual_index)
+            .copied()
+            .unwrap_or(ItemStatus::Missing);
+        let status_line = status_indicator_line(status).alignment(Alignment::Right);
+        f.render_widget(Paragraph::new(status_line), card_chunks[1]);
     }
+}
+
+/// Renders the per-item status as a colored symbol followed by a label.
+/// Colors are chosen to read on both light and dark terminals (Green,
+/// Yellow, and Red are mid-luminance ANSI colors).
+fn status_indicator_line(status: ItemStatus) -> Line<'static> {
+    let (symbol, color, label) = match status {
+        ItemStatus::GitRepo => ("●", SUCCESS, "git"),
+        ItemStatus::Directory => ("○", WARNING, "dir"),
+        ItemStatus::Missing => ("✕", DANGER, "missing"),
+    };
+    Line::from(vec![
+        Span::styled(symbol, Style::default().fg(color)),
+        Span::raw(" "),
+        Span::styled(label, muted_style()),
+    ])
 }
 
 fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
@@ -321,7 +359,7 @@ fn draw_help_overlay(f: &mut Frame, area: Rect) {
         .max()
         .unwrap_or(0);
 
-    let mut lines: Vec<Line> = Vec::with_capacity(HELP_LINES.len() + 2);
+    let mut lines: Vec<Line> = Vec::with_capacity(HELP_LINES.len() + 8);
     lines.push(Line::from(""));
     for (key, desc) in HELP_LINES {
         let padded_key = format!("{:>width$}", key, width = key_width);
@@ -332,6 +370,38 @@ fn draw_help_overlay(f: &mut Frame, area: Rect) {
             Span::raw((*desc).to_string()),
         ]));
     }
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![
+        Span::raw("  "),
+        Span::styled("Status indicators", primary_style()),
+    ]));
+    let pad_symbol = |sym: &'static str, color: Color, label: &'static str, desc: &'static str| {
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(sym, Style::default().fg(color)),
+            Span::raw(" "),
+            Span::styled(format!("{:<8}", label), muted_style()),
+            Span::raw(desc),
+        ])
+    };
+    lines.push(pad_symbol(
+        "●",
+        SUCCESS,
+        "git",
+        "Directory is a git repository",
+    ));
+    lines.push(pad_symbol(
+        "○",
+        WARNING,
+        "dir",
+        "Directory exists but is not a git repo",
+    ));
+    lines.push(pad_symbol(
+        "✕",
+        DANGER,
+        "missing",
+        "Path does not exist or is not a directory",
+    ));
     lines.push(Line::from(""));
 
     let help_block = Block::default()

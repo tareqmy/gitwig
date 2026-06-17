@@ -8,7 +8,8 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Migrate to `ratatui` (0.30) for modern TUI features and active maintenance.
 - [x] In-app config editing — add/edit/delete items with `a`/`e`/`d`, persisted back to the loaded config file.
 - [x] In-app help overlay — `?` toggles a centered popup listing every shortcut.
-- [ ] **Priority:** Integrate `git2-rs` and detect if the current directory is a Git repository.
+- [x] Per-item filesystem status indicator (missing / directory / git repo) using a lightweight `.git`-existence check; supports `~` expansion.
+- [ ] **Priority:** Integrate `git2-rs` for richer repo introspection (branch, dirty/clean, ahead/behind, last commit). The current indicator covers presence only.
 
 ## Phase 2: Working Tree & Status
 - [ ] Display list of changed files (staged and unstaged).

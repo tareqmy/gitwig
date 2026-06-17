@@ -15,6 +15,7 @@ use ratatui::layout::{Margin, Rect};
 
 use crate::config::{Config, save_config};
 use crate::input;
+use crate::status::{self, ItemStatus};
 use crate::ui;
 
 /// Height of each item row inside the bordered list area.
@@ -42,6 +43,9 @@ pub enum Mode {
 pub struct App {
     pub config: Config,
     pub config_path: PathBuf,
+    /// Filesystem classification per item, parallel to `config.items`.
+    /// Recomputed on add/edit/delete so it never drifts from the list.
+    pub statuses: Vec<ItemStatus>,
     pub selected_index: usize,
     pub scroll_top: usize,
     pub mode: Mode,
@@ -51,9 +55,11 @@ pub struct App {
 
 impl App {
     pub fn new(config: Config, config_path: PathBuf) -> Self {
+        let statuses = config.items.iter().map(|s| status::inspect(s)).collect();
         Self {
             config,
             config_path,
+            statuses,
             selected_index: 0,
             scroll_top: 0,
             mode: Mode::Normal,
@@ -136,6 +142,7 @@ impl App {
     pub fn commit_add(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
         if !trimmed.is_empty() {
+            self.statuses.push(status::inspect(&trimmed));
             self.config.items.push(trimmed);
             self.selected_index = self.config.items.len() - 1;
             self.persist("Saved");
@@ -149,7 +156,10 @@ impl App {
         if !trimmed.is_empty()
             && let Some(slot) = self.config.items.get_mut(self.selected_index)
         {
-            *slot = trimmed;
+            *slot = trimmed.clone();
+            if let Some(slot) = self.statuses.get_mut(self.selected_index) {
+                *slot = status::inspect(&trimmed);
+            }
             self.persist("Saved");
         }
         self.input_buffer.clear();
@@ -159,6 +169,9 @@ impl App {
     pub fn confirm_delete(&mut self) {
         if self.selected_index < self.config.items.len() {
             self.config.items.remove(self.selected_index);
+            if self.selected_index < self.statuses.len() {
+                self.statuses.remove(self.selected_index);
+            }
             self.persist("Deleted");
         }
         self.mode = Mode::Normal;

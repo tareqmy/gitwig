@@ -15,6 +15,7 @@
 - Fullscreen terminal UI using `ratatui` and `crossterm`
 - Config-driven layout using `config.toml`
 - Add / edit / delete items directly from the UI — changes persist back to the config file
+- Per-item status indicators — see at a glance whether each item is a git repo, a plain directory, or missing
 - Bordered items displayed inside a main border
 - Mode-aware status bar that always shows the relevant shortcuts
 
@@ -48,6 +49,16 @@ The bottom status bar shows a colored mode badge that mirrors what is happening:
 - **Cyan `HELP`** — the shortcut overlay is open.
 
 The selected item is marked with a left-edge `▌` accent, a colored border, and bold text. In `ADDING` and `EDITING` modes the real terminal cursor sits at the end of your input so you can see exactly where the next character will land.
+
+## 📂 Item status indicators
+
+Each card shows a colored symbol on the right reflecting the item's filesystem state:
+
+- `● git` — the item is a directory containing a `.git` entry (a git repository, worktree, or submodule).
+- `○ dir` — the item is a directory, but not a git repository.
+- `✕ missing` — the item is not a directory on this machine (doesn't exist, is a file, or isn't accessible).
+
+Items support `~` and `~/...` expansion, so `~/code/twig` resolves to your home directory. Statuses are recomputed only when you add, edit, or delete an item — they are not polled in the background, so changes you make outside the app won't be reflected until you re-launch.
 
 After every successful add / edit / delete, the status bar briefly shows `Saved` or `Deleted`. If the write fails, the status bar shows `Save failed: <reason>` instead — your in-memory list still reflects the change, but the file on disk does not.
 
