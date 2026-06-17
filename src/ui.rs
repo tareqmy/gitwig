@@ -11,9 +11,7 @@ use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{
-    Block, BorderType, Borders, Cell, Clear, Padding, Paragraph, Row, Table, Wrap,
-};
+use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
 
 use crate::app::{App, ITEM_HEIGHT, Mode, STATUS_HEIGHT};
 use crate::repo::{ItemStatus, RepoSummary};
@@ -98,15 +96,7 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_coun
     } else if app.config.items.is_empty() {
         draw_empty_state(f, content_area);
     } else {
-        // Split content_area horizontally
-        let main_chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-            .split(content_area);
-
-        draw_commits_table(f, app, main_chunks[0]);
-
-        let list_chunks = item_chunks(main_chunks[1], visible_count);
+        let list_chunks = item_chunks(content_area, visible_count);
         draw_items(f, app, &list_chunks);
     }
 
@@ -115,85 +105,6 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_coun
     if matches!(app.mode, Mode::Help) {
         draw_help_overlay(f, area);
     }
-}
-
-fn draw_commits_table(f: &mut Frame, app: &App, area: Rect) {
-    let status = app.statuses.get(app.selected_index);
-    let is_git = matches!(status, Some(ItemStatus::GitRepo(_)));
-
-    let block = Block::default()
-        .borders(Borders::BOTTOM)
-        .border_style(muted_style())
-        .title(Line::from(vec![
-            Span::raw(" "),
-            Span::styled("Recent Commits", primary_style()),
-            Span::raw(" "),
-        ]));
-
-    if !is_git {
-        let text = vec![
-            Line::from(""),
-            Line::from(Span::styled("Not a Git repository", muted_style())),
-        ];
-        let paragraph = Paragraph::new(text)
-            .alignment(Alignment::Center)
-            .block(block);
-        f.render_widget(paragraph, area);
-        return;
-    }
-
-    if app.selected_commits.is_empty() {
-        let text = vec![
-            Line::from(""),
-            Line::from(Span::styled(
-                "No commits yet / empty repository",
-                muted_style(),
-            )),
-        ];
-        let paragraph = Paragraph::new(text)
-            .alignment(Alignment::Center)
-            .block(block);
-        f.render_widget(paragraph, area);
-        return;
-    }
-
-    let header = Row::new(vec![
-        Cell::from("ID"),
-        Cell::from("Author"),
-        Cell::from("Date"),
-        Cell::from("Summary"),
-    ])
-    .style(Style::default().add_modifier(Modifier::BOLD).fg(ACCENT));
-
-    let rows: Vec<Row> = app
-        .selected_commits
-        .iter()
-        .map(|commit| {
-            Row::new(vec![
-                Cell::from(Span::styled(
-                    commit.id.clone(),
-                    Style::default().fg(WARNING),
-                )),
-                Cell::from(Span::styled(commit.author.clone(), Style::default())),
-                Cell::from(Span::styled(commit.when.clone(), muted_style())),
-                Cell::from(Span::styled(commit.summary.clone(), Style::default())),
-            ])
-        })
-        .collect();
-
-    let widths = [
-        Constraint::Length(9),  // "c7a45e2" + 2 padding
-        Constraint::Length(18), // Author name
-        Constraint::Length(16), // Date
-        Constraint::Min(20),    // Summary
-    ];
-
-    let table = Table::new(rows, widths)
-        .header(header)
-        .block(block)
-        .column_spacing(2);
-
-    f.render_widget(table, area);
 }
 
 fn draw_outer_frame(f: &mut Frame, area: Rect) {

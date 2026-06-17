@@ -15,7 +15,7 @@ use ratatui::layout::{Margin, Rect};
 
 use crate::config::{Config, save_config};
 use crate::input;
-use crate::repo::{self, CommitEntry, ItemDetail, ItemStatus};
+use crate::repo::{self, ItemDetail, ItemStatus};
 use crate::ui;
 
 /// Height of each item row inside the bordered list area.
@@ -59,8 +59,6 @@ pub struct App {
     /// detail snapshot is taken once on open (not re-fetched per frame)
     /// so opening a slow repo only costs one git2 call.
     pub current_detail: Option<ItemDetail>,
-    /// Cache of recent commits for the currently selected repository.
-    pub selected_commits: Vec<CommitEntry>,
 }
 
 impl App {
@@ -70,7 +68,7 @@ impl App {
             .iter()
             .map(|s| repo::inspect_summary(s))
             .collect();
-        let mut app = Self {
+        Self {
             config,
             config_path,
             statuses,
@@ -80,32 +78,15 @@ impl App {
             input_buffer: String::new(),
             status_message: None,
             current_detail: None,
-            selected_commits: Vec::new(),
-        };
-        app.update_selected_commits();
-        app
-    }
-
-    /// Refresh the cached commits for the currently selected repository.
-    pub fn update_selected_commits(&mut self) {
-        self.selected_commits.clear();
-        if let Some(item) = self.config.items.get(self.selected_index) {
-            if let Ok(commits) = repo::get_commits(item, 50) {
-                self.selected_commits = commits;
-            }
         }
     }
 
     /// Ensure `selected_index` is a valid index into `config.items`.
     pub fn clamp_selection(&mut self) {
-        let old = self.selected_index;
         if self.config.items.is_empty() {
             self.selected_index = 0;
         } else if self.selected_index >= self.config.items.len() {
             self.selected_index = self.config.items.len() - 1;
-        }
-        if self.selected_index != old {
-            self.update_selected_commits();
         }
     }
 
@@ -118,7 +99,6 @@ impl App {
     }
 
     pub fn move_down(&mut self, visible_count: usize) {
-        let old = self.selected_index;
         if self.selected_index + 1 < self.config.items.len() {
             self.selected_index += 1;
             let bottom = self.scroll_top + visible_count;
@@ -126,21 +106,14 @@ impl App {
                 self.scroll_top = self.scroll_top.saturating_add(1);
             }
         }
-        if self.selected_index != old {
-            self.update_selected_commits();
-        }
     }
 
     pub fn move_up(&mut self) {
-        let old = self.selected_index;
         if self.selected_index > 0 {
             self.selected_index -= 1;
             if self.selected_index < self.scroll_top {
                 self.scroll_top = self.scroll_top.saturating_sub(1);
             }
-        }
-        if self.selected_index != old {
-            self.update_selected_commits();
         }
     }
 
@@ -148,25 +121,17 @@ impl App {
     /// The scroll window advances by the same amount so the newly selected
     /// item is always at the top of the visible area.
     pub fn page_down(&mut self, visible_count: usize) {
-        let old = self.selected_index;
         let last = self.config.items.len().saturating_sub(1);
         self.selected_index = (self.selected_index + visible_count).min(last);
         // Align scroll so the selection lands at the top of the viewport,
         // then let clamp_scroll cap it at the list end.
         self.scroll_top = self.selected_index;
-        if self.selected_index != old {
-            self.update_selected_commits();
-        }
     }
 
     /// Jump the selection backward by one page (= `visible_count` items).
     pub fn page_up(&mut self, visible_count: usize) {
-        let old = self.selected_index;
         self.selected_index = self.selected_index.saturating_sub(visible_count);
         self.scroll_top = self.selected_index;
-        if self.selected_index != old {
-            self.update_selected_commits();
-        }
     }
 
     pub fn start_add(&mut self) {
@@ -203,7 +168,6 @@ impl App {
         if let Some(slot) = self.statuses.get_mut(self.selected_index) {
             *slot = new_status;
         }
-        self.update_selected_commits();
         self.status_message = Some("Refreshed".to_string());
     }
 
@@ -241,7 +205,6 @@ impl App {
             self.statuses.push(repo::inspect_summary(&trimmed));
             self.config.items.push(trimmed);
             self.selected_index = self.config.items.len() - 1;
-            self.update_selected_commits();
             self.persist("Saved");
         }
         self.input_buffer.clear();
@@ -257,7 +220,6 @@ impl App {
             if let Some(slot) = self.statuses.get_mut(self.selected_index) {
                 *slot = repo::inspect_summary(&trimmed);
             }
-            self.update_selected_commits();
             self.persist("Saved");
         }
         self.input_buffer.clear();
@@ -270,7 +232,6 @@ impl App {
             if self.selected_index < self.statuses.len() {
                 self.statuses.remove(self.selected_index);
             }
-            self.update_selected_commits();
             self.persist("Deleted");
         }
         self.mode = Mode::Normal;
@@ -308,14 +269,9 @@ where
             horizontal: 1,
         });
 
-        let is_split = !matches!(app.mode, Mode::Detail) && !app.config.items.is_empty();
         let available_height = inner_area.height.saturating_sub(STATUS_HEIGHT);
-        let list_height = if is_split {
-            available_height / 2
-        } else {
-            available_height
-        };
-        let visible_count = (list_height / ITEM_HEIGHT).min(app.config.items.len() as u16) as usize;
+        let visible_count =
+            (available_height / ITEM_HEIGHT).min(app.config.items.len() as u16) as usize;
         app.clamp_scroll(visible_count);
 
         terminal.draw(|f| ui::draw(f, &app, area, inner_area, visible_count))?;

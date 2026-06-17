@@ -83,6 +83,8 @@ pub struct RepoInfo {
     pub summary: RepoSummary,
     /// File-level changes, populated by `collect_info` for the Detail view.
     pub changes: WorktreeChanges,
+    /// Recent commits in this repository.
+    pub commits: Vec<CommitEntry>,
 }
 
 #[derive(Debug)]
@@ -180,10 +182,7 @@ pub fn inspect_detail(item: &str) -> ItemDetail {
     }
 }
 
-/// Retrieve the last `limit` commits for a repository.
-pub fn get_commits(item: &str, limit: usize) -> Result<Vec<CommitEntry>, git2::Error> {
-    let path = expand_tilde(item);
-    let repo = Repository::open(&path)?;
+fn collect_commits(repo: &Repository, limit: usize) -> Result<Vec<CommitEntry>, git2::Error> {
     let mut walk = repo.revwalk()?;
     if walk.push_head().is_err() {
         return Ok(Vec::new());
@@ -270,6 +269,10 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
                 });
             }
         }
+    }
+
+    if let Ok(commits) = collect_commits(&repo, 50) {
+        info.commits = commits;
     }
 
     populate_file_changes(&repo, &mut info);

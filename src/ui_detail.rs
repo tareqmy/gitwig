@@ -10,10 +10,10 @@
 //! under Staged / Unstaged / Untracked / Conflicts sub-headers.
 
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Padding, Paragraph, Wrap};
+use ratatui::widgets::{Block, Borders, Cell, Padding, Paragraph, Row, Table, Wrap};
 
 use crate::repo::{FileEntry, HeadInfo, ItemDetail, RemoteInfo, RepoInfo, WorktreeChanges};
 use crate::ui::{ACCENT, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style};
@@ -43,11 +43,95 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, area: Rect) {
     ]));
     f.render_widget(header, chunks[0]);
 
-    let body_lines = build_body(detail);
-    let body = Paragraph::new(body_lines)
-        .block(Block::default().padding(Padding::ZERO))
-        .wrap(Wrap { trim: false });
-    f.render_widget(body, chunks[1]);
+    let body_area = chunks[1];
+
+    match detail {
+        ItemDetail::Repo { resolved, info } => {
+            let detail_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(body_area);
+
+            draw_detail_commits(f, info, detail_chunks[0]);
+
+            let body_lines = build_repo_body(resolved, info);
+            let body = Paragraph::new(body_lines)
+                .block(Block::default().padding(Padding::ZERO))
+                .wrap(Wrap { trim: false });
+            f.render_widget(body, detail_chunks[1]);
+        }
+        _ => {
+            let body_lines = build_body(detail);
+            let body = Paragraph::new(body_lines)
+                .block(Block::default().padding(Padding::ZERO))
+                .wrap(Wrap { trim: false });
+            f.render_widget(body, body_area);
+        }
+    }
+}
+
+fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, area: Rect) {
+    let block = Block::default()
+        .borders(Borders::BOTTOM)
+        .border_style(muted_style())
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Recent Commits", primary_style()),
+            Span::raw(" "),
+        ]));
+
+    if info.commits.is_empty() {
+        let text = vec![
+            Line::from(""),
+            Line::from(Span::styled(
+                "No commits yet / empty repository",
+                muted_style(),
+            )),
+        ];
+        let paragraph = Paragraph::new(text)
+            .alignment(Alignment::Center)
+            .block(block);
+        f.render_widget(paragraph, area);
+        return;
+    }
+
+    let header = Row::new(vec![
+        Cell::from("ID"),
+        Cell::from("Author"),
+        Cell::from("Date"),
+        Cell::from("Summary"),
+    ])
+    .style(Style::default().add_modifier(Modifier::BOLD).fg(ACCENT));
+
+    let rows: Vec<Row> = info
+        .commits
+        .iter()
+        .map(|commit| {
+            Row::new(vec![
+                Cell::from(Span::styled(
+                    commit.id.clone(),
+                    Style::default().fg(WARNING),
+                )),
+                Cell::from(Span::styled(commit.author.clone(), Style::default())),
+                Cell::from(Span::styled(commit.when.clone(), muted_style())),
+                Cell::from(Span::styled(commit.summary.clone(), Style::default())),
+            ])
+        })
+        .collect();
+
+    let widths = [
+        Constraint::Length(9),  // "c7a45e2" + 2 padding
+        Constraint::Length(18), // Author name
+        Constraint::Length(16), // Date
+        Constraint::Min(20),    // Summary
+    ];
+
+    let table = Table::new(rows, widths)
+        .header(header)
+        .block(block)
+        .column_spacing(2);
+
+    f.render_widget(table, area);
 }
 
 // ── Body builder ───────────────────────────────────────────────────────────
