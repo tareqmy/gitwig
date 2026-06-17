@@ -29,18 +29,23 @@
 | `a`                  | Normal          | Add a new item                    |
 | `e`                  | Normal          | Edit the selected item            |
 | `d`                  | Normal          | Delete the selected item (asks)   |
+| `?`                  | Normal / Help   | Toggle the shortcut overlay       |
 | `q`                  | Normal          | Quit                              |
 | `Enter`              | Adding / Editing| Save the typed text and persist   |
 | `Esc`                | Adding / Editing| Cancel without saving             |
 | `Backspace`          | Adding / Editing| Erase one character               |
 | `y`                  | Confirm Delete  | Confirm deletion                  |
 | `n` / `Esc`          | Confirm Delete  | Cancel deletion                   |
+| `?` / `Esc` / `q`    | Help            | Close the help overlay            |
+
+Press `?` at any time in normal mode to see the full keybinding reference as a centered popup. The help overlay only handles the dismissal keys — your selection and scroll position are preserved underneath.
 
 When the prompt at the bottom switches color you've entered an input mode:
 
 - **Blue** — Normal browsing.
 - **Yellow** — Typing (adding or editing).
 - **Red** — Awaiting delete confirmation.
+- **Cyan** — Help overlay open.
 
 After every successful add / edit / delete, the status bar briefly shows `Saved` or `Deleted`. If the write fails, the status bar shows `Save failed: <reason>` instead — your in-memory list still reflects the change, but the file on disk does not.
 

@@ -14,7 +14,7 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Clear, Paragraph, Wrap},
 };
 
 // Custom config module
@@ -32,6 +32,42 @@ enum Mode {
     Editing,
     /// Asking the user to confirm deletion of the selected item.
     ConfirmDelete,
+    /// Showing the full shortcut reference as a centered overlay.
+    Help,
+}
+
+/// Lines of the help overlay. Kept as a constant so any binding change
+/// has one place to update.
+const HELP_LINES: &[(&str, &str)] = &[
+    ("↑ / k", "Move selection up"),
+    ("↓ / j", "Move selection down"),
+    ("a", "Add a new item (Enter saves, Esc cancels)"),
+    ("e", "Edit selected item (Enter saves, Esc cancels)"),
+    ("d", "Delete selected item (y confirms, n / Esc cancels)"),
+    ("Backspace", "Erase character while typing"),
+    ("?", "Toggle this help overlay"),
+    ("q", "Quit"),
+];
+
+/// Returns a `Rect` of `(percent_x, percent_y)` dimensions, centered inside `area`.
+fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
+    let vertical = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(area);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(vertical[1])[1]
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -119,7 +155,7 @@ where
         // Build the status/help line that fits the current mode.
         let status_text = match &mode {
             Mode::Normal => {
-                "[↑/↓ j/k] Navigate  [a] Add  [e] Edit  [d] Delete  [q] Quit".to_string()
+                "[↑/↓ j/k] Navigate  [a] Add  [e] Edit  [d] Delete  [?] Help  [q] Quit".to_string()
             }
             Mode::Adding => format!("Add item: {}_   [Enter] Save  [Esc] Cancel", input_buffer),
             Mode::Editing => format!("Edit item: {}_   [Enter] Save  [Esc] Cancel", input_buffer),
@@ -131,6 +167,7 @@ where
                     .unwrap_or("");
                 format!("Delete \"{}\"? [y] Confirm  [n/Esc] Cancel", target)
             }
+            Mode::Help => "[?/Esc/q] Close help".to_string(),
         };
         let status_text = match &status_message {
             Some(msg) => format!("{} | {}", msg, status_text),
@@ -190,9 +227,37 @@ where
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
                 Mode::ConfirmDelete => Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                Mode::Help => Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             };
             let status = Paragraph::new(status_text.as_str()).style(status_style);
             f.render_widget(status, *chunks.last().unwrap());
+
+            // Help overlay — rendered last so it sits on top of the list.
+            if matches!(mode, Mode::Help) {
+                let popup_area = centered_rect(60, 60, area);
+                let key_width = HELP_LINES
+                    .iter()
+                    .map(|(k, _)| k.chars().count())
+                    .max()
+                    .unwrap_or(0);
+                let body: String = HELP_LINES
+                    .iter()
+                    .map(|(k, desc)| format!("  {:width$}   {}\n", k, desc, width = key_width))
+                    .collect();
+                let help_block = Block::default()
+                    .title(" Shortcuts ")
+                    .borders(Borders::ALL)
+                    .style(Style::default().fg(Color::Cyan));
+                let help = Paragraph::new(body)
+                    .block(help_block)
+                    .style(Style::default().fg(Color::White))
+                    .wrap(Wrap { trim: false });
+                // Clear wipes the underlying cells so the list doesn't bleed through.
+                f.render_widget(Clear, popup_area);
+                f.render_widget(help, popup_area);
+            }
         })?;
 
         // Clear transient feedback once it has been shown for a frame.
@@ -233,6 +298,9 @@ where
                         }
                         KeyCode::Char('d') if !config.items.is_empty() => {
                             mode = Mode::ConfirmDelete;
+                        }
+                        KeyCode::Char('?') => {
+                            mode = Mode::Help;
                         }
                         _ => {}
                     },
@@ -301,6 +369,15 @@ where
                             mode = Mode::Normal;
                         }
                         KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                            mode = Mode::Normal;
+                        }
+                        _ => {}
+                    },
+                    Mode::Help => match key.code {
+                        KeyCode::Char('?')
+                        | KeyCode::Esc
+                        | KeyCode::Char('q')
+                        | KeyCode::Char('Q') => {
                             mode = Mode::Normal;
                         }
                         _ => {}

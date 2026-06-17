@@ -17,7 +17,7 @@ Welcome, Agent. You are tasked with helping build **Twig**, a high-performance G
 - **TUI Framework:** Use `ratatui` (currently 0.30) with the `crossterm_0_29` feature. Do not reintroduce `tui-rs` imports. Note that ratatui 0.30's `Backend` trait uses an associated `Error` type (not `io::Error`) — return `Result<(), Box<dyn Error>>` from functions that propagate it, with a `where <B as Backend>::Error: 'static` bound where needed.
 - **Git Integration:** Use `git2-rs` for most operations. For complex things like interactive rebase, we may shell out to `git`.
 - **Modularity:** Keep UI logic separate from Git logic. Create traits or structs to abstract Git operations.
-- **Modal Input:** The app uses a `Mode` enum (`Normal`, `Adding`, `Editing`, `ConfirmDelete`) to interpret keystrokes. When adding a new keybinding, route it through the right mode and update the status-bar help text in the same change — the status bar is the user's only discovery surface.
+- **Modal Input:** The app uses a `Mode` enum (`Normal`, `Adding`, `Editing`, `ConfirmDelete`, `Help`) to interpret keystrokes. When adding a new keybinding, route it through the right mode, add an entry to the `HELP_LINES` constant in `src/main.rs` (the source of truth for the `?` overlay), and update the status-bar help text in the same change.
 - **Config Persistence:** `load_config` returns `(Config, PathBuf)` where the path is the destination for `save_config`. Any mutation of `Config` from the UI must be followed by a `save_config` call so disk and memory don't diverge. Surface save errors via the transient status-bar message rather than crashing.
 
 ## Keeping Docs In Sync

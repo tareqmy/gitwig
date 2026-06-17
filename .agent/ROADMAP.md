@@ -7,6 +7,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Configuration loading (TOML).
 - [x] Migrate to `ratatui` (0.30) for modern TUI features and active maintenance.
 - [x] In-app config editing — add/edit/delete items with `a`/`e`/`d`, persisted back to the loaded config file.
+- [x] In-app help overlay — `?` toggles a centered popup listing every shortcut.
 - [ ] **Priority:** Integrate `git2-rs` and detect if the current directory is a Git repository.
 
 ## Phase 2: Working Tree & Status
