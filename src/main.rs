@@ -16,8 +16,10 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 mod app;
 mod config;
 mod input;
+mod repo;
 mod status;
 mod ui;
+mod ui_detail;
 
 use crate::app::{App, run};
 use crate::config::load_config;

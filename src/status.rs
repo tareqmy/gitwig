@@ -35,7 +35,11 @@ pub fn inspect(item: &str) -> ItemStatus {
     }
 }
 
-fn expand_tilde(s: &str) -> PathBuf {
+/// Expand a leading `~` or `~/` in a user-supplied path to the user's home
+/// directory. Returns the input unchanged if there is no home dir or no
+/// tilde to expand. Public so that `repo::inspect_detail` can resolve the
+/// same way as the cheap classifier.
+pub fn expand_tilde(s: &str) -> PathBuf {
     if s == "~" {
         return dirs::home_dir().unwrap_or_else(|| PathBuf::from(s));
     }

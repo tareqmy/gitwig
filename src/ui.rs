@@ -24,11 +24,11 @@ use crate::status::ItemStatus;
 // helpers below: `muted_style()` for de-emphasis, bold for emphasis, and the
 // accent colors only for true accents (selection, mode, warnings).
 
-const ACCENT: Color = Color::Cyan;
-const WARNING: Color = Color::Yellow;
-const DANGER: Color = Color::Red;
-const SUCCESS: Color = Color::Green;
-const CARD_BORDER: BorderType = BorderType::Rounded;
+pub(crate) const ACCENT: Color = Color::Cyan;
+pub(crate) const WARNING: Color = Color::Yellow;
+pub(crate) const DANGER: Color = Color::Red;
+pub(crate) const SUCCESS: Color = Color::Green;
+pub(crate) const CARD_BORDER: BorderType = BorderType::Rounded;
 
 /// Width of the per-item status zone on the right of each card. Wide
 /// enough to fit "✕ missing" (the longest status label) with a little
@@ -42,18 +42,18 @@ const UNSELECTED_INDENT: &str = "  ";
 /// "Muted" / secondary text. Uses the terminal's own foreground so it stays
 /// readable on both light and dark backgrounds, then applies `DIM` to fade
 /// it relative to primary text.
-fn muted_style() -> Style {
+pub(crate) fn muted_style() -> Style {
     Style::default().add_modifier(Modifier::DIM)
 }
 
 /// Emphasized text. Bold over the terminal default — also theme-agnostic.
-fn primary_style() -> Style {
+pub(crate) fn primary_style() -> Style {
     Style::default().add_modifier(Modifier::BOLD)
 }
 
 /// Accent-colored, bold. Used for keys in the status bar / help overlay,
 /// and the app title.
-fn accent_style() -> Style {
+pub(crate) fn accent_style() -> Style {
     Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
 }
 
@@ -62,21 +62,38 @@ fn accent_style() -> Style {
 const HELP_LINES: &[(&str, &str)] = &[
     ("↑ / k", "Move selection up"),
     ("↓ / j", "Move selection down"),
+    ("Enter", "View selected item details (or commit input)"),
     ("a", "Add a new item"),
     ("e", "Edit selected item"),
     ("d", "Delete selected item"),
-    ("Enter", "Commit add or edit"),
-    ("Esc", "Cancel input or close dialog"),
+    ("Esc", "Cancel input, close dialog, or leave detail view"),
     ("Backspace", "Erase character while typing"),
     ("?", "Toggle this help overlay"),
-    ("q", "Quit"),
+    ("q", "Quit (also closes detail view)"),
 ];
 
 /// Top-level draw entry point invoked from inside `terminal.draw`.
 pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_count: usize) {
     draw_outer_frame(f, area);
-    let (list_chunks, status_chunk) = list_and_status_chunks(inner_area, visible_count);
-    draw_items(f, app, &list_chunks);
+
+    // Always reserve the bottom row for the status bar, regardless of mode.
+    let (content_area, status_chunk) = content_and_status_chunks(inner_area);
+
+    if matches!(app.mode, Mode::Detail) {
+        if let Some(detail) = &app.current_detail {
+            let item_name = app
+                .config
+                .items
+                .get(app.selected_index)
+                .map(String::as_str)
+                .unwrap_or("");
+            crate::ui_detail::draw(f, item_name, detail, content_area);
+        }
+    } else {
+        let list_chunks = item_chunks(content_area, visible_count);
+        draw_items(f, app, &list_chunks);
+    }
+
     draw_status_bar(f, app, status_chunk);
 
     if matches!(app.mode, Mode::Help) {
@@ -105,27 +122,30 @@ fn draw_outer_frame(f: &mut Frame, area: Rect) {
     f.render_widget(block, area);
 }
 
-/// Splits `inner_area` into N item rows + a flex spacer + one status row,
-/// returning the per-item chunks and the status chunk separately so the
-/// caller doesn't have to remember the last index.
-///
-/// The spacer (`Constraint::Min(0)`) absorbs leftover vertical space so the
-/// status bar is always pinned to the bottom edge of `inner_area`, even
-/// when the item list is too short to fill the screen.
-fn list_and_status_chunks(inner_area: Rect, visible_count: usize) -> (Vec<Rect>, Rect) {
+/// Reserve the bottom row for the status bar. The remainder is the
+/// "content area" — list view, detail view, or anything else a mode
+/// wants to draw.
+fn content_and_status_chunks(inner_area: Rect) -> (Rect, Rect) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(STATUS_HEIGHT)])
+        .split(inner_area);
+    (chunks[0], chunks[1])
+}
+
+/// Within the content area, split into N item rows + a flex spacer so the
+/// list is top-aligned and never pushes against the status bar.
+fn item_chunks(content_area: Rect, visible_count: usize) -> Vec<Rect> {
     let mut constraints = vec![Constraint::Length(ITEM_HEIGHT); visible_count];
     constraints.push(Constraint::Min(0));
-    constraints.push(Constraint::Length(STATUS_HEIGHT));
 
-    let mut chunks: Vec<Rect> = Layout::default()
+    let chunks: Vec<Rect> = Layout::default()
         .direction(Direction::Vertical)
         .constraints(constraints)
-        .split(inner_area)
+        .split(content_area)
         .to_vec();
-
-    let status = chunks.pop().expect("status chunk always present");
-    chunks.pop().expect("spacer chunk always present"); // discard spacer
-    (chunks, status)
+    // Drop the trailing spacer.
+    chunks[..visible_count].to_vec()
 }
 
 fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
@@ -252,7 +272,18 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         Mode::Help => {
             draw_status_content(f, content_area, help_dismiss_spans());
         }
+        Mode::Detail => {
+            draw_status_content(f, content_area, detail_dismiss_spans());
+        }
     }
+}
+
+fn detail_dismiss_spans() -> Vec<Span<'static>> {
+    vec![
+        Span::raw("  "),
+        Span::styled("Esc / q", accent_style()),
+        Span::raw("  back to list"),
+    ]
 }
 
 /// Returns the badge text plus its foreground and background colors.
@@ -266,6 +297,7 @@ fn mode_badge(mode: &Mode) -> (&'static str, Color, Color) {
         Mode::Editing => ("EDITING", Color::Black, WARNING),
         Mode::ConfirmDelete => ("CONFIRM", Color::White, DANGER),
         Mode::Help => ("HELP", Color::Black, ACCENT),
+        Mode::Detail => ("DETAIL", Color::Black, ACCENT),
     }
 }
 

@@ -16,6 +16,7 @@
 - Config-driven layout using `config.toml`
 - Add / edit / delete items directly from the UI — changes persist back to the config file
 - Per-item status indicators — see at a glance whether each item is a git repo, a plain directory, or missing
+- Press `Enter` on any item to open a full-screen Detail view with branch, HEAD commit, remotes, and working-tree status (for git repos) or a clear "plain directory" / "missing" report otherwise
 - Bordered items displayed inside a main border
 - Mode-aware status bar that always shows the relevant shortcuts
 
@@ -30,6 +31,7 @@
 | `a`                  | Normal          | Add a new item                    |
 | `e`                  | Normal          | Edit the selected item            |
 | `d`                  | Normal          | Delete the selected item (asks)   |
+| `Enter`              | Normal          | Open Detail view for selected item|
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
 | `q`                  | Normal          | Quit                              |
 | `Enter`              | Adding / Editing| Save the typed text and persist   |
@@ -38,6 +40,7 @@
 | `y`                  | Confirm Delete  | Confirm deletion                  |
 | `n` / `Esc`          | Confirm Delete  | Cancel deletion                   |
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
+| `Esc` / `q`          | Detail          | Return to the list                |
 
 Press `?` at any time in normal mode to see the full keybinding reference as a centered popup. The help overlay only handles the dismissal keys — your selection and scroll position are preserved underneath.
 
@@ -59,6 +62,24 @@ Each card shows a colored symbol on the right reflecting the item's filesystem s
 - `✕ missing` — the item is not a directory on this machine (doesn't exist, is a file, or isn't accessible).
 
 Items support `~` and `~/...` expansion, so `~/code/twig` resolves to your home directory. Statuses are recomputed only when you add, edit, or delete an item — they are not polled in the background, so changes you make outside the app won't be reflected until you re-launch.
+
+## 🔍 Detail view
+
+Press `Enter` on a selected item to open a full-screen Detail view. Press `Esc` or `q` to return to the list.
+
+For a **git repository** the detail view shows:
+
+- The resolved path (after `~` expansion).
+- The current branch (or `(detached HEAD)` / `(empty repository)`).
+- The HEAD commit's short hash, summary, author, and a relative time ("3 days ago").
+- All configured remotes with their URLs.
+- The working-tree status — `clean`, or counts of staged / modified / untracked / conflicted files.
+
+For a **plain directory** the view confirms the resolved path and explains that no `.git` entry was found.
+
+For a **missing** item the view confirms the resolved path and notes that the path does not exist or isn't accessible.
+
+The detail snapshot is taken **once** when you press Enter — it is not refreshed while open. Close and re-open to re-read the repository state.
 
 After every successful add / edit / delete, the status bar briefly shows `Saved` or `Deleted`. If the write fails, the status bar shows `Save failed: <reason>` instead — your in-memory list still reflects the change, but the file on disk does not.
 

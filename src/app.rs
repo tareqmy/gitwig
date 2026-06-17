@@ -15,6 +15,7 @@ use ratatui::layout::{Margin, Rect};
 
 use crate::config::{Config, save_config};
 use crate::input;
+use crate::repo::{self, ItemDetail};
 use crate::status::{self, ItemStatus};
 use crate::ui;
 
@@ -37,6 +38,8 @@ pub enum Mode {
     ConfirmDelete,
     /// Showing the full shortcut reference as a centered overlay.
     Help,
+    /// Showing the full-screen detail view for the selected item.
+    Detail,
 }
 
 /// All mutable session state.
@@ -51,6 +54,10 @@ pub struct App {
     pub mode: Mode,
     pub input_buffer: String,
     pub status_message: Option<String>,
+    /// Populated when entering `Mode::Detail`, cleared when leaving. The
+    /// detail snapshot is taken once on open (not re-fetched per frame)
+    /// so opening a slow repo only costs one git2 call.
+    pub current_detail: Option<ItemDetail>,
 }
 
 impl App {
@@ -65,6 +72,7 @@ impl App {
             mode: Mode::Normal,
             input_buffer: String::new(),
             status_message: None,
+            current_detail: None,
         }
     }
 
@@ -124,6 +132,21 @@ impl App {
 
     pub fn open_help(&mut self) {
         self.mode = Mode::Help;
+    }
+
+    /// Snapshot the selected item's filesystem/git state and enter the
+    /// Detail view. The snapshot is held in `current_detail` for as long
+    /// as the view is open; closing clears it.
+    pub fn open_detail(&mut self) {
+        if let Some(item) = self.config.items.get(self.selected_index) {
+            self.current_detail = Some(repo::inspect_detail(item));
+            self.mode = Mode::Detail;
+        }
+    }
+
+    pub fn close_detail(&mut self) {
+        self.current_detail = None;
+        self.mode = Mode::Normal;
     }
 
     pub fn cancel_input(&mut self) {

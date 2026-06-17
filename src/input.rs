@@ -19,6 +19,7 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
             KeyCode::Char('e') => app.start_edit(),
             KeyCode::Char('d') => app.request_delete(),
             KeyCode::Char('?') => app.open_help(),
+            KeyCode::Enter => app.open_detail(),
             _ => {}
         },
         Mode::Adding => match code {
@@ -44,6 +45,10 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
             KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_dialog();
             }
+            _ => {}
+        },
+        Mode::Detail => match code {
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
             _ => {}
         },
     }
