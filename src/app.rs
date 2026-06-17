@@ -19,7 +19,9 @@ use crate::repo::{self, ItemDetail, ItemStatus};
 use crate::ui;
 
 /// Height of each item row inside the bordered list area.
-pub const ITEM_HEIGHT: u16 = 3;
+/// Borders (top + bottom) take 2 rows; the remaining 2 inner rows hold
+/// the item path and the branch name respectively.
+pub const ITEM_HEIGHT: u16 = 4;
 
 /// Height of the status/help bar at the bottom of the screen.
 pub const STATUS_HEIGHT: u16 = 1;

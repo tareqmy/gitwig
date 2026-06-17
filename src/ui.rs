@@ -181,8 +181,9 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             (UNSELECTED_INDENT, Style::default(), Style::default())
         };
 
-        // Render the block first so we can split its inner area into two
-        // horizontal zones (name on the left, status indicator on the right).
+        // Render the border block; split its inner rect into two rows:
+        //   row 0 — item path (left) + status indicator (right)
+        //   row 1 — branch name (left-aligned, muted)
         let block = Block::default()
             .borders(Borders::ALL)
             .border_type(CARD_BORDER)
@@ -191,21 +192,46 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         let inner = block.inner(chunks[i]);
         f.render_widget(block, chunks[i]);
 
-        let card_chunks = Layout::default()
+        let rows = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(1), Constraint::Min(0)])
+            .split(inner);
+
+        // Row 0: path + status
+        let name_cols = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Min(0), Constraint::Length(STATUS_ZONE_WIDTH)])
-            .split(inner);
+            .split(rows[0]);
 
         let name_line = Line::from(vec![
             Span::styled(mark, mark_style),
             Span::styled(item.as_str(), text_style),
         ]);
-        f.render_widget(Paragraph::new(name_line), card_chunks[0]);
+        f.render_widget(Paragraph::new(name_line), name_cols[0]);
 
         let fallback = ItemStatus::Missing;
         let status = app.statuses.get(actual_index).unwrap_or(&fallback);
         let status_line = status_indicator_line(status).alignment(Alignment::Right);
-        f.render_widget(Paragraph::new(status_line), card_chunks[1]);
+        f.render_widget(Paragraph::new(status_line), name_cols[1]);
+
+        // Row 1: branch name (git repos only; empty for others)
+        f.render_widget(Paragraph::new(branch_name_line(status)), rows[1]);
+    }
+}
+
+/// Second card row: branch name for git repos, blank line for everything else.
+fn branch_name_line(status: &ItemStatus) -> Line<'static> {
+    let branch = match status {
+        ItemStatus::GitRepo(Some(s)) => s.branch.clone(),
+        _ => None,
+    };
+    match branch {
+        Some(b) => Line::from(vec![
+            Span::raw(UNSELECTED_INDENT), // align with item text
+            Span::styled("⎇  ", muted_style()),
+            Span::styled(b, Style::default().fg(ACCENT)),
+        ]),
+        None => Line::from(""),
     }
 }
 

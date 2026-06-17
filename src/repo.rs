@@ -30,6 +30,9 @@ pub enum ItemStatus {
 /// `RepoInfo` so the Detail view doesn't re-collect the same data.
 #[derive(Debug, Default, Clone)]
 pub struct RepoSummary {
+    /// Current branch shorthand (e.g. `"main"`). `None` for detached HEAD
+    /// or when the ref cannot be read.
+    pub branch: Option<String>,
     pub staged: usize,
     pub modified: usize,
     pub untracked: usize,
@@ -54,10 +57,20 @@ impl RepoSummary {
 
 #[derive(Debug)]
 pub enum ItemDetail {
-    Missing { resolved: PathBuf },
-    Directory { resolved: PathBuf },
-    Repo { resolved: PathBuf, info: RepoInfo },
-    Error { resolved: PathBuf, message: String },
+    Missing {
+        resolved: PathBuf,
+    },
+    Directory {
+        resolved: PathBuf,
+    },
+    Repo {
+        resolved: PathBuf,
+        info: Box<RepoInfo>,
+    },
+    Error {
+        resolved: PathBuf,
+        message: String,
+    },
 }
 
 #[derive(Debug, Default)]
@@ -126,7 +139,10 @@ pub fn inspect_detail(item: &str) -> ItemDetail {
         return ItemDetail::Directory { resolved };
     }
     match collect_info(&resolved) {
-        Ok(info) => ItemDetail::Repo { resolved, info },
+        Ok(info) => ItemDetail::Repo {
+            resolved,
+            info: Box::new(info),
+        },
         Err(e) => ItemDetail::Error {
             resolved,
             message: e.to_string(),
@@ -194,11 +210,15 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
     Ok(info)
 }
 
-/// Collect the worktree counts and ahead/behind for an opened repo. Used
-/// by both `inspect_summary` (card) and `collect_info` (detail) so the
-/// counts shown in both places always agree.
+/// Collect the branch name, worktree counts, and ahead/behind for an opened
+/// repo. Used by both `inspect_summary` (card) and `collect_info` (detail)
+/// so the values shown in both places always agree.
 fn collect_summary(repo: &Repository) -> RepoSummary {
     let mut s = RepoSummary::default();
+    // git2 0.21: head() + shorthand() = Result<&str, Error>.
+    if let Ok(head) = repo.head() {
+        s.branch = head.shorthand().ok().map(String::from);
+    }
     populate_worktree(repo, &mut s);
     populate_ahead_behind(repo, &mut s);
     s
