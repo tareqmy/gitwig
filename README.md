@@ -40,12 +40,14 @@
 
 Press `?` at any time in normal mode to see the full keybinding reference as a centered popup. The help overlay only handles the dismissal keys — your selection and scroll position are preserved underneath.
 
-When the prompt at the bottom switches color you've entered an input mode:
+The bottom status bar shows a colored mode badge that mirrors what is happening:
 
-- **Blue** — Normal browsing.
-- **Yellow** — Typing (adding or editing).
-- **Red** — Awaiting delete confirmation.
-- **Cyan** — Help overlay open.
+- **Cyan `NORMAL`** — browsing the list.
+- **Yellow `ADDING` / `EDITING`** — typing into the input field; the selected card's border turns yellow so you can see exactly which item will be replaced.
+- **Red `CONFIRM`** — awaiting delete confirmation; the doomed card's border turns red.
+- **Cyan `HELP`** — the shortcut overlay is open.
+
+The selected item is marked with a left-edge `▌` accent, a colored border, and bold text. In `ADDING` and `EDITING` modes the real terminal cursor sits at the end of your input so you can see exactly where the next character will land.
 
 After every successful add / edit / delete, the status bar briefly shows `Saved` or `Deleted`. If the write fails, the status bar shows `Save failed: <reason>` instead — your in-memory list still reflects the change, but the file on disk does not.
 
