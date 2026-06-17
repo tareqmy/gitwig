@@ -21,34 +21,31 @@ pub struct Config {
     pub poll_interval_ms: u64,
 }
 
-/// Resolves the path that should be used for persisting config edits when
-/// no config file currently exists. Prefers the user's global config dir
-/// (`~/.config/twig/config.toml`); falls back to `./config/config.toml`.
-fn default_write_path() -> PathBuf {
-    if let Some(global) = dirs::config_dir().map(|p| p.join("twig/config.toml")) {
-        return global;
-    }
-    PathBuf::from("config/config.toml")
+/// Returns `~/.twig/`, the canonical Twig data directory.
+/// Falls back to `./.twig/` in the unlikely event that the home directory
+/// cannot be resolved (e.g. inside a stripped-down container).
+fn home_twig_dir() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".twig")
 }
 
-/// Attempts to load the configuration from a preferred order of locations.
+/// Loads the configuration, ensuring `~/.twig/` always exists.
 ///
-/// Order of preference:
-/// 1. CLI-provided path (if available and exists)
-/// 2. Local config file at `config/config.toml`
-/// 3. Global config file at `~/.config/twig/config.toml`
-/// 4. If none found, fallback to a sarcastic default
-///
-/// # Arguments
-/// * `cli_path` - An optional `PathBuf` passed as a command-line argument
+/// Resolution order:
+/// 1. CLI-provided path (if given, skip all migration logic).
+/// 2. `~/.twig/config.toml` — the canonical location. If it already
+///    exists it is loaded directly.
+/// 3. First-run migration: copy the first config found among
+///    `./config/config.toml` (CWD or exe-dir) or `~/.config/twig/config.toml`
+///    into `~/.twig/config.toml`, then load from there.
+/// 4. No prior config anywhere: write a default config to
+///    `~/.twig/config.toml` so the next run is an ordinary case 2.
 ///
 /// # Returns
-/// * `Ok((Config, PathBuf))` - Parsed configuration plus the path it should
-///   be written back to when the user edits items.
-/// * `Err` - If any reading or parsing fails during valid file paths
+/// `Ok((Config, PathBuf))` — the parsed config plus its write-back path.
 pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<dyn Error>> {
-    // 1. Try to load from CLI-provided path if available. If the user passed
-    // a path that doesn't exist yet, we still honor it as the write target.
+    // ── 1. CLI override ───────────────────────────────────────────────────
     if let Some(path) = cli_path {
         if path.exists() {
             let contents = fs::read_to_string(&path)?;
@@ -64,36 +61,27 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         ));
     }
 
-    // 2. Try to load from local project directory: ./config/config.toml
-    // First, check relative to current working directory
-    let mut local_path = PathBuf::from("config/config.toml");
-    if !local_path.exists() {
-        // Fallback: check relative to the executable's directory
-        if let Ok(exe_path) = std::env::current_exe() {
-            if let Some(exe_dir) = exe_path.parent() {
-                local_path = exe_dir.join("config/config.toml");
-            }
-        }
-    }
+    // ── Always ensure ~/.twig/ exists ─────────────────────────────────────
+    let twig_dir = home_twig_dir();
+    fs::create_dir_all(&twig_dir)?;
+    let canonical = twig_dir.join("config.toml");
 
-    if local_path.exists() {
-        let contents = fs::read_to_string(&local_path)?;
+    // ── 2. Canonical file already present ─────────────────────────────────
+    if canonical.exists() {
+        let contents = fs::read_to_string(&canonical)?;
         let config: Config = toml::from_str(&contents)?;
-        return Ok((config, local_path));
+        return Ok((config, canonical));
     }
 
-    // 3. Try to load from user config directory: e.g., ~/.config/twig/config.toml
-    if let Some(global_path) = dirs::config_dir().map(|p| p.join("twig/config.toml")) {
-        if global_path.exists() {
-            let contents = fs::read_to_string(&global_path)?;
-            let config: Config = toml::from_str(&contents)?;
-            return Ok((config, global_path));
-        }
+    // ── 3. First run: migrate an existing config into ~/.twig/ ────────────
+    if let Some(source) = find_legacy_config() {
+        fs::copy(&source, &canonical)?;
+        let contents = fs::read_to_string(&canonical)?;
+        let config: Config = toml::from_str(&contents)?;
+        return Ok((config, canonical));
     }
 
-    // 4. Config not found anywhere. Return sarcastic fallback. Subsequent
-    // edits will be persisted to the default write path so the user gets
-    // a real file they can keep.
+    // ── 4. No config anywhere: write a default and use it ─────────────────
     let fallback = Config {
         items: vec![
             "Nice job. You forgot the config, genius.".to_string(),
@@ -102,7 +90,34 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         ],
         poll_interval_ms: default_poll_interval_ms(),
     };
-    Ok((fallback, default_write_path()))
+    save_config(&fallback, &canonical)?;
+    Ok((fallback, canonical))
+}
+
+/// Searches for a pre-existing config at legacy / local locations.
+/// Returns the first path that exists, or `None`.
+fn find_legacy_config() -> Option<PathBuf> {
+    // Local project config relative to CWD.
+    let local = PathBuf::from("config/config.toml");
+    if local.exists() {
+        return Some(local);
+    }
+    // Local project config relative to the executable directory.
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let p = dir.join("config/config.toml");
+            if p.exists() {
+                return Some(p);
+            }
+        }
+    }
+    // Old XDG location: ~/.config/twig/config.toml.
+    if let Some(p) = dirs::config_dir().map(|d| d.join("twig/config.toml")) {
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    None
 }
 
 /// Serializes the config back to TOML and writes it to `path`, creating any

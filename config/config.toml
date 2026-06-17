@@ -1,7 +1,5 @@
 items = [
-    "Invalid directory",
-    "/Users/tareqmy/development/rustprojects/twig",
-    "~/development",
+
 ]
 
 # How long the event loop waits for input before re-drawing (milliseconds).

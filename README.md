@@ -102,15 +102,19 @@ After every successful add / edit / delete, the status bar briefly shows `Saved`
 
 ## 🔧 Configuration
 
-Twig loads its layout from a `config.toml` file. The resolution order is:
+Twig stores its config in `~/.twig/config.toml`. The directory is created automatically on first launch.
+
+### First-run migration
+
+If `~/.twig/config.toml` doesn't exist yet, Twig looks for an existing config to migrate from:
 
 1. A path passed as the first CLI argument (`twig path/to/config.toml`).
 2. `./config/config.toml` relative to the current working directory.
 3. `./config/config.toml` relative to the executable.
-4. `~/.config/twig/config.toml` (the user's XDG config directory).
-5. A built-in fallback list if none of the above exist. Edits made against the fallback are saved to `~/.config/twig/config.toml`, creating it if needed.
+4. `~/.config/twig/config.toml` (previous XDG location).
+5. Nothing found — a default config is written to `~/.twig/config.toml`.
 
-Twig writes back to whichever file it loaded from, so edits made in the UI persist across runs.
+After the first run the migrated (or generated) file becomes the sole source of truth; the original is left untouched.
 
 ### Example: `config.toml`
 
