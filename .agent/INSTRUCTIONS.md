@@ -17,8 +17,23 @@ Welcome, Agent. You are tasked with helping build **Twig**, a high-performance G
 - **TUI Framework:** Use `ratatui` (currently 0.30) with the `crossterm_0_29` feature. Do not reintroduce `tui-rs` imports. Note that ratatui 0.30's `Backend` trait uses an associated `Error` type (not `io::Error`) — return `Result<(), Box<dyn Error>>` from functions that propagate it, with a `where <B as Backend>::Error: 'static` bound where needed.
 - **Git Integration:** Use `git2-rs` for most operations. For complex things like interactive rebase, we may shell out to `git`.
 - **Modularity:** Keep UI logic separate from Git logic. Create traits or structs to abstract Git operations.
-- **Modal Input:** The app uses a `Mode` enum (`Normal`, `Adding`, `Editing`, `ConfirmDelete`, `Help`) to interpret keystrokes. When adding a new keybinding, route it through the right mode, add an entry to the `HELP_LINES` constant in `src/main.rs` (the source of truth for the `?` overlay), and update the status-bar help text in the same change.
-- **Config Persistence:** `load_config` returns `(Config, PathBuf)` where the path is the destination for `save_config`. Any mutation of `Config` from the UI must be followed by a `save_config` call so disk and memory don't diverge. Surface save errors via the transient status-bar message rather than crashing.
+- **Modal Input:** The app uses a `Mode` enum (`Normal`, `Adding`, `Editing`, `ConfirmDelete`, `Help`) defined in `src/app.rs` to interpret keystrokes. When adding a new keybinding: add the route in `src/input.rs` (`handle_key`), add a corresponding `App` method in `src/app.rs` if it mutates state, add an entry to the `HELP_LINES` constant in `src/ui.rs` (the source of truth for the `?` overlay), and update the status-bar text in `src/ui.rs::draw_status_bar` — all in the same change.
+- **Config Persistence:** `load_config` returns `(Config, PathBuf)` where the path is the destination for `save_config`. Any mutation of `Config` from the UI must be followed by a `save_config` call so disk and memory don't diverge. Surface save errors via the transient status-bar message rather than crashing. The shared `App::persist` helper does this — prefer it over inline `save_config` calls.
+
+## Module Layout
+The crate is organized so each file has a single clear responsibility. Keep it that way as the codebase grows.
+
+- `src/main.rs` — entry point only. Terminal setup/teardown and the call into `app::run`. **Should stay small** (under ~80 lines). No state, no rendering, no key handling here.
+- `src/app.rs` — application state (`App` struct), the `Mode` enum, state-mutation methods, and the event loop (`run`). All mutation lives here.
+- `src/ui.rs` — pure rendering. Reads `&App`, writes to a `Frame`. Owns `HELP_LINES` and the help-overlay layout. Never mutates state.
+- `src/input.rs` — keystroke dispatch. Maps `(Mode, KeyCode)` to `App` method calls and signals quit via a `bool` return. No business logic here — just routing.
+- `src/config.rs` — TOML load/save plus the `Config` struct. No UI awareness.
+
+### When to split a file further
+- If any file grows past **~300 lines**, look for an extraction. Common split lines: a new mode that has its own state/rendering, a widget that has its own builder logic, a new config concern (e.g. theme, keybinding overrides).
+- A new view (e.g. a History panel) should get its own file under `src/ui/` (promote `ui.rs` to `ui/mod.rs` when this happens).
+- A new domain concept (e.g. `Repository`, `Branch`) should get its own module, not be jammed into `app.rs`.
+- Prefer adding a new module over expanding an existing one when the new code doesn't share state with what's already there.
 
 ## Keeping Docs In Sync
 - **Whenever you change code, update the relevant documentation in the same task.** The docs are the contract for future agents and contributors — stale docs are worse than no docs.

@@ -18,7 +18,8 @@ Twig is a Rust-based Terminal User Interface (TUI) for Git, aiming to provide a 
 - **State Management:** Clear separation between Git state and UI state.
 - **Async Operations:** Long-running Git commands (fetch, clone, large diffs) should not block the UI thread.
 - **Component-based UI:** Use modular widgets for different views (History, Working Tree, Branches).
-- **Modal Input:** Keystroke meaning is mode-dependent (Normal / Adding / Editing / ConfirmDelete). The status bar always reflects the current mode so the user can recover orientation at a glance.
+- **Modal Input:** Keystroke meaning is mode-dependent (Normal / Adding / Editing / ConfirmDelete / Help). The status bar always reflects the current mode so the user can recover orientation at a glance.
+- **Single-responsibility modules:** `main.rs` (entry) → `app.rs` (state + run loop) → `ui.rs` (drawing) → `input.rs` (key dispatch) → `config.rs` (TOML load/save). Files should stay small; see `.agent/INSTRUCTIONS.md` for the splitting rule.
 
 ## Development Workflow
 - Follow the Roadmap in `.agent/ROADMAP.md`.

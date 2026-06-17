@@ -3,8 +3,9 @@
 ## Rust Coding Standards
 - **Naming:** Follow standard Rust naming conventions (`snake_case` for functions/variables, `PascalCase` for structs/enums).
 - **Errors:** Use `thiserror` or `anyhow` for error handling (or standard `Box<dyn Error>` for top-level). Prefer specific error enums for library logic.
-- **Documentation:** Use doc comments (`///`) for public items. Explain *why*, not just *what*.
+- **Documentation:** Use doc comments (`///`) for public items. Explain *why*, not just *what*. Use a top-of-file `//!` doc comment to state each module's single responsibility.
 - **Imports:** Group imports: std, external crates, internal modules. Use curly braces for multiple items from the same crate.
+- **File Size:** Aim to keep files under ~300 lines. When one grows beyond that, extract along a single responsibility line (state vs. rendering vs. input vs. persistence). See the Module Layout section of `.agent/INSTRUCTIONS.md` for the current map and the splitting rules.
 
 ## TUI Patterns
 - **Immediacy:** The UI should feel snappy. Avoid unnecessary redraws, but ensure state changes are reflected immediately.
