@@ -105,21 +105,27 @@ fn draw_outer_frame(f: &mut Frame, area: Rect) {
     f.render_widget(block, area);
 }
 
-/// Splits `inner_area` into N item rows + one status row, returning the
-/// per-item chunks and the status chunk separately so the caller doesn't
-/// have to remember the last index.
+/// Splits `inner_area` into N item rows + a flex spacer + one status row,
+/// returning the per-item chunks and the status chunk separately so the
+/// caller doesn't have to remember the last index.
+///
+/// The spacer (`Constraint::Min(0)`) absorbs leftover vertical space so the
+/// status bar is always pinned to the bottom edge of `inner_area`, even
+/// when the item list is too short to fill the screen.
 fn list_and_status_chunks(inner_area: Rect, visible_count: usize) -> (Vec<Rect>, Rect) {
     let mut constraints = vec![Constraint::Length(ITEM_HEIGHT); visible_count];
+    constraints.push(Constraint::Min(0));
     constraints.push(Constraint::Length(STATUS_HEIGHT));
 
-    let chunks: Vec<Rect> = Layout::default()
+    let mut chunks: Vec<Rect> = Layout::default()
         .direction(Direction::Vertical)
         .constraints(constraints)
         .split(inner_area)
         .to_vec();
 
-    let (status, items) = chunks.split_last().expect("status chunk always present");
-    (items.to_vec(), *status)
+    let status = chunks.pop().expect("status chunk always present");
+    chunks.pop().expect("spacer chunk always present"); // discard spacer
+    (chunks, status)
 }
 
 fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
