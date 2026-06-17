@@ -19,7 +19,20 @@ use ratatui::{
 
 // Custom config module
 mod config;
-use crate::config::{Config, load_config};
+use crate::config::{Config, load_config, save_config};
+
+/// Interaction modes for the item list. The mode dictates how keystrokes
+/// are interpreted and what guidance the status bar shows.
+enum Mode {
+    /// Browsing the list. Navigation + add/edit/delete shortcuts are active.
+    Normal,
+    /// Typing a new item to append. Enter commits, Esc cancels.
+    Adding,
+    /// Typing replacement text for the selected item. Enter commits, Esc cancels.
+    Editing,
+    /// Asking the user to confirm deletion of the selected item.
+    ConfirmDelete,
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Enable raw mode to capture input without line buffering
@@ -36,11 +49,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // Load configuration from file or default
-    let config = load_config(cli_path)?;
+    // Load configuration plus the path we should persist edits to.
+    let (config, config_path) = load_config(cli_path)?;
 
     // Run the application logic
-    let res = run_app(&mut terminal, config);
+    let res = run_app(&mut terminal, config, config_path);
 
     // Cleanup terminal: disable raw mode, leave alt screen, disable mouse
     disable_raw_mode()?;
@@ -62,17 +75,29 @@ fn main() -> Result<(), Box<dyn Error>> {
 /// Main application loop
 fn run_app<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
-    config: Config,
+    mut config: Config,
+    config_path: PathBuf,
 ) -> Result<(), Box<dyn Error>>
 where
     <B as ratatui::backend::Backend>::Error: 'static,
 {
     let mut selected_index: usize = 0; // Currently selected item index
     let mut scroll_top: usize = 0; // Index of the topmost visible item
+    let mut mode = Mode::Normal; // Current interaction mode
+    let mut input_buffer = String::new(); // In-progress text for add/edit
+    let mut status_message: Option<String> = None; // Transient feedback (e.g. save errors)
     const ITEM_HEIGHT: u16 = 3; // Height of each item block in rows
     const STATUS_HEIGHT: u16 = 1; // Height reserved for the status/help bar
 
     loop {
+        // Clamp selection inside the current list bounds (handles post-delete state)
+        if !config.items.is_empty() && selected_index >= config.items.len() {
+            selected_index = config.items.len() - 1;
+        }
+        if config.items.is_empty() {
+            selected_index = 0;
+        }
+
         // Determine available screen area
         let size = terminal.size()?;
         let area = Rect::new(0, 0, size.width, size.height);
@@ -90,6 +115,27 @@ where
         if scroll_top > max_scroll {
             scroll_top = max_scroll;
         }
+
+        // Build the status/help line that fits the current mode.
+        let status_text = match &mode {
+            Mode::Normal => {
+                "[↑/↓ j/k] Navigate  [a] Add  [e] Edit  [d] Delete  [q] Quit".to_string()
+            }
+            Mode::Adding => format!("Add item: {}_   [Enter] Save  [Esc] Cancel", input_buffer),
+            Mode::Editing => format!("Edit item: {}_   [Enter] Save  [Esc] Cancel", input_buffer),
+            Mode::ConfirmDelete => {
+                let target = config
+                    .items
+                    .get(selected_index)
+                    .map(|s| s.as_str())
+                    .unwrap_or("");
+                format!("Delete \"{}\"? [y] Confirm  [n/Esc] Cancel", target)
+            }
+        };
+        let status_text = match &status_message {
+            Some(msg) => format!("{} | {}", msg, status_text),
+            None => status_text,
+        };
 
         // Draw UI
         terminal.draw(|f| {
@@ -134,46 +180,131 @@ where
                 f.render_widget(paragraph, chunks[i]);
             }
 
-            // Status/help bar at the bottom
-            let status_text = "[↑/↓]: Navigate  [q]: Quit";
-            let status = Paragraph::new(status_text).style(
-                Style::default()
+            // Status/help bar at the bottom — color shifts by mode so input
+            // modes are visually distinct from the resting browse state.
+            let status_style = match mode {
+                Mode::Normal => Style::default()
                     .fg(Color::Blue)
                     .add_modifier(Modifier::ITALIC),
-            );
+                Mode::Adding | Mode::Editing => Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+                Mode::ConfirmDelete => Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            };
+            let status = Paragraph::new(status_text.as_str()).style(status_style);
             f.render_widget(status, *chunks.last().unwrap());
         })?;
+
+        // Clear transient feedback once it has been shown for a frame.
+        status_message = None;
 
         // Handle keypress events
         if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
-                match key.code {
-                    // Quit
-                    KeyCode::Char('q') => return Ok(()),
-
-                    // Move selection down
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        if selected_index + 1 < config.items.len() {
-                            selected_index += 1;
-                            let bottom = scroll_top + visible_count_usize;
-                            if selected_index >= bottom {
-                                scroll_top = scroll_top.saturating_add(1);
+                match &mode {
+                    Mode::Normal => match key.code {
+                        KeyCode::Char('q') => return Ok(()),
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            if selected_index + 1 < config.items.len() {
+                                selected_index += 1;
+                                let bottom = scroll_top + visible_count_usize;
+                                if selected_index >= bottom {
+                                    scroll_top = scroll_top.saturating_add(1);
+                                }
                             }
                         }
-                    }
-
-                    // Move selection up
-                    KeyCode::Up | KeyCode::Char('k') => {
-                        if selected_index > 0 {
-                            selected_index -= 1;
-                            if selected_index < scroll_top {
-                                scroll_top = scroll_top.saturating_sub(1);
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            if selected_index > 0 {
+                                selected_index -= 1;
+                                if selected_index < scroll_top {
+                                    scroll_top = scroll_top.saturating_sub(1);
+                                }
                             }
                         }
-                    }
-
-                    // Ignore other keys
-                    _ => {}
+                        KeyCode::Char('a') => {
+                            input_buffer.clear();
+                            mode = Mode::Adding;
+                        }
+                        KeyCode::Char('e') => {
+                            if let Some(current) = config.items.get(selected_index) {
+                                input_buffer = current.clone();
+                                mode = Mode::Editing;
+                            }
+                        }
+                        KeyCode::Char('d') if !config.items.is_empty() => {
+                            mode = Mode::ConfirmDelete;
+                        }
+                        _ => {}
+                    },
+                    Mode::Adding => match key.code {
+                        KeyCode::Esc => {
+                            input_buffer.clear();
+                            mode = Mode::Normal;
+                        }
+                        KeyCode::Enter => {
+                            let trimmed = input_buffer.trim();
+                            if !trimmed.is_empty() {
+                                config.items.push(trimmed.to_string());
+                                selected_index = config.items.len() - 1;
+                                status_message = match save_config(&config, &config_path) {
+                                    Ok(()) => Some("Saved".to_string()),
+                                    Err(e) => Some(format!("Save failed: {}", e)),
+                                };
+                            }
+                            input_buffer.clear();
+                            mode = Mode::Normal;
+                        }
+                        KeyCode::Backspace => {
+                            input_buffer.pop();
+                        }
+                        KeyCode::Char(c) => {
+                            input_buffer.push(c);
+                        }
+                        _ => {}
+                    },
+                    Mode::Editing => match key.code {
+                        KeyCode::Esc => {
+                            input_buffer.clear();
+                            mode = Mode::Normal;
+                        }
+                        KeyCode::Enter => {
+                            let trimmed = input_buffer.trim();
+                            if !trimmed.is_empty()
+                                && let Some(slot) = config.items.get_mut(selected_index)
+                            {
+                                *slot = trimmed.to_string();
+                                status_message = match save_config(&config, &config_path) {
+                                    Ok(()) => Some("Saved".to_string()),
+                                    Err(e) => Some(format!("Save failed: {}", e)),
+                                };
+                            }
+                            input_buffer.clear();
+                            mode = Mode::Normal;
+                        }
+                        KeyCode::Backspace => {
+                            input_buffer.pop();
+                        }
+                        KeyCode::Char(c) => {
+                            input_buffer.push(c);
+                        }
+                        _ => {}
+                    },
+                    Mode::ConfirmDelete => match key.code {
+                        KeyCode::Char('y') | KeyCode::Char('Y') => {
+                            if selected_index < config.items.len() {
+                                config.items.remove(selected_index);
+                                status_message = match save_config(&config, &config_path) {
+                                    Ok(()) => Some("Deleted".to_string()),
+                                    Err(e) => Some(format!("Save failed: {}", e)),
+                                };
+                            }
+                            mode = Mode::Normal;
+                        }
+                        KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                            mode = Mode::Normal;
+                        }
+                        _ => {}
+                    },
                 }
             }
         }
