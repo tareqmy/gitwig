@@ -56,7 +56,7 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, ar
                 .split(body_area);
 
             draw_detail_commits(f, info, detail_chunks[0]);
-            draw_staging_panels(f, detail_chunks[1]);
+            draw_staging_panels(f, &info.changes, detail_chunks[1]);
 
             // Draw overview popup on top when requested
             if matches!(mode, Mode::DetailOverview) {
@@ -75,15 +75,16 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, ar
 
 // ── Staging panels ─────────────────────────────────────────────────────────
 
-/// Renders two side-by-side panels: "Staging Area" (left) and "Staging Details" (right).
-fn draw_staging_panels(f: &mut Frame, area: Rect) {
+/// Renders two side-by-side panels: "Staging Area" (left, split into Staged/Unstaged)
+/// and "Staging Details" (right).
+fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, area: Rect) {
     let panels = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    // Left panel – Staging Area
-    let left_block = Block::default()
+    // ── Left panel: outer border labelled "Staging Area" ──────────────────
+    let left_outer = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(muted_style())
@@ -92,25 +93,33 @@ fn draw_staging_panels(f: &mut Frame, area: Rect) {
             Span::styled("Staging Area", primary_style()),
             Span::raw(" "),
         ]));
-    let left_inner = left_block.inner(panels[0]);
-    f.render_widget(left_block, panels[0]);
+    let left_inner = left_outer.inner(panels[0]);
+    f.render_widget(left_outer, panels[0]);
 
-    let placeholder = Paragraph::new(Line::from(vec![
-        Span::styled("No files staged", muted_style()),
-    ]))
-    .alignment(Alignment::Center);
-    // Vertically centre the placeholder text
-    let v_center = Layout::default()
+    // Split left inner vertically: top = Staged, bottom = Unstaged
+    let left_split = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage(45),
-            Constraint::Length(1),
-            Constraint::Min(0),
-        ])
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(left_inner);
-    f.render_widget(placeholder, v_center[1]);
 
-    // Right panel – Staging Details
+    draw_file_subpanel(
+        f,
+        "Staged",
+        SUCCESS,
+        &changes.staged,
+        "Nothing staged",
+        left_split[0],
+    );
+    draw_file_subpanel(
+        f,
+        "Unstaged",
+        WARNING,
+        &changes.unstaged,
+        "No unstaged changes",
+        left_split[1],
+    );
+
+    // ── Right panel – Staging Details ─────────────────────────────────────
     let right_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -123,11 +132,7 @@ fn draw_staging_panels(f: &mut Frame, area: Rect) {
     let right_inner = right_block.inner(panels[1]);
     f.render_widget(right_block, panels[1]);
 
-    let detail_placeholder = Paragraph::new(Line::from(vec![
-        Span::styled("Select a file to view its diff", muted_style()),
-    ]))
-    .alignment(Alignment::Center);
-    let v_center2 = Layout::default()
+    let v_center = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Percentage(45),
@@ -135,7 +140,62 @@ fn draw_staging_panels(f: &mut Frame, area: Rect) {
             Constraint::Min(0),
         ])
         .split(right_inner);
-    f.render_widget(detail_placeholder, v_center2[1]);
+    f.render_widget(
+        Paragraph::new(Span::styled("Select a file to view its diff", muted_style()))
+            .alignment(Alignment::Center),
+        v_center[1],
+    );
+}
+
+/// Renders a titled sub-panel listing `files`, or a centred placeholder if empty.
+fn draw_file_subpanel(
+    f: &mut Frame,
+    title: &'static str,
+    title_color: ratatui::style::Color,
+    files: &[FileEntry],
+    empty_msg: &'static str,
+    area: Rect,
+) {
+    // Sub-panel block — bottom border separates Staged from Unstaged.
+    let block = Block::default()
+        .borders(Borders::BOTTOM)
+        .border_style(muted_style())
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled(title, Style::default().fg(title_color)),
+            Span::raw("  "),
+            Span::styled(
+                format!("({})", files.len()),
+                muted_style(),
+            ),
+            Span::raw(" "),
+        ]));
+
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+
+    if files.is_empty() {
+        let v = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(40),
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
+            .split(inner);
+        f.render_widget(
+            Paragraph::new(Span::styled(empty_msg, muted_style()))
+                .alignment(Alignment::Center),
+            v[1],
+        );
+        return;
+    }
+
+    let file_lines: Vec<Line<'static>> = files.iter().map(file_entry_line).collect();
+    f.render_widget(
+        Paragraph::new(file_lines).wrap(Wrap { trim: false }),
+        inner,
+    );
 }
 
 // ── Overview popup ─────────────────────────────────────────────────────────
@@ -352,10 +412,6 @@ fn build_repo_body(resolved: &std::path::Path, info: &RepoInfo) -> Vec<Line<'sta
     push_section_header(&mut lines, "Sync");
     append_sync(&mut lines, info);
 
-    // ── Working Tree ──────────────────────────────────────────────────────
-    push_section_header(&mut lines, "Working Tree");
-    append_working_tree(&mut lines, &info.changes);
-
     lines
 }
 
@@ -372,15 +428,6 @@ fn push_section_header(lines: &mut Vec<Line<'static>>, title: &'static str) {
     lines.push(Line::from(""));
 }
 
-/// Emits `    SubTitle  (N)` indented one level inside a section.
-fn push_subsection_header(lines: &mut Vec<Line<'static>>, title: &'static str, count: usize) {
-    lines.push(Line::from(vec![
-        Span::raw("    "),
-        Span::styled(title, primary_style()),
-        Span::raw("  "),
-        Span::styled(format!("({})", count), muted_style()),
-    ]));
-}
 
 // ── Repository section ─────────────────────────────────────────────────────
 
@@ -460,64 +507,6 @@ fn remote_line(remote: &RemoteInfo) -> Line<'static> {
     ])
 }
 
-// ── Working Tree section ───────────────────────────────────────────────────
-
-fn append_working_tree(lines: &mut Vec<Line<'static>>, changes: &WorktreeChanges) {
-    let all_clean = changes.staged.is_empty()
-        && changes.unstaged.is_empty()
-        && changes.untracked.is_empty()
-        && changes.conflicted.is_empty();
-
-    if all_clean {
-        lines.push(field_line(
-            "Status",
-            Span::styled("clean", Style::default().fg(SUCCESS)),
-        ));
-        return;
-    }
-
-    let mut first = true;
-
-    if !changes.staged.is_empty() {
-        first = false;
-        push_subsection_header(lines, "Staged", changes.staged.len());
-        for f in &changes.staged {
-            lines.push(file_entry_line(f));
-        }
-    }
-
-    if !changes.unstaged.is_empty() {
-        if !first {
-            lines.push(Line::from(""));
-        }
-        first = false;
-        push_subsection_header(lines, "Unstaged", changes.unstaged.len());
-        for f in &changes.unstaged {
-            lines.push(file_entry_line(f));
-        }
-    }
-
-    if !changes.untracked.is_empty() {
-        if !first {
-            lines.push(Line::from(""));
-        }
-        first = false;
-        push_subsection_header(lines, "Untracked", changes.untracked.len());
-        for f in &changes.untracked {
-            lines.push(file_entry_line(f));
-        }
-    }
-
-    if !changes.conflicted.is_empty() {
-        if !first {
-            lines.push(Line::from(""));
-        }
-        push_subsection_header(lines, "Conflicts", changes.conflicted.len());
-        for f in &changes.conflicted {
-            lines.push(file_entry_line(f));
-        }
-    }
-}
 
 fn file_entry_line(entry: &FileEntry) -> Line<'static> {
     let label_style = match entry.label {
