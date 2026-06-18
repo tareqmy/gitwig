@@ -6,10 +6,11 @@
 
 use crossterm::event::KeyCode;
 
-use crate::app::{App, Mode};
+use crate::app::{App, DetailSection, Mode};
 
 /// Dispatch a key press. Returns `false` if the user requested quit.
 pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
+    let detail_focus = app.detail_focus; // Copy before borrow in match
     match &app.mode {
         Mode::Normal => match code {
             KeyCode::Char('q') => return false,
@@ -54,6 +55,10 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
             KeyCode::Char('o') => app.open_overview_popup(),
             KeyCode::Tab => app.cycle_detail_focus(),
+            KeyCode::Up | KeyCode::Char('k')
+                if detail_focus == DetailSection::Commits => app.detail_commit_up(),
+            KeyCode::Down | KeyCode::Char('j')
+                if detail_focus == DetailSection::Commits => app.detail_commit_down(),
             _ => {}
         },
         Mode::DetailOverview => match code {

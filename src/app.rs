@@ -85,6 +85,8 @@ pub struct App {
     pub current_detail: Option<ItemDetail>,
     /// Which panel is focused inside the detail view.
     pub detail_focus: DetailSection,
+    /// Selected row index inside the Commits panel (0 = top row).
+    pub commit_selection: usize,
 }
 
 impl App {
@@ -105,6 +107,7 @@ impl App {
             status_message: None,
             current_detail: None,
             detail_focus: DetailSection::Commits,
+            commit_selection: 0,
         }
     }
 
@@ -205,6 +208,7 @@ impl App {
         if let Some(item) = self.config.items.get(self.selected_index) {
             self.current_detail = Some(repo::inspect_detail(item));
             self.detail_focus = DetailSection::Commits;
+            self.commit_selection = 0;
             self.mode = Mode::Detail;
         }
     }
@@ -212,6 +216,28 @@ impl App {
     /// Advance focus to the next detail panel (Tab key).
     pub fn cycle_detail_focus(&mut self) {
         self.detail_focus = self.detail_focus.next();
+    }
+
+    /// Move commit selection up one row.
+    pub fn detail_commit_up(&mut self) {
+        self.commit_selection = self.commit_selection.saturating_sub(1);
+    }
+
+    /// Move commit selection down one row, clamped to the last visible row.
+    pub fn detail_commit_down(&mut self) {
+        let total = match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => {
+                let dirty = !info.changes.staged.is_empty()
+                    || !info.changes.unstaged.is_empty()
+                    || !info.changes.untracked.is_empty()
+                    || !info.changes.conflicted.is_empty();
+                info.commits.len() + usize::from(dirty)
+            }
+            _ => 0,
+        };
+        if total > 0 && self.commit_selection + 1 < total {
+            self.commit_selection += 1;
+        }
     }
 
     pub fn close_detail(&mut self) {

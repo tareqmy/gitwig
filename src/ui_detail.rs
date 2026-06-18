@@ -13,7 +13,7 @@ use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Borders, Cell, Clear, Padding, Paragraph, Row, Table, Wrap};
+use ratatui::widgets::{Block, BorderType, Borders, Cell, Clear, Padding, Paragraph, Row, Table, TableState, Wrap};
 
 use crate::repo::{FileEntry, HeadInfo, ItemDetail, RemoteInfo, RepoInfo, WorktreeChanges};
 use crate::ui::{ACCENT, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style};
@@ -32,7 +32,7 @@ use crate::app::Mode;
 // ── Entry point ────────────────────────────────────────────────────────────
 
 /// Renders the detail view into `area`.
-pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, focus: &DetailSection, area: Rect) {
+pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, focus: &DetailSection, commit_selection: usize, area: Rect) {
     // Reserve one row at the top for the breadcrumb header ("Item: <name>").
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -78,7 +78,7 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, fo
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
                 .split(body_area);
 
-            draw_detail_commits(f, info, *focus, detail_chunks[0]);
+            draw_detail_commits(f, info, *focus, commit_selection, detail_chunks[0]);
             draw_staging_panels(f, &info.changes, *focus, detail_chunks[1]);
 
             // Draw overview popup on top when requested
@@ -296,7 +296,7 @@ fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, area: Rect) {
+fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, commit_selection: usize, area: Rect) {
     let focused = focus == DetailSection::Commits;
     let border_style = if focused { Style::default().fg(ACCENT) } else { muted_style() };
     let block = Block::default()
@@ -309,7 +309,14 @@ fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, are
             Span::raw(" "),
         ]));
 
-    if info.commits.is_empty() {
+    // Dirty = any uncommitted change in staged / unstaged / untracked / conflicted.
+    let dirty = !info.changes.staged.is_empty()
+        || !info.changes.unstaged.is_empty()
+        || !info.changes.untracked.is_empty()
+        || !info.changes.conflicted.is_empty();
+
+    // Show empty placeholder only when truly empty (no commits AND clean).
+    if info.commits.is_empty() && !dirty {
         let inner = block.inner(area);
         f.render_widget(block, area);
         let v = Layout::default()
@@ -339,21 +346,29 @@ fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, are
     ])
     .style(Style::default().add_modifier(Modifier::BOLD).fg(ACCENT));
 
-    let rows: Vec<Row> = info
-        .commits
-        .iter()
-        .map(|commit| {
+    // Prepend a virtual "uncommitted changes" row when the worktree is dirty.
+    let mut rows: Vec<Row> = Vec::new();
+    if dirty {
+        rows.push(
             Row::new(vec![
-                Cell::from(Span::styled(
-                    commit.id.clone(),
-                    Style::default().fg(WARNING),
-                )),
-                Cell::from(Span::styled(commit.author.clone(), Style::default())),
-                Cell::from(Span::styled(commit.when.clone(), muted_style())),
-                Cell::from(Span::styled(commit.summary.clone(), Style::default())),
+                Cell::from(Span::styled("-", muted_style())),
+                Cell::from(Span::styled("-", muted_style())),
+                Cell::from(Span::styled("-", muted_style())),
+                Cell::from(Span::styled("<uncommitted>", Style::default().fg(WARNING))),
             ])
-        })
-        .collect();
+        );
+    }
+    rows.extend(info.commits.iter().map(|commit| {
+        Row::new(vec![
+            Cell::from(Span::styled(
+                commit.id.clone(),
+                Style::default().fg(WARNING),
+            )),
+            Cell::from(Span::styled(commit.author.clone(), Style::default())),
+            Cell::from(Span::styled(commit.when.clone(), muted_style())),
+            Cell::from(Span::styled(commit.summary.clone(), Style::default())),
+        ])
+    }));
 
     let widths = [
         Constraint::Length(9),  // "c7a45e2" + 2 padding
@@ -365,9 +380,16 @@ fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, are
     let table = Table::new(rows, widths)
         .header(header)
         .block(block)
+        .row_highlight_style(
+            Style::default().add_modifier(Modifier::REVERSED),
+        )
         .column_spacing(2);
 
-    f.render_widget(table, area);
+    let mut state = TableState::default();
+    if focused {
+        state.select(Some(commit_selection));
+    }
+    f.render_stateful_widget(table, area, &mut state);
 }
 
 // ── Body builder ───────────────────────────────────────────────────────────
