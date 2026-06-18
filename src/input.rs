@@ -53,6 +53,7 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
         Mode::Detail => match code {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
             KeyCode::Char('o') => app.open_overview_popup(),
+            KeyCode::Tab => app.cycle_detail_focus(),
             _ => {}
         },
         Mode::DetailOverview => match code {

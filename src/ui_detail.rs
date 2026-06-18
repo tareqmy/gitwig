@@ -17,6 +17,7 @@ use ratatui::widgets::{Block, BorderType, Borders, Cell, Clear, Padding, Paragra
 
 use crate::repo::{FileEntry, HeadInfo, ItemDetail, RemoteInfo, RepoInfo, WorktreeChanges};
 use crate::ui::{ACCENT, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style};
+use crate::app::DetailSection;
 
 const FIELD_INDENT: &str = "  ";
 /// Column width for the left-side field label — wide enough for "Upstream:".
@@ -31,7 +32,7 @@ use crate::app::Mode;
 // ── Entry point ────────────────────────────────────────────────────────────
 
 /// Renders the detail view into `area`.
-pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, area: Rect) {
+pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, focus: &DetailSection, area: Rect) {
     // Reserve one row at the top for the breadcrumb header ("Item: <name>").
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -77,8 +78,8 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, ar
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
                 .split(body_area);
 
-            draw_detail_commits(f, info, detail_chunks[0]);
-            draw_staging_panels(f, &info.changes, detail_chunks[1]);
+            draw_detail_commits(f, info, *focus, detail_chunks[0]);
+            draw_staging_panels(f, &info.changes, *focus, detail_chunks[1]);
 
             // Draw overview popup on top when requested
             if matches!(mode, Mode::DetailOverview) {
@@ -99,17 +100,22 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, ar
 
 /// Renders two side-by-side panels: "Staging Area" (left, split into Staged/Unstaged)
 /// and "Staging Details" (right).
-fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, area: Rect) {
+fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, focus: DetailSection, area: Rect) {
     let panels = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
+    // Focus-aware border helpers.
+    let left_focused  = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
+    let right_focused = focus == DetailSection::StagingDetails;
+
     // ── Left panel: outer border labelled "Staging Area" ──────────────────
+    let left_border_style = if left_focused { Style::default().fg(ACCENT) } else { muted_style() };
     let left_outer = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(muted_style())
+        .border_style(left_border_style)
         .title(Line::from(vec![
             Span::raw(" "),
             Span::styled("Staging Area", primary_style()),
@@ -131,6 +137,7 @@ fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, area: Rect) {
         &changes.staged,
         "Nothing staged",
         Borders::BOTTOM,
+        focus == DetailSection::Staged,
         left_split[0],
     );
     draw_file_subpanel(
@@ -140,14 +147,16 @@ fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, area: Rect) {
         &changes.unstaged,
         "No unstaged changes",
         Borders::empty(),
+        focus == DetailSection::Unstaged,
         left_split[1],
     );
 
     // ── Right panel – Staging Details ─────────────────────────────────────
+    let right_border_style = if right_focused { Style::default().fg(ACCENT) } else { muted_style() };
     let right_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(muted_style())
+        .border_style(right_border_style)
         .title(Line::from(vec![
             Span::raw(" "),
             Span::styled("Staging Details", primary_style()),
@@ -179,15 +188,23 @@ fn draw_file_subpanel(
     files: &[FileEntry],
     empty_msg: &'static str,
     borders: Borders,
+    focused: bool,
     area: Rect,
 ) {
+    // When focused, highlight the title in accent; border stays muted (contained inside outer).
+    let title_style = if focused {
+        Style::default().fg(ACCENT).add_modifier(ratatui::style::Modifier::BOLD)
+    } else {
+        Style::default().fg(title_color)
+    };
+    let border_style = if focused { Style::default().fg(ACCENT) } else { muted_style() };
     // Sub-panel block — bottom border separates Staged from Unstaged.
     let block = Block::default()
         .borders(borders)
-        .border_style(muted_style())
+        .border_style(border_style)
         .title(Line::from(vec![
             Span::raw(" "),
-            Span::styled(title, Style::default().fg(title_color)),
+            Span::styled(title, title_style),
             Span::raw("  "),
             Span::styled(
                 format!("({})", files.len()),
@@ -279,11 +296,13 @@ fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, area: Rect) {
+fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, area: Rect) {
+    let focused = focus == DetailSection::Commits;
+    let border_style = if focused { Style::default().fg(ACCENT) } else { muted_style() };
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(muted_style())
+        .border_style(border_style)
         .title(Line::from(vec![
             Span::raw(" "),
             Span::styled("Commits", primary_style()),

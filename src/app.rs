@@ -45,6 +45,28 @@ pub enum Mode {
     DetailOverview,
 }
 
+/// Which panel in the detail view currently has keyboard focus.
+/// Tab cycles through them in order.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum DetailSection {
+    Commits,
+    Staged,
+    Unstaged,
+    StagingDetails,
+}
+
+impl DetailSection {
+    /// Advance to the next section in the cycle.
+    pub fn next(self) -> Self {
+        match self {
+            Self::Commits        => Self::Staged,
+            Self::Staged         => Self::Unstaged,
+            Self::Unstaged       => Self::StagingDetails,
+            Self::StagingDetails => Self::Commits,
+        }
+    }
+}
+
 /// All mutable session state.
 pub struct App {
     pub config: Config,
@@ -61,6 +83,8 @@ pub struct App {
     /// detail snapshot is taken once on open (not re-fetched per frame)
     /// so opening a slow repo only costs one git2 call.
     pub current_detail: Option<ItemDetail>,
+    /// Which panel is focused inside the detail view.
+    pub detail_focus: DetailSection,
 }
 
 impl App {
@@ -80,6 +104,7 @@ impl App {
             input_buffer: String::new(),
             status_message: None,
             current_detail: None,
+            detail_focus: DetailSection::Commits,
         }
     }
 
@@ -179,8 +204,14 @@ impl App {
     pub fn open_detail(&mut self) {
         if let Some(item) = self.config.items.get(self.selected_index) {
             self.current_detail = Some(repo::inspect_detail(item));
+            self.detail_focus = DetailSection::Commits;
             self.mode = Mode::Detail;
         }
+    }
+
+    /// Advance focus to the next detail panel (Tab key).
+    pub fn cycle_detail_focus(&mut self) {
+        self.detail_focus = self.detail_focus.next();
     }
 
     pub fn close_detail(&mut self) {

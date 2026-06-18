@@ -92,7 +92,7 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_coun
                 .get(app.selected_index)
                 .map(String::as_str)
                 .unwrap_or("");
-            crate::ui_detail::draw(f, item_name, detail, &app.mode, content_area);
+            crate::ui_detail::draw(f, item_name, detail, &app.mode, &app.detail_focus, content_area);
         }
     } else if app.config.items.is_empty() {
         draw_empty_state(f, content_area);
@@ -407,6 +407,9 @@ fn detail_dismiss_spans() -> Vec<Span<'static>> {
         Span::raw("  "),
         Span::styled("Esc / q", accent_style()),
         Span::raw("  back to list"),
+        Span::raw("   "),
+        Span::styled("Tab", accent_style()),
+        Span::raw("  cycle focus"),
         Span::raw("   "),
         Span::styled("o", accent_style()),
         Span::raw("  overview popup"),
