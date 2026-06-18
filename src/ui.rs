@@ -84,7 +84,7 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_coun
     // Always reserve the bottom row for the status bar, regardless of mode.
     let (content_area, status_chunk) = content_and_status_chunks(inner_area);
 
-    if matches!(app.mode, Mode::Detail | Mode::DetailOverview) {
+    if matches!(app.mode, Mode::Detail | Mode::DetailOverview | Mode::DetailHelp) {
         if let Some(detail) = &app.current_detail {
             let item_name = app
                 .config
@@ -393,7 +393,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         Mode::Help => {
             draw_status_content(f, content_area, help_dismiss_spans());
         }
-        Mode::Detail => {
+        Mode::Detail | Mode::DetailHelp => {
             draw_status_content(f, content_area, detail_dismiss_spans());
         }
         Mode::DetailOverview => {
@@ -412,7 +412,10 @@ fn detail_dismiss_spans() -> Vec<Span<'static>> {
         Span::raw("  cycle focus"),
         Span::raw("   "),
         Span::styled("o", accent_style()),
-        Span::raw("  overview popup"),
+        Span::raw("  overview"),
+        Span::raw("   "),
+        Span::styled("?", accent_style()),
+        Span::raw("  help"),
     ]
 }
 
@@ -422,13 +425,14 @@ fn detail_dismiss_spans() -> Vec<Span<'static>> {
 /// chosen for max readability against each bg.
 fn mode_badge(mode: &Mode) -> (&'static str, Color, Color) {
     match mode {
-        Mode::Normal => ("NORMAL", Color::Black, ACCENT),
-        Mode::Adding => ("ADDING", Color::Black, WARNING),
-        Mode::Editing => ("EDITING", Color::Black, WARNING),
+        Mode::Normal    => ("NORMAL",  Color::Black, ACCENT),
+        Mode::Adding    => ("ADDING",  Color::Black, WARNING),
+        Mode::Editing   => ("EDITING", Color::Black, WARNING),
         Mode::ConfirmDelete => ("CONFIRM", Color::White, DANGER),
-        Mode::Help => ("HELP", Color::Black, ACCENT),
-        Mode::Detail => ("DETAIL", Color::Black, ACCENT),
+        Mode::Help      => ("HELP",    Color::Black, ACCENT),
+        Mode::Detail    => ("DETAIL",  Color::Black, ACCENT),
         Mode::DetailOverview => ("OVERVIEW", Color::Black, ACCENT),
+        Mode::DetailHelp     => ("HELP",     Color::Black, ACCENT),
     }
 }
 

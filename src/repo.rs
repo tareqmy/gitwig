@@ -107,6 +107,9 @@ pub struct CommitEntry {
     pub author: String,
     pub when: String,
     pub summary: String,
+    /// Local branch names and tags pointing at this commit.
+    /// Tags are prefixed with `"tag:"` so the UI can colour them differently.
+    pub refs: Vec<String>,
 }
 
 /// One changed file in the working tree or index.
@@ -182,7 +185,11 @@ pub fn inspect_detail(item: &str) -> ItemDetail {
     }
 }
 
-fn collect_commits(repo: &Repository, limit: usize) -> Result<Vec<CommitEntry>, git2::Error> {
+fn collect_commits(
+    repo: &Repository,
+    limit: usize,
+    ref_map: &std::collections::HashMap<git2::Oid, Vec<String>>,
+) -> Result<Vec<CommitEntry>, git2::Error> {
     let mut walk = repo.revwalk()?;
     if walk.push_head().is_err() {
         return Ok(Vec::new());
@@ -203,11 +210,13 @@ fn collect_commits(repo: &Repository, limit: usize) -> Result<Vec<CommitEntry>, 
             let author = commit.author();
             let author_str = author.name().unwrap_or("?").to_string();
             let when = format_relative_time(commit.time().seconds());
+            let refs = ref_map.get(&oid).cloned().unwrap_or_default();
             commits.push(CommitEntry {
                 id: short_id,
                 author: author_str,
                 when,
                 summary,
+                refs,
             });
         }
     }
@@ -271,12 +280,43 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
         }
     }
 
-    if let Ok(commits) = collect_commits(&repo, 50) {
+    if let Ok(commits) = collect_commits(&repo, 50, &build_ref_map(&repo)) {
         info.commits = commits;
     }
 
     populate_file_changes(&repo, &mut info);
     Ok(info)
+}
+
+/// Build a map from commit `Oid` → list of ref names that point to it.
+/// Local branches are stored as plain names (e.g. `"main"`).
+/// Lightweight and annotated tags are stored with a `"tag:"` prefix
+/// (e.g. `"tag:v1.0"`) so the UI can colour them differently.
+fn build_ref_map(repo: &Repository) -> std::collections::HashMap<git2::Oid, Vec<String>> {
+    let mut map: std::collections::HashMap<git2::Oid, Vec<String>> =
+        std::collections::HashMap::new();
+
+    if let Ok(refs) = repo.references() {
+        for reference in refs.flatten() {
+            // Resolve to the underlying commit Oid (peeling through tags).
+            let Ok(target) = reference.peel_to_commit() else { continue };
+            let oid = target.id();
+
+            let Ok(full_name) = reference.name() else { continue };
+
+            let label = if let Some(branch) = full_name.strip_prefix("refs/heads/") {
+                branch.to_string()
+            } else if let Some(tag) = full_name.strip_prefix("refs/tags/") {
+                format!("tag:{}", tag)
+            } else {
+                // Skip remotes and other ref namespaces.
+                continue;
+            };
+
+            map.entry(oid).or_default().push(label);
+        }
+    }
+    map
 }
 
 /// Maximum file entries collected per bucket. Prevents pathologically large

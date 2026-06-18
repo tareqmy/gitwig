@@ -43,6 +43,8 @@ pub enum Mode {
     Detail,
     /// Showing the repo overview popup inside the detail view (triggered by 'o').
     DetailOverview,
+    /// Showing the shortcut reference overlay inside the detail view (triggered by '?').
+    DetailHelp,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -225,7 +227,28 @@ impl App {
 
     /// Move commit selection down one row, clamped to the last visible row.
     pub fn detail_commit_down(&mut self) {
-        let total = match &self.current_detail {
+        let total = self.commit_total();
+        if total > 0 && self.commit_selection + 1 < total {
+            self.commit_selection += 1;
+        }
+    }
+
+    /// Jump commit selection up by `page` rows.
+    pub fn detail_commit_page_up(&mut self, page: usize) {
+        self.commit_selection = self.commit_selection.saturating_sub(page);
+    }
+
+    /// Jump commit selection down by `page` rows, clamped to the last row.
+    pub fn detail_commit_page_down(&mut self, page: usize) {
+        let total = self.commit_total();
+        if total > 0 {
+            self.commit_selection = (self.commit_selection + page).min(total - 1);
+        }
+    }
+
+    /// Total number of rows in the Commits panel (dirty row + real commits).
+    fn commit_total(&self) -> usize {
+        match &self.current_detail {
             Some(ItemDetail::Repo { info, .. }) => {
                 let dirty = !info.changes.staged.is_empty()
                     || !info.changes.unstaged.is_empty()
@@ -234,9 +257,6 @@ impl App {
                 info.commits.len() + usize::from(dirty)
             }
             _ => 0,
-        };
-        if total > 0 && self.commit_selection + 1 < total {
-            self.commit_selection += 1;
         }
     }
 
@@ -252,6 +272,16 @@ impl App {
 
     /// Closes the overview popup and returns to the normal detail view.
     pub fn close_overview_popup(&mut self) {
+        self.mode = Mode::Detail;
+    }
+
+    /// Opens the shortcut help overlay inside the detail view.
+    pub fn open_detail_help(&mut self) {
+        self.mode = Mode::DetailHelp;
+    }
+
+    /// Closes the detail help overlay and returns to the normal detail view.
+    pub fn close_detail_help(&mut self) {
         self.mode = Mode::Detail;
     }
 

@@ -54,16 +54,27 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
         Mode::Detail => match code {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
             KeyCode::Char('o') => app.open_overview_popup(),
+            KeyCode::Char('?') => app.open_detail_help(),
             KeyCode::Tab => app.cycle_detail_focus(),
             KeyCode::Up | KeyCode::Char('k')
                 if detail_focus == DetailSection::Commits => app.detail_commit_up(),
             KeyCode::Down | KeyCode::Char('j')
                 if detail_focus == DetailSection::Commits => app.detail_commit_down(),
+            KeyCode::PageUp
+                if detail_focus == DetailSection::Commits => app.detail_commit_page_up(10),
+            KeyCode::PageDown
+                if detail_focus == DetailSection::Commits => app.detail_commit_page_down(10),
             _ => {}
         },
         Mode::DetailOverview => match code {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Char('o') => {
                 app.close_overview_popup();
+            }
+            _ => {}
+        },
+        Mode::DetailHelp => match code {
+            KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                app.close_detail_help();
             }
             _ => {}
         },

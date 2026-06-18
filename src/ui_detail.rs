@@ -81,9 +81,13 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, fo
             draw_detail_commits(f, info, *focus, commit_selection, detail_chunks[0]);
             draw_staging_panels(f, &info.changes, *focus, detail_chunks[1]);
 
-            // Draw overview popup on top when requested
+            // Draw overview popup on top when requested.
             if matches!(mode, Mode::DetailOverview) {
                 draw_overview_popup(f, resolved, info, body_area);
+            }
+            // Draw detail help overlay on top when requested.
+            if matches!(mode, Mode::DetailHelp) {
+                draw_detail_help_overlay(f, body_area);
             }
         }
         _ => {
@@ -296,6 +300,59 @@ fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+// ── Detail help overlay ────────────────────────────────────────────────────
+
+const DETAIL_HELP_LINES: &[(&str, &str)] = &[
+    ("↑ / k",   "Select previous commit"),
+    ("↓ / j",   "Select next commit"),
+    ("PgUp",    "Jump 10 commits up"),
+    ("PgDn",    "Jump 10 commits down"),
+    ("Tab",     "Cycle panel focus  (Commits → Staged → Unstaged → Details)"),
+    ("o",       "Show repo overview popup"),
+    ("? / Esc", "Close this help"),
+    ("q / Esc", "Back to repository list"),
+];
+
+/// Renders a floating shortcut reference overlay centred over `area`.
+fn draw_detail_help_overlay(f: &mut Frame, area: Rect) {
+    let popup_area = centred_rect(60, 55, area);
+    f.render_widget(Clear, popup_area);
+
+    let key_width = DETAIL_HELP_LINES
+        .iter()
+        .map(|(k, _)| k.chars().count())
+        .max()
+        .unwrap_or(0);
+
+    let mut lines: Vec<Line> = vec![Line::from("")];
+    for (key, desc) in DETAIL_HELP_LINES {
+        let padded = format!("{:>width$}", key, width = key_width);
+        lines.push(Line::from(vec![
+            Span::raw("  "),
+            Span::styled(padded, Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+            Span::raw("   "),
+            Span::raw((*desc).to_string()),
+        ]));
+    }
+    lines.push(Line::from(""));
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(ACCENT))
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Detail Shortcuts", primary_style()),
+            Span::raw("  "),
+            Span::styled("? / Esc  close", muted_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::horizontal(1));
+
+    let para = Paragraph::new(lines).block(block);
+    f.render_widget(para, popup_area);
+}
+
 fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, commit_selection: usize, area: Rect) {
     let focused = focus == DetailSection::Commits;
     let border_style = if focused { Style::default().fg(ACCENT) } else { muted_style() };
@@ -359,6 +416,19 @@ fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, com
         );
     }
     rows.extend(info.commits.iter().map(|commit| {
+        // Build the summary cell: optional ref badges then the commit message.
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        for r in &commit.refs {
+            let (label, style) = if let Some(tag) = r.strip_prefix("tag:") {
+                (format!("[{}]", tag), Style::default().fg(WARNING).add_modifier(Modifier::BOLD))
+            } else {
+                (format!("[{}]", r), Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
+            };
+            spans.push(Span::styled(label, style));
+            spans.push(Span::raw(" "));
+        }
+        spans.push(Span::styled(commit.summary.clone(), Style::default()));
+
         Row::new(vec![
             Cell::from(Span::styled(
                 commit.id.clone(),
@@ -366,7 +436,7 @@ fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, com
             )),
             Cell::from(Span::styled(commit.author.clone(), Style::default())),
             Cell::from(Span::styled(commit.when.clone(), muted_style())),
-            Cell::from(Span::styled(commit.summary.clone(), Style::default())),
+            Cell::from(Line::from(spans)),
         ])
     }));
 
