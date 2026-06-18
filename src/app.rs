@@ -41,6 +41,8 @@ pub enum Mode {
     Help,
     /// Showing the full-screen detail view for the selected item.
     Detail,
+    /// Showing the repo overview popup inside the detail view (triggered by 'o').
+    DetailOverview,
 }
 
 /// All mutable session state.
@@ -184,6 +186,16 @@ impl App {
     pub fn close_detail(&mut self) {
         self.current_detail = None;
         self.mode = Mode::Normal;
+    }
+
+    /// Opens the repo overview popup while staying in the detail view.
+    pub fn open_overview_popup(&mut self) {
+        self.mode = Mode::DetailOverview;
+    }
+
+    /// Closes the overview popup and returns to the normal detail view.
+    pub fn close_overview_popup(&mut self) {
+        self.mode = Mode::Detail;
     }
 
     pub fn cancel_input(&mut self) {

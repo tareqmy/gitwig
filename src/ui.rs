@@ -73,6 +73,7 @@ const HELP_LINES: &[(&str, &str)] = &[
     ("Esc", "Cancel input, close dialog, or leave detail view"),
     ("Backspace", "Erase character while typing"),
     ("?", "Toggle this help overlay"),
+    ("o", "Show repo overview popup (in detail view)"),
     ("q", "Quit (also closes detail view)"),
 ];
 
@@ -83,7 +84,7 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_coun
     // Always reserve the bottom row for the status bar, regardless of mode.
     let (content_area, status_chunk) = content_and_status_chunks(inner_area);
 
-    if matches!(app.mode, Mode::Detail) {
+    if matches!(app.mode, Mode::Detail | Mode::DetailOverview) {
         if let Some(detail) = &app.current_detail {
             let item_name = app
                 .config
@@ -91,7 +92,7 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_coun
                 .get(app.selected_index)
                 .map(String::as_str)
                 .unwrap_or("");
-            crate::ui_detail::draw(f, item_name, detail, content_area);
+            crate::ui_detail::draw(f, item_name, detail, &app.mode, content_area);
         }
     } else if app.config.items.is_empty() {
         draw_empty_state(f, content_area);
@@ -395,6 +396,9 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         Mode::Detail => {
             draw_status_content(f, content_area, detail_dismiss_spans());
         }
+        Mode::DetailOverview => {
+            draw_status_content(f, content_area, detail_dismiss_spans());
+        }
     }
 }
 
@@ -403,6 +407,9 @@ fn detail_dismiss_spans() -> Vec<Span<'static>> {
         Span::raw("  "),
         Span::styled("Esc / q", accent_style()),
         Span::raw("  back to list"),
+        Span::raw("   "),
+        Span::styled("o", accent_style()),
+        Span::raw("  overview popup"),
     ]
 }
 
@@ -418,6 +425,7 @@ fn mode_badge(mode: &Mode) -> (&'static str, Color, Color) {
         Mode::ConfirmDelete => ("CONFIRM", Color::White, DANGER),
         Mode::Help => ("HELP", Color::Black, ACCENT),
         Mode::Detail => ("DETAIL", Color::Black, ACCENT),
+        Mode::DetailOverview => ("OVERVIEW", Color::Black, ACCENT),
     }
 }
 

@@ -13,7 +13,7 @@ use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Cell, Padding, Paragraph, Row, Table, Wrap};
+use ratatui::widgets::{Block, BorderType, Borders, Cell, Clear, Padding, Paragraph, Row, Table, Wrap};
 
 use crate::repo::{FileEntry, HeadInfo, ItemDetail, RemoteInfo, RepoInfo, WorktreeChanges};
 use crate::ui::{ACCENT, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style};
@@ -26,10 +26,12 @@ const FILE_INDENT: &str = "      ";
 /// Column width for the file-status label ("typechange" = 10 chars).
 const FILE_LABEL_WIDTH: usize = 10;
 
+use crate::app::Mode;
+
 // ── Entry point ────────────────────────────────────────────────────────────
 
 /// Renders the detail view into `area`.
-pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, area: Rect) {
+pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, area: Rect) {
     // Reserve one row at the top for the breadcrumb header ("Item: <name>").
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -47,18 +49,19 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, area: Rect) {
 
     match detail {
         ItemDetail::Repo { resolved, info } => {
+            // Split body: top = recent commits, bottom = staging panels
             let detail_chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
                 .split(body_area);
 
             draw_detail_commits(f, info, detail_chunks[0]);
+            draw_staging_panels(f, detail_chunks[1]);
 
-            let body_lines = build_repo_body(resolved, info);
-            let body = Paragraph::new(body_lines)
-                .block(Block::default().padding(Padding::ZERO))
-                .wrap(Wrap { trim: false });
-            f.render_widget(body, detail_chunks[1]);
+            // Draw overview popup on top when requested
+            if matches!(mode, Mode::DetailOverview) {
+                draw_overview_popup(f, resolved, info, body_area);
+            }
         }
         _ => {
             let body_lines = build_body(detail);
@@ -68,6 +71,127 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, area: Rect) {
             f.render_widget(body, body_area);
         }
     }
+}
+
+// ── Staging panels ─────────────────────────────────────────────────────────
+
+/// Renders two side-by-side panels: "Staging Area" (left) and "Staging Details" (right).
+fn draw_staging_panels(f: &mut Frame, area: Rect) {
+    let panels = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
+
+    // Left panel – Staging Area
+    let left_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(muted_style())
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Staging Area", primary_style()),
+            Span::raw(" "),
+        ]));
+    let left_inner = left_block.inner(panels[0]);
+    f.render_widget(left_block, panels[0]);
+
+    let placeholder = Paragraph::new(Line::from(vec![
+        Span::styled("No files staged", muted_style()),
+    ]))
+    .alignment(Alignment::Center);
+    // Vertically centre the placeholder text
+    let v_center = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage(45),
+            Constraint::Length(1),
+            Constraint::Min(0),
+        ])
+        .split(left_inner);
+    f.render_widget(placeholder, v_center[1]);
+
+    // Right panel – Staging Details
+    let right_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(muted_style())
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Staging Details", primary_style()),
+            Span::raw(" "),
+        ]));
+    let right_inner = right_block.inner(panels[1]);
+    f.render_widget(right_block, panels[1]);
+
+    let detail_placeholder = Paragraph::new(Line::from(vec![
+        Span::styled("Select a file to view its diff", muted_style()),
+    ]))
+    .alignment(Alignment::Center);
+    let v_center2 = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage(45),
+            Constraint::Length(1),
+            Constraint::Min(0),
+        ])
+        .split(right_inner);
+    f.render_widget(detail_placeholder, v_center2[1]);
+}
+
+// ── Overview popup ─────────────────────────────────────────────────────────
+
+/// Renders the repo overview as a floating popup centred over `area`.
+fn draw_overview_popup(
+    f: &mut Frame,
+    resolved: &std::path::Path,
+    info: &RepoInfo,
+    area: Rect,
+) {
+    // Popup takes up ~70 % of the available space
+    let popup_area = centred_rect(70, 70, area);
+
+    f.render_widget(Clear, popup_area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(ACCENT))
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Overview", primary_style()),
+            Span::raw("  "),
+            Span::styled("o / Esc  close", muted_style()),
+            Span::raw(" "),
+        ]));
+
+    let inner = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let body_lines = build_repo_body(resolved, info);
+    let body = Paragraph::new(body_lines)
+        .block(Block::default().padding(Padding::horizontal(1)))
+        .wrap(Wrap { trim: false });
+    f.render_widget(body, inner);
+}
+
+/// Returns a [`Rect`] that is `percent_x` wide and `percent_y` tall, centred in `r`.
+fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }
 
 fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, area: Rect) {

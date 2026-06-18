@@ -52,6 +52,13 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
         },
         Mode::Detail => match code {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
+            KeyCode::Char('o') => app.open_overview_popup(),
+            _ => {}
+        },
+        Mode::DetailOverview => match code {
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Char('o') => {
+                app.close_overview_popup();
+            }
             _ => {}
         },
     }
