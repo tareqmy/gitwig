@@ -103,13 +103,15 @@ pub struct RemoteInfo {
 
 #[derive(Debug, Clone)]
 pub struct CommitEntry {
+    /// Short 7-char display ID.
     pub id: String,
+    /// Full 40-char hex OID — used for diff lookup.
+    pub oid: String,
     pub author: String,
     pub when: String,
     pub summary: String,
     /// Local branch names and tags pointing at this commit.
-    /// Tags are prefixed with `"tag:"` so the UI can colour them differently.
-    /// Remote tracking branches are prefixed with `"remote:"`.
+    /// Tags are prefixed with `"tag:"`, remote branches with `"remote:"`.
     pub refs: Vec<String>,
     /// Files changed in this commit (diff against first parent, or empty tree).
     pub files: Vec<FileEntry>,
@@ -133,6 +135,36 @@ pub struct WorktreeChanges {
     pub unstaged: Vec<FileEntry>,
     pub untracked: Vec<FileEntry>,
     pub conflicted: Vec<FileEntry>,
+}
+
+// ── Per-file diff ──────────────────────────────────────────────────────────
+
+/// The type of a single line in a unified diff.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DiffLineKind {
+    /// `@@ ... @@` hunk header.
+    Header,
+    /// `+` added line.
+    Added,
+    /// `-` removed line.
+    Removed,
+    /// Unchanged context line.
+    Context,
+}
+
+/// One line of a unified diff, as rendered in the Diff panel.
+#[derive(Debug, Clone)]
+pub struct DiffLine {
+    pub kind: DiffLineKind,
+    /// Raw content (already includes the leading +/−/space prefix character).
+    pub content: String,
+}
+
+/// Return the unified diff of `file_path` as it changed in `commit_oid`
+/// (hex string) inside the repository at `repo_path`.
+/// Returns an empty Vec on any error.
+pub fn get_commit_file_diff(repo_path: &Path, commit_oid: &str, file_path: &str) -> Vec<DiffLine> {
+    get_file_diff_inner(repo_path, commit_oid, file_path).unwrap_or_default()
 }
 
 // ── Public entry points ────────────────────────────────────────────────────
@@ -204,6 +236,7 @@ fn collect_commits(
         let oid = id?;
         if let Ok(commit) = repo.find_commit(oid) {
             let short_id = format!("{:.7}", commit.id());
+            let oid_str = commit.id().to_string();
             let summary = commit
                 .summary()
                 .ok()
@@ -217,6 +250,7 @@ fn collect_commits(
             let files = commit_changed_files(repo, &commit);
             commits.push(CommitEntry {
                 id: short_id,
+                oid: oid_str,
                 author: author_str,
                 when,
                 summary,
@@ -240,11 +274,7 @@ fn commit_changed_files(repo: &Repository, commit: &git2::Commit) -> Vec<FileEnt
     // empty tree, so all files appear as "added".
     let parent_tree = commit.parent(0).ok().and_then(|p| p.tree().ok());
 
-    let diff = match repo.diff_tree_to_tree(
-        parent_tree.as_ref(),
-        Some(&commit_tree),
-        None,
-    ) {
+    let diff = match repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), None) {
         Ok(d) => d,
         Err(_) => return Vec::new(),
     };
@@ -262,12 +292,12 @@ fn commit_changed_files(repo: &Repository, commit: &git2::Commit) -> Vec<FileEnt
             .unwrap_or_else(|| "(unknown)".to_string());
 
         let label: &'static str = match delta.status() {
-            git2::Delta::Added     => "new",
-            git2::Delta::Deleted   => "deleted",
-            git2::Delta::Modified  => "modified",
-            git2::Delta::Renamed   => "renamed",
+            git2::Delta::Added => "new",
+            git2::Delta::Deleted => "deleted",
+            git2::Delta::Modified => "modified",
+            git2::Delta::Renamed => "renamed",
             git2::Delta::Typechange => "typechange",
-            _                      => "modified",
+            _ => "modified",
         };
         files.push(FileEntry { path, label });
     }
@@ -350,10 +380,14 @@ fn build_ref_map(repo: &Repository) -> std::collections::HashMap<git2::Oid, Vec<
     if let Ok(refs) = repo.references() {
         for reference in refs.flatten() {
             // Resolve to the underlying commit Oid (peeling through tags).
-            let Ok(target) = reference.peel_to_commit() else { continue };
+            let Ok(target) = reference.peel_to_commit() else {
+                continue;
+            };
             let oid = target.id();
 
-            let Ok(full_name) = reference.name() else { continue };
+            let Ok(full_name) = reference.name() else {
+                continue;
+            };
 
             let label = if let Some(branch) = full_name.strip_prefix("refs/heads/") {
                 branch.to_string()
@@ -569,4 +603,48 @@ fn format_relative_time(secs: i64) -> String {
     };
     let plural = if n == 1 { "" } else { "s" };
     format!("{} {}{} ago", n, unit, plural)
+}
+
+// ── Per-file diff (private) ────────────────────────────────────────────────
+
+fn get_file_diff_inner(
+    repo_path: &Path,
+    commit_oid: &str,
+    file_path: &str,
+) -> Option<Vec<DiffLine>> {
+    let repo = Repository::open(repo_path).ok()?;
+    let oid = git2::Oid::from_str(commit_oid).ok()?;
+    let commit = repo.find_commit(oid).ok()?;
+
+    let commit_tree = commit.tree().ok()?;
+    // For the initial commit, parent_tree is None; libgit2 treats it as empty.
+    let parent_tree = commit.parent(0).ok().and_then(|p| p.tree().ok());
+
+    let mut opts = git2::DiffOptions::new();
+    opts.pathspec(file_path);
+
+    let diff = repo
+        .diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), Some(&mut opts))
+        .ok()?;
+
+    let mut lines: Vec<DiffLine> = Vec::new();
+    diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
+        let kind = match line.origin() {
+            '+' => DiffLineKind::Added,
+            '-' => DiffLineKind::Removed,
+            'H' => DiffLineKind::Header, // @@ hunk header
+            ' ' => DiffLineKind::Context,
+            // Skip file-header meta lines (diff --git, index, ---, +++).
+            _ => return true,
+        };
+        let content = String::from_utf8_lossy(line.content())
+            .trim_end_matches('\n')
+            .trim_end_matches('\r')
+            .to_string();
+        lines.push(DiffLine { kind, content });
+        true
+    })
+    .ok()?;
+
+    Some(lines)
 }

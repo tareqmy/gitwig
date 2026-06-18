@@ -15,7 +15,7 @@ use ratatui::layout::{Margin, Rect};
 
 use crate::config::{Config, save_config};
 use crate::input;
-use crate::repo::{self, ItemDetail, ItemStatus};
+use crate::repo::{self, DiffLine, ItemDetail, ItemStatus};
 use crate::ui;
 
 /// Height of each item row inside the bordered list area.
@@ -61,9 +61,9 @@ impl DetailSection {
     /// Advance to the next section in the cycle.
     pub fn next(self) -> Self {
         match self {
-            Self::Commits        => Self::Staged,
-            Self::Staged         => Self::Unstaged,
-            Self::Unstaged       => Self::StagingDetails,
+            Self::Commits => Self::Staged,
+            Self::Staged => Self::Unstaged,
+            Self::Unstaged => Self::StagingDetails,
             Self::StagingDetails => Self::Commits,
         }
     }
@@ -89,6 +89,10 @@ pub struct App {
     pub detail_focus: DetailSection,
     /// Selected row index inside the Commits panel (0 = top row).
     pub commit_selection: usize,
+    /// Selected file index inside the Changed Files panel.
+    pub file_selection: usize,
+    /// Cached unified-diff lines for the currently selected file.
+    pub file_diff: Vec<DiffLine>,
 }
 
 impl App {
@@ -110,6 +114,8 @@ impl App {
             current_detail: None,
             detail_focus: DetailSection::Commits,
             commit_selection: 0,
+            file_selection: 0,
+            file_diff: Vec::new(),
         }
     }
 
@@ -211,18 +217,33 @@ impl App {
             self.current_detail = Some(repo::inspect_detail(item));
             self.detail_focus = DetailSection::Commits;
             self.commit_selection = 0;
+            self.file_selection = 0;
+            self.file_diff.clear();
             self.mode = Mode::Detail;
+            self.refresh_file_diff();
         }
     }
 
     /// Advance focus to the next detail panel (Tab key).
     pub fn cycle_detail_focus(&mut self) {
         self.detail_focus = self.detail_focus.next();
+        if !self.is_uncommitted_selected() && self.detail_focus == DetailSection::Unstaged {
+            self.detail_focus = self.detail_focus.next();
+        }
+        // Pre-load the diff when landing on the Changed Files panel.
+        if matches!(
+            self.detail_focus,
+            DetailSection::Staged | DetailSection::Unstaged
+        ) {
+            self.refresh_file_diff();
+        }
     }
 
     /// Move commit selection up one row.
     pub fn detail_commit_up(&mut self) {
         self.commit_selection = self.commit_selection.saturating_sub(1);
+        self.file_selection = 0;
+        self.refresh_file_diff();
     }
 
     /// Move commit selection down one row, clamped to the last visible row.
@@ -231,11 +252,15 @@ impl App {
         if total > 0 && self.commit_selection + 1 < total {
             self.commit_selection += 1;
         }
+        self.file_selection = 0;
+        self.refresh_file_diff();
     }
 
     /// Jump commit selection up by `page` rows.
     pub fn detail_commit_page_up(&mut self, page: usize) {
         self.commit_selection = self.commit_selection.saturating_sub(page);
+        self.file_selection = 0;
+        self.refresh_file_diff();
     }
 
     /// Jump commit selection down by `page` rows, clamped to the last row.
@@ -244,6 +269,23 @@ impl App {
         if total > 0 {
             self.commit_selection = (self.commit_selection + page).min(total - 1);
         }
+        self.file_selection = 0;
+        self.refresh_file_diff();
+    }
+
+    /// Move file selection up one row in the Changed Files panel.
+    pub fn detail_file_up(&mut self) {
+        self.file_selection = self.file_selection.saturating_sub(1);
+        self.refresh_file_diff();
+    }
+
+    /// Move file selection down one row in the Changed Files panel.
+    pub fn detail_file_down(&mut self) {
+        let total = self.file_total();
+        if total > 0 && self.file_selection + 1 < total {
+            self.file_selection += 1;
+        }
+        self.refresh_file_diff();
     }
 
     /// Total number of rows in the Commits panel (dirty row + real commits).
@@ -257,6 +299,73 @@ impl App {
                 info.commits.len() + usize::from(dirty)
             }
             _ => 0,
+        }
+    }
+
+    /// Total files in the currently-selected commit's Changed Files panel.
+    fn file_total(&self) -> usize {
+        match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => {
+                let dirty = !info.changes.staged.is_empty()
+                    || !info.changes.unstaged.is_empty()
+                    || !info.changes.untracked.is_empty()
+                    || !info.changes.conflicted.is_empty();
+                // Uncommitted row (staging area) has no file list.
+                if dirty && self.commit_selection == 0 {
+                    return 0;
+                }
+                let idx = if dirty {
+                    self.commit_selection.saturating_sub(1)
+                } else {
+                    self.commit_selection
+                };
+                info.commits.get(idx).map(|c| c.files.len()).unwrap_or(0)
+            }
+            _ => 0,
+        }
+    }
+
+    pub fn is_uncommitted_selected(&self) -> bool {
+        match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => {
+                let dirty = !info.changes.staged.is_empty()
+                    || !info.changes.unstaged.is_empty()
+                    || !info.changes.untracked.is_empty()
+                    || !info.changes.conflicted.is_empty();
+                dirty && self.commit_selection == 0
+            }
+            _ => false,
+        }
+    }
+
+    fn current_diff_params(&self) -> Option<(PathBuf, String, String)> {
+        match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => {
+                let dirty = !info.changes.staged.is_empty()
+                    || !info.changes.unstaged.is_empty()
+                    || !info.changes.untracked.is_empty()
+                    || !info.changes.conflicted.is_empty();
+                if dirty && self.commit_selection == 0 {
+                    return None;
+                }
+                let commit_idx = if dirty {
+                    self.commit_selection.saturating_sub(1)
+                } else {
+                    self.commit_selection
+                };
+                let commit = info.commits.get(commit_idx)?;
+                let file = commit.files.get(self.file_selection)?;
+                Some((resolved.clone(), commit.oid.clone(), file.path.clone()))
+            }
+            _ => None,
+        }
+    }
+
+    pub fn refresh_file_diff(&mut self) {
+        if let Some((repo_path, commit_oid, file_path)) = self.current_diff_params() {
+            self.file_diff = repo::get_commit_file_diff(&repo_path, &commit_oid, &file_path);
+        } else {
+            self.file_diff.clear();
         }
     }
 

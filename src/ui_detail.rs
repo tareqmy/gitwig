@@ -13,11 +13,17 @@ use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Borders, Cell, Clear, Padding, Paragraph, Row, Table, TableState, Wrap};
+use ratatui::widgets::{
+    Block, BorderType, Borders, Cell, Clear, List, ListItem, ListState, Padding, Paragraph, Row,
+    Table, TableState, Wrap,
+};
 
-use crate::repo::{CommitEntry, FileEntry, HeadInfo, ItemDetail, RemoteInfo, RepoInfo, WorktreeChanges};
-use crate::ui::{ACCENT, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style};
 use crate::app::DetailSection;
+use crate::repo::{
+    CommitEntry, DiffLine, DiffLineKind, FileEntry, HeadInfo, ItemDetail, RemoteInfo, RepoInfo,
+    WorktreeChanges,
+};
+use crate::ui::{ACCENT, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style};
 
 const FIELD_INDENT: &str = "  ";
 /// Column width for the left-side field label — wide enough for "Upstream:".
@@ -32,7 +38,18 @@ use crate::app::Mode;
 // ── Entry point ────────────────────────────────────────────────────────────
 
 /// Renders the detail view into `area`.
-pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, focus: &DetailSection, commit_selection: usize, area: Rect) {
+#[allow(clippy::too_many_arguments)]
+pub fn draw(
+    f: &mut Frame,
+    item_name: &str,
+    detail: &ItemDetail,
+    mode: &Mode,
+    focus: &DetailSection,
+    commit_selection: usize,
+    file_selection: usize,
+    file_diff: &[DiffLine],
+    area: Rect,
+) {
     // Reserve one row at the top for the breadcrumb header ("Item: <name>").
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -98,7 +115,14 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, fo
                 };
                 match info.commits.get(commit_idx) {
                     Some(commit) => {
-                        draw_commit_files_panel(f, commit, *focus, detail_chunks[1]);
+                        draw_commit_files_panel(
+                            f,
+                            commit,
+                            *focus,
+                            file_selection,
+                            file_diff,
+                            detail_chunks[1],
+                        );
                     }
                     None => {
                         // Fallback: selection out of range, show staging panels.
@@ -129,11 +153,13 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, fo
 // ── Commit files panel ─────────────────────────────────────────────────────
 
 /// Renders the bottom panel for a selected real commit:
-/// left = changed-file list, right = empty diff placeholder.
+/// left = changed-file list (with selection), right = diff panel.
 fn draw_commit_files_panel(
     f: &mut Frame,
     commit: &CommitEntry,
     focus: DetailSection,
+    file_selection: usize,
+    file_diff: &[DiffLine],
     area: Rect,
 ) {
     let panels = Layout::default()
@@ -141,11 +167,15 @@ fn draw_commit_files_panel(
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    let left_focused  = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
+    let left_focused = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
     let right_focused = focus == DetailSection::StagingDetails;
 
     // ── Left: changed files ───────────────────────────────────────────────
-    let left_border_style = if left_focused { Style::default().fg(ACCENT) } else { muted_style() };
+    let left_border_style = if left_focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
     let left_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -175,16 +205,26 @@ fn draw_commit_files_panel(
             v[1],
         );
     } else {
-        let file_lines: Vec<Line<'static>> =
-            commit.files.iter().map(file_entry_line).collect();
-        f.render_widget(
-            Paragraph::new(file_lines).wrap(Wrap { trim: false }),
-            left_inner,
-        );
+        let items: Vec<ListItem> = commit
+            .files
+            .iter()
+            .map(|f| ListItem::new(file_entry_line(f)))
+            .collect();
+        let list =
+            List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+        let mut state = ListState::default();
+        if left_focused {
+            state.select(Some(file_selection));
+        }
+        f.render_stateful_widget(list, left_inner, &mut state);
     }
 
-    // ── Right: diff placeholder ───────────────────────────────────────────
-    let right_border_style = if right_focused { Style::default().fg(ACCENT) } else { muted_style() };
+    // ── Right: diff panel ─────────────────────────────────────────────────
+    let right_border_style = if right_focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
     let right_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -197,19 +237,41 @@ fn draw_commit_files_panel(
     let right_inner = right_block.inner(panels[1]);
     f.render_widget(right_block, panels[1]);
 
-    let v_center = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage(45),
-            Constraint::Length(1),
-            Constraint::Min(0),
-        ])
-        .split(right_inner);
-    f.render_widget(
-        Paragraph::new(Span::styled("Select a file to view its diff", muted_style()))
+    if file_diff.is_empty() {
+        let v_center = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(45),
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
+            .split(right_inner);
+        f.render_widget(
+            Paragraph::new(Span::styled(
+                "Select a file to view its diff",
+                muted_style(),
+            ))
             .alignment(Alignment::Center),
-        v_center[1],
-    );
+            v_center[1],
+        );
+    } else {
+        let diff_spans: Vec<Line> = file_diff
+            .iter()
+            .map(|line| {
+                let style = match line.kind {
+                    DiffLineKind::Added => Style::default().fg(SUCCESS),
+                    DiffLineKind::Removed => Style::default().fg(DANGER),
+                    DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
+                    DiffLineKind::Context => Style::default(),
+                };
+                Line::from(Span::styled(line.content.clone(), style))
+            })
+            .collect();
+        f.render_widget(
+            Paragraph::new(diff_spans).wrap(Wrap { trim: false }),
+            right_inner,
+        );
+    }
 }
 
 // ── Staging panels ─────────────────────────────────────────────────────────
@@ -223,11 +285,15 @@ fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, focus: DetailSe
         .split(area);
 
     // Focus-aware border helpers.
-    let left_focused  = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
+    let left_focused = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
     let right_focused = focus == DetailSection::StagingDetails;
 
     // ── Left panel: outer border labelled "Staging Area" ──────────────────
-    let left_border_style = if left_focused { Style::default().fg(ACCENT) } else { muted_style() };
+    let left_border_style = if left_focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
     let left_outer = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -268,7 +334,11 @@ fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, focus: DetailSe
     );
 
     // ── Right panel – Staging Details ─────────────────────────────────────
-    let right_border_style = if right_focused { Style::default().fg(ACCENT) } else { muted_style() };
+    let right_border_style = if right_focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
     let right_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -290,13 +360,17 @@ fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, focus: DetailSe
         ])
         .split(right_inner);
     f.render_widget(
-        Paragraph::new(Span::styled("Select a file to view its diff", muted_style()))
-            .alignment(Alignment::Center),
+        Paragraph::new(Span::styled(
+            "Select a file to view its diff",
+            muted_style(),
+        ))
+        .alignment(Alignment::Center),
         v_center[1],
     );
 }
 
 /// Renders a titled sub-panel listing `files`, or a centred placeholder if empty.
+#[allow(clippy::too_many_arguments)]
 fn draw_file_subpanel(
     f: &mut Frame,
     title: &'static str,
@@ -309,11 +383,17 @@ fn draw_file_subpanel(
 ) {
     // When focused, highlight the title in accent; border stays muted (contained inside outer).
     let title_style = if focused {
-        Style::default().fg(ACCENT).add_modifier(ratatui::style::Modifier::BOLD)
+        Style::default()
+            .fg(ACCENT)
+            .add_modifier(ratatui::style::Modifier::BOLD)
     } else {
         Style::default().fg(title_color)
     };
-    let border_style = if focused { Style::default().fg(ACCENT) } else { muted_style() };
+    let border_style = if focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
     // Sub-panel block — bottom border separates Staged from Unstaged.
     let block = Block::default()
         .borders(borders)
@@ -322,10 +402,7 @@ fn draw_file_subpanel(
             Span::raw(" "),
             Span::styled(title, title_style),
             Span::raw("  "),
-            Span::styled(
-                format!("({})", files.len()),
-                muted_style(),
-            ),
+            Span::styled(format!("({})", files.len()), muted_style()),
             Span::raw(" "),
         ]));
 
@@ -342,29 +419,20 @@ fn draw_file_subpanel(
             ])
             .split(inner);
         f.render_widget(
-            Paragraph::new(Span::styled(empty_msg, muted_style()))
-                .alignment(Alignment::Center),
+            Paragraph::new(Span::styled(empty_msg, muted_style())).alignment(Alignment::Center),
             v[1],
         );
         return;
     }
 
     let file_lines: Vec<Line<'static>> = files.iter().map(file_entry_line).collect();
-    f.render_widget(
-        Paragraph::new(file_lines).wrap(Wrap { trim: false }),
-        inner,
-    );
+    f.render_widget(Paragraph::new(file_lines).wrap(Wrap { trim: false }), inner);
 }
 
 // ── Overview popup ─────────────────────────────────────────────────────────
 
 /// Renders the repo overview as a floating popup centred over `area`.
-fn draw_overview_popup(
-    f: &mut Frame,
-    resolved: &std::path::Path,
-    info: &RepoInfo,
-    area: Rect,
-) {
+fn draw_overview_popup(f: &mut Frame, resolved: &std::path::Path, info: &RepoInfo, area: Rect) {
     // Popup takes up ~70 % of the available space
     let popup_area = centred_rect(70, 70, area);
 
@@ -415,12 +483,15 @@ fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 // ── Detail help overlay ────────────────────────────────────────────────────
 
 const DETAIL_HELP_LINES: &[(&str, &str)] = &[
-    ("↑ / k",   "Select previous commit"),
-    ("↓ / j",   "Select next commit"),
-    ("PgUp",    "Jump 10 commits up"),
-    ("PgDn",    "Jump 10 commits down"),
-    ("Tab",     "Cycle panel focus  (Commits → Staged → Unstaged → Details)"),
-    ("o",       "Show repo overview popup"),
+    ("↑ / k", "Select previous commit"),
+    ("↓ / j", "Select next commit"),
+    ("PgUp", "Jump 10 commits up"),
+    ("PgDn", "Jump 10 commits down"),
+    (
+        "Tab",
+        "Cycle panel focus  (Commits → Staged → Unstaged → Details)",
+    ),
+    ("o", "Show repo overview popup"),
     ("? / Esc", "Close this help"),
     ("q / Esc", "Back to repository list"),
 ];
@@ -441,7 +512,10 @@ fn draw_detail_help_overlay(f: &mut Frame, area: Rect) {
         let padded = format!("{:>width$}", key, width = key_width);
         lines.push(Line::from(vec![
             Span::raw("  "),
-            Span::styled(padded, Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                padded,
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            ),
             Span::raw("   "),
             Span::raw((*desc).to_string()),
         ]));
@@ -465,9 +539,19 @@ fn draw_detail_help_overlay(f: &mut Frame, area: Rect) {
     f.render_widget(para, popup_area);
 }
 
-fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, commit_selection: usize, area: Rect) {
+fn draw_detail_commits(
+    f: &mut Frame,
+    info: &RepoInfo,
+    focus: DetailSection,
+    commit_selection: usize,
+    area: Rect,
+) {
     let focused = focus == DetailSection::Commits;
-    let border_style = if focused { Style::default().fg(ACCENT) } else { muted_style() };
+    let border_style = if focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -518,14 +602,12 @@ fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, com
     // Prepend a virtual "uncommitted changes" row when the worktree is dirty.
     let mut rows: Vec<Row> = Vec::new();
     if dirty {
-        rows.push(
-            Row::new(vec![
-                Cell::from(Span::styled("-", muted_style())),
-                Cell::from(Span::styled("-", muted_style())),
-                Cell::from(Span::styled("-", muted_style())),
-                Cell::from(Span::styled("<uncommitted>", Style::default().fg(WARNING))),
-            ])
-        );
+        rows.push(Row::new(vec![
+            Cell::from(Span::styled("-", muted_style())),
+            Cell::from(Span::styled("-", muted_style())),
+            Cell::from(Span::styled("-", muted_style())),
+            Cell::from(Span::styled("<uncommitted>", Style::default().fg(WARNING))),
+        ]));
     }
     rows.extend(info.commits.iter().map(|commit| {
         // Build the summary cell: optional ref badges then the commit message.
@@ -533,13 +615,22 @@ fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, com
         for r in &commit.refs {
             let (label, style) = if let Some(tag) = r.strip_prefix("tag:") {
                 // Tag — yellow
-                (format!("[{}]", tag), Style::default().fg(WARNING).add_modifier(Modifier::BOLD))
+                (
+                    format!("[{}]", tag),
+                    Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+                )
             } else if let Some(remote) = r.strip_prefix("remote:") {
                 // Remote tracking branch — green
-                (format!("[{}]", remote), Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD))
+                (
+                    format!("[{}]", remote),
+                    Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD),
+                )
             } else {
                 // Local branch — cyan
-                (format!("[{}]", r), Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
+                (
+                    format!("[{}]", r),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                )
             };
             spans.push(Span::styled(label, style));
             spans.push(Span::raw(" "));
@@ -567,9 +658,7 @@ fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, com
     let table = Table::new(rows, widths)
         .header(header)
         .block(block)
-        .row_highlight_style(
-            Style::default().add_modifier(Modifier::REVERSED),
-        )
+        .row_highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .column_spacing(2);
 
     let mut state = TableState::default();
@@ -689,7 +778,6 @@ fn push_section_header(lines: &mut Vec<Line<'static>>, title: &'static str) {
     lines.push(Line::from(""));
 }
 
-
 // ── Repository section ─────────────────────────────────────────────────────
 
 fn append_head(lines: &mut Vec<Line<'static>>, head: &HeadInfo) {
@@ -767,7 +855,6 @@ fn remote_line(remote: &RemoteInfo) -> Line<'static> {
         Span::raw(remote.url.clone()),
     ])
 }
-
 
 fn file_entry_line(entry: &FileEntry) -> Line<'static> {
     let label_style = match entry.label {

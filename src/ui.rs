@@ -84,7 +84,10 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_coun
     // Always reserve the bottom row for the status bar, regardless of mode.
     let (content_area, status_chunk) = content_and_status_chunks(inner_area);
 
-    if matches!(app.mode, Mode::Detail | Mode::DetailOverview | Mode::DetailHelp) {
+    if matches!(
+        app.mode,
+        Mode::Detail | Mode::DetailOverview | Mode::DetailHelp
+    ) {
         if let Some(detail) = &app.current_detail {
             let item_name = app
                 .config
@@ -92,7 +95,17 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_coun
                 .get(app.selected_index)
                 .map(String::as_str)
                 .unwrap_or("");
-            crate::ui_detail::draw(f, item_name, detail, &app.mode, &app.detail_focus, app.commit_selection, content_area);
+            crate::ui_detail::draw(
+                f,
+                item_name,
+                detail,
+                &app.mode,
+                &app.detail_focus,
+                app.commit_selection,
+                app.file_selection,
+                &app.file_diff,
+                content_area,
+            );
         }
     } else if app.config.items.is_empty() {
         draw_empty_state(f, content_area);
@@ -425,14 +438,14 @@ fn detail_dismiss_spans() -> Vec<Span<'static>> {
 /// chosen for max readability against each bg.
 fn mode_badge(mode: &Mode) -> (&'static str, Color, Color) {
     match mode {
-        Mode::Normal    => ("NORMAL",  Color::Black, ACCENT),
-        Mode::Adding    => ("ADDING",  Color::Black, WARNING),
-        Mode::Editing   => ("EDITING", Color::Black, WARNING),
+        Mode::Normal => ("NORMAL", Color::Black, ACCENT),
+        Mode::Adding => ("ADDING", Color::Black, WARNING),
+        Mode::Editing => ("EDITING", Color::Black, WARNING),
         Mode::ConfirmDelete => ("CONFIRM", Color::White, DANGER),
-        Mode::Help      => ("HELP",    Color::Black, ACCENT),
-        Mode::Detail    => ("DETAIL",  Color::Black, ACCENT),
+        Mode::Help => ("HELP", Color::Black, ACCENT),
+        Mode::Detail => ("DETAIL", Color::Black, ACCENT),
         Mode::DetailOverview => ("OVERVIEW", Color::Black, ACCENT),
-        Mode::DetailHelp     => ("HELP",     Color::Black, ACCENT),
+        Mode::DetailHelp => ("HELP", Color::Black, ACCENT),
     }
 }
 

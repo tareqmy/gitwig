@@ -56,14 +56,30 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
             KeyCode::Char('o') => app.open_overview_popup(),
             KeyCode::Char('?') => app.open_detail_help(),
             KeyCode::Tab => app.cycle_detail_focus(),
+            KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::Commits => {
+                app.detail_commit_up()
+            }
+            KeyCode::Down | KeyCode::Char('j') if detail_focus == DetailSection::Commits => {
+                app.detail_commit_down()
+            }
+            KeyCode::PageUp if detail_focus == DetailSection::Commits => {
+                app.detail_commit_page_up(10)
+            }
+            KeyCode::PageDown if detail_focus == DetailSection::Commits => {
+                app.detail_commit_page_down(10)
+            }
             KeyCode::Up | KeyCode::Char('k')
-                if detail_focus == DetailSection::Commits => app.detail_commit_up(),
+                if detail_focus == DetailSection::Staged
+                    || detail_focus == DetailSection::Unstaged =>
+            {
+                app.detail_file_up()
+            }
             KeyCode::Down | KeyCode::Char('j')
-                if detail_focus == DetailSection::Commits => app.detail_commit_down(),
-            KeyCode::PageUp
-                if detail_focus == DetailSection::Commits => app.detail_commit_page_up(10),
-            KeyCode::PageDown
-                if detail_focus == DetailSection::Commits => app.detail_commit_page_down(10),
+                if detail_focus == DetailSection::Staged
+                    || detail_focus == DetailSection::Unstaged =>
+            {
+                app.detail_file_down()
+            }
             _ => {}
         },
         Mode::DetailOverview => match code {
