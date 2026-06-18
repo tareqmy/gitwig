@@ -420,8 +420,13 @@ fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, focus: DetailSection, com
         let mut spans: Vec<Span<'static>> = Vec::new();
         for r in &commit.refs {
             let (label, style) = if let Some(tag) = r.strip_prefix("tag:") {
+                // Tag — yellow
                 (format!("[{}]", tag), Style::default().fg(WARNING).add_modifier(Modifier::BOLD))
+            } else if let Some(remote) = r.strip_prefix("remote:") {
+                // Remote tracking branch — green
+                (format!("[{}]", remote), Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD))
             } else {
+                // Local branch — cyan
                 (format!("[{}]", r), Style::default().fg(ACCENT).add_modifier(Modifier::BOLD))
             };
             spans.push(Span::styled(label, style));

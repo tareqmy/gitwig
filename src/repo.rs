@@ -308,8 +308,13 @@ fn build_ref_map(repo: &Repository) -> std::collections::HashMap<git2::Oid, Vec<
                 branch.to_string()
             } else if let Some(tag) = full_name.strip_prefix("refs/tags/") {
                 format!("tag:{}", tag)
+            } else if let Some(remote) = full_name.strip_prefix("refs/remotes/") {
+                // Skip the symbolic HEAD pointer each remote keeps (e.g. origin/HEAD).
+                if remote.ends_with("/HEAD") {
+                    continue;
+                }
+                format!("remote:{}", remote)
             } else {
-                // Skip remotes and other ref namespaces.
                 continue;
             };
 
