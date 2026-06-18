@@ -15,7 +15,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Cell, Clear, Padding, Paragraph, Row, Table, TableState, Wrap};
 
-use crate::repo::{FileEntry, HeadInfo, ItemDetail, RemoteInfo, RepoInfo, WorktreeChanges};
+use crate::repo::{CommitEntry, FileEntry, HeadInfo, ItemDetail, RemoteInfo, RepoInfo, WorktreeChanges};
 use crate::ui::{ACCENT, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style};
 use crate::app::DetailSection;
 
@@ -78,8 +78,34 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, fo
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
                 .split(body_area);
 
+            let dirty = !info.changes.staged.is_empty()
+                || !info.changes.unstaged.is_empty()
+                || !info.changes.untracked.is_empty()
+                || !info.changes.conflicted.is_empty();
+            let is_uncommitted_row = dirty && commit_selection == 0;
+
             draw_detail_commits(f, info, *focus, commit_selection, detail_chunks[0]);
-            draw_staging_panels(f, &info.changes, *focus, detail_chunks[1]);
+
+            if is_uncommitted_row {
+                // <uncommitted> row selected — show working-tree staging panels.
+                draw_staging_panels(f, &info.changes, *focus, detail_chunks[1]);
+            } else {
+                // Real commit selected — show its changed files.
+                let commit_idx = if dirty {
+                    commit_selection.saturating_sub(1)
+                } else {
+                    commit_selection
+                };
+                match info.commits.get(commit_idx) {
+                    Some(commit) => {
+                        draw_commit_files_panel(f, commit, *focus, detail_chunks[1]);
+                    }
+                    None => {
+                        // Fallback: selection out of range, show staging panels.
+                        draw_staging_panels(f, &info.changes, *focus, detail_chunks[1]);
+                    }
+                }
+            }
 
             // Draw overview popup on top when requested.
             if matches!(mode, Mode::DetailOverview) {
@@ -98,6 +124,92 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, fo
             f.render_widget(body, body_area);
         }
     }
+}
+
+// ── Commit files panel ─────────────────────────────────────────────────────
+
+/// Renders the bottom panel for a selected real commit:
+/// left = changed-file list, right = empty diff placeholder.
+fn draw_commit_files_panel(
+    f: &mut Frame,
+    commit: &CommitEntry,
+    focus: DetailSection,
+    area: Rect,
+) {
+    let panels = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
+
+    let left_focused  = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
+    let right_focused = focus == DetailSection::StagingDetails;
+
+    // ── Left: changed files ───────────────────────────────────────────────
+    let left_border_style = if left_focused { Style::default().fg(ACCENT) } else { muted_style() };
+    let left_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(left_border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Changed Files", primary_style()),
+            Span::raw("  "),
+            Span::styled(format!("({})", commit.files.len()), muted_style()),
+            Span::raw(" "),
+        ]));
+    let left_inner = left_block.inner(panels[0]);
+    f.render_widget(left_block, panels[0]);
+
+    if commit.files.is_empty() {
+        let v = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(40),
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
+            .split(left_inner);
+        f.render_widget(
+            Paragraph::new(Span::styled("No files changed", muted_style()))
+                .alignment(Alignment::Center),
+            v[1],
+        );
+    } else {
+        let file_lines: Vec<Line<'static>> =
+            commit.files.iter().map(file_entry_line).collect();
+        f.render_widget(
+            Paragraph::new(file_lines).wrap(Wrap { trim: false }),
+            left_inner,
+        );
+    }
+
+    // ── Right: diff placeholder ───────────────────────────────────────────
+    let right_border_style = if right_focused { Style::default().fg(ACCENT) } else { muted_style() };
+    let right_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(right_border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Diff", primary_style()),
+            Span::raw(" "),
+        ]));
+    let right_inner = right_block.inner(panels[1]);
+    f.render_widget(right_block, panels[1]);
+
+    let v_center = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage(45),
+            Constraint::Length(1),
+            Constraint::Min(0),
+        ])
+        .split(right_inner);
+    f.render_widget(
+        Paragraph::new(Span::styled("Select a file to view its diff", muted_style()))
+            .alignment(Alignment::Center),
+        v_center[1],
+    );
 }
 
 // ── Staging panels ─────────────────────────────────────────────────────────

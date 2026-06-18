@@ -109,7 +109,10 @@ pub struct CommitEntry {
     pub summary: String,
     /// Local branch names and tags pointing at this commit.
     /// Tags are prefixed with `"tag:"` so the UI can colour them differently.
+    /// Remote tracking branches are prefixed with `"remote:"`.
     pub refs: Vec<String>,
+    /// Files changed in this commit (diff against first parent, or empty tree).
+    pub files: Vec<FileEntry>,
 }
 
 /// One changed file in the working tree or index.
@@ -211,16 +214,64 @@ fn collect_commits(
             let author_str = author.name().unwrap_or("?").to_string();
             let when = format_relative_time(commit.time().seconds());
             let refs = ref_map.get(&oid).cloned().unwrap_or_default();
+            let files = commit_changed_files(repo, &commit);
             commits.push(CommitEntry {
                 id: short_id,
                 author: author_str,
                 when,
                 summary,
                 refs,
+                files,
             });
         }
     }
     Ok(commits)
+}
+
+/// Diff `commit` against its first parent (or against an empty tree for the
+/// initial commit) and return the list of changed files. Capped at
+/// `MAX_FILES_PER_SECTION` entries.
+fn commit_changed_files(repo: &Repository, commit: &git2::Commit) -> Vec<FileEntry> {
+    let commit_tree = match commit.tree() {
+        Ok(t) => t,
+        Err(_) => return Vec::new(),
+    };
+    // For the initial commit parent_tree is None — libgit2 treats that as an
+    // empty tree, so all files appear as "added".
+    let parent_tree = commit.parent(0).ok().and_then(|p| p.tree().ok());
+
+    let diff = match repo.diff_tree_to_tree(
+        parent_tree.as_ref(),
+        Some(&commit_tree),
+        None,
+    ) {
+        Ok(d) => d,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut files = Vec::new();
+    for delta in diff.deltas() {
+        if files.len() >= MAX_FILES_PER_SECTION {
+            break;
+        }
+        let path = delta
+            .new_file()
+            .path()
+            .or_else(|| delta.old_file().path())
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "(unknown)".to_string());
+
+        let label: &'static str = match delta.status() {
+            git2::Delta::Added     => "new",
+            git2::Delta::Deleted   => "deleted",
+            git2::Delta::Modified  => "modified",
+            git2::Delta::Renamed   => "renamed",
+            git2::Delta::Typechange => "typechange",
+            _                      => "modified",
+        };
+        files.push(FileEntry { path, label });
+    }
+    files
 }
 
 // ── Internal collection ────────────────────────────────────────────────────
