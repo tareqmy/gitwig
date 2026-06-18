@@ -38,12 +38,34 @@ pub fn draw(f: &mut Frame, item_name: &str, detail: &ItemDetail, mode: &Mode, ar
         .constraints([Constraint::Length(2), Constraint::Min(0)])
         .split(area);
 
-    let header = Paragraph::new(Line::from(vec![
+    // Extract branch name if this is a repo detail.
+    let branch: Option<String> = match detail {
+        ItemDetail::Repo { info, .. } => info.branch.clone(),
+        _ => None,
+    };
+
+    // Split header into left (Item label) and right (branch name).
+    let header_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Min(0), Constraint::Length(40)])
+        .split(chunks[0]);
+
+    let header_left = Paragraph::new(Line::from(vec![
         Span::raw(FIELD_INDENT),
         Span::styled(field_label("Item"), muted_style()),
         Span::styled(item_name.to_string(), accent_style()),
     ]));
-    f.render_widget(header, chunks[0]);
+    f.render_widget(header_left, header_chunks[0]);
+
+    if let Some(branch_name) = branch {
+        let header_right = Paragraph::new(Line::from(vec![
+            Span::styled("⎇  ", muted_style()),
+            Span::styled(branch_name, accent_style()),
+            Span::raw("  "),
+        ]))
+        .alignment(Alignment::Right);
+        f.render_widget(header_right, header_chunks[1]);
+    }
 
     let body_area = chunks[1];
 
@@ -108,6 +130,7 @@ fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, area: Rect) {
         SUCCESS,
         &changes.staged,
         "Nothing staged",
+        Borders::BOTTOM,
         left_split[0],
     );
     draw_file_subpanel(
@@ -116,6 +139,7 @@ fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, area: Rect) {
         WARNING,
         &changes.unstaged,
         "No unstaged changes",
+        Borders::empty(),
         left_split[1],
     );
 
@@ -154,11 +178,12 @@ fn draw_file_subpanel(
     title_color: ratatui::style::Color,
     files: &[FileEntry],
     empty_msg: &'static str,
+    borders: Borders,
     area: Rect,
 ) {
     // Sub-panel block — bottom border separates Staged from Unstaged.
     let block = Block::default()
-        .borders(Borders::BOTTOM)
+        .borders(borders)
         .border_style(muted_style())
         .title(Line::from(vec![
             Span::raw(" "),
@@ -256,26 +281,34 @@ fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 
 fn draw_detail_commits(f: &mut Frame, info: &RepoInfo, area: Rect) {
     let block = Block::default()
-        .borders(Borders::BOTTOM)
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
         .border_style(muted_style())
         .title(Line::from(vec![
             Span::raw(" "),
-            Span::styled("Recent Commits", primary_style()),
+            Span::styled("Commits", primary_style()),
             Span::raw(" "),
         ]));
 
     if info.commits.is_empty() {
-        let text = vec![
-            Line::from(""),
-            Line::from(Span::styled(
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        let v = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(40),
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
+            .split(inner);
+        f.render_widget(
+            Paragraph::new(Span::styled(
                 "No commits yet / empty repository",
                 muted_style(),
-            )),
-        ];
-        let paragraph = Paragraph::new(text)
-            .alignment(Alignment::Center)
-            .block(block);
-        f.render_widget(paragraph, area);
+            ))
+            .alignment(Alignment::Center),
+            v[1],
+        );
         return;
     }
 
