@@ -73,6 +73,12 @@ pub enum ItemDetail {
     },
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct BranchInfo {
+    pub name: String,
+    pub is_head: bool,
+}
+
 #[derive(Debug, Default)]
 pub struct RepoInfo {
     pub branch: Option<String>,
@@ -87,6 +93,10 @@ pub struct RepoInfo {
     pub commits: Vec<CommitEntry>,
     /// Graph view lines for the repository.
     pub graph_lines: Vec<GraphLine>,
+    /// Local branches in the repository.
+    pub local_branches: Vec<BranchInfo>,
+    /// Remote branches in the repository.
+    pub remote_branches: Vec<BranchInfo>,
 }
 
 #[derive(Debug)]
@@ -488,6 +498,39 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
     info.graph_lines = collect_graph_lines(path);
 
     populate_file_changes(&repo, &mut info);
+
+    let mut local_branches = Vec::new();
+    if let Ok(branches) = repo.branches(Some(git2::BranchType::Local)) {
+        for (branch, _) in branches.flatten() {
+            if let Ok(Some(name)) = branch.name() {
+                let is_head = branch.is_head();
+                local_branches.push(BranchInfo {
+                    name: name.to_string(),
+                    is_head,
+                });
+            }
+        }
+    }
+    local_branches.sort_by(|a, b| b.is_head.cmp(&a.is_head).then_with(|| a.name.cmp(&b.name)));
+    info.local_branches = local_branches;
+
+    let mut remote_branches = Vec::new();
+    if let Ok(branches) = repo.branches(Some(git2::BranchType::Remote)) {
+        for (branch, _) in branches.flatten() {
+            if let Ok(Some(name)) = branch.name() {
+                if !name.ends_with("/HEAD") {
+                    let is_head = branch.is_head();
+                    remote_branches.push(BranchInfo {
+                        name: name.to_string(),
+                        is_head,
+                    });
+                }
+            }
+        }
+    }
+    remote_branches.sort_by(|a, b| a.name.cmp(&b.name));
+    info.remote_branches = remote_branches;
+
     Ok(info)
 }
 

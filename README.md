@@ -51,6 +51,7 @@
 | `o`                  | Detail          | Toggle repository overview popup  |
 | `1`                  | Detail          | Go to Details tab                 |
 | `2`                  | Detail          | Go to Graph View tab              |
+| `3`                  | Detail          | Go to Branches tab                |
 | `?`                  | Detail          | Toggle detail help overlay        |
 | `Esc` / `q` / `o`    | DetailOverview  | Close repository overview popup   |
 | `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |
@@ -98,7 +99,7 @@ Items support `~` and `~/...` expansion, so `~/code/twig` resolves to your home 
 
 ## 🔍 Detail view
 
-Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports two tabs for git repositories: **Details** and **Graph**. Press `1` to switch to the Details tab, and `2` to switch to the Graph tab. Press `Esc` or `q` to return to the list.
+Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports three tabs for git repositories: **Details**, **Graph**, and **Branches**. Press `1` to switch to the Details tab, `2` to switch to the Graph tab, and `3` to switch to the Branches tab. Press `Esc` or `q` to return to the list.
 
 ### Panel Layout & Navigation (Details Tab)
 
@@ -110,6 +111,12 @@ For a **git repository**, the **Details** tab is split into multiple rounded pan
 ### Graph Tab
 
 The **Graph** tab is currently reserved for the future git branch visualization graph.
+
+### Branches Tab
+
+The **Branches** tab is split vertically into left and right panels:
+- **Local Branches (left):** Lists local branches in the repository, sorting the active branch to the top marked with ``.
+- **Remote Branches (right):** Lists remote tracking branches.
 
 You can navigate and interact with these panels in the following ways:
 - **Cycle focus:** Cycle focus between active panels using `Tab` (`Commits` → `Staged` → `Unstaged` → `StagingDetails`).

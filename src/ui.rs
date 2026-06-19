@@ -124,6 +124,8 @@ pub fn draw(
                 app.diff_scroll,
                 app.staging_file_selection,
                 app.commit_details_scroll,
+                app.local_branch_selection,
+                app.remote_branch_selection,
                 app.detail_tab,
                 app.graph_scroll,
                 detail_areas,
@@ -457,48 +459,48 @@ fn detail_dismiss_entries(
     }
 
     let mut entries = Vec::new();
-    if detail_tab == 0 {
-        let entries_data = [
+    let entries_data = if detail_tab == 0 {
+        vec![
             ("Back to List", "⎋/q"),
             ("Graph View", "2"),
+            ("Branches", "3"),
             ("Cycle Focus", "⇥"),
             ("Navigate/Scroll", "↑↓"),
             ("Stage/Unstage", "↵"),
             ("Commit", "c"),
             ("Overview", "o"),
             ("Help", "?"),
-        ];
-        for (i, (label, key)) in entries_data.iter().enumerate() {
-            let mut spans = Vec::new();
-            if i > 0 {
-                spans.push(Span::styled(" ", muted_style()));
-            }
-            spans.push(Span::raw((*label).to_string()));
-            spans.push(Span::raw(" "));
-            spans.push(Span::styled("[", muted_style()));
-            spans.push(Span::styled((*key).to_string(), accent_style()));
-            spans.push(Span::styled("]", muted_style()));
-            entries.push(StatusEntry::new(spans));
-        }
-    } else {
-        let entries_data = [
+        ]
+    } else if detail_tab == 1 {
+        vec![
             ("Back to List", "⎋/q"),
             ("Details View", "1"),
+            ("Branches", "3"),
             ("Overview", "o"),
             ("Help", "?"),
-        ];
-        for (i, (label, key)) in entries_data.iter().enumerate() {
-            let mut spans = Vec::new();
-            if i > 0 {
-                spans.push(Span::styled(" ", muted_style()));
-            }
-            spans.push(Span::raw((*label).to_string()));
-            spans.push(Span::raw(" "));
-            spans.push(Span::styled("[", muted_style()));
-            spans.push(Span::styled((*key).to_string(), accent_style()));
-            spans.push(Span::styled("]", muted_style()));
-            entries.push(StatusEntry::new(spans));
+        ]
+    } else {
+        vec![
+            ("Back to List", "⎋/q"),
+            ("Details View", "1"),
+            ("Graph View", "2"),
+            ("Cycle Focus", "⇥"),
+            ("Navigate/Scroll", "↑↓"),
+            ("Overview", "o"),
+            ("Help", "?"),
+        ]
+    };
+    for (i, (label, key)) in entries_data.iter().enumerate() {
+        let mut spans = Vec::new();
+        if i > 0 {
+            spans.push(Span::styled(" ", muted_style()));
         }
+        spans.push(Span::raw((*label).to_string()));
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled("[", muted_style()));
+        spans.push(Span::styled((*key).to_string(), accent_style()));
+        spans.push(Span::styled("]", muted_style()));
+        entries.push(StatusEntry::new(spans));
     }
     (message_spans, entries)
 }

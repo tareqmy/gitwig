@@ -30,7 +30,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Branch visualization (graph view).
 
 ## Phase 4: Branch Management
-- [ ] List local and remote branches.
+- [x] List local and remote branches.
 - [ ] Checkout branches (shortcut `o`).
 - [ ] Create and delete branches.
 - [ ] Merge and Rebase (basic support).

@@ -68,9 +68,14 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('?') => app.open_detail_help(),
             KeyCode::Char('1') => {
                 app.detail_tab = 0;
+                app.detail_focus = DetailSection::Commits;
             }
             KeyCode::Char('2') => {
                 app.detail_tab = 1;
+            }
+            KeyCode::Char('3') => {
+                app.detail_tab = 2;
+                app.detail_focus = DetailSection::LocalBranches;
             }
             _ if app.detail_tab == 0 => match code {
                 KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
@@ -150,6 +155,38 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Down | KeyCode::Char('j') => app.graph_scroll_down(),
                 KeyCode::PageUp => app.graph_scroll_page_up(10),
                 KeyCode::PageDown => app.graph_scroll_page_down(10),
+                _ => {}
+            },
+            _ if app.detail_tab == 2 => match code {
+                KeyCode::Tab => app.cycle_detail_focus(),
+                KeyCode::Up | KeyCode::Char('k') => {
+                    if app.detail_focus == DetailSection::LocalBranches {
+                        app.local_branch_up();
+                    } else {
+                        app.remote_branch_up();
+                    }
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    if app.detail_focus == DetailSection::LocalBranches {
+                        app.local_branch_down();
+                    } else {
+                        app.remote_branch_down();
+                    }
+                }
+                KeyCode::PageUp => {
+                    if app.detail_focus == DetailSection::LocalBranches {
+                        app.local_branch_page_up(10);
+                    } else {
+                        app.remote_branch_page_up(10);
+                    }
+                }
+                KeyCode::PageDown => {
+                    if app.detail_focus == DetailSection::LocalBranches {
+                        app.local_branch_page_down(10);
+                    } else {
+                        app.remote_branch_page_down(10);
+                    }
+                }
                 _ => {}
             },
             _ => {}
@@ -312,6 +349,18 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if let Some(rect) = areas.commits {
         if rect.contains(pos) && app.detail_focus != DetailSection::Commits {
             app.detail_focus = DetailSection::Commits;
+        }
+    }
+    // Local branches panel (inside Branches view).
+    if let Some(rect) = areas.local_branches {
+        if rect.contains(pos) && app.detail_focus != DetailSection::LocalBranches {
+            app.detail_focus = DetailSection::LocalBranches;
+        }
+    }
+    // Remote branches panel (inside Branches view).
+    if let Some(rect) = areas.remote_branches {
+        if rect.contains(pos) && app.detail_focus != DetailSection::RemoteBranches {
+            app.detail_focus = DetailSection::RemoteBranches;
         }
     }
 }

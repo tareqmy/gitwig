@@ -50,13 +50,15 @@ pub enum Mode {
 
 /// Which panel in the detail view currently has keyboard focus.
 /// Tab cycles through them in order.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum DetailSection {
     Commits,
     Staged,
     Unstaged,
     CommitDetails,
     StagingDetails,
+    LocalBranches,
+    RemoteBranches,
 }
 
 impl DetailSection {
@@ -68,6 +70,8 @@ impl DetailSection {
             Self::Unstaged => Self::CommitDetails,
             Self::CommitDetails => Self::StagingDetails,
             Self::StagingDetails => Self::Commits,
+            Self::LocalBranches => Self::RemoteBranches,
+            Self::RemoteBranches => Self::LocalBranches,
         }
     }
 }
@@ -102,13 +106,17 @@ pub struct App {
     pub diff_scroll: usize,
     /// Vertical scroll offset for the commit details panel (CommitDetails focus).
     pub commit_details_scroll: usize,
+    /// Selected local branch index in Branches tab.
+    pub local_branch_selection: usize,
+    /// Selected remote branch index in Branches tab.
+    pub remote_branch_selection: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
     pub detail_areas: DetailAreas,
     /// Main panel item bounding boxes recorded after each draw, used for mouse hit-testing.
     pub main_areas: Vec<Rect>,
     /// Timestamp and selected index of the last mouse click for double-click detection.
     pub last_click: Option<(std::time::Instant, usize)>,
-    /// Active tab in the detail view (0 = Details, 1 = Graph).
+    /// Active tab in the detail view (0 = Details, 1 = Graph, 2 = Branches).
     pub detail_tab: usize,
     /// Vertical scroll offset for the git history graph view (Graph tab).
     pub graph_scroll: usize,
@@ -142,6 +150,8 @@ impl App {
             file_diff: Vec::new(),
             diff_scroll: 0,
             commit_details_scroll: 0,
+            local_branch_selection: 0,
+            remote_branch_selection: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
             last_click: None,
@@ -263,6 +273,8 @@ impl App {
             self.file_diff.clear();
             self.diff_scroll = 0;
             self.commit_details_scroll = 0;
+            self.local_branch_selection = 0;
+            self.remote_branch_selection = 0;
             self.detail_tab = 0;
             self.graph_scroll = 0;
             self.mode = Mode::Detail;
@@ -272,6 +284,13 @@ impl App {
 
     /// Advance focus to the next detail panel (Tab key).
     pub fn cycle_detail_focus(&mut self) {
+        if self.detail_tab == 2 {
+            self.detail_focus = match self.detail_focus {
+                DetailSection::LocalBranches => DetailSection::RemoteBranches,
+                _ => DetailSection::LocalBranches,
+            };
+            return;
+        }
         self.detail_focus = self.detail_focus.next();
         if !self.is_uncommitted_selected() && self.detail_focus == DetailSection::Unstaged {
             self.detail_focus = self.detail_focus.next();
@@ -300,6 +319,68 @@ impl App {
                 ) {
                     self.refresh_file_diff();
                 }
+            }
+        }
+    }
+
+    /// Move local branch selection up.
+    pub fn local_branch_up(&mut self) {
+        self.local_branch_selection = self.local_branch_selection.saturating_sub(1);
+    }
+
+    /// Move local branch selection down.
+    pub fn local_branch_down(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.local_branches.len();
+            if total > 0 && self.local_branch_selection + 1 < total {
+                self.local_branch_selection += 1;
+            }
+        }
+    }
+
+    /// Scroll local branch selection up by page.
+    pub fn local_branch_page_up(&mut self, page: usize) {
+        self.local_branch_selection = self.local_branch_selection.saturating_sub(page);
+    }
+
+    /// Scroll local branch selection down by page.
+    pub fn local_branch_page_down(&mut self, page: usize) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.local_branches.len();
+            if total > 0 {
+                self.local_branch_selection =
+                    (self.local_branch_selection + page).min(total.saturating_sub(1));
+            }
+        }
+    }
+
+    /// Move remote branch selection up.
+    pub fn remote_branch_up(&mut self) {
+        self.remote_branch_selection = self.remote_branch_selection.saturating_sub(1);
+    }
+
+    /// Move remote branch selection down.
+    pub fn remote_branch_down(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.remote_branches.len();
+            if total > 0 && self.remote_branch_selection + 1 < total {
+                self.remote_branch_selection += 1;
+            }
+        }
+    }
+
+    /// Scroll remote branch selection up by page.
+    pub fn remote_branch_page_up(&mut self, page: usize) {
+        self.remote_branch_selection = self.remote_branch_selection.saturating_sub(page);
+    }
+
+    /// Scroll remote branch selection down by page.
+    pub fn remote_branch_page_down(&mut self, page: usize) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.remote_branches.len();
+            if total > 0 {
+                self.remote_branch_selection =
+                    (self.remote_branch_selection + page).min(total.saturating_sub(1));
             }
         }
     }

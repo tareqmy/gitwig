@@ -58,6 +58,10 @@ pub struct DetailAreas {
     pub bottom_right: Option<Rect>,
     /// Commit details panel (bottom-left bottom-half panel).
     pub commit_details: Option<Rect>,
+    /// Local branches panel in Branches tab.
+    pub local_branches: Option<Rect>,
+    /// Remote branches panel in Branches tab.
+    pub remote_branches: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -74,6 +78,8 @@ pub fn draw(
     diff_scroll: usize,
     staging_file_selection: usize,
     commit_details_scroll: usize,
+    local_branch_selection: usize,
+    remote_branch_selection: usize,
     detail_tab: usize,
     graph_scroll: usize,
     areas: &mut DetailAreas,
@@ -134,13 +140,21 @@ pub fn draw(
     }
 
     if let Some(tab_area) = tab_bar_area {
-        let (style_details, style_graph) = if detail_tab == 0 {
+        let (style_details, style_graph, style_branches) = if detail_tab == 0 {
             (
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                Style::default().add_modifier(Modifier::DIM),
+                Style::default().add_modifier(Modifier::DIM),
+            )
+        } else if detail_tab == 1 {
+            (
+                Style::default().add_modifier(Modifier::DIM),
                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 Style::default().add_modifier(Modifier::DIM),
             )
         } else {
             (
+                Style::default().add_modifier(Modifier::DIM),
                 Style::default().add_modifier(Modifier::DIM),
                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             )
@@ -148,12 +162,15 @@ pub fn draw(
 
         let details_bullet = if detail_tab == 0 { "●" } else { "○" };
         let graph_bullet = if detail_tab == 1 { "●" } else { "○" };
+        let branches_bullet = if detail_tab == 2 { "●" } else { "○" };
 
         let tab_line = Line::from(vec![
             Span::raw("  "),
             Span::styled(format!("{} Details [1]", details_bullet), style_details),
             Span::raw("    "),
             Span::styled(format!("{} Graph [2]", graph_bullet), style_graph),
+            Span::raw("    "),
+            Span::styled(format!("{} Branches [3]", branches_bullet), style_branches),
         ]);
         f.render_widget(Paragraph::new(tab_line), tab_area);
     }
@@ -224,7 +241,7 @@ pub fn draw(
                         }
                     }
                 }
-            } else {
+            } else if detail_tab == 1 {
                 // Render Graph view
                 *areas = DetailAreas::default();
                 let block = Block::default()
@@ -252,6 +269,17 @@ pub fn draw(
 
                 let paragraph = Paragraph::new(list_lines).wrap(Wrap { trim: false });
                 f.render_widget(paragraph, inner);
+            } else {
+                // Render Branches view (tab 3, index 2)
+                draw_branches_view(
+                    f,
+                    info,
+                    *focus,
+                    local_branch_selection,
+                    remote_branch_selection,
+                    areas,
+                    body_area,
+                );
             }
 
             // Draw overview popup on top when requested.
@@ -818,6 +846,7 @@ const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("o", "Show repo overview popup"),
     ("1", "Go to Details tab"),
     ("2", "Go to Graph View tab"),
+    ("3", "Go to Branches tab"),
     ("? / ⎋ [Esc]", "Close this help"),
     ("q / ⎋ [Esc]", "Back to repository list"),
     ("Left-Click", "Focus clicked panel (mouse support)"),
@@ -1359,4 +1388,104 @@ fn graph_line_spans(line: &crate::repo::GraphLine) -> Line<'static> {
     }
 
     Line::from(spans)
+}
+
+fn draw_branches_view(
+    f: &mut Frame,
+    info: &RepoInfo,
+    focus: DetailSection,
+    local_branch_selection: usize,
+    remote_branch_selection: usize,
+    areas: &mut DetailAreas,
+    area: Rect,
+) {
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
+
+    let left_area = chunks[0];
+    let right_area = chunks[1];
+
+    areas.local_branches = Some(left_area);
+    areas.remote_branches = Some(right_area);
+
+    // ── Local Branches Panel ──
+    let local_focused = focus == DetailSection::LocalBranches;
+    let local_border_style = if local_focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
+    let local_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER)
+        .border_style(local_border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Local Branches", primary_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::uniform(1));
+
+    let local_items: Vec<ListItem> = info
+        .local_branches
+        .iter()
+        .map(|b| {
+            let style = if b.is_head {
+                Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            let prefix = if b.is_head { " " } else { "  " };
+            ListItem::new(Line::from(vec![
+                Span::styled(prefix, Style::default().fg(SUCCESS)),
+                Span::styled(b.name.clone(), style),
+            ]))
+        })
+        .collect();
+
+    let local_list = List::new(local_items)
+        .block(local_block)
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+
+    let mut local_state = ListState::default();
+    if local_focused {
+        local_state.select(Some(local_branch_selection));
+    }
+    f.render_stateful_widget(local_list, left_area, &mut local_state);
+
+    // ── Remote Branches Panel ──
+    let remote_focused = focus == DetailSection::RemoteBranches;
+    let remote_border_style = if remote_focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
+    let remote_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER)
+        .border_style(remote_border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Remote Branches", primary_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::uniform(1));
+
+    let remote_items: Vec<ListItem> = info
+        .remote_branches
+        .iter()
+        .map(|b| ListItem::new(Line::from(vec![Span::raw("  "), Span::raw(b.name.clone())])))
+        .collect();
+
+    let remote_list = List::new(remote_items)
+        .block(remote_block)
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+
+    let mut remote_state = ListState::default();
+    if remote_focused {
+        remote_state.select(Some(remote_branch_selection));
+    }
+    f.render_stateful_widget(remote_list, right_area, &mut remote_state);
 }
