@@ -730,20 +730,20 @@ fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("↑ / k", "Select previous commit / file"),
     ("↓ / j", "Select next commit / file"),
-    ("PgUp", "Jump 10 rows up"),
-    ("PgDn", "Jump 10 rows down"),
+    ("⇞", "Jump 10 rows up"),
+    ("⇟", "Jump 10 rows down"),
     (
-        "Tab",
+        "⇥",
         "Cycle panel focus  (Commits → Staged → Unstaged → Details)",
     ),
     (
-        "Enter",
+        "↵",
         "Stage file (Unstaged panel) / Unstage file (Staged panel)",
     ),
     ("c", "Commit staged changes"),
     ("o", "Show repo overview popup"),
-    ("? / Esc", "Close this help"),
-    ("q / Esc", "Back to repository list"),
+    ("? / ⎋", "Close this help"),
+    ("q / ⎋", "Back to repository list"),
     ("Left-Click", "Focus clicked panel (mouse support)"),
 ];
 

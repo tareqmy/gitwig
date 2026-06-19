@@ -24,9 +24,6 @@ use crate::ui_detail::DetailAreas;
 /// the item path and the branch name respectively.
 pub const ITEM_HEIGHT: u16 = 4;
 
-/// Height of the status/help bar at the bottom of the screen.
-pub const STATUS_HEIGHT: u16 = 1;
-
 /// Interaction modes for the item list. The mode dictates how keystrokes
 /// are interpreted and what guidance the status bar shows.
 pub enum Mode {
@@ -108,6 +105,8 @@ pub struct App {
     pub detail_areas: DetailAreas,
     /// Whether we are currently editing the commit message in the popup.
     pub commit_editing: bool,
+    /// Whether the status bar is expanded.
+    pub status_expanded: bool,
 }
 
 impl App {
@@ -136,7 +135,16 @@ impl App {
             commit_details_scroll: 0,
             detail_areas: DetailAreas::default(),
             commit_editing: false,
+            status_expanded: false,
         }
+    }
+
+    pub fn status_height(&self) -> u16 {
+        if self.status_expanded { 3 } else { 1 }
+    }
+
+    pub fn toggle_status_expanded(&mut self) {
+        self.status_expanded = !self.status_expanded;
     }
 
     /// Ensure `selected_index` is a valid index into `config.items`.
@@ -734,7 +742,7 @@ where
             horizontal: 1,
         });
 
-        let available_height = inner_area.height.saturating_sub(STATUS_HEIGHT);
+        let available_height = inner_area.height.saturating_sub(app.status_height());
         let visible_count =
             (available_height / ITEM_HEIGHT).min(app.config.items.len() as u16) as usize;
         app.clamp_scroll(visible_count);

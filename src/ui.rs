@@ -13,7 +13,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
 
-use crate::app::{App, ITEM_HEIGHT, Mode, STATUS_HEIGHT};
+use crate::app::{App, ITEM_HEIGHT, Mode};
 use crate::repo::{ItemStatus, RepoSummary};
 
 // ── Theme ──────────────────────────────────────────────────────────────────
@@ -63,16 +63,16 @@ pub(crate) fn accent_style() -> Style {
 const HELP_LINES: &[(&str, &str)] = &[
     ("↑ / k", "Move selection up / scroll up"),
     ("↓ / j", "Move selection down / scroll down"),
-    ("PgDn", "Jump one page down / page down"),
-    ("PgUp", "Jump one page up / page up"),
-    ("Enter", "Open detail view for selected item / stage file"),
+    ("⇟", "Jump one page down / page down"),
+    ("⇞", "Jump one page up / page up"),
+    ("↵", "Open detail view for selected item / stage file"),
     ("a", "Add a new item"),
     ("e", "Edit selected item"),
     ("d", "Delete selected item"),
     ("r", "Refresh status of selected item"),
-    ("Esc", "Cancel input, close dialog, or leave detail view"),
-    ("Backspace", "Erase character while typing"),
-    ("Tab", "Cycle panel focus (in detail view)"),
+    ("⎋", "Cancel input, close dialog, or leave detail view"),
+    ("⌫", "Erase character while typing"),
+    ("⇥", "Cycle panel focus (in detail view)"),
     ("c", "Commit staged changes (in detail view)"),
     ("o", "Show repo overview popup (in detail view)"),
     ("?", "Toggle this help overlay"),
@@ -92,7 +92,7 @@ pub fn draw(
     draw_outer_frame(f, area);
 
     // Always reserve the bottom row for the status bar, regardless of mode.
-    let (content_area, status_chunk) = content_and_status_chunks(inner_area);
+    let (content_area, status_chunk) = content_and_status_chunks(inner_area, app.status_height());
 
     if matches!(
         app.mode,
@@ -161,10 +161,10 @@ fn draw_outer_frame(f: &mut Frame, area: Rect) {
 /// Reserve the bottom row for the status bar. The remainder is the
 /// "content area" — list view, detail view, or anything else a mode
 /// wants to draw.
-fn content_and_status_chunks(inner_area: Rect) -> (Rect, Rect) {
+fn content_and_status_chunks(inner_area: Rect, status_height: u16) -> (Rect, Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(0), Constraint::Length(STATUS_HEIGHT)])
+        .constraints([Constraint::Min(0), Constraint::Length(status_height)])
         .split(inner_area);
     (chunks[0], chunks[1])
 }
@@ -374,41 +374,31 @@ fn repo_indicator_line(summary: &RepoSummary) -> Line<'static> {
     Line::from(spans)
 }
 
+struct StatusEntry {
+    spans: Vec<Span<'static>>,
+}
+
+impl StatusEntry {
+    fn new(spans: Vec<Span<'static>>) -> Self {
+        Self { spans }
+    }
+
+    fn width(&self) -> usize {
+        self.spans.iter().map(|s| s.content.chars().count()).sum()
+    }
+}
+
 fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
-    let (badge_text, badge_fg, badge_bg) = mode_badge(&app.mode);
-
-    let badge_width = badge_text.chars().count() as u16 + 2; // " BADGE "
-    let chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(badge_width), Constraint::Min(0)])
-        .split(area);
-
-    // Left: mode badge with background fill.
-    let badge = Paragraph::new(Line::from(vec![
-        Span::raw(" "),
-        Span::styled(
-            badge_text,
-            Style::default()
-                .fg(badge_fg)
-                .bg(badge_bg)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(" "),
-    ]))
-    .style(Style::default().bg(badge_bg));
-    f.render_widget(badge, chunks[0]);
-
-    // Right: contextual content (help text, input line, etc.).
-    let content_area = chunks[1];
     match &app.mode {
         Mode::Normal => {
-            draw_status_content(f, content_area, normal_status_spans(&app.status_message));
+            let (msg_spans, entries) = normal_status_entries(&app.status_message);
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
         Mode::Adding => {
-            draw_input_status(f, content_area, "Add", &app.input_buffer);
+            draw_input_status(f, area, "Add", &app.input_buffer);
         }
         Mode::Editing => {
-            draw_input_status(f, content_area, "Edit", &app.input_buffer);
+            draw_input_status(f, area, "Edit", &app.input_buffer);
         }
         Mode::ConfirmDelete => {
             let target = app
@@ -417,167 +407,233 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 .get(app.selected_index)
                 .map(|s| s.as_str())
                 .unwrap_or("");
-            draw_status_content(f, content_area, confirm_delete_spans(target));
+            let (msg_spans, entries) = confirm_delete_entries(target);
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
         Mode::Help => {
-            draw_status_content(f, content_area, help_dismiss_spans());
+            let (msg_spans, entries) = help_dismiss_entries();
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
         Mode::Detail => {
-            draw_status_content(f, content_area, detail_dismiss_spans(&app.status_message));
+            let (msg_spans, entries) = detail_dismiss_entries(&app.status_message);
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
         Mode::DetailOverview => {
-            draw_status_content(f, content_area, detail_overview_spans(&app.status_message));
+            let (msg_spans, entries) = detail_overview_entries(&app.status_message);
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
         Mode::DetailHelp => {
-            draw_status_content(f, content_area, detail_help_spans());
+            let (msg_spans, entries) = detail_help_entries();
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
         Mode::CommitInput => {
-            let spans = if app.commit_editing {
-                commit_input_editing_spans()
+            let (msg_spans, entries) = if app.commit_editing {
+                commit_input_editing_entries()
             } else {
-                commit_input_confirm_spans()
+                commit_input_confirm_entries()
             };
-            draw_status_content(f, content_area, spans);
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
     }
 }
 
-fn detail_dismiss_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
-    let mut spans = Vec::new();
-    spans.push(Span::raw("  "));
+fn detail_dismiss_entries(
+    status_message: &Option<String>,
+) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let mut message_spans = None;
     if let Some(msg) = status_message {
-        spans.push(Span::styled(format!("{}  ", msg), accent_style()));
-        spans.push(Span::styled("|  ", muted_style()));
+        message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
     }
-    let entries = [
-        ("Back to List", "Esc / q"),
-        ("Cycle Focus", "Tab"),
+    let entries_data = [
+        ("Back to List", "⎋/q"),
+        ("Cycle Focus", "⇥"),
         ("Navigate/Scroll", "↑↓"),
-        ("Stage/Unstage", "Enter"),
+        ("Stage/Unstage", "↵"),
         ("Commit", "c"),
         ("Overview", "o"),
         ("Help", "?"),
     ];
-    for (i, (label, key)) in entries.iter().enumerate() {
+    let mut entries = Vec::new();
+    for (i, (label, key)) in entries_data.iter().enumerate() {
+        let mut spans = Vec::new();
         if i > 0 {
-            spans.push(Span::styled("  |  ", muted_style()));
+            spans.push(Span::styled(" ", muted_style()));
         }
         spans.push(Span::raw((*label).to_string()));
         spans.push(Span::raw(" "));
         spans.push(Span::styled("[", muted_style()));
         spans.push(Span::styled((*key).to_string(), accent_style()));
         spans.push(Span::styled("]", muted_style()));
+        entries.push(StatusEntry::new(spans));
     }
-    spans
+    (message_spans, entries)
 }
 
-fn detail_overview_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
-    let mut spans = Vec::new();
-    spans.push(Span::raw("  "));
+fn detail_overview_entries(
+    status_message: &Option<String>,
+) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let mut message_spans = None;
     if let Some(msg) = status_message {
-        spans.push(Span::styled(format!("{}  ", msg), accent_style()));
-        spans.push(Span::styled("|  ", muted_style()));
+        message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
     }
-    spans.push(Span::raw("Close Overview"));
-    spans.push(Span::raw(" "));
-    spans.push(Span::styled("[", muted_style()));
-    spans.push(Span::styled("Esc / q / o", accent_style()));
-    spans.push(Span::styled("]", muted_style()));
-    spans
+    let entries = vec![StatusEntry::new(vec![
+        Span::raw("Close Overview"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
+        Span::styled("⎋/q/o", accent_style()),
+        Span::styled("]", muted_style()),
+    ])];
+    (message_spans, entries)
 }
 
-fn detail_help_spans() -> Vec<Span<'static>> {
-    vec![
-        Span::raw("  "),
+fn detail_help_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let entries = vec![StatusEntry::new(vec![
         Span::raw("Close Help"),
         Span::raw(" "),
         Span::styled("[", muted_style()),
-        Span::styled("? / Esc / q", accent_style()),
+        Span::styled("?/⎋/q", accent_style()),
         Span::styled("]", muted_style()),
-    ]
+    ])];
+    (None, entries)
 }
 
-fn commit_input_editing_spans() -> Vec<Span<'static>> {
-    vec![
-        Span::raw("  "),
-        Span::raw("Done Editing"),
-        Span::raw(" "),
-        Span::styled("[", muted_style()),
-        Span::styled("Ctrl+C", accent_style()),
-        Span::styled("]", muted_style()),
-        Span::styled("  |  ", muted_style()),
-        Span::raw("Newline"),
-        Span::raw(" "),
-        Span::styled("[", muted_style()),
-        Span::styled("Enter", accent_style()),
-        Span::styled("]", muted_style()),
-        Span::styled("  |  ", muted_style()),
-        Span::raw("Cancel Commit"),
-        Span::raw(" "),
-        Span::styled("[", muted_style()),
-        Span::styled("Esc", accent_style()),
-        Span::styled("]", muted_style()),
-    ]
+fn commit_input_editing_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Done Editing"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("⌃C", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Newline"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("↵", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Cancel Commit"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("⎋", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (None, entries)
 }
 
-fn commit_input_confirm_spans() -> Vec<Span<'static>> {
-    vec![
-        Span::raw("  "),
-        Span::raw("Submit Commit"),
-        Span::raw(" "),
-        Span::styled("[", muted_style()),
-        Span::styled("Enter", accent_style()),
-        Span::styled("]", muted_style()),
-        Span::styled("  |  ", muted_style()),
-        Span::raw("Edit Message"),
-        Span::raw(" "),
-        Span::styled("[", muted_style()),
-        Span::styled("e", accent_style()),
-        Span::styled("]", muted_style()),
-        Span::styled("  |  ", muted_style()),
-        Span::raw("Cancel"),
-        Span::raw(" "),
-        Span::styled("[", muted_style()),
-        Span::styled("Esc / q", accent_style()),
-        Span::styled("]", muted_style()),
-    ]
+fn commit_input_confirm_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Submit Commit"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("↵", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Edit Message"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("e", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Cancel"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("⎋/q", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (None, entries)
 }
 
-/// Returns the badge text plus its foreground and background colors.
-/// Badge backgrounds are solid colors, so the foreground only needs to
-/// contrast with the badge bg — not the terminal background — and is
-/// chosen for max readability against each bg.
-fn mode_badge(mode: &Mode) -> (&'static str, Color, Color) {
-    match mode {
-        Mode::Normal => ("NORMAL", Color::Black, ACCENT),
-        Mode::Adding => ("ADDING", Color::Black, WARNING),
-        Mode::Editing => ("EDITING", Color::Black, WARNING),
-        Mode::ConfirmDelete => ("CONFIRM", Color::White, DANGER),
-        Mode::Help => ("HELP", Color::Black, ACCENT),
-        Mode::Detail => ("DETAIL", Color::Black, ACCENT),
-        Mode::DetailOverview => ("OVERVIEW", Color::Black, ACCENT),
-        Mode::DetailHelp => ("HELP", Color::Black, ACCENT),
-        Mode::CommitInput => ("COMMIT", Color::Black, WARNING),
-    }
-}
-
-fn draw_status_content(f: &mut Frame, area: Rect, spans: Vec<Span<'_>>) {
-    // No paragraph-level style — each span carries its own style so the
-    // muted/accent distinction survives on light terminals.
-    f.render_widget(Paragraph::new(Line::from(spans)), area);
-}
-
-fn normal_status_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
+fn draw_status_layout(
+    f: &mut Frame,
+    area: Rect,
+    message_spans: Option<Vec<Span<'static>>>,
+    entries: Vec<StatusEntry>,
+    status_expanded: bool,
+) {
     let mut spans = Vec::new();
-    spans.push(Span::raw("  "));
-    if let Some(msg) = status_message {
-        spans.push(Span::styled(format!("{}  ", msg), accent_style()));
-        spans.push(Span::styled("|  ", muted_style()));
+    spans.push(Span::raw(" "));
+
+    let mut initial_width = 1;
+    if let Some(ref msg) = message_spans {
+        spans.extend(msg.clone());
+        initial_width += msg.iter().map(|s| s.content.chars().count()).sum::<usize>();
     }
-    let entries = [
+
+    let max_width = area.width as usize;
+
+    if status_expanded {
+        for entry in entries {
+            spans.extend(entry.spans);
+        }
+        spans.push(Span::styled(" ", muted_style()));
+        spans.push(Span::raw("Less"));
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled("[", muted_style()));
+        spans.push(Span::styled(".", accent_style()));
+        spans.push(Span::styled("]", muted_style()));
+
+        let para = Paragraph::new(Line::from(spans)).wrap(Wrap { trim: true });
+        f.render_widget(para, area);
+    } else {
+        // Need to truncate whole entries. Leave space for " More [.]" which is 9 chars plus 2 safe buffer.
+        let limit = max_width.saturating_sub(11);
+
+        let mut fitted_entries = Vec::new();
+        let mut current_width = initial_width;
+        let mut truncated = false;
+
+        for entry in entries {
+            let w = entry.width();
+            if current_width + w <= limit {
+                current_width += w;
+                fitted_entries.push(entry);
+            } else {
+                truncated = true;
+                break;
+            }
+        }
+
+        for entry in fitted_entries {
+            spans.extend(entry.spans);
+        }
+
+        if truncated {
+            spans.push(Span::styled(" ", muted_style()));
+            spans.push(Span::raw("More"));
+            spans.push(Span::raw(" "));
+            spans.push(Span::styled("[", muted_style()));
+            spans.push(Span::styled(".", accent_style()));
+            spans.push(Span::styled("]", muted_style()));
+        }
+
+        let para = Paragraph::new(Line::from(spans));
+        f.render_widget(para, area);
+    }
+}
+
+fn normal_status_entries(
+    status_message: &Option<String>,
+) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let mut message_spans = None;
+    if let Some(msg) = status_message {
+        message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
+    }
+    let entries_data = [
         ("Navigate", "↑↓"),
-        ("Page", "PgDn/PgUp"),
-        ("Detail", "Enter"),
+        ("Page", "⇟/⇞"),
+        ("Detail", "↵"),
         ("Add", "a"),
         ("Edit", "e"),
         ("Delete", "d"),
@@ -585,61 +641,69 @@ fn normal_status_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
         ("Help", "?"),
         ("Quit", "q"),
     ];
-    for (i, (label, key)) in entries.iter().enumerate() {
+    let mut entries = Vec::new();
+    for (i, (label, key)) in entries_data.iter().enumerate() {
+        let mut spans = Vec::new();
         if i > 0 {
-            spans.push(Span::styled("  |  ", muted_style()));
+            spans.push(Span::styled(" ", muted_style()));
         }
         spans.push(Span::raw((*label).to_string()));
         spans.push(Span::raw(" "));
         spans.push(Span::styled("[", muted_style()));
         spans.push(Span::styled((*key).to_string(), accent_style()));
         spans.push(Span::styled("]", muted_style()));
+        entries.push(StatusEntry::new(spans));
     }
-    spans
+    (message_spans, entries)
 }
 
-fn confirm_delete_spans(target: &str) -> Vec<Span<'static>> {
-    vec![
-        Span::raw("  "),
+fn confirm_delete_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let message_spans = Some(vec![
         Span::raw("Delete "),
         Span::styled(
             format!("\"{}\"", target),
             Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
         ),
-        Span::raw("?"),
-        Span::styled("  |  ", muted_style()),
-        Span::raw("Confirm"),
-        Span::raw(" "),
-        Span::styled("[", muted_style()),
-        Span::styled(
-            "y",
-            Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
-        ),
-        Span::styled("]", muted_style()),
-        Span::styled("  |  ", muted_style()),
-        Span::raw("Cancel"),
-        Span::raw(" "),
-        Span::styled("[", muted_style()),
-        Span::styled("n / Esc", accent_style()),
-        Span::styled("]", muted_style()),
-    ]
+        Span::raw("? "),
+    ]);
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Confirm"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled(
+                "y",
+                Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Cancel"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("n/⎋", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (message_spans, entries)
 }
 
-fn help_dismiss_spans() -> Vec<Span<'static>> {
-    vec![
-        Span::raw("  "),
+fn help_dismiss_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let entries = vec![StatusEntry::new(vec![
         Span::raw("Close Help"),
         Span::raw(" "),
         Span::styled("[", muted_style()),
-        Span::styled("? / Esc / q", accent_style()),
+        Span::styled("?/⎋/q", accent_style()),
         Span::styled("]", muted_style()),
-    ]
+    ])];
+    (None, entries)
 }
 
 /// Renders the input prompt for Add/Edit modes and places the real
 /// terminal cursor at the end of the typed buffer.
 fn draw_input_status(f: &mut Frame, area: Rect, verb: &str, buffer: &str) {
-    let prefix = format!("  {} › ", verb);
+    let prefix = format!(" {} › ", verb);
 
     let spans = vec![
         Span::styled(
@@ -647,17 +711,17 @@ fn draw_input_status(f: &mut Frame, area: Rect, verb: &str, buffer: &str) {
             Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
         ),
         Span::styled(buffer.to_string(), primary_style()),
-        Span::styled("  |  ", muted_style()),
+        Span::styled(" ", muted_style()),
         Span::raw("Save"),
         Span::raw(" "),
         Span::styled("[", muted_style()),
-        Span::styled("Enter", accent_style()),
+        Span::styled("↵", accent_style()),
         Span::styled("]", muted_style()),
-        Span::styled("  |  ", muted_style()),
+        Span::styled(" ", muted_style()),
         Span::raw("Cancel"),
         Span::raw(" "),
         Span::styled("[", muted_style()),
-        Span::styled("Esc", accent_style()),
+        Span::styled("⎋", accent_style()),
         Span::styled("]", muted_style()),
     ];
     let para = Paragraph::new(Line::from(spans));

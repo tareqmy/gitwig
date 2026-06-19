@@ -12,6 +12,15 @@ use crate::app::{App, DetailSection, Mode};
 /// Dispatch a key press. Returns `false` if the user requested quit.
 pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     let code = key.code;
+
+    // Toggle status bar expanded mode with '.' (except in text input fields)
+    let is_text_input = matches!(app.mode, Mode::Adding | Mode::Editing)
+        || (matches!(app.mode, Mode::CommitInput) && app.commit_editing);
+    if !is_text_input && code == KeyCode::Char('.') {
+        app.toggle_status_expanded();
+        return true;
+    }
+
     let detail_focus = app.detail_focus; // Copy before borrow in match
     match &app.mode {
         Mode::Normal => match code {
