@@ -526,7 +526,7 @@ fn commit_input_confirm_spans() -> Vec<Span<'static>> {
         Span::raw("Submit Commit"),
         Span::raw(" "),
         Span::styled("[", muted_style()),
-        Span::styled("c", accent_style()),
+        Span::styled("Enter", accent_style()),
         Span::styled("]", muted_style()),
         Span::styled("  |  ", muted_style()),
         Span::raw("Edit Message"),

@@ -150,7 +150,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             } else {
                 match code {
                     KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.cancel_commit(),
-                    KeyCode::Char('c') | KeyCode::Char('C') => app.commit_git_changes(),
+                    KeyCode::Enter => app.commit_git_changes(),
                     KeyCode::Char('e') | KeyCode::Char('E') => app.commit_start_editing(),
                     _ => {}
                 }
