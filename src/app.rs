@@ -353,9 +353,14 @@ impl App {
         // Reset staging selection and pre-load diff when landing on Staged/Unstaged.
         match self.detail_focus {
             DetailSection::Staged | DetailSection::Unstaged => {
-                self.staging_file_selection = 0;
                 self.diff_scroll = 0;
-                self.refresh_staging_diff();
+                if self.is_uncommitted_selected() {
+                    self.staging_file_selection = 0;
+                    self.refresh_staging_diff();
+                } else {
+                    self.file_selection = 0;
+                    self.refresh_file_diff();
+                }
             }
             DetailSection::CommitDetails => {
                 self.commit_details_scroll = 0;
@@ -363,15 +368,7 @@ impl App {
             DetailSection::StagingDetails => {
                 self.diff_scroll = 0;
             }
-            // Pre-load the diff when landing on the Changed Files panel (real commit).
-            _ => {
-                if matches!(
-                    self.detail_focus,
-                    DetailSection::Staged | DetailSection::Unstaged
-                ) {
-                    self.refresh_file_diff();
-                }
-            }
+            _ => {}
         }
     }
 
@@ -1060,7 +1057,31 @@ impl App {
     }
 
     pub fn refresh_file_diff(&mut self) {
-        if let Some((repo_path, commit_oid, file_path)) = self.current_diff_params() {
+        if self.is_uncommitted_selected() {
+            let params = match &self.current_detail {
+                Some(ItemDetail::Repo { resolved, info }) => {
+                    if !info.changes.staged.is_empty() {
+                        info.changes
+                            .staged
+                            .first()
+                            .map(|f| (resolved.clone(), f.path.clone(), true))
+                    } else if !info.changes.unstaged.is_empty() {
+                        info.changes
+                            .unstaged
+                            .first()
+                            .map(|f| (resolved.clone(), f.path.clone(), false))
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+            if let Some((repo_path, file_path, staged)) = params {
+                self.file_diff = repo::get_worktree_file_diff(&repo_path, &file_path, staged);
+            } else {
+                self.file_diff.clear();
+            }
+        } else if let Some((repo_path, commit_oid, file_path)) = self.current_diff_params() {
             self.file_diff = repo::get_commit_file_diff(&repo_path, &commit_oid, &file_path);
         } else {
             self.file_diff.clear();

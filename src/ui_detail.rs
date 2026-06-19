@@ -651,6 +651,8 @@ fn draw_staging_panels(
         focus == DetailSection::Staged,
         if focus == DetailSection::Staged {
             Some(staging_file_selection)
+        } else if focus == DetailSection::Commits && !changes.staged.is_empty() {
+            Some(0)
         } else {
             None
         },
@@ -666,6 +668,11 @@ fn draw_staging_panels(
         focus == DetailSection::Unstaged,
         if focus == DetailSection::Unstaged {
             Some(staging_file_selection)
+        } else if focus == DetailSection::Commits
+            && changes.staged.is_empty()
+            && !changes.unstaged.is_empty()
+        {
+            Some(0)
         } else {
             None
         },
@@ -679,14 +686,20 @@ fn draw_staging_panels(
         muted_style()
     };
     let selected_file_name: Option<String> = {
-        let files = match focus {
-            DetailSection::Staged => Some(&changes.staged),
-            DetailSection::Unstaged => Some(&changes.unstaged),
-            _ => None,
+        let (files, idx) = match focus {
+            DetailSection::Staged => (Some(&changes.staged), staging_file_selection),
+            DetailSection::Unstaged => (Some(&changes.unstaged), staging_file_selection),
+            _ => {
+                if !changes.staged.is_empty() {
+                    (Some(&changes.staged), 0)
+                } else if !changes.unstaged.is_empty() {
+                    (Some(&changes.unstaged), 0)
+                } else {
+                    (None, 0)
+                }
+            }
         };
-        files
-            .and_then(|f| f.get(staging_file_selection))
-            .map(|e| e.path.clone())
+        files.and_then(|f| f.get(idx)).map(|e| e.path.clone())
     };
     let right_block = Block::default()
         .borders(Borders::ALL)

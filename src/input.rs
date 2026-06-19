@@ -503,6 +503,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         app.staging_file_selection = 0;
                         app.refresh_staging_diff();
                     } else {
+                        app.file_selection = 0;
                         app.refresh_file_diff();
                     }
                 }
