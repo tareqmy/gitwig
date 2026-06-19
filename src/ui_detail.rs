@@ -92,6 +92,7 @@ pub fn draw(
     input_buffer: &str,
     commit_editing: bool,
     branch_action_target: &Option<(String, bool)>,
+    tag_action_target_oid: &Option<String>,
     area: Rect,
 ) {
     // Extract branch name if this is a repo detail.
@@ -327,6 +328,10 @@ pub fn draw(
             // Draw branch create popup on top when requested.
             if matches!(mode, Mode::BranchCreateInput) {
                 draw_branch_create_popup(f, input_buffer, branch.as_deref(), body_area);
+            }
+            // Draw tag create popup on top when requested.
+            if matches!(mode, Mode::TagCreateInput) {
+                draw_tag_create_popup(f, input_buffer, tag_action_target_oid.as_deref(), body_area);
             }
             // Draw branch delete popup on top when requested.
             if matches!(mode, Mode::BranchDeleteConfirm) {
@@ -904,6 +909,7 @@ const DETAIL_HELP_LINES: &[(&str, &str)] = &[
         "Stage/Unstage file, or Checkout selected branch",
     ),
     ("c", "Commit changes (Details) / Create branch (Branches)"),
+    ("t", "Create tag (Details tab commits list)"),
     ("d", "Delete selected branch (Branches tab)"),
     ("o", "Show repo overview popup"),
     ("1", "Go to Details tab"),
@@ -1798,4 +1804,63 @@ fn draw_branch_push_popup(f: &mut Frame, target: &Option<(String, bool)>, area: 
 
     let paragraph = Paragraph::new(content).block(block);
     f.render_widget(paragraph, popup_area);
+}
+
+fn draw_tag_create_popup(
+    f: &mut Frame,
+    input_buffer: &str,
+    target_commit_oid: Option<&str>,
+    area: Rect,
+) {
+    let popup_area = centred_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT);
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Create Tag", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let commit_hash = target_commit_oid
+        .map(|oid| if oid.len() >= 7 { &oid[..7] } else { oid })
+        .unwrap_or("unknown");
+    let content = vec![
+        Line::from(vec![
+            Span::styled("Target Commit: ", muted_style()),
+            Span::styled(commit_hash, primary_style()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Tag Name: ", muted_style()),
+            Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let paragraph = Paragraph::new(content);
+    f.render_widget(paragraph, inner_area);
+
+    let cursor_y = inner_area.y.saturating_add(2).min(
+        inner_area
+            .y
+            .saturating_add(inner_area.height.saturating_sub(1)),
+    );
+    let label_width = "Tag Name: ".chars().count() as u16;
+    let cursor_offset = label_width.saturating_add(input_buffer.chars().count() as u16);
+    let cursor_x = inner_area.x.saturating_add(cursor_offset).min(
+        inner_area
+            .x
+            .saturating_add(inner_area.width.saturating_sub(1)),
+    );
+    f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
 }

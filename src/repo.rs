@@ -1060,3 +1060,16 @@ pub fn delete_remote_branch(repo_path: &Path, branch_name: &str) -> Result<(), g
     branch.delete()?;
     Ok(())
 }
+
+/// Creates a new lightweight tag pointing at the specified commit OID.
+pub fn create_tag(
+    repo_path: &Path,
+    tag_name: &str,
+    commit_oid_str: &str,
+) -> Result<(), git2::Error> {
+    let repo = Repository::open(repo_path)?;
+    let oid = git2::Oid::from_str(commit_oid_str)?;
+    let target_object = repo.find_object(oid, Some(git2::ObjectType::Commit))?;
+    repo.tag_lightweight(tag_name, &target_object, false)?;
+    Ok(())
+}

@@ -16,7 +16,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     // Toggle status bar expanded mode with '.' (except in text input fields)
     let is_text_input = matches!(
         app.mode,
-        Mode::Adding | Mode::Editing | Mode::BranchCreateInput
+        Mode::Adding | Mode::Editing | Mode::BranchCreateInput | Mode::TagCreateInput
     ) || (matches!(app.mode, Mode::CommitInput) && app.commit_editing);
     if !is_text_input && code == KeyCode::Char('.') {
         app.toggle_status_expanded();
@@ -64,6 +64,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         Mode::BranchCreateInput => match code {
             KeyCode::Esc => app.cancel_branch_create(),
             KeyCode::Enter => app.commit_branch_create(),
+            KeyCode::Backspace => app.input_backspace(),
+            KeyCode::Char(c) => app.input_char(c),
+            _ => {}
+        },
+        Mode::TagCreateInput => match code {
+            KeyCode::Esc => {
+                app.tag_action_target_oid = None;
+                app.mode = Mode::Detail;
+            }
+            KeyCode::Enter => app.commit_tag_create(),
             KeyCode::Backspace => app.input_backspace(),
             KeyCode::Char(c) => app.input_char(c),
             _ => {}
@@ -117,6 +127,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             _ if app.detail_tab == 0 => match code {
                 KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
+                KeyCode::Char('t') | KeyCode::Char('T') => {
+                    if detail_focus == DetailSection::Commits {
+                        app.start_tag_create();
+                    }
+                }
                 KeyCode::Char('w') | KeyCode::Char('W') => app.cycle_detail_focus(),
                 KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::Commits => {
                     app.detail_commit_up()

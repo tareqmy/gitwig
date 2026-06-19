@@ -116,6 +116,7 @@ pub fn draw(
             | Mode::DetailHelp
             | Mode::CommitInput
             | Mode::BranchCreateInput
+            | Mode::TagCreateInput
             | Mode::BranchDeleteConfirm
             | Mode::BranchPushConfirm
     ) {
@@ -148,6 +149,7 @@ pub fn draw(
                 &app.input_buffer,
                 app.commit_editing,
                 &app.branch_action_target,
+                &app.tag_action_target_oid,
                 content_area,
             );
         }
@@ -466,6 +468,9 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         Mode::BranchCreateInput => {
             draw_input_status(f, area, "Create Branch", &app.input_buffer);
         }
+        Mode::TagCreateInput => {
+            draw_input_status(f, area, "Create Tag", &app.input_buffer);
+        }
         Mode::BranchDeleteConfirm => {
             let (target, is_remote) = app
                 .branch_action_target
@@ -507,6 +512,7 @@ fn detail_dismiss_entries(
             ("Navigate/Scroll", "↑↓"),
             ("Stage/Unstage", "↵"),
             ("Commit", "c"),
+            ("Tag", "t"),
             ("Overview", "o"),
             ("Help", "?"),
         ]

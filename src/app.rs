@@ -48,6 +48,8 @@ pub enum Mode {
     CommitInput,
     /// Typing a branch name to create. Enter commits, Esc cancels.
     BranchCreateInput,
+    /// Typing a tag name to create. Enter commits, Esc cancels.
+    TagCreateInput,
     /// Confirming deletion of a branch. y deletes, n/Esc cancels.
     BranchDeleteConfirm,
     /// Confirming push of a branch. y pushes, n/Esc cancels.
@@ -148,6 +150,8 @@ pub struct App {
     pub pending_gitui: bool,
     /// Target branch name and remote flag for deletion/creation actions.
     pub branch_action_target: Option<(String, bool)>,
+    /// Target commit OID for tag creation.
+    pub tag_action_target_oid: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -208,6 +212,7 @@ impl App {
             fetching: false,
             pending_gitui: false,
             branch_action_target: None,
+            tag_action_target_oid: None,
         }
     }
 
@@ -738,6 +743,60 @@ impl App {
                 }
             }
         }
+    }
+
+    pub fn start_tag_create(&mut self) {
+        if self.detail_tab != 0 {
+            return;
+        }
+        if self.detail_focus != DetailSection::Commits {
+            return;
+        }
+        if self.is_uncommitted_selected() {
+            self.status_message = Some("Cannot tag uncommitted changes".to_string());
+            return;
+        }
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let dirty = !info.changes.staged.is_empty()
+                || !info.changes.unstaged.is_empty()
+                || !info.changes.untracked.is_empty()
+                || !info.changes.conflicted.is_empty();
+            let commit_idx = if dirty {
+                self.commit_selection.saturating_sub(1)
+            } else {
+                self.commit_selection
+            };
+            if let Some(commit) = info.commits.get(commit_idx) {
+                self.tag_action_target_oid = Some(commit.oid.clone());
+                self.input_buffer.clear();
+                self.mode = Mode::TagCreateInput;
+            }
+        }
+    }
+
+    pub fn commit_tag_create(&mut self) {
+        let tag_name = self.input_buffer.trim().to_string();
+        if tag_name.is_empty() {
+            self.status_message = Some("Tag name cannot be empty".to_string());
+            self.mode = Mode::Detail;
+            return;
+        }
+        if let Some(oid) = self.tag_action_target_oid.take() {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                match repo::create_tag(resolved, &tag_name, &oid) {
+                    Ok(()) => {
+                        self.status_message = Some(format!("Created tag '{}'", tag_name));
+                        // Refresh detail view to display the new tag refs
+                        let item = &self.config.items[self.selected_index];
+                        self.current_detail = Some(repo::inspect_detail(item));
+                    }
+                    Err(e) => {
+                        self.status_message = Some(format!("Failed to create tag: {}", e));
+                    }
+                }
+            }
+        }
+        self.mode = Mode::Detail;
     }
 
     pub fn start_branch_create(&mut self) {
