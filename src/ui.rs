@@ -486,6 +486,8 @@ fn detail_dismiss_entries(
             ("Graph View", "2"),
             ("Cycle Focus", "⇥"),
             ("Navigate/Scroll", "↑↓"),
+            ("Checkout", "↵"),
+            ("Fetch", "⇧F"),
             ("Overview", "o"),
             ("Help", "?"),
         ]

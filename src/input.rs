@@ -159,6 +159,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             },
             _ if app.detail_tab == 2 => match code {
                 KeyCode::Tab => app.cycle_detail_focus(),
+                KeyCode::Char('F') => {
+                    if app.detail_focus == DetailSection::LocalBranches {
+                        app.fetch_selected_branch();
+                    }
+                }
+                KeyCode::Enter => {
+                    if app.detail_focus == DetailSection::LocalBranches {
+                        app.checkout_selected_local_branch();
+                    } else {
+                        app.checkout_selected_remote_branch();
+                    }
+                }
                 KeyCode::Up | KeyCode::Char('k') => {
                     if app.detail_focus == DetailSection::LocalBranches {
                         app.local_branch_up();

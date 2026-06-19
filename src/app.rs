@@ -124,6 +124,12 @@ pub struct App {
     pub commit_editing: bool,
     /// Whether the status bar is expanded.
     pub status_expanded: bool,
+    /// Sender for background task events.
+    pub tx: std::sync::mpsc::Sender<String>,
+    /// Receiver for background task events.
+    pub rx: std::sync::mpsc::Receiver<String>,
+    /// Whether a background fetch is active.
+    pub fetching: bool,
 }
 
 impl App {
@@ -133,6 +139,7 @@ impl App {
             .iter()
             .map(|s| repo::inspect_summary(s))
             .collect();
+        let (tx, rx) = std::sync::mpsc::channel();
         Self {
             config,
             config_path,
@@ -159,6 +166,9 @@ impl App {
             graph_scroll: 0,
             commit_editing: false,
             status_expanded: false,
+            tx,
+            rx,
+            fetching: false,
         }
     }
 
@@ -381,6 +391,106 @@ impl App {
             if total > 0 {
                 self.remote_branch_selection =
                     (self.remote_branch_selection + page).min(total.saturating_sub(1));
+            }
+        }
+    }
+
+    /// Spawns a background thread to fetch the remote of the selected local branch.
+    pub fn fetch_selected_branch(&mut self) {
+        if self.fetching {
+            return;
+        }
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+            if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
+                self.fetching = true;
+                self.status_message = Some("Fetching...".to_string());
+
+                let repo_path = resolved.clone();
+                let branch_name = branch_info.name.clone();
+                let tx = self.tx.clone();
+
+                std::thread::spawn(move || {
+                    let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                        let repo = git2::Repository::open(&repo_path)?;
+                        let branch = repo.find_branch(&branch_name, git2::BranchType::Local)?;
+
+                        let upstream = match branch.upstream() {
+                            Ok(u) => u,
+                            Err(_) => {
+                                return Ok(
+                                    "No upstream tracking branch configured for this branch"
+                                        .to_string(),
+                                );
+                            }
+                        };
+                        let upstream_ref = upstream.get().name()?;
+                        let remote_buf = repo.branch_upstream_remote(upstream_ref)?;
+                        let remote_name = remote_buf.as_str()?;
+
+                        let output = std::process::Command::new("git")
+                            .arg("fetch")
+                            .arg(remote_name)
+                            .current_dir(&repo_path)
+                            .output()?;
+
+                        if output.status.success() {
+                            Ok(format!("Fetched remote '{}' successfully", remote_name))
+                        } else {
+                            let err_msg =
+                                String::from_utf8_lossy(&output.stderr).trim().to_string();
+                            Err(format!("git fetch failed: {}", err_msg).into())
+                        }
+                    })();
+
+                    let msg = match res {
+                        Ok(success) => success,
+                        Err(e) => format!("Fetch failed: {}", e),
+                    };
+                    let _ = tx.send(msg);
+                });
+            }
+        }
+    }
+
+    /// Checks out the selected local branch (safety checks apply).
+    pub fn checkout_selected_local_branch(&mut self) {
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+            if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
+                if !branch_info.is_head {
+                    match repo::checkout_local_branch(resolved, &branch_info.name) {
+                        Ok(()) => {
+                            self.status_message =
+                                Some(format!("Switched to branch '{}'", branch_info.name));
+                            // Refresh detail snapshot
+                            let item = &self.config.items[self.selected_index];
+                            self.current_detail = Some(repo::inspect_detail(item));
+                            self.local_branch_selection = 0;
+                        }
+                        Err(e) => {
+                            self.status_message = Some(format!("Checkout failed: {}", e));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Checks out the selected remote branch, creating a local tracking branch if needed.
+    pub fn checkout_selected_remote_branch(&mut self) {
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+            if let Some(branch_info) = info.remote_branches.get(self.remote_branch_selection) {
+                match repo::checkout_remote_branch(resolved, &branch_info.name) {
+                    Ok(msg) => {
+                        self.status_message = Some(msg);
+                        // Refresh detail snapshot
+                        let item = &self.config.items[self.selected_index];
+                        self.current_detail = Some(repo::inspect_detail(item));
+                        self.local_branch_selection = 0;
+                    }
+                    Err(e) => {
+                        self.status_message = Some(format!("Checkout failed: {}", e));
+                    }
+                }
             }
         }
     }
@@ -857,6 +967,14 @@ where
     <B as ratatui::backend::Backend>::Error: 'static,
 {
     loop {
+        while let Ok(msg) = app.rx.try_recv() {
+            app.status_message = Some(msg);
+            app.fetching = false;
+            if let Some(item) = app.config.items.get(app.selected_index) {
+                app.current_detail = Some(repo::inspect_detail(item));
+            }
+        }
+
         app.clamp_selection();
 
         let size = terminal.size()?;
@@ -888,8 +1006,12 @@ where
         app.detail_areas = detail_areas;
         app.main_areas = main_areas;
 
-        // Transient feedback disappears after one frame.
-        app.status_message = None;
+        // Transient feedback disappears after one frame, unless we are fetching.
+        if app.fetching {
+            app.status_message = Some("Fetching...".to_string());
+        } else {
+            app.status_message = None;
+        }
 
         if event::poll(std::time::Duration::from_millis(
             app.config.poll_interval_ms,

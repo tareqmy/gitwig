@@ -52,6 +52,8 @@
 | `1`                  | Detail          | Go to Details tab                 |
 | `2`                  | Detail          | Go to Graph View tab              |
 | `3`                  | Detail          | Go to Branches tab                |
+| `Enter`              | Detail          | Stage/Unstage file, or Checkout selected branch |
+| `Shift+F`            | Detail          | Fetch selected local branch from remote |
 | `?`                  | Detail          | Toggle detail help overlay        |
 | `Esc` / `q` / `o`    | DetailOverview  | Close repository overview popup   |
 | `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |
@@ -119,11 +121,15 @@ The **Branches** tab is split vertically into left and right panels:
 - **Remote Branches (right):** Lists remote tracking branches.
 
 You can navigate and interact with these panels in the following ways:
-- **Cycle focus:** Cycle focus between active panels using `Tab` (`Commits` → `Staged` → `Unstaged` → `StagingDetails`).
-- **Mouse Click to Focus/Select:** In normal mode, left-click on any repository item in the main list to select it, and double-click to open its detail view directly. In detail mode, click anywhere inside any panel's boundaries (including staged/unstaged sub-panels) to focus it immediately.
-- **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit or select a file inside the staging/commit file lists.
+- **Cycle focus:** Cycle focus between active panels using `Tab` (`Commits` → `Staged` → `Unstaged` → `StagingDetails` in the Details tab, and toggles between `Local Branches` and `Remote Branches` in the Branches tab).
+- **Mouse Click to Focus/Select:** In normal mode, left-click on any repository item in the main list to select it, and double-click to open its detail view directly. In detail mode, click anywhere inside any panel's boundaries (including branch list panels) to focus it immediately.
+- **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, or branch in the active list.
 - **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
 - **Stage/Unstage Files:** Select the `Uncommitted changes` row at the top, select a file in either the `Staged` or `Unstaged` list, and press `Enter` to stage or unstage that file instantly.
+- **Checkout and Fetch Branches:** While on the **Branches** tab:
+  - Select any **local branch** (other than the currently active one) and press `Enter` to check it out (safe checkout strategy applies).
+  - Select any **local branch** that has an upstream configuration and press `Shift+F` to fetch updates for its remote in the background.
+  - Select any **remote branch** and press `Enter` to check it out (this will switch to the branch, creating a local tracking branch if it doesn't already exist).
 - **Commit Staged Changes:** Press `c` from the detail view to open a centered Commit popup window (only active if there are staged changes). 
   - **Compose Mode:** Type your commit message. Press `Ctrl+C` to lock in the text and switch to confirmation state, press `Enter` to insert a newline, or `Esc` to cancel.
   - **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, or `Esc`/`q` to close the popup.
