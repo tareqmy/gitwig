@@ -80,6 +80,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.detail_tab = 2;
                 app.detail_focus = DetailSection::LocalBranches;
             }
+            KeyCode::Char('4') => {
+                app.detail_tab = 3;
+                app.detail_focus = DetailSection::Files;
+            }
             _ if app.detail_tab == 0 => match code {
                 KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
                 KeyCode::Tab => app.cycle_detail_focus(),
@@ -204,6 +208,21 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 _ => {}
             },
+            _ if app.detail_tab == 3 => match code {
+                KeyCode::Up | KeyCode::Char('k') => {
+                    app.file_list_up();
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    app.file_list_down();
+                }
+                KeyCode::PageUp => {
+                    app.file_list_page_up(10);
+                }
+                KeyCode::PageDown => {
+                    app.file_list_page_down(10);
+                }
+                _ => {}
+            },
             _ => {}
         },
         Mode::DetailOverview => match code {
@@ -321,6 +340,9 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     } else if (34..48).contains(&click_x) {
                         app.detail_tab = 2;
                         app.detail_focus = DetailSection::LocalBranches;
+                    } else if (52..63).contains(&click_x) {
+                        app.detail_tab = 3;
+                        app.detail_focus = DetailSection::Files;
                     }
                 }
                 return;
@@ -514,6 +536,22 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             } else if is_scroll_down {
                 app.detail_focus = DetailSection::RemoteBranches;
                 app.remote_branch_down();
+            }
+        }
+    }
+    // Files list panel (inside Files view).
+    if let Some(rect) = areas.files {
+        if rect.contains(pos) {
+            if is_click {
+                if app.detail_focus != DetailSection::Files {
+                    app.detail_focus = DetailSection::Files;
+                }
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::Files;
+                app.file_list_up();
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::Files;
+                app.file_list_down();
             }
         }
     }

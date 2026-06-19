@@ -97,6 +97,8 @@ pub struct RepoInfo {
     pub local_branches: Vec<BranchInfo>,
     /// Remote branches in the repository.
     pub remote_branches: Vec<BranchInfo>,
+    /// Tracked files in the repository.
+    pub files: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -530,6 +532,16 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
     }
     remote_branches.sort_by(|a, b| a.name.cmp(&b.name));
     info.remote_branches = remote_branches;
+
+    let mut files = Vec::new();
+    if let Ok(index) = repo.index() {
+        for entry in index.iter() {
+            if let Ok(path_str) = std::str::from_utf8(&entry.path) {
+                files.push(path_str.to_string());
+            }
+        }
+    }
+    info.files = files;
 
     Ok(info)
 }

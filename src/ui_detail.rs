@@ -64,6 +64,8 @@ pub struct DetailAreas {
     pub remote_branches: Option<Rect>,
     /// Bounding box of the tab bar itself.
     pub tab_bar: Option<Rect>,
+    /// Bounding box of the files list.
+    pub files: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -82,6 +84,7 @@ pub fn draw(
     commit_details_scroll: usize,
     local_branch_selection: usize,
     remote_branch_selection: usize,
+    file_list_selection: usize,
     detail_tab: usize,
     graph_scroll: usize,
     areas: &mut DetailAreas,
@@ -142,9 +145,10 @@ pub fn draw(
     }
 
     if let Some(tab_area) = tab_bar_area {
-        let (style_details, style_graph, style_branches) = if detail_tab == 0 {
+        let (style_details, style_graph, style_branches, style_files) = if detail_tab == 0 {
             (
                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
             )
@@ -153,9 +157,18 @@ pub fn draw(
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+            )
+        } else if detail_tab == 2 {
+            (
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
             )
         } else {
             (
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
@@ -165,6 +178,7 @@ pub fn draw(
         let details_bullet = if detail_tab == 0 { "●" } else { "○" };
         let graph_bullet = if detail_tab == 1 { "●" } else { "○" };
         let branches_bullet = if detail_tab == 2 { "●" } else { "○" };
+        let files_bullet = if detail_tab == 3 { "●" } else { "○" };
 
         let tab_line = Line::from(vec![
             Span::raw("  "),
@@ -173,6 +187,8 @@ pub fn draw(
             Span::styled(format!("{} Graph [2]", graph_bullet), style_graph),
             Span::raw("    "),
             Span::styled(format!("{} Branches [3]", branches_bullet), style_branches),
+            Span::raw("    "),
+            Span::styled(format!("{} Files [4]", files_bullet), style_files),
         ]);
         f.render_widget(Paragraph::new(tab_line), tab_area);
         areas.tab_bar = Some(tab_area);
@@ -271,7 +287,7 @@ pub fn draw(
 
                 let paragraph = Paragraph::new(list_lines).wrap(Wrap { trim: false });
                 f.render_widget(paragraph, inner);
-            } else {
+            } else if detail_tab == 2 {
                 // Render Branches view (tab 3, index 2)
                 draw_branches_view(
                     f,
@@ -282,6 +298,9 @@ pub fn draw(
                     areas,
                     body_area,
                 );
+            } else {
+                // Render Files view (tab 4, index 3)
+                draw_files_view(f, info, *focus, file_list_selection, areas, body_area);
             }
 
             // Draw overview popup on top when requested.
@@ -1491,4 +1510,53 @@ fn draw_branches_view(
         remote_state.select(Some(remote_branch_selection));
     }
     f.render_stateful_widget(remote_list, right_area, &mut remote_state);
+}
+
+fn draw_files_view(
+    f: &mut Frame,
+    info: &RepoInfo,
+    focus: DetailSection,
+    file_list_selection: usize,
+    areas: &mut DetailAreas,
+    area: Rect,
+) {
+    areas.files = Some(area);
+
+    let focused = focus == DetailSection::Files;
+    let border_style = if focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER)
+        .border_style(border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Repository Files", primary_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::uniform(1));
+
+    let items: Vec<ListItem> = info
+        .files
+        .iter()
+        .map(|path| {
+            ListItem::new(Line::from(vec![
+                Span::styled("  🗎 ", muted_style()),
+                Span::styled(path.clone(), primary_style()),
+            ]))
+        })
+        .collect();
+
+    let list = List::new(items)
+        .block(block)
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+
+    let mut state = ListState::default();
+    state.select(Some(file_list_selection));
+
+    f.render_stateful_widget(list, area, &mut state);
 }

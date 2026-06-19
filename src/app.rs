@@ -59,6 +59,7 @@ pub enum DetailSection {
     StagingDetails,
     LocalBranches,
     RemoteBranches,
+    Files,
 }
 
 impl DetailSection {
@@ -72,6 +73,7 @@ impl DetailSection {
             Self::StagingDetails => Self::Commits,
             Self::LocalBranches => Self::RemoteBranches,
             Self::RemoteBranches => Self::LocalBranches,
+            Self::Files => Self::Files,
         }
     }
 }
@@ -116,8 +118,10 @@ pub struct App {
     pub main_areas: Vec<Rect>,
     /// Timestamp and selected index of the last mouse click for double-click detection.
     pub last_click: Option<(std::time::Instant, usize)>,
-    /// Active tab in the detail view (0 = Details, 1 = Graph, 2 = Branches).
+    /// Active tab in the detail view (0 = Details, 1 = Graph, 2 = Branches, 3 = Files).
     pub detail_tab: usize,
+    /// Selected file index in the Files tab.
+    pub file_list_selection: usize,
     /// Vertical scroll offset for the git history graph view (Graph tab).
     pub graph_scroll: usize,
     /// Whether we are currently editing the commit message in the popup.
@@ -165,6 +169,7 @@ impl App {
             main_areas: Vec::new(),
             last_click: None,
             detail_tab: 0,
+            file_list_selection: 0,
             graph_scroll: 0,
             commit_editing: false,
             status_expanded: false,
@@ -288,6 +293,7 @@ impl App {
             self.commit_details_scroll = 0;
             self.local_branch_selection = 0;
             self.remote_branch_selection = 0;
+            self.file_list_selection = 0;
             self.detail_tab = 0;
             self.graph_scroll = 0;
             self.mode = Mode::Detail;
@@ -394,6 +400,37 @@ impl App {
             if total > 0 {
                 self.remote_branch_selection =
                     (self.remote_branch_selection + page).min(total.saturating_sub(1));
+            }
+        }
+    }
+
+    /// Move file selection up in the Files tab.
+    pub fn file_list_up(&mut self) {
+        self.file_list_selection = self.file_list_selection.saturating_sub(1);
+    }
+
+    /// Move file selection down in the Files tab.
+    pub fn file_list_down(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.files.len();
+            if total > 0 && self.file_list_selection + 1 < total {
+                self.file_list_selection += 1;
+            }
+        }
+    }
+
+    /// Scroll file selection up by page.
+    pub fn file_list_page_up(&mut self, page: usize) {
+        self.file_list_selection = self.file_list_selection.saturating_sub(page);
+    }
+
+    /// Scroll file selection down by page.
+    pub fn file_list_page_down(&mut self, page: usize) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.files.len();
+            if total > 0 {
+                self.file_list_selection =
+                    (self.file_list_selection + page).min(total.saturating_sub(1));
             }
         }
     }

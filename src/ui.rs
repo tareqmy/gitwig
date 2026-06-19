@@ -127,6 +127,7 @@ pub fn draw(
                 app.commit_details_scroll,
                 app.local_branch_selection,
                 app.remote_branch_selection,
+                app.file_list_selection,
                 app.detail_tab,
                 app.graph_scroll,
                 detail_areas,
@@ -465,6 +466,7 @@ fn detail_dismiss_entries(
             ("Home", "⎋/q"),
             ("Graph View", "2"),
             ("Branches", "3"),
+            ("Files", "4"),
             ("Cycle Focus", "⇥"),
             ("Navigate/Scroll", "↑↓"),
             ("Stage/Unstage", "↵"),
@@ -477,6 +479,20 @@ fn detail_dismiss_entries(
             ("Home", "⎋/q"),
             ("Details View", "1"),
             ("Branches", "3"),
+            ("Files", "4"),
+            ("Overview", "o"),
+            ("Help", "?"),
+        ]
+    } else if detail_tab == 2 {
+        vec![
+            ("Home", "⎋/q"),
+            ("Details View", "1"),
+            ("Graph View", "2"),
+            ("Files", "4"),
+            ("Cycle Focus", "⇥"),
+            ("Navigate/Scroll", "↑↓"),
+            ("Checkout", "↵"),
+            ("Fetch", "⇧F"),
             ("Overview", "o"),
             ("Help", "?"),
         ]
@@ -485,10 +501,8 @@ fn detail_dismiss_entries(
             ("Home", "⎋/q"),
             ("Details View", "1"),
             ("Graph View", "2"),
-            ("Cycle Focus", "⇥"),
+            ("Branches", "3"),
             ("Navigate/Scroll", "↑↓"),
-            ("Checkout", "↵"),
-            ("Fetch", "⇧F"),
             ("Overview", "o"),
             ("Help", "?"),
         ]
