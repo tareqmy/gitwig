@@ -1012,3 +1012,28 @@ pub fn checkout_remote_branch(
         ))
     }
 }
+
+/// Creates a new local branch pointing at HEAD.
+pub fn create_branch(repo_path: &Path, branch_name: &str) -> Result<(), git2::Error> {
+    let repo = Repository::open(repo_path)?;
+    let head = repo.head()?;
+    let target_commit = head.peel_to_commit()?;
+    repo.branch(branch_name, &target_commit, false)?;
+    Ok(())
+}
+
+/// Deletes a local branch.
+pub fn delete_local_branch(repo_path: &Path, branch_name: &str) -> Result<(), git2::Error> {
+    let repo = Repository::open(repo_path)?;
+    let mut branch = repo.find_branch(branch_name, git2::BranchType::Local)?;
+    branch.delete()?;
+    Ok(())
+}
+
+/// Deletes a remote-tracking branch locally.
+pub fn delete_remote_branch(repo_path: &Path, branch_name: &str) -> Result<(), git2::Error> {
+    let repo = Repository::open(repo_path)?;
+    let mut branch = repo.find_branch(branch_name, git2::BranchType::Remote)?;
+    branch.delete()?;
+    Ok(())
+}

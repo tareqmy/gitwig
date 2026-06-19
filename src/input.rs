@@ -14,8 +14,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     let code = key.code;
 
     // Toggle status bar expanded mode with '.' (except in text input fields)
-    let is_text_input = matches!(app.mode, Mode::Adding | Mode::Editing)
-        || (matches!(app.mode, Mode::CommitInput) && app.commit_editing);
+    let is_text_input = matches!(
+        app.mode,
+        Mode::Adding | Mode::Editing | Mode::BranchCreateInput
+    ) || (matches!(app.mode, Mode::CommitInput) && app.commit_editing);
     if !is_text_input && code == KeyCode::Char('.') {
         app.toggle_status_expanded();
         return true;
@@ -57,6 +59,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         Mode::ConfirmDelete => match code {
             KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_delete(),
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.close_dialog(),
+            _ => {}
+        },
+        Mode::BranchCreateInput => match code {
+            KeyCode::Esc => app.cancel_branch_create(),
+            KeyCode::Enter => app.commit_branch_create(),
+            KeyCode::Backspace => app.input_backspace(),
+            KeyCode::Char(c) => app.input_char(c),
+            _ => {}
+        },
+        Mode::BranchDeleteConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_branch_delete(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_branch_delete(),
             _ => {}
         },
         Mode::Help => match code {
@@ -178,6 +192,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             },
             _ if app.detail_tab == 2 => match code {
                 KeyCode::Char('w') | KeyCode::Char('W') => app.cycle_detail_focus(),
+                KeyCode::Char('c') | KeyCode::Char('C') => app.start_branch_create(),
+                KeyCode::Char('d') | KeyCode::Char('D') => app.request_branch_delete(),
                 KeyCode::Char('F') => {
                     if app.detail_focus == DetailSection::LocalBranches {
                         app.fetch_selected_branch();

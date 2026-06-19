@@ -91,6 +91,7 @@ pub fn draw(
     areas: &mut DetailAreas,
     input_buffer: &str,
     commit_editing: bool,
+    branch_action_target: &Option<(String, bool)>,
     area: Rect,
 ) {
     // Extract branch name if this is a repo detail.
@@ -135,7 +136,7 @@ pub fn draw(
     ]));
     f.render_widget(header_left, header_chunks[0]);
 
-    if let Some(branch_name) = branch {
+    if let Some(ref branch_name) = branch {
         let header_right = Paragraph::new(Line::from(vec![
             Span::styled("  ", muted_style()),
             Span::styled(branch_name, accent_style()),
@@ -322,6 +323,14 @@ pub fn draw(
             // Draw commit popup on top when requested.
             if matches!(mode, Mode::CommitInput) {
                 draw_commit_popup(f, input_buffer, commit_editing, body_area);
+            }
+            // Draw branch create popup on top when requested.
+            if matches!(mode, Mode::BranchCreateInput) {
+                draw_branch_create_popup(f, input_buffer, branch.as_deref(), body_area);
+            }
+            // Draw branch delete popup on top when requested.
+            if matches!(mode, Mode::BranchDeleteConfirm) {
+                draw_branch_delete_popup(f, branch_action_target, body_area);
             }
         }
         _ => {
@@ -877,7 +886,8 @@ const DETAIL_HELP_LINES: &[(&str, &str)] = &[
         "↵ [Enter]",
         "Stage/Unstage file, or Checkout selected branch",
     ),
-    ("c", "Commit staged changes (Details tab)"),
+    ("c", "Commit changes (Details) / Create branch (Branches)"),
+    ("d", "Delete selected branch (Branches tab)"),
     ("o", "Show repo overview popup"),
     ("1", "Go to Details tab"),
     ("2", "Go to Graph View tab"),
@@ -1588,4 +1598,116 @@ fn draw_files_view(
     state.select(Some(file_list_selection));
 
     f.render_stateful_widget(list, area, &mut state);
+}
+
+fn draw_branch_create_popup(
+    f: &mut Frame,
+    input_buffer: &str,
+    base_branch: Option<&str>,
+    area: Rect,
+) {
+    let popup_area = centred_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT);
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Create Branch", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let base_name = base_branch.unwrap_or("HEAD");
+    let content = vec![
+        Line::from(vec![
+            Span::styled("Base: ", muted_style()),
+            Span::styled(base_name, primary_style()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("New Branch Name: ", muted_style()),
+            Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let paragraph = Paragraph::new(content);
+    f.render_widget(paragraph, inner_area);
+
+    let cursor_y = inner_area.y.saturating_add(2).min(
+        inner_area
+            .y
+            .saturating_add(inner_area.height.saturating_sub(1)),
+    );
+    let label_width = "New Branch Name: ".chars().count() as u16;
+    let cursor_offset = label_width.saturating_add(input_buffer.chars().count() as u16);
+    let cursor_x = inner_area.x.saturating_add(cursor_offset).min(
+        inner_area
+            .x
+            .saturating_add(inner_area.width.saturating_sub(1)),
+    );
+    f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
+}
+
+fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
+    let popup_area = centred_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(DANGER);
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Delete Branch", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let (branch_name, is_remote) = match target {
+        Some((name, remote)) => (name.as_str(), *remote),
+        None => ("", false),
+    };
+
+    let type_label = if is_remote {
+        "remote-tracking branch"
+    } else {
+        "branch"
+    };
+    let content = vec![
+        Line::from(vec![
+            Span::styled("Are you sure you want to delete the ", primary_style()),
+            Span::styled(type_label, accent_style()),
+            Span::raw(":"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                branch_name,
+                Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block);
+    f.render_widget(paragraph, popup_area);
 }

@@ -46,6 +46,10 @@ pub enum Mode {
     DetailHelp,
     /// Typing a commit message. Enter commits, Esc cancels.
     CommitInput,
+    /// Typing a branch name to create. Enter commits, Esc cancels.
+    BranchCreateInput,
+    /// Confirming deletion of a branch. y deletes, n/Esc cancels.
+    BranchDeleteConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -140,6 +144,8 @@ pub struct App {
     pub fetching: bool,
     /// Whether gitui launch is pending.
     pub pending_gitui: bool,
+    /// Target branch name and remote flag for deletion/creation actions.
+    pub branch_action_target: Option<(String, bool)>,
 }
 
 #[derive(Clone, Debug)]
@@ -199,6 +205,7 @@ impl App {
             rx,
             fetching: false,
             pending_gitui: false,
+            branch_action_target: None,
         }
     }
 
@@ -554,6 +561,115 @@ impl App {
                 }
             }
         }
+    }
+
+    pub fn start_branch_create(&mut self) {
+        if let Some(repo::ItemDetail::Repo { .. }) = &self.current_detail {
+            self.input_buffer.clear();
+            self.mode = Mode::BranchCreateInput;
+        }
+    }
+
+    pub fn commit_branch_create(&mut self) {
+        let branch_name = self.input_buffer.trim().to_string();
+        if branch_name.is_empty() {
+            self.status_message = Some("Branch name cannot be empty".to_string());
+            self.mode = Mode::Detail;
+            return;
+        }
+
+        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+            match repo::create_branch(resolved, &branch_name) {
+                Ok(()) => {
+                    match repo::checkout_local_branch(resolved, &branch_name) {
+                        Ok(()) => {
+                            self.status_message =
+                                Some(format!("Created and switched to branch '{}'", branch_name));
+                        }
+                        Err(e) => {
+                            self.status_message = Some(format!(
+                                "Created branch '{}', but checkout failed: {}",
+                                branch_name, e
+                            ));
+                        }
+                    }
+                    let item = &self.config.items[self.selected_index];
+                    self.current_detail = Some(repo::inspect_detail(item));
+                    self.rebuild_visible_files();
+                    self.local_branch_selection = 0;
+                }
+                Err(e) => {
+                    self.status_message = Some(format!("Failed to create branch: {}", e));
+                }
+            }
+        }
+        self.input_buffer.clear();
+        self.mode = Mode::Detail;
+    }
+
+    pub fn cancel_branch_create(&mut self) {
+        self.input_buffer.clear();
+        self.mode = Mode::Detail;
+    }
+
+    pub fn request_branch_delete(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            match self.detail_focus {
+                DetailSection::LocalBranches => {
+                    if let Some(branch_info) = info.local_branches.get(self.local_branch_selection)
+                    {
+                        if branch_info.is_head {
+                            self.status_message =
+                                Some("Cannot delete the currently checked out branch".to_string());
+                            return;
+                        }
+                        self.branch_action_target = Some((branch_info.name.clone(), false));
+                        self.mode = Mode::BranchDeleteConfirm;
+                    }
+                }
+                DetailSection::RemoteBranches => {
+                    if let Some(branch_info) =
+                        info.remote_branches.get(self.remote_branch_selection)
+                    {
+                        self.branch_action_target = Some((branch_info.name.clone(), true));
+                        self.mode = Mode::BranchDeleteConfirm;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    pub fn confirm_branch_delete(&mut self) {
+        if let Some((branch_name, is_remote)) = self.branch_action_target.take() {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                let res = if is_remote {
+                    repo::delete_remote_branch(resolved, &branch_name)
+                } else {
+                    repo::delete_local_branch(resolved, &branch_name)
+                };
+
+                match res {
+                    Ok(()) => {
+                        self.status_message = Some(format!("Deleted branch '{}'", branch_name));
+                        let item = &self.config.items[self.selected_index];
+                        self.current_detail = Some(repo::inspect_detail(item));
+                        self.rebuild_visible_files();
+                        self.local_branch_selection = 0;
+                        self.remote_branch_selection = 0;
+                    }
+                    Err(e) => {
+                        self.status_message = Some(format!("Failed to delete branch: {}", e));
+                    }
+                }
+            }
+        }
+        self.mode = Mode::Detail;
+    }
+
+    pub fn cancel_branch_delete(&mut self) {
+        self.branch_action_target = None;
+        self.mode = Mode::Detail;
     }
 
     /// Move commit selection up one row.

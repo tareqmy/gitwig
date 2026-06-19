@@ -53,7 +53,8 @@
 | `Shift+F`            | Detail          | Fetch selected local branch from remote (Branches tab) |
 | `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) |
 | `←` / `→` or `<` / `>` or `,` / `.` | Detail | Collapse/Expand directory (Files tab) |
-| `c`                  | Detail          | Open commit message input prompt (Details tab) |
+| `c`                  | Detail          | Open commit prompt (Details tab), or Create branch from HEAD (Branches tab) |
+| `d`                  | Detail          | Delete selected branch (Branches tab) |
 | `o`                  | Detail          | Toggle repository overview popup  |
 | `?`                  | Detail          | Toggle detail help overlay        |
 | `Esc` / `q` / `o`    | DetailOverview  | Close repository overview popup   |
@@ -148,10 +149,12 @@ You can navigate and interact with these panels in the following ways:
 - **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, or file tree item in the active list.
 - **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
 - **Stage/Unstage Files:** Select the `Uncommitted changes` row at the top, select a file in either the `Staged` or `Unstaged` list, and press `Enter` to stage or unstage that file instantly.
-- **Checkout and Fetch Branches:** While on the **Branches** tab:
+- **Manage Branches:** While on the **Branches** tab:
   - Select any **local branch** (other than the currently active one) and press `Enter` to check it out (safe checkout strategy applies).
   - Select any **local branch** that has an upstream configuration and press `Shift+F` to fetch updates for its remote in the background.
   - Select any **remote branch** and press `Enter` to check it out (this will switch to the branch, creating a local tracking branch if it doesn't already exist).
+  - Press `c` / `C` to create a new branch from the currently checked out branch (or HEAD). A popup dialog will prompt for the new branch name.
+  - Select any local or remote-tracking branch and press `d` / `D` to delete it. A confirmation dialog will prompt before performing the deletion. (The currently checked out branch cannot be deleted).
 - **Commit Staged Changes:** Press `c` from the Details tab to open a centered Commit popup window (only active if there are staged changes). 
   - **Compose Mode:** Type your commit message. Press `Ctrl+C` to lock in the text and switch to confirmation state, press `Enter` to insert a newline, or `Esc` to cancel.
   - **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, or `Esc`/`q` to close the popup.

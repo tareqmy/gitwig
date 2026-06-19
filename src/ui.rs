@@ -71,7 +71,7 @@ const HELP_LINES: &[(&str, &str)] = &[
     ),
     ("a", "Add a new item"),
     ("e", "Edit selected item"),
-    ("d", "Delete selected item"),
+    ("d", "Delete selected item / branch (Branches tab)"),
     ("r", "Refresh status of selected item"),
     ("g", "Launch gitui for selected repository"),
     (
@@ -81,7 +81,7 @@ const HELP_LINES: &[(&str, &str)] = &[
     ("⌫ [Backspace]", "Erase character while typing"),
     ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
     ("w / W", "Cycle panel focus (Details / Branches tabs)"),
-    ("c", "Commit staged changes (in detail view)"),
+    ("c", "Commit changes (Details) / Create branch (Branches)"),
     ("o", "Show repo overview popup (in detail view)"),
     ("?", "Toggle this help overlay"),
     ("q", "Quit (also closes detail view)"),
@@ -108,7 +108,12 @@ pub fn draw(
 
     if matches!(
         app.mode,
-        Mode::Detail | Mode::DetailOverview | Mode::DetailHelp | Mode::CommitInput
+        Mode::Detail
+            | Mode::DetailOverview
+            | Mode::DetailHelp
+            | Mode::CommitInput
+            | Mode::BranchCreateInput
+            | Mode::BranchDeleteConfirm
     ) {
         if let Some(detail) = &app.current_detail {
             let item_name = app
@@ -138,6 +143,7 @@ pub fn draw(
                 detail_areas,
                 &app.input_buffer,
                 app.commit_editing,
+                &app.branch_action_target,
                 content_area,
             );
         }
@@ -453,6 +459,18 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             };
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
+        Mode::BranchCreateInput => {
+            draw_input_status(f, area, "Create Branch", &app.input_buffer);
+        }
+        Mode::BranchDeleteConfirm => {
+            let (target, is_remote) = app
+                .branch_action_target
+                .as_ref()
+                .map(|(name, remote)| (name.as_str(), *remote))
+                .unwrap_or(("", false));
+            let (msg_spans, entries) = confirm_branch_delete_entries(target, is_remote);
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
+        }
     }
 }
 
@@ -720,6 +738,48 @@ fn normal_status_entries(
 fn confirm_delete_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let message_spans = Some(vec![
         Span::raw("Delete "),
+        Span::styled(
+            format!("\"{}\"", target),
+            Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("? "),
+    ]);
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Confirm"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled(
+                "y",
+                Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Cancel"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("n/⎋", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (message_spans, entries)
+}
+
+fn confirm_branch_delete_entries(
+    target: &str,
+    is_remote: bool,
+) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let type_label = if is_remote {
+        "remote-tracking branch"
+    } else {
+        "branch"
+    };
+    let message_spans = Some(vec![
+        Span::raw("Delete "),
+        Span::raw(type_label),
+        Span::raw(" "),
         Span::styled(
             format!("\"{}\"", target),
             Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
