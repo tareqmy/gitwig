@@ -80,6 +80,22 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
             {
                 app.detail_file_down()
             }
+            KeyCode::Up | KeyCode::Char('k')
+                if detail_focus == DetailSection::StagingDetails =>
+            {
+                app.diff_scroll_up()
+            }
+            KeyCode::Down | KeyCode::Char('j')
+                if detail_focus == DetailSection::StagingDetails =>
+            {
+                app.diff_scroll_down()
+            }
+            KeyCode::PageUp if detail_focus == DetailSection::StagingDetails => {
+                app.diff_scroll_page_up(10)
+            }
+            KeyCode::PageDown if detail_focus == DetailSection::StagingDetails => {
+                app.diff_scroll_page_down(10)
+            }
             _ => {}
         },
         Mode::DetailOverview => match code {

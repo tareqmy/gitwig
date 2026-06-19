@@ -104,6 +104,7 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_coun
                 app.commit_selection,
                 app.file_selection,
                 &app.file_diff,
+                app.diff_scroll,
                 content_area,
             );
         }

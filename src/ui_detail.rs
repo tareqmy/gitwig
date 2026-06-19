@@ -48,6 +48,7 @@ pub fn draw(
     commit_selection: usize,
     file_selection: usize,
     file_diff: &[DiffLine],
+    diff_scroll: usize,
     area: Rect,
 ) {
     // Reserve one row at the top for the breadcrumb header ("Item: <name>").
@@ -121,6 +122,7 @@ pub fn draw(
                             *focus,
                             file_selection,
                             file_diff,
+                            diff_scroll,
                             detail_chunks[1],
                         );
                     }
@@ -160,6 +162,7 @@ fn draw_commit_files_panel(
     focus: DetailSection,
     file_selection: usize,
     file_diff: &[DiffLine],
+    diff_scroll: usize,
     area: Rect,
 ) {
     let panels = Layout::default()
@@ -232,6 +235,19 @@ fn draw_commit_files_panel(
         .title(Line::from(vec![
             Span::raw(" "),
             Span::styled("Diff", primary_style()),
+            if right_focused && diff_scroll > 0 {
+                Span::styled(
+                    format!("  ↕ line {}", diff_scroll + 1),
+                    muted_style(),
+                )
+            } else {
+                Span::raw("")
+            },
+            if right_focused {
+                Span::styled("  ↑↓ scroll", muted_style())
+            } else {
+                Span::raw("")
+            },
             Span::raw(" "),
         ]));
     let right_inner = right_block.inner(panels[1]);
@@ -268,7 +284,9 @@ fn draw_commit_files_panel(
             })
             .collect();
         f.render_widget(
-            Paragraph::new(diff_spans).wrap(Wrap { trim: false }),
+            Paragraph::new(diff_spans)
+                .scroll((diff_scroll as u16, 0))
+                .wrap(Wrap { trim: false }),
             right_inner,
         );
     }

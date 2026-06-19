@@ -93,6 +93,8 @@ pub struct App {
     pub file_selection: usize,
     /// Cached unified-diff lines for the currently selected file.
     pub file_diff: Vec<DiffLine>,
+    /// Vertical scroll offset for the diff panel (StagingDetails focus).
+    pub diff_scroll: usize,
 }
 
 impl App {
@@ -116,6 +118,7 @@ impl App {
             commit_selection: 0,
             file_selection: 0,
             file_diff: Vec::new(),
+            diff_scroll: 0,
         }
     }
 
@@ -219,6 +222,7 @@ impl App {
             self.commit_selection = 0;
             self.file_selection = 0;
             self.file_diff.clear();
+            self.diff_scroll = 0;
             self.mode = Mode::Detail;
             self.refresh_file_diff();
         }
@@ -243,6 +247,7 @@ impl App {
     pub fn detail_commit_up(&mut self) {
         self.commit_selection = self.commit_selection.saturating_sub(1);
         self.file_selection = 0;
+        self.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
@@ -253,6 +258,7 @@ impl App {
             self.commit_selection += 1;
         }
         self.file_selection = 0;
+        self.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
@@ -260,6 +266,7 @@ impl App {
     pub fn detail_commit_page_up(&mut self, page: usize) {
         self.commit_selection = self.commit_selection.saturating_sub(page);
         self.file_selection = 0;
+        self.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
@@ -270,12 +277,14 @@ impl App {
             self.commit_selection = (self.commit_selection + page).min(total - 1);
         }
         self.file_selection = 0;
+        self.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
     /// Move file selection up one row in the Changed Files panel.
     pub fn detail_file_up(&mut self) {
         self.file_selection = self.file_selection.saturating_sub(1);
+        self.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
@@ -285,7 +294,32 @@ impl App {
         if total > 0 && self.file_selection + 1 < total {
             self.file_selection += 1;
         }
+        self.diff_scroll = 0;
         self.refresh_file_diff();
+    }
+
+    /// Scroll the diff panel up by one line.
+    pub fn diff_scroll_up(&mut self) {
+        self.diff_scroll = self.diff_scroll.saturating_sub(1);
+    }
+
+    /// Scroll the diff panel down by one line, clamped so the last line stays visible.
+    pub fn diff_scroll_down(&mut self) {
+        let max = self.file_diff.len().saturating_sub(1);
+        if self.diff_scroll < max {
+            self.diff_scroll += 1;
+        }
+    }
+
+    /// Scroll the diff panel up by `page` lines.
+    pub fn diff_scroll_page_up(&mut self, page: usize) {
+        self.diff_scroll = self.diff_scroll.saturating_sub(page);
+    }
+
+    /// Scroll the diff panel down by `page` lines.
+    pub fn diff_scroll_page_down(&mut self, page: usize) {
+        let max = self.file_diff.len().saturating_sub(1);
+        self.diff_scroll = (self.diff_scroll + page).min(max);
     }
 
     /// Total number of rows in the Commits panel (dirty row + real commits).
