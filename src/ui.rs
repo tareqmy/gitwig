@@ -447,24 +447,26 @@ fn detail_dismiss_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
     spans.push(Span::raw("  "));
     if let Some(msg) = status_message {
         spans.push(Span::styled(format!("{}  ", msg), accent_style()));
-        spans.push(Span::styled("·  ", muted_style()));
+        spans.push(Span::styled("|  ", muted_style()));
     }
     let entries = [
-        ("Esc / q", "back to list"),
-        ("Tab", "cycle focus"),
-        ("↑↓", "navigate/scroll"),
-        ("Enter", "stage/unstage"),
-        ("c", "commit"),
-        ("o", "overview"),
-        ("?", "help"),
+        ("Back to List", "Esc / q"),
+        ("Cycle Focus", "Tab"),
+        ("Navigate/Scroll", "↑↓"),
+        ("Stage/Unstage", "Enter"),
+        ("Commit", "c"),
+        ("Overview", "o"),
+        ("Help", "?"),
     ];
-    for (i, (key, label)) in entries.iter().enumerate() {
+    for (i, (label, key)) in entries.iter().enumerate() {
         if i > 0 {
-            spans.push(Span::styled("  ·  ", muted_style()));
+            spans.push(Span::styled("  |  ", muted_style()));
         }
-        spans.push(Span::styled((*key).to_string(), accent_style()));
-        spans.push(Span::raw(" "));
         spans.push(Span::raw((*label).to_string()));
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled("[", muted_style()));
+        spans.push(Span::styled((*key).to_string(), accent_style()));
+        spans.push(Span::styled("]", muted_style()));
     }
     spans
 }
@@ -474,40 +476,70 @@ fn detail_overview_spans(status_message: &Option<String>) -> Vec<Span<'static>> 
     spans.push(Span::raw("  "));
     if let Some(msg) = status_message {
         spans.push(Span::styled(format!("{}  ", msg), accent_style()));
-        spans.push(Span::styled("·  ", muted_style()));
+        spans.push(Span::styled("|  ", muted_style()));
     }
+    spans.push(Span::raw("Close Overview"));
+    spans.push(Span::raw(" "));
+    spans.push(Span::styled("[", muted_style()));
     spans.push(Span::styled("Esc / q / o", accent_style()));
-    spans.push(Span::raw("  close overview"));
+    spans.push(Span::styled("]", muted_style()));
     spans
 }
 
 fn detail_help_spans() -> Vec<Span<'static>> {
     vec![
         Span::raw("  "),
+        Span::raw("Close Help"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
         Span::styled("? / Esc / q", accent_style()),
-        Span::raw("  close help"),
+        Span::styled("]", muted_style()),
     ]
 }
 
 fn commit_input_editing_spans() -> Vec<Span<'static>> {
     vec![
         Span::raw("  "),
+        Span::raw("Done Editing"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
+        Span::styled("Ctrl+C", accent_style()),
+        Span::styled("]", muted_style()),
+        Span::styled("  |  ", muted_style()),
+        Span::raw("Newline"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
         Span::styled("Enter", accent_style()),
-        Span::raw("  done editing  ·  "),
+        Span::styled("]", muted_style()),
+        Span::styled("  |  ", muted_style()),
+        Span::raw("Cancel Commit"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
         Span::styled("Esc", accent_style()),
-        Span::raw("  cancel commit"),
+        Span::styled("]", muted_style()),
     ]
 }
 
 fn commit_input_confirm_spans() -> Vec<Span<'static>> {
     vec![
         Span::raw("  "),
+        Span::raw("Submit Commit"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
         Span::styled("c", accent_style()),
-        Span::raw("  submit commit  ·  "),
+        Span::styled("]", muted_style()),
+        Span::styled("  |  ", muted_style()),
+        Span::raw("Edit Message"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
         Span::styled("e", accent_style()),
-        Span::raw("  edit message  ·  "),
+        Span::styled("]", muted_style()),
+        Span::styled("  |  ", muted_style()),
+        Span::raw("Cancel"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
         Span::styled("Esc / q", accent_style()),
-        Span::raw("  cancel"),
+        Span::styled("]", muted_style()),
     ]
 }
 
@@ -540,26 +572,28 @@ fn normal_status_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
     spans.push(Span::raw("  "));
     if let Some(msg) = status_message {
         spans.push(Span::styled(format!("{}  ", msg), accent_style()));
-        spans.push(Span::styled("·  ", muted_style()));
+        spans.push(Span::styled("|  ", muted_style()));
     }
     let entries = [
-        ("↑↓", "navigate"),
-        ("PgDn/PgUp", "page"),
-        ("Enter", "detail"),
-        ("a", "add"),
-        ("e", "edit"),
-        ("d", "delete"),
-        ("r", "refresh"),
-        ("?", "help"),
-        ("q", "quit"),
+        ("Navigate", "↑↓"),
+        ("Page", "PgDn/PgUp"),
+        ("Detail", "Enter"),
+        ("Add", "a"),
+        ("Edit", "e"),
+        ("Delete", "d"),
+        ("Refresh", "r"),
+        ("Help", "?"),
+        ("Quit", "q"),
     ];
-    for (i, (key, label)) in entries.iter().enumerate() {
+    for (i, (label, key)) in entries.iter().enumerate() {
         if i > 0 {
-            spans.push(Span::styled("  ·  ", muted_style()));
+            spans.push(Span::styled("  |  ", muted_style()));
         }
-        spans.push(Span::styled((*key).to_string(), accent_style()));
-        spans.push(Span::raw(" "));
         spans.push(Span::raw((*label).to_string()));
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled("[", muted_style()));
+        spans.push(Span::styled((*key).to_string(), accent_style()));
+        spans.push(Span::styled("]", muted_style()));
     }
     spans
 }
@@ -573,23 +607,32 @@ fn confirm_delete_spans(target: &str) -> Vec<Span<'static>> {
             Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
         ),
         Span::raw("?"),
-        Span::styled("  ·  ", muted_style()),
+        Span::styled("  |  ", muted_style()),
+        Span::raw("Confirm"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
         Span::styled(
             "y",
             Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
         ),
-        Span::raw(" confirm"),
-        Span::styled("  ·  ", muted_style()),
+        Span::styled("]", muted_style()),
+        Span::styled("  |  ", muted_style()),
+        Span::raw("Cancel"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
         Span::styled("n / Esc", accent_style()),
-        Span::raw(" cancel"),
+        Span::styled("]", muted_style()),
     ]
 }
 
 fn help_dismiss_spans() -> Vec<Span<'static>> {
     vec![
         Span::raw("  "),
+        Span::raw("Close Help"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
         Span::styled("? / Esc / q", accent_style()),
-        Span::raw("  close help"),
+        Span::styled("]", muted_style()),
     ]
 }
 
@@ -597,17 +640,27 @@ fn help_dismiss_spans() -> Vec<Span<'static>> {
 /// terminal cursor at the end of the typed buffer.
 fn draw_input_status(f: &mut Frame, area: Rect, verb: &str, buffer: &str) {
     let prefix = format!("  {} › ", verb);
-    let hints = "  ·  Enter save  ·  Esc cancel";
 
-    let line = Line::from(vec![
+    let spans = vec![
         Span::styled(
             prefix.clone(),
             Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
         ),
         Span::styled(buffer.to_string(), primary_style()),
-        Span::styled(hints, muted_style()),
-    ]);
-    let para = Paragraph::new(line);
+        Span::styled("  |  ", muted_style()),
+        Span::raw("Save"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
+        Span::styled("Enter", accent_style()),
+        Span::styled("]", muted_style()),
+        Span::styled("  |  ", muted_style()),
+        Span::raw("Cancel"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
+        Span::styled("Esc", accent_style()),
+        Span::styled("]", muted_style()),
+    ];
+    let para = Paragraph::new(Line::from(spans));
     f.render_widget(para, area);
 
     // Place the real terminal cursor at the end of the input. Clamp to

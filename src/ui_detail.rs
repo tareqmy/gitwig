@@ -20,7 +20,7 @@ use ratatui::widgets::{
 
 use crate::app::DetailSection;
 use crate::repo::{
-    CommitEntry, DiffLine, DiffLineKind, FileEntry, HeadInfo, ItemDetail, RemoteInfo, RepoInfo,
+    CommitEntry, DiffLine, DiffLineKind, FileEntry, ItemDetail, RemoteInfo, RepoInfo,
     WorktreeChanges,
 };
 use crate::ui::{ACCENT, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style};
@@ -692,8 +692,6 @@ fn draw_overview_popup(f: &mut Frame, resolved: &std::path::Path, info: &RepoInf
         .title(Line::from(vec![
             Span::raw(" "),
             Span::styled("Overview", primary_style()),
-            Span::raw("  "),
-            Span::styled("o / Esc  close", muted_style()),
             Span::raw(" "),
         ]));
 
@@ -982,28 +980,37 @@ fn build_body(detail: &ItemDetail) -> Vec<Line<'static>> {
 fn build_repo_body(resolved: &std::path::Path, info: &RepoInfo) -> Vec<Line<'static>> {
     let mut lines: Vec<Line<'static>> = vec![];
 
-    // ── Overview ──────────────────────────────────────────────────────────
-    push_section_header(&mut lines, "Overview");
+    // ── General ───────────────────────────────────────────────────────────
+    push_section_header(&mut lines, "General");
     lines.push(kind_line(
         "●",
         SUCCESS,
-        "Git repository",
-        "(an inspectable libgit2 repo)",
+        "Git Repository",
+        "(inspectable libgit2)",
     ));
     lines.push(field_line(
         "Path",
         Span::raw(resolved.display().to_string()),
     ));
-
-    // ── Repository ────────────────────────────────────────────────────────
-    push_section_header(&mut lines, "Repository");
     let branch = info
         .branch
         .clone()
         .unwrap_or_else(|| "(detached HEAD)".to_string());
     lines.push(field_line("Branch", Span::styled(branch, accent_style())));
+
+    // ── HEAD Commit ───────────────────────────────────────────────────────
+    push_section_header(&mut lines, "HEAD Commit");
     if let Some(head) = &info.head {
-        append_head(&mut lines, head);
+        lines.push(field_line(
+            "Hash",
+            Span::styled(head.short_id.clone(), Style::default().fg(WARNING)),
+        ));
+        lines.push(field_line(
+            "Message",
+            Span::styled(head.summary.clone(), primary_style()),
+        ));
+        lines.push(field_line("Author", Span::raw(head.author.clone())));
+        lines.push(field_line("Date", Span::raw(head.when.clone())));
     } else {
         lines.push(field_line(
             "HEAD",
@@ -1029,20 +1036,6 @@ fn push_section_header(lines: &mut Vec<Line<'static>>, title: &'static str) {
         Span::styled(title, primary_style()),
     ]));
     lines.push(Line::from(""));
-}
-
-// ── Repository section ─────────────────────────────────────────────────────
-
-fn append_head(lines: &mut Vec<Line<'static>>, head: &HeadInfo) {
-    lines.push(Line::from(vec![
-        Span::raw(FIELD_INDENT),
-        Span::styled(field_label("HEAD"), muted_style()),
-        Span::styled(head.short_id.clone(), Style::default().fg(WARNING)),
-        Span::raw("  "),
-        Span::styled(head.summary.clone(), primary_style()),
-    ]));
-    lines.push(continuation_line(head.author.clone()));
-    lines.push(continuation_line(head.when.clone()));
 }
 
 // ── Sync section ──────────────────────────────────────────────────────────
@@ -1144,14 +1137,6 @@ fn field_line(name: &'static str, value: Span<'static>) -> Line<'static> {
     ])
 }
 
-fn continuation_line(text: String) -> Line<'static> {
-    Line::from(vec![
-        Span::raw(FIELD_INDENT),
-        Span::raw(" ".repeat(FIELD_LABEL_WIDTH)),
-        Span::styled(text, muted_style()),
-    ])
-}
-
 fn kind_line(
     symbol: &'static str,
     color: ratatui::style::Color,
@@ -1177,7 +1162,7 @@ fn draw_commit_popup(f: &mut Frame, input_buffer: &str, editing: bool, area: Rec
     let border_style = Style::default().fg(border_color);
 
     let title_text = if editing {
-        " Compose Commit Message "
+        " Commit Message "
     } else {
         " Confirm Commit "
     };
@@ -1188,32 +1173,11 @@ fn draw_commit_popup(f: &mut Frame, input_buffer: &str, editing: bool, area: Rec
         Span::raw(" "),
     ]);
 
-    let footer_spans = if editing {
-        vec![
-            Span::styled("Ctrl+C", accent_style()),
-            Span::raw("  done  ·  "),
-            Span::styled("Enter", accent_style()),
-            Span::raw("  newline  ·  "),
-            Span::styled("Esc", accent_style()),
-            Span::raw("  cancel"),
-        ]
-    } else {
-        vec![
-            Span::styled("c", accent_style()),
-            Span::raw("  commit  ·  "),
-            Span::styled("e", accent_style()),
-            Span::raw("  edit  ·  "),
-            Span::styled("Esc", accent_style()),
-            Span::raw("  cancel"),
-        ]
-    };
-
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(border_style)
         .title(title)
-        .title_bottom(Line::from(footer_spans).alignment(Alignment::Center))
         .padding(Padding::horizontal(1));
 
     let text = if input_buffer.is_empty() {
