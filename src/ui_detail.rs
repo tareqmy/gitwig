@@ -859,27 +859,37 @@ fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 // ── Detail help overlay ────────────────────────────────────────────────────
 
 const DETAIL_HELP_LINES: &[(&str, &str)] = &[
-    ("↑ [Up] / k", "Select previous commit / file"),
-    ("↓ [Down] / j", "Select next commit / file"),
+    (
+        "↑ [Up] / k",
+        "Select previous commit / file / branch / file tree item",
+    ),
+    (
+        "↓ [Down] / j",
+        "Select next commit / file / branch / file tree item",
+    ),
     ("⇞ [PgUp]", "Jump 10 rows up"),
     ("⇟ [PgDn]", "Jump 10 rows down"),
-    (
-        "⇥ [Tab]",
-        "Cycle panel focus  (Commits → Staged → Unstaged → Details)",
-    ),
+    ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
+    ("w / W", "Cycle panel focus (Details / Branches tabs)"),
+    ("← / →", "Focus Local/Remote branch (Branches tab)"),
+    ("← / → or < / >", "Collapse/Expand folder (Files tab)"),
     (
         "↵ [Enter]",
         "Stage/Unstage file, or Checkout selected branch",
     ),
-    ("c", "Commit staged changes"),
+    ("c", "Commit staged changes (Details tab)"),
     ("o", "Show repo overview popup"),
     ("1", "Go to Details tab"),
     ("2", "Go to Graph View tab"),
     ("3", "Go to Branches tab"),
+    ("4", "Go to Files tab"),
     ("⇧F [Shift+F]", "Fetch selected local branch's upstream"),
     ("? / ⎋ [Esc]", "Close this help"),
     ("q / ⎋ [Esc]", "Back to repository list"),
-    ("Left-Click", "Focus clicked panel (mouse support)"),
+    (
+        "Left-Click",
+        "Focus clicked panel / change tab (mouse support)",
+    ),
 ];
 
 /// Renders a floating shortcut reference overlay centred over `area`.

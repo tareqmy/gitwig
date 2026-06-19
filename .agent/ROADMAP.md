@@ -43,6 +43,9 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 ## Phase 6: Advanced Features
 - [x] Mouse click support to change panel focus in Detail view.
 - [x] Mouse click selection and double-click to open detail view in main list.
+- [x] Mouse click on tab headers to change active tabs in Detail view.
+- [x] Mouse wheel vertical scroll support for all scrollable views (lists, trees, diffs).
+- [x] Files tab showing tracked repository files in an interactive nested tree structure with expand/collapse capabilities.
 - [ ] Stashing (list, apply, drop, pop).
 - [ ] Interactive Rebase.
 - [ ] Conflict resolution UI.

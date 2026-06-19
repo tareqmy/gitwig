@@ -69,6 +69,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
             KeyCode::Char('o') => app.open_overview_popup(),
             KeyCode::Char('?') => app.open_detail_help(),
+            KeyCode::Tab => {
+                app.detail_tab = (app.detail_tab + 1) % 4;
+                app.set_default_focus_for_tab();
+            }
+            KeyCode::BackTab => {
+                app.detail_tab = if app.detail_tab == 0 {
+                    3
+                } else {
+                    app.detail_tab - 1
+                };
+                app.set_default_focus_for_tab();
+            }
             KeyCode::Char('1') => {
                 app.detail_tab = 0;
                 app.detail_focus = DetailSection::Commits;
@@ -86,7 +98,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             _ if app.detail_tab == 0 => match code {
                 KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
-                KeyCode::Tab => app.cycle_detail_focus(),
+                KeyCode::Char('w') | KeyCode::Char('W') => app.cycle_detail_focus(),
                 KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::Commits => {
                     app.detail_commit_up()
                 }
@@ -165,7 +177,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 _ => {}
             },
             _ if app.detail_tab == 2 => match code {
-                KeyCode::Tab => app.cycle_detail_focus(),
+                KeyCode::Char('w') | KeyCode::Char('W') => app.cycle_detail_focus(),
                 KeyCode::Char('F') => {
                     if app.detail_focus == DetailSection::LocalBranches {
                         app.fetch_selected_branch();
@@ -206,6 +218,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.remote_branch_page_down(10);
                     }
                 }
+                KeyCode::Left => app.move_focus_left(),
+                KeyCode::Right => app.move_focus_right(),
                 _ => {}
             },
             _ if app.detail_tab == 3 => match code {

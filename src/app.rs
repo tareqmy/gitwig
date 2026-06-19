@@ -1106,6 +1106,30 @@ impl App {
             }
         }
     }
+
+    /// Shift panel focus to the left.
+    pub fn move_focus_left(&mut self) {
+        if self.detail_tab == 2 {
+            self.detail_focus = DetailSection::LocalBranches;
+        }
+    }
+
+    /// Shift panel focus to the right.
+    pub fn move_focus_right(&mut self) {
+        if self.detail_tab == 2 {
+            self.detail_focus = DetailSection::RemoteBranches;
+        }
+    }
+
+    /// Sets the default active panel focus when switching tabs.
+    pub fn set_default_focus_for_tab(&mut self) {
+        match self.detail_tab {
+            0 => self.detail_focus = DetailSection::Commits,
+            2 => self.detail_focus = DetailSection::LocalBranches,
+            3 => self.detail_focus = DetailSection::Files,
+            _ => {}
+        }
+    }
 }
 
 /// Main event loop: compute layout, draw, poll input, repeat.

@@ -79,12 +79,16 @@ const HELP_LINES: &[(&str, &str)] = &[
         "Cancel input, close dialog, or leave detail view",
     ),
     ("⌫ [Backspace]", "Erase character while typing"),
-    ("⇥ [Tab]", "Cycle panel focus (in detail view)"),
+    ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
+    ("w / W", "Cycle panel focus (Details / Branches tabs)"),
     ("c", "Commit staged changes (in detail view)"),
     ("o", "Show repo overview popup (in detail view)"),
     ("?", "Toggle this help overlay"),
     ("q", "Quit (also closes detail view)"),
-    ("Left-Click", "Focus clicked panel (mouse support)"),
+    (
+        "Left-Click",
+        "Focus clicked panel / change tab (mouse support)",
+    ),
 ];
 
 /// Top-level draw entry point invoked from inside `terminal.draw`.
@@ -468,7 +472,7 @@ fn detail_dismiss_entries(
             ("Graph View", "2"),
             ("Branches", "3"),
             ("Files", "4"),
-            ("Cycle Focus", "⇥"),
+            ("Cycle Focus", "w/W"),
             ("Navigate/Scroll", "↑↓"),
             ("Stage/Unstage", "↵"),
             ("Commit", "c"),
@@ -490,7 +494,7 @@ fn detail_dismiss_entries(
             ("Details View", "1"),
             ("Graph View", "2"),
             ("Files", "4"),
-            ("Cycle Focus", "⇥"),
+            ("Cycle Focus", "w/W"),
             ("Navigate/Scroll", "↑↓"),
             ("Checkout", "↵"),
             ("Fetch", "⇧F"),
@@ -503,7 +507,8 @@ fn detail_dismiss_entries(
             ("Details View", "1"),
             ("Graph View", "2"),
             ("Branches", "3"),
-            ("Navigate/Scroll", "↑↓"),
+            ("Navigate", "↑↓"),
+            ("Expand/Collapse", "←/→"),
             ("Overview", "o"),
             ("Help", "?"),
         ]
