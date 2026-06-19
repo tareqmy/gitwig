@@ -155,8 +155,7 @@ pub struct GraphCommit {
 pub struct FileEntry {
     /// Path relative to the repository root.
     pub path: String,
-    /// Short human-readable label: "new", "modified", "deleted",
-    /// "renamed", "typechange", "??", or "conflict".
+    /// Short human-readable label: "N", "M", "D", "R", "T", "?", or "C".
     pub label: &'static str,
 }
 
@@ -426,12 +425,12 @@ fn commit_changed_files(repo: &Repository, commit: &git2::Commit) -> Vec<FileEnt
             .unwrap_or_else(|| "(unknown)".to_string());
 
         let label: &'static str = match delta.status() {
-            git2::Delta::Added => "new",
-            git2::Delta::Deleted => "deleted",
-            git2::Delta::Modified => "modified",
-            git2::Delta::Renamed => "renamed",
-            git2::Delta::Typechange => "typechange",
-            _ => "modified",
+            git2::Delta::Added => "N",
+            git2::Delta::Deleted => "D",
+            git2::Delta::Modified => "M",
+            git2::Delta::Renamed => "R",
+            git2::Delta::Typechange => "T",
+            _ => "M",
         };
         files.push(FileEntry { path, label });
     }
@@ -633,7 +632,7 @@ fn populate_file_changes(repo: &Repository, info: &mut RepoInfo) {
             if info.changes.conflicted.len() < MAX_FILES_PER_SECTION {
                 info.changes.conflicted.push(FileEntry {
                     path: path.clone(),
-                    label: "conflict",
+                    label: "C",
                 });
             }
             continue;
@@ -648,15 +647,15 @@ fn populate_file_changes(repo: &Repository, info: &mut RepoInfo) {
             && info.changes.staged.len() < MAX_FILES_PER_SECTION
         {
             let label = if flags.is_index_new() {
-                "new"
+                "N"
             } else if flags.is_index_deleted() {
-                "deleted"
+                "D"
             } else if flags.is_index_renamed() {
-                "renamed"
+                "R"
             } else if flags.is_index_typechange() {
-                "typechange"
+                "T"
             } else {
-                "modified"
+                "M"
             };
             info.changes.staged.push(FileEntry {
                 path: path.clone(),
@@ -669,7 +668,7 @@ fn populate_file_changes(repo: &Repository, info: &mut RepoInfo) {
             if info.changes.untracked.len() < MAX_FILES_PER_SECTION {
                 info.changes.untracked.push(FileEntry {
                     path: path.clone(),
-                    label: "??",
+                    label: "?",
                 });
             }
         } else if (flags.is_wt_modified()
@@ -679,13 +678,13 @@ fn populate_file_changes(repo: &Repository, info: &mut RepoInfo) {
             && info.changes.unstaged.len() < MAX_FILES_PER_SECTION
         {
             let label = if flags.is_wt_deleted() {
-                "deleted"
+                "D"
             } else if flags.is_wt_renamed() {
-                "renamed"
+                "R"
             } else if flags.is_wt_typechange() {
-                "typechange"
+                "T"
             } else {
-                "modified"
+                "M"
             };
             info.changes.unstaged.push(FileEntry {
                 path: path.clone(),

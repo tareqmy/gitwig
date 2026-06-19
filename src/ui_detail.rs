@@ -32,8 +32,8 @@ const FIELD_INDENT: &str = "  ";
 const FIELD_LABEL_WIDTH: usize = 9;
 /// Indent for file entries inside a working-tree sub-section.
 const FILE_INDENT: &str = "      ";
-/// Column width for the file-status label ("typechange" = 10 chars).
-const FILE_LABEL_WIDTH: usize = 10;
+/// Column width for the file-status label ("T" = 1 char).
+const FILE_LABEL_WIDTH: usize = 2;
 
 use crate::app::Mode;
 
@@ -1264,12 +1264,12 @@ fn remote_line(remote: &RemoteInfo) -> Line<'static> {
 
 fn file_entry_line(entry: &FileEntry) -> Line<'static> {
     let label_style = match entry.label {
-        "new" => Style::default().fg(SUCCESS),
-        "deleted" => Style::default().fg(DANGER),
-        "conflict" => Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
-        "renamed" | "typechange" => Style::default().fg(ACCENT),
-        "??" => muted_style(),
-        _ => Style::default().fg(WARNING), // "modified"
+        "N" => Style::default().fg(SUCCESS),
+        "D" => Style::default().fg(DANGER),
+        "C" => Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+        "R" | "T" => Style::default().fg(ACCENT),
+        "?" => muted_style(),
+        _ => Style::default().fg(WARNING), // "M"
     };
     Line::from(vec![
         Span::raw(FILE_INDENT),
