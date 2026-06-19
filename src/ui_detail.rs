@@ -23,7 +23,9 @@ use crate::repo::{
     CommitEntry, DiffLine, DiffLineKind, FileEntry, ItemDetail, RemoteInfo, RepoInfo,
     WorktreeChanges,
 };
-use crate::ui::{ACCENT, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style};
+use crate::ui::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style,
+};
 
 const FIELD_INDENT: &str = "  ";
 /// Column width for the left-side field label — wide enough for "Upstream:".
@@ -72,28 +74,47 @@ pub fn draw(
     diff_scroll: usize,
     staging_file_selection: usize,
     commit_details_scroll: usize,
+    detail_tab: usize,
+    graph_scroll: usize,
     areas: &mut DetailAreas,
     input_buffer: &str,
     commit_editing: bool,
     area: Rect,
 ) {
-    // Reserve one row at the top for the breadcrumb header ("Item: <name>").
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(2), Constraint::Min(0)])
-        .split(area);
-
     // Extract branch name if this is a repo detail.
     let branch: Option<String> = match detail {
         ItemDetail::Repo { info, .. } => info.branch.clone(),
         _ => None,
     };
 
+    let is_repo = matches!(detail, ItemDetail::Repo { .. });
+
+    let (header_area, tab_bar_area, body_area) = if is_repo {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(2), // Header
+                Constraint::Length(2), // Tab Bar
+                Constraint::Min(0),    // Body Content
+            ])
+            .split(area);
+        (chunks[0], Some(chunks[1]), chunks[2])
+    } else {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(2), // Header
+                Constraint::Min(0),    // Body Content
+            ])
+            .split(area);
+        (chunks[0], None, chunks[1])
+    };
+
     // Split header into left (Item label) and right (branch name).
     let header_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Min(0), Constraint::Length(40)])
-        .split(chunks[0]);
+        .split(header_area);
 
     let header_left = Paragraph::new(Line::from(vec![
         Span::raw(FIELD_INDENT),
@@ -112,72 +133,125 @@ pub fn draw(
         f.render_widget(header_right, header_chunks[1]);
     }
 
-    let body_area = chunks[1];
+    if let Some(tab_area) = tab_bar_area {
+        let (style_details, style_graph) = if detail_tab == 0 {
+            (
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                Style::default().add_modifier(Modifier::DIM),
+            )
+        } else {
+            (
+                Style::default().add_modifier(Modifier::DIM),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            )
+        };
+
+        let details_bullet = if detail_tab == 0 { "●" } else { "○" };
+        let graph_bullet = if detail_tab == 1 { "●" } else { "○" };
+
+        let tab_line = Line::from(vec![
+            Span::raw("  "),
+            Span::styled(format!("{} Details [1]", details_bullet), style_details),
+            Span::raw("    "),
+            Span::styled(format!("{} Graph [2]", graph_bullet), style_graph),
+        ]);
+        f.render_widget(Paragraph::new(tab_line), tab_area);
+    }
 
     match detail {
         ItemDetail::Repo { resolved, info } => {
-            // Split body: top = recent commits, bottom = staging panels
-            let detail_chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-                .split(body_area);
+            if detail_tab == 0 {
+                // Split body: top = recent commits, bottom = staging panels
+                let detail_chunks = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                    .split(body_area);
 
-            let dirty = !info.changes.staged.is_empty()
-                || !info.changes.unstaged.is_empty()
-                || !info.changes.untracked.is_empty()
-                || !info.changes.conflicted.is_empty();
-            let is_uncommitted_row = dirty && commit_selection == 0;
+                let dirty = !info.changes.staged.is_empty()
+                    || !info.changes.unstaged.is_empty()
+                    || !info.changes.untracked.is_empty()
+                    || !info.changes.conflicted.is_empty();
+                let is_uncommitted_row = dirty && commit_selection == 0;
 
-            draw_detail_commits(f, info, *focus, commit_selection, detail_chunks[0]);
-            areas.commits = Some(detail_chunks[0]);
+                draw_detail_commits(f, info, *focus, commit_selection, detail_chunks[0]);
+                areas.commits = Some(detail_chunks[0]);
 
-            if is_uncommitted_row {
-                // <uncommitted> row selected — show working-tree staging panels.
-                draw_staging_panels(
-                    f,
-                    &info.changes,
-                    *focus,
-                    staging_file_selection,
-                    file_diff,
-                    diff_scroll,
-                    areas,
-                    detail_chunks[1],
-                );
-            } else {
-                // Real commit selected — show its changed files.
-                let commit_idx = if dirty {
-                    commit_selection.saturating_sub(1)
+                if is_uncommitted_row {
+                    // <uncommitted> row selected — show working-tree staging panels.
+                    draw_staging_panels(
+                        f,
+                        &info.changes,
+                        *focus,
+                        staging_file_selection,
+                        file_diff,
+                        diff_scroll,
+                        areas,
+                        detail_chunks[1],
+                    );
                 } else {
-                    commit_selection
-                };
-                match info.commits.get(commit_idx) {
-                    Some(commit) => {
-                        draw_commit_files_panel(
-                            f,
-                            commit,
-                            *focus,
-                            file_selection,
-                            file_diff,
-                            diff_scroll,
-                            commit_details_scroll,
-                            areas,
-                            detail_chunks[1],
-                        );
-                    }
-                    None => {
-                        // Fallback: selection out of range, show staging panels.
-                        draw_staging_panels(
-                            f,
-                            &info.changes,
-                            *focus,
-                            staging_file_selection,
-                            file_diff,
-                            diff_scroll,
-                            areas,
-                            detail_chunks[1],
-                        );
+                    // Real commit selected — show its changed files.
+                    let commit_idx = if dirty {
+                        commit_selection.saturating_sub(1)
+                    } else {
+                        commit_selection
+                    };
+                    match info.commits.get(commit_idx) {
+                        Some(commit) => {
+                            draw_commit_files_panel(
+                                f,
+                                commit,
+                                *focus,
+                                file_selection,
+                                file_diff,
+                                diff_scroll,
+                                commit_details_scroll,
+                                areas,
+                                detail_chunks[1],
+                            );
+                        }
+                        None => {
+                            // Fallback: selection out of range, show staging panels.
+                            draw_staging_panels(
+                                f,
+                                &info.changes,
+                                *focus,
+                                staging_file_selection,
+                                file_diff,
+                                diff_scroll,
+                                areas,
+                                detail_chunks[1],
+                            );
+                        }
                     }
                 }
+            } else {
+                // Render Graph view
+                *areas = DetailAreas::default();
+                let block = Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(CARD_BORDER)
+                    .border_style(muted_style())
+                    .title(Line::from(vec![
+                        Span::raw(" "),
+                        Span::styled("Branch History Graph", primary_style()),
+                        Span::raw(" "),
+                    ]))
+                    .padding(Padding::uniform(1));
+
+                let inner = block.inner(body_area);
+                f.render_widget(block, body_area);
+
+                let visible_height = inner.height as usize;
+                let upper = (graph_scroll + visible_height).min(info.graph_lines.len());
+                let visible_lines = &info.graph_lines[graph_scroll..upper];
+
+                let mut list_lines = Vec::new();
+                for g_line in visible_lines {
+                    list_lines.push(graph_line_spans(g_line));
+                }
+
+                let paragraph = Paragraph::new(list_lines).wrap(Wrap { trim: false });
+                f.render_widget(paragraph, inner);
             }
 
             // Draw overview popup on top when requested.
@@ -742,6 +816,8 @@ const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ),
     ("c", "Commit staged changes"),
     ("o", "Show repo overview popup"),
+    ("1", "Go to Details tab"),
+    ("2", "Go to Graph View tab"),
     ("? / ⎋ [Esc]", "Close this help"),
     ("q / ⎋ [Esc]", "Back to repository list"),
     ("Left-Click", "Focus clicked panel (mouse support)"),
@@ -1209,4 +1285,78 @@ fn draw_commit_popup(f: &mut Frame, input_buffer: &str, editing: bool, area: Rec
             .saturating_add(cursor_offset.min(inner_area.width.saturating_sub(1)));
         f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
     }
+}
+
+fn graph_line_spans(line: &crate::repo::GraphLine) -> Line<'static> {
+    let mut spans = Vec::new();
+
+    // 1. Graph characters
+    spans.push(Span::styled(line.graph.clone(), muted_style()));
+
+    if let Some(ref c) = line.commit {
+        // 2. Commit OID (short hash)
+        let short_hash = if c.oid.len() >= 7 {
+            &c.oid[0..7]
+        } else {
+            &c.oid
+        };
+        spans.push(Span::styled(format!("{} ", short_hash), accent_style()));
+
+        // 3. Decorations (refs)
+        if !c.decoration.is_empty() {
+            let dec = c.decoration.trim();
+            let dec_content = if dec.starts_with('(') && dec.ends_with(')') {
+                &dec[1..dec.len() - 1]
+            } else {
+                dec
+            };
+
+            spans.push(Span::styled("(", muted_style()));
+            let mut first = true;
+            for ref_item in dec_content.split(", ") {
+                if !first {
+                    spans.push(Span::styled(", ", muted_style()));
+                }
+                first = false;
+
+                if let Some(stripped) = ref_item.strip_prefix("HEAD -> ") {
+                    spans.push(Span::styled(
+                        "HEAD -> ",
+                        Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD),
+                    ));
+                    spans.push(Span::styled(
+                        stripped.to_string(),
+                        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                    ));
+                } else if let Some(stripped) = ref_item.strip_prefix("tag: ") {
+                    spans.push(Span::styled("tag: ", Style::default().fg(WARNING)));
+                    spans.push(Span::styled(
+                        stripped.to_string(),
+                        Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+                    ));
+                } else if ref_item.contains('/') {
+                    spans.push(Span::styled(
+                        ref_item.to_string(),
+                        Style::default().fg(DANGER),
+                    ));
+                } else {
+                    spans.push(Span::styled(
+                        ref_item.to_string(),
+                        Style::default().fg(SUCCESS),
+                    ));
+                }
+            }
+            spans.push(Span::styled(") ", muted_style()));
+        }
+
+        // 4. Commit Summary
+        spans.push(Span::styled(c.summary.clone(), primary_style()));
+
+        // 5. Author and Date
+        spans.push(Span::styled(" - ", muted_style()));
+        spans.push(Span::styled(c.author.clone(), muted_style()));
+        spans.push(Span::styled(format!(" ({})", c.date), muted_style()));
+    }
+
+    Line::from(spans)
 }

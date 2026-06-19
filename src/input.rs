@@ -66,68 +66,92 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
             KeyCode::Char('o') => app.open_overview_popup(),
             KeyCode::Char('?') => app.open_detail_help(),
-            KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
-            KeyCode::Tab => app.cycle_detail_focus(),
-            KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::Commits => {
-                app.detail_commit_up()
+            KeyCode::Char('1') => {
+                app.detail_tab = 0;
             }
-            KeyCode::Down | KeyCode::Char('j') if detail_focus == DetailSection::Commits => {
-                app.detail_commit_down()
+            KeyCode::Char('2') => {
+                app.detail_tab = 1;
             }
-            KeyCode::PageUp if detail_focus == DetailSection::Commits => {
-                app.detail_commit_page_up(10)
-            }
-            KeyCode::PageDown if detail_focus == DetailSection::Commits => {
-                app.detail_commit_page_down(10)
-            }
-            KeyCode::Up | KeyCode::Char('k')
-                if detail_focus == DetailSection::Staged
-                    || detail_focus == DetailSection::Unstaged =>
-            {
-                if app.is_uncommitted_selected() {
-                    app.staging_file_up()
-                } else {
-                    app.detail_file_up()
+            _ if app.detail_tab == 0 => match code {
+                KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
+                KeyCode::Tab => app.cycle_detail_focus(),
+                KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::Commits => {
+                    app.detail_commit_up()
                 }
-            }
-            KeyCode::Down | KeyCode::Char('j')
-                if detail_focus == DetailSection::Staged
-                    || detail_focus == DetailSection::Unstaged =>
-            {
-                if app.is_uncommitted_selected() {
-                    app.staging_file_down()
-                } else {
-                    app.detail_file_down()
+                KeyCode::Down | KeyCode::Char('j') if detail_focus == DetailSection::Commits => {
+                    app.detail_commit_down()
                 }
-            }
-            KeyCode::Enter
-                if detail_focus == DetailSection::Staged && app.is_uncommitted_selected() =>
-            {
-                app.unstage_selected_file()
-            }
-            KeyCode::Enter
-                if detail_focus == DetailSection::Unstaged && app.is_uncommitted_selected() =>
-            {
-                app.stage_selected_file()
-            }
-            KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::StagingDetails => {
-                app.diff_scroll_up()
-            }
-            KeyCode::Down | KeyCode::Char('j') if detail_focus == DetailSection::StagingDetails => {
-                app.diff_scroll_down()
-            }
-            KeyCode::PageUp if detail_focus == DetailSection::StagingDetails => {
-                app.diff_scroll_page_up(10)
-            }
-            KeyCode::PageDown if detail_focus == DetailSection::StagingDetails => {
-                app.diff_scroll_page_down(10)
-            }
-            KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::CommitDetails => {
-                app.commit_details_scroll_up()
-            }
-            KeyCode::Down | KeyCode::Char('j') if detail_focus == DetailSection::CommitDetails => {
-                app.commit_details_scroll_down()
-            }
+                KeyCode::PageUp if detail_focus == DetailSection::Commits => {
+                    app.detail_commit_page_up(10)
+                }
+                KeyCode::PageDown if detail_focus == DetailSection::Commits => {
+                    app.detail_commit_page_down(10)
+                }
+                KeyCode::Up | KeyCode::Char('k')
+                    if detail_focus == DetailSection::Staged
+                        || detail_focus == DetailSection::Unstaged =>
+                {
+                    if app.is_uncommitted_selected() {
+                        app.staging_file_up()
+                    } else {
+                        app.detail_file_up()
+                    }
+                }
+                KeyCode::Down | KeyCode::Char('j')
+                    if detail_focus == DetailSection::Staged
+                        || detail_focus == DetailSection::Unstaged =>
+                {
+                    if app.is_uncommitted_selected() {
+                        app.staging_file_down()
+                    } else {
+                        app.detail_file_down()
+                    }
+                }
+                KeyCode::Enter
+                    if detail_focus == DetailSection::Staged && app.is_uncommitted_selected() =>
+                {
+                    app.unstage_selected_file()
+                }
+                KeyCode::Enter
+                    if detail_focus == DetailSection::Unstaged && app.is_uncommitted_selected() =>
+                {
+                    app.stage_selected_file()
+                }
+                KeyCode::Up | KeyCode::Char('k')
+                    if detail_focus == DetailSection::StagingDetails =>
+                {
+                    app.diff_scroll_up()
+                }
+                KeyCode::Down | KeyCode::Char('j')
+                    if detail_focus == DetailSection::StagingDetails =>
+                {
+                    app.diff_scroll_down()
+                }
+                KeyCode::PageUp if detail_focus == DetailSection::StagingDetails => {
+                    app.diff_scroll_page_up(10)
+                }
+                KeyCode::PageDown if detail_focus == DetailSection::StagingDetails => {
+                    app.diff_scroll_page_down(10)
+                }
+                KeyCode::Up | KeyCode::Char('k')
+                    if detail_focus == DetailSection::CommitDetails =>
+                {
+                    app.commit_details_scroll_up()
+                }
+                KeyCode::Down | KeyCode::Char('j')
+                    if detail_focus == DetailSection::CommitDetails =>
+                {
+                    app.commit_details_scroll_down()
+                }
+                _ => {}
+            },
+            _ if app.detail_tab == 1 => match code {
+                KeyCode::Up | KeyCode::Char('k') => app.graph_scroll_up(),
+                KeyCode::Down | KeyCode::Char('j') => app.graph_scroll_down(),
+                KeyCode::PageUp => app.graph_scroll_page_up(10),
+                KeyCode::PageDown => app.graph_scroll_page_down(10),
+                _ => {}
+            },
             _ => {}
         },
         Mode::DetailOverview => match code {

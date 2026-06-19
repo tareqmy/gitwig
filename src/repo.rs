@@ -85,6 +85,8 @@ pub struct RepoInfo {
     pub changes: WorktreeChanges,
     /// Recent commits in this repository.
     pub commits: Vec<CommitEntry>,
+    /// Graph view lines for the repository.
+    pub graph_lines: Vec<GraphLine>,
 }
 
 #[derive(Debug)]
@@ -117,6 +119,21 @@ pub struct CommitEntry {
     pub refs: Vec<String>,
     /// Files changed in this commit (diff against first parent, or empty tree).
     pub files: Vec<FileEntry>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GraphLine {
+    pub graph: String,
+    pub commit: Option<GraphCommit>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GraphCommit {
+    pub oid: String,
+    pub decoration: String,
+    pub summary: String,
+    pub author: String,
+    pub date: String,
 }
 
 /// One changed file in the working tree or index.
@@ -467,6 +484,8 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
     if let Ok(commits) = collect_commits(&repo, 50, &build_ref_map(&repo)) {
         info.commits = commits;
     }
+
+    info.graph_lines = collect_graph_lines(path);
 
     populate_file_changes(&repo, &mut info);
     Ok(info)
@@ -819,4 +838,70 @@ fn collect_diff_lines(diff: &git2::Diff<'_>) -> Option<Vec<DiffLine>> {
     })
     .ok()?;
     Some(lines)
+}
+
+fn collect_graph_lines(repo_path: &Path) -> Vec<GraphLine> {
+    let mut graph_lines = Vec::new();
+    let format_str = "%H__TWIG_SEP__%d__TWIG_SEP__%s__TWIG_SEP__%an__TWIG_SEP__%ad";
+
+    let output = std::process::Command::new("git")
+        .args([
+            "log",
+            "--graph",
+            "--all",
+            "--date=relative",
+            &format!("--pretty=format:{}", format_str),
+            "--color=never",
+            "-n",
+            "100",
+        ])
+        .current_dir(repo_path)
+        .output();
+
+    if let Ok(out) = output {
+        if out.status.success() {
+            let stdout_str = String::from_utf8_lossy(&out.stdout);
+            for line in stdout_str.lines() {
+                if line.contains("__TWIG_SEP__") {
+                    let parts: Vec<&str> = line.split("__TWIG_SEP__").collect();
+                    if parts.len() >= 5 {
+                        let graph_and_hash = parts[0];
+                        let decoration = parts[1].trim().to_string();
+                        let summary = parts[2].trim().to_string();
+                        let author = parts[3].trim().to_string();
+                        let date = parts[4].trim().to_string();
+
+                        let char_count = graph_and_hash.chars().count();
+                        if char_count >= 40 {
+                            let graph: String =
+                                graph_and_hash.chars().take(char_count - 40).collect();
+                            let oid: String =
+                                graph_and_hash.chars().skip(char_count - 40).collect();
+                            graph_lines.push(GraphLine {
+                                graph,
+                                commit: Some(GraphCommit {
+                                    oid,
+                                    decoration,
+                                    summary,
+                                    author,
+                                    date,
+                                }),
+                            });
+                        } else {
+                            graph_lines.push(GraphLine {
+                                graph: graph_and_hash.to_string(),
+                                commit: None,
+                            });
+                        }
+                    }
+                } else {
+                    graph_lines.push(GraphLine {
+                        graph: line.to_string(),
+                        commit: None,
+                    });
+                }
+            }
+        }
+    }
+    graph_lines
 }

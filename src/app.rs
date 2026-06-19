@@ -108,6 +108,10 @@ pub struct App {
     pub main_areas: Vec<Rect>,
     /// Timestamp and selected index of the last mouse click for double-click detection.
     pub last_click: Option<(std::time::Instant, usize)>,
+    /// Active tab in the detail view (0 = Details, 1 = Graph).
+    pub detail_tab: usize,
+    /// Vertical scroll offset for the git history graph view (Graph tab).
+    pub graph_scroll: usize,
     /// Whether we are currently editing the commit message in the popup.
     pub commit_editing: bool,
     /// Whether the status bar is expanded.
@@ -141,6 +145,8 @@ impl App {
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
             last_click: None,
+            detail_tab: 0,
+            graph_scroll: 0,
             commit_editing: false,
             status_expanded: false,
         }
@@ -257,6 +263,8 @@ impl App {
             self.file_diff.clear();
             self.diff_scroll = 0;
             self.commit_details_scroll = 0;
+            self.detail_tab = 0;
+            self.graph_scroll = 0;
             self.mode = Mode::Detail;
             self.refresh_file_diff();
         }
@@ -390,6 +398,34 @@ impl App {
     pub fn diff_scroll_page_down(&mut self, page: usize) {
         let max = self.file_diff.len().saturating_sub(1);
         self.diff_scroll = (self.diff_scroll + page).min(max);
+    }
+
+    /// Scroll the graph view up by one line.
+    pub fn graph_scroll_up(&mut self) {
+        self.graph_scroll = self.graph_scroll.saturating_sub(1);
+    }
+
+    /// Scroll the graph view down by one line.
+    pub fn graph_scroll_down(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let max = info.graph_lines.len().saturating_sub(1);
+            if self.graph_scroll < max {
+                self.graph_scroll += 1;
+            }
+        }
+    }
+
+    /// Scroll the graph view up by a page.
+    pub fn graph_scroll_page_up(&mut self, page: usize) {
+        self.graph_scroll = self.graph_scroll.saturating_sub(page);
+    }
+
+    /// Scroll the graph view down by a page.
+    pub fn graph_scroll_page_down(&mut self, page: usize) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let max = info.graph_lines.len().saturating_sub(1);
+            self.graph_scroll = (self.graph_scroll + page).min(max);
+        }
     }
 
     /// Scroll the commit details panel up by one line.

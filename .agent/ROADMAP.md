@@ -27,7 +27,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Display Git commit log with author, date, and message.
 - [x] Navigate through history (`↑`/`k`, `↓`/`j`, `PgUp`/`PgDn` in Commits panel).
 - [x] View diff for a specific commit (select a commit to see its changed files, and select a file to view its diff on the right).
-- [ ] Branch visualization (graph view).
+- [x] Branch visualization (graph view).
 
 ## Phase 4: Branch Management
 - [ ] List local and remote branches.
