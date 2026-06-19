@@ -246,12 +246,12 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
 }
 
 /// Dispatch a mouse event.
-///
-/// Only left-button clicks on panel borders/content in `Mode::Detail` are
-/// acted upon — all other events are silently ignored so scrolling and
-/// selection still feel natural.
 pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
-    if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
+    let is_click = mouse.kind == MouseEventKind::Down(MouseButton::Left);
+    let is_scroll_up = mouse.kind == MouseEventKind::ScrollUp;
+    let is_scroll_down = mouse.kind == MouseEventKind::ScrollDown;
+
+    if !is_click && !is_scroll_up && !is_scroll_down {
         return;
     }
 
@@ -261,27 +261,37 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     };
 
     if app.mode == Mode::Normal {
-        for (i, rect) in app.main_areas.iter().enumerate() {
-            if rect.contains(pos) {
-                let actual_index = i + app.scroll_top;
-                if actual_index < app.config.items.len() {
-                    let now = std::time::Instant::now();
-                    let is_double_click = if let Some((last_time, last_idx)) = app.last_click {
-                        last_idx == actual_index && now.duration_since(last_time).as_millis() < 400
-                    } else {
-                        false
-                    };
+        if is_click {
+            for (i, rect) in app.main_areas.iter().enumerate() {
+                if rect.contains(pos) {
+                    let actual_index = i + app.scroll_top;
+                    if actual_index < app.config.items.len() {
+                        let now = std::time::Instant::now();
+                        let is_double_click = if let Some((last_time, last_idx)) = app.last_click {
+                            last_idx == actual_index
+                                && now.duration_since(last_time).as_millis() < 400
+                        } else {
+                            false
+                        };
 
-                    if is_double_click {
-                        app.selected_index = actual_index;
-                        app.open_detail();
-                        app.last_click = None;
-                    } else {
-                        app.selected_index = actual_index;
-                        app.last_click = Some((now, actual_index));
+                        if is_double_click {
+                            app.selected_index = actual_index;
+                            app.open_detail();
+                            app.last_click = None;
+                        } else {
+                            app.selected_index = actual_index;
+                            app.last_click = Some((now, actual_index));
+                        }
                     }
+                    return;
                 }
-                return;
+            }
+        } else {
+            let visible_count = app.main_areas.len();
+            if is_scroll_up {
+                app.move_up();
+            } else if is_scroll_down {
+                app.move_down(visible_count);
             }
         }
         return;
@@ -295,21 +305,37 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         return;
     }
 
-    let areas = &app.detail_areas;
+    let areas = app.detail_areas;
 
     // Handle tab switching if the user clicks on the tab bar.
     if app.mode == Mode::Detail {
         if let Some(rect) = areas.tab_bar {
             if rect.contains(pos) {
-                let click_x = pos.x - rect.x;
-                if (2..15).contains(&click_x) {
-                    app.detail_tab = 0;
-                    app.detail_focus = DetailSection::Commits;
-                } else if (19..30).contains(&click_x) {
-                    app.detail_tab = 1;
-                } else if (34..48).contains(&click_x) {
-                    app.detail_tab = 2;
-                    app.detail_focus = DetailSection::LocalBranches;
+                if is_click {
+                    let click_x = pos.x - rect.x;
+                    if (2..15).contains(&click_x) {
+                        app.detail_tab = 0;
+                        app.detail_focus = DetailSection::Commits;
+                    } else if (19..30).contains(&click_x) {
+                        app.detail_tab = 1;
+                    } else if (34..48).contains(&click_x) {
+                        app.detail_tab = 2;
+                        app.detail_focus = DetailSection::LocalBranches;
+                    }
+                }
+                return;
+            }
+        }
+    }
+
+    // Graph view scroll (tab 1, index 1)
+    if app.detail_tab == 1 {
+        if let Some(rect) = areas.tab_bar {
+            if pos.y >= rect.y + rect.height {
+                if is_scroll_up {
+                    app.graph_scroll_up();
+                } else if is_scroll_down {
+                    app.graph_scroll_down();
                 }
                 return;
             }
@@ -320,11 +346,27 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     // so the more-specific sub-panels win.
     if let Some(rect) = areas.staged_sub {
         if rect.contains(pos) {
-            if app.detail_focus != DetailSection::Staged {
+            if is_click {
+                if app.detail_focus != DetailSection::Staged {
+                    app.detail_focus = DetailSection::Staged;
+                    app.staging_file_selection = 0;
+                    app.diff_scroll = 0;
+                    app.refresh_staging_diff();
+                }
+            } else if is_scroll_up {
                 app.detail_focus = DetailSection::Staged;
-                app.staging_file_selection = 0;
-                app.diff_scroll = 0;
-                app.refresh_staging_diff();
+                if app.is_uncommitted_selected() {
+                    app.staging_file_up();
+                } else {
+                    app.detail_file_up();
+                }
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::Staged;
+                if app.is_uncommitted_selected() {
+                    app.staging_file_down();
+                } else {
+                    app.detail_file_down();
+                }
             }
             return;
         }
@@ -332,11 +374,27 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     // Unstaged sub-panel.
     if let Some(rect) = areas.unstaged_sub {
         if rect.contains(pos) {
-            if app.detail_focus != DetailSection::Unstaged {
+            if is_click {
+                if app.detail_focus != DetailSection::Unstaged {
+                    app.detail_focus = DetailSection::Unstaged;
+                    app.staging_file_selection = 0;
+                    app.diff_scroll = 0;
+                    app.refresh_staging_diff();
+                }
+            } else if is_scroll_up {
                 app.detail_focus = DetailSection::Unstaged;
-                app.staging_file_selection = 0;
-                app.diff_scroll = 0;
-                app.refresh_staging_diff();
+                if app.is_uncommitted_selected() {
+                    app.staging_file_up();
+                } else {
+                    app.detail_file_up();
+                }
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::Unstaged;
+                if app.is_uncommitted_selected() {
+                    app.staging_file_down();
+                } else {
+                    app.detail_file_down();
+                }
             }
             return;
         }
@@ -344,8 +402,16 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     // Commit details sub-panel (inside Changed Files / Commit Details left block).
     if let Some(rect) = areas.commit_details {
         if rect.contains(pos) {
-            if app.detail_focus != DetailSection::CommitDetails {
+            if is_click {
+                if app.detail_focus != DetailSection::CommitDetails {
+                    app.detail_focus = DetailSection::CommitDetails;
+                }
+            } else if is_scroll_up {
                 app.detail_focus = DetailSection::CommitDetails;
+                app.commit_details_scroll_up();
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::CommitDetails;
+                app.commit_details_scroll_down();
             }
             return;
         }
@@ -354,16 +420,32 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     // Bottom-left panel (Staging Area outer block or Changed Files).
     if let Some(rect) = areas.bottom_left {
         if rect.contains(pos) {
-            // When sub-panels are not shown (real commit), treat the whole
-            // left block as the Staged (Changed Files) focus.
-            if app.detail_focus != DetailSection::Staged {
+            if is_click {
+                // When sub-panels are not shown (real commit), treat the whole
+                // left block as the Staged (Changed Files) focus.
+                if app.detail_focus != DetailSection::Staged {
+                    app.detail_focus = DetailSection::Staged;
+                    app.diff_scroll = 0;
+                    if app.is_uncommitted_selected() {
+                        app.staging_file_selection = 0;
+                        app.refresh_staging_diff();
+                    } else {
+                        app.refresh_file_diff();
+                    }
+                }
+            } else if is_scroll_up {
                 app.detail_focus = DetailSection::Staged;
-                app.diff_scroll = 0;
                 if app.is_uncommitted_selected() {
-                    app.staging_file_selection = 0;
-                    app.refresh_staging_diff();
+                    app.staging_file_up();
                 } else {
-                    app.refresh_file_diff();
+                    app.detail_file_up();
+                }
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::Staged;
+                if app.is_uncommitted_selected() {
+                    app.staging_file_down();
+                } else {
+                    app.detail_file_down();
                 }
             }
             return;
@@ -372,29 +454,67 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     // Right panel (Diff / Staging Details).
     if let Some(rect) = areas.bottom_right {
         if rect.contains(pos) {
-            if app.detail_focus != DetailSection::StagingDetails {
+            if is_click {
+                if app.detail_focus != DetailSection::StagingDetails {
+                    app.detail_focus = DetailSection::StagingDetails;
+                    app.diff_scroll = 0;
+                }
+            } else if is_scroll_up {
                 app.detail_focus = DetailSection::StagingDetails;
-                app.diff_scroll = 0;
+                app.diff_scroll_up();
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::StagingDetails;
+                app.diff_scroll_down();
             }
             return;
         }
     }
     // Commits panel (top).
     if let Some(rect) = areas.commits {
-        if rect.contains(pos) && app.detail_focus != DetailSection::Commits {
-            app.detail_focus = DetailSection::Commits;
+        if rect.contains(pos) {
+            if is_click {
+                if app.detail_focus != DetailSection::Commits {
+                    app.detail_focus = DetailSection::Commits;
+                }
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::Commits;
+                app.detail_commit_up();
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::Commits;
+                app.detail_commit_down();
+            }
         }
     }
     // Local branches panel (inside Branches view).
     if let Some(rect) = areas.local_branches {
-        if rect.contains(pos) && app.detail_focus != DetailSection::LocalBranches {
-            app.detail_focus = DetailSection::LocalBranches;
+        if rect.contains(pos) {
+            if is_click {
+                if app.detail_focus != DetailSection::LocalBranches {
+                    app.detail_focus = DetailSection::LocalBranches;
+                }
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::LocalBranches;
+                app.local_branch_up();
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::LocalBranches;
+                app.local_branch_down();
+            }
         }
     }
     // Remote branches panel (inside Branches view).
     if let Some(rect) = areas.remote_branches {
-        if rect.contains(pos) && app.detail_focus != DetailSection::RemoteBranches {
-            app.detail_focus = DetailSection::RemoteBranches;
+        if rect.contains(pos) {
+            if is_click {
+                if app.detail_focus != DetailSection::RemoteBranches {
+                    app.detail_focus = DetailSection::RemoteBranches;
+                }
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::RemoteBranches;
+                app.remote_branch_up();
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::RemoteBranches;
+                app.remote_branch_down();
+            }
         }
     }
 }
