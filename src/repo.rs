@@ -167,6 +167,16 @@ pub fn get_commit_file_diff(repo_path: &Path, commit_oid: &str, file_path: &str)
     get_file_diff_inner(repo_path, commit_oid, file_path).unwrap_or_default()
 }
 
+/// Return the diff for `file_path` in the working tree.
+///
+/// - `staged = true`:  diff between HEAD and the index (what would be committed).
+/// - `staged = false`: diff between the index and the working directory (unstaged changes).
+///
+/// Returns an empty Vec on any error.
+pub fn get_worktree_file_diff(repo_path: &Path, file_path: &str, staged: bool) -> Vec<DiffLine> {
+    get_worktree_diff_inner(repo_path, file_path, staged).unwrap_or_default()
+}
+
 // ── Public entry points ────────────────────────────────────────────────────
 
 /// Expand a leading `~` or `~/` in a user-supplied path to the user's home
@@ -627,15 +637,48 @@ fn get_file_diff_inner(
         .diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), Some(&mut opts))
         .ok()?;
 
+    collect_diff_lines(&diff)
+}
+
+/// Diff a single file in the working tree.
+///
+/// `staged = true`:  HEAD-tree → index (what `git diff --cached` shows).
+/// `staged = false`: index → working directory (what `git diff` shows).
+fn get_worktree_diff_inner(
+    repo_path: &Path,
+    file_path: &str,
+    staged: bool,
+) -> Option<Vec<DiffLine>> {
+    let repo = Repository::open(repo_path).ok()?;
+    let mut opts = git2::DiffOptions::new();
+    opts.pathspec(file_path);
+
+    let diff = if staged {
+        // Staged: diff HEAD tree (or empty tree for new repos) → index.
+        let head_tree = repo
+            .head()
+            .ok()
+            .and_then(|h| h.peel_to_tree().ok());
+        repo.diff_tree_to_index(head_tree.as_ref(), None, Some(&mut opts))
+            .ok()?
+    } else {
+        // Unstaged: diff index → working directory.
+        repo.diff_index_to_workdir(None, Some(&mut opts)).ok()?
+    };
+
+    collect_diff_lines(&diff)
+}
+
+/// Walk a libgit2 `Diff` and collect coloured `DiffLine` values.
+fn collect_diff_lines(diff: &git2::Diff<'_>) -> Option<Vec<DiffLine>> {
     let mut lines: Vec<DiffLine> = Vec::new();
     diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
         let kind = match line.origin() {
             '+' => DiffLineKind::Added,
             '-' => DiffLineKind::Removed,
-            'H' => DiffLineKind::Header, // @@ hunk header
+            'H' => DiffLineKind::Header,
             ' ' => DiffLineKind::Context,
-            // Skip file-header meta lines (diff --git, index, ---, +++).
-            _ => return true,
+            _ => return true, // skip file-header meta lines
         };
         let content = String::from_utf8_lossy(line.content())
             .trim_end_matches('\n')
@@ -645,6 +688,6 @@ fn get_file_diff_inner(
         true
     })
     .ok()?;
-
     Some(lines)
 }
+

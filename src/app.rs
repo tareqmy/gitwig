@@ -89,8 +89,10 @@ pub struct App {
     pub detail_focus: DetailSection,
     /// Selected row index inside the Commits panel (0 = top row).
     pub commit_selection: usize,
-    /// Selected file index inside the Changed Files panel.
+    /// Selected file index inside the Changed Files panel (real commits).
     pub file_selection: usize,
+    /// Selected file index inside the Staged/Unstaged sub-panels (uncommitted view).
+    pub staging_file_selection: usize,
     /// Cached unified-diff lines for the currently selected file.
     pub file_diff: Vec<DiffLine>,
     /// Vertical scroll offset for the diff panel (StagingDetails focus).
@@ -117,6 +119,7 @@ impl App {
             detail_focus: DetailSection::Commits,
             commit_selection: 0,
             file_selection: 0,
+            staging_file_selection: 0,
             file_diff: Vec::new(),
             diff_scroll: 0,
         }
@@ -221,6 +224,7 @@ impl App {
             self.detail_focus = DetailSection::Commits;
             self.commit_selection = 0;
             self.file_selection = 0;
+            self.staging_file_selection = 0;
             self.file_diff.clear();
             self.diff_scroll = 0;
             self.mode = Mode::Detail;
@@ -234,12 +238,25 @@ impl App {
         if !self.is_uncommitted_selected() && self.detail_focus == DetailSection::Unstaged {
             self.detail_focus = self.detail_focus.next();
         }
-        // Pre-load the diff when landing on the Changed Files panel.
-        if matches!(
-            self.detail_focus,
-            DetailSection::Staged | DetailSection::Unstaged
-        ) {
-            self.refresh_file_diff();
+        // Reset staging selection and pre-load diff when landing on Staged/Unstaged.
+        match self.detail_focus {
+            DetailSection::Staged | DetailSection::Unstaged => {
+                self.staging_file_selection = 0;
+                self.diff_scroll = 0;
+                self.refresh_staging_diff();
+            }
+            DetailSection::StagingDetails => {
+                self.diff_scroll = 0;
+            }
+            // Pre-load the diff when landing on the Changed Files panel (real commit).
+            _ => {
+                if matches!(
+                    self.detail_focus,
+                    DetailSection::Staged | DetailSection::Unstaged
+                ) {
+                    self.refresh_file_diff();
+                }
+            }
         }
     }
 
@@ -296,6 +313,23 @@ impl App {
         }
         self.diff_scroll = 0;
         self.refresh_file_diff();
+    }
+
+    /// Move staging-area file selection up one row (Staged or Unstaged panel).
+    pub fn staging_file_up(&mut self) {
+        self.staging_file_selection = self.staging_file_selection.saturating_sub(1);
+        self.diff_scroll = 0;
+        self.refresh_staging_diff();
+    }
+
+    /// Move staging-area file selection down one row (Staged or Unstaged panel).
+    pub fn staging_file_down(&mut self) {
+        let total = self.staging_file_total();
+        if total > 0 && self.staging_file_selection + 1 < total {
+            self.staging_file_selection += 1;
+        }
+        self.diff_scroll = 0;
+        self.refresh_staging_diff();
     }
 
     /// Scroll the diff panel up by one line.
@@ -402,6 +436,44 @@ impl App {
             self.file_diff.clear();
         }
     }
+
+    /// Total files in the currently-focused Staged or Unstaged sub-panel.
+    fn staging_file_total(&self) -> usize {
+        match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => match self.detail_focus {
+                DetailSection::Staged => info.changes.staged.len(),
+                DetailSection::Unstaged => info.changes.unstaged.len(),
+                _ => 0,
+            },
+            _ => 0,
+        }
+    }
+
+    /// Reload `file_diff` from the currently-focused Staged/Unstaged file.
+    pub fn refresh_staging_diff(&mut self) {
+        let params = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => {
+                let (files, staged) = match self.detail_focus {
+                    DetailSection::Staged => (&info.changes.staged, true),
+                    DetailSection::Unstaged => (&info.changes.unstaged, false),
+                    _ => {
+                        self.file_diff.clear();
+                        return;
+                    }
+                };
+                files
+                    .get(self.staging_file_selection)
+                    .map(|f| (resolved.clone(), f.path.clone(), staged))
+            }
+            _ => None,
+        };
+        if let Some((repo_path, file_path, staged)) = params {
+            self.file_diff = repo::get_worktree_file_diff(&repo_path, &file_path, staged);
+        } else {
+            self.file_diff.clear();
+        }
+    }
+
 
     pub fn close_detail(&mut self) {
         self.current_detail = None;

@@ -72,13 +72,21 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
                 if detail_focus == DetailSection::Staged
                     || detail_focus == DetailSection::Unstaged =>
             {
-                app.detail_file_up()
+                if app.is_uncommitted_selected() {
+                    app.staging_file_up()
+                } else {
+                    app.detail_file_up()
+                }
             }
             KeyCode::Down | KeyCode::Char('j')
                 if detail_focus == DetailSection::Staged
                     || detail_focus == DetailSection::Unstaged =>
             {
-                app.detail_file_down()
+                if app.is_uncommitted_selected() {
+                    app.staging_file_down()
+                } else {
+                    app.detail_file_down()
+                }
             }
             KeyCode::Up | KeyCode::Char('k')
                 if detail_focus == DetailSection::StagingDetails =>

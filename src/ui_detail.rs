@@ -49,6 +49,7 @@ pub fn draw(
     file_selection: usize,
     file_diff: &[DiffLine],
     diff_scroll: usize,
+    staging_file_selection: usize,
     area: Rect,
 ) {
     // Reserve one row at the top for the breadcrumb header ("Item: <name>").
@@ -106,7 +107,15 @@ pub fn draw(
 
             if is_uncommitted_row {
                 // <uncommitted> row selected — show working-tree staging panels.
-                draw_staging_panels(f, &info.changes, *focus, detail_chunks[1]);
+                draw_staging_panels(
+                    f,
+                    &info.changes,
+                    *focus,
+                    staging_file_selection,
+                    file_diff,
+                    diff_scroll,
+                    detail_chunks[1],
+                );
             } else {
                 // Real commit selected — show its changed files.
                 let commit_idx = if dirty {
@@ -128,7 +137,15 @@ pub fn draw(
                     }
                     None => {
                         // Fallback: selection out of range, show staging panels.
-                        draw_staging_panels(f, &info.changes, *focus, detail_chunks[1]);
+                        draw_staging_panels(
+                            f,
+                            &info.changes,
+                            *focus,
+                            staging_file_selection,
+                            file_diff,
+                            diff_scroll,
+                            detail_chunks[1],
+                        );
                     }
                 }
             }
@@ -295,8 +312,17 @@ fn draw_commit_files_panel(
 // ── Staging panels ─────────────────────────────────────────────────────────
 
 /// Renders two side-by-side panels: "Staging Area" (left, split into Staged/Unstaged)
-/// and "Staging Details" (right).
-fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, focus: DetailSection, area: Rect) {
+/// and "Staging Details" (right, diff of selected file).
+#[allow(clippy::too_many_arguments)]
+fn draw_staging_panels(
+    f: &mut Frame,
+    changes: &WorktreeChanges,
+    focus: DetailSection,
+    staging_file_selection: usize,
+    file_diff: &[DiffLine],
+    diff_scroll: usize,
+    area: Rect,
+) {
     let panels = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -338,6 +364,11 @@ fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, focus: DetailSe
         "Nothing staged",
         Borders::BOTTOM,
         focus == DetailSection::Staged,
+        if focus == DetailSection::Staged {
+            Some(staging_file_selection)
+        } else {
+            None
+        },
         left_split[0],
     );
     draw_file_subpanel(
@@ -348,6 +379,11 @@ fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, focus: DetailSe
         "No unstaged changes",
         Borders::empty(),
         focus == DetailSection::Unstaged,
+        if focus == DetailSection::Unstaged {
+            Some(staging_file_selection)
+        } else {
+            None
+        },
         left_split[1],
     );
 
@@ -357,6 +393,14 @@ fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, focus: DetailSe
     } else {
         muted_style()
     };
+    let selected_file_name: Option<String> = {
+        let files = match focus {
+            DetailSection::Staged => Some(&changes.staged),
+            DetailSection::Unstaged => Some(&changes.unstaged),
+            _ => None,
+        };
+        files.and_then(|f| f.get(staging_file_selection)).map(|e| e.path.clone())
+    };
     let right_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -364,30 +408,60 @@ fn draw_staging_panels(f: &mut Frame, changes: &WorktreeChanges, focus: DetailSe
         .title(Line::from(vec![
             Span::raw(" "),
             Span::styled("Staging Details", primary_style()),
+            if let Some(ref name) = selected_file_name {
+                Span::styled(
+                    format!("  {}", name),
+                    muted_style(),
+                )
+            } else {
+                Span::raw("")
+            },
             Span::raw(" "),
         ]));
     let right_inner = right_block.inner(panels[1]);
     f.render_widget(right_block, panels[1]);
 
-    let v_center = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage(45),
-            Constraint::Length(1),
-            Constraint::Min(0),
-        ])
-        .split(right_inner);
-    f.render_widget(
-        Paragraph::new(Span::styled(
-            "Select a file to view its diff",
-            muted_style(),
-        ))
-        .alignment(Alignment::Center),
-        v_center[1],
-    );
+    if file_diff.is_empty() {
+        let v_center = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(45),
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
+            .split(right_inner);
+        f.render_widget(
+            Paragraph::new(Span::styled(
+                "Select a file to view its diff",
+                muted_style(),
+            ))
+            .alignment(Alignment::Center),
+            v_center[1],
+        );
+    } else {
+        let diff_spans: Vec<Line> = file_diff
+            .iter()
+            .map(|line| {
+                let style = match line.kind {
+                    DiffLineKind::Added => Style::default().fg(SUCCESS),
+                    DiffLineKind::Removed => Style::default().fg(DANGER),
+                    DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
+                    DiffLineKind::Context => Style::default(),
+                };
+                Line::from(Span::styled(line.content.clone(), style))
+            })
+            .collect();
+        f.render_widget(
+            Paragraph::new(diff_spans)
+                .scroll((diff_scroll as u16, 0))
+                .wrap(Wrap { trim: false }),
+            right_inner,
+        );
+    }
 }
 
 /// Renders a titled sub-panel listing `files`, or a centred placeholder if empty.
+/// `selection` — when `Some(idx)` the panel is focused and the file at `idx` is highlighted.
 #[allow(clippy::too_many_arguments)]
 fn draw_file_subpanel(
     f: &mut Frame,
@@ -397,6 +471,7 @@ fn draw_file_subpanel(
     empty_msg: &'static str,
     borders: Borders,
     focused: bool,
+    selection: Option<usize>,
     area: Rect,
 ) {
     // When focused, highlight the title in accent; border stays muted (contained inside outer).
@@ -443,8 +518,19 @@ fn draw_file_subpanel(
         return;
     }
 
-    let file_lines: Vec<Line<'static>> = files.iter().map(file_entry_line).collect();
-    f.render_widget(Paragraph::new(file_lines).wrap(Wrap { trim: false }), inner);
+    if let Some(sel_idx) = selection {
+        // Focused: render as a selectable list with highlight.
+        let items: Vec<ListItem> = files.iter().map(|e| ListItem::new(file_entry_line(e))).collect();
+        let list = List::new(items)
+            .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+        let mut state = ListState::default();
+        state.select(Some(sel_idx));
+        f.render_stateful_widget(list, inner, &mut state);
+    } else {
+        // Not focused: plain paragraph.
+        let file_lines: Vec<Line<'static>> = files.iter().map(file_entry_line).collect();
+        f.render_widget(Paragraph::new(file_lines).wrap(Wrap { trim: false }), inner);
+    }
 }
 
 // ── Overview popup ─────────────────────────────────────────────────────────

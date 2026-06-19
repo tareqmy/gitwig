@@ -105,6 +105,7 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_coun
                 app.file_selection,
                 &app.file_diff,
                 app.diff_scroll,
+                app.staging_file_selection,
                 content_area,
             );
         }
