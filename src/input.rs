@@ -297,6 +297,25 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
 
     let areas = &app.detail_areas;
 
+    // Handle tab switching if the user clicks on the tab bar.
+    if app.mode == Mode::Detail {
+        if let Some(rect) = areas.tab_bar {
+            if rect.contains(pos) {
+                let click_x = pos.x - rect.x;
+                if (2..15).contains(&click_x) {
+                    app.detail_tab = 0;
+                    app.detail_focus = DetailSection::Commits;
+                } else if (19..30).contains(&click_x) {
+                    app.detail_tab = 1;
+                } else if (34..48).contains(&click_x) {
+                    app.detail_tab = 2;
+                    app.detail_focus = DetailSection::LocalBranches;
+                }
+                return;
+            }
+        }
+    }
+
     // Staged sub-panel (inside Staging Area left block) — check before bottom_left
     // so the more-specific sub-panels win.
     if let Some(rect) = areas.staged_sub {

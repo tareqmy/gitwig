@@ -62,6 +62,8 @@ pub struct DetailAreas {
     pub local_branches: Option<Rect>,
     /// Remote branches panel in Branches tab.
     pub remote_branches: Option<Rect>,
+    /// Bounding box of the tab bar itself.
+    pub tab_bar: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -173,6 +175,7 @@ pub fn draw(
             Span::styled(format!("{} Branches [3]", branches_bullet), style_branches),
         ]);
         f.render_widget(Paragraph::new(tab_line), tab_area);
+        areas.tab_bar = Some(tab_area);
     }
 
     match detail {
@@ -243,7 +246,6 @@ pub fn draw(
                 }
             } else if detail_tab == 1 {
                 // Render Graph view
-                *areas = DetailAreas::default();
                 let block = Block::default()
                     .borders(Borders::ALL)
                     .border_type(CARD_BORDER)
