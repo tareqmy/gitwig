@@ -46,6 +46,8 @@ pub enum Mode {
     DetailOverview,
     /// Showing the shortcut reference overlay inside the detail view (triggered by '?').
     DetailHelp,
+    /// Typing a commit message. Enter commits, Esc cancels.
+    CommitInput,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -100,6 +102,8 @@ pub struct App {
     pub diff_scroll: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
     pub detail_areas: DetailAreas,
+    /// Whether we are currently editing the commit message in the popup.
+    pub commit_editing: bool,
 }
 
 impl App {
@@ -126,6 +130,7 @@ impl App {
             file_diff: Vec::new(),
             diff_scroll: 0,
             detail_areas: DetailAreas::default(),
+            commit_editing: false,
         }
     }
 
@@ -561,6 +566,68 @@ impl App {
 
     /// Closes the detail help overlay and returns to the normal detail view.
     pub fn close_detail_help(&mut self) {
+        self.mode = Mode::Detail;
+    }
+
+    /// Enters the commit input mode if there are staged changes to commit.
+    pub fn start_commit(&mut self) {
+        let has_staged = match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => info.summary.staged > 0,
+            _ => false,
+        };
+        if has_staged {
+            self.input_buffer.clear();
+            self.commit_editing = true;
+            self.mode = Mode::CommitInput;
+        } else {
+            self.status_message = Some("No staged changes to commit".to_string());
+        }
+    }
+
+    /// Cancels commit input and returns to the detail view.
+    pub fn cancel_commit(&mut self) {
+        self.input_buffer.clear();
+        self.mode = Mode::Detail;
+    }
+
+    /// Transitions from editing the message to confirming the commit.
+    pub fn commit_done_editing(&mut self) {
+        self.commit_editing = false;
+    }
+
+    /// Transitions back to editing the message from confirm state.
+    pub fn commit_start_editing(&mut self) {
+        self.commit_editing = true;
+    }
+
+    /// Performs the git commit with the message in `input_buffer`.
+    pub fn commit_git_changes(&mut self) {
+        let msg = self.input_buffer.trim().to_string();
+        if msg.is_empty() {
+            self.status_message = Some("Commit message cannot be empty".to_string());
+            self.mode = Mode::Detail;
+            return;
+        }
+
+        let repo_path = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, .. }) => Some(resolved.clone()),
+            _ => None,
+        };
+
+        if let Some(path) = repo_path {
+            match repo::commit_changes(&path, &msg) {
+                Ok(()) => {
+                    self.status_message = Some("Committed successfully".to_string());
+                    self.refresh_detail();
+                    self.refresh_selected_status();
+                }
+                Err(e) => {
+                    self.status_message = Some(format!("Commit failed: {}", e));
+                }
+            }
+        }
+
+        self.input_buffer.clear();
         self.mode = Mode::Detail;
     }
 

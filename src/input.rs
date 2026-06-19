@@ -56,6 +56,7 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
             KeyCode::Char('o') => app.open_overview_popup(),
             KeyCode::Char('?') => app.open_detail_help(),
+            KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
             KeyCode::Tab => app.cycle_detail_focus(),
             KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::Commits => {
                 app.detail_commit_up()
@@ -128,6 +129,24 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
                 app.close_detail_help();
             }
             _ => {}
+        },
+        Mode::CommitInput => {
+            if app.commit_editing {
+                match code {
+                    KeyCode::Esc => app.cancel_commit(),
+                    KeyCode::Enter => app.commit_done_editing(),
+                    KeyCode::Backspace => app.input_backspace(),
+                    KeyCode::Char(c) => app.input_char(c),
+                    _ => {}
+                }
+            } else {
+                match code {
+                    KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.cancel_commit(),
+                    KeyCode::Char('c') | KeyCode::Char('C') => app.commit_git_changes(),
+                    KeyCode::Char('e') | KeyCode::Char('E') => app.commit_start_editing(),
+                    _ => {}
+                }
+            }
         },
     }
     true

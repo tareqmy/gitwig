@@ -93,7 +93,7 @@ pub fn draw(
 
     if matches!(
         app.mode,
-        Mode::Detail | Mode::DetailOverview | Mode::DetailHelp
+        Mode::Detail | Mode::DetailOverview | Mode::DetailHelp | Mode::CommitInput
     ) {
         if let Some(detail) = &app.current_detail {
             let item_name = app
@@ -114,6 +114,8 @@ pub fn draw(
                 app.diff_scroll,
                 app.staging_file_selection,
                 detail_areas,
+                &app.input_buffer,
+                app.commit_editing,
                 content_area,
             );
         }
@@ -416,30 +418,35 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         Mode::Help => {
             draw_status_content(f, content_area, help_dismiss_spans());
         }
-        Mode::Detail | Mode::DetailHelp => {
-            draw_status_content(f, content_area, detail_dismiss_spans());
-        }
-        Mode::DetailOverview => {
-            draw_status_content(f, content_area, detail_dismiss_spans());
+        Mode::Detail | Mode::DetailHelp | Mode::DetailOverview | Mode::CommitInput => {
+            draw_status_content(f, content_area, detail_dismiss_spans(&app.status_message));
         }
     }
 }
 
-fn detail_dismiss_spans() -> Vec<Span<'static>> {
-    vec![
-        Span::raw("  "),
-        Span::styled("Esc / q", accent_style()),
-        Span::raw("  back to list"),
-        Span::raw("   "),
-        Span::styled("Tab", accent_style()),
-        Span::raw("  cycle focus"),
-        Span::raw("   "),
-        Span::styled("o", accent_style()),
-        Span::raw("  overview"),
-        Span::raw("   "),
-        Span::styled("?", accent_style()),
-        Span::raw("  help"),
-    ]
+fn detail_dismiss_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
+    let mut spans = Vec::new();
+    spans.push(Span::raw("  "));
+    if let Some(msg) = status_message {
+        spans.push(Span::styled(format!("{}  ", msg), accent_style()));
+        spans.push(Span::styled("·  ", muted_style()));
+    }
+    let entries = [
+        ("Esc / q", "back to list"),
+        ("Tab", "cycle focus"),
+        ("c", "commit"),
+        ("o", "overview"),
+        ("?", "help"),
+    ];
+    for (i, (key, label)) in entries.iter().enumerate() {
+        if i > 0 {
+            spans.push(Span::styled("  ·  ", muted_style()));
+        }
+        spans.push(Span::styled((*key).to_string(), accent_style()));
+        spans.push(Span::raw(" "));
+        spans.push(Span::raw((*label).to_string()));
+    }
+    spans
 }
 
 /// Returns the badge text plus its foreground and background colors.
@@ -456,6 +463,7 @@ fn mode_badge(mode: &Mode) -> (&'static str, Color, Color) {
         Mode::Detail => ("DETAIL", Color::Black, ACCENT),
         Mode::DetailOverview => ("OVERVIEW", Color::Black, ACCENT),
         Mode::DetailHelp => ("HELP", Color::Black, ACCENT),
+        Mode::CommitInput => ("COMMIT", Color::Black, WARNING),
     }
 }
 

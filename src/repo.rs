@@ -210,6 +210,55 @@ pub fn unstage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Create a commit in the repository with the given message.
+/// Returns a human-readable error string on failure.
+pub fn commit_changes(repo_path: &Path, message: &str) -> Result<(), String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let mut index = repo.index().map_err(|e| e.to_string())?;
+    let tree_id = index.write_tree().map_err(|e| e.to_string())?;
+    let tree = repo.find_tree(tree_id).map_err(|e| e.to_string())?;
+
+    let signature = repo.signature().map_err(|e| {
+        format!(
+            "Failed to get signature. Check user.name/email config: {}",
+            e
+        )
+    })?;
+
+    // Find parent commits
+    let mut parents = Vec::new();
+    let mut has_head = false;
+    if let Ok(head) = repo.head() {
+        if let Ok(parent_commit) = head.peel_to_commit() {
+            has_head = true;
+            // Check if there are changes staged compared to HEAD
+            let parent_tree = parent_commit.tree().map_err(|e| e.to_string())?;
+            if parent_tree.id() == tree_id {
+                return Err("No staged changes to commit".to_string());
+            }
+            parents.push(parent_commit);
+        }
+    }
+
+    if !has_head && index.is_empty() {
+        return Err("No staged changes to commit (index is empty)".to_string());
+    }
+
+    let parent_refs: Vec<&git2::Commit> = parents.iter().collect();
+
+    repo.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        message,
+        &tree,
+        &parent_refs,
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 // ── Public entry points ────────────────────────────────────────────────────
 
 /// Expand a leading `~` or `~/` in a user-supplied path to the user's home

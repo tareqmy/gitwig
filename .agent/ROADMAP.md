@@ -20,7 +20,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 ## Phase 2: Working Tree & Status
 - [x] Display list of changed files (staged and unstaged).
 - [x] Support staging/unstaging individual files (shortcut `Enter` in staging lists).
-- [ ] Basic commit functionality (shortcut `c`).
+- [x] Basic commit functionality (shortcut `c`).
 - [x] Side-by-side or unified diff view for the selected file.
 
 ## Phase 3: History & Log

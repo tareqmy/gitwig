@@ -70,6 +70,8 @@ pub fn draw(
     diff_scroll: usize,
     staging_file_selection: usize,
     areas: &mut DetailAreas,
+    input_buffer: &str,
+    commit_editing: bool,
     area: Rect,
 ) {
     // Reserve one row at the top for the breadcrumb header ("Item: <name>").
@@ -181,6 +183,10 @@ pub fn draw(
             // Draw detail help overlay on top when requested.
             if matches!(mode, Mode::DetailHelp) {
                 draw_detail_help_overlay(f, body_area);
+            }
+            // Draw commit popup on top when requested.
+            if matches!(mode, Mode::CommitInput) {
+                draw_commit_popup(f, input_buffer, commit_editing, body_area);
             }
         }
         _ => {
@@ -635,6 +641,7 @@ const DETAIL_HELP_LINES: &[(&str, &str)] = &[
         "Cycle panel focus  (Commits → Staged → Unstaged → Details)",
     ),
     ("Enter", "Stage file (Unstaged panel) / Unstage file (Staged panel)"),
+    ("c", "Commit staged changes"),
     ("o", "Show repo overview popup"),
     ("? / Esc", "Close this help"),
     ("q / Esc", "Back to repository list"),
@@ -1057,4 +1064,74 @@ fn kind_line(
         Span::raw("  "),
         Span::styled(sub, muted_style()),
     ])
+}
+
+/// Renders a commit confirmation/input popup centered over `area`.
+fn draw_commit_popup(
+    f: &mut Frame,
+    input_buffer: &str,
+    editing: bool,
+    area: Rect,
+) {
+    let popup_area = centred_rect(60, 25, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_color = if editing { ACCENT } else { WARNING };
+    let border_style = Style::default().fg(border_color);
+
+    let title_text = if editing {
+        " Compose Commit Message "
+    } else {
+        " Confirm Commit "
+    };
+
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled(title_text, primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let footer_spans = if editing {
+        vec![
+            Span::styled("Enter", accent_style()),
+            Span::raw("  done  ·  "),
+            Span::styled("Esc", accent_style()),
+            Span::raw("  cancel"),
+        ]
+    } else {
+        vec![
+            Span::styled("c", accent_style()),
+            Span::raw("  commit  ·  "),
+            Span::styled("e", accent_style()),
+            Span::raw("  edit  ·  "),
+            Span::styled("Esc", accent_style()),
+            Span::raw("  cancel"),
+        ]
+    };
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .title_bottom(Line::from(footer_spans).alignment(Alignment::Center))
+        .padding(Padding::horizontal(1));
+
+    let text = if input_buffer.is_empty() {
+        Paragraph::new(Span::styled("(type commit message here...)", muted_style()))
+            .wrap(Wrap { trim: true })
+    } else {
+        Paragraph::new(input_buffer)
+            .wrap(Wrap { trim: true })
+    };
+
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+    f.render_widget(text, inner_area);
+
+    if editing {
+        let cursor_offset = input_buffer.chars().count() as u16;
+        let cursor_x = inner_area.x.saturating_add(cursor_offset.min(inner_area.width.saturating_sub(1)));
+        f.set_cursor_position(ratatui::layout::Position::new(cursor_x, inner_area.y));
+    }
 }
