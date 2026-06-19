@@ -52,24 +52,23 @@
 | `?`                  | Detail          | Toggle detail help overlay        |
 | `Esc` / `q` / `o`    | DetailOverview  | Close repository overview popup   |
 | `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |
-| `Enter`              | CommitInput (Edit) | Finish editing commit message (switches to confirm state) |
+| `⌃C`                 | CommitInput (Edit) | Finish editing commit message (switches to confirm state) |
+| `↵` (Enter)          | CommitInput (Edit) | Insert a newline                  |
 | `Backspace`          | CommitInput (Edit) | Erase one character from commit message |
 | `Esc`                | CommitInput     | Cancel commit and return to Detail view |
-| `c` / `C`            | CommitInput (Confirm) | Submit / execute Git commit |
+| `↵` (Enter)          | CommitInput (Confirm) | Submit / execute Git commit      |
 | `e` / `E`            | CommitInput (Confirm) | Edit / resume typing commit message |
+| `Left-Click` (Mouse) | Normal          | Select the clicked item           |
+| `Double-Click` (Mouse)| Normal         | Open Detail view for clicked item |
 | `Left-Click` (Mouse) | Detail          | Shift focus to the clicked panel  |
 
 Press `?` at any time in normal mode to see the full keybinding reference as a centered popup. The help overlay only handles the dismissal keys — your selection and scroll position are preserved underneath.
 
-The bottom status bar shows a colored mode badge that mirrors what is happening:
-
-- **Cyan `NORMAL`** — browsing the list.
-- **Yellow `ADDING` / `EDITING`** — typing into the input field; the selected card's border turns yellow so you can see exactly which item will be replaced.
-- **Red `CONFIRM`** — awaiting delete confirmation; the doomed card's border turns red.
-- **Cyan `HELP`** — the shortcut overlay is open.
-- **Cyan `DETAIL`** — detail view is open for the selected repository.
-- **Cyan `OVERVIEW`** — repository overview popup is open.
-- **Yellow `COMMIT`** — typing a commit message into the status bar.
+The selected card's border color mirrors the current operation mode:
+- **Default (Muted)** — browsing the list (unselected).
+- **Cyan** — browsing the list (selected).
+- **Yellow** — typing into the input field during add/edit; the selected card's border turns yellow so you can see exactly which item will be replaced.
+- **Red** — awaiting delete confirmation; the doomed card's border turns red.
 
 The selected item is marked with a left-edge `▌` accent, a colored border, and bold text. In `ADDING` and `EDITING` modes the real terminal cursor sits at the end of your input so you can see exactly where the next character will land.
 
@@ -108,13 +107,13 @@ For a **git repository**, the detail view is split into multiple rounded panels 
 
 You can navigate and interact with these panels in the following ways:
 - **Cycle focus:** Cycle focus between active panels using `Tab` (`Commits` → `Staged` → `Unstaged` → `StagingDetails`).
-- **Mouse Click to Focus:** Click anywhere inside any panel's boundaries (including staged/unstaged sub-panels) to focus it immediately.
+- **Mouse Click to Focus/Select:** In normal mode, left-click on any repository item in the main list to select it, and double-click to open its detail view directly. In detail mode, click anywhere inside any panel's boundaries (including staged/unstaged sub-panels) to focus it immediately.
 - **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit or select a file inside the staging/commit file lists.
 - **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
 - **Stage/Unstage Files:** Select the `Uncommitted changes` row at the top, select a file in either the `Staged` or `Unstaged` list, and press `Enter` to stage or unstage that file instantly.
 - **Commit Staged Changes:** Press `c` from the detail view to open a centered Commit popup window (only active if there are staged changes). 
-  - **Compose Mode:** Type your commit message. Press `Enter` to lock in the text and switch to confirmation state, or `Esc` to cancel.
-  - **Confirm Mode:** Press `c` to execute the commit, `e` to return to composing/editing the message, or `Esc`/`q` to close the popup.
+  - **Compose Mode:** Type your commit message. Press `Ctrl+C` to lock in the text and switch to confirmation state, press `Enter` to insert a newline, or `Esc` to cancel.
+  - **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, or `Esc`/`q` to close the popup.
 - **Repository Overview:** Press `o` to open a repository overview popup showing details such as resolved paths, branch upstream tracking, configured remotes, and general status counts.
 
 For a **plain directory** the view confirms the resolved path and explains that no `.git` entry was found.
