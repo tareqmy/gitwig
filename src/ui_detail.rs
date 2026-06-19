@@ -1493,10 +1493,21 @@ fn draw_branches_view(
                 Style::default()
             };
             let prefix = if b.is_head { " " } else { "  " };
-            ListItem::new(Line::from(vec![
+            let mut spans = vec![
                 Span::styled(prefix, Style::default().fg(SUCCESS)),
                 Span::styled(b.name.clone(), style),
-            ]))
+            ];
+            if !b.short_sha.is_empty() {
+                spans.push(Span::raw("  "));
+                spans.push(Span::styled(format!("[{}]", b.short_sha), accent_style()));
+                if !b.short_message.is_empty() {
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled("·", muted_style()));
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled(b.short_message.clone(), muted_style()));
+                }
+            }
+            ListItem::new(Line::from(spans))
         })
         .collect();
 
@@ -1531,7 +1542,23 @@ fn draw_branches_view(
     let remote_items: Vec<ListItem> = info
         .remote_branches
         .iter()
-        .map(|b| ListItem::new(Line::from(vec![Span::raw("  "), Span::raw(b.name.clone())])))
+        .map(|b| {
+            let mut spans = vec![
+                Span::raw("  "),
+                Span::styled(b.name.clone(), primary_style()),
+            ];
+            if !b.short_sha.is_empty() {
+                spans.push(Span::raw("  "));
+                spans.push(Span::styled(format!("[{}]", b.short_sha), accent_style()));
+                if !b.short_message.is_empty() {
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled("·", muted_style()));
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled(b.short_message.clone(), muted_style()));
+                }
+            }
+            ListItem::new(Line::from(spans))
+        })
         .collect();
 
     let remote_list = List::new(remote_items)

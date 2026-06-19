@@ -77,6 +77,8 @@ pub enum ItemDetail {
 pub struct BranchInfo {
     pub name: String,
     pub is_head: bool,
+    pub short_sha: String,
+    pub short_message: String,
 }
 
 #[derive(Debug, Default)]
@@ -506,9 +508,20 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
         for (branch, _) in branches.flatten() {
             if let Ok(Some(name)) = branch.name() {
                 let is_head = branch.is_head();
+                let mut short_sha = String::new();
+                let mut short_message = String::new();
+                if let Ok(target) = branch.get().peel_to_commit() {
+                    let id = target.id();
+                    short_sha = id.to_string()[..7.min(id.to_string().len())].to_string();
+                    if let Ok(Some(summary)) = target.summary() {
+                        short_message = summary.to_string();
+                    }
+                }
                 local_branches.push(BranchInfo {
                     name: name.to_string(),
                     is_head,
+                    short_sha,
+                    short_message,
                 });
             }
         }
@@ -522,9 +535,20 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
             if let Ok(Some(name)) = branch.name() {
                 if !name.ends_with("/HEAD") {
                     let is_head = branch.is_head();
+                    let mut short_sha = String::new();
+                    let mut short_message = String::new();
+                    if let Ok(target) = branch.get().peel_to_commit() {
+                        let id = target.id();
+                        short_sha = id.to_string()[..7.min(id.to_string().len())].to_string();
+                        if let Ok(Some(summary)) = target.summary() {
+                            short_message = summary.to_string();
+                        }
+                    }
                     remote_branches.push(BranchInfo {
                         name: name.to_string(),
                         is_head,
+                        short_sha,
+                        short_message,
                     });
                 }
             }
