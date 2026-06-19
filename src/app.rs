@@ -521,6 +521,68 @@ impl App {
         }
     }
 
+    /// Spawns a background thread to pull the upstream remote branch into the selected local branch.
+    /// Can only pull if the selected local branch is the currently checked-out branch.
+    pub fn pull_selected_branch(&mut self) {
+        if self.fetching {
+            return;
+        }
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+            if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
+                if !branch_info.is_head {
+                    self.status_message = Some(format!(
+                        "Can only pull into the currently checked-out branch. Checkout '{}' first.",
+                        branch_info.name
+                    ));
+                    return;
+                }
+
+                self.fetching = true;
+                self.status_message = Some("Pulling...".to_string());
+
+                let repo_path = resolved.clone();
+                let branch_name = branch_info.name.clone();
+                let tx = self.tx.clone();
+
+                std::thread::spawn(move || {
+                    let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                        let repo = git2::Repository::open(&repo_path)?;
+                        let branch = repo.find_branch(&branch_name, git2::BranchType::Local)?;
+
+                        let _upstream = match branch.upstream() {
+                            Ok(u) => u,
+                            Err(_) => {
+                                return Ok(
+                                    "No upstream tracking branch configured for this branch"
+                                        .to_string(),
+                                );
+                            }
+                        };
+
+                        let output = std::process::Command::new("git")
+                            .arg("pull")
+                            .current_dir(&repo_path)
+                            .output()?;
+
+                        if output.status.success() {
+                            Ok(format!("Pulled successfully for '{}'", branch_name))
+                        } else {
+                            let err_msg =
+                                String::from_utf8_lossy(&output.stderr).trim().to_string();
+                            Err(format!("git pull failed: {}", err_msg).into())
+                        }
+                    })();
+
+                    let msg = match res {
+                        Ok(success) => success,
+                        Err(e) => format!("Pull failed: {}", e),
+                    };
+                    let _ = tx.send(msg);
+                });
+            }
+        }
+    }
+
     /// Spawns a background thread to push the selected local branch to its upstream remote.
     /// If no upstream is configured, it falls back to the first configured remote (typically origin)
     /// and sets upstream tracking (-u).

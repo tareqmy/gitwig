@@ -51,6 +51,7 @@
 | `PgUp` / `PgDn`      | Detail          | Jump 10 rows or page scroll diff/tree |
 | `Enter`              | Detail          | Stage/Unstage file (Details tab), or Checkout branch (Branches tab) |
 | `Shift+F`            | Detail          | Fetch selected local branch from remote (Branches tab) |
+| `p`                  | Detail          | Pull selected local branch from remote (Branches tab) |
 | `Shift+P`            | Detail          | Push selected local branch to remote (Branches tab) |
 | `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) |
 | `←` / `→` or `<` / `>` or `,` / `.` | Detail | Collapse/Expand directory (Files tab) |
@@ -153,6 +154,7 @@ You can navigate and interact with these panels in the following ways:
 - **Manage Branches:** While on the **Branches** tab:
   - Select any **local branch** (other than the currently active one) and press `Enter` to check it out (safe checkout strategy applies).
   - Select any **local branch** that has an upstream configuration and press `Shift+F` to fetch updates for its remote in the background.
+  - Select any **local branch** and press `p` to pull updates from its remote in the background (can only pull into the currently checked-out branch).
   - Select any **local branch** and press `Shift+P` to push it to the remote in the background (if no upstream is configured, it will attempt to push to the first configured remote and set it as the upstream tracking branch).
   - Select any **remote branch** and press `Enter` to check it out (this will switch to the branch, creating a local tracking branch if it doesn't already exist).
   - Press `c` / `C` to create a new branch from the currently checked out branch (or HEAD). A popup dialog will prompt for the new branch name.

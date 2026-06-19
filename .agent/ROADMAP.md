@@ -36,7 +36,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [ ] Merge and Rebase (basic support).
 
 - [x] Fetch and Push operations (Fetch via `Shift+F`, Push via `Shift+P` in Branches tab).
-- [ ] Pull operations.
+- [x] Pull operations (shortcut `p` in Branches tab).
 - [ ] Manage multiple remotes.
 - [ ] Progress bars for network operations.
 

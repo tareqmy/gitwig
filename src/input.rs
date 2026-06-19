@@ -209,6 +209,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.request_branch_push();
                     }
                 }
+                KeyCode::Char('p') => {
+                    if app.detail_focus == DetailSection::LocalBranches {
+                        app.pull_selected_branch();
+                    }
+                }
                 KeyCode::Enter => {
                     if app.detail_focus == DetailSection::LocalBranches {
                         app.checkout_selected_local_branch();

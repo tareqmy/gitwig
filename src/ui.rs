@@ -83,6 +83,7 @@ const HELP_LINES: &[(&str, &str)] = &[
     ("w / W", "Cycle panel focus (Details / Branches tabs)"),
     ("c", "Commit changes (Details) / Create branch (Branches)"),
     ("⇧F", "Fetch selected branch (Branches tab)"),
+    ("p", "Pull selected branch (Branches tab)"),
     ("⇧P", "Push selected branch (Branches tab)"),
     ("o", "Show repo overview popup (in detail view)"),
     ("?", "Toggle this help overlay"),
@@ -529,6 +530,7 @@ fn detail_dismiss_entries(
             ("Create", "c"),
             ("Delete", "d"),
             ("Fetch", "⇧F"),
+            ("Pull", "p"),
             ("Push", "⇧P"),
             ("Help", "?"),
         ]

@@ -898,6 +898,7 @@ const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("3", "Go to Branches tab"),
     ("4", "Go to Files tab"),
     ("⇧F [Shift+F]", "Fetch selected local branch's upstream"),
+    ("p", "Pull selected local branch from remote"),
     ("⇧P [Shift+P]", "Push selected local branch to remote"),
     ("? / ⎋ [Esc]", "Close this help"),
     ("q / ⎋ [Esc]", "Back to repository list"),
