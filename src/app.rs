@@ -26,6 +26,7 @@ pub const ITEM_HEIGHT: u16 = 4;
 
 /// Interaction modes for the item list. The mode dictates how keystrokes
 /// are interpreted and what guidance the status bar shows.
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
     /// Browsing the list. Navigation + add/edit/delete shortcuts are active.
     Normal,
@@ -103,6 +104,10 @@ pub struct App {
     pub commit_details_scroll: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
     pub detail_areas: DetailAreas,
+    /// Main panel item bounding boxes recorded after each draw, used for mouse hit-testing.
+    pub main_areas: Vec<Rect>,
+    /// Timestamp and selected index of the last mouse click for double-click detection.
+    pub last_click: Option<(std::time::Instant, usize)>,
     /// Whether we are currently editing the commit message in the popup.
     pub commit_editing: bool,
     /// Whether the status bar is expanded.
@@ -134,6 +139,8 @@ impl App {
             diff_scroll: 0,
             commit_details_scroll: 0,
             detail_areas: DetailAreas::default(),
+            main_areas: Vec::new(),
+            last_click: None,
             commit_editing: false,
             status_expanded: false,
         }
@@ -749,8 +756,20 @@ where
 
         // Capture panel rects from the draw pass for mouse hit-testing.
         let mut detail_areas = DetailAreas::default();
-        terminal.draw(|f| ui::draw(f, &app, area, inner_area, visible_count, &mut detail_areas))?;
+        let mut main_areas = Vec::new();
+        terminal.draw(|f| {
+            ui::draw(
+                f,
+                &app,
+                area,
+                inner_area,
+                visible_count,
+                &mut detail_areas,
+                &mut main_areas,
+            )
+        })?;
         app.detail_areas = detail_areas;
+        app.main_areas = main_areas;
 
         // Transient feedback disappears after one frame.
         app.status_message = None;

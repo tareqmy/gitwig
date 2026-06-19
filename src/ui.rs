@@ -88,6 +88,7 @@ pub fn draw(
     inner_area: Rect,
     visible_count: usize,
     detail_areas: &mut crate::ui_detail::DetailAreas,
+    main_areas: &mut Vec<Rect>,
 ) {
     draw_outer_frame(f, area);
 
@@ -127,6 +128,7 @@ pub fn draw(
         draw_empty_state(f, content_area);
     } else {
         let list_chunks = item_chunks(content_area, visible_count);
+        *main_areas = list_chunks.clone();
         draw_items(f, app, &list_chunks);
     }
 

@@ -175,13 +175,6 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
 /// acted upon — all other events are silently ignored so scrolling and
 /// selection still feel natural.
 pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
-    // Only handle left-button press-down in detail mode.
-    if !matches!(
-        app.mode,
-        Mode::Detail | Mode::DetailOverview | Mode::DetailHelp
-    ) {
-        return;
-    }
     if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
         return;
     }
@@ -190,6 +183,42 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         x: mouse.column,
         y: mouse.row,
     };
+
+    if app.mode == Mode::Normal {
+        for (i, rect) in app.main_areas.iter().enumerate() {
+            if rect.contains(pos) {
+                let actual_index = i + app.scroll_top;
+                if actual_index < app.config.items.len() {
+                    let now = std::time::Instant::now();
+                    let is_double_click = if let Some((last_time, last_idx)) = app.last_click {
+                        last_idx == actual_index && now.duration_since(last_time).as_millis() < 400
+                    } else {
+                        false
+                    };
+
+                    if is_double_click {
+                        app.selected_index = actual_index;
+                        app.open_detail();
+                        app.last_click = None;
+                    } else {
+                        app.selected_index = actual_index;
+                        app.last_click = Some((now, actual_index));
+                    }
+                }
+                return;
+            }
+        }
+        return;
+    }
+
+    // Only handle detail modes beyond this point.
+    if !matches!(
+        app.mode,
+        Mode::Detail | Mode::DetailOverview | Mode::DetailHelp
+    ) {
+        return;
+    }
+
     let areas = &app.detail_areas;
 
     // Staged sub-panel (inside Staging Area left block) — check before bottom_left
