@@ -143,19 +143,19 @@ pub fn draw(
         let (style_details, style_graph, style_branches) = if detail_tab == 0 {
             (
                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                Style::default().add_modifier(Modifier::DIM),
-                Style::default().add_modifier(Modifier::DIM),
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
             )
         } else if detail_tab == 1 {
             (
-                Style::default().add_modifier(Modifier::DIM),
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                Style::default().add_modifier(Modifier::DIM),
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
             )
         } else {
             (
-                Style::default().add_modifier(Modifier::DIM),
-                Style::default().add_modifier(Modifier::DIM),
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             )
         };

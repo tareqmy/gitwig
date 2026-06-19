@@ -462,7 +462,7 @@ fn detail_dismiss_entries(
     let mut entries = Vec::new();
     let entries_data = if detail_tab == 0 {
         vec![
-            ("Back to List", "⎋/q"),
+            ("Home", "⎋/q"),
             ("Graph View", "2"),
             ("Branches", "3"),
             ("Cycle Focus", "⇥"),
@@ -474,7 +474,7 @@ fn detail_dismiss_entries(
         ]
     } else if detail_tab == 1 {
         vec![
-            ("Back to List", "⎋/q"),
+            ("Home", "⎋/q"),
             ("Details View", "1"),
             ("Branches", "3"),
             ("Overview", "o"),
@@ -482,7 +482,7 @@ fn detail_dismiss_entries(
         ]
     } else {
         vec![
-            ("Back to List", "⎋/q"),
+            ("Home", "⎋/q"),
             ("Details View", "1"),
             ("Graph View", "2"),
             ("Cycle Focus", "⇥"),
