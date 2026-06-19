@@ -35,8 +35,8 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Create and delete branches.
 - [ ] Merge and Rebase (basic support).
 
-## Phase 5: Remotes & Sync
-- [ ] Fetch, Pull, and Push operations.
+- [x] Fetch and Push operations (Fetch via `Shift+F`, Push via `Shift+P` in Branches tab).
+- [ ] Pull operations.
 - [ ] Manage multiple remotes.
 - [ ] Progress bars for network operations.
 

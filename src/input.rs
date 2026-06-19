@@ -73,6 +73,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_branch_delete(),
             _ => {}
         },
+        Mode::BranchPushConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_branch_push(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_branch_push(),
+            _ => {}
+        },
         Mode::Help => match code {
             KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_dialog();
@@ -197,6 +202,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char('F') => {
                     if app.detail_focus == DetailSection::LocalBranches {
                         app.fetch_selected_branch();
+                    }
+                }
+                KeyCode::Char('P') => {
+                    if app.detail_focus == DetailSection::LocalBranches {
+                        app.request_branch_push();
                     }
                 }
                 KeyCode::Enter => {

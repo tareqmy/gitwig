@@ -332,6 +332,10 @@ pub fn draw(
             if matches!(mode, Mode::BranchDeleteConfirm) {
                 draw_branch_delete_popup(f, branch_action_target, body_area);
             }
+            // Draw branch push popup on top when requested.
+            if matches!(mode, Mode::BranchPushConfirm) {
+                draw_branch_push_popup(f, branch_action_target, body_area);
+            }
         }
         _ => {
             let body_lines = build_body(detail);
@@ -894,6 +898,7 @@ const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("3", "Go to Branches tab"),
     ("4", "Go to Files tab"),
     ("⇧F [Shift+F]", "Fetch selected local branch's upstream"),
+    ("⇧P [Shift+P]", "Push selected local branch to remote"),
     ("? / ⎋ [Esc]", "Close this help"),
     ("q / ⎋ [Esc]", "Back to repository list"),
     (
@@ -1698,6 +1703,48 @@ fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area
                 branch_name,
                 Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
             ),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block);
+    f.render_widget(paragraph, popup_area);
+}
+
+fn draw_branch_push_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
+    let popup_area = centred_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT);
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Push Branch", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let branch_name = match target {
+        Some((name, _)) => name.as_str(),
+        None => "",
+    };
+
+    let content = vec![
+        Line::from(vec![
+            Span::styled("Are you sure you want to push branch ", primary_style()),
+            Span::styled(branch_name, accent_style().add_modifier(Modifier::BOLD)),
+            Span::raw("?"),
         ]),
         Line::from(""),
         Line::from(vec![

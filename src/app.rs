@@ -50,6 +50,8 @@ pub enum Mode {
     BranchCreateInput,
     /// Confirming deletion of a branch. y deletes, n/Esc cancels.
     BranchDeleteConfirm,
+    /// Confirming push of a branch. y pushes, n/Esc cancels.
+    BranchPushConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -516,6 +518,122 @@ impl App {
                     let _ = tx.send(msg);
                 });
             }
+        }
+    }
+
+    /// Spawns a background thread to push the selected local branch to its upstream remote.
+    /// If no upstream is configured, it falls back to the first configured remote (typically origin)
+    /// and sets upstream tracking (-u).
+    /// Requests confirmation to push the selected local branch.
+    pub fn request_branch_push(&mut self) {
+        if self.fetching {
+            return;
+        }
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
+                self.branch_action_target = Some((branch_info.name.clone(), false));
+                self.mode = Mode::BranchPushConfirm;
+            }
+        }
+    }
+
+    /// Confirms the push operation.
+    pub fn confirm_branch_push(&mut self) {
+        if let Some((branch_name, _)) = &self.branch_action_target {
+            let branch_name = branch_name.clone();
+            self.execute_branch_push(&branch_name);
+        }
+        self.branch_action_target = None;
+        self.mode = Mode::Detail;
+    }
+
+    /// Cancels the push operation.
+    pub fn cancel_branch_push(&mut self) {
+        self.branch_action_target = None;
+        self.mode = Mode::Detail;
+    }
+
+    /// Spawns a background thread to push the chosen local branch to its upstream remote.
+    /// If no upstream is configured, it falls back to the first configured remote (typically origin)
+    /// and sets upstream tracking (-u).
+    pub fn execute_branch_push(&mut self, branch_name: &str) {
+        if self.fetching {
+            return;
+        }
+        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+            let repo_path = resolved.clone();
+            let branch_name = branch_name.to_string();
+
+            let mut remote_name = None;
+            let mut set_upstream = false;
+
+            if let Ok(repo) = git2::Repository::open(&repo_path) {
+                if let Ok(branch) = repo.find_branch(&branch_name, git2::BranchType::Local) {
+                    if let Ok(upstream) = branch.upstream() {
+                        if let Ok(upstream_ref) = upstream.get().name() {
+                            if let Ok(remote_buf) = repo.branch_upstream_remote(upstream_ref) {
+                                if let Ok(name) = remote_buf.as_str() {
+                                    remote_name = Some(name.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if remote_name.is_none() {
+                    if let Ok(remotes) = repo.remotes() {
+                        if let Some(Ok(Some(first_remote))) = remotes.iter().next() {
+                            remote_name = Some(first_remote.to_string());
+                            set_upstream = true;
+                        }
+                    }
+                }
+            }
+
+            let remote_name = match remote_name {
+                Some(name) => name,
+                None => {
+                    self.status_message =
+                        Some("No remotes configured for this repository".to_string());
+                    return;
+                }
+            };
+
+            self.fetching = true;
+            self.status_message =
+                Some(format!("Pushing '{}' to '{}'...", branch_name, remote_name));
+
+            let tx = self.tx.clone();
+            std::thread::spawn(move || {
+                let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                    let mut cmd = std::process::Command::new("git");
+                    cmd.arg("push");
+                    if set_upstream {
+                        cmd.arg("-u");
+                    }
+                    cmd.arg(&remote_name)
+                        .arg(&branch_name)
+                        .current_dir(&repo_path);
+
+                    let output = cmd.output()?;
+
+                    if output.status.success() {
+                        Ok(format!(
+                            "Pushed '{}' to '{}' successfully",
+                            branch_name, remote_name
+                        ))
+                    } else {
+                        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                        Err(format!("git push failed: {}", err_msg).into())
+                    }
+                })();
+
+                let msg = match res {
+                    Ok(success) => success,
+                    Err(e) => format!("Push failed: {}", e),
+                };
+                let _ = tx.send(msg);
+            });
         }
     }
 

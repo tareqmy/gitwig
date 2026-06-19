@@ -82,6 +82,8 @@ const HELP_LINES: &[(&str, &str)] = &[
     ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
     ("w / W", "Cycle panel focus (Details / Branches tabs)"),
     ("c", "Commit changes (Details) / Create branch (Branches)"),
+    ("⇧F", "Fetch selected branch (Branches tab)"),
+    ("⇧P", "Push selected branch (Branches tab)"),
     ("o", "Show repo overview popup (in detail view)"),
     ("?", "Toggle this help overlay"),
     ("q", "Quit (also closes detail view)"),
@@ -114,6 +116,7 @@ pub fn draw(
             | Mode::CommitInput
             | Mode::BranchCreateInput
             | Mode::BranchDeleteConfirm
+            | Mode::BranchPushConfirm
     ) {
         if let Some(detail) = &app.current_detail {
             let item_name = app
@@ -471,6 +474,15 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = confirm_branch_delete_entries(target, is_remote);
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
+        Mode::BranchPushConfirm => {
+            let target = app
+                .branch_action_target
+                .as_ref()
+                .map(|(name, _)| name.as_str())
+                .unwrap_or("");
+            let (msg_spans, entries) = confirm_branch_push_entries(target);
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
+        }
     }
 }
 
@@ -513,10 +525,11 @@ fn detail_dismiss_entries(
             ("Graph View", "2"),
             ("Files", "4"),
             ("Cycle Focus", "w/W"),
-            ("Navigate/Scroll", "↑↓"),
             ("Checkout", "↵"),
+            ("Create", "c"),
+            ("Delete", "d"),
             ("Fetch", "⇧F"),
-            ("Overview", "o"),
+            ("Push", "⇧P"),
             ("Help", "?"),
         ]
     } else {
@@ -794,6 +807,38 @@ fn confirm_branch_delete_entries(
             Span::styled(
                 "y",
                 Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Cancel"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("n/⎋", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (message_spans, entries)
+}
+
+fn confirm_branch_push_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let message_spans = Some(vec![
+        Span::raw("Push branch "),
+        Span::styled(
+            format!("\"{}\"", target),
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("? "),
+    ]);
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Confirm"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled(
+                "y",
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             ),
             Span::styled("]", muted_style()),
         ]),
