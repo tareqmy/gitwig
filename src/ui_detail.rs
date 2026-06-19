@@ -1190,8 +1190,10 @@ fn draw_commit_popup(f: &mut Frame, input_buffer: &str, editing: bool, area: Rec
 
     let footer_spans = if editing {
         vec![
-            Span::styled("Enter", accent_style()),
+            Span::styled("Ctrl+C", accent_style()),
             Span::raw("  done  ·  "),
+            Span::styled("Enter", accent_style()),
+            Span::raw("  newline  ·  "),
             Span::styled("Esc", accent_style()),
             Span::raw("  cancel"),
         ]
@@ -1226,10 +1228,21 @@ fn draw_commit_popup(f: &mut Frame, input_buffer: &str, editing: bool, area: Rec
     f.render_widget(text, inner_area);
 
     if editing {
-        let cursor_offset = input_buffer.chars().count() as u16;
+        let lines: Vec<&str> = input_buffer.split('\n').collect();
+        let last_line = lines.last().copied().unwrap_or("");
+        let line_count = lines.len();
+        let cursor_y = inner_area
+            .y
+            .saturating_add(line_count.saturating_sub(1) as u16)
+            .min(
+                inner_area
+                    .y
+                    .saturating_add(inner_area.height.saturating_sub(1)),
+            );
+        let cursor_offset = last_line.chars().count() as u16;
         let cursor_x = inner_area
             .x
             .saturating_add(cursor_offset.min(inner_area.width.saturating_sub(1)));
-        f.set_cursor_position(ratatui::layout::Position::new(cursor_x, inner_area.y));
+        f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
     }
 }

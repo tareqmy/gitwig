@@ -752,7 +752,7 @@ where
         ))? {
             match event::read()? {
                 Event::Key(key) => {
-                    if !input::handle_key(&mut app, key.code, visible_count) {
+                    if !input::handle_key(&mut app, key, visible_count) {
                         return Ok(());
                     }
                 }

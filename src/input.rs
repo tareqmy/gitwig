@@ -4,13 +4,14 @@
 //! appropriate `App` method. Returns `false` when the user has asked to
 //! quit, `true` otherwise.
 
-use crossterm::event::{KeyCode, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Position;
 
 use crate::app::{App, DetailSection, Mode};
 
 /// Dispatch a key press. Returns `false` if the user requested quit.
-pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
+pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
+    let code = key.code;
     let detail_focus = app.detail_focus; // Copy before borrow in match
     match &app.mode {
         Mode::Normal => match code {
@@ -136,7 +137,12 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
             if app.commit_editing {
                 match code {
                     KeyCode::Esc => app.cancel_commit(),
-                    KeyCode::Enter => app.commit_done_editing(),
+                    KeyCode::Enter => app.input_char('\n'),
+                    KeyCode::Char('c') | KeyCode::Char('C')
+                        if key.modifiers.contains(KeyModifiers::CONTROL) =>
+                    {
+                        app.commit_done_editing()
+                    }
                     KeyCode::Backspace => app.input_backspace(),
                     KeyCode::Char(c) => app.input_char(c),
                     _ => {}
