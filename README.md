@@ -42,6 +42,16 @@
 | `n` / `Esc`          | Confirm Delete  | Cancel deletion                   |
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
 | `Esc` / `q`          | Detail          | Return to the list                |
+| `Tab`                | Detail          | Cycle panel focus (`Commits` → `Staged` → `Unstaged` → `StagingDetails`) |
+| `↑` / `k`            | Detail          | Move selection or scroll diff up  |
+| `↓` / `j`            | Detail          | Move selection or scroll diff down |
+| `PgUp` / `PgDn`      | Detail          | Jump 10 rows or page scroll diff  |
+| `Enter`              | Detail          | Stage/Unstage file (in staging lists) |
+| `o`                  | Detail          | Toggle repository overview popup  |
+| `?`                  | Detail          | Toggle detail help overlay        |
+| `Esc` / `q` / `o`    | DetailOverview  | Close repository overview popup   |
+| `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |
+| `Left-Click` (Mouse) | Detail          | Shift focus to the clicked panel |
 
 Press `?` at any time in normal mode to see the full keybinding reference as a centered popup. The help overlay only handles the dismissal keys — your selection and scroll position are preserved underneath.
 
@@ -51,6 +61,8 @@ The bottom status bar shows a colored mode badge that mirrors what is happening:
 - **Yellow `ADDING` / `EDITING`** — typing into the input field; the selected card's border turns yellow so you can see exactly which item will be replaced.
 - **Red `CONFIRM`** — awaiting delete confirmation; the doomed card's border turns red.
 - **Cyan `HELP`** — the shortcut overlay is open.
+- **Cyan `DETAIL`** — detail view is open for the selected repository.
+- **Cyan `OVERVIEW`** — repository overview popup is open.
 
 The selected item is marked with a left-edge `▌` accent, a colored border, and bold text. In `ADDING` and `EDITING` modes the real terminal cursor sits at the end of your input so you can see exactly where the next character will land.
 
@@ -80,21 +92,26 @@ Items support `~` and `~/...` expansion, so `~/code/twig` resolves to your home 
 
 Press `Enter` on a selected item to open a full-screen Detail view. Press `Esc` or `q` to return to the list.
 
-For a **git repository** the detail view shows:
+### Panel Layout & Navigation
 
-- The resolved path (after `~` expansion).
-- The current branch (or `(detached HEAD)` / `(empty repository)`).
-- The HEAD commit's short hash, summary, author, and a relative time ("3 days ago").
-- All configured remotes with their URLs.
-- **Upstream** — the tracking branch (e.g. `origin/main`), or `(not configured)` if the branch has no upstream.
-- **Sync** — `in sync`, `N ahead`, `N behind`, or a combination; `—` when no upstream is configured.
-- The working-tree status — `clean`, or counts of staged / modified / untracked / conflicted files.
+For a **git repository**, the detail view is split into multiple rounded panels with a 40:60 width ratio on the bottom:
+- **Commits (top 50%):** Lists the recent commits in the repository. If there are uncommitted changes, a special row named `Uncommitted changes` will be pinned to the very top.
+- **Staging Area (bottom-left 40%):** Lists files that are modified, staged, or untracked. When `Uncommitted changes` is selected at the top, this panel is split vertically into `Staged` and `Unstaged` sections. When a real commit is selected, it displays the list of files modified in that commit.
+- **Staging Details (bottom-right 60%):** Displays the unified diff of the selected file.
+
+You can navigate and interact with these panels in the following ways:
+- **Cycle focus:** Cycle focus between active panels using `Tab` (`Commits` → `Staged` → `Unstaged` → `StagingDetails`).
+- **Mouse Click to Focus:** Click anywhere inside any panel's boundaries (including staged/unstaged sub-panels) to focus it immediately.
+- **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit or select a file inside the staging/commit file lists.
+- **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
+- **Stage/Unstage Files:** Select the `Uncommitted changes` row at the top, select a file in either the `Staged` or `Unstaged` list, and press `Enter` to stage or unstage that file instantly.
+- **Repository Overview:** Press `o` to open a repository overview popup showing details such as resolved paths, branch upstream tracking, configured remotes, and general status counts.
 
 For a **plain directory** the view confirms the resolved path and explains that no `.git` entry was found.
 
 For a **missing** item the view confirms the resolved path and notes that the path does not exist or isn't accessible.
 
-The detail snapshot is taken **once** when you press Enter — it is not refreshed while open. Close and re-open to re-read the repository state.
+The detail snapshot is taken **once** when you press Enter — it is not refreshed while open (except for staging/unstaging actions which refresh dynamically). Close and re-open to re-read the repository state.
 
 After every successful add / edit / delete, the status bar briefly shows `Saved` or `Deleted`. If the write fails, the status bar shows `Save failed: <reason>` instead — your in-memory list still reflects the change, but the file on disk does not.
 

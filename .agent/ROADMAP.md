@@ -19,14 +19,14 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 
 ## Phase 2: Working Tree & Status
 - [x] Display list of changed files (staged and unstaged).
-- [ ] Support staging/unstaging individual files (shortcut `s` and `u`).
+- [x] Support staging/unstaging individual files (shortcut `Enter` in staging lists).
 - [ ] Basic commit functionality (shortcut `c`).
-- [ ] Side-by-side or unified diff view for the selected file.
+- [x] Side-by-side or unified diff view for the selected file.
 
 ## Phase 3: History & Log
 - [x] Display Git commit log with author, date, and message.
-- [ ] Navigate through history.
-- [ ] View diff for a specific commit.
+- [x] Navigate through history (`↑`/`k`, `↓`/`j`, `PgUp`/`PgDn` in Commits panel).
+- [x] View diff for a specific commit (select a commit to see its changed files, and select a file to view its diff on the right).
 - [ ] Branch visualization (graph view).
 
 ## Phase 4: Branch Management
@@ -41,6 +41,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [ ] Progress bars for network operations.
 
 ## Phase 6: Advanced Features
+- [x] Mouse click support to change panel focus in Detail view.
 - [ ] Stashing (list, apply, drop, pop).
 - [ ] Interactive Rebase.
 - [ ] Conflict resolution UI.
