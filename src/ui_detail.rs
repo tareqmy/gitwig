@@ -97,14 +97,14 @@ pub fn draw(
 
     let header_left = Paragraph::new(Line::from(vec![
         Span::raw(FIELD_INDENT),
-        Span::styled(field_label("Item"), muted_style()),
+        Span::styled("⎇  ", muted_style()),
         Span::styled(item_name.to_string(), accent_style()),
     ]));
     f.render_widget(header_left, header_chunks[0]);
 
     if let Some(branch_name) = branch {
         let header_right = Paragraph::new(Line::from(vec![
-            Span::styled("⎇  ", muted_style()),
+            Span::styled("  ", muted_style()),
             Span::styled(branch_name, accent_style()),
             Span::raw("  "),
         ]))
@@ -728,22 +728,22 @@ fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 // ── Detail help overlay ────────────────────────────────────────────────────
 
 const DETAIL_HELP_LINES: &[(&str, &str)] = &[
-    ("↑ / k", "Select previous commit / file"),
-    ("↓ / j", "Select next commit / file"),
-    ("⇞", "Jump 10 rows up"),
-    ("⇟", "Jump 10 rows down"),
+    ("↑ [Up] / k", "Select previous commit / file"),
+    ("↓ [Down] / j", "Select next commit / file"),
+    ("⇞ [PgUp]", "Jump 10 rows up"),
+    ("⇟ [PgDn]", "Jump 10 rows down"),
     (
-        "⇥",
+        "⇥ [Tab]",
         "Cycle panel focus  (Commits → Staged → Unstaged → Details)",
     ),
     (
-        "↵",
+        "↵ [Enter]",
         "Stage file (Unstaged panel) / Unstage file (Staged panel)",
     ),
     ("c", "Commit staged changes"),
     ("o", "Show repo overview popup"),
-    ("? / ⎋", "Close this help"),
-    ("q / ⎋", "Back to repository list"),
+    ("? / ⎋ [Esc]", "Close this help"),
+    ("q / ⎋ [Esc]", "Back to repository list"),
     ("Left-Click", "Focus clicked panel (mouse support)"),
 ];
 

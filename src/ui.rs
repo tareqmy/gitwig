@@ -61,18 +61,24 @@ pub(crate) fn accent_style() -> Style {
 /// Lines of the help overlay. Update this whenever a binding is added or
 /// renamed — it is the user's only complete shortcut reference.
 const HELP_LINES: &[(&str, &str)] = &[
-    ("↑ / k", "Move selection up / scroll up"),
-    ("↓ / j", "Move selection down / scroll down"),
-    ("⇟", "Jump one page down / page down"),
-    ("⇞", "Jump one page up / page up"),
-    ("↵", "Open detail view for selected item / stage file"),
+    ("↑ [Up] / k", "Move selection up / scroll up"),
+    ("↓ [Down] / j", "Move selection down / scroll down"),
+    ("⇟ [PgDn]", "Jump one page down / page down"),
+    ("⇞ [PgUp]", "Jump one page up / page up"),
+    (
+        "↵ [Enter]",
+        "Open detail view for selected item / stage file",
+    ),
     ("a", "Add a new item"),
     ("e", "Edit selected item"),
     ("d", "Delete selected item"),
     ("r", "Refresh status of selected item"),
-    ("⎋", "Cancel input, close dialog, or leave detail view"),
-    ("⌫", "Erase character while typing"),
-    ("⇥", "Cycle panel focus (in detail view)"),
+    (
+        "⎋ [Esc]",
+        "Cancel input, close dialog, or leave detail view",
+    ),
+    ("⌫ [Backspace]", "Erase character while typing"),
+    ("⇥ [Tab]", "Cycle panel focus (in detail view)"),
     ("c", "Commit staged changes (in detail view)"),
     ("o", "Show repo overview popup (in detail view)"),
     ("?", "Toggle this help overlay"),
@@ -262,7 +268,7 @@ fn branch_name_line(status: &ItemStatus) -> Line<'static> {
     match branch {
         Some(b) => Line::from(vec![
             Span::raw(UNSELECTED_INDENT), // align with item text
-            Span::styled("⎇  ", muted_style()),
+            Span::styled("  ", muted_style()),
             Span::styled(b, Style::default().fg(ACCENT)),
         ]),
         None => Line::from(""),
