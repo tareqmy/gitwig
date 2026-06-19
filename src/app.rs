@@ -475,10 +475,70 @@ impl App {
     }
 
 
+    /// Re-snapshot the repo for the selected item, preserving focus and clamping selection.
+    /// Call this after any index-mutating operation (stage / unstage).
+    pub fn refresh_detail(&mut self) {
+        if let Some(item) = self.config.items.get(self.selected_index) {
+            self.current_detail = Some(repo::inspect_detail(item));
+            // Clamp staging_file_selection to the new list length.
+            let new_total = self.staging_file_total();
+            if new_total == 0 {
+                self.staging_file_selection = 0;
+            } else if self.staging_file_selection >= new_total {
+                self.staging_file_selection = new_total - 1;
+            }
+            self.diff_scroll = 0;
+            self.refresh_staging_diff();
+        }
+    }
+
+    /// Stage the currently-selected file in the Unstaged panel (`git add`).
+    pub fn stage_selected_file(&mut self) {
+        let params = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => info
+                .changes
+                .unstaged
+                .get(self.staging_file_selection)
+                .map(|f| (resolved.clone(), f.path.clone())),
+            _ => None,
+        };
+        if let Some((repo_path, file_path)) = params {
+            match repo::stage_file(&repo_path, &file_path) {
+                Ok(()) => {
+                    self.status_message = Some(format!("Staged: {}", file_path));
+                    self.refresh_detail();
+                }
+                Err(e) => self.status_message = Some(format!("Stage failed: {}", e)),
+            }
+        }
+    }
+
+    /// Unstage the currently-selected file in the Staged panel (`git restore --staged`).
+    pub fn unstage_selected_file(&mut self) {
+        let params = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => info
+                .changes
+                .staged
+                .get(self.staging_file_selection)
+                .map(|f| (resolved.clone(), f.path.clone())),
+            _ => None,
+        };
+        if let Some((repo_path, file_path)) = params {
+            match repo::unstage_file(&repo_path, &file_path) {
+                Ok(()) => {
+                    self.status_message = Some(format!("Unstaged: {}", file_path));
+                    self.refresh_detail();
+                }
+                Err(e) => self.status_message = Some(format!("Unstage failed: {}", e)),
+            }
+        }
+    }
+
     pub fn close_detail(&mut self) {
         self.current_detail = None;
         self.mode = Mode::Normal;
     }
+
 
     /// Opens the repo overview popup while staying in the detail view.
     pub fn open_overview_popup(&mut self) {

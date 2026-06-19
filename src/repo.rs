@@ -177,6 +177,39 @@ pub fn get_worktree_file_diff(repo_path: &Path, file_path: &str, staged: bool) -
     get_worktree_diff_inner(repo_path, file_path, staged).unwrap_or_default()
 }
 
+/// Add `file_path` to the index (equivalent to `git add <file>`).
+/// Returns a human-readable error string on failure.
+pub fn stage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let mut index = repo.index().map_err(|e| e.to_string())?;
+    index
+        .add_path(Path::new(file_path))
+        .map_err(|e| e.to_string())?;
+    index.write().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Remove `file_path` from the index (equivalent to `git restore --staged <file>`).
+/// When HEAD exists the index entry is reset to the HEAD tree value; for a brand-new
+/// repo with no commits the entry is simply removed from the index.
+/// Returns a human-readable error string on failure.
+pub fn unstage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    // Prefer reset_default (git reset HEAD -- <file>) when a HEAD commit exists.
+    if let Some(commit) = repo.head().ok().and_then(|h| h.peel_to_commit().ok()) {
+        repo.reset_default(Some(commit.as_object()), std::iter::once(file_path))
+            .map_err(|e| e.to_string())?;
+    } else {
+        // New repo with no commits: just remove the entry from the index.
+        let mut index = repo.index().map_err(|e| e.to_string())?;
+        index
+            .remove_path(Path::new(file_path))
+            .map_err(|e| e.to_string())?;
+        index.write().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 // ── Public entry points ────────────────────────────────────────────────────
 
 /// Expand a leading `~` or `~/` in a user-supplied path to the user's home

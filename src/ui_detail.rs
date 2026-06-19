@@ -587,14 +587,15 @@ fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 // ── Detail help overlay ────────────────────────────────────────────────────
 
 const DETAIL_HELP_LINES: &[(&str, &str)] = &[
-    ("↑ / k", "Select previous commit"),
-    ("↓ / j", "Select next commit"),
-    ("PgUp", "Jump 10 commits up"),
-    ("PgDn", "Jump 10 commits down"),
+    ("↑ / k", "Select previous commit / file"),
+    ("↓ / j", "Select next commit / file"),
+    ("PgUp", "Jump 10 rows up"),
+    ("PgDn", "Jump 10 rows down"),
     (
         "Tab",
         "Cycle panel focus  (Commits → Staged → Unstaged → Details)",
     ),
+    ("Enter", "Stage file (Unstaged panel) / Unstage file (Staged panel)"),
     ("o", "Show repo overview popup"),
     ("? / Esc", "Close this help"),
     ("q / Esc", "Back to repository list"),

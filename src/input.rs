@@ -88,6 +88,16 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
                     app.detail_file_down()
                 }
             }
+            KeyCode::Enter
+                if detail_focus == DetailSection::Staged && app.is_uncommitted_selected() =>
+            {
+                app.unstage_selected_file()
+            }
+            KeyCode::Enter
+                if detail_focus == DetailSection::Unstaged && app.is_uncommitted_selected() =>
+            {
+                app.stage_selected_file()
+            }
             KeyCode::Up | KeyCode::Char('k')
                 if detail_focus == DetailSection::StagingDetails =>
             {
