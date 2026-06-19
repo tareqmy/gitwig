@@ -122,6 +122,10 @@ pub struct App {
     pub detail_tab: usize,
     /// Selected file index in the Files tab.
     pub file_list_selection: usize,
+    /// Set of expanded folder paths.
+    pub expanded_folders: std::collections::HashSet<String>,
+    /// Flattened visible files inside the Files tab.
+    pub visible_files: Vec<FileTreeItem>,
     /// Vertical scroll offset for the git history graph view (Graph tab).
     pub graph_scroll: usize,
     /// Whether we are currently editing the commit message in the popup.
@@ -136,6 +140,22 @@ pub struct App {
     pub fetching: bool,
     /// Whether gitui launch is pending.
     pub pending_gitui: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct FileTreeItem {
+    pub name: String,
+    pub full_path: String,
+    pub is_dir: bool,
+    pub depth: usize,
+    pub is_expanded: bool,
+}
+
+struct TempNode {
+    name: String,
+    full_path: String,
+    is_dir: bool,
+    children: std::collections::BTreeMap<String, TempNode>,
 }
 
 impl App {
@@ -170,6 +190,8 @@ impl App {
             last_click: None,
             detail_tab: 0,
             file_list_selection: 0,
+            expanded_folders: std::collections::HashSet::new(),
+            visible_files: Vec::new(),
             graph_scroll: 0,
             commit_editing: false,
             status_expanded: false,
@@ -294,6 +316,8 @@ impl App {
             self.local_branch_selection = 0;
             self.remote_branch_selection = 0;
             self.file_list_selection = 0;
+            self.expanded_folders.clear();
+            self.rebuild_visible_files();
             self.detail_tab = 0;
             self.graph_scroll = 0;
             self.mode = Mode::Detail;
@@ -411,11 +435,9 @@ impl App {
 
     /// Move file selection down in the Files tab.
     pub fn file_list_down(&mut self) {
-        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            let total = info.files.len();
-            if total > 0 && self.file_list_selection + 1 < total {
-                self.file_list_selection += 1;
-            }
+        let total = self.visible_files.len();
+        if total > 0 && self.file_list_selection + 1 < total {
+            self.file_list_selection += 1;
         }
     }
 
@@ -426,12 +448,10 @@ impl App {
 
     /// Scroll file selection down by page.
     pub fn file_list_page_down(&mut self, page: usize) {
-        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            let total = info.files.len();
-            if total > 0 {
-                self.file_list_selection =
-                    (self.file_list_selection + page).min(total.saturating_sub(1));
-            }
+        let total = self.visible_files.len();
+        if total > 0 {
+            self.file_list_selection =
+                (self.file_list_selection + page).min(total.saturating_sub(1));
         }
     }
 
@@ -492,7 +512,6 @@ impl App {
         }
     }
 
-    /// Checks out the selected local branch (safety checks apply).
     pub fn checkout_selected_local_branch(&mut self) {
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
             if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
@@ -504,6 +523,7 @@ impl App {
                             // Refresh detail snapshot
                             let item = &self.config.items[self.selected_index];
                             self.current_detail = Some(repo::inspect_detail(item));
+                            self.rebuild_visible_files();
                             self.local_branch_selection = 0;
                         }
                         Err(e) => {
@@ -525,6 +545,7 @@ impl App {
                         // Refresh detail snapshot
                         let item = &self.config.items[self.selected_index];
                         self.current_detail = Some(repo::inspect_detail(item));
+                        self.rebuild_visible_files();
                         self.local_branch_selection = 0;
                     }
                     Err(e) => {
@@ -792,6 +813,7 @@ impl App {
     pub fn refresh_detail(&mut self) {
         if let Some(item) = self.config.items.get(self.selected_index) {
             self.current_detail = Some(repo::inspect_detail(item));
+            self.rebuild_visible_files();
             // Clamp staging_file_selection to the new list length.
             let new_total = self.staging_file_total();
             if new_total == 0 {
@@ -996,6 +1018,94 @@ impl App {
             Err(e) => Some(format!("Save failed: {}", e)),
         };
     }
+
+    /// Rebuilds the flattened list of visible tree nodes in the Files tab.
+    pub fn rebuild_visible_files(&mut self) {
+        let mut visible_files = Vec::new();
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let mut root = TempNode {
+                name: "".to_string(),
+                full_path: "".to_string(),
+                is_dir: true,
+                children: std::collections::BTreeMap::new(),
+            };
+
+            for file_path in &info.files {
+                let parts: Vec<&str> = file_path.split('/').collect();
+                let mut current = &mut root;
+                let mut accumulated = String::new();
+                for (i, part) in parts.iter().enumerate() {
+                    if !accumulated.is_empty() {
+                        accumulated.push('/');
+                    }
+                    accumulated.push_str(part);
+
+                    let is_last = i == parts.len() - 1;
+                    let entry = current
+                        .children
+                        .entry((*part).to_string())
+                        .or_insert_with(|| TempNode {
+                            name: (*part).to_string(),
+                            full_path: accumulated.clone(),
+                            is_dir: !is_last,
+                            children: std::collections::BTreeMap::new(),
+                        });
+                    current = entry;
+                }
+            }
+
+            fn flatten_tree(
+                node: &TempNode,
+                depth: usize,
+                expanded_folders: &std::collections::HashSet<String>,
+                out: &mut Vec<FileTreeItem>,
+            ) {
+                let mut child_nodes: Vec<&TempNode> = node.children.values().collect();
+                child_nodes.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+                    (true, false) => std::cmp::Ordering::Less,
+                    (false, true) => std::cmp::Ordering::Greater,
+                    _ => a.name.cmp(&b.name),
+                });
+
+                for child in child_nodes {
+                    let is_expanded = child.is_dir && expanded_folders.contains(&child.full_path);
+                    out.push(FileTreeItem {
+                        name: child.name.clone(),
+                        full_path: child.full_path.clone(),
+                        is_dir: child.is_dir,
+                        depth,
+                        is_expanded,
+                    });
+                    if is_expanded {
+                        flatten_tree(child, depth + 1, expanded_folders, out);
+                    }
+                }
+            }
+
+            flatten_tree(&root, 0, &self.expanded_folders, &mut visible_files);
+        }
+        self.visible_files = visible_files;
+    }
+
+    /// Expand the selected folder in the Files tab.
+    pub fn expand_selected_folder(&mut self) {
+        if let Some(item) = self.visible_files.get(self.file_list_selection) {
+            if item.is_dir {
+                self.expanded_folders.insert(item.full_path.clone());
+                self.rebuild_visible_files();
+            }
+        }
+    }
+
+    /// Collapse the selected folder in the Files tab.
+    pub fn collapse_selected_folder(&mut self) {
+        if let Some(item) = self.visible_files.get(self.file_list_selection) {
+            if item.is_dir {
+                self.expanded_folders.remove(&item.full_path);
+                self.rebuild_visible_files();
+            }
+        }
+    }
 }
 
 /// Main event loop: compute layout, draw, poll input, repeat.
@@ -1012,6 +1122,7 @@ where
             app.fetching = false;
             if let Some(item) = app.config.items.get(app.selected_index) {
                 app.current_detail = Some(repo::inspect_detail(item));
+                app.rebuild_visible_files();
             }
         }
 

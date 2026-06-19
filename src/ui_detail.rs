@@ -85,6 +85,7 @@ pub fn draw(
     local_branch_selection: usize,
     remote_branch_selection: usize,
     file_list_selection: usize,
+    visible_files: &[crate::app::FileTreeItem],
     detail_tab: usize,
     graph_scroll: usize,
     areas: &mut DetailAreas,
@@ -300,7 +301,14 @@ pub fn draw(
                 );
             } else {
                 // Render Files view (tab 4, index 3)
-                draw_files_view(f, info, *focus, file_list_selection, areas, body_area);
+                draw_files_view(
+                    f,
+                    visible_files,
+                    *focus,
+                    file_list_selection,
+                    areas,
+                    body_area,
+                );
             }
 
             // Draw overview popup on top when requested.
@@ -1514,7 +1522,7 @@ fn draw_branches_view(
 
 fn draw_files_view(
     f: &mut Frame,
-    info: &RepoInfo,
+    visible_files: &[crate::app::FileTreeItem],
     focus: DetailSection,
     file_list_selection: usize,
     areas: &mut DetailAreas,
@@ -1540,13 +1548,24 @@ fn draw_files_view(
         ]))
         .padding(Padding::uniform(1));
 
-    let items: Vec<ListItem> = info
-        .files
+    let items: Vec<ListItem> = visible_files
         .iter()
-        .map(|path| {
+        .map(|item| {
+            let indent = "  ".repeat(item.depth);
+            let (prefix, style) = if item.is_dir {
+                if item.is_expanded {
+                    ("▼ ", primary_style())
+                } else {
+                    ("> ", primary_style())
+                }
+            } else {
+                ("  🗎 ", muted_style())
+            };
+
             ListItem::new(Line::from(vec![
-                Span::styled("  🗎 ", muted_style()),
-                Span::styled(path.clone(), primary_style()),
+                Span::raw(indent),
+                Span::styled(prefix, style),
+                Span::styled(item.name.clone(), primary_style()),
             ]))
         })
         .collect();

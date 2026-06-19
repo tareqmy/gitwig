@@ -221,6 +221,12 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::PageDown => {
                     app.file_list_page_down(10);
                 }
+                KeyCode::Char('>') | KeyCode::Char('.') | KeyCode::Right => {
+                    app.expand_selected_folder();
+                }
+                KeyCode::Char('<') | KeyCode::Char(',') | KeyCode::Left => {
+                    app.collapse_selected_folder();
+                }
                 _ => {}
             },
             _ => {}

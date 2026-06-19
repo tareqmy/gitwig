@@ -128,6 +128,7 @@ pub fn draw(
                 app.local_branch_selection,
                 app.remote_branch_selection,
                 app.file_list_selection,
+                &app.visible_files,
                 app.detail_tab,
                 app.graph_scroll,
                 detail_areas,
