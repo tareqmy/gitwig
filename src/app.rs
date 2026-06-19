@@ -130,6 +130,8 @@ pub struct App {
     pub rx: std::sync::mpsc::Receiver<String>,
     /// Whether a background fetch is active.
     pub fetching: bool,
+    /// Whether gitui launch is pending.
+    pub pending_gitui: bool,
 }
 
 impl App {
@@ -169,6 +171,7 @@ impl App {
             tx,
             rx,
             fetching: false,
+            pending_gitui: false,
         }
     }
 
@@ -972,6 +975,52 @@ where
             app.fetching = false;
             if let Some(item) = app.config.items.get(app.selected_index) {
                 app.current_detail = Some(repo::inspect_detail(item));
+            }
+        }
+
+        if app.pending_gitui {
+            app.pending_gitui = false;
+            if let Some(item) = app.config.items.get(app.selected_index) {
+                let path = repo::expand_tilde(item);
+
+                let raw_res = crossterm::terminal::disable_raw_mode();
+                let exec_res = crossterm::execute!(
+                    std::io::stdout(),
+                    crossterm::terminal::LeaveAlternateScreen,
+                    crossterm::event::DisableMouseCapture
+                );
+                let cursor_res = terminal.show_cursor();
+
+                if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+                    let status = std::process::Command::new("gitui")
+                        .current_dir(&path)
+                        .status();
+
+                    let _ = crossterm::terminal::enable_raw_mode();
+                    let _ = crossterm::execute!(
+                        std::io::stdout(),
+                        crossterm::terminal::EnterAlternateScreen,
+                        crossterm::event::EnableMouseCapture
+                    );
+                    let _ = terminal.clear();
+
+                    match status {
+                        Ok(s) if s.success() => {
+                            app.status_message = Some("Returned from gitui".to_string());
+                            app.refresh_selected_status();
+                        }
+                        Ok(_) => {
+                            app.status_message = Some("gitui exited with error".to_string());
+                            app.refresh_selected_status();
+                        }
+                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                            app.status_message = Some("gitui is not installed".to_string());
+                        }
+                        Err(e) => {
+                            app.status_message = Some(format!("Could not run gitui: {}", e));
+                        }
+                    }
+                }
             }
         }
 

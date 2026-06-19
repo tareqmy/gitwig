@@ -73,6 +73,7 @@ const HELP_LINES: &[(&str, &str)] = &[
     ("e", "Edit selected item"),
     ("d", "Delete selected item"),
     ("r", "Refresh status of selected item"),
+    ("g", "Launch gitui for selected repository"),
     (
         "⎋ [Esc]",
         "Cancel input, close dialog, or leave detail view",
@@ -672,6 +673,7 @@ fn normal_status_entries(
         ("Navigate", "↑↓"),
         ("Page", "⇟/⇞"),
         ("Detail", "↵"),
+        ("gitui", "g"),
         ("Add", "a"),
         ("Edit", "e"),
         ("Delete", "d"),

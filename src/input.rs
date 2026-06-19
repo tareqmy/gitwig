@@ -34,6 +34,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('d') => app.request_delete(),
             KeyCode::Char('?') => app.open_help(),
             KeyCode::Char('r') => app.refresh_selected_status(),
+            KeyCode::Char('g') => {
+                app.pending_gitui = true;
+            }
             KeyCode::Enter => app.open_detail(),
             _ => {}
         },

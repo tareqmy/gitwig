@@ -32,6 +32,7 @@
 | `e`                  | Normal          | Edit the selected item            |
 | `d`                  | Normal          | Delete the selected item (asks)   |
 | `r`                  | Normal          | Refresh status of selected item   |
+| `g`                  | Normal          | Launch gitui for selected repository |
 | `Enter`              | Normal          | Open Detail view for selected item|
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
 | `q`                  | Normal          | Quit                              |
