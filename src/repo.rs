@@ -99,6 +99,12 @@ pub struct RepoInfo {
     pub local_branches: Vec<BranchInfo>,
     /// Remote branches in the repository.
     pub remote_branches: Vec<BranchInfo>,
+    /// Local tags in the repository.
+    pub local_tags: Vec<BranchInfo>,
+    /// Remote tags in the repository.
+    pub remote_tags: Vec<BranchInfo>,
+    /// Whether remote tags have been loaded from the remote repository.
+    pub remote_tags_loaded: bool,
     /// Tracked files in the repository.
     pub files: Vec<String>,
 }
@@ -555,6 +561,35 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
     }
     remote_branches.sort_by(|a, b| a.name.cmp(&b.name));
     info.remote_branches = remote_branches;
+
+    let mut local_tags = Vec::new();
+    if let Ok(tags) = repo.tag_names(None) {
+        for tag_opt in tags.iter() {
+            if let Ok(Some(tag)) = tag_opt {
+                let mut short_sha = String::new();
+                let mut short_message = String::new();
+                if let Ok(reference) = repo.find_reference(&format!("refs/tags/{}", tag)) {
+                    if let Ok(target) = reference.peel_to_commit() {
+                        let id = target.id();
+                        short_sha = id.to_string()[..7.min(id.to_string().len())].to_string();
+                        if let Ok(Some(summary)) = target.summary() {
+                            short_message = summary.to_string();
+                        }
+                    }
+                }
+                local_tags.push(BranchInfo {
+                    name: tag.to_string(),
+                    is_head: false,
+                    short_sha,
+                    short_message,
+                });
+            }
+        }
+    }
+    local_tags.sort_by(|a, b| a.name.cmp(&b.name));
+    info.local_tags = local_tags;
+    info.remote_tags = Vec::new();
+    info.remote_tags_loaded = false;
 
     let mut files = Vec::new();
     if let Ok(index) = repo.index() {
@@ -1072,4 +1107,114 @@ pub fn create_tag(
     let target_object = repo.find_object(oid, Some(git2::ObjectType::Commit))?;
     repo.tag_lightweight(tag_name, &target_object, false)?;
     Ok(())
+}
+
+/// Checks out a tag.
+pub fn checkout_tag(repo_path: &Path, tag_name: &str) -> Result<(), git2::Error> {
+    let repo = Repository::open(repo_path)?;
+    let ref_name = format!("refs/tags/{}", tag_name);
+    repo.set_head(&ref_name)?;
+    let mut opts = git2::build::CheckoutBuilder::new();
+    repo.checkout_head(Some(&mut opts))?;
+    Ok(())
+}
+
+/// Helper to run `git ls-remote --tags` and return parsed tag information.
+pub fn get_remote_tags(
+    repo_path: &Path,
+    remote_name: &str,
+) -> Result<Vec<BranchInfo>, Box<dyn std::error::Error>> {
+    let output = std::process::Command::new("git")
+        .arg("ls-remote")
+        .arg("--tags")
+        .arg(remote_name)
+        .current_dir(repo_path)
+        .output()?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(err.into());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let repo = git2::Repository::open(repo_path)?;
+    let mut tags_map = std::collections::HashMap::new();
+
+    for line in stdout.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 2 {
+            let sha = parts[0];
+            let ref_name = parts[1];
+            if ref_name.starts_with("refs/tags/") {
+                let is_peeled = ref_name.ends_with("^{}");
+                let clean_ref = if is_peeled {
+                    &ref_name[..ref_name.len() - 3]
+                } else {
+                    ref_name
+                };
+                let tag_name = clean_ref.strip_prefix("refs/tags/").unwrap_or(clean_ref);
+                let short_sha = if sha.len() >= 7 { &sha[..7] } else { sha };
+
+                // Try to resolve the summary locally
+                let mut short_message = String::new();
+                if let Ok(oid) = git2::Oid::from_str(sha) {
+                    if let Ok(commit) = repo.find_commit(oid) {
+                        if let Ok(Some(summary)) = commit.summary() {
+                            short_message = summary.to_string();
+                        }
+                    }
+                }
+                if short_message.is_empty() {
+                    short_message = "(not fetched)".to_string();
+                }
+
+                if is_peeled {
+                    tags_map.insert(tag_name.to_string(), (short_sha.to_string(), short_message));
+                } else {
+                    tags_map
+                        .entry(tag_name.to_string())
+                        .or_insert_with(|| (short_sha.to_string(), short_message));
+                }
+            }
+        }
+    }
+
+    let mut tags = Vec::new();
+    for (name, (short_sha, short_message)) in tags_map {
+        tags.push(BranchInfo {
+            name,
+            is_head: false,
+            short_sha,
+            short_message,
+        });
+    }
+    tags.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(tags)
+}
+
+pub fn serialize_tags(tags: &[BranchInfo]) -> String {
+    let mut s = String::new();
+    for tag in tags {
+        s.push_str(&format!(
+            "{}|{}|{}\n",
+            tag.name, tag.short_sha, tag.short_message
+        ));
+    }
+    s
+}
+
+pub fn deserialize_tags(s: &str) -> Vec<BranchInfo> {
+    let mut tags = Vec::new();
+    for line in s.lines() {
+        let parts: Vec<&str> = line.split('|').collect();
+        if parts.len() >= 3 {
+            tags.push(BranchInfo {
+                name: parts[0].to_string(),
+                is_head: false,
+                short_sha: parts[1].to_string(),
+                short_message: parts[2].to_string(),
+            });
+        }
+    }
+    tags
 }

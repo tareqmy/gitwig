@@ -67,6 +67,8 @@ pub enum DetailSection {
     StagingDetails,
     LocalBranches,
     RemoteBranches,
+    LocalTags,
+    RemoteTags,
     Files,
 }
 
@@ -81,6 +83,8 @@ impl DetailSection {
             Self::StagingDetails => Self::Commits,
             Self::LocalBranches => Self::RemoteBranches,
             Self::RemoteBranches => Self::LocalBranches,
+            Self::LocalTags => Self::RemoteTags,
+            Self::RemoteTags => Self::LocalTags,
             Self::Files => Self::Files,
         }
     }
@@ -120,6 +124,10 @@ pub struct App {
     pub local_branch_selection: usize,
     /// Selected remote branch index in Branches tab.
     pub remote_branch_selection: usize,
+    /// Selected local tag index in Tags/Branches tabs.
+    pub local_tag_selection: usize,
+    /// Selected remote tag index in Tags/Branches tabs.
+    pub remote_tag_selection: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
     pub detail_areas: DetailAreas,
     /// Main panel item bounding boxes recorded after each draw, used for mouse hit-testing.
@@ -197,6 +205,8 @@ impl App {
             commit_details_scroll: 0,
             local_branch_selection: 0,
             remote_branch_selection: 0,
+            local_tag_selection: 0,
+            remote_tag_selection: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
             last_click: None,
@@ -329,6 +339,8 @@ impl App {
             self.commit_details_scroll = 0;
             self.local_branch_selection = 0;
             self.remote_branch_selection = 0;
+            self.local_tag_selection = 0;
+            self.remote_tag_selection = 0;
             self.file_list_selection = 0;
             self.expanded_folders.clear();
             self.rebuild_visible_files();
@@ -345,6 +357,13 @@ impl App {
             self.detail_focus = match self.detail_focus {
                 DetailSection::LocalBranches => DetailSection::RemoteBranches,
                 _ => DetailSection::LocalBranches,
+            };
+            return;
+        }
+        if self.detail_tab == 4 {
+            self.detail_focus = match self.detail_focus {
+                DetailSection::LocalTags => DetailSection::RemoteTags,
+                _ => DetailSection::LocalTags,
             };
             return;
         }
@@ -1503,7 +1522,81 @@ impl App {
             0 => self.detail_focus = DetailSection::Commits,
             2 => self.detail_focus = DetailSection::LocalBranches,
             3 => self.detail_focus = DetailSection::Files,
+            4 => {
+                self.detail_focus = DetailSection::LocalTags;
+                self.fetch_remote_tags();
+            }
             _ => {}
+        }
+    }
+
+    pub fn fetch_remote_tags(&mut self) {
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+            if let Some(remote) = info.remotes.first() {
+                let repo_path = resolved.clone();
+                let remote_name = remote.name.clone();
+                let tx = self.tx.clone();
+                std::thread::spawn(
+                    move || match repo::get_remote_tags(&repo_path, &remote_name) {
+                        Ok(tags) => {
+                            let serialized = repo::serialize_tags(&tags);
+                            let _ = tx.send(format!("REMOTE_TAGS:{}", serialized));
+                        }
+                        Err(e) => {
+                            let _ = tx
+                                .send(format!("REMOTE_TAGS_ERR:Failed to get remote tags: {}", e));
+                        }
+                    },
+                );
+            }
+        }
+    }
+
+    pub fn local_tag_up(&mut self) {
+        self.local_tag_selection = self.local_tag_selection.saturating_sub(1);
+    }
+
+    pub fn local_tag_down(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.local_tags.len();
+            if total > 0 && self.local_tag_selection + 1 < total {
+                self.local_tag_selection += 1;
+            }
+        }
+    }
+
+    pub fn local_tag_page_up(&mut self, page: usize) {
+        self.local_tag_selection = self.local_tag_selection.saturating_sub(page);
+    }
+
+    pub fn local_tag_page_down(&mut self, page: usize) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.local_tags.len();
+            if total > 0 {
+                self.local_tag_selection =
+                    (self.local_tag_selection + page).min(total.saturating_sub(1));
+            }
+        }
+    }
+
+    pub fn checkout_selected_local_tag(&mut self) {
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+            if let Some(tag_info) = info.local_tags.get(self.local_tag_selection) {
+                match repo::checkout_tag(resolved, &tag_info.name) {
+                    Ok(()) => {
+                        self.status_message = Some(format!(
+                            "Checked out tag '{}' (detached HEAD)",
+                            tag_info.name
+                        ));
+                        let item = &self.config.items[self.selected_index];
+                        self.current_detail = Some(repo::inspect_detail(item));
+                        self.rebuild_visible_files();
+                    }
+                    Err(e) => {
+                        self.status_message = Some(format!("Failed to checkout tag: {}", e));
+                    }
+                }
+            }
         }
     }
 }
@@ -1518,11 +1611,21 @@ where
 {
     loop {
         while let Ok(msg) = app.rx.try_recv() {
-            app.status_message = Some(msg);
-            app.fetching = false;
-            if let Some(item) = app.config.items.get(app.selected_index) {
-                app.current_detail = Some(repo::inspect_detail(item));
-                app.rebuild_visible_files();
+            if let Some(tags_data) = msg.strip_prefix("REMOTE_TAGS:") {
+                let tags = repo::deserialize_tags(tags_data);
+                if let Some(repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
+                    info.remote_tags = tags;
+                    info.remote_tags_loaded = true;
+                }
+            } else if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
+                app.status_message = Some(err_msg.to_string());
+            } else {
+                app.status_message = Some(msg);
+                app.fetching = false;
+                if let Some(item) = app.config.items.get(app.selected_index) {
+                    app.current_detail = Some(repo::inspect_detail(item));
+                    app.rebuild_visible_files();
+                }
             }
         }
 

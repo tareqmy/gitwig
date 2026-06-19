@@ -62,6 +62,10 @@ pub struct DetailAreas {
     pub local_branches: Option<Rect>,
     /// Remote branches panel in Branches tab.
     pub remote_branches: Option<Rect>,
+    /// Local tags panel in Tags tab.
+    pub local_tags: Option<Rect>,
+    /// Remote tags panel in Tags tab.
+    pub remote_tags: Option<Rect>,
     /// Bounding box of the tab bar itself.
     pub tab_bar: Option<Rect>,
     /// Bounding box of the files list.
@@ -84,6 +88,7 @@ pub fn draw(
     commit_details_scroll: usize,
     local_branch_selection: usize,
     remote_branch_selection: usize,
+    local_tag_selection: usize,
     file_list_selection: usize,
     visible_files: &[crate::app::FileTreeItem],
     detail_tab: usize,
@@ -148,40 +153,54 @@ pub fn draw(
     }
 
     if let Some(tab_area) = tab_bar_area {
-        let (style_details, style_graph, style_branches, style_files) = if detail_tab == 0 {
-            (
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-            )
-        } else if detail_tab == 1 {
-            (
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-            )
-        } else if detail_tab == 2 {
-            (
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-            )
-        } else {
-            (
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-            )
-        };
+        let (style_details, style_graph, style_branches, style_files, style_tags) =
+            if detail_tab == 0 {
+                (
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                )
+            } else if detail_tab == 1 {
+                (
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                )
+            } else if detail_tab == 2 {
+                (
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                )
+            } else if detail_tab == 3 {
+                (
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                )
+            } else {
+                (
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                )
+            };
 
         let details_bullet = if detail_tab == 0 { "●" } else { "○" };
         let graph_bullet = if detail_tab == 1 { "●" } else { "○" };
         let branches_bullet = if detail_tab == 2 { "●" } else { "○" };
         let files_bullet = if detail_tab == 3 { "●" } else { "○" };
+        let tags_bullet = if detail_tab == 4 { "●" } else { "○" };
 
         let tab_line = Line::from(vec![
             Span::raw("  "),
@@ -192,6 +211,8 @@ pub fn draw(
             Span::styled(format!("{} Branches [3]", branches_bullet), style_branches),
             Span::raw("    "),
             Span::styled(format!("{} Files [4]", files_bullet), style_files),
+            Span::raw("    "),
+            Span::styled(format!("{} Tags [5]", tags_bullet), style_tags),
         ]);
         f.render_widget(Paragraph::new(tab_line), tab_area);
         areas.tab_bar = Some(tab_area);
@@ -301,13 +322,24 @@ pub fn draw(
                     areas,
                     body_area,
                 );
-            } else {
+            } else if detail_tab == 3 {
                 // Render Files view (tab 4, index 3)
                 draw_files_view(
                     f,
                     visible_files,
                     *focus,
                     file_list_selection,
+                    areas,
+                    body_area,
+                );
+            } else {
+                // Render Tags view (tab 5, index 4)
+                draw_tags_view(
+                    f,
+                    info,
+                    *focus,
+                    local_tag_selection,
+                    info.remote_tags_loaded,
                     areas,
                     body_area,
                 );
@@ -1863,4 +1895,79 @@ fn draw_tag_create_popup(
             .saturating_add(inner_area.width.saturating_sub(1)),
     );
     f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
+}
+
+fn draw_tags_view(
+    f: &mut Frame,
+    info: &RepoInfo,
+    focus: DetailSection,
+    local_tag_selection: usize,
+    remote_tags_loaded: bool,
+    areas: &mut DetailAreas,
+    area: Rect,
+) {
+    areas.local_tags = Some(area);
+    areas.remote_tags = None;
+
+    // ── Local Tags Panel ──
+    let local_focused = focus == DetailSection::LocalTags;
+    let local_border_style = if local_focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
+    let local_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER)
+        .border_style(local_border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Local Tags", primary_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::uniform(1));
+
+    let local_items: Vec<ListItem> = info
+        .local_tags
+        .iter()
+        .map(|t| {
+            let mut spans = vec![Span::styled("  ", Style::default())];
+            if !t.short_sha.is_empty() {
+                spans.push(Span::styled(format!("[{}]", t.short_sha), accent_style()));
+                spans.push(Span::raw("  "));
+            }
+            spans.push(Span::styled(t.name.clone(), primary_style()));
+            if !t.short_message.is_empty() {
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("·", muted_style()));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled(t.short_message.clone(), muted_style()));
+            }
+
+            let is_pushed = if info.remotes.is_empty() {
+                true
+            } else if remote_tags_loaded {
+                info.remote_tags.iter().any(|rt| rt.name == t.name)
+            } else {
+                true
+            };
+
+            if !is_pushed {
+                spans.push(Span::raw("  "));
+                spans.push(Span::styled("unpushed", Style::default().fg(WARNING)));
+            }
+
+            ListItem::new(Line::from(spans))
+        })
+        .collect();
+
+    let local_list = List::new(local_items)
+        .block(local_block)
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+
+    let mut local_state = ListState::default();
+    if local_focused {
+        local_state.select(Some(local_tag_selection));
+    }
+    f.render_stateful_widget(local_list, area, &mut local_state);
 }

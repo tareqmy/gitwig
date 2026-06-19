@@ -99,12 +99,12 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('o') => app.open_overview_popup(),
             KeyCode::Char('?') => app.open_detail_help(),
             KeyCode::Tab => {
-                app.detail_tab = (app.detail_tab + 1) % 4;
+                app.detail_tab = (app.detail_tab + 1) % 5;
                 app.set_default_focus_for_tab();
             }
             KeyCode::BackTab => {
                 app.detail_tab = if app.detail_tab == 0 {
-                    3
+                    4
                 } else {
                     app.detail_tab - 1
                 };
@@ -124,6 +124,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('4') => {
                 app.detail_tab = 3;
                 app.detail_focus = DetailSection::Files;
+            }
+            KeyCode::Char('5') => {
+                app.detail_tab = 4;
+                app.detail_focus = DetailSection::LocalTags;
+                app.fetch_remote_tags();
             }
             _ if app.detail_tab == 0 => match code {
                 KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
@@ -289,6 +294,24 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 _ => {}
             },
+            _ if app.detail_tab == 4 => match code {
+                KeyCode::Enter => {
+                    app.checkout_selected_local_tag();
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    app.local_tag_up();
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    app.local_tag_down();
+                }
+                KeyCode::PageUp => {
+                    app.local_tag_page_up(10);
+                }
+                KeyCode::PageDown => {
+                    app.local_tag_page_down(10);
+                }
+                _ => {}
+            },
             _ => {}
         },
         Mode::DetailOverview => match code {
@@ -409,6 +432,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     } else if (52..63).contains(&click_x) {
                         app.detail_tab = 3;
                         app.detail_focus = DetailSection::Files;
+                    } else if (67..77).contains(&click_x) {
+                        app.detail_tab = 4;
+                        app.detail_focus = DetailSection::LocalTags;
+                        app.fetch_remote_tags();
                     }
                 }
                 return;
@@ -603,6 +630,22 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             } else if is_scroll_down {
                 app.detail_focus = DetailSection::RemoteBranches;
                 app.remote_branch_down();
+            }
+        }
+    }
+    // Local tags panel (inside Tags view).
+    if let Some(rect) = areas.local_tags {
+        if rect.contains(pos) {
+            if is_click {
+                if app.detail_focus != DetailSection::LocalTags {
+                    app.detail_focus = DetailSection::LocalTags;
+                }
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::LocalTags;
+                app.local_tag_up();
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::LocalTags;
+                app.local_tag_down();
             }
         }
     }
