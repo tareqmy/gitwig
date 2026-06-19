@@ -645,6 +645,7 @@ const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("o", "Show repo overview popup"),
     ("? / Esc", "Close this help"),
     ("q / Esc", "Back to repository list"),
+    ("Left-Click", "Focus clicked panel (mouse support)"),
 ];
 
 /// Renders a floating shortcut reference overlay centred over `area`.

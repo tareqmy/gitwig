@@ -61,20 +61,23 @@ pub(crate) fn accent_style() -> Style {
 /// Lines of the help overlay. Update this whenever a binding is added or
 /// renamed — it is the user's only complete shortcut reference.
 const HELP_LINES: &[(&str, &str)] = &[
-    ("↑ / k", "Move selection up"),
-    ("↓ / j", "Move selection down"),
-    ("PgDn", "Jump one page down"),
-    ("PgUp", "Jump one page up"),
-    ("Enter", "View selected item details (or commit input)"),
+    ("↑ / k", "Move selection up / scroll up"),
+    ("↓ / j", "Move selection down / scroll down"),
+    ("PgDn", "Jump one page down / page down"),
+    ("PgUp", "Jump one page up / page up"),
+    ("Enter", "Open detail view for selected item / stage file"),
     ("a", "Add a new item"),
     ("e", "Edit selected item"),
     ("d", "Delete selected item"),
     ("r", "Refresh status of selected item"),
     ("Esc", "Cancel input, close dialog, or leave detail view"),
     ("Backspace", "Erase character while typing"),
-    ("?", "Toggle this help overlay"),
+    ("Tab", "Cycle panel focus (in detail view)"),
+    ("c", "Commit staged changes (in detail view)"),
     ("o", "Show repo overview popup (in detail view)"),
+    ("?", "Toggle this help overlay"),
     ("q", "Quit (also closes detail view)"),
+    ("Left-Click", "Focus clicked panel (mouse support)"),
 ];
 
 /// Top-level draw entry point invoked from inside `terminal.draw`.
@@ -418,8 +421,22 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         Mode::Help => {
             draw_status_content(f, content_area, help_dismiss_spans());
         }
-        Mode::Detail | Mode::DetailHelp | Mode::DetailOverview | Mode::CommitInput => {
+        Mode::Detail => {
             draw_status_content(f, content_area, detail_dismiss_spans(&app.status_message));
+        }
+        Mode::DetailOverview => {
+            draw_status_content(f, content_area, detail_overview_spans(&app.status_message));
+        }
+        Mode::DetailHelp => {
+            draw_status_content(f, content_area, detail_help_spans());
+        }
+        Mode::CommitInput => {
+            let spans = if app.commit_editing {
+                commit_input_editing_spans()
+            } else {
+                commit_input_confirm_spans()
+            };
+            draw_status_content(f, content_area, spans);
         }
     }
 }
@@ -434,6 +451,8 @@ fn detail_dismiss_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
     let entries = [
         ("Esc / q", "back to list"),
         ("Tab", "cycle focus"),
+        ("↑↓", "navigate/scroll"),
+        ("Enter", "stage/unstage"),
         ("c", "commit"),
         ("o", "overview"),
         ("?", "help"),
@@ -447,6 +466,48 @@ fn detail_dismiss_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
         spans.push(Span::raw((*label).to_string()));
     }
     spans
+}
+
+fn detail_overview_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
+    let mut spans = Vec::new();
+    spans.push(Span::raw("  "));
+    if let Some(msg) = status_message {
+        spans.push(Span::styled(format!("{}  ", msg), accent_style()));
+        spans.push(Span::styled("·  ", muted_style()));
+    }
+    spans.push(Span::styled("Esc / q / o", accent_style()));
+    spans.push(Span::raw("  close overview"));
+    spans
+}
+
+fn detail_help_spans() -> Vec<Span<'static>> {
+    vec![
+        Span::raw("  "),
+        Span::styled("? / Esc / q", accent_style()),
+        Span::raw("  close help"),
+    ]
+}
+
+fn commit_input_editing_spans() -> Vec<Span<'static>> {
+    vec![
+        Span::raw("  "),
+        Span::styled("Enter", accent_style()),
+        Span::raw("  done editing  ·  "),
+        Span::styled("Esc", accent_style()),
+        Span::raw("  cancel commit"),
+    ]
+}
+
+fn commit_input_confirm_spans() -> Vec<Span<'static>> {
+    vec![
+        Span::raw("  "),
+        Span::styled("c", accent_style()),
+        Span::raw("  submit commit  ·  "),
+        Span::styled("e", accent_style()),
+        Span::raw("  edit message  ·  "),
+        Span::styled("Esc / q", accent_style()),
+        Span::raw("  cancel"),
+    ]
 }
 
 /// Returns the badge text plus its foreground and background colors.
@@ -483,6 +544,7 @@ fn normal_status_spans(status_message: &Option<String>) -> Vec<Span<'static>> {
     let entries = [
         ("↑↓", "navigate"),
         ("PgDn/PgUp", "page"),
+        ("Enter", "detail"),
         ("a", "add"),
         ("e", "edit"),
         ("d", "delete"),
