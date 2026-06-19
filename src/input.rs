@@ -4,7 +4,8 @@
 //! appropriate `App` method. Returns `false` when the user has asked to
 //! quit, `true` otherwise.
 
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, MouseButton, MouseEvent, MouseEventKind};
+use ratatui::layout::Position;
 
 use crate::app::{App, DetailSection, Mode};
 
@@ -130,4 +131,85 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
         },
     }
     true
+}
+
+/// Dispatch a mouse event.
+///
+/// Only left-button clicks on panel borders/content in `Mode::Detail` are
+/// acted upon — all other events are silently ignored so scrolling and
+/// selection still feel natural.
+pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
+    // Only handle left-button press-down in detail mode.
+    if !matches!(app.mode, Mode::Detail | Mode::DetailOverview | Mode::DetailHelp) {
+        return;
+    }
+    if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
+        return;
+    }
+
+    let pos = Position {
+        x: mouse.column,
+        y: mouse.row,
+    };
+    let areas = &app.detail_areas;
+
+    // Staged sub-panel (inside Staging Area left block) — check before bottom_left
+    // so the more-specific sub-panels win.
+    if let Some(rect) = areas.staged_sub {
+        if rect.contains(pos) {
+            if app.detail_focus != DetailSection::Staged {
+                app.detail_focus = DetailSection::Staged;
+                app.staging_file_selection = 0;
+                app.diff_scroll = 0;
+                app.refresh_staging_diff();
+            }
+            return;
+        }
+    }
+    // Unstaged sub-panel.
+    if let Some(rect) = areas.unstaged_sub {
+        if rect.contains(pos) {
+            if app.detail_focus != DetailSection::Unstaged {
+                app.detail_focus = DetailSection::Unstaged;
+                app.staging_file_selection = 0;
+                app.diff_scroll = 0;
+                app.refresh_staging_diff();
+            }
+            return;
+        }
+    }
+    // Bottom-left panel (Staging Area outer block or Changed Files).
+    if let Some(rect) = areas.bottom_left {
+        if rect.contains(pos) {
+            // When sub-panels are not shown (real commit), treat the whole
+            // left block as the Staged (Changed Files) focus.
+            if app.detail_focus != DetailSection::Staged {
+                app.detail_focus = DetailSection::Staged;
+                app.diff_scroll = 0;
+                if app.is_uncommitted_selected() {
+                    app.staging_file_selection = 0;
+                    app.refresh_staging_diff();
+                } else {
+                    app.refresh_file_diff();
+                }
+            }
+            return;
+        }
+    }
+    // Right panel (Diff / Staging Details).
+    if let Some(rect) = areas.bottom_right {
+        if rect.contains(pos) {
+            if app.detail_focus != DetailSection::StagingDetails {
+                app.detail_focus = DetailSection::StagingDetails;
+                app.diff_scroll = 0;
+            }
+            return;
+        }
+    }
+    // Commits panel (top).
+    if let Some(rect) = areas.commits {
+        if rect.contains(pos) && app.detail_focus != DetailSection::Commits {
+            app.detail_focus = DetailSection::Commits;
+        }
+    }
 }

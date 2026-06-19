@@ -17,6 +17,7 @@ use crate::config::{Config, save_config};
 use crate::input;
 use crate::repo::{self, DiffLine, ItemDetail, ItemStatus};
 use crate::ui;
+use crate::ui_detail::DetailAreas;
 
 /// Height of each item row inside the bordered list area.
 /// Borders (top + bottom) take 2 rows; the remaining 2 inner rows hold
@@ -97,6 +98,8 @@ pub struct App {
     pub file_diff: Vec<DiffLine>,
     /// Vertical scroll offset for the diff panel (StagingDetails focus).
     pub diff_scroll: usize,
+    /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
+    pub detail_areas: DetailAreas,
 }
 
 impl App {
@@ -122,6 +125,7 @@ impl App {
             staging_file_selection: 0,
             file_diff: Vec::new(),
             diff_scroll: 0,
+            detail_areas: DetailAreas::default(),
         }
     }
 
@@ -648,17 +652,26 @@ where
             (available_height / ITEM_HEIGHT).min(app.config.items.len() as u16) as usize;
         app.clamp_scroll(visible_count);
 
-        terminal.draw(|f| ui::draw(f, &app, area, inner_area, visible_count))?;
+        // Capture panel rects from the draw pass for mouse hit-testing.
+        let mut detail_areas = DetailAreas::default();
+        terminal.draw(|f| ui::draw(f, &app, area, inner_area, visible_count, &mut detail_areas))?;
+        app.detail_areas = detail_areas;
 
         // Transient feedback disappears after one frame.
         app.status_message = None;
 
-        if event::poll(std::time::Duration::from_millis(
-            app.config.poll_interval_ms,
-        ))? && let Event::Key(key) = event::read()?
-            && !input::handle_key(&mut app, key.code, visible_count)
-        {
-            return Ok(());
+        if event::poll(std::time::Duration::from_millis(app.config.poll_interval_ms))? {
+            match event::read()? {
+                Event::Key(key) => {
+                    if !input::handle_key(&mut app, key.code, visible_count) {
+                        return Ok(());
+                    }
+                }
+                Event::Mouse(mouse) => {
+                    input::handle_mouse(&mut app, mouse);
+                }
+                _ => {}
+            }
         }
     }
 }

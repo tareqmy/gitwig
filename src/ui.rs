@@ -78,7 +78,14 @@ const HELP_LINES: &[(&str, &str)] = &[
 ];
 
 /// Top-level draw entry point invoked from inside `terminal.draw`.
-pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_count: usize) {
+pub fn draw(
+    f: &mut Frame,
+    app: &App,
+    area: Rect,
+    inner_area: Rect,
+    visible_count: usize,
+    detail_areas: &mut crate::ui_detail::DetailAreas,
+) {
     draw_outer_frame(f, area);
 
     // Always reserve the bottom row for the status bar, regardless of mode.
@@ -106,6 +113,7 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect, inner_area: Rect, visible_coun
                 &app.file_diff,
                 app.diff_scroll,
                 app.staging_file_selection,
+                detail_areas,
                 content_area,
             );
         }

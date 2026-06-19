@@ -35,9 +35,28 @@ const FILE_LABEL_WIDTH: usize = 10;
 
 use crate::app::Mode;
 
-// ── Entry point ────────────────────────────────────────────────────────────
+// ── Hit-test areas ─────────────────────────────────────────────────────────
 
-/// Renders the detail view into `area`.
+/// Bounding boxes of the interactive panels in the detail view.
+/// Recorded each frame so the mouse handler can do hit-testing without
+/// duplicating the layout logic.
+#[derive(Default, Clone, Copy)]
+pub struct DetailAreas {
+    /// Commits table (top panel).
+    pub commits: Option<Rect>,
+    /// Left side of the bottom panel.
+    /// In the uncommitted view this is the outer Staging Area block;
+    /// for a real commit it is the Changed Files block.
+    pub bottom_left: Option<Rect>,
+    /// Staged sub-panel (only in the uncommitted / staging view).
+    pub staged_sub: Option<Rect>,
+    /// Unstaged sub-panel (only in the uncommitted / staging view).
+    pub unstaged_sub: Option<Rect>,
+    /// Diff / Staging Details panel (right side of the bottom panel).
+    pub bottom_right: Option<Rect>,
+}
+
+/// Renders the detail view into `area` and records panel bounds in `areas`.
 #[allow(clippy::too_many_arguments)]
 pub fn draw(
     f: &mut Frame,
@@ -50,6 +69,7 @@ pub fn draw(
     file_diff: &[DiffLine],
     diff_scroll: usize,
     staging_file_selection: usize,
+    areas: &mut DetailAreas,
     area: Rect,
 ) {
     // Reserve one row at the top for the breadcrumb header ("Item: <name>").
@@ -104,6 +124,7 @@ pub fn draw(
             let is_uncommitted_row = dirty && commit_selection == 0;
 
             draw_detail_commits(f, info, *focus, commit_selection, detail_chunks[0]);
+            areas.commits = Some(detail_chunks[0]);
 
             if is_uncommitted_row {
                 // <uncommitted> row selected — show working-tree staging panels.
@@ -114,6 +135,7 @@ pub fn draw(
                     staging_file_selection,
                     file_diff,
                     diff_scroll,
+                    areas,
                     detail_chunks[1],
                 );
             } else {
@@ -132,6 +154,7 @@ pub fn draw(
                             file_selection,
                             file_diff,
                             diff_scroll,
+                            areas,
                             detail_chunks[1],
                         );
                     }
@@ -144,6 +167,7 @@ pub fn draw(
                             staging_file_selection,
                             file_diff,
                             diff_scroll,
+                            areas,
                             detail_chunks[1],
                         );
                     }
@@ -173,6 +197,7 @@ pub fn draw(
 
 /// Renders the bottom panel for a selected real commit:
 /// left = changed-file list (with selection), right = diff panel.
+#[allow(clippy::too_many_arguments)]
 fn draw_commit_files_panel(
     f: &mut Frame,
     commit: &CommitEntry,
@@ -180,12 +205,18 @@ fn draw_commit_files_panel(
     file_selection: usize,
     file_diff: &[DiffLine],
     diff_scroll: usize,
+    areas: &mut DetailAreas,
     area: Rect,
 ) {
     let panels = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
         .split(area);
+
+    areas.bottom_left = Some(panels[0]);
+    areas.bottom_right = Some(panels[1]);
+    areas.staged_sub = None;
+    areas.unstaged_sub = None;
 
     let left_focused = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
     let right_focused = focus == DetailSection::StagingDetails;
@@ -311,8 +342,8 @@ fn draw_commit_files_panel(
 
 // ── Staging panels ─────────────────────────────────────────────────────────
 
-/// Renders two side-by-side panels: "Staging Area" (left, split into Staged/Unstaged)
-/// and "Staging Details" (right, diff of selected file).
+/// Renders two side-by-side panels: \"Staging Area\" (left, split into Staged/Unstaged)
+/// and \"Staging Details\" (right, diff of selected file).
 #[allow(clippy::too_many_arguments)]
 fn draw_staging_panels(
     f: &mut Frame,
@@ -321,12 +352,16 @@ fn draw_staging_panels(
     staging_file_selection: usize,
     file_diff: &[DiffLine],
     diff_scroll: usize,
+    areas: &mut DetailAreas,
     area: Rect,
 ) {
     let panels = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
         .split(area);
+
+    areas.bottom_left = Some(panels[0]);
+    areas.bottom_right = Some(panels[1]);
 
     // Focus-aware border helpers.
     let left_focused = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
@@ -355,6 +390,9 @@ fn draw_staging_panels(
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(left_inner);
+
+    areas.staged_sub = Some(left_split[0]);
+    areas.unstaged_sub = Some(left_split[1]);
 
     draw_file_subpanel(
         f,
@@ -386,6 +424,7 @@ fn draw_staging_panels(
         },
         left_split[1],
     );
+
 
     // ── Right panel – Staging Details ─────────────────────────────────────
     let right_border_style = if right_focused {
