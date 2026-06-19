@@ -54,6 +54,8 @@ pub struct DetailAreas {
     pub unstaged_sub: Option<Rect>,
     /// Diff / Staging Details panel (right side of the bottom panel).
     pub bottom_right: Option<Rect>,
+    /// Commit details panel (bottom-left bottom-half panel).
+    pub commit_details: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -69,6 +71,7 @@ pub fn draw(
     file_diff: &[DiffLine],
     diff_scroll: usize,
     staging_file_selection: usize,
+    commit_details_scroll: usize,
     areas: &mut DetailAreas,
     input_buffer: &str,
     commit_editing: bool,
@@ -156,6 +159,7 @@ pub fn draw(
                             file_selection,
                             file_diff,
                             diff_scroll,
+                            commit_details_scroll,
                             areas,
                             detail_chunks[1],
                         );
@@ -211,6 +215,7 @@ fn draw_commit_files_panel(
     file_selection: usize,
     file_diff: &[DiffLine],
     diff_scroll: usize,
+    commit_details_scroll: usize,
     areas: &mut DetailAreas,
     area: Rect,
 ) {
@@ -219,7 +224,6 @@ fn draw_commit_files_panel(
         .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
         .split(area);
 
-    areas.bottom_left = Some(panels[0]);
     areas.bottom_right = Some(panels[1]);
     areas.staged_sub = None;
     areas.unstaged_sub = None;
@@ -227,7 +231,16 @@ fn draw_commit_files_panel(
     let left_focused = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
     let right_focused = focus == DetailSection::StagingDetails;
 
-    // ── Left: changed files ───────────────────────────────────────────────
+    // Split left panel horizontally: top is Changed Files list, bottom is Commit Details
+    let left_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(panels[0]);
+
+    areas.bottom_left = Some(left_chunks[0]);
+    areas.commit_details = Some(left_chunks[1]);
+
+    // ── Left Top: changed files ───────────────────────────────────────────────
     let left_border_style = if left_focused {
         Style::default().fg(ACCENT)
     } else {
@@ -244,8 +257,8 @@ fn draw_commit_files_panel(
             Span::styled(format!("({})", commit.files.len()), muted_style()),
             Span::raw(" "),
         ]));
-    let left_inner = left_block.inner(panels[0]);
-    f.render_widget(left_block, panels[0]);
+    let left_inner = left_block.inner(left_chunks[0]);
+    f.render_widget(left_block, left_chunks[0]);
 
     if commit.files.is_empty() {
         let v = Layout::default()
@@ -276,6 +289,92 @@ fn draw_commit_files_panel(
         f.render_stateful_widget(list, left_inner, &mut state);
     }
 
+    // ── Left Bottom: commit details ───────────────────────────────────────────
+    let details_focused = focus == DetailSection::CommitDetails;
+    let details_border_style = if details_focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
+    let details_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(details_border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Commit Details", primary_style()),
+            if details_focused && commit_details_scroll > 0 {
+                Span::styled(
+                    format!("  ↕ line {}", commit_details_scroll + 1),
+                    muted_style(),
+                )
+            } else {
+                Span::raw("")
+            },
+            if details_focused {
+                Span::styled("  ↑↓ scroll", muted_style())
+            } else {
+                Span::raw("")
+            },
+            Span::raw(" "),
+        ]))
+        .padding(Padding::horizontal(1));
+    let details_inner = details_block.inner(left_chunks[1]);
+    f.render_widget(details_block, left_chunks[1]);
+
+    let mut detail_lines = Vec::new();
+
+    // Hash
+    detail_lines.push(Line::from(vec![
+        Span::styled("Hash:   ", primary_style()),
+        Span::raw(&commit.oid),
+    ]));
+
+    // Author
+    detail_lines.push(Line::from(vec![
+        Span::styled("Author: ", primary_style()),
+        Span::raw(&commit.author),
+    ]));
+
+    // Date
+    detail_lines.push(Line::from(vec![
+        Span::styled("Date:   ", primary_style()),
+        Span::raw(format!("{} ({})", commit.date, commit.when)),
+    ]));
+
+    // Labels
+    if !commit.refs.is_empty() {
+        let mut ref_spans = vec![Span::styled("Refs:   ", primary_style())];
+        for (idx, r) in commit.refs.iter().enumerate() {
+            if idx > 0 {
+                ref_spans.push(Span::raw(", "));
+            }
+            let style = if r.starts_with("tag:") {
+                Style::default()
+                    .fg(ratatui::style::Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+            };
+            ref_spans.push(Span::styled(r.clone(), style));
+        }
+        detail_lines.push(Line::from(ref_spans));
+    }
+
+    // Empty separator
+    detail_lines.push(Line::from(""));
+
+    // Message
+    detail_lines.push(Line::from(vec![Span::styled("Message:", primary_style())]));
+    for line in commit.message.lines() {
+        detail_lines.push(Line::from(vec![Span::raw(line.to_string())]));
+    }
+
+    let details_paragraph = Paragraph::new(detail_lines)
+        .scroll((commit_details_scroll as u16, 0))
+        .wrap(Wrap { trim: true });
+    f.render_widget(details_paragraph, details_inner);
+
     // ── Right: diff panel ─────────────────────────────────────────────────
     let right_border_style = if right_focused {
         Style::default().fg(ACCENT)
@@ -290,10 +389,7 @@ fn draw_commit_files_panel(
             Span::raw(" "),
             Span::styled("Diff", primary_style()),
             if right_focused && diff_scroll > 0 {
-                Span::styled(
-                    format!("  ↕ line {}", diff_scroll + 1),
-                    muted_style(),
-                )
+                Span::styled(format!("  ↕ line {}", diff_scroll + 1), muted_style())
             } else {
                 Span::raw("")
             },
@@ -368,6 +464,7 @@ fn draw_staging_panels(
 
     areas.bottom_left = Some(panels[0]);
     areas.bottom_right = Some(panels[1]);
+    areas.commit_details = None;
 
     // Focus-aware border helpers.
     let left_focused = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
@@ -431,7 +528,6 @@ fn draw_staging_panels(
         left_split[1],
     );
 
-
     // ── Right panel – Staging Details ─────────────────────────────────────
     let right_border_style = if right_focused {
         Style::default().fg(ACCENT)
@@ -444,7 +540,9 @@ fn draw_staging_panels(
             DetailSection::Unstaged => Some(&changes.unstaged),
             _ => None,
         };
-        files.and_then(|f| f.get(staging_file_selection)).map(|e| e.path.clone())
+        files
+            .and_then(|f| f.get(staging_file_selection))
+            .map(|e| e.path.clone())
     };
     let right_block = Block::default()
         .borders(Borders::ALL)
@@ -454,10 +552,7 @@ fn draw_staging_panels(
             Span::raw(" "),
             Span::styled("Staging Details", primary_style()),
             if let Some(ref name) = selected_file_name {
-                Span::styled(
-                    format!("  {}", name),
-                    muted_style(),
-                )
+                Span::styled(format!("  {}", name), muted_style())
             } else {
                 Span::raw("")
             },
@@ -565,9 +660,12 @@ fn draw_file_subpanel(
 
     if let Some(sel_idx) = selection {
         // Focused: render as a selectable list with highlight.
-        let items: Vec<ListItem> = files.iter().map(|e| ListItem::new(file_entry_line(e))).collect();
-        let list = List::new(items)
-            .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+        let items: Vec<ListItem> = files
+            .iter()
+            .map(|e| ListItem::new(file_entry_line(e)))
+            .collect();
+        let list =
+            List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
         let mut state = ListState::default();
         state.select(Some(sel_idx));
         f.render_stateful_widget(list, inner, &mut state);
@@ -640,7 +738,10 @@ const DETAIL_HELP_LINES: &[(&str, &str)] = &[
         "Tab",
         "Cycle panel focus  (Commits → Staged → Unstaged → Details)",
     ),
-    ("Enter", "Stage file (Unstaged panel) / Unstage file (Staged panel)"),
+    (
+        "Enter",
+        "Stage file (Unstaged panel) / Unstage file (Staged panel)",
+    ),
     ("c", "Commit staged changes"),
     ("o", "Show repo overview popup"),
     ("? / Esc", "Close this help"),
@@ -1068,12 +1169,7 @@ fn kind_line(
 }
 
 /// Renders a commit confirmation/input popup centered over `area`.
-fn draw_commit_popup(
-    f: &mut Frame,
-    input_buffer: &str,
-    editing: bool,
-    area: Rect,
-) {
+fn draw_commit_popup(f: &mut Frame, input_buffer: &str, editing: bool, area: Rect) {
     let popup_area = centred_rect(60, 25, area);
     f.render_widget(Clear, popup_area);
 
@@ -1122,8 +1218,7 @@ fn draw_commit_popup(
         Paragraph::new(Span::styled("(type commit message here...)", muted_style()))
             .wrap(Wrap { trim: true })
     } else {
-        Paragraph::new(input_buffer)
-            .wrap(Wrap { trim: true })
+        Paragraph::new(input_buffer).wrap(Wrap { trim: true })
     };
 
     let inner_area = block.inner(popup_area);
@@ -1132,7 +1227,9 @@ fn draw_commit_popup(
 
     if editing {
         let cursor_offset = input_buffer.chars().count() as u16;
-        let cursor_x = inner_area.x.saturating_add(cursor_offset.min(inner_area.width.saturating_sub(1)));
+        let cursor_x = inner_area
+            .x
+            .saturating_add(cursor_offset.min(inner_area.width.saturating_sub(1)));
         f.set_cursor_position(ratatui::layout::Position::new(cursor_x, inner_area.y));
     }
 }

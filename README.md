@@ -103,7 +103,7 @@ Press `Enter` on a selected item to open a full-screen Detail view. Press `Esc` 
 
 For a **git repository**, the detail view is split into multiple rounded panels with a 40:60 width ratio on the bottom:
 - **Commits (top 50%):** Lists the recent commits in the repository. If there are uncommitted changes, a special row named `Uncommitted changes` will be pinned to the very top.
-- **Staging Area (bottom-left 40%):** Lists files that are modified, staged, or untracked. When `Uncommitted changes` is selected at the top, this panel is split vertically into `Staged` and `Unstaged` sections. When a real commit is selected, it displays the list of files modified in that commit.
+- **Staging Area / Changed Files (bottom-left 40%):** Lists files that are modified, staged, or untracked. When `Uncommitted changes` is selected at the top, this panel is split vertically into `Staged` and `Unstaged` sections. When a real commit is selected, it is split horizontally, showing the list of files modified in that commit in the top half, and full commit details (hash, author, date, refs, and message) in the bottom half.
 - **Staging Details (bottom-right 60%):** Displays the unified diff of the selected file.
 
 You can navigate and interact with these panels in the following ways:

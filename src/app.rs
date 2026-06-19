@@ -57,6 +57,7 @@ pub enum DetailSection {
     Commits,
     Staged,
     Unstaged,
+    CommitDetails,
     StagingDetails,
 }
 
@@ -66,7 +67,8 @@ impl DetailSection {
         match self {
             Self::Commits => Self::Staged,
             Self::Staged => Self::Unstaged,
-            Self::Unstaged => Self::StagingDetails,
+            Self::Unstaged => Self::CommitDetails,
+            Self::CommitDetails => Self::StagingDetails,
             Self::StagingDetails => Self::Commits,
         }
     }
@@ -100,6 +102,8 @@ pub struct App {
     pub file_diff: Vec<DiffLine>,
     /// Vertical scroll offset for the diff panel (StagingDetails focus).
     pub diff_scroll: usize,
+    /// Vertical scroll offset for the commit details panel (CommitDetails focus).
+    pub commit_details_scroll: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
     pub detail_areas: DetailAreas,
     /// Whether we are currently editing the commit message in the popup.
@@ -129,6 +133,7 @@ impl App {
             staging_file_selection: 0,
             file_diff: Vec::new(),
             diff_scroll: 0,
+            commit_details_scroll: 0,
             detail_areas: DetailAreas::default(),
             commit_editing: false,
         }
@@ -236,6 +241,7 @@ impl App {
             self.staging_file_selection = 0;
             self.file_diff.clear();
             self.diff_scroll = 0;
+            self.commit_details_scroll = 0;
             self.mode = Mode::Detail;
             self.refresh_file_diff();
         }
@@ -247,12 +253,18 @@ impl App {
         if !self.is_uncommitted_selected() && self.detail_focus == DetailSection::Unstaged {
             self.detail_focus = self.detail_focus.next();
         }
+        if self.is_uncommitted_selected() && self.detail_focus == DetailSection::CommitDetails {
+            self.detail_focus = self.detail_focus.next();
+        }
         // Reset staging selection and pre-load diff when landing on Staged/Unstaged.
         match self.detail_focus {
             DetailSection::Staged | DetailSection::Unstaged => {
                 self.staging_file_selection = 0;
                 self.diff_scroll = 0;
                 self.refresh_staging_diff();
+            }
+            DetailSection::CommitDetails => {
+                self.commit_details_scroll = 0;
             }
             DetailSection::StagingDetails => {
                 self.diff_scroll = 0;
@@ -363,6 +375,16 @@ impl App {
     pub fn diff_scroll_page_down(&mut self, page: usize) {
         let max = self.file_diff.len().saturating_sub(1);
         self.diff_scroll = (self.diff_scroll + page).min(max);
+    }
+
+    /// Scroll the commit details panel up by one line.
+    pub fn commit_details_scroll_up(&mut self) {
+        self.commit_details_scroll = self.commit_details_scroll.saturating_sub(1);
+    }
+
+    /// Scroll the commit details panel down by one line.
+    pub fn commit_details_scroll_down(&mut self) {
+        self.commit_details_scroll = self.commit_details_scroll.saturating_add(1);
     }
 
     /// Total number of rows in the Commits panel (dirty row + real commits).
@@ -483,7 +505,6 @@ impl App {
         }
     }
 
-
     /// Re-snapshot the repo for the selected item, preserving focus and clamping selection.
     /// Call this after any index-mutating operation (stage / unstage).
     pub fn refresh_detail(&mut self) {
@@ -547,7 +568,6 @@ impl App {
         self.current_detail = None;
         self.mode = Mode::Normal;
     }
-
 
     /// Opens the repo overview popup while staying in the detail view.
     pub fn open_overview_popup(&mut self) {
@@ -727,7 +747,9 @@ where
         // Transient feedback disappears after one frame.
         app.status_message = None;
 
-        if event::poll(std::time::Duration::from_millis(app.config.poll_interval_ms))? {
+        if event::poll(std::time::Duration::from_millis(
+            app.config.poll_interval_ms,
+        ))? {
             match event::read()? {
                 Event::Key(key) => {
                     if !input::handle_key(&mut app, key.code, visible_count) {

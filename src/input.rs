@@ -100,14 +100,10 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
             {
                 app.stage_selected_file()
             }
-            KeyCode::Up | KeyCode::Char('k')
-                if detail_focus == DetailSection::StagingDetails =>
-            {
+            KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::StagingDetails => {
                 app.diff_scroll_up()
             }
-            KeyCode::Down | KeyCode::Char('j')
-                if detail_focus == DetailSection::StagingDetails =>
-            {
+            KeyCode::Down | KeyCode::Char('j') if detail_focus == DetailSection::StagingDetails => {
                 app.diff_scroll_down()
             }
             KeyCode::PageUp if detail_focus == DetailSection::StagingDetails => {
@@ -115,6 +111,12 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
             }
             KeyCode::PageDown if detail_focus == DetailSection::StagingDetails => {
                 app.diff_scroll_page_down(10)
+            }
+            KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::CommitDetails => {
+                app.commit_details_scroll_up()
+            }
+            KeyCode::Down | KeyCode::Char('j') if detail_focus == DetailSection::CommitDetails => {
+                app.commit_details_scroll_down()
             }
             _ => {}
         },
@@ -147,7 +149,7 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
                     _ => {}
                 }
             }
-        },
+        }
     }
     true
 }
@@ -159,7 +161,10 @@ pub fn handle_key(app: &mut App, code: KeyCode, visible_count: usize) -> bool {
 /// selection still feel natural.
 pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     // Only handle left-button press-down in detail mode.
-    if !matches!(app.mode, Mode::Detail | Mode::DetailOverview | Mode::DetailHelp) {
+    if !matches!(
+        app.mode,
+        Mode::Detail | Mode::DetailOverview | Mode::DetailHelp
+    ) {
         return;
     }
     if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
@@ -197,6 +202,16 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             return;
         }
     }
+    // Commit details sub-panel (inside Changed Files / Commit Details left block).
+    if let Some(rect) = areas.commit_details {
+        if rect.contains(pos) {
+            if app.detail_focus != DetailSection::CommitDetails {
+                app.detail_focus = DetailSection::CommitDetails;
+            }
+            return;
+        }
+    }
+
     // Bottom-left panel (Staging Area outer block or Changed Files).
     if let Some(rect) = areas.bottom_left {
         if rect.contains(pos) {

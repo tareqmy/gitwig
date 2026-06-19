@@ -109,7 +109,9 @@ pub struct CommitEntry {
     pub oid: String,
     pub author: String,
     pub when: String,
+    pub date: String,
     pub summary: String,
+    pub message: String,
     /// Local branch names and tags pointing at this commit.
     /// Tags are prefixed with `"tag:"`, remote branches with `"remote:"`.
     pub refs: Vec<String>,
@@ -336,16 +338,25 @@ fn collect_commits(
                 .unwrap_or("(no commit message)")
                 .to_string();
             let author = commit.author();
-            let author_str = author.name().unwrap_or("?").to_string();
+            let author_name = author.name().unwrap_or("?");
+            let author_email = author.email().unwrap_or("?");
+            let author_str = format!("{} <{}>", author_name, author_email);
             let when = format_relative_time(commit.time().seconds());
+            let date = format_utc_date(commit.time().seconds());
             let refs = ref_map.get(&oid).cloned().unwrap_or_default();
             let files = commit_changed_files(repo, &commit);
+            let message = commit
+                .message()
+                .unwrap_or("(no commit message)")
+                .to_string();
             commits.push(CommitEntry {
                 id: short_id,
                 oid: oid_str,
                 author: author_str,
                 when,
+                date,
                 summary,
+                message,
                 refs,
                 files,
             });
@@ -697,6 +708,46 @@ fn format_relative_time(secs: i64) -> String {
     format!("{} {}{} ago", n, unit, plural)
 }
 
+/// Format a unix-epoch timestamp as a UTC date string ("YYYY-MM-DD HH:MM:SS UTC").
+fn format_utc_date(secs: i64) -> String {
+    if secs <= 0 {
+        return "unknown".to_string();
+    }
+    let seconds_in_day = 86400;
+    let day_number = secs / seconds_in_day;
+    let time_of_day = secs % seconds_in_day;
+
+    let mut hour = time_of_day / 3600;
+    let mut minute = (time_of_day % 3600) / 60;
+    let mut second = time_of_day % 60;
+    if hour < 0 {
+        hour += 24;
+    }
+    if minute < 0 {
+        minute += 60;
+    }
+    if second < 0 {
+        second += 60;
+    }
+
+    // Howard Hinnant's civil date from epoch days algorithm
+    let z = day_number + 719468;
+    let era = (if z >= 0 { z } else { z - 146096 }) / 146097;
+    let doe = (z - era * 146097) as u32;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = (yoe as i32) + (era as i32) * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = y + if m <= 2 { 1 } else { 0 };
+
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
+        y, m, d, hour, minute, second
+    )
+}
+
 // ── Per-file diff (private) ────────────────────────────────────────────────
 
 fn get_file_diff_inner(
@@ -737,10 +788,7 @@ fn get_worktree_diff_inner(
 
     let diff = if staged {
         // Staged: diff HEAD tree (or empty tree for new repos) → index.
-        let head_tree = repo
-            .head()
-            .ok()
-            .and_then(|h| h.peel_to_tree().ok());
+        let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
         repo.diff_tree_to_index(head_tree.as_ref(), None, Some(&mut opts))
             .ok()?
     } else {
@@ -772,4 +820,3 @@ fn collect_diff_lines(diff: &git2::Diff<'_>) -> Option<Vec<DiffLine>> {
     .ok()?;
     Some(lines)
 }
-

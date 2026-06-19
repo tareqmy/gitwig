@@ -116,6 +116,7 @@ pub fn draw(
                 &app.file_diff,
                 app.diff_scroll,
                 app.staging_file_selection,
+                app.commit_details_scroll,
                 detail_areas,
                 &app.input_buffer,
                 app.commit_editing,
