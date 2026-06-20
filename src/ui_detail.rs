@@ -431,6 +431,17 @@ pub fn draw(
             if matches!(mode, Mode::TagPushAllConfirm) {
                 draw_tag_push_all_popup(f, body_area);
             }
+            // Draw stash delete popup on top when requested.
+            if matches!(mode, Mode::StashDeleteConfirm) {
+                let stash_name = match detail {
+                    ItemDetail::Repo { info, .. } => info
+                        .stashes
+                        .get(stash_selection)
+                        .map(|s| format!("stash@{{{}}}: {}", s.index, s.message)),
+                    _ => None,
+                };
+                draw_stash_delete_popup(f, &stash_name, body_area);
+            }
         }
         _ => {
             let body_lines = build_body(detail);
@@ -2346,6 +2357,57 @@ fn draw_tag_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: R
         Span::styled(" / Cancel: ", muted_style()),
         Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
     ]));
+
+    let paragraph = Paragraph::new(content)
+        .block(block)
+        .wrap(Wrap { trim: false });
+    f.render_widget(paragraph, popup_area);
+}
+
+fn draw_stash_delete_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
+    let popup_area = centred_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(DANGER);
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Delete Stash", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let stash_name = match target {
+        Some(name) => name.as_str(),
+        None => "",
+    };
+
+    let content = vec![
+        Line::from(vec![Span::styled(
+            "Are you sure you want to delete the stash:",
+            primary_style(),
+        )]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                stash_name,
+                Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
 
     let paragraph = Paragraph::new(content)
         .block(block)

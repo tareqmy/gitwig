@@ -160,7 +160,7 @@ The **Remotes** tab lists configured remotes for the repository.
 ### Stashes Tab
 
 The **Stashes** tab lists all available stashes in the repository with a horizontally split layout:
-- **Stashes (Top-Left):** Lists all stashes. Selecting a stash automatically highlights the first file in the files list.
+- **Stashes (Top-Left):** Lists all stashes. Selecting a stash automatically highlights the first file in the files list. Press `d` / `D` to delete the selected stash (asks for confirmation).
 - **Stashed Files (Bottom-Left):** Lists the files changed/saved in the selected stash.
 - **Stash Diff (Right):** Shows the unified patch diff of the selected file.
 - Navigate stashes or stashed files using `↑`/`k` and `↓`/`j`.

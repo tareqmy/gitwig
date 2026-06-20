@@ -1288,3 +1288,9 @@ pub fn deserialize_tags(s: &str) -> Vec<BranchInfo> {
     }
     tags
 }
+
+pub fn delete_stash(repo_path: &Path, index: usize) -> Result<(), git2::Error> {
+    let mut repo = Repository::open(repo_path)?;
+    repo.stash_drop(index)?;
+    Ok(())
+}

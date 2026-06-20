@@ -120,6 +120,7 @@ pub fn draw(
             | Mode::TagDeleteConfirm
             | Mode::TagPushConfirm
             | Mode::TagPushAllConfirm
+            | Mode::StashDeleteConfirm
     ) {
         if let Some(detail) = &app.current_detail {
             let item_name = app
@@ -516,6 +517,18 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = confirm_tag_push_all_entries();
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
+        Mode::StashDeleteConfirm => {
+            let target = match &app.current_detail {
+                Some(crate::repo::ItemDetail::Repo { info, .. }) => info
+                    .stashes
+                    .get(app.stash_selection)
+                    .map(|s| format!("stash@{{{}}}", s.index))
+                    .unwrap_or_else(|| "".to_string()),
+                _ => "".to_string(),
+            };
+            let (msg_spans, entries) = confirm_stash_delete_entries(&target);
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
+        }
     }
 }
 
@@ -586,7 +599,9 @@ fn detail_dismiss_entries(
         6 => vec![
             ("Home", "⎋/q"),
             ("Tabs", "Tab/1-8"),
+            ("Cycle Focus", "w/W"),
             ("Navigate", "↑↓"),
+            ("Delete", "d"),
             ("Help", "?"),
         ],
         _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Help", "?")],
@@ -823,6 +838,38 @@ fn confirm_branch_delete_entries(
         Span::raw("Delete "),
         Span::raw(type_label),
         Span::raw(" "),
+        Span::styled(
+            format!("\"{}\"", target),
+            Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("? "),
+    ]);
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Confirm"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled(
+                "y",
+                Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Cancel"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("n/⎋", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (message_spans, entries)
+}
+
+fn confirm_stash_delete_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let message_spans = Some(vec![
+        Span::raw("Delete stash "),
         Span::styled(
             format!("\"{}\"", target),
             Style::default().fg(DANGER).add_modifier(Modifier::BOLD),

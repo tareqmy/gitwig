@@ -58,6 +58,8 @@ pub enum Mode {
     TagPushConfirm,
     /// Confirming push of all tags. y pushes, n/Esc cancels.
     TagPushAllConfirm,
+    /// Confirming deletion of a stash. y deletes, n/Esc cancels.
+    StashDeleteConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -1956,6 +1958,42 @@ impl App {
                 }
             }
         }
+    }
+
+    pub fn request_stash_delete(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if info.stashes.get(self.stash_selection).is_some() {
+                self.mode = Mode::StashDeleteConfirm;
+            }
+        }
+    }
+
+    pub fn confirm_stash_delete(&mut self) {
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+            if let Some(stash) = info.stashes.get(self.stash_selection) {
+                let index_to_delete = stash.index;
+                match repo::delete_stash(resolved, index_to_delete) {
+                    Ok(()) => {
+                        self.status_message =
+                            Some(format!("Deleted stash@{{{}}}", index_to_delete));
+                        let item = &self.config.items[self.selected_index];
+                        self.current_detail = Some(repo::inspect_detail(item));
+                        self.rebuild_visible_files();
+                        self.stash_selection = 0;
+                        self.stash_file_selection = 0;
+                        self.refresh_file_diff();
+                    }
+                    Err(e) => {
+                        self.status_message = Some(format!("Failed to delete stash: {}", e));
+                    }
+                }
+            }
+        }
+        self.mode = Mode::Detail;
+    }
+
+    pub fn cancel_stash_delete(&mut self) {
+        self.mode = Mode::Detail;
     }
 
     pub fn checkout_selected_local_tag(&mut self) {

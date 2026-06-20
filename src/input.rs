@@ -107,6 +107,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_tag_push_all(),
             _ => {}
         },
+        Mode::StashDeleteConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_stash_delete(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_stash_delete(),
+            _ => {}
+        },
         Mode::Help => match code {
             KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_dialog();
@@ -380,6 +385,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             },
             _ if app.detail_tab == 6 => match code {
                 KeyCode::Char('w') | KeyCode::Char('W') => app.cycle_detail_focus(),
+                KeyCode::Char('d') | KeyCode::Char('D') => {
+                    if detail_focus == DetailSection::Stashes {
+                        app.request_stash_delete();
+                    }
+                }
                 KeyCode::Up | KeyCode::Char('k') => match detail_focus {
                     DetailSection::Stashes => app.stash_up(),
                     DetailSection::StashedFiles => app.stash_file_up(),
