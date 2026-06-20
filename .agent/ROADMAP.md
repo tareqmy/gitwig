@@ -49,7 +49,10 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Mouse wheel vertical scroll support for all scrollable views (lists, trees, diffs).
 - [x] Files tab showing tracked repository files in an interactive nested tree structure with split-panel preview (file contents or folder list).
 - [x] Stash list (dedicated Stashes detail tab).
-- [ ] Stashing actions (apply, drop, pop).
+- [x] Stashing actions: apply and delete stash (Details / Stashes).
+- [x] Main page sorting (Alphabetical, Recent Visit, Latest Changes, Custom) and direction toggle (o / O).
+- [x] Commit amending support (a / A / Space in confirm mode).
+- [x] Interactive fzf directory picker to add items (a).
 - [ ] Interactive Rebase.
 - [ ] Conflict resolution UI.
 - [ ] Custom themes and keybindings.

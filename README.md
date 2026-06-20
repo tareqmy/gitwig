@@ -28,17 +28,19 @@
 | -------------------- | --------------- | --------------------------------- |
 | `↑` / `k`            | Normal          | Move selection up                 |
 | `↓` / `j`            | Normal          | Move selection down               |
-| `a`                  | Normal          | Add a new item                    |
+| `a`                  | Normal          | Add a new item (via interactive fzf search) |
 | `e`                  | Normal          | Edit the selected item            |
 | `d`                  | Normal          | Delete the selected item (asks)   |
 | `r`                  | Normal          | Refresh status of selected item   |
+| `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes) |
+| `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed) |
 | `g`                  | Normal          | Launch gitui for selected repository |
 | `Enter`              | Normal          | Open Detail view for selected item|
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
 | `⎋` / `q`            | Normal          | Quit                              |
-| `Enter`              | Adding / Editing| Save the typed text and persist   |
-| `Esc`                | Adding / Editing| Cancel without saving             |
-| `Backspace`          | Adding / Editing| Erase one character               |
+| `Enter`              | Editing         | Save the typed text and persist   |
+| `Esc`                | Editing         | Cancel without saving             |
+| `Backspace`          | Editing         | Erase one character               |
 | `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag, push branch/tag/all tags) |
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
@@ -65,6 +67,7 @@
 | `Esc`                | CommitInput     | Cancel commit and return to Detail view |
 | `↵` (Enter)          | CommitInput (Confirm) | Submit / execute Git commit      |
 | `e` / `E`            | CommitInput (Confirm) | Edit / resume typing commit message |
+| `a` / `A` / `Space`  | CommitInput (Confirm) | Toggle amend last commit option   |
 | `Left-Click` (Mouse) | Normal          | Select the clicked item           |
 | `Double-Click` (Mouse)| Normal         | Open Detail view for clicked item |
 | `Left-Click` (Mouse) | Detail          | Shift focus to the clicked panel or change active tab |
@@ -192,9 +195,9 @@ You can navigate and interact with these panels in the following ways:
   - Select any **remote branch** and press `Enter` to check it out (this will switch to the branch, creating a local tracking branch if it doesn't already exist).
   - Press `c` / `C` to create a new branch from the currently checked out branch (or HEAD). A popup dialog will prompt for the new branch name.
   - Select any local or remote-tracking branch and press `d` / `D` to delete it. A confirmation dialog will prompt before performing the deletion. (The currently checked out branch cannot be deleted).
-- **Commit Staged Changes:** Press `c` from the Details tab to open a centered Commit popup window (only active if there are staged changes). 
+- **Commit Staged Changes / Amend Last Commit:** Press `c` from the Details tab to open a centered Commit popup window (active if there are staged changes OR a prior HEAD commit exists to amend). 
   - **Compose Mode:** Type your commit message. Press `Ctrl+C` to lock in the text and switch to confirmation state, press `Enter` to insert a newline, or `Esc` to cancel.
-  - **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, or `Esc`/`q` to close the popup.
+  - **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, `a` / `A` / `Space` to toggle the "Amend last commit" option, or `Esc`/`q` to close the popup. Toggling amend to active when the buffer is empty automatically populates the text box with the message from the last commit.
 
 For a **plain directory** the view confirms the resolved path and explains that no `.git` entry was found.
 
@@ -203,6 +206,12 @@ For a **missing** item the view confirms the resolved path and notes that the pa
 The detail snapshot is taken **once** when you press Enter — it is not refreshed while open (except for staging/unstaging actions which refresh dynamically). Close and re-open to re-read the repository state.
 
 After every successful add / edit / delete, the status bar briefly shows `Saved` or `Deleted`. If the write fails, the status bar shows `Save failed: <reason>` instead — your in-memory list still reflects the change, but the file on disk does not.
+
+### 🔀 Main Page Sorting
+
+The main page repository list can be sorted dynamically using shortcuts:
+- **Cycle Sort Order (`o`):** Cycles through the sorting modes: `Custom` (preserves your manual list order), `Alphabetical`, `Recent Visit` (tracks when you enter a repository's detail view), and `Latest Changes` (based on HEAD commit timestamps or folder modification times).
+- **Toggle Sort Direction (`O`):** Toggles ascending vs. descending/reversed sort direction. The top border displays the active sort mode (e.g. `Sort: Alphabetical (Rev)`).
 
 ---
 
@@ -230,14 +239,20 @@ items = ["Repo A", "Repo B", "Side Project", "Test Repo"]
 # Event-loop poll interval in milliseconds (default: 100).
 # Lower → more responsive input, higher → less CPU usage. Sane range: 16–500.
 poll_interval_ms = 100
+
+# Sorting preferences for the main page list
+sort_by = "custom"
+sort_reverse = false
 ```
 
 ### Config keys
 
 | Key | Type | Default | Description |
 | --- | ---- | ------- | ----------- |
-| `items` | `[String]` | `[]` | Paths shown in the main list. Managed by the in-app `a`/`e`/`d` shortcuts. |
+| `items` | `[String]` | `[]` | Paths shown in the main list. Managed by the in-app `a` (fzf search) / `e` / `d` shortcuts. |
 | `poll_interval_ms` | `Integer` | `100` | How long (ms) the event loop waits between input checks. Lower feels snappier; higher saves CPU. |
+| `sort_by` | `String` | `"custom"` | Main list sorting preference (`"custom"`, `"alphabetical"`, `"recent_visit"`, `"latest_changes"`). Managed by `o`. |
+| `sort_reverse` | `Boolean` | `false` | Inverts the main list sorting direction (ascending vs. descending). Managed by `O`. |
 
 Twig writes back to whichever file it loaded from, so edits made in the UI persist across runs.
 
