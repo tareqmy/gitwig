@@ -93,6 +93,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_tag_delete(),
             _ => {}
         },
+        Mode::TagPushConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_tag_push(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_tag_push(),
+            _ => {}
+        },
+        Mode::TagPushAllConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_tag_push_all(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_tag_push_all(),
+            _ => {}
+        },
         Mode::Help => match code {
             KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_dialog();
@@ -333,6 +343,12 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 KeyCode::Char('d') | KeyCode::Char('D') => {
                     app.request_tag_delete();
+                }
+                KeyCode::Char('p') => {
+                    app.request_tag_push();
+                }
+                KeyCode::Char('P') => {
+                    app.request_tag_push_all();
                 }
                 _ => {}
             },

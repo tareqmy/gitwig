@@ -103,6 +103,7 @@ pub fn draw(
     branch_action_target: &Option<(String, bool)>,
     tag_action_target_oid: &Option<String>,
     tag_delete_target: &Option<(String, bool)>,
+    tag_push_target: &Option<String>,
     area: Rect,
 ) {
     // Extract branch name if this is a repo detail.
@@ -377,6 +378,14 @@ pub fn draw(
             // Draw tag delete popup on top when requested.
             if matches!(mode, Mode::TagDeleteConfirm) {
                 draw_tag_delete_popup(f, tag_delete_target, body_area);
+            }
+            // Draw tag push popup on top when requested.
+            if matches!(mode, Mode::TagPushConfirm) {
+                draw_tag_push_popup(f, tag_push_target, body_area);
+            }
+            // Draw tag push all popup on top when requested.
+            if matches!(mode, Mode::TagPushAllConfirm) {
+                draw_tag_push_all_popup(f, body_area);
             }
         }
         _ => {
@@ -2164,6 +2173,89 @@ fn draw_tag_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: R
         Span::styled(" / Cancel: ", muted_style()),
         Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
     ]));
+
+    let paragraph = Paragraph::new(content)
+        .block(block)
+        .wrap(Wrap { trim: false });
+    f.render_widget(paragraph, popup_area);
+}
+
+fn draw_tag_push_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
+    let popup_area = centred_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(SUCCESS);
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Push Tag", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let tag_name = target.as_deref().unwrap_or("");
+
+    let content = vec![
+        Line::from(vec![
+            Span::styled("Are you sure you want to push the tag ", primary_style()),
+            Span::styled(tag_name, accent_style()),
+            Span::raw(" to remote?"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content)
+        .block(block)
+        .wrap(Wrap { trim: false });
+    f.render_widget(paragraph, popup_area);
+}
+
+fn draw_tag_push_all_popup(f: &mut Frame, area: Rect) {
+    let popup_area = centred_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(SUCCESS);
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Push All Tags", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let content = vec![
+        Line::from(vec![
+            Span::styled("Are you sure you want to push ", primary_style()),
+            Span::styled(
+                "ALL local tags",
+                Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" to remote?", primary_style()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
 
     let paragraph = Paragraph::new(content)
         .block(block)

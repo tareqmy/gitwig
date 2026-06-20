@@ -56,6 +56,10 @@ pub enum Mode {
     BranchPushConfirm,
     /// Confirming deletion of a tag. y deletes, n/Esc cancels.
     TagDeleteConfirm,
+    /// Confirming push of a tag. y pushes, n/Esc cancels.
+    TagPushConfirm,
+    /// Confirming push of all tags. y pushes, n/Esc cancels.
+    TagPushAllConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -170,6 +174,8 @@ pub struct App {
     pub tag_action_target_oid: Option<String>,
     /// Target tag name and remote flag for deletion action.
     pub tag_delete_target: Option<(String, bool)>,
+    /// Target tag name for push action.
+    pub tag_push_target: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -236,6 +242,7 @@ impl App {
             branch_action_target: None,
             tag_action_target_oid: None,
             tag_delete_target: None,
+            tag_push_target: None,
         }
     }
 
@@ -923,6 +930,138 @@ impl App {
 
     pub fn cancel_tag_delete(&mut self) {
         self.tag_delete_target = None;
+        self.mode = Mode::Detail;
+    }
+
+    pub fn request_tag_push(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if let Some(tag_info) = info.local_tags.get(self.local_tag_selection) {
+                let is_on_remote = if info.remotes.is_empty() {
+                    false
+                } else if info.remote_tags_loaded {
+                    info.remote_tags.iter().any(|rt| rt.name == tag_info.name)
+                } else {
+                    false
+                };
+                if is_on_remote {
+                    self.status_message =
+                        Some(format!("Tag '{}' is already on the remote", tag_info.name));
+                    return;
+                }
+                self.tag_push_target = Some(tag_info.name.clone());
+                self.mode = Mode::TagPushConfirm;
+            }
+        }
+    }
+
+    pub fn confirm_tag_push(&mut self) {
+        if let Some(tag_name) = self.tag_push_target.take() {
+            if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+                let repo_path = resolved.clone();
+                let remote_name = match info.remotes.first().map(|r| r.name.clone()) {
+                    Some(name) => name,
+                    None => {
+                        self.status_message =
+                            Some("No remotes configured for this repository".to_string());
+                        self.mode = Mode::Detail;
+                        return;
+                    }
+                };
+
+                self.fetching = true;
+                self.status_message = Some(format!(
+                    "Pushing tag '{}' to '{}'...",
+                    tag_name, remote_name
+                ));
+                let tx = self.tx.clone();
+                std::thread::spawn(move || {
+                    let mut cmd = std::process::Command::new("git");
+                    cmd.arg("push")
+                        .arg(&remote_name)
+                        .arg(&tag_name)
+                        .current_dir(&repo_path);
+
+                    let output = match cmd.output() {
+                        Ok(o) => o,
+                        Err(e) => {
+                            let _ = tx.send(format!("Failed to run git push: {}", e));
+                            return;
+                        }
+                    };
+
+                    if output.status.success() {
+                        let _ = tx.send(format!(
+                            "Pushed tag '{}' to '{}' successfully",
+                            tag_name, remote_name
+                        ));
+                    } else {
+                        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                        let _ = tx.send(format!("Failed to push tag: {}", err_msg));
+                    }
+                });
+            }
+        }
+        self.mode = Mode::Detail;
+    }
+
+    pub fn cancel_tag_push(&mut self) {
+        self.tag_push_target = None;
+        self.mode = Mode::Detail;
+    }
+
+    pub fn request_tag_push_all(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if info.remotes.is_empty() {
+                self.status_message = Some("No remotes configured for this repository".to_string());
+                return;
+            }
+            self.mode = Mode::TagPushAllConfirm;
+        }
+    }
+
+    pub fn confirm_tag_push_all(&mut self) {
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+            let repo_path = resolved.clone();
+            let remote_name = match info.remotes.first().map(|r| r.name.clone()) {
+                Some(name) => name,
+                None => {
+                    self.status_message =
+                        Some("No remotes configured for this repository".to_string());
+                    self.mode = Mode::Detail;
+                    return;
+                }
+            };
+
+            self.fetching = true;
+            self.status_message = Some(format!("Pushing all tags to '{}'...", remote_name));
+            let tx = self.tx.clone();
+            std::thread::spawn(move || {
+                let mut cmd = std::process::Command::new("git");
+                cmd.arg("push")
+                    .arg(&remote_name)
+                    .arg("--tags")
+                    .current_dir(&repo_path);
+
+                let output = match cmd.output() {
+                    Ok(o) => o,
+                    Err(e) => {
+                        let _ = tx.send(format!("Failed to run git push: {}", e));
+                        return;
+                    }
+                };
+
+                if output.status.success() {
+                    let _ = tx.send(format!("Pushed all tags to '{}' successfully", remote_name));
+                } else {
+                    let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                    let _ = tx.send(format!("Failed to push tags: {}", err_msg));
+                }
+            });
+        }
+        self.mode = Mode::Detail;
+    }
+
+    pub fn cancel_tag_push_all(&mut self) {
         self.mode = Mode::Detail;
     }
 
