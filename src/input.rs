@@ -468,6 +468,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.commit_done_editing()
                     }
                     KeyCode::Backspace => app.input_backspace(),
+                    KeyCode::Up => app.commit_input_scroll_up(),
+                    KeyCode::Down => app.commit_input_scroll_down(),
                     KeyCode::Char(c) => app.input_char(c),
                     _ => {}
                 }
@@ -479,6 +481,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Char(' ') => {
                         app.toggle_commit_amend()
                     }
+                    KeyCode::Up => app.commit_input_scroll_up(),
+                    KeyCode::Down => app.commit_input_scroll_down(),
                     _ => {}
                 }
             }
@@ -507,6 +511,15 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             app.help_scroll_up();
         } else if is_scroll_down {
             app.help_scroll_down();
+        }
+        return;
+    }
+
+    if app.mode == Mode::CommitInput {
+        if is_scroll_up {
+            app.commit_input_scroll_up();
+        } else if is_scroll_down {
+            app.commit_input_scroll_down();
         }
         return;
     }

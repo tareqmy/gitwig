@@ -135,6 +135,8 @@ pub struct App {
     pub diff_scroll: usize,
     /// Vertical scroll offset for the commit details panel (CommitDetails focus).
     pub commit_details_scroll: usize,
+    /// Vertical scroll offset for the commit input popup.
+    pub commit_input_scroll: usize,
     /// Selected local branch index in Branches tab.
     pub local_branch_selection: usize,
     /// Selected remote branch index in Branches tab.
@@ -242,6 +244,7 @@ impl App {
             file_diff: Vec::new(),
             diff_scroll: 0,
             commit_details_scroll: 0,
+            commit_input_scroll: 0,
             local_branch_selection: 0,
             remote_branch_selection: 0,
             local_tag_selection: 0,
@@ -1764,6 +1767,7 @@ impl App {
             self.input_buffer.clear();
             self.commit_editing = true;
             self.commit_amend = false;
+            self.commit_input_scroll = 0;
             self.mode = Mode::CommitInput;
         } else {
             self.status_message = Some("No staged changes to commit".to_string());
@@ -1773,6 +1777,7 @@ impl App {
     /// Cancels commit input and returns to the detail view.
     pub fn cancel_commit(&mut self) {
         self.input_buffer.clear();
+        self.commit_input_scroll = 0;
         self.mode = Mode::Detail;
     }
 
@@ -1829,6 +1834,7 @@ impl App {
         }
 
         self.input_buffer.clear();
+        self.commit_input_scroll = 0;
         self.mode = Mode::Detail;
     }
 
@@ -1841,6 +1847,14 @@ impl App {
                 }
             }
         }
+    }
+
+    pub fn commit_input_scroll_up(&mut self) {
+        self.commit_input_scroll = self.commit_input_scroll.saturating_sub(1);
+    }
+
+    pub fn commit_input_scroll_down(&mut self) {
+        self.commit_input_scroll = self.commit_input_scroll.saturating_add(1);
     }
 
     pub fn cancel_input(&mut self) {
@@ -2805,5 +2819,37 @@ mod tests {
         assert_eq!(app.config.items[0], "z_repo");
         assert_eq!(app.config.items[1], "a_repo");
         assert_eq!(app.config.items[2], "m_repo");
+    }
+
+    #[test]
+    fn test_commit_input_scroll() {
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_commit_scroll.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        assert_eq!(app.commit_input_scroll, 0);
+
+        app.commit_input_scroll_down();
+        assert_eq!(app.commit_input_scroll, 1);
+
+        app.commit_input_scroll_down();
+        assert_eq!(app.commit_input_scroll, 2);
+
+        app.commit_input_scroll_up();
+        assert_eq!(app.commit_input_scroll, 1);
+
+        // Cancel resets it
+        app.cancel_commit();
+        assert_eq!(app.commit_input_scroll, 0);
     }
 }

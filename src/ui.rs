@@ -167,6 +167,7 @@ pub fn draw(
                 &app.tag_push_target,
                 app.stash_apply_delete_after,
                 app.commit_amend,
+                app.commit_input_scroll,
                 content_area,
             );
         }
@@ -706,6 +707,14 @@ fn commit_input_editing_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntr
             Span::styled("⎋", accent_style()),
             Span::styled("]", muted_style()),
         ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Scroll"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("↑/↓", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
     ];
     (None, entries)
 }
@@ -748,6 +757,14 @@ fn commit_input_confirm_entries(
             Span::raw(" "),
             Span::styled("[", muted_style()),
             Span::styled("⎋/q", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Scroll"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("↑/↓", accent_style()),
             Span::styled("]", muted_style()),
         ]),
     ];

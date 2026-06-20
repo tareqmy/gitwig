@@ -112,6 +112,7 @@ pub fn draw(
     tag_push_target: &Option<String>,
     stash_apply_delete_after: bool,
     commit_amend: bool,
+    commit_input_scroll: usize,
     area: Rect,
 ) {
     // Extract branch name if this is a repo detail.
@@ -403,7 +404,14 @@ pub fn draw(
             }
             // Draw commit popup on top when requested.
             if matches!(mode, Mode::CommitInput) {
-                draw_commit_popup(f, input_buffer, commit_editing, commit_amend, body_area);
+                draw_commit_popup(
+                    f,
+                    input_buffer,
+                    commit_editing,
+                    commit_amend,
+                    commit_input_scroll,
+                    body_area,
+                );
             }
             // Draw branch create popup on top when requested.
             if matches!(mode, Mode::BranchCreateInput) {
@@ -1471,6 +1479,7 @@ fn draw_commit_popup(
     input_buffer: &str,
     editing: bool,
     commit_amend: bool,
+    scroll: usize,
     area: Rect,
 ) {
     let popup_area = centred_rect(60, 25, area);
@@ -1501,8 +1510,11 @@ fn draw_commit_popup(
     let text = if input_buffer.is_empty() {
         Paragraph::new(Span::styled("(type commit message here...)", muted_style()))
             .wrap(Wrap { trim: true })
+            .scroll((scroll as u16, 0))
     } else {
-        Paragraph::new(input_buffer).wrap(Wrap { trim: true })
+        Paragraph::new(input_buffer)
+            .wrap(Wrap { trim: true })
+            .scroll((scroll as u16, 0))
     };
 
     let inner_area = block.inner(popup_area);
