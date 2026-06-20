@@ -303,6 +303,8 @@ pub fn draw(
                 // Render Files view (tab 2, index 1)
                 draw_files_view(
                     f,
+                    resolved,
+                    info,
                     visible_files,
                     *focus,
                     file_list_selection,
@@ -1666,8 +1668,11 @@ fn draw_branches_view(
     f.render_stateful_widget(remote_list, right_area, &mut remote_state);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_files_view(
     f: &mut Frame,
+    resolved: &std::path::Path,
+    info: &RepoInfo,
     visible_files: &[crate::app::FileTreeItem],
     focus: DetailSection,
     file_list_selection: usize,
@@ -1676,6 +1681,11 @@ fn draw_files_view(
 ) {
     areas.files = Some(area);
 
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(45), Constraint::Percentage(55)])
+        .split(area);
+
     let focused = focus == DetailSection::Files;
     let border_style = if focused {
         Style::default().fg(ACCENT)
@@ -1683,7 +1693,7 @@ fn draw_files_view(
         muted_style()
     };
 
-    let block = Block::default()
+    let left_block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER)
         .border_style(border_style)
@@ -1717,13 +1727,137 @@ fn draw_files_view(
         .collect();
 
     let list = List::new(items)
-        .block(block)
+        .block(left_block)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
     let mut state = ListState::default();
     state.select(Some(file_list_selection));
 
-    f.render_stateful_widget(list, area, &mut state);
+    f.render_stateful_widget(list, chunks[0], &mut state);
+
+    // Right panel: file preview or folder contents
+    if let Some(selected_item) = visible_files.get(file_list_selection) {
+        if selected_item.is_dir {
+            // Selected item is a directory: list its direct contents
+            let folder_name = if selected_item.name.is_empty() {
+                "/"
+            } else {
+                &selected_item.name
+            };
+            let right_block = Block::default()
+                .borders(Borders::ALL)
+                .border_type(CARD_BORDER)
+                .border_style(muted_style())
+                .title(Line::from(vec![
+                    Span::raw(" "),
+                    Span::styled(format!("Contents of {}", folder_name), primary_style()),
+                    Span::raw(" "),
+                ]))
+                .padding(Padding::uniform(1));
+
+            let prefix = if selected_item.full_path.is_empty() {
+                "".to_string()
+            } else {
+                format!("{}/", selected_item.full_path)
+            };
+
+            let mut direct_children = std::collections::BTreeSet::new();
+            for f_path in &info.files {
+                if f_path.starts_with(&prefix) {
+                    let relative = &f_path[prefix.len()..];
+                    if let Some(idx) = relative.find('/') {
+                        let subdir = &relative[..idx];
+                        direct_children.insert((subdir.to_string(), true));
+                    } else {
+                        direct_children.insert((relative.to_string(), false));
+                    }
+                }
+            }
+
+            let mut children_vec: Vec<(String, bool)> = direct_children.into_iter().collect();
+            children_vec.sort_by(|a, b| match (a.1, b.1) {
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+                _ => a.0.cmp(&b.0),
+            });
+
+            let mut lines = Vec::new();
+            if children_vec.is_empty() {
+                lines.push(Line::from(vec![
+                    Span::raw("  "),
+                    Span::styled("(empty folder)", muted_style()),
+                ]));
+            } else {
+                for (name, is_dir) in children_vec {
+                    if is_dir {
+                        lines.push(Line::from(vec![
+                            Span::raw("  "),
+                            Span::styled("📁 ", Style::default().fg(ACCENT)),
+                            Span::styled(name, primary_style()),
+                        ]));
+                    } else {
+                        lines.push(Line::from(vec![
+                            Span::raw("  "),
+                            Span::styled("🗎 ", muted_style()),
+                            Span::raw(name),
+                        ]));
+                    }
+                }
+            }
+
+            let body = Paragraph::new(lines)
+                .block(right_block)
+                .wrap(Wrap { trim: false });
+            f.render_widget(body, chunks[1]);
+        } else {
+            // Selected item is a file: show its contents
+            let right_block = Block::default()
+                .borders(Borders::ALL)
+                .border_type(CARD_BORDER)
+                .border_style(muted_style())
+                .title(Line::from(vec![
+                    Span::raw(" "),
+                    Span::styled(
+                        format!("Content of {}", selected_item.name),
+                        primary_style(),
+                    ),
+                    Span::raw(" "),
+                ]))
+                .padding(Padding::uniform(1));
+
+            let file_path = resolved.join(&selected_item.full_path);
+            let content_text = match read_file_content(&file_path) {
+                Ok(content) => content,
+                Err(e) => format!("Could not read file: {}", e),
+            };
+            let body = Paragraph::new(content_text)
+                .block(right_block)
+                .wrap(Wrap { trim: false });
+            f.render_widget(body, chunks[1]);
+        }
+    } else {
+        // Fallback: render an empty block on the right
+        let right_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER)
+            .border_style(muted_style())
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Content", primary_style()),
+                Span::raw(" "),
+            ]));
+        f.render_widget(right_block, chunks[1]);
+    }
+}
+
+fn read_file_content(path: &std::path::Path) -> Result<String, std::io::Error> {
+    use std::io::Read;
+    let file = std::fs::File::open(path)?;
+    let mut buffer = Vec::new();
+    file.take(100_000).read_to_end(&mut buffer)?;
+    let content = String::from_utf8(buffer)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    Ok(content)
 }
 
 fn draw_branch_create_popup(
