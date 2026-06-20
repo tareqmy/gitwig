@@ -111,12 +111,12 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('o') => app.open_overview_popup(),
             KeyCode::Char('?') => app.open_detail_help(),
             KeyCode::Tab => {
-                app.detail_tab = (app.detail_tab + 1) % 5;
+                app.detail_tab = (app.detail_tab + 1) % 6;
                 app.set_default_focus_for_tab();
             }
             KeyCode::BackTab => {
                 app.detail_tab = if app.detail_tab == 0 {
-                    4
+                    5
                 } else {
                     app.detail_tab - 1
                 };
@@ -141,6 +141,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.detail_tab = 4;
                 app.detail_focus = DetailSection::LocalTags;
                 app.fetch_remote_tags();
+            }
+            KeyCode::Char('6') => {
+                app.detail_tab = 5;
+                app.detail_focus = DetailSection::Remotes;
             }
             _ if app.detail_tab == 0 => match code {
                 KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
@@ -324,6 +328,21 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 _ => {}
             },
+            _ if app.detail_tab == 5 => match code {
+                KeyCode::Up | KeyCode::Char('k') => {
+                    app.remote_up();
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    app.remote_down();
+                }
+                KeyCode::PageUp => {
+                    app.remote_page_up(10);
+                }
+                KeyCode::PageDown => {
+                    app.remote_page_down(10);
+                }
+                _ => {}
+            },
             _ => {}
         },
         Mode::DetailOverview => match code {
@@ -469,6 +488,9 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         app.detail_tab = 4;
                         app.detail_focus = DetailSection::LocalTags;
                         app.fetch_remote_tags();
+                    } else if (81..94).contains(&click_x) {
+                        app.detail_tab = 5;
+                        app.detail_focus = DetailSection::Remotes;
                     }
                 }
                 return;
@@ -695,6 +717,22 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             } else if is_scroll_down {
                 app.detail_focus = DetailSection::Files;
                 app.file_list_down();
+            }
+        }
+    }
+    // Remotes list panel.
+    if let Some(rect) = areas.remotes {
+        if rect.contains(pos) {
+            if is_click {
+                if app.detail_focus != DetailSection::Remotes {
+                    app.detail_focus = DetailSection::Remotes;
+                }
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::Remotes;
+                app.remote_up();
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::Remotes;
+                app.remote_down();
             }
         }
     }

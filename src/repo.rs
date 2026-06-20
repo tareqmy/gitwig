@@ -117,10 +117,12 @@ pub struct HeadInfo {
     pub when: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RemoteInfo {
     pub name: String,
     pub url: String,
+    pub push_url: Option<String>,
+    pub refspecs: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -492,9 +494,18 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
         for name in remotes.iter() {
             let Ok(Some(name)) = name else { continue };
             if let Ok(remote) = repo.find_remote(name) {
+                let push_url = remote.pushurl().ok().flatten().map(String::from);
+                let mut refspecs = Vec::new();
+                for r in remote.refspecs() {
+                    if let Ok(s) = r.str() {
+                        refspecs.push(s.to_string());
+                    }
+                }
                 info.remotes.push(RemoteInfo {
                     name: name.to_string(),
                     url: remote.url().unwrap_or("(no url)").to_string(),
+                    push_url,
+                    refspecs,
                 });
             }
         }

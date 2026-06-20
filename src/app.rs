@@ -70,6 +70,7 @@ pub enum DetailSection {
     LocalTags,
     RemoteTags,
     Files,
+    Remotes,
 }
 
 impl DetailSection {
@@ -86,6 +87,7 @@ impl DetailSection {
             Self::LocalTags => Self::RemoteTags,
             Self::RemoteTags => Self::LocalTags,
             Self::Files => Self::Files,
+            Self::Remotes => Self::Remotes,
         }
     }
 }
@@ -128,6 +130,8 @@ pub struct App {
     pub local_tag_selection: usize,
     /// Selected remote tag index in Tags/Branches tabs.
     pub remote_tag_selection: usize,
+    /// Selected remote index in Remotes tab.
+    pub remote_selection: usize,
     /// Scroll offset for the help overlays.
     pub help_scroll: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
@@ -209,6 +213,7 @@ impl App {
             remote_branch_selection: 0,
             local_tag_selection: 0,
             remote_tag_selection: 0,
+            remote_selection: 0,
             help_scroll: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
@@ -360,6 +365,7 @@ impl App {
             self.remote_branch_selection = 0;
             self.local_tag_selection = 0;
             self.remote_tag_selection = 0;
+            self.remote_selection = 0;
             self.file_list_selection = 0;
             self.expanded_folders.clear();
             self.rebuild_visible_files();
@@ -1546,6 +1552,7 @@ impl App {
                 self.detail_focus = DetailSection::LocalTags;
                 self.fetch_remote_tags();
             }
+            5 => self.detail_focus = DetailSection::Remotes,
             _ => {}
         }
     }
@@ -1595,6 +1602,32 @@ impl App {
             if total > 0 {
                 self.local_tag_selection =
                     (self.local_tag_selection + page).min(total.saturating_sub(1));
+            }
+        }
+    }
+
+    pub fn remote_up(&mut self) {
+        self.remote_selection = self.remote_selection.saturating_sub(1);
+    }
+
+    pub fn remote_down(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.remotes.len();
+            if total > 0 && self.remote_selection + 1 < total {
+                self.remote_selection += 1;
+            }
+        }
+    }
+
+    pub fn remote_page_up(&mut self, page: usize) {
+        self.remote_selection = self.remote_selection.saturating_sub(page);
+    }
+
+    pub fn remote_page_down(&mut self, page: usize) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.remotes.len();
+            if total > 0 {
+                self.remote_selection = (self.remote_selection + page).min(total.saturating_sub(1));
             }
         }
     }

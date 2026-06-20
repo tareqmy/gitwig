@@ -70,6 +70,8 @@ pub struct DetailAreas {
     pub tab_bar: Option<Rect>,
     /// Bounding box of the files list.
     pub files: Option<Rect>,
+    /// Bounding box of the remotes panel.
+    pub remotes: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -89,6 +91,7 @@ pub fn draw(
     local_branch_selection: usize,
     remote_branch_selection: usize,
     local_tag_selection: usize,
+    remote_selection: usize,
     file_list_selection: usize,
     visible_files: &[crate::app::FileTreeItem],
     detail_tab: usize,
@@ -154,10 +157,11 @@ pub fn draw(
     }
 
     if let Some(tab_area) = tab_bar_area {
-        let (style_details, style_graph, style_branches, style_files, style_tags) =
+        let (style_details, style_graph, style_branches, style_files, style_tags, style_remotes) =
             if detail_tab == 0 {
                 (
                     Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
@@ -170,12 +174,14 @@ pub fn draw(
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                 )
             } else if detail_tab == 2 {
                 (
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                 )
@@ -186,9 +192,20 @@ pub fn draw(
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                )
+            } else if detail_tab == 4 {
+                (
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                 )
             } else {
                 (
+                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
                     Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
@@ -202,6 +219,7 @@ pub fn draw(
         let branches_bullet = if detail_tab == 2 { "●" } else { "○" };
         let files_bullet = if detail_tab == 3 { "●" } else { "○" };
         let tags_bullet = if detail_tab == 4 { "●" } else { "○" };
+        let remotes_bullet = if detail_tab == 5 { "●" } else { "○" };
 
         let tab_line = Line::from(vec![
             Span::raw("  "),
@@ -214,6 +232,8 @@ pub fn draw(
             Span::styled(format!("{} Files [4]", files_bullet), style_files),
             Span::raw("    "),
             Span::styled(format!("{} Tags [5]", tags_bullet), style_tags),
+            Span::raw("    "),
+            Span::styled(format!("{} Remotes [6]", remotes_bullet), style_remotes),
         ]);
         f.render_widget(Paragraph::new(tab_line), tab_area);
         areas.tab_bar = Some(tab_area);
@@ -333,7 +353,7 @@ pub fn draw(
                     areas,
                     body_area,
                 );
-            } else {
+            } else if detail_tab == 4 {
                 // Render Tags view (tab 5, index 4)
                 draw_tags_view(
                     f,
@@ -344,6 +364,9 @@ pub fn draw(
                     areas,
                     body_area,
                 );
+            } else {
+                // Render Remotes view (tab 6, index 5)
+                draw_remotes_view(f, info, *focus, remote_selection, areas, body_area);
             }
 
             // Draw overview popup on top when requested.
@@ -949,6 +972,8 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("2", "Go to Graph View tab"),
     ("3", "Go to Branches tab"),
     ("4", "Go to Files tab"),
+    ("5", "Go to Tags tab"),
+    ("6", "Go to Remotes tab"),
     ("⇧F [Shift+F]", "Fetch selected local branch's upstream"),
     ("p", "Pull selected local branch from remote"),
     ("⇧P [Shift+P]", "Push selected local branch to remote"),
@@ -1990,4 +2015,119 @@ fn draw_tags_view(
         local_state.select(Some(local_tag_selection));
     }
     f.render_stateful_widget(local_list, area, &mut local_state);
+}
+
+fn draw_remotes_view(
+    f: &mut Frame,
+    info: &RepoInfo,
+    focus: DetailSection,
+    remote_selection: usize,
+    areas: &mut DetailAreas,
+    area: Rect,
+) {
+    areas.remotes = Some(area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(35), Constraint::Percentage(65)])
+        .split(area);
+
+    let left_area = chunks[0];
+    let right_area = chunks[1];
+
+    let focused = focus == DetailSection::Remotes;
+    let border_style = if focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
+
+    // ── Remotes List Panel ──
+    let list_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER)
+        .border_style(border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Remotes", primary_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::uniform(1));
+
+    let list_items: Vec<ListItem> = info
+        .remotes
+        .iter()
+        .map(|r| {
+            ListItem::new(Line::from(vec![
+                Span::raw("  "),
+                Span::styled(r.name.clone(), primary_style()),
+            ]))
+        })
+        .collect();
+
+    let list = List::new(list_items)
+        .block(list_block)
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+
+    let mut list_state = ListState::default();
+    if focused {
+        list_state.select(Some(remote_selection));
+    }
+    f.render_stateful_widget(list, left_area, &mut list_state);
+
+    // ── Remote Details Panel ──
+    let details_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER)
+        .border_style(muted_style())
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Remote Details", primary_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::uniform(1));
+
+    let mut details_lines = Vec::new();
+    if let Some(selected_remote) = info.remotes.get(remote_selection) {
+        details_lines.push(Line::from(""));
+        details_lines.push(Line::from(vec![
+            Span::styled("  Name:      ", accent_style()),
+            Span::styled(selected_remote.name.clone(), primary_style()),
+        ]));
+        details_lines.push(Line::from(vec![
+            Span::styled("  Fetch URL: ", accent_style()),
+            Span::raw(selected_remote.url.clone()),
+        ]));
+        if let Some(push_url) = &selected_remote.push_url {
+            details_lines.push(Line::from(vec![
+                Span::styled("  Push URL:  ", accent_style()),
+                Span::raw(push_url.clone()),
+            ]));
+        } else {
+            details_lines.push(Line::from(vec![
+                Span::styled("  Push URL:  ", accent_style()),
+                Span::raw(selected_remote.url.clone()),
+            ]));
+        }
+        details_lines.push(Line::from(""));
+        details_lines.push(Line::from(vec![
+            Span::raw("  "),
+            Span::styled("Refspecs:", primary_style()),
+        ]));
+        for spec in &selected_remote.refspecs {
+            details_lines.push(Line::from(vec![
+                Span::raw("    "),
+                Span::styled(spec.clone(), muted_style()),
+            ]));
+        }
+    } else {
+        details_lines.push(Line::from(""));
+        details_lines.push(Line::from(Span::styled(
+            "  No remotes configured",
+            muted_style(),
+        )));
+    }
+
+    let details_paragraph = Paragraph::new(details_lines).block(details_block);
+    f.render_widget(details_paragraph, right_area);
 }
