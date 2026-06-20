@@ -112,6 +112,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_stash_delete(),
             _ => {}
         },
+        Mode::StashApplyConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => app.confirm_stash_apply(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_stash_apply(),
+            KeyCode::Char('d')
+            | KeyCode::Char('D')
+            | KeyCode::Char(' ')
+            | KeyCode::Char('a')
+            | KeyCode::Char('A') => {
+                app.toggle_stash_apply_delete();
+            }
+            _ => {}
+        },
         Mode::Help => match code {
             KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_dialog();
@@ -388,6 +400,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char('d') | KeyCode::Char('D') => {
                     if detail_focus == DetailSection::Stashes {
                         app.request_stash_delete();
+                    }
+                }
+                KeyCode::Char('a') | KeyCode::Char('A') => {
+                    if detail_focus == DetailSection::Stashes {
+                        app.request_stash_apply();
                     }
                 }
                 KeyCode::Up | KeyCode::Char('k') => match detail_focus {

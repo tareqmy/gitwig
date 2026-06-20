@@ -110,6 +110,7 @@ pub fn draw(
     tag_action_target_oid: &Option<String>,
     tag_delete_target: &Option<(String, bool)>,
     tag_push_target: &Option<String>,
+    stash_apply_delete_after: bool,
     area: Rect,
 ) {
     // Extract branch name if this is a repo detail.
@@ -441,6 +442,17 @@ pub fn draw(
                     _ => None,
                 };
                 draw_stash_delete_popup(f, &stash_name, body_area);
+            }
+            // Draw stash apply popup on top when requested.
+            if matches!(mode, Mode::StashApplyConfirm) {
+                let stash_name = match detail {
+                    ItemDetail::Repo { info, .. } => info
+                        .stashes
+                        .get(stash_selection)
+                        .map(|s| format!("stash@{{{}}}: {}", s.index, s.message)),
+                    _ => None,
+                };
+                draw_stash_apply_popup(f, &stash_name, stash_apply_delete_after, body_area);
             }
         }
         _ => {
@@ -2415,6 +2427,74 @@ fn draw_stash_delete_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
     f.render_widget(paragraph, popup_area);
 }
 
+fn draw_stash_apply_popup(f: &mut Frame, target: &Option<String>, delete_after: bool, area: Rect) {
+    let popup_area = centred_rect(55, 25, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT);
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Apply Stash", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let stash_name = match target {
+        Some(name) => name.as_str(),
+        None => "",
+    };
+
+    let mut content = vec![
+        Line::from(vec![Span::styled(
+            "Are you sure you want to apply the stash:",
+            primary_style(),
+        )]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                stash_name,
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(""),
+    ];
+
+    let delete_after_style = if delete_after {
+        Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(ratatui::style::Color::DarkGray)
+    };
+
+    let checkbox = if delete_after { "[X]" } else { "[ ]" };
+
+    content.push(Line::from(vec![
+        Span::styled(format!("  {} ", checkbox), delete_after_style),
+        Span::styled("Delete stash after applying", primary_style()),
+        Span::styled(" (toggle: [d/space/a])", muted_style()),
+    ]));
+
+    content.push(Line::from(""));
+
+    content.push(Line::from(vec![
+        Span::styled("Confirm: ", muted_style()),
+        Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" / Cancel: ", muted_style()),
+        Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+    ]));
+
+    let paragraph = Paragraph::new(content)
+        .block(block)
+        .wrap(Wrap { trim: false });
+    f.render_widget(paragraph, popup_area);
+}
+
 fn draw_tag_push_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
     let popup_area = centred_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
@@ -2563,7 +2643,7 @@ fn draw_stashes_view(
         .iter()
         .map(|s| {
             ListItem::new(Line::from(vec![Span::styled(
-                format!("  stash@{{{}}}", s.index),
+                format!("  stash@{{{}}}: {}", s.index, s.message),
                 primary_style(),
             )]))
         })

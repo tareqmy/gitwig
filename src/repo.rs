@@ -84,7 +84,6 @@ pub struct BranchInfo {
 #[derive(Debug, Clone, Default)]
 pub struct StashInfo {
     pub index: usize,
-    #[allow(dead_code)]
     pub message: String,
     pub commit_id: String,
     pub files: Vec<FileEntry>,
@@ -1292,5 +1291,22 @@ pub fn deserialize_tags(s: &str) -> Vec<BranchInfo> {
 pub fn delete_stash(repo_path: &Path, index: usize) -> Result<(), git2::Error> {
     let mut repo = Repository::open(repo_path)?;
     repo.stash_drop(index)?;
+    Ok(())
+}
+
+pub fn apply_stash(repo_path: &Path, index: usize) -> Result<(), String> {
+    let stash_ref = format!("stash@{{{}}}", index);
+    let output = std::process::Command::new("git")
+        .arg("stash")
+        .arg("apply")
+        .arg(&stash_ref)
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(err_msg);
+    }
     Ok(())
 }
