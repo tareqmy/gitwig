@@ -31,6 +31,7 @@ pub enum Mode {
     /// Browsing the list. Navigation + add/edit/delete shortcuts are active.
     Normal,
     /// Typing a new item to append. Enter commits, Esc cancels.
+    #[allow(dead_code)]
     Adding,
     /// Typing replacement text for the selected item. Enter commits, Esc cancels.
     Editing,
@@ -178,6 +179,8 @@ pub struct App {
     pub fetching: bool,
     /// Whether gitui launch is pending.
     pub pending_gitui: bool,
+    /// Whether fzf search launch is pending.
+    pub pending_fzf: bool,
     /// Target branch name and remote flag for deletion/creation actions.
     pub branch_action_target: Option<(String, bool)>,
     /// Target commit OID for tag creation.
@@ -261,6 +264,7 @@ impl App {
             rx,
             fetching: false,
             pending_gitui: false,
+            pending_fzf: false,
             branch_action_target: None,
             tag_action_target_oid: None,
             tag_delete_target: None,
@@ -354,8 +358,7 @@ impl App {
     }
 
     pub fn start_add(&mut self) {
-        self.input_buffer.clear();
-        self.mode = Mode::Adding;
+        self.pending_fzf = true;
     }
 
     pub fn start_edit(&mut self) {
@@ -1837,6 +1840,25 @@ impl App {
         self.mode = Mode::Normal;
     }
 
+    pub fn add_repo_path(&mut self, path: String) {
+        let trimmed = path.trim().to_string();
+        if !trimmed.is_empty() {
+            let status = repo::inspect_summary(&trimmed);
+            self.statuses.push(status);
+            self.config.items.push(trimmed.clone());
+            self.original_items.push(trimmed.clone());
+
+            self.sort_items_in_place();
+
+            if let Some(pos) = self.config.items.iter().position(|x| x == &trimmed) {
+                self.selected_index = pos;
+            } else {
+                self.selected_index = self.config.items.len() - 1;
+            }
+            self.persist("Added repository");
+        }
+    }
+
     pub fn commit_edit(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
         if !trimmed.is_empty() && self.selected_index < self.config.items.len() {
@@ -2353,6 +2375,56 @@ where
                         Err(e) => {
                             app.status_message = Some(format!("Could not run gitui: {}", e));
                         }
+                    }
+                }
+            }
+        }
+
+        if app.pending_fzf {
+            app.pending_fzf = false;
+
+            let raw_res = crossterm::terminal::disable_raw_mode();
+            let exec_res = crossterm::execute!(
+                std::io::stdout(),
+                crossterm::terminal::LeaveAlternateScreen,
+                crossterm::event::DisableMouseCapture
+            );
+            let cursor_res = terminal.show_cursor();
+
+            if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+                let output = std::process::Command::new("sh")
+                    .arg("-c")
+                    .arg(r#"if ! command -v fzf >/dev/null 2>&1; then exit 127; fi; (command -v fd >/dev/null 2>&1 && fd . '/' --type d --max-depth 6 --exclude System --exclude Library --exclude Applications --exclude private --exclude var --exclude usr --exclude bin --exclude sbin --exclude dev --exclude Volumes --exclude cores --exclude opt --exclude .git --exclude node_modules --exclude .Trash --exclude .cargo --exclude .npm 2>/dev/null || find / -maxdepth 6 \( -path '/System' -o -path '/Library' -o -path '/Applications' -o -path '/private' -o -path '/usr' -o -path '/bin' -o -path '/sbin' -o -path '/var' -o -path '/dev' -o -path '/Volumes' -o -path '/cores' -o -path '/opt' -o -path '*/.*' -o -path '*/node_modules' \) -prune -o -type d -print 2>/dev/null) | fzf"#)
+                    .stdin(std::process::Stdio::inherit())
+                    .stderr(std::process::Stdio::inherit())
+                    .stdout(std::process::Stdio::piped())
+                    .output();
+
+                let _ = crossterm::terminal::enable_raw_mode();
+                let _ = crossterm::execute!(
+                    std::io::stdout(),
+                    crossterm::terminal::EnterAlternateScreen,
+                    crossterm::event::EnableMouseCapture
+                );
+                let _ = terminal.clear();
+
+                match output {
+                    Ok(out) => {
+                        if out.status.success() {
+                            let selected = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                            if !selected.is_empty() {
+                                app.add_repo_path(selected);
+                            }
+                        } else if out.status.code() == Some(127) {
+                            app.status_message =
+                                Some("fzf is not installed. Please install fzf.".to_string());
+                        }
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                        app.status_message = Some("fzf is not installed".to_string());
+                    }
+                    Err(e) => {
+                        app.status_message = Some(format!("Could not run fzf: {}", e));
                     }
                 }
             }
