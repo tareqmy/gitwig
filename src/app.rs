@@ -75,6 +75,7 @@ pub enum DetailSection {
     RemoteTags,
     Files,
     Remotes,
+    Stashes,
 }
 
 impl DetailSection {
@@ -92,6 +93,7 @@ impl DetailSection {
             Self::RemoteTags => Self::LocalTags,
             Self::Files => Self::Files,
             Self::Remotes => Self::Remotes,
+            Self::Stashes => Self::Stashes,
         }
     }
 }
@@ -136,6 +138,8 @@ pub struct App {
     pub remote_tag_selection: usize,
     /// Selected remote index in Remotes tab.
     pub remote_selection: usize,
+    /// Selected stash index in Stashes tab.
+    pub stash_selection: usize,
     /// Scroll offset for the help overlays.
     pub help_scroll: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
@@ -224,6 +228,7 @@ impl App {
             local_tag_selection: 0,
             remote_tag_selection: 0,
             remote_selection: 0,
+            stash_selection: 0,
             help_scroll: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
@@ -379,6 +384,7 @@ impl App {
             self.local_tag_selection = 0;
             self.remote_tag_selection = 0;
             self.remote_selection = 0;
+            self.stash_selection = 0;
             self.file_list_selection = 0;
             self.expanded_folders.clear();
             self.rebuild_visible_files();
@@ -1766,6 +1772,7 @@ impl App {
                 self.fetch_remote_tags();
             }
             5 => self.detail_focus = DetailSection::Remotes,
+            6 => self.detail_focus = DetailSection::Stashes,
             _ => {}
         }
     }
@@ -1841,6 +1848,32 @@ impl App {
             let total = info.remotes.len();
             if total > 0 {
                 self.remote_selection = (self.remote_selection + page).min(total.saturating_sub(1));
+            }
+        }
+    }
+
+    pub fn stash_up(&mut self) {
+        self.stash_selection = self.stash_selection.saturating_sub(1);
+    }
+
+    pub fn stash_down(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.stashes.len();
+            if total > 0 && self.stash_selection + 1 < total {
+                self.stash_selection += 1;
+            }
+        }
+    }
+
+    pub fn stash_page_up(&mut self, page: usize) {
+        self.stash_selection = self.stash_selection.saturating_sub(page);
+    }
+
+    pub fn stash_page_down(&mut self, page: usize) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.stashes.len();
+            if total > 0 {
+                self.stash_selection = (self.stash_selection + page).min(total.saturating_sub(1));
             }
         }
     }

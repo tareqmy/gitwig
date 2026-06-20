@@ -43,9 +43,9 @@
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
 | `Esc` / `q`          | Detail          | Return to the list                |
-| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Details → Files → Graph → Branches → Tags → Remotes → Overview) |
+| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Details → Files → Graph → Branches → Tags → Remotes → Stashes → Overview) |
 | `w` / `W`            | Detail          | Cycle panel focus (`Commits` → `Staged` → `Unstaged` → `StagingDetails` in Details tab, Local → Remote in Branches tab, or Local → Remote in Tags tab) |
-| `1` - `7`            | Detail          | Jump directly to tab: Details (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), or Overview (7) |
+| `1` - `8`            | Detail          | Jump directly to tab: Details (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), or Overview (8) |
 | `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
 | `PgUp` / `PgDn`      | Detail          | Jump 10 rows or page scroll diff/tree |
@@ -104,14 +104,15 @@ Items support `~` and `~/...` expansion, so `~/code/twig` resolves to your home 
 
 ## 🔍 Detail view
 
-Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports seven tabs for git repositories: **Details**, **Files**, **Graph**, **Branches**, **Tags**, **Remotes**, and **Overview**.
+Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports eight tabs for git repositories: **Details**, **Files**, **Graph**, **Branches**, **Tags**, **Remotes**, **Stashes**, and **Overview**.
 - Press `1` to switch to the **Details** tab.
 - Press `2` to switch to the **Files** tab.
 - Press `3` to switch to the **Graph** tab.
 - Press `4` to switch to the **Branches** tab.
 - Press `5` to switch to the **Tags** tab.
 - Press `6` to switch to the **Remotes** tab.
-- Press `7` to switch to the **Overview** tab.
+- Press `7` to switch to the **Stashes** tab.
+- Press `8` to switch to the **Overview** tab.
 - Alternatively, press `Tab` / `Shift+Tab` to cycle forward/backward through the tabs.
 - You can also click on the tab headers directly with the mouse to switch tabs.
 Press `Esc` or `q` to return to the repository list.
@@ -156,6 +157,11 @@ The **Tags** tab lists both local tags and remote tags.
 
 The **Remotes** tab lists configured remotes for the repository.
 
+### Stashes Tab
+
+The **Stashes** tab lists all available stashes in the repository.
+- Select a stash using `↑`/`k` and `↓`/`j` to view its index, commit hash, and stash message in the detail panel on the right.
+
 ### Overview Tab
 
 The **Overview** tab displays key repository details including resolved paths, branch upstream tracking info, configured remotes, and general status counts.
@@ -164,9 +170,9 @@ The **Overview** tab displays key repository details including resolved paths, b
 
 You can navigate and interact with these panels in the following ways:
 - **Cycle Focus:** In the Details, Branches, and Tags tabs, press `w` / `W` to cycle panel focus (e.g. `Commits` → `Staged` → `Unstaged` → `StagingDetails` in the Details tab, toggling between Local and Remote branches in the Branches tab, or Local and Remote tags in the Tags tab). Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Details tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab).
-- **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag list panels and the files list) to focus it immediately.
+- **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels and the files list) to focus it immediately.
 - **Mouse Wheel Scroll:** Use the mouse wheel to scroll vertically through the active list, commit history, branch list, files list, or staging details diff.
-- **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, tag, or file tree item in the active list.
+- **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, tag, stash, or file tree item in the active list.
 - **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
 - **Stage/Unstage Files:** Select the `Uncommitted changes` row at the top, select a file in either the `Staged` or `Unstaged` list, and press `Enter` to stage or unstage that file instantly.
 - **Network Progress Bar:** Any long-running network operations (such as Fetch, Pull, or Push) will display a centering animated progress bar popup so the UI thread remains responsive and visual feedback is clear.

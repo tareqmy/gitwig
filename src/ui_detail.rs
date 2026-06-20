@@ -72,6 +72,8 @@ pub struct DetailAreas {
     pub files: Option<Rect>,
     /// Bounding box of the remotes panel.
     pub remotes: Option<Rect>,
+    /// Bounding box of the stashes panel.
+    pub stashes: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -92,6 +94,7 @@ pub fn draw(
     remote_branch_selection: usize,
     local_tag_selection: usize,
     remote_selection: usize,
+    stash_selection: usize,
     file_list_selection: usize,
     visible_files: &[crate::app::FileTreeItem],
     detail_tab: usize,
@@ -166,6 +169,7 @@ pub fn draw(
             style_branches,
             style_tags,
             style_remotes,
+            style_stashes,
             style_overview,
         ) = (
             if detail_tab == 0 {
@@ -203,6 +207,11 @@ pub fn draw(
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             },
+            if detail_tab == 7 {
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
+            },
         );
 
         let details_bullet = if detail_tab == 0 { "●" } else { "○" };
@@ -211,7 +220,8 @@ pub fn draw(
         let branches_bullet = if detail_tab == 3 { "●" } else { "○" };
         let tags_bullet = if detail_tab == 4 { "●" } else { "○" };
         let remotes_bullet = if detail_tab == 5 { "●" } else { "○" };
-        let overview_bullet = if detail_tab == 6 { "●" } else { "○" };
+        let stashes_bullet = if detail_tab == 6 { "●" } else { "○" };
+        let overview_bullet = if detail_tab == 7 { "●" } else { "○" };
 
         let tab_line = Line::from(vec![
             Span::raw("  "),
@@ -227,7 +237,9 @@ pub fn draw(
             Span::raw("    "),
             Span::styled(format!("{} Remotes [6]", remotes_bullet), style_remotes),
             Span::raw("    "),
-            Span::styled(format!("{} Overview [7]", overview_bullet), style_overview),
+            Span::styled(format!("{} Stashes [7]", stashes_bullet), style_stashes),
+            Span::raw("    "),
+            Span::styled(format!("{} Overview [8]", overview_bullet), style_overview),
         ]);
         f.render_widget(Paragraph::new(tab_line), tab_area);
         areas.tab_bar = Some(tab_area);
@@ -363,8 +375,11 @@ pub fn draw(
             } else if detail_tab == 5 {
                 // Render Remotes view (tab 6, index 5)
                 draw_remotes_view(f, info, *focus, remote_selection, areas, body_area);
+            } else if detail_tab == 6 {
+                // Render Stashes view (tab 7, index 6)
+                draw_stashes_view(f, info, *focus, stash_selection, areas, body_area);
             } else {
-                // Render Overview tab (tab 7, index 6)
+                // Render Overview tab (tab 8, index 7)
                 draw_overview_tab(f, resolved, info, body_area);
             }
             // Draw detail help overlay on top when requested.
@@ -972,7 +987,8 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("4", "Go to Branches tab"),
     ("5", "Go to Tags tab"),
     ("6", "Go to Remotes tab"),
-    ("7", "Go to Overview tab"),
+    ("7", "Go to Stashes tab"),
+    ("8", "Go to Overview tab"),
     ("⇧F [Shift+F]", "Fetch selected local branch's upstream"),
     ("p", "Pull branch (Branches) / Push tag (Tags)"),
     (
@@ -2405,4 +2421,105 @@ fn draw_tag_push_all_popup(f: &mut Frame, area: Rect) {
         .block(block)
         .wrap(Wrap { trim: false });
     f.render_widget(paragraph, popup_area);
+}
+
+fn draw_stashes_view(
+    f: &mut Frame,
+    info: &RepoInfo,
+    focus: DetailSection,
+    stash_selection: usize,
+    areas: &mut DetailAreas,
+    area: Rect,
+) {
+    areas.stashes = Some(area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(35), Constraint::Percentage(65)])
+        .split(area);
+
+    let left_area = chunks[0];
+    let right_area = chunks[1];
+
+    let focused = focus == DetailSection::Stashes;
+    let border_style = if focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
+
+    // ── Stashes List Panel ──
+    let list_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER)
+        .border_style(border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Stashes", primary_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::uniform(1));
+
+    let list_items: Vec<ListItem> = info
+        .stashes
+        .iter()
+        .map(|s| {
+            ListItem::new(Line::from(vec![Span::styled(
+                format!("  stash@{{{}}}", s.index),
+                primary_style(),
+            )]))
+        })
+        .collect();
+
+    let list = List::new(list_items)
+        .block(list_block)
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+
+    let mut list_state = ListState::default();
+    if focused {
+        list_state.select(Some(stash_selection));
+    }
+    f.render_stateful_widget(list, left_area, &mut list_state);
+
+    // ── Stash Details Panel ──
+    let details_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER)
+        .border_style(muted_style())
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Stash Details", primary_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::uniform(1));
+
+    let mut details_lines = Vec::new();
+    if let Some(selected_stash) = info.stashes.get(stash_selection) {
+        details_lines.push(Line::from(""));
+        details_lines.push(Line::from(vec![
+            Span::styled("  Stash:     ", accent_style()),
+            Span::styled(
+                format!("stash@{{{}}}", selected_stash.index),
+                primary_style(),
+            ),
+        ]));
+        details_lines.push(Line::from(vec![
+            Span::styled("  Commit ID: ", accent_style()),
+            Span::raw(selected_stash.commit_id.clone()),
+        ]));
+        details_lines.push(Line::from(""));
+        details_lines.push(Line::from(vec![
+            Span::styled("  Message:   ", accent_style()),
+            Span::raw(selected_stash.message.clone()),
+        ]));
+    } else {
+        details_lines.push(Line::from(""));
+        details_lines.push(Line::from(Span::styled(
+            "  No stashes found",
+            muted_style(),
+        )));
+    }
+
+    let details_paragraph = Paragraph::new(details_lines).block(details_block);
+    f.render_widget(details_paragraph, right_area);
 }

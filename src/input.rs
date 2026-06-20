@@ -129,12 +129,12 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
             KeyCode::Char('?') => app.open_detail_help(),
             KeyCode::Tab => {
-                app.detail_tab = (app.detail_tab + 1) % 7;
+                app.detail_tab = (app.detail_tab + 1) % 8;
                 app.set_default_focus_for_tab();
             }
             KeyCode::BackTab => {
                 app.detail_tab = if app.detail_tab == 0 {
-                    6
+                    7
                 } else {
                     app.detail_tab - 1
                 };
@@ -166,6 +166,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             KeyCode::Char('7') => {
                 app.detail_tab = 6;
+                app.detail_focus = DetailSection::Stashes;
+            }
+            KeyCode::Char('8') => {
+                app.detail_tab = 7;
                 app.detail_focus = DetailSection::Commits;
             }
             _ if app.detail_tab == 0 => match code {
@@ -374,6 +378,21 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 _ => {}
             },
+            _ if app.detail_tab == 6 => match code {
+                KeyCode::Up | KeyCode::Char('k') => {
+                    app.stash_up();
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    app.stash_down();
+                }
+                KeyCode::PageUp => {
+                    app.stash_page_up(10);
+                }
+                KeyCode::PageDown => {
+                    app.stash_page_down(10);
+                }
+                _ => {}
+            },
             _ => {}
         },
 
@@ -514,6 +533,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     } else if (81..94).contains(&click_x) {
                         app.detail_tab = 5;
                         app.detail_focus = DetailSection::Remotes;
+                    } else if (98..111).contains(&click_x) {
+                        app.detail_tab = 6;
+                        app.detail_focus = DetailSection::Stashes;
+                    } else if (115..129).contains(&click_x) {
+                        app.detail_tab = 7;
+                        app.detail_focus = DetailSection::Commits;
                     }
                 }
                 return;
@@ -756,6 +781,22 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             } else if is_scroll_down {
                 app.detail_focus = DetailSection::Remotes;
                 app.remote_down();
+            }
+        }
+    }
+    // Stashes list panel.
+    if let Some(rect) = areas.stashes {
+        if rect.contains(pos) {
+            if is_click {
+                if app.detail_focus != DetailSection::Stashes {
+                    app.detail_focus = DetailSection::Stashes;
+                }
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::Stashes;
+                app.stash_up();
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::Stashes;
+                app.stash_down();
             }
         }
     }

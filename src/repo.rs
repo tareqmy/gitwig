@@ -81,6 +81,13 @@ pub struct BranchInfo {
     pub short_message: String,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct StashInfo {
+    pub index: usize,
+    pub message: String,
+    pub commit_id: String,
+}
+
 #[derive(Debug, Default)]
 pub struct RepoInfo {
     pub branch: Option<String>,
@@ -107,6 +114,8 @@ pub struct RepoInfo {
     pub remote_tags_loaded: bool,
     /// Tracked files in the repository.
     pub files: Vec<String>,
+    /// Available stashes in the repository.
+    pub stashes: Vec<StashInfo>,
 }
 
 #[derive(Debug)]
@@ -448,7 +457,7 @@ fn commit_changed_files(repo: &Repository, commit: &git2::Commit) -> Vec<FileEnt
 // ── Internal collection ────────────────────────────────────────────────────
 
 fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
-    let repo = Repository::open(path)?;
+    let mut repo = Repository::open(path)?;
     let summary = collect_summary(&repo);
     let mut info = RepoInfo {
         summary,
@@ -611,6 +620,19 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
         }
     }
     info.files = files;
+
+    let mut stashes = Vec::new();
+    let _ = repo.stash_foreach(|index, message, oid| {
+        let id = oid.to_string();
+        let short_sha = id[..7.min(id.len())].to_string();
+        stashes.push(StashInfo {
+            index,
+            message: message.to_string(),
+            commit_id: short_sha,
+        });
+        true
+    });
+    info.stashes = stashes;
 
     Ok(info)
 }
