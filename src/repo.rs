@@ -89,6 +89,13 @@ pub struct StashInfo {
     pub files: Vec<FileEntry>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct CommitterStat {
+    pub name: String,
+    pub email: String,
+    pub count: usize,
+}
+
 #[derive(Debug, Default)]
 pub struct RepoInfo {
     pub branch: Option<String>,
@@ -117,6 +124,10 @@ pub struct RepoInfo {
     pub files: Vec<String>,
     /// Available stashes in the repository.
     pub stashes: Vec<StashInfo>,
+    /// Committer statistics.
+    pub committer_stats: Vec<CommitterStat>,
+    /// Whether the committer statistics walk was capped by the limit.
+    pub committer_stats_limit_reached: bool,
 }
 
 #[derive(Debug)]
@@ -413,6 +424,43 @@ fn collect_commits(
     Ok(commits)
 }
 
+fn collect_committer_stats(
+    repo: &Repository,
+    limit: usize,
+) -> Result<(Vec<CommitterStat>, bool), git2::Error> {
+    let mut walk = repo.revwalk()?;
+    if walk.push_head().is_err() {
+        return Ok((Vec::new(), false));
+    }
+    let mut counts = std::collections::HashMap::new();
+    let mut count = 0;
+    let mut limit_reached = false;
+    for id in walk {
+        let oid = id?;
+        if let Ok(commit) = repo.find_commit(oid) {
+            let author = commit.author();
+            let name = author.name().unwrap_or("?").to_string();
+            let email = author.email().unwrap_or("?").to_string();
+            let key = (name, email);
+            *counts.entry(key).or_insert(0) += 1;
+            count += 1;
+            if count >= limit {
+                limit_reached = true;
+                break;
+            }
+        }
+    }
+
+    let mut stats: Vec<CommitterStat> = counts
+        .into_iter()
+        .map(|((name, email), count)| CommitterStat { name, email, count })
+        .collect();
+
+    stats.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
+
+    Ok((stats, limit_reached))
+}
+
 /// Diff `commit` against its first parent (or against an empty tree for the
 /// initial commit) and return the list of changed files. Capped at
 /// `MAX_FILES_PER_SECTION` entries.
@@ -528,6 +576,11 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
     info.graph_lines = collect_graph_lines(path);
 
     populate_file_changes(&repo, &mut info);
+
+    if let Ok((stats, limit_reached)) = collect_committer_stats(&repo, 10000) {
+        info.committer_stats = stats;
+        info.committer_stats_limit_reached = limit_reached;
+    }
 
     let mut local_branches = Vec::new();
     if let Ok(branches) = repo.branches(Some(git2::BranchType::Local)) {
@@ -1447,6 +1500,47 @@ mod tests {
         let change_time = get_latest_change_time(temp_path.to_str().unwrap());
         assert!(change_time > 0);
 
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_committer_stats() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // Init repo
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // Create initial file
+        let file_path = temp_path.join("test.txt");
+        let mut file = File::create(&file_path).unwrap();
+        writeln!(file, "initial content").unwrap();
+
+        // Stage and commit initial
+        stage_file(&temp_path, "test.txt").unwrap();
+        commit_changes(&temp_path, "initial commit").unwrap();
+
+        // Collect stats
+        let (stats, limit_reached) = collect_committer_stats(&repo, 10).unwrap();
+        assert_eq!(stats.len(), 1);
+        assert_eq!(stats[0].name, "Test User");
+        assert_eq!(stats[0].email, "test@example.com");
+        assert_eq!(stats[0].count, 1);
+        assert!(!limit_reached);
+
+        // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);
     }
 }

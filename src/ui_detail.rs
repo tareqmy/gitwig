@@ -964,7 +964,12 @@ fn draw_file_subpanel(
 
 /// Renders the repo overview as a floating popup centred over `area`.
 fn draw_overview_tab(f: &mut Frame, resolved: &std::path::Path, info: &RepoInfo, area: Rect) {
-    let block = Block::default()
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
+
+    let left_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(muted_style())
@@ -977,9 +982,71 @@ fn draw_overview_tab(f: &mut Frame, resolved: &std::path::Path, info: &RepoInfo,
 
     let body_lines = build_repo_body(resolved, info);
     let body = Paragraph::new(body_lines)
-        .block(block)
+        .block(left_block)
         .wrap(Wrap { trim: false });
-    f.render_widget(body, area);
+    f.render_widget(body, chunks[0]);
+
+    let right_title = if info.committer_stats_limit_reached {
+        "Stats (last 10k commits)"
+    } else {
+        "Stats"
+    };
+
+    let right_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(muted_style())
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled(right_title, primary_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::horizontal(1));
+
+    let stats_lines = build_committer_stats_lines(info);
+    let stats_body = Paragraph::new(stats_lines)
+        .block(right_block)
+        .wrap(Wrap { trim: false });
+    f.render_widget(stats_body, chunks[1]);
+}
+
+fn build_committer_stats_lines(info: &RepoInfo) -> Vec<Line<'static>> {
+    let mut lines: Vec<Line<'static>> = vec![];
+
+    push_section_header(&mut lines, "Committer Statistics");
+
+    if info.committer_stats.is_empty() {
+        lines.push(Line::from(vec![
+            Span::raw(FIELD_INDENT),
+            Span::styled("(no commits / unborn branch)", muted_style()),
+        ]));
+    } else {
+        for stat in &info.committer_stats {
+            let mut stat_spans = vec![
+                Span::raw(FIELD_INDENT),
+                Span::styled("● ", Style::default().fg(ACCENT())),
+                Span::styled(stat.name.clone(), primary_style()),
+            ];
+
+            if stat.email != "?" && !stat.email.is_empty() {
+                stat_spans.push(Span::styled(format!(" <{}>", stat.email), muted_style()));
+            }
+
+            stat_spans.push(Span::styled("  ➔  ", muted_style()));
+            stat_spans.push(Span::styled(
+                format!(
+                    "{} commit{}",
+                    stat.count,
+                    if stat.count == 1 { "" } else { "s" }
+                ),
+                Style::default().fg(SUCCESS()),
+            ));
+
+            lines.push(Line::from(stat_spans));
+        }
+    }
+
+    lines
 }
 
 /// Returns a [`Rect`] that is `percent_x` wide and `percent_y` tall, centred in `r`.
