@@ -13,7 +13,7 @@ use crossterm::event::{self, Event};
 use ratatui::Terminal;
 use ratatui::layout::{Margin, Rect};
 
-use crate::config::{Config, save_config};
+use crate::config::{Config, SortOrder, save_config};
 use crate::input;
 use crate::repo::{self, DiffLine, ItemDetail, ItemStatus};
 use crate::ui;
@@ -192,6 +192,8 @@ pub struct App {
     pub stash_apply_delete_after: bool,
     /// Option to amend the last commit.
     pub commit_amend: bool,
+    /// Preserved original order of repository items from the config.
+    pub original_items: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -212,13 +214,15 @@ struct TempNode {
 
 impl App {
     pub fn new(config: Config, config_path: PathBuf) -> Self {
+        let original_items = config.items.clone();
         let statuses = config
             .items
             .iter()
             .map(|s| repo::inspect_summary(s))
             .collect();
         let (tx, rx) = std::sync::mpsc::channel();
-        Self {
+        let mut app = Self {
+            original_items,
             config,
             config_path,
             statuses,
@@ -264,7 +268,13 @@ impl App {
             fetch_progress: 0,
             stash_apply_delete_after: true,
             commit_amend: false,
+        };
+
+        if app.config.sort_by != SortOrder::Custom {
+            app.sort_items_in_place();
         }
+
+        app
     }
 
     pub fn status_height(&self) -> u16 {
@@ -381,12 +391,107 @@ impl App {
         self.status_message = Some("Refreshed".to_string());
     }
 
+    pub fn sort_items_in_place(&mut self) {
+        match self.config.sort_by {
+            SortOrder::Custom => {
+                self.config.items = self.original_items.clone();
+                self.statuses = self
+                    .config
+                    .items
+                    .iter()
+                    .map(|s| repo::inspect_summary(s))
+                    .collect();
+            }
+            SortOrder::Alphabetical => {
+                let mut zipped: Vec<(String, ItemStatus)> = self
+                    .config
+                    .items
+                    .drain(..)
+                    .zip(self.statuses.drain(..))
+                    .collect();
+                zipped.sort_by(|a, b| a.0.cmp(&b.0));
+                let (items, statuses): (Vec<String>, Vec<ItemStatus>) = zipped.into_iter().unzip();
+                self.config.items = items;
+                self.statuses = statuses;
+            }
+            SortOrder::RecentVisit => {
+                let visits = &self.config.visits;
+                let mut zipped: Vec<(String, ItemStatus)> = self
+                    .config
+                    .items
+                    .drain(..)
+                    .zip(self.statuses.drain(..))
+                    .collect();
+                zipped.sort_by(|a, b| {
+                    let time_a = visits.get(&a.0).copied().unwrap_or(0);
+                    let time_b = visits.get(&b.0).copied().unwrap_or(0);
+                    time_b.cmp(&time_a) // Descending
+                });
+                let (items, statuses): (Vec<String>, Vec<ItemStatus>) = zipped.into_iter().unzip();
+                self.config.items = items;
+                self.statuses = statuses;
+            }
+            SortOrder::LatestChanges => {
+                let mut zipped: Vec<(String, ItemStatus)> = self
+                    .config
+                    .items
+                    .drain(..)
+                    .zip(self.statuses.drain(..))
+                    .collect();
+                zipped.sort_by(|a, b| {
+                    let time_a = repo::get_latest_change_time(&a.0);
+                    let time_b = repo::get_latest_change_time(&b.0);
+                    time_b.cmp(&time_a) // Descending
+                });
+                let (items, statuses): (Vec<String>, Vec<ItemStatus>) = zipped.into_iter().unzip();
+                self.config.items = items;
+                self.statuses = statuses;
+            }
+        }
+    }
+
+    pub fn cycle_sort_order(&mut self) {
+        self.config.sort_by = match self.config.sort_by {
+            SortOrder::Custom => SortOrder::Alphabetical,
+            SortOrder::Alphabetical => SortOrder::RecentVisit,
+            SortOrder::RecentVisit => SortOrder::LatestChanges,
+            SortOrder::LatestChanges => SortOrder::Custom,
+        };
+
+        let selected_item = self.config.items.get(self.selected_index).cloned();
+
+        self.sort_items_in_place();
+
+        if let Some(item) = selected_item {
+            if let Some(pos) = self.config.items.iter().position(|x| x == &item) {
+                self.selected_index = pos;
+            }
+        }
+
+        self.persist("Sort mode updated");
+    }
+
     /// Snapshot the selected item's filesystem/git state and enter the
     /// Detail view. The snapshot is held in `current_detail` for as long
     /// as the view is open; closing clears it.
     pub fn open_detail(&mut self) {
-        if let Some(item) = self.config.items.get(self.selected_index) {
-            self.current_detail = Some(repo::inspect_detail(item));
+        if let Some(item) = self.config.items.get(self.selected_index).cloned() {
+            // Update visit time
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            self.config.visits.insert(item.clone(), now);
+            let _ = save_config(&self.config, &self.config_path);
+
+            if self.config.sort_by == SortOrder::RecentVisit {
+                self.sort_items_in_place();
+                if let Some(pos) = self.config.items.iter().position(|x| x == &item) {
+                    self.selected_index = pos;
+                }
+            }
+
+            self.current_detail = Some(repo::inspect_detail(&item));
             self.detail_focus = DetailSection::Commits;
             self.commit_selection = 0;
             self.file_selection = 0;
@@ -1685,9 +1790,18 @@ impl App {
     pub fn commit_add(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
         if !trimmed.is_empty() {
-            self.statuses.push(repo::inspect_summary(&trimmed));
-            self.config.items.push(trimmed);
-            self.selected_index = self.config.items.len() - 1;
+            let status = repo::inspect_summary(&trimmed);
+            self.statuses.push(status);
+            self.config.items.push(trimmed.clone());
+            self.original_items.push(trimmed.clone());
+
+            self.sort_items_in_place();
+
+            if let Some(pos) = self.config.items.iter().position(|x| x == &trimmed) {
+                self.selected_index = pos;
+            } else {
+                self.selected_index = self.config.items.len() - 1;
+            }
             self.persist("Saved");
         }
         self.input_buffer.clear();
@@ -1696,12 +1810,24 @@ impl App {
 
     pub fn commit_edit(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
-        if !trimmed.is_empty()
-            && let Some(slot) = self.config.items.get_mut(self.selected_index)
-        {
-            *slot = trimmed.clone();
-            if let Some(slot) = self.statuses.get_mut(self.selected_index) {
-                *slot = repo::inspect_summary(&trimmed);
+        if !trimmed.is_empty() && self.selected_index < self.config.items.len() {
+            let old_item = self.config.items[self.selected_index].clone();
+
+            if let Some(pos) = self.original_items.iter().position(|x| x == &old_item) {
+                self.original_items[pos] = trimmed.clone();
+            }
+
+            if let Some(time) = self.config.visits.remove(&old_item) {
+                self.config.visits.insert(trimmed.clone(), time);
+            }
+
+            self.config.items[self.selected_index] = trimmed.clone();
+            self.statuses[self.selected_index] = repo::inspect_summary(&trimmed);
+
+            self.sort_items_in_place();
+
+            if let Some(pos) = self.config.items.iter().position(|x| x == &trimmed) {
+                self.selected_index = pos;
             }
             self.persist("Saved");
         }
@@ -1711,10 +1837,14 @@ impl App {
 
     pub fn confirm_delete(&mut self) {
         if self.selected_index < self.config.items.len() {
-            self.config.items.remove(self.selected_index);
+            let item = self.config.items.remove(self.selected_index);
             if self.selected_index < self.statuses.len() {
                 self.statuses.remove(self.selected_index);
             }
+            if let Some(pos) = self.original_items.iter().position(|x| x == &item) {
+                self.original_items.remove(pos);
+            }
+            self.config.visits.remove(&item);
             self.persist("Deleted");
         }
         self.mode = Mode::Normal;
@@ -2257,5 +2387,51 @@ where
                 _ => {}
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::SortOrder;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_sorting_logic() {
+        let config = Config {
+            items: vec![
+                "z_repo".to_string(),
+                "a_repo".to_string(),
+                "m_repo".to_string(),
+            ],
+            poll_interval_ms: 100,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+        };
+        let mut app = App::new(config, PathBuf::from("dummy_path"));
+
+        // Assert initial custom sort
+        assert_eq!(app.config.items[0], "z_repo");
+        assert_eq!(app.config.items[1], "a_repo");
+
+        // Cycle to alphabetical
+        app.cycle_sort_order();
+        assert_eq!(app.config.sort_by, SortOrder::Alphabetical);
+        assert_eq!(app.config.items[0], "a_repo");
+        assert_eq!(app.config.items[1], "m_repo");
+        assert_eq!(app.config.items[2], "z_repo");
+
+        // Cycle to recent visit
+        // Set visit times: a_repo visited at 10, z_repo at 20, m_repo at 5
+        app.config.visits.insert("a_repo".to_string(), 10);
+        app.config.visits.insert("z_repo".to_string(), 20);
+        app.config.visits.insert("m_repo".to_string(), 5);
+
+        app.cycle_sort_order();
+        assert_eq!(app.config.sort_by, SortOrder::RecentVisit);
+        // Descending order (recent first) -> z_repo (20), a_repo (10), m_repo (5)
+        assert_eq!(app.config.items[0], "z_repo");
+        assert_eq!(app.config.items[1], "a_repo");
+        assert_eq!(app.config.items[2], "m_repo");
     }
 }

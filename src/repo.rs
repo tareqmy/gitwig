@@ -1311,6 +1311,32 @@ pub fn apply_stash(repo_path: &Path, index: usize) -> Result<(), String> {
     Ok(())
 }
 
+pub fn get_latest_change_time(item: &str) -> u64 {
+    let path = expand_tilde(item);
+    if !path.exists() {
+        return 0;
+    }
+
+    if path.join(".git").exists() {
+        if let Ok(repo) = Repository::open(&path) {
+            if let Ok(head) = repo.head() {
+                if let Ok(commit) = head.peel_to_commit() {
+                    return commit.time().seconds() as u64;
+                }
+            }
+        }
+    }
+
+    if let Ok(meta) = std::fs::metadata(&path) {
+        if let Ok(modified) = meta.modified() {
+            if let Ok(duration) = modified.duration_since(std::time::UNIX_EPOCH) {
+                return duration.as_secs();
+            }
+        }
+    }
+    0
+}
+
 pub fn get_last_commit_message(repo_path: &Path) -> Option<String> {
     if let Ok(repo) = Repository::open(repo_path) {
         if let Ok(head) = repo.head() {
@@ -1403,6 +1429,24 @@ mod tests {
         assert_eq!(amended_msg, "amended commit");
 
         // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_get_latest_change_time() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        let change_time = get_latest_change_time(temp_path.to_str().unwrap());
+        assert!(change_time > 0);
+
         let _ = std::fs::remove_dir_all(&temp_path);
     }
 }

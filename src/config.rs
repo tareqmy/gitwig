@@ -4,6 +4,23 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SortOrder {
+    Alphabetical,
+    RecentVisit,
+    LatestChanges,
+    Custom,
+}
+
+fn default_sort_by() -> SortOrder {
+    SortOrder::Custom
+}
+
+fn default_visits() -> std::collections::HashMap<String, u64> {
+    std::collections::HashMap::new()
+}
+
 /// How long the event loop waits for input before re-drawing (milliseconds).
 /// Lower values feel more responsive; higher values use less CPU.
 fn default_poll_interval_ms() -> u64 {
@@ -19,6 +36,12 @@ pub struct Config {
     /// Lower → more responsive, higher → less CPU. Sane range: 16–500.
     #[serde(default = "default_poll_interval_ms")]
     pub poll_interval_ms: u64,
+    /// Sort mode for the main page.
+    #[serde(default = "default_sort_by")]
+    pub sort_by: SortOrder,
+    /// Map of repository items to their last visit time.
+    #[serde(default = "default_visits")]
+    pub visits: std::collections::HashMap<String, u64>,
 }
 
 /// Returns `~/.twig/`, the canonical Twig data directory.
@@ -56,6 +79,8 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
             Config {
                 items: vec![],
                 poll_interval_ms: default_poll_interval_ms(),
+                sort_by: default_sort_by(),
+                visits: default_visits(),
             },
             path,
         ));
@@ -89,6 +114,8 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
             "Try harder next time.".to_string(),
         ],
         poll_interval_ms: default_poll_interval_ms(),
+        sort_by: default_sort_by(),
+        visits: default_visits(),
     };
     save_config(&fallback, &canonical)?;
     Ok((fallback, canonical))

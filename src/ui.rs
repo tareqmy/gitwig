@@ -14,6 +14,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Gauge, Padding, Paragraph, Wrap};
 
 use crate::app::{App, ITEM_HEIGHT, Mode};
+use crate::config::SortOrder;
 use crate::repo::{ItemStatus, RepoSummary};
 
 // ── Theme ──────────────────────────────────────────────────────────────────
@@ -73,6 +74,10 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("e", "Edit selected item"),
     ("d", "Delete selected item / branch (Branches) / tag (Tags)"),
     ("r", "Refresh status of selected item"),
+    (
+        "o",
+        "Cycle sorting mode (Custom / Alphabetical / Recent / Changes)",
+    ),
     ("g", "Launch gitui for selected repository"),
     (
         "⎋ [Esc]",
@@ -103,7 +108,7 @@ pub fn draw(
     detail_areas: &mut crate::ui_detail::DetailAreas,
     main_areas: &mut Vec<Rect>,
 ) {
-    draw_outer_frame(f, area);
+    draw_outer_frame(f, area, app);
 
     // Always reserve the bottom row for the status bar, regardless of mode.
     let (content_area, status_chunk) = content_and_status_chunks(inner_area, app.status_height());
@@ -184,7 +189,14 @@ pub fn draw(
     }
 }
 
-fn draw_outer_frame(f: &mut Frame, area: Rect) {
+fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
+    let sort_label = match app.config.sort_by {
+        SortOrder::Custom => "Sort: Custom",
+        SortOrder::Alphabetical => "Sort: Alphabetical",
+        SortOrder::RecentVisit => "Sort: Recent Visit",
+        SortOrder::LatestChanges => "Sort: Latest Changes",
+    };
+
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER)
@@ -196,6 +208,14 @@ fn draw_outer_frame(f: &mut Frame, area: Rect) {
                 Span::raw(" "),
             ])
             .alignment(Alignment::Left),
+        )
+        .title(
+            Line::from(vec![
+                Span::raw(" "),
+                Span::styled(sort_label, accent_style()),
+                Span::raw(" "),
+            ])
+            .alignment(Alignment::Center),
         )
         .title(
             Line::from(format!(" v{} ", env!("CARGO_PKG_VERSION")))
@@ -438,7 +458,8 @@ impl StatusEntry {
 fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
     match &app.mode {
         Mode::Normal => {
-            let (msg_spans, entries) = normal_status_entries(&app.status_message);
+            let (msg_spans, entries) =
+                normal_status_entries(&app.status_message, app.config.sort_by);
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
         Mode::Adding => {
@@ -792,16 +813,26 @@ fn draw_status_layout(
 
 fn normal_status_entries(
     status_message: &Option<String>,
+    sort_by: SortOrder,
 ) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let mut message_spans = None;
     if let Some(msg) = status_message {
         message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
     }
-    let entries_data = [
+    let sort_label = match sort_by {
+        SortOrder::Custom => "Custom",
+        SortOrder::Alphabetical => "Alphabetical",
+        SortOrder::RecentVisit => "Recent",
+        SortOrder::LatestChanges => "Changes",
+    };
+    let sort_key_label = format!("Sort: {}", sort_label);
+
+    let entries_data = vec![
         ("Navigate", "↑↓"),
         ("Page", "⇟/⇞"),
         ("Detail", "↵"),
         ("gitui", "g"),
+        (&sort_key_label, "o"),
         ("Add", "a"),
         ("Edit", "e"),
         ("Delete", "d"),
