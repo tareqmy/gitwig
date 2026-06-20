@@ -574,30 +574,41 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             if rect.contains(pos) {
                 if is_click {
                     let click_x = pos.x - rect.x;
-                    if (2..15).contains(&click_x) {
-                        app.detail_tab = 0;
-                        app.detail_focus = DetailSection::Commits;
-                    } else if (19..30).contains(&click_x) {
-                        app.detail_tab = 1;
-                        app.detail_focus = DetailSection::Files;
-                    } else if (34..45).contains(&click_x) {
-                        app.detail_tab = 2;
-                    } else if (49..63).contains(&click_x) {
-                        app.detail_tab = 3;
-                        app.detail_focus = DetailSection::LocalBranches;
-                    } else if (67..77).contains(&click_x) {
-                        app.detail_tab = 4;
-                        app.detail_focus = DetailSection::LocalTags;
-                        app.fetch_remote_tags();
-                    } else if (81..94).contains(&click_x) {
-                        app.detail_tab = 5;
-                        app.detail_focus = DetailSection::Remotes;
-                    } else if (98..111).contains(&click_x) {
-                        app.detail_tab = 6;
-                        app.detail_focus = DetailSection::Stashes;
-                    } else if (115..129).contains(&click_x) {
-                        app.detail_tab = 7;
-                        app.detail_focus = DetailSection::Commits;
+                    let use_short = rect.width < 129;
+                    let tabs_data = [
+                        ("Details", "D", 0),
+                        ("Files", "F", 1),
+                        ("Graph", "G", 2),
+                        ("Branches", "B", 3),
+                        ("Tags", "T", 4),
+                        ("Remotes", "R", 5),
+                        ("Stashes", "S", 6),
+                        ("Overview", "O", 7),
+                    ];
+                    let mut current_offset = 2;
+                    for &(long_name, short_name, tab_index) in &tabs_data {
+                        let name = if use_short { short_name } else { long_name };
+                        let tab_width = name.len() + 6;
+                        if click_x >= current_offset && click_x < current_offset + tab_width as u16
+                        {
+                            app.detail_tab = tab_index;
+                            match tab_index {
+                                0 => app.detail_focus = DetailSection::Commits,
+                                1 => app.detail_focus = DetailSection::Files,
+                                2 => {}
+                                3 => app.detail_focus = DetailSection::LocalBranches,
+                                4 => {
+                                    app.detail_focus = DetailSection::LocalTags;
+                                    app.fetch_remote_tags();
+                                }
+                                5 => app.detail_focus = DetailSection::Remotes,
+                                6 => app.detail_focus = DetailSection::Stashes,
+                                7 => app.detail_focus = DetailSection::Commits,
+                                _ => {}
+                            }
+                            break;
+                        }
+                        current_offset += tab_width as u16 + 4;
                     }
                 }
                 return;

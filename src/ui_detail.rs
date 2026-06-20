@@ -168,85 +168,36 @@ pub fn draw(
     }
 
     if let Some(tab_area) = tab_bar_area {
-        let (
-            style_details,
-            style_files,
-            style_graph,
-            style_branches,
-            style_tags,
-            style_remotes,
-            style_stashes,
-            style_overview,
-        ) = (
-            if detail_tab == 0 {
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
-            },
-            if detail_tab == 1 {
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
-            },
-            if detail_tab == 2 {
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
-            },
-            if detail_tab == 3 {
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
-            },
-            if detail_tab == 4 {
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
-            },
-            if detail_tab == 5 {
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
-            },
-            if detail_tab == 6 {
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
-            },
-            if detail_tab == 7 {
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
-            },
-        );
+        let tabs_data = [
+            ("Details", "d", 1),
+            ("Files", "f", 2),
+            ("Graph", "g", 3),
+            ("Branches", "b", 4),
+            ("Tags", "t", 5),
+            ("Remotes", "r", 6),
+            ("Stashes", "s", 7),
+            ("Overview", "o", 8),
+        ];
 
-        let details_bullet = if detail_tab == 0 { "●" } else { "○" };
-        let files_bullet = if detail_tab == 1 { "●" } else { "○" };
-        let graph_bullet = if detail_tab == 2 { "●" } else { "○" };
-        let branches_bullet = if detail_tab == 3 { "●" } else { "○" };
-        let tags_bullet = if detail_tab == 4 { "●" } else { "○" };
-        let remotes_bullet = if detail_tab == 5 { "●" } else { "○" };
-        let stashes_bullet = if detail_tab == 6 { "●" } else { "○" };
-        let overview_bullet = if detail_tab == 7 { "●" } else { "○" };
-
-        let tab_line = Line::from(vec![
-            Span::raw("  "),
-            Span::styled(format!("{} Details [1]", details_bullet), style_details),
-            Span::raw("    "),
-            Span::styled(format!("{} Files [2]", files_bullet), style_files),
-            Span::raw("    "),
-            Span::styled(format!("{} Graph [3]", graph_bullet), style_graph),
-            Span::raw("    "),
-            Span::styled(format!("{} Branches [4]", branches_bullet), style_branches),
-            Span::raw("    "),
-            Span::styled(format!("{} Tags [5]", tags_bullet), style_tags),
-            Span::raw("    "),
-            Span::styled(format!("{} Remotes [6]", remotes_bullet), style_remotes),
-            Span::raw("    "),
-            Span::styled(format!("{} Stashes [7]", stashes_bullet), style_stashes),
-            Span::raw("    "),
-            Span::styled(format!("{} Overview [8]", overview_bullet), style_overview),
-        ]);
+        let use_short = tab_area.width < 129;
+        let mut spans = vec![Span::raw("  ")];
+        for (i, &(long_name, short_name, index)) in tabs_data.iter().enumerate() {
+            if i > 0 {
+                spans.push(Span::raw("    "));
+            }
+            let name = if use_short { short_name } else { long_name };
+            let bullet = if detail_tab == i { "●" } else { "○" };
+            let style = if detail_tab == i {
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
+            };
+            spans.push(Span::styled(
+                format!("{} {} [{}]", bullet, name, index),
+                style,
+            ));
+        }
+        let tab_line = Line::from(spans);
         f.render_widget(Paragraph::new(tab_line), tab_area);
         areas.tab_bar = Some(tab_area);
     }
