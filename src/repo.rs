@@ -278,6 +278,46 @@ pub fn unstage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Discards uncommitted changes in `file_path`.
+/// - If the file is untracked, it is deleted from the filesystem.
+/// - If the file is tracked and modified/deleted, it is restored from the index.
+/// - If the file is staged, it is first unstaged (reset to HEAD) and then restored from index.
+pub fn discard_file_changes(repo_path: &Path, file_path: &str, staged: bool) -> Result<(), String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+
+    if staged {
+        // First unstage it (reset to HEAD)
+        unstage_file(repo_path, file_path)?;
+    }
+
+    // Now check if the file is untracked
+    let is_untracked = if let Ok(status) = repo.status_file(Path::new(file_path)) {
+        status.contains(git2::Status::WT_NEW)
+    } else {
+        false
+    };
+
+    if is_untracked {
+        let full_path = repo_path.join(file_path);
+        if full_path.exists() {
+            if full_path.is_file() {
+                std::fs::remove_file(&full_path).map_err(|e| e.to_string())?;
+            } else if full_path.is_dir() {
+                std::fs::remove_dir_all(&full_path).map_err(|e| e.to_string())?;
+            }
+        }
+    } else {
+        // Tracked file: checkout from index to working tree
+        let mut checkout_opts = git2::build::CheckoutBuilder::new();
+        checkout_opts.path(Path::new(file_path));
+        checkout_opts.force();
+        repo.checkout_index(None, Some(&mut checkout_opts))
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 /// Create a commit in the repository with the given message.
 /// Returns a human-readable error string on failure.
 pub fn commit_changes(repo_path: &Path, message: &str) -> Result<(), String> {
@@ -1681,6 +1721,87 @@ mod tests {
             }
             _ => panic!("Expected ItemDetail::Repo"),
         }
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_discard_file_changes_all_cases() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // Init repo
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // Create and commit initial files
+        let file_tracked = temp_path.join("tracked.txt");
+        std::fs::write(&file_tracked, "original content\n").unwrap();
+        stage_file(&temp_path, "tracked.txt").unwrap();
+        commit_changes(&temp_path, "initial commit").unwrap();
+
+        // Case 1: Untracked file
+        let file_untracked = temp_path.join("untracked.txt");
+        std::fs::write(&file_untracked, "new untracked file\n").unwrap();
+        assert!(file_untracked.exists());
+        discard_file_changes(&temp_path, "untracked.txt", false).unwrap();
+        assert!(!file_untracked.exists());
+
+        // Case 2: Tracked file with unstaged modification
+        std::fs::write(&file_tracked, "unstaged modifications\n").unwrap();
+        discard_file_changes(&temp_path, "tracked.txt", false).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&file_tracked).unwrap(),
+            "original content\n"
+        );
+
+        // Case 3: Tracked file with staged modification
+        std::fs::write(&file_tracked, "staged modifications\n").unwrap();
+        stage_file(&temp_path, "tracked.txt").unwrap();
+        // verify it's staged
+        let detail = inspect_detail(temp_path.to_str().unwrap());
+        match detail {
+            ItemDetail::Repo { info, .. } => {
+                assert!(!info.changes.staged.is_empty());
+            }
+            _ => panic!("Expected ItemDetail::Repo"),
+        }
+        discard_file_changes(&temp_path, "tracked.txt", true).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&file_tracked).unwrap(),
+            "original content\n"
+        );
+        // verify it's no longer staged/unstaged (it's clean)
+        let detail = inspect_detail(temp_path.to_str().unwrap());
+        match detail {
+            ItemDetail::Repo { info, .. } => {
+                assert!(info.changes.staged.is_empty());
+                assert!(info.changes.unstaged.is_empty());
+            }
+            _ => panic!("Expected ItemDetail::Repo"),
+        }
+
+        // Case 4: Tracked deleted file
+        std::fs::remove_file(&file_tracked).unwrap();
+        assert!(!file_tracked.exists());
+        discard_file_changes(&temp_path, "tracked.txt", false).unwrap();
+        assert!(file_tracked.exists());
+        assert_eq!(
+            std::fs::read_to_string(&file_tracked).unwrap(),
+            "original content\n"
+        );
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);

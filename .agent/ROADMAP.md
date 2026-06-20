@@ -58,4 +58,4 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [ ] Conflict resolution UI.
 - [ ] Custom themes and keybindings.
 - [ ] Line by line diff allow or decline.
-- [ ] Allow option to revert a dirty file.
+- [x] Allow option to revert a dirty file.

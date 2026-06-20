@@ -81,6 +81,8 @@ pub enum Mode {
     BranchRebaseConfirm,
     /// Confirming interactive rebase onto a branch.
     BranchInteractiveRebaseConfirm,
+    /// Confirming discarding changes in a file.
+    DiscardChangesConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -213,6 +215,8 @@ pub struct App {
     pub tag_delete_target: Option<(String, bool)>,
     /// Target tag name for push action.
     pub tag_push_target: Option<String>,
+    /// Target file path and staged flag for discard/revert action.
+    pub discard_target: Option<(String, bool)>,
     /// Simulated fetch progress percentage.
     pub fetch_progress: u16,
     /// Option to delete the stash after applying.
@@ -301,6 +305,7 @@ impl App {
             tag_action_target_oid: None,
             tag_delete_target: None,
             tag_push_target: None,
+            discard_target: None,
             fetch_progress: 0,
             stash_apply_delete_after: true,
             commit_amend: false,
@@ -2100,6 +2105,53 @@ impl App {
                 Err(e) => self.status_message = Some(format!("Unstage failed: {}", e)),
             }
         }
+    }
+
+    pub fn request_discard_changes(&mut self) {
+        let params = match &self.current_detail {
+            Some(repo::ItemDetail::Repo { resolved, info }) => match self.detail_focus {
+                DetailSection::Staged => info
+                    .changes
+                    .staged
+                    .get(self.staging_file_selection)
+                    .map(|f| (resolved.clone(), f.path.clone(), true)),
+                DetailSection::Unstaged => info
+                    .changes
+                    .unstaged
+                    .get(self.staging_file_selection)
+                    .map(|f| (resolved.clone(), f.path.clone(), false)),
+                _ => None,
+            },
+            _ => None,
+        };
+
+        if let Some((_, file_path, staged)) = params {
+            self.discard_target = Some((file_path, staged));
+            self.mode = Mode::DiscardChangesConfirm;
+        }
+    }
+
+    pub fn confirm_discard_changes(&mut self) {
+        self.mode = Mode::Detail;
+        let target = self.discard_target.take();
+        if let Some((file_path, staged)) = target {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                match repo::discard_file_changes(resolved, &file_path, staged) {
+                    Ok(()) => {
+                        self.status_message = Some(format!("Discarded: {}", file_path));
+                        self.refresh_detail();
+                    }
+                    Err(e) => {
+                        self.status_message = Some(format!("Discard failed: {}", e));
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn cancel_discard_changes(&mut self) {
+        self.discard_target = None;
+        self.mode = Mode::Detail;
     }
 
     pub fn close_detail(&mut self) {

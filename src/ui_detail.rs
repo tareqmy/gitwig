@@ -110,6 +110,7 @@ pub fn draw(
     tag_action_target_oid: &Option<String>,
     tag_delete_target: &Option<(String, bool)>,
     tag_push_target: &Option<String>,
+    discard_target: &Option<(String, bool)>,
     stash_apply_delete_after: bool,
     commit_amend: bool,
     commit_input_scroll: usize,
@@ -480,6 +481,10 @@ pub fn draw(
                 if let ItemDetail::Repo { info, .. } = detail {
                     draw_remote_picker_popup(f, &info.remotes, remote_picker_selection, body_area);
                 }
+            }
+            // Draw discard changes popup on top when requested.
+            if matches!(mode, Mode::DiscardChangesConfirm) {
+                draw_discard_changes_popup(f, discard_target, body_area);
             }
         }
         _ => {
@@ -2195,6 +2200,62 @@ fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area
                 Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
             ),
         ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block);
+    f.render_widget(paragraph, popup_area);
+}
+
+fn draw_discard_changes_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
+    let popup_area = centred_rect(60, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(DANGER());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Discard Changes", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let (file_path, staged) = match target {
+        Some((path, staged)) => (path.as_str(), *staged),
+        None => ("", false),
+    };
+
+    let area_label = if staged { "staged" } else { "unstaged" };
+    let content = vec![
+        Line::from(vec![
+            Span::styled("Are you sure you want to discard ", primary_style()),
+            Span::styled(area_label, accent_style()),
+            Span::styled(" changes in:", primary_style()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                file_path,
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "This operation is destructive and cannot be undone.",
+            Style::default().fg(DANGER()),
+        )]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Confirm: ", muted_style()),

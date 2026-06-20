@@ -116,6 +116,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             _ => {}
         },
+        Mode::DiscardChangesConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_discard_changes(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_discard_changes(),
+            _ => {}
+        },
         Mode::TagDeleteConfirm => match code {
             KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_tag_delete(),
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_tag_delete(),
@@ -277,6 +282,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     if detail_focus == DetailSection::Unstaged && app.is_uncommitted_selected() =>
                 {
                     app.stage_selected_file()
+                }
+                KeyCode::Char('x') | KeyCode::Char('X')
+                    if (detail_focus == DetailSection::Staged
+                        || detail_focus == DetailSection::Unstaged)
+                        && app.is_uncommitted_selected() =>
+                {
+                    app.request_discard_changes()
                 }
                 KeyCode::Up | KeyCode::Char('k')
                     if detail_focus == DetailSection::StagingDetails =>
