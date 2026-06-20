@@ -271,19 +271,12 @@ pub fn draw(
 }
 
 fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
-    let sort_label = match app.config.sort_by {
-        SortOrder::Custom => "Sort: Custom",
-        SortOrder::Alphabetical => "Sort: Alphabetical",
-        SortOrder::RecentVisit => "Sort: Recent Visit",
-        SortOrder::LatestChanges => "Sort: Latest Changes",
-    };
-    let sort_label_with_dir = if app.config.sort_reverse {
-        format!("{} (Rev)", sort_label)
-    } else {
-        sort_label.to_string()
-    };
+    let show_sort = matches!(
+        app.mode,
+        Mode::Normal | Mode::Adding | Mode::Editing | Mode::ConfirmDelete | Mode::Help
+    );
 
-    let block = Block::default()
+    let mut block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER())
         .border_style(muted_style())
@@ -294,20 +287,36 @@ fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
                 Span::raw(" "),
             ])
             .alignment(Alignment::Left),
-        )
-        .title(
+        );
+
+    if show_sort {
+        let sort_label = match app.config.sort_by {
+            SortOrder::Custom => "Sort: Custom",
+            SortOrder::Alphabetical => "Sort: Alphabetical",
+            SortOrder::RecentVisit => "Sort: Recent Visit",
+            SortOrder::LatestChanges => "Sort: Latest Changes",
+        };
+        let sort_label_with_dir = if app.config.sort_reverse {
+            format!("{} (Rev)", sort_label)
+        } else {
+            sort_label.to_string()
+        };
+
+        block = block.title(
             Line::from(vec![
                 Span::raw(" "),
                 Span::styled(sort_label_with_dir, accent_style()),
                 Span::raw(" "),
             ])
             .alignment(Alignment::Center),
-        )
-        .title(
-            Line::from(format!(" v{} ", env!("CARGO_PKG_VERSION")))
-                .style(muted_style())
-                .alignment(Alignment::Right),
         );
+    }
+
+    block = block.title(
+        Line::from(format!(" v{} ", env!("CARGO_PKG_VERSION")))
+            .style(muted_style())
+            .alignment(Alignment::Right),
+    );
     f.render_widget(block, area);
 }
 

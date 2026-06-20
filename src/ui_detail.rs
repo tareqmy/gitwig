@@ -207,11 +207,11 @@ pub fn draw(
             ("Overview", "O", 8),
         ];
 
-        let use_short = tab_area.width < 131;
+        let use_short = tab_area.width < 124;
         let mut spans = vec![Span::raw("  ")];
         for (i, &(long_name, short_name, index)) in tabs_data.iter().enumerate() {
             if i > 0 {
-                spans.push(Span::raw("  "));
+                spans.push(Span::raw(" "));
             }
             let name = if use_short { short_name } else { long_name };
             let bullet = if detail_tab == i { "┃" } else { "│" };
