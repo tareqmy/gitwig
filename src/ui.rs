@@ -161,6 +161,7 @@ pub fn draw(
                 &app.tag_delete_target,
                 &app.tag_push_target,
                 app.stash_apply_delete_after,
+                app.commit_amend,
                 content_area,
             );
         }
@@ -473,7 +474,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = if app.commit_editing {
                 commit_input_editing_entries()
             } else {
-                commit_input_confirm_entries()
+                commit_input_confirm_entries(app.commit_amend)
             };
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
@@ -677,13 +678,28 @@ fn commit_input_editing_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntr
     (None, entries)
 }
 
-fn commit_input_confirm_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+fn commit_input_confirm_entries(
+    commit_amend: bool,
+) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let amend_toggle_label = if commit_amend {
+        "Amend: [Yes]"
+    } else {
+        "Amend: [No]"
+    };
     let entries = vec![
         StatusEntry::new(vec![
             Span::raw("Submit Commit"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
             Span::styled("↵", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw(amend_toggle_label),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("a/space", accent_style()),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![

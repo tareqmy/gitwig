@@ -1310,3 +1310,99 @@ pub fn apply_stash(repo_path: &Path, index: usize) -> Result<(), String> {
     }
     Ok(())
 }
+
+pub fn get_last_commit_message(repo_path: &Path) -> Option<String> {
+    if let Ok(repo) = Repository::open(repo_path) {
+        if let Ok(head) = repo.head() {
+            if let Ok(commit) = head.peel_to_commit() {
+                if let Ok(msg) = commit.message() {
+                    return Some(msg.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+pub fn commit_amend(repo_path: &Path, message: &str) -> Result<(), String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let head = repo
+        .head()
+        .map_err(|e| format!("No HEAD commit to amend: {}", e))?;
+    let head_commit = head.peel_to_commit().map_err(|e| e.to_string())?;
+
+    let mut index = repo.index().map_err(|e| e.to_string())?;
+    let tree_id = index.write_tree().map_err(|e| e.to_string())?;
+    let tree = repo.find_tree(tree_id).map_err(|e| e.to_string())?;
+
+    let signature = repo.signature().map_err(|e| {
+        format!(
+            "Failed to get signature. Check user.name/email config: {}",
+            e
+        )
+    })?;
+
+    head_commit
+        .amend(
+            Some("HEAD"),
+            None,
+            Some(&signature),
+            None,
+            Some(message),
+            Some(&tree),
+        )
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::Write;
+
+    #[test]
+    fn test_commit_amend() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // Init repo
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // Create initial file
+        let file_path = temp_path.join("test.txt");
+        let mut file = File::create(&file_path).unwrap();
+        writeln!(file, "initial content").unwrap();
+
+        // Stage and commit initial
+        stage_file(&temp_path, "test.txt").unwrap();
+        commit_changes(&temp_path, "initial commit").unwrap();
+
+        // Verify message
+        let msg = get_last_commit_message(&temp_path).unwrap();
+        assert_eq!(msg, "initial commit");
+
+        // Amend the commit message
+        commit_amend(&temp_path, "amended commit").unwrap();
+
+        // Verify amended message
+        let amended_msg = get_last_commit_message(&temp_path).unwrap();
+        assert_eq!(amended_msg, "amended commit");
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+}

@@ -190,6 +190,8 @@ pub struct App {
     pub fetch_progress: u16,
     /// Option to delete the stash after applying.
     pub stash_apply_delete_after: bool,
+    /// Option to amend the last commit.
+    pub commit_amend: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -261,6 +263,7 @@ impl App {
             tag_push_target: None,
             fetch_progress: 0,
             stash_apply_delete_after: true,
+            commit_amend: false,
         }
     }
 
@@ -1579,9 +1582,14 @@ impl App {
             Some(ItemDetail::Repo { info, .. }) => info.summary.staged > 0,
             _ => false,
         };
-        if has_staged {
+        let has_head = match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => info.head.is_some(),
+            _ => false,
+        };
+        if has_staged || has_head {
             self.input_buffer.clear();
             self.commit_editing = true;
+            self.commit_amend = false;
             self.mode = Mode::CommitInput;
         } else {
             self.status_message = Some("No staged changes to commit".to_string());
@@ -1619,20 +1627,46 @@ impl App {
         };
 
         if let Some(path) = repo_path {
-            match repo::commit_changes(&path, &msg) {
+            let res = if self.commit_amend {
+                repo::commit_amend(&path, &msg)
+            } else {
+                repo::commit_changes(&path, &msg)
+            };
+            match res {
                 Ok(()) => {
-                    self.status_message = Some("Committed successfully".to_string());
+                    let success_msg = if self.commit_amend {
+                        "Amended commit successfully"
+                    } else {
+                        "Committed successfully"
+                    };
+                    self.status_message = Some(success_msg.to_string());
                     self.refresh_detail();
                     self.refresh_selected_status();
                 }
                 Err(e) => {
-                    self.status_message = Some(format!("Commit failed: {}", e));
+                    let fail_msg = if self.commit_amend {
+                        format!("Amend failed: {}", e)
+                    } else {
+                        format!("Commit failed: {}", e)
+                    };
+                    self.status_message = Some(fail_msg);
                 }
             }
         }
 
         self.input_buffer.clear();
         self.mode = Mode::Detail;
+    }
+
+    pub fn toggle_commit_amend(&mut self) {
+        self.commit_amend = !self.commit_amend;
+        if self.commit_amend && self.input_buffer.trim().is_empty() {
+            if let Some(ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                if let Some(last_msg) = repo::get_last_commit_message(resolved) {
+                    self.input_buffer = last_msg;
+                }
+            }
+        }
     }
 
     pub fn cancel_input(&mut self) {

@@ -111,6 +111,7 @@ pub fn draw(
     tag_delete_target: &Option<(String, bool)>,
     tag_push_target: &Option<String>,
     stash_apply_delete_after: bool,
+    commit_amend: bool,
     area: Rect,
 ) {
     // Extract branch name if this is a repo detail.
@@ -402,7 +403,7 @@ pub fn draw(
             }
             // Draw commit popup on top when requested.
             if matches!(mode, Mode::CommitInput) {
-                draw_commit_popup(f, input_buffer, commit_editing, body_area);
+                draw_commit_popup(f, input_buffer, commit_editing, commit_amend, body_area);
             }
             // Draw branch create popup on top when requested.
             if matches!(mode, Mode::BranchCreateInput) {
@@ -1465,7 +1466,13 @@ fn kind_line(
 }
 
 /// Renders a commit confirmation/input popup centered over `area`.
-fn draw_commit_popup(f: &mut Frame, input_buffer: &str, editing: bool, area: Rect) {
+fn draw_commit_popup(
+    f: &mut Frame,
+    input_buffer: &str,
+    editing: bool,
+    commit_amend: bool,
+    area: Rect,
+) {
     let popup_area = centred_rect(60, 25, area);
     f.render_widget(Clear, popup_area);
 
@@ -1500,24 +1507,49 @@ fn draw_commit_popup(f: &mut Frame, input_buffer: &str, editing: bool, area: Rec
 
     let inner_area = block.inner(popup_area);
     f.render_widget(block, popup_area);
-    f.render_widget(text, inner_area);
+
+    // Split inner area vertically: top is the commit message text area, bottom is the amend option.
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(1)])
+        .split(inner_area);
+
+    f.render_widget(text, chunks[0]);
+
+    // Render the amend checkbox.
+    let checkbox = if commit_amend { "[X]" } else { "[ ]" };
+    let checkbox_style = if commit_amend {
+        Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD)
+    } else {
+        muted_style()
+    };
+    let checkbox_line = Line::from(vec![
+        Span::styled(format!("{} ", checkbox), checkbox_style),
+        Span::styled("Amend last commit", primary_style()),
+        if !editing {
+            Span::styled(" (toggle: [a/space])", muted_style())
+        } else {
+            Span::raw("")
+        },
+    ]);
+    f.render_widget(Paragraph::new(checkbox_line), chunks[1]);
 
     if editing {
         let lines: Vec<&str> = input_buffer.split('\n').collect();
         let last_line = lines.last().copied().unwrap_or("");
         let line_count = lines.len();
-        let cursor_y = inner_area
+        let cursor_y = chunks[0]
             .y
             .saturating_add(line_count.saturating_sub(1) as u16)
             .min(
-                inner_area
+                chunks[0]
                     .y
-                    .saturating_add(inner_area.height.saturating_sub(1)),
+                    .saturating_add(chunks[0].height.saturating_sub(1)),
             );
         let cursor_offset = last_line.chars().count() as u16;
-        let cursor_x = inner_area
+        let cursor_x = chunks[0]
             .x
-            .saturating_add(cursor_offset.min(inner_area.width.saturating_sub(1)));
+            .saturating_add(cursor_offset.min(chunks[0].width.saturating_sub(1)));
         f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
     }
 }

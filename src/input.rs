@@ -473,6 +473,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.cancel_commit(),
                     KeyCode::Enter => app.commit_git_changes(),
                     KeyCode::Char('e') | KeyCode::Char('E') => app.commit_start_editing(),
+                    KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Char(' ') => {
+                        app.toggle_commit_amend()
+                    }
                     _ => {}
                 }
             }
