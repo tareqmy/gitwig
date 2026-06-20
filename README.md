@@ -54,6 +54,7 @@
 | `PgUp` / `PgDn`      | Detail          | Jump 10 rows or page scroll diff/tree |
 | `Enter`              | Detail          | Stage/Unstage file (Details tab), checkout branch (Branches tab), or checkout tag (Tags tab) |
 | `Shift+F`            | Detail          | Fetch selected local branch from remote (Branches tab) |
+| `f` / `F`            | Detail          | Fetch selected remote (Remotes tab) |
 | `p`                  | Detail          | Pull selected local branch from remote (Branches tab) or Push selected tag (Tags tab; asks confirmation) |
 | `Shift+P`            | Detail          | Push selected local branch to remote (Branches tab) or Push all tags (Tags tab; asks confirmation) |
 | `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) or Local/Remote tag (Tags tab) |
@@ -187,7 +188,8 @@ You can navigate and interact with these panels in the following ways:
 - **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, tag, stash, stashed file, or file tree item in the active list.
 - **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
 - **Stage/Unstage Files:** Select the `Uncommitted changes` row at the top, select a file in either the `Staged` or `Unstaged` list, and press `Enter` to stage or unstage that file instantly.
-- **Network Progress Bar:** Any long-running network operations (such as Fetch, Pull, or Push) will display a centering animated progress bar popup so the UI thread remains responsive and visual feedback is clear.
+- **Network Progress Bar:** Any long-running network operations (such as Fetch, Pull, or Push) will display a centering animated progress bar popup so the UI thread remains responsive and visual feedback is clear. If an operation hangs or takes too long, you can press `Esc` to force-dismiss the progress popup and resume TUI interaction immediately.
+- **Multi-Remote Selection Picker:** For write operations (pushing branch/tags, deleting tags, fetching tags), if the repository has multiple configured remotes and no upstream tracking branch is set, a selection picker popup will appear allowing you to select which remote to target using ↑↓ and Enter.
 - **Manage Branches:** While on the **Branches** tab:
   - Select any **local branch** (other than the currently active one) and press `Enter` to check it out (safe checkout strategy applies).
   - Select any **local branch** that has an upstream configuration and press `Shift+F` to fetch updates for its remote in the background.

@@ -725,6 +725,7 @@ fn detail_dismiss_entries(
             ("Home", "⎋/q"),
             ("Tabs", "Tab/1-8"),
             ("Navigate", "↑↓"),
+            ("Fetch", "f/F"),
             ("Help", "?"),
         ],
         6 => vec![
@@ -736,6 +737,7 @@ fn detail_dismiss_entries(
             ("Delete", "d"),
             ("Help", "?"),
         ],
+        7 => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Help", "?")],
         _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Help", "?")],
     };
     for (i, (label, key)) in entries_data.iter().enumerate() {

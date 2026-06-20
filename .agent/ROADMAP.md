@@ -39,7 +39,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 
 - [x] Fetch and Push operations (Fetch via `Shift+F`, Push via `Shift+P` in Branches tab).
 - [x] Pull operations (shortcut `p` in Branches tab).
-- [ ] Manage multiple remotes.
+- [x] Manage multiple remotes.
 - [x] Progress bars for network operations.
 
 ## Phase 6: Advanced Features

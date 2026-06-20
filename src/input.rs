@@ -182,7 +182,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('5') => {
                 app.detail_tab = 4;
                 app.detail_focus = DetailSection::LocalTags;
-                app.fetch_remote_tags();
+                app.fetch_remote_tags(false);
             }
             KeyCode::Char('6') => {
                 app.detail_tab = 5;
@@ -402,14 +402,29 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 // f / F — fetch remote tags from the selected remote
                 KeyCode::Char('f') | KeyCode::Char('F') => {
-                    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
-                        if info.remotes.len() > 1 {
-                            app.remote_picker_action = Some(RemotePickerAction::FetchTags);
+                    let remote_action =
+                        if let Some(crate::repo::ItemDetail::Repo { info, .. }) =
+                            &app.current_detail
+                        {
+                            if info.remotes.len() > 1 {
+                                Some(None) // Open picker
+                            } else {
+                                info.remotes.first().map(|r| Some(r.name.clone()))
+                            }
+                        } else {
+                            None
+                        };
+
+                    match remote_action {
+                        Some(Some(remote_name)) => {
+                            app.fetch_remote(&remote_name);
+                        }
+                        Some(None) => {
+                            app.remote_picker_action = Some(RemotePickerAction::FetchRemote);
                             app.remote_picker_selection = app.remote_selection;
                             app.mode = Mode::RemotePicker;
-                        } else {
-                            app.fetch_remote_tags();
                         }
+                        None => {}
                     }
                 }
                 _ => {}
@@ -622,7 +637,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                 3 => app.detail_focus = DetailSection::LocalBranches,
                                 4 => {
                                     app.detail_focus = DetailSection::LocalTags;
-                                    app.fetch_remote_tags();
+                                    app.fetch_remote_tags(false);
                                 }
                                 5 => app.detail_focus = DetailSection::Remotes,
                                 6 => app.detail_focus = DetailSection::Stashes,

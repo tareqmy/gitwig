@@ -31,7 +31,7 @@ pub enum RemotePickerAction {
     PushTag,
     PushAllTags,
     DeleteRemoteTag,
-    FetchTags,
+    FetchRemote,
 }
 
 /// Interaction modes for the item list.
@@ -2146,7 +2146,7 @@ impl App {
             3 => self.detail_focus = DetailSection::LocalBranches,
             4 => {
                 self.detail_focus = DetailSection::LocalTags;
-                self.fetch_remote_tags();
+                self.fetch_remote_tags(false);
             }
             5 => self.detail_focus = DetailSection::Remotes,
             6 => {
@@ -2158,7 +2158,7 @@ impl App {
         }
     }
 
-    pub fn fetch_remote_tags(&mut self) {
+    pub fn fetch_remote_tags(&mut self, show_progress: bool) {
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
             // Use the currently selected remote in the Remotes tab if available,
             // otherwise fall back to the first remote.
@@ -2170,6 +2170,10 @@ impl App {
                 let repo_path = resolved.clone();
                 let remote_name = remote.name.clone();
                 let tx = self.tx.clone();
+                if show_progress {
+                    self.fetching = true;
+                    self.status_message = Some(format!("Fetching tags from '{}'...", remote_name));
+                }
                 std::thread::spawn(
                     move || match repo::get_remote_tags(&repo_path, &remote_name) {
                         Ok(tags) => {
@@ -2183,6 +2187,44 @@ impl App {
                     },
                 );
             }
+        }
+    }
+
+    /// Spawns a background thread to fetch all updates (git fetch) from the specified remote.
+    pub fn fetch_remote(&mut self, remote_name: &str) {
+        if self.fetching {
+            return;
+        }
+        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+            self.fetching = true;
+            self.status_message = Some(format!("Fetching remote '{}'...", remote_name));
+
+            let repo_path = resolved.clone();
+            let remote_name = remote_name.to_string();
+            let tx = self.tx.clone();
+
+            std::thread::spawn(move || {
+                let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                    let output = std::process::Command::new("git")
+                        .arg("fetch")
+                        .arg(&remote_name)
+                        .current_dir(&repo_path)
+                        .output()?;
+
+                    if output.status.success() {
+                        Ok(format!("Fetched remote '{}' successfully", remote_name))
+                    } else {
+                        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                        Err(format!("git fetch failed: {}", err_msg).into())
+                    }
+                })();
+
+                let msg = match res {
+                    Ok(success) => success,
+                    Err(e) => format!("Fetch failed: {}", e),
+                };
+                let _ = tx.send(msg);
+            });
         }
     }
 
@@ -2237,27 +2279,9 @@ impl App {
                 }
                 self.mode = Mode::Detail;
             }
-            RemotePickerAction::FetchTags => {
-                if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
-                    let repo_path = resolved.clone();
-                    let tx = self.tx.clone();
-                    self.fetching = true;
-                    self.status_message = Some(format!("Fetching tags from '{}'...", remote_name));
-                    std::thread::spawn(move || {
-                        match repo::get_remote_tags(&repo_path, &remote_name) {
-                            Ok(tags) => {
-                                let serialized = repo::serialize_tags(&tags);
-                                let _ = tx.send(format!("REMOTE_TAGS:{}", serialized));
-                            }
-                            Err(e) => {
-                                let _ = tx.send(format!(
-                                    "REMOTE_TAGS_ERR:Failed to get remote tags: {}",
-                                    e
-                                ));
-                            }
-                        }
-                    });
-                }
+            RemotePickerAction::FetchRemote => {
+                self.remote_selection = self.remote_picker_selection;
+                self.fetch_remote(&remote_name);
                 self.mode = Mode::Detail;
             }
         }
@@ -2703,11 +2727,15 @@ where
                 app.status_message = Some(err_msg.to_string());
                 app.fetching = false;
             } else {
+                let success_fetch = msg.starts_with("Fetched remote ");
                 app.status_message = Some(msg);
                 app.fetching = false;
                 if let Some(item) = app.config.items.get(app.selected_index) {
                     app.current_detail = Some(repo::inspect_detail(item));
                     app.rebuild_visible_files();
+                    if success_fetch {
+                        app.fetch_remote_tags(false);
+                    }
                 }
             }
         }
