@@ -204,6 +204,7 @@ pub fn draw(
             | Mode::StashDeleteConfirm
             | Mode::StashApplyConfirm
             | Mode::RemotePicker
+            | Mode::CommitSearchInput
     ) {
         if let Some(detail) = &app.current_detail {
             let item_name = app
@@ -219,6 +220,7 @@ pub fn draw(
                 &app.mode,
                 &app.detail_focus,
                 app.commit_selection,
+                &app.commit_search_query,
                 app.file_selection,
                 &app.file_diff,
                 app.diff_scroll,
@@ -660,6 +662,9 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = remote_picker_status_entries();
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
+        Mode::CommitSearchInput => {
+            draw_input_status(f, area, "Search Commits", &app.input_buffer);
+        }
     }
 }
 
@@ -682,6 +687,7 @@ fn detail_dismiss_entries(
             ("Stage/Unstage", "↵"),
             ("Commit", "c"),
             ("Tag", "t"),
+            ("Filter", "/"),
             ("Help", "?"),
         ],
         1 => vec![

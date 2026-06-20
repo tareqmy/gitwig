@@ -150,7 +150,14 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             _ => {}
         },
         Mode::Detail => match code {
-            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
+            KeyCode::Esc => {
+                if app.commit_search_query.is_some() {
+                    app.cancel_commit_search();
+                } else {
+                    app.close_detail();
+                }
+            }
+            KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
             KeyCode::Char('?') => app.open_detail_help(),
             KeyCode::Tab => {
                 app.detail_tab = (app.detail_tab + 1) % 8;
@@ -197,6 +204,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.detail_focus = DetailSection::Commits;
             }
             _ if app.detail_tab == 0 => match code {
+                KeyCode::Char('/') if detail_focus == DetailSection::Commits => {
+                    app.start_commit_search();
+                }
                 KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
                 KeyCode::Char('t') | KeyCode::Char('T') => {
                     if detail_focus == DetailSection::Commits {
@@ -493,6 +503,19 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Down | KeyCode::Char('j') => app.remote_picker_down(),
             KeyCode::Enter => app.confirm_remote_picker(),
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.cancel_remote_picker(),
+            _ => {}
+        },
+        Mode::CommitSearchInput => match code {
+            KeyCode::Esc => app.cancel_commit_search(),
+            KeyCode::Enter => app.mode = Mode::Detail,
+            KeyCode::Backspace => {
+                app.input_backspace();
+                app.commit_search_input_change();
+            }
+            KeyCode::Char(c) => {
+                app.input_char(c);
+                app.commit_search_input_change();
+            }
             _ => {}
         },
         Mode::CommitInput => {

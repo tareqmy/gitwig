@@ -73,6 +73,8 @@ pub enum Mode {
     StashApplyConfirm,
     /// Picking a remote when multiple are available.
     RemotePicker,
+    /// Typing a search query for commits.
+    CommitSearchInput,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -135,6 +137,8 @@ pub struct App {
     pub detail_focus: DetailSection,
     /// Selected row index inside the Commits panel (0 = top row).
     pub commit_selection: usize,
+    /// Active query for filtering commits in the commits panel
+    pub commit_search_query: Option<String>,
     /// Selected file index inside the Changed Files panel (real commits).
     pub file_selection: usize,
     /// Selected file index inside the Staged/Unstaged sub-panels (uncommitted view).
@@ -254,6 +258,7 @@ impl App {
             current_detail: None,
             detail_focus: DetailSection::Commits,
             commit_selection: 0,
+            commit_search_query: None,
             file_selection: 0,
             staging_file_selection: 0,
             file_diff: Vec::new(),
@@ -1559,6 +1564,7 @@ impl App {
     }
 
     /// Total number of rows in the Commits panel (dirty row + real commits).
+    /// Total number of rows in the Commits panel (dirty row + real commits).
     fn commit_total(&self) -> usize {
         match &self.current_detail {
             Some(ItemDetail::Repo { info, .. }) => {
@@ -1566,7 +1572,17 @@ impl App {
                     || !info.changes.unstaged.is_empty()
                     || !info.changes.untracked.is_empty()
                     || !info.changes.conflicted.is_empty();
-                info.commits.len() + usize::from(dirty)
+                let show_dirty = if dirty {
+                    if let Some(ref query) = self.commit_search_query {
+                        "<uncommitted>".contains(&query.to_lowercase())
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                };
+                let filtered_len = self.get_filtered_commits().len();
+                filtered_len + usize::from(show_dirty)
             }
             _ => 0,
         }
@@ -1580,16 +1596,26 @@ impl App {
                     || !info.changes.unstaged.is_empty()
                     || !info.changes.untracked.is_empty()
                     || !info.changes.conflicted.is_empty();
+                let show_dirty = if dirty {
+                    if let Some(ref query) = self.commit_search_query {
+                        "<uncommitted>".contains(&query.to_lowercase())
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                };
                 // Uncommitted row (staging area) has no file list.
-                if dirty && self.commit_selection == 0 {
+                if show_dirty && self.commit_selection == 0 {
                     return 0;
                 }
-                let idx = if dirty {
+                let idx = if show_dirty {
                     self.commit_selection.saturating_sub(1)
                 } else {
                     self.commit_selection
                 };
-                info.commits.get(idx).map(|c| c.files.len()).unwrap_or(0)
+                let filtered = self.get_filtered_commits();
+                filtered.get(idx).map(|c| c.files.len()).unwrap_or(0)
             }
             _ => 0,
         }
@@ -1602,7 +1628,16 @@ impl App {
                     || !info.changes.unstaged.is_empty()
                     || !info.changes.untracked.is_empty()
                     || !info.changes.conflicted.is_empty();
-                dirty && self.commit_selection == 0
+                let show_dirty = if dirty {
+                    if let Some(ref query) = self.commit_search_query {
+                        "<uncommitted>".contains(&query.to_lowercase())
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                };
+                show_dirty && self.commit_selection == 0
             }
             _ => false,
         }
@@ -1615,15 +1650,25 @@ impl App {
                     || !info.changes.unstaged.is_empty()
                     || !info.changes.untracked.is_empty()
                     || !info.changes.conflicted.is_empty();
-                if dirty && self.commit_selection == 0 {
+                let show_dirty = if dirty {
+                    if let Some(ref query) = self.commit_search_query {
+                        "<uncommitted>".contains(&query.to_lowercase())
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                };
+                if show_dirty && self.commit_selection == 0 {
                     return None;
                 }
-                let commit_idx = if dirty {
+                let commit_idx = if show_dirty {
                     self.commit_selection.saturating_sub(1)
                 } else {
                     self.commit_selection
                 };
-                let commit = info.commits.get(commit_idx)?;
+                let filtered = self.get_filtered_commits();
+                let commit = filtered.get(commit_idx)?;
                 let file = commit.files.get(self.file_selection)?;
                 Some((resolved.clone(), commit.oid.clone(), file.path.clone()))
             }
@@ -1781,7 +1826,64 @@ impl App {
 
     pub fn close_detail(&mut self) {
         self.current_detail = None;
+        self.commit_search_query = None;
         self.mode = Mode::Normal;
+    }
+
+    pub fn get_filtered_commits(&self) -> Vec<&crate::repo::CommitEntry> {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if let Some(ref query) = self.commit_search_query {
+                let q = query.to_lowercase();
+                info.commits
+                    .iter()
+                    .filter(|c| {
+                        c.id.to_lowercase().contains(&q)
+                            || c.author.to_lowercase().contains(&q)
+                            || c.when.to_lowercase().contains(&q)
+                            || c.summary.to_lowercase().contains(&q)
+                    })
+                    .collect()
+            } else {
+                info.commits.iter().collect()
+            }
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn clamp_commit_selection(&mut self) {
+        let total = self.commit_total();
+        if total == 0 {
+            self.commit_selection = 0;
+        } else if self.commit_selection >= total {
+            self.commit_selection = total - 1;
+        }
+    }
+
+    pub fn start_commit_search(&mut self) {
+        self.input_buffer = self.commit_search_query.clone().unwrap_or_default();
+        self.mode = Mode::CommitSearchInput;
+    }
+
+    pub fn cancel_commit_search(&mut self) {
+        self.commit_search_query = None;
+        self.clamp_commit_selection();
+        self.file_selection = 0;
+        self.diff_scroll = 0;
+        self.refresh_file_diff();
+        self.mode = Mode::Detail;
+    }
+
+    pub fn commit_search_input_change(&mut self) {
+        self.commit_search_query = if self.input_buffer.is_empty() {
+            None
+        } else {
+            Some(self.input_buffer.clone())
+        };
+        self.clamp_commit_selection();
+        self.file_selection = 0;
+        self.diff_scroll = 0;
+        self.refresh_file_diff();
     }
 
     /// Opens the shortcut help overlay inside the detail view.

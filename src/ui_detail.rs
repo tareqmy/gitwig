@@ -85,6 +85,7 @@ pub fn draw(
     mode: &Mode,
     focus: &DetailSection,
     commit_selection: usize,
+    commit_search_query: &Option<String>,
     file_selection: usize,
     file_diff: &[DiffLine],
     diff_scroll: usize,
@@ -242,9 +243,25 @@ pub fn draw(
                     || !info.changes.unstaged.is_empty()
                     || !info.changes.untracked.is_empty()
                     || !info.changes.conflicted.is_empty();
-                let is_uncommitted_row = dirty && commit_selection == 0;
+                let show_dirty = if dirty {
+                    if let Some(query) = commit_search_query {
+                        "<uncommitted>".contains(&query.to_lowercase())
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                };
+                let is_uncommitted_row = show_dirty && commit_selection == 0;
 
-                draw_detail_commits(f, info, *focus, commit_selection, detail_chunks[0]);
+                draw_detail_commits(
+                    f,
+                    info,
+                    *focus,
+                    commit_selection,
+                    commit_search_query,
+                    detail_chunks[0],
+                );
                 areas.commits = Some(detail_chunks[0]);
 
                 if is_uncommitted_row {
@@ -1076,6 +1093,7 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ),
     ("c", "Commit changes (Details) / Create branch (Branches)"),
     ("t", "Create tag (Details tab commits list)"),
+    ("/", "Filter commits list by search query (Details tab)"),
     ("d", "Delete selected branch (Branches) / tag (Tags)"),
     ("1", "Go to Details tab"),
     ("2", "Go to Files tab"),
@@ -1167,6 +1185,7 @@ fn draw_detail_commits(
     info: &RepoInfo,
     focus: DetailSection,
     commit_selection: usize,
+    commit_search_query: &Option<String>,
     area: Rect,
 ) {
     let focused = focus == DetailSection::Commits;
@@ -1175,15 +1194,45 @@ fn draw_detail_commits(
     } else {
         muted_style()
     };
+
+    let title_spans = if let Some(q) = commit_search_query {
+        vec![
+            Span::raw(" "),
+            Span::styled("Commits (Filter: ", primary_style()),
+            Span::styled(q.clone(), accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(")", primary_style()),
+            Span::raw(" "),
+        ]
+    } else {
+        vec![
+            Span::raw(" "),
+            Span::styled("Commits", primary_style()),
+            Span::raw(" "),
+        ]
+    };
+
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(border_style)
-        .title(Line::from(vec![
-            Span::raw(" "),
-            Span::styled("Commits", primary_style()),
-            Span::raw(" "),
-        ]));
+        .title(Line::from(title_spans));
+
+    // Filter commits based on search query
+    let filtered_commits: Vec<&crate::repo::CommitEntry> = if let Some(query) = commit_search_query
+    {
+        let q = query.to_lowercase();
+        info.commits
+            .iter()
+            .filter(|c| {
+                c.id.to_lowercase().contains(&q)
+                    || c.author.to_lowercase().contains(&q)
+                    || c.when.to_lowercase().contains(&q)
+                    || c.summary.to_lowercase().contains(&q)
+            })
+            .collect()
+    } else {
+        info.commits.iter().collect()
+    };
 
     // Dirty = any uncommitted change in staged / unstaged / untracked / conflicted.
     let dirty = !info.changes.staged.is_empty()
@@ -1191,8 +1240,18 @@ fn draw_detail_commits(
         || !info.changes.untracked.is_empty()
         || !info.changes.conflicted.is_empty();
 
+    let show_dirty = if dirty {
+        if let Some(query) = commit_search_query {
+            "<uncommitted>".contains(&query.to_lowercase())
+        } else {
+            true
+        }
+    } else {
+        false
+    };
+
     // Show empty placeholder only when truly empty (no commits AND clean).
-    if info.commits.is_empty() && !dirty {
+    if filtered_commits.is_empty() && !show_dirty {
         let inner = block.inner(area);
         f.render_widget(block, area);
         let v = Layout::default()
@@ -1224,7 +1283,7 @@ fn draw_detail_commits(
 
     // Prepend a virtual "uncommitted changes" row when the worktree is dirty.
     let mut rows: Vec<Row> = Vec::new();
-    if dirty {
+    if show_dirty {
         rows.push(Row::new(vec![
             Cell::from(Span::styled("-", muted_style())),
             Cell::from(Span::styled("-", muted_style())),
@@ -1235,7 +1294,7 @@ fn draw_detail_commits(
             )),
         ]));
     }
-    rows.extend(info.commits.iter().map(|commit| {
+    rows.extend(filtered_commits.iter().map(|commit| {
         // Build the summary cell: optional ref badges then the commit message.
         let mut spans: Vec<Span<'static>> = Vec::new();
         for r in &commit.refs {

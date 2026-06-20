@@ -61,6 +61,7 @@
 | `←` / `→` or `<` / `>` or `,` / `.` | Detail | Collapse/Expand directory (Files tab) |
 | `c`                  | Detail          | Open commit prompt (Details tab), or Create branch from HEAD (Branches tab) |
 | `d`                  | Detail          | Delete selected branch (Branches tab; asks confirmation) or tag (Tags tab; asks confirmation) |
+| `/`                  | Detail          | Filter commits list by search query (Details tab) |
 | `?`                  | Detail          | Toggle detail help overlay        |
 | `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |
 | `⌃C`                 | CommitInput (Edit) | Finish editing commit message (switches to confirm state) |
