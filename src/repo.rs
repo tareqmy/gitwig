@@ -243,9 +243,16 @@ pub fn get_worktree_file_diff(repo_path: &Path, file_path: &str, staged: bool) -
 pub fn stage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
     let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
     let mut index = repo.index().map_err(|e| e.to_string())?;
-    index
-        .add_path(Path::new(file_path))
-        .map_err(|e| e.to_string())?;
+    let full_path = repo_path.join(file_path);
+    if full_path.exists() {
+        index
+            .add_path(Path::new(file_path))
+            .map_err(|e| e.to_string())?;
+    } else {
+        index
+            .remove_path(Path::new(file_path))
+            .map_err(|e| e.to_string())?;
+    }
     index.write().map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -750,6 +757,7 @@ fn populate_file_changes(repo: &Repository, info: &mut RepoInfo) {
     let mut opts = StatusOptions::new();
     opts.include_untracked(true)
         .renames_head_to_index(true)
+        .recurse_untracked_dirs(true)
         .show(StatusShow::IndexAndWorkdir);
     let Ok(statuses) = repo.statuses(Some(&mut opts)) else {
         return;
@@ -757,6 +765,12 @@ fn populate_file_changes(repo: &Repository, info: &mut RepoInfo) {
     for entry in statuses.iter() {
         let path = entry.path().unwrap_or("(unknown)").to_string();
         let flags = entry.status();
+
+        // Skip directories to avoid showing folders in staging panels
+        let path_buf = repo.workdir().unwrap_or(Path::new("")).join(&path);
+        if path_buf.is_dir() {
+            continue;
+        }
 
         if flags.is_conflicted() {
             if info.changes.conflicted.len() < MAX_FILES_PER_SECTION {
@@ -1572,18 +1586,98 @@ mod tests {
         let mut file = File::create(&file_path).unwrap();
         writeln!(file, "hello untracked").unwrap();
 
+        // Create an untracked directory and a file inside it
+        let untracked_dir = temp_path.join("untracked_dir");
+        std::fs::create_dir_all(&untracked_dir).unwrap();
+        let nested_file_path = untracked_dir.join("nested.txt");
+        std::fs::write(&nested_file_path, "nested untracked file").unwrap();
+
         // Inspect detail
         let detail = inspect_detail(temp_path.to_str().unwrap());
         match detail {
             ItemDetail::Repo { info, .. } => {
-                // Verify the untracked file is in both untracked AND unstaged changes list
-                assert_eq!(info.changes.untracked.len(), 1);
-                assert_eq!(info.changes.untracked[0].path, "untracked.txt");
-                assert_eq!(info.changes.untracked[0].label, "?");
+                // Verify no folders are in the unstaged/untracked list
+                let unstaged_paths: Vec<String> = info
+                    .changes
+                    .unstaged
+                    .iter()
+                    .map(|f| f.path.clone())
+                    .collect();
+                let untracked_paths: Vec<String> = info
+                    .changes
+                    .untracked
+                    .iter()
+                    .map(|f| f.path.clone())
+                    .collect();
 
-                assert_eq!(info.changes.unstaged.len(), 1);
-                assert_eq!(info.changes.unstaged[0].path, "untracked.txt");
-                assert_eq!(info.changes.unstaged[0].label, "N");
+                // Folder itself should NOT be listed
+                assert!(!unstaged_paths.contains(&"untracked_dir".to_string()));
+                assert!(!unstaged_paths.contains(&"untracked_dir/".to_string()));
+                assert!(!untracked_paths.contains(&"untracked_dir".to_string()));
+                assert!(!untracked_paths.contains(&"untracked_dir/".to_string()));
+
+                // Untracked files (both root and nested) should be listed
+                assert!(unstaged_paths.contains(&"untracked.txt".to_string()));
+                assert!(unstaged_paths.contains(&"untracked_dir/nested.txt".to_string()));
+                assert!(untracked_paths.contains(&"untracked.txt".to_string()));
+                assert!(untracked_paths.contains(&"untracked_dir/nested.txt".to_string()));
+            }
+            _ => panic!("Expected ItemDetail::Repo"),
+        }
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_stage_new_and_deleted_files() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // Init repo
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // Create initial file & commit
+        let init_file = temp_path.join("init.txt");
+        std::fs::write(&init_file, "initial").unwrap();
+        stage_file(&temp_path, "init.txt").unwrap();
+        commit_changes(&temp_path, "initial commit").unwrap();
+
+        // 1. Create a new file (untracked)
+        let untracked_file = temp_path.join("untracked.txt");
+        std::fs::write(&untracked_file, "new file content").unwrap();
+
+        // Try staging untracked file
+        stage_file(&temp_path, "untracked.txt").unwrap();
+
+        // 2. Delete the initial file
+        std::fs::remove_file(&init_file).unwrap();
+
+        // Try staging deleted file
+        stage_file(&temp_path, "init.txt").unwrap();
+
+        // Check status of repo
+        let detail = inspect_detail(temp_path.to_str().unwrap());
+        match detail {
+            ItemDetail::Repo { info, .. } => {
+                // Both should be in staged changes
+                assert_eq!(info.changes.staged.len(), 2);
+                let paths: Vec<String> =
+                    info.changes.staged.iter().map(|f| f.path.clone()).collect();
+                assert!(paths.contains(&"untracked.txt".to_string()));
+                assert!(paths.contains(&"init.txt".to_string()));
             }
             _ => panic!("Expected ItemDetail::Repo"),
         }

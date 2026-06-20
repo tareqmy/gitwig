@@ -19,25 +19,9 @@ sort_by = "custom"
 # Whether sorting should be reversed.
 sort_reverse = false
 
-# Theme settings for styling the terminal UI.
-[theme]
-# Accent color for selections, focus borders, active tabs.
-# Options: "black", "red", "green", "yellow", "blue", "magenta", "cyan", "gray",
-#          "darkgray", "lightred", "lightgreen", "lightyellow", "lightblue", 
-#          "lightmagenta", "lightcyan", "white"
-accent = "cyan"
-
-# Warning color for edit state, modified status badges, etc.
-warning = "yellow"
-
-# Danger color for delete prompts, conflict status badges, removed lines, etc.
-danger = "red"
-
-# Success color for committed badges, added lines, amend checkboxes, etc.
-success = "green"
-
-# Block border style. Options: "plain", "rounded", "double", "thick"
-border_type = "rounded"
+# Active theme name selection.
+# Maps to config/themes/<theme_name>.theme (e.g. "default" -> config/themes/default.theme)
+theme = "default"
 
 # Configuration for interactive repository search (fzf).
 [fzf]

@@ -3385,6 +3385,7 @@ mod tests {
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
             theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_sort.toml");
@@ -3439,6 +3440,7 @@ mod tests {
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
             theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_duplicate.toml");
@@ -3545,6 +3547,7 @@ mod tests {
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
             theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_pin.toml");
@@ -3621,6 +3624,7 @@ mod tests {
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
             theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_commit_scroll.toml");
