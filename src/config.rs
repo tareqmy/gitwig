@@ -45,6 +45,9 @@ pub struct Config {
     /// Whether sorting should be reversed.
     #[serde(default)]
     pub sort_reverse: bool,
+    /// List of pinned repository paths.
+    #[serde(default)]
+    pub pinned: std::collections::HashSet<String>,
 }
 
 /// Returns `~/.twig/`, the canonical Twig data directory.
@@ -85,6 +88,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 sort_by: default_sort_by(),
                 visits: default_visits(),
                 sort_reverse: false,
+                pinned: std::collections::HashSet::new(),
             },
             path,
         ));
@@ -121,6 +125,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         sort_by: default_sort_by(),
         visits: default_visits(),
         sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
     };
     save_config(&fallback, &canonical)?;
     Ok((fallback, canonical))

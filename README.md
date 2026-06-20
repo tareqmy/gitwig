@@ -32,6 +32,7 @@
 | `e`                  | Normal          | Edit the selected item            |
 | `d`                  | Normal          | Delete the selected item (asks)   |
 | `r`                  | Normal          | Refresh status of selected item   |
+| `p`                  | Normal          | Toggle pin status of selected item |
 | `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes) |
 | `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed) |
 | `g`                  | Normal          | Launch gitui for selected repository |

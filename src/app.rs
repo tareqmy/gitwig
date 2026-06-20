@@ -395,75 +395,85 @@ impl App {
     }
 
     pub fn sort_items_in_place(&mut self) {
-        match self.config.sort_by {
+        let mut zipped: Vec<(String, ItemStatus)> = match self.config.sort_by {
             SortOrder::Custom => {
-                self.config.items = self.original_items.clone();
-                self.statuses = self
-                    .config
-                    .items
-                    .iter()
-                    .map(|s| repo::inspect_summary(s))
-                    .collect();
-                if self.config.sort_reverse {
-                    self.config.items.reverse();
-                    self.statuses.reverse();
-                }
-            }
-            SortOrder::Alphabetical => {
-                let mut zipped: Vec<(String, ItemStatus)> = self
+                let mut status_map: std::collections::HashMap<String, ItemStatus> = self
                     .config
                     .items
                     .drain(..)
                     .zip(self.statuses.drain(..))
                     .collect();
-                zipped.sort_by(|a, b| a.0.cmp(&b.0));
+                let mut z: Vec<(String, ItemStatus)> = self
+                    .original_items
+                    .iter()
+                    .map(|item| {
+                        let status = status_map
+                            .remove(item)
+                            .unwrap_or_else(|| repo::inspect_summary(item));
+                        (item.clone(), status)
+                    })
+                    .collect();
                 if self.config.sort_reverse {
-                    zipped.reverse();
+                    z.reverse();
                 }
-                let (items, statuses): (Vec<String>, Vec<ItemStatus>) = zipped.into_iter().unzip();
-                self.config.items = items;
-                self.statuses = statuses;
+                z
+            }
+            SortOrder::Alphabetical => {
+                let mut z: Vec<(String, ItemStatus)> = self
+                    .config
+                    .items
+                    .drain(..)
+                    .zip(self.statuses.drain(..))
+                    .collect();
+                z.sort_by(|a, b| a.0.cmp(&b.0));
+                if self.config.sort_reverse {
+                    z.reverse();
+                }
+                z
             }
             SortOrder::RecentVisit => {
                 let visits = &self.config.visits;
-                let mut zipped: Vec<(String, ItemStatus)> = self
+                let mut z: Vec<(String, ItemStatus)> = self
                     .config
                     .items
                     .drain(..)
                     .zip(self.statuses.drain(..))
                     .collect();
-                zipped.sort_by(|a, b| {
+                z.sort_by(|a, b| {
                     let time_a = visits.get(&a.0).copied().unwrap_or(0);
                     let time_b = visits.get(&b.0).copied().unwrap_or(0);
                     time_b.cmp(&time_a) // Descending
                 });
                 if self.config.sort_reverse {
-                    zipped.reverse();
+                    z.reverse();
                 }
-                let (items, statuses): (Vec<String>, Vec<ItemStatus>) = zipped.into_iter().unzip();
-                self.config.items = items;
-                self.statuses = statuses;
+                z
             }
             SortOrder::LatestChanges => {
-                let mut zipped: Vec<(String, ItemStatus)> = self
+                let mut z: Vec<(String, ItemStatus)> = self
                     .config
                     .items
                     .drain(..)
                     .zip(self.statuses.drain(..))
                     .collect();
-                zipped.sort_by(|a, b| {
+                z.sort_by(|a, b| {
                     let time_a = repo::get_latest_change_time(&a.0);
                     let time_b = repo::get_latest_change_time(&b.0);
                     time_b.cmp(&time_a) // Descending
                 });
                 if self.config.sort_reverse {
-                    zipped.reverse();
+                    z.reverse();
                 }
-                let (items, statuses): (Vec<String>, Vec<ItemStatus>) = zipped.into_iter().unzip();
-                self.config.items = items;
-                self.statuses = statuses;
+                z
             }
-        }
+        };
+
+        // Stable-partition pinned items to the top
+        zipped.sort_by_key(|(item, _)| !self.config.pinned.contains(item));
+
+        let (items, statuses): (Vec<String>, Vec<ItemStatus>) = zipped.into_iter().unzip();
+        self.config.items = items;
+        self.statuses = statuses;
     }
 
     pub fn cycle_sort_order(&mut self) {
@@ -501,6 +511,33 @@ impl App {
         }
 
         self.persist("Sort direction updated");
+    }
+
+    pub fn toggle_pin_selected(&mut self) {
+        if self.config.items.is_empty() {
+            return;
+        }
+        let selected_item = self.config.items[self.selected_index].clone();
+        if self.config.pinned.contains(&selected_item) {
+            self.config.pinned.remove(&selected_item);
+            self.status_message = Some("Unpinned repository".to_string());
+        } else {
+            self.config.pinned.insert(selected_item.clone());
+            self.status_message = Some("Pinned repository".to_string());
+        }
+
+        self.sort_items_in_place();
+
+        if let Some(pos) = self.config.items.iter().position(|x| x == &selected_item) {
+            self.selected_index = pos;
+        }
+
+        let msg = self
+            .status_message
+            .as_deref()
+            .unwrap_or("Saved")
+            .to_string();
+        self.persist(&msg);
     }
 
     /// Snapshot the selected item's filesystem/git state and enter the
@@ -1896,6 +1933,10 @@ impl App {
                 self.config.visits.insert(trimmed.clone(), time);
             }
 
+            if self.config.pinned.remove(&old_item) {
+                self.config.pinned.insert(trimmed.clone());
+            }
+
             self.config.items[self.selected_index] = trimmed.clone();
             self.statuses[self.selected_index] = repo::inspect_summary(&trimmed);
 
@@ -1920,6 +1961,7 @@ impl App {
                 self.original_items.remove(pos);
             }
             self.config.visits.remove(&item);
+            self.config.pinned.remove(&item);
             self.persist("Deleted");
         }
         self.mode = Mode::Normal;
@@ -2543,9 +2585,12 @@ mod tests {
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_sort.toml");
-        let _guard = TestFileGuard { path: temp_path.clone() };
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
         let mut app = App::new(config, temp_path);
 
         // Assert initial custom sort
@@ -2592,11 +2637,14 @@ mod tests {
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_duplicate.toml");
         // Ensure starting with a clean state and clean up upon drop
         let _ = std::fs::remove_file(&temp_path);
-        let _guard = TestFileGuard { path: temp_path.clone() };
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
         let mut app = App::new(config, temp_path);
 
         // 1. Test adding a repository via input buffer (commit_add)
@@ -2679,5 +2727,83 @@ mod tests {
             app.status_message,
             Some("Repository already added".to_string())
         );
+    }
+
+    #[test]
+    fn test_pinning_and_sorting() {
+        let config = Config {
+            items: vec![
+                "z_repo".to_string(),
+                "a_repo".to_string(),
+                "m_repo".to_string(),
+            ],
+            poll_interval_ms: 100,
+            sort_by: SortOrder::Alphabetical,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_pin.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Sorting is Alphabetical: initially items should be sorted as a_repo, m_repo, z_repo
+        app.sort_items_in_place();
+        assert_eq!(app.config.items[0], "a_repo");
+        assert_eq!(app.config.items[1], "m_repo");
+        assert_eq!(app.config.items[2], "z_repo");
+
+        // Pin the last one ("z_repo", index 2)
+        app.selected_index = 2;
+        app.toggle_pin_selected();
+
+        // After pinning, z_repo is pinned.
+        // It must move to the top (index 0).
+        // The selection cursor must also follow z_repo, meaning selected_index should become 0.
+        assert!(app.config.pinned.contains("z_repo"));
+        assert_eq!(app.config.items[0], "z_repo");
+        assert_eq!(app.config.items[1], "a_repo");
+        assert_eq!(app.config.items[2], "m_repo");
+        assert_eq!(app.selected_index, 0);
+
+        // Reverse sorting with z_repo pinned:
+        // Pinned block is ["z_repo"]. Unpinned block is ["a_repo", "m_repo"] -> reverse alphabetical is ["m_repo", "a_repo"]
+        // Pinned is kept on top: ["z_repo", "m_repo", "a_repo"]
+        app.toggle_sort_reverse();
+        assert_eq!(app.config.items[0], "z_repo");
+        assert_eq!(app.config.items[1], "m_repo");
+        assert_eq!(app.config.items[2], "a_repo");
+        // selected_index should still track "z_repo" (which is at index 0)
+        assert_eq!(app.selected_index, 0);
+
+        // Toggle reverse back
+        app.toggle_sort_reverse();
+
+        // Pin m_repo too (currently at index 2)
+        app.selected_index = 2; // "m_repo"
+        app.toggle_pin_selected();
+
+        // Now both z_repo and m_repo are pinned.
+        // Alphabetical sort:
+        // Pinned: m_repo, z_repo -> sorted alphabetically is ["m_repo", "z_repo"]
+        // Unpinned: a_repo -> ["a_repo"]
+        // Combined: ["m_repo", "z_repo", "a_repo"]
+        assert_eq!(app.config.items[0], "m_repo");
+        assert_eq!(app.config.items[1], "z_repo");
+        assert_eq!(app.config.items[2], "a_repo");
+        // cursor was on m_repo, which ended up at index 0
+        assert_eq!(app.selected_index, 0);
+
+        // Unpin m_repo (currently at index 0)
+        app.selected_index = 0;
+        app.toggle_pin_selected();
+
+        // Now only z_repo is pinned.
+        // Items should be ["z_repo", "a_repo", "m_repo"]
+        assert_eq!(app.config.items[0], "z_repo");
+        assert_eq!(app.config.items[1], "a_repo");
+        assert_eq!(app.config.items[2], "m_repo");
     }
 }

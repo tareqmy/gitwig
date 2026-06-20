@@ -85,7 +85,10 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("w / W", "Cycle panel focus (Details / Branches tabs)"),
     ("c", "Commit changes (Details) / Create branch (Branches)"),
     ("⇧F", "Fetch selected branch (Branches tab)"),
-    ("p", "Pull branch (Branches) / Push tag (Tags)"),
+    (
+        "p",
+        "Pull branch (Branches) / Push tag (Tags) / Toggle pin (List)",
+    ),
     ("⇧P", "Push branch (Branches) / Push all tags (Tags)"),
     ("?", "Toggle this help overlay"),
     ("q", "Quit (also closes detail view)"),
@@ -304,10 +307,13 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             .constraints([Constraint::Min(0), Constraint::Length(STATUS_ZONE_WIDTH)])
             .split(rows[0]);
 
-        let name_line = Line::from(vec![
-            Span::styled(mark, mark_style),
-            Span::styled(item.as_str(), text_style),
-        ]);
+        let is_pinned = app.config.pinned.contains(item);
+        let mut spans = vec![Span::styled(mark, mark_style)];
+        if is_pinned {
+            spans.push(Span::styled("📌 ", Style::default().fg(WARNING)));
+        }
+        spans.push(Span::styled(item.as_str(), text_style));
+        let name_line = Line::from(spans);
         f.render_widget(Paragraph::new(name_line), name_cols[0]);
 
         let fallback = ItemStatus::Missing;
@@ -844,6 +850,7 @@ fn normal_status_entries(
         ("Edit", "e"),
         ("Delete", "d"),
         ("Refresh", "r"),
+        ("Pin", "p"),
         ("Help", "?"),
         ("Quit", "⎋/q"),
     ];
