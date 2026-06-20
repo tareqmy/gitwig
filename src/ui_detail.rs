@@ -159,7 +159,15 @@ pub fn draw(
     }
 
     if let Some(tab_area) = tab_bar_area {
-        let (style_details, style_files, style_graph, style_branches, style_tags, style_remotes) = (
+        let (
+            style_details,
+            style_files,
+            style_graph,
+            style_branches,
+            style_tags,
+            style_remotes,
+            style_overview,
+        ) = (
             if detail_tab == 0 {
                 Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
             } else {
@@ -190,6 +198,11 @@ pub fn draw(
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             },
+            if detail_tab == 6 {
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
+            },
         );
 
         let details_bullet = if detail_tab == 0 { "●" } else { "○" };
@@ -198,6 +211,7 @@ pub fn draw(
         let branches_bullet = if detail_tab == 3 { "●" } else { "○" };
         let tags_bullet = if detail_tab == 4 { "●" } else { "○" };
         let remotes_bullet = if detail_tab == 5 { "●" } else { "○" };
+        let overview_bullet = if detail_tab == 6 { "●" } else { "○" };
 
         let tab_line = Line::from(vec![
             Span::raw("  "),
@@ -212,6 +226,8 @@ pub fn draw(
             Span::styled(format!("{} Tags [5]", tags_bullet), style_tags),
             Span::raw("    "),
             Span::styled(format!("{} Remotes [6]", remotes_bullet), style_remotes),
+            Span::raw("    "),
+            Span::styled(format!("{} Overview [7]", overview_bullet), style_overview),
         ]);
         f.render_widget(Paragraph::new(tab_line), tab_area);
         areas.tab_bar = Some(tab_area);
@@ -342,14 +358,12 @@ pub fn draw(
                     areas,
                     body_area,
                 );
-            } else {
+            } else if detail_tab == 5 {
                 // Render Remotes view (tab 6, index 5)
                 draw_remotes_view(f, info, *focus, remote_selection, areas, body_area);
-            }
-
-            // Draw overview popup on top when requested.
-            if matches!(mode, Mode::DetailOverview) {
-                draw_overview_popup(f, resolved, info, body_area);
+            } else {
+                // Render Overview tab (tab 7, index 6)
+                draw_overview_tab(f, resolved, info, body_area);
             }
             // Draw detail help overlay on top when requested.
             if matches!(mode, Mode::DetailHelp) {
@@ -887,30 +901,23 @@ fn draw_file_subpanel(
 // ── Overview popup ─────────────────────────────────────────────────────────
 
 /// Renders the repo overview as a floating popup centred over `area`.
-fn draw_overview_popup(f: &mut Frame, resolved: &std::path::Path, info: &RepoInfo, area: Rect) {
-    // Popup takes up ~70 % of the available space
-    let popup_area = centred_rect(70, 70, area);
-
-    f.render_widget(Clear, popup_area);
-
+fn draw_overview_tab(f: &mut Frame, resolved: &std::path::Path, info: &RepoInfo, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(ACCENT))
+        .border_style(muted_style())
         .title(Line::from(vec![
             Span::raw(" "),
             Span::styled("Overview", primary_style()),
             Span::raw(" "),
-        ]));
-
-    let inner = block.inner(popup_area);
-    f.render_widget(block, popup_area);
+        ]))
+        .padding(Padding::horizontal(1));
 
     let body_lines = build_repo_body(resolved, info);
     let body = Paragraph::new(body_lines)
-        .block(Block::default().padding(Padding::horizontal(1)))
+        .block(block)
         .wrap(Wrap { trim: false });
-    f.render_widget(body, inner);
+    f.render_widget(body, area);
 }
 
 /// Returns a [`Rect`] that is `percent_x` wide and `percent_y` tall, centred in `r`.

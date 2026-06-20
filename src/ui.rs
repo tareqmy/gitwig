@@ -112,7 +112,6 @@ pub fn draw(
     if matches!(
         app.mode,
         Mode::Detail
-            | Mode::DetailOverview
             | Mode::DetailHelp
             | Mode::CommitInput
             | Mode::BranchCreateInput
@@ -457,10 +456,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = detail_dismiss_entries(&app.status_message, app.detail_tab);
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
-        Mode::DetailOverview => {
-            let (msg_spans, entries) = detail_overview_entries(&app.status_message);
-            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
-        }
+
         Mode::DetailHelp => {
             let (msg_spans, entries) = detail_help_entries();
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
@@ -531,33 +527,30 @@ fn detail_dismiss_entries(
     let entries_data = match detail_tab {
         0 => vec![
             ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-6"),
+            ("Tabs", "Tab/1-7"),
             ("Cycle Focus", "w/W"),
             ("Navigate/Scroll", "↑↓"),
             ("Stage/Unstage", "↵"),
             ("Commit", "c"),
             ("Tag", "t"),
-            ("Overview", "o"),
             ("Help", "?"),
         ],
         1 => vec![
             ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-6"),
+            ("Tabs", "Tab/1-7"),
             ("Navigate", "↑↓"),
             ("Expand/Collapse", "←/→"),
-            ("Overview", "o"),
             ("Help", "?"),
         ],
         2 => vec![
             ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-6"),
+            ("Tabs", "Tab/1-7"),
             ("Scroll", "↑↓"),
-            ("Overview", "o"),
             ("Help", "?"),
         ],
         3 => vec![
             ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-6"),
+            ("Tabs", "Tab/1-7"),
             ("Cycle Focus", "w/W"),
             ("Checkout", "↵"),
             ("Create", "c"),
@@ -567,27 +560,25 @@ fn detail_dismiss_entries(
             ("Push", "⇧P"),
             ("Navigate", "↑↓"),
             ("Focus L/R", "←/→"),
-            ("Overview", "o"),
             ("Help", "?"),
         ],
         4 => vec![
             ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-6"),
+            ("Tabs", "Tab/1-7"),
             ("Checkout", "↵"),
             ("Navigate", "↑↓"),
             ("Push", "p"),
             ("Push All", "⇧P"),
             ("Delete", "d"),
-            ("Overview", "o"),
             ("Help", "?"),
         ],
-        _ => vec![
+        5 => vec![
             ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-6"),
+            ("Tabs", "Tab/1-7"),
             ("Navigate", "↑↓"),
-            ("Overview", "o"),
             ("Help", "?"),
         ],
+        _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-7"), ("Help", "?")],
     };
     for (i, (label, key)) in entries_data.iter().enumerate() {
         let mut spans = Vec::new();
@@ -601,23 +592,6 @@ fn detail_dismiss_entries(
         spans.push(Span::styled("]", muted_style()));
         entries.push(StatusEntry::new(spans));
     }
-    (message_spans, entries)
-}
-
-fn detail_overview_entries(
-    status_message: &Option<String>,
-) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
-    let mut message_spans = None;
-    if let Some(msg) = status_message {
-        message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
-    }
-    let entries = vec![StatusEntry::new(vec![
-        Span::raw("Close Overview"),
-        Span::raw(" "),
-        Span::styled("[", muted_style()),
-        Span::styled("⎋/q/o", accent_style()),
-        Span::styled("]", muted_style()),
-    ])];
     (message_spans, entries)
 }
 

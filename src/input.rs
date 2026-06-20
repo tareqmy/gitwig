@@ -123,15 +123,14 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         },
         Mode::Detail => match code {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
-            KeyCode::Char('o') => app.open_overview_popup(),
             KeyCode::Char('?') => app.open_detail_help(),
             KeyCode::Tab => {
-                app.detail_tab = (app.detail_tab + 1) % 6;
+                app.detail_tab = (app.detail_tab + 1) % 7;
                 app.set_default_focus_for_tab();
             }
             KeyCode::BackTab => {
                 app.detail_tab = if app.detail_tab == 0 {
-                    5
+                    6
                 } else {
                     app.detail_tab - 1
                 };
@@ -160,6 +159,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('6') => {
                 app.detail_tab = 5;
                 app.detail_focus = DetailSection::Remotes;
+            }
+            KeyCode::Char('7') => {
+                app.detail_tab = 6;
+                app.detail_focus = DetailSection::Commits;
             }
             _ if app.detail_tab == 0 => match code {
                 KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
@@ -369,12 +372,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             },
             _ => {}
         },
-        Mode::DetailOverview => match code {
-            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Char('o') => {
-                app.close_overview_popup();
-            }
-            _ => {}
-        },
+
         Mode::DetailHelp => match code {
             KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_detail_help();
@@ -482,10 +480,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     }
 
     // Only handle detail modes beyond this point.
-    if !matches!(
-        app.mode,
-        Mode::Detail | Mode::DetailOverview | Mode::DetailHelp
-    ) {
+    if !matches!(app.mode, Mode::Detail | Mode::DetailHelp) {
         return;
     }
 
