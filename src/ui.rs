@@ -749,7 +749,7 @@ fn normal_status_entries(
         ("Delete", "d"),
         ("Refresh", "r"),
         ("Help", "?"),
-        ("Quit", "q"),
+        ("Quit", "⎋/q"),
     ];
     let mut entries = Vec::new();
     for (i, (label, key)) in entries_data.iter().enumerate() {

@@ -26,7 +26,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     let detail_focus = app.detail_focus; // Copy before borrow in match
     match &app.mode {
         Mode::Normal => match code {
-            KeyCode::Char('q') => return false,
+            KeyCode::Char('q') | KeyCode::Esc => return false,
             KeyCode::Down | KeyCode::Char('j') => app.move_down(visible_count),
             KeyCode::Up | KeyCode::Char('k') => app.move_up(),
             KeyCode::PageDown => app.page_down(visible_count),
