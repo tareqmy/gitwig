@@ -378,7 +378,7 @@ impl App {
 
     /// Advance focus to the next detail panel (Tab key).
     pub fn cycle_detail_focus(&mut self) {
-        if self.detail_tab == 2 {
+        if self.detail_tab == 3 {
             self.detail_focus = match self.detail_focus {
                 DetailSection::LocalBranches => DetailSection::RemoteBranches,
                 _ => DetailSection::LocalBranches,
@@ -1530,14 +1530,14 @@ impl App {
 
     /// Shift panel focus to the left.
     pub fn move_focus_left(&mut self) {
-        if self.detail_tab == 2 {
+        if self.detail_tab == 3 {
             self.detail_focus = DetailSection::LocalBranches;
         }
     }
 
     /// Shift panel focus to the right.
     pub fn move_focus_right(&mut self) {
-        if self.detail_tab == 2 {
+        if self.detail_tab == 3 {
             self.detail_focus = DetailSection::RemoteBranches;
         }
     }
@@ -1546,8 +1546,8 @@ impl App {
     pub fn set_default_focus_for_tab(&mut self) {
         match self.detail_tab {
             0 => self.detail_focus = DetailSection::Commits,
-            2 => self.detail_focus = DetailSection::LocalBranches,
-            3 => self.detail_focus = DetailSection::Files,
+            1 => self.detail_focus = DetailSection::Files,
+            3 => self.detail_focus = DetailSection::LocalBranches,
             4 => {
                 self.detail_focus = DetailSection::LocalTags;
                 self.fetch_remote_tags();

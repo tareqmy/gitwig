@@ -128,14 +128,14 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             KeyCode::Char('2') => {
                 app.detail_tab = 1;
+                app.detail_focus = DetailSection::Files;
             }
             KeyCode::Char('3') => {
                 app.detail_tab = 2;
-                app.detail_focus = DetailSection::LocalBranches;
             }
             KeyCode::Char('4') => {
                 app.detail_tab = 3;
-                app.detail_focus = DetailSection::Files;
+                app.detail_focus = DetailSection::LocalBranches;
             }
             KeyCode::Char('5') => {
                 app.detail_tab = 4;
@@ -225,13 +225,34 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 _ => {}
             },
             _ if app.detail_tab == 1 => match code {
+                KeyCode::Up | KeyCode::Char('k') => {
+                    app.file_list_up();
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    app.file_list_down();
+                }
+                KeyCode::PageUp => {
+                    app.file_list_page_up(10);
+                }
+                KeyCode::PageDown => {
+                    app.file_list_page_down(10);
+                }
+                KeyCode::Char('>') | KeyCode::Char('.') | KeyCode::Right => {
+                    app.expand_selected_folder();
+                }
+                KeyCode::Char('<') | KeyCode::Char(',') | KeyCode::Left => {
+                    app.collapse_selected_folder();
+                }
+                _ => {}
+            },
+            _ if app.detail_tab == 2 => match code {
                 KeyCode::Up | KeyCode::Char('k') => app.graph_scroll_up(),
                 KeyCode::Down | KeyCode::Char('j') => app.graph_scroll_down(),
                 KeyCode::PageUp => app.graph_scroll_page_up(10),
                 KeyCode::PageDown => app.graph_scroll_page_down(10),
                 _ => {}
             },
-            _ if app.detail_tab == 2 => match code {
+            _ if app.detail_tab == 3 => match code {
                 KeyCode::Char('w') | KeyCode::Char('W') => app.cycle_detail_focus(),
                 KeyCode::Char('c') | KeyCode::Char('C') => app.start_branch_create(),
                 KeyCode::Char('d') | KeyCode::Char('D') => app.request_branch_delete(),
@@ -287,27 +308,6 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 KeyCode::Left => app.move_focus_left(),
                 KeyCode::Right => app.move_focus_right(),
-                _ => {}
-            },
-            _ if app.detail_tab == 3 => match code {
-                KeyCode::Up | KeyCode::Char('k') => {
-                    app.file_list_up();
-                }
-                KeyCode::Down | KeyCode::Char('j') => {
-                    app.file_list_down();
-                }
-                KeyCode::PageUp => {
-                    app.file_list_page_up(10);
-                }
-                KeyCode::PageDown => {
-                    app.file_list_page_down(10);
-                }
-                KeyCode::Char('>') | KeyCode::Char('.') | KeyCode::Right => {
-                    app.expand_selected_folder();
-                }
-                KeyCode::Char('<') | KeyCode::Char(',') | KeyCode::Left => {
-                    app.collapse_selected_folder();
-                }
                 _ => {}
             },
             _ if app.detail_tab == 4 => match code {
@@ -478,12 +478,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         app.detail_focus = DetailSection::Commits;
                     } else if (19..30).contains(&click_x) {
                         app.detail_tab = 1;
-                    } else if (34..48).contains(&click_x) {
-                        app.detail_tab = 2;
-                        app.detail_focus = DetailSection::LocalBranches;
-                    } else if (52..63).contains(&click_x) {
-                        app.detail_tab = 3;
                         app.detail_focus = DetailSection::Files;
+                    } else if (34..45).contains(&click_x) {
+                        app.detail_tab = 2;
+                    } else if (49..63).contains(&click_x) {
+                        app.detail_tab = 3;
+                        app.detail_focus = DetailSection::LocalBranches;
                     } else if (67..77).contains(&click_x) {
                         app.detail_tab = 4;
                         app.detail_focus = DetailSection::LocalTags;
@@ -498,8 +498,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         }
     }
 
-    // Graph view scroll (tab 1, index 1)
-    if app.detail_tab == 1 {
+    // Graph view scroll (tab 3, index 2)
+    if app.detail_tab == 2 {
         if let Some(rect) = areas.tab_bar {
             if pos.y >= rect.y + rect.height {
                 if is_scroll_up {

@@ -157,67 +157,43 @@ pub fn draw(
     }
 
     if let Some(tab_area) = tab_bar_area {
-        let (style_details, style_graph, style_branches, style_files, style_tags, style_remotes) =
+        let (style_details, style_files, style_graph, style_branches, style_tags, style_remotes) = (
             if detail_tab == 0 {
-                (
-                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                )
-            } else if detail_tab == 1 {
-                (
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                )
-            } else if detail_tab == 2 {
-                (
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                )
-            } else if detail_tab == 3 {
-                (
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                )
-            } else if detail_tab == 4 {
-                (
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                )
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
             } else {
-                (
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED),
-                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                )
-            };
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
+            },
+            if detail_tab == 1 {
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
+            },
+            if detail_tab == 2 {
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
+            },
+            if detail_tab == 3 {
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
+            },
+            if detail_tab == 4 {
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
+            },
+            if detail_tab == 5 {
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
+            },
+        );
 
         let details_bullet = if detail_tab == 0 { "●" } else { "○" };
-        let graph_bullet = if detail_tab == 1 { "●" } else { "○" };
-        let branches_bullet = if detail_tab == 2 { "●" } else { "○" };
-        let files_bullet = if detail_tab == 3 { "●" } else { "○" };
+        let files_bullet = if detail_tab == 1 { "●" } else { "○" };
+        let graph_bullet = if detail_tab == 2 { "●" } else { "○" };
+        let branches_bullet = if detail_tab == 3 { "●" } else { "○" };
         let tags_bullet = if detail_tab == 4 { "●" } else { "○" };
         let remotes_bullet = if detail_tab == 5 { "●" } else { "○" };
 
@@ -225,11 +201,11 @@ pub fn draw(
             Span::raw("  "),
             Span::styled(format!("{} Details [1]", details_bullet), style_details),
             Span::raw("    "),
-            Span::styled(format!("{} Graph [2]", graph_bullet), style_graph),
+            Span::styled(format!("{} Files [2]", files_bullet), style_files),
             Span::raw("    "),
-            Span::styled(format!("{} Branches [3]", branches_bullet), style_branches),
+            Span::styled(format!("{} Graph [3]", graph_bullet), style_graph),
             Span::raw("    "),
-            Span::styled(format!("{} Files [4]", files_bullet), style_files),
+            Span::styled(format!("{} Branches [4]", branches_bullet), style_branches),
             Span::raw("    "),
             Span::styled(format!("{} Tags [5]", tags_bullet), style_tags),
             Span::raw("    "),
@@ -306,7 +282,17 @@ pub fn draw(
                     }
                 }
             } else if detail_tab == 1 {
-                // Render Graph view
+                // Render Files view (tab 2, index 1)
+                draw_files_view(
+                    f,
+                    visible_files,
+                    *focus,
+                    file_list_selection,
+                    areas,
+                    body_area,
+                );
+            } else if detail_tab == 2 {
+                // Render Graph view (tab 3, index 2)
                 let block = Block::default()
                     .borders(Borders::ALL)
                     .border_type(CARD_BORDER)
@@ -332,24 +318,14 @@ pub fn draw(
 
                 let paragraph = Paragraph::new(list_lines).wrap(Wrap { trim: false });
                 f.render_widget(paragraph, inner);
-            } else if detail_tab == 2 {
-                // Render Branches view (tab 3, index 2)
+            } else if detail_tab == 3 {
+                // Render Branches view (tab 4, index 3)
                 draw_branches_view(
                     f,
                     info,
                     *focus,
                     local_branch_selection,
                     remote_branch_selection,
-                    areas,
-                    body_area,
-                );
-            } else if detail_tab == 3 {
-                // Render Files view (tab 4, index 3)
-                draw_files_view(
-                    f,
-                    visible_files,
-                    *focus,
-                    file_list_selection,
                     areas,
                     body_area,
                 );
@@ -969,9 +945,9 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("d", "Delete selected branch (Branches tab)"),
     ("o", "Show repo overview popup"),
     ("1", "Go to Details tab"),
-    ("2", "Go to Graph View tab"),
-    ("3", "Go to Branches tab"),
-    ("4", "Go to Files tab"),
+    ("2", "Go to Files tab"),
+    ("3", "Go to Graph View tab"),
+    ("4", "Go to Branches tab"),
     ("5", "Go to Tags tab"),
     ("6", "Go to Remotes tab"),
     ("⇧F [Shift+F]", "Fetch selected local branch's upstream"),

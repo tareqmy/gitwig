@@ -505,12 +505,10 @@ fn detail_dismiss_entries(
     }
 
     let mut entries = Vec::new();
-    let entries_data = if detail_tab == 0 {
-        vec![
+    let entries_data = match detail_tab {
+        0 => vec![
             ("Home", "⎋/q"),
-            ("Graph View", "2"),
-            ("Branches", "3"),
-            ("Files", "4"),
+            ("Tabs", "Tab/1-6"),
             ("Cycle Focus", "w/W"),
             ("Navigate/Scroll", "↑↓"),
             ("Stage/Unstage", "↵"),
@@ -518,22 +516,16 @@ fn detail_dismiss_entries(
             ("Tag", "t"),
             ("Overview", "o"),
             ("Help", "?"),
-        ]
-    } else if detail_tab == 1 {
-        vec![
+        ],
+        1 => vec![
             ("Home", "⎋/q"),
-            ("Details View", "1"),
-            ("Branches", "3"),
-            ("Files", "4"),
+            ("Tabs", "Tab/1-6"),
             ("Overview", "o"),
             ("Help", "?"),
-        ]
-    } else if detail_tab == 2 {
-        vec![
+        ],
+        2 => vec![
             ("Home", "⎋/q"),
-            ("Details View", "1"),
-            ("Graph View", "2"),
-            ("Files", "4"),
+            ("Tabs", "Tab/1-6"),
             ("Cycle Focus", "w/W"),
             ("Checkout", "↵"),
             ("Create", "c"),
@@ -542,18 +534,28 @@ fn detail_dismiss_entries(
             ("Pull", "p"),
             ("Push", "⇧P"),
             ("Help", "?"),
-        ]
-    } else {
-        vec![
+        ],
+        3 => vec![
             ("Home", "⎋/q"),
-            ("Details View", "1"),
-            ("Graph View", "2"),
-            ("Branches", "3"),
+            ("Tabs", "Tab/1-6"),
             ("Navigate", "↑↓"),
             ("Expand/Collapse", "←/→"),
             ("Overview", "o"),
             ("Help", "?"),
-        ]
+        ],
+        4 => vec![
+            ("Home", "⎋/q"),
+            ("Tabs", "Tab/1-6"),
+            ("Checkout", "↵"),
+            ("Navigate", "↑↓"),
+            ("Help", "?"),
+        ],
+        _ => vec![
+            ("Home", "⎋/q"),
+            ("Tabs", "Tab/1-6"),
+            ("Navigate", "↑↓"),
+            ("Help", "?"),
+        ],
     };
     for (i, (label, key)) in entries_data.iter().enumerate() {
         let mut spans = Vec::new();
