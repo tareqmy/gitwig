@@ -219,6 +219,7 @@ struct TempNode {
 
 impl App {
     pub fn new(config: Config, config_path: PathBuf) -> Self {
+        crate::ui::update_theme(&config.theme);
         let original_items = config.items.clone();
         let statuses = config
             .items
@@ -2472,9 +2473,37 @@ where
             let cursor_res = terminal.show_cursor();
 
             if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+                let max_depth = app.config.fzf.max_depth;
+                let fd_excludes = app
+                    .config
+                    .fzf
+                    .excludes
+                    .iter()
+                    .map(|x| format!("--exclude '{}'", x))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                let find_prunes = app
+                    .config
+                    .fzf
+                    .excludes
+                    .iter()
+                    .map(|x| format!("-path '*/{}'", x))
+                    .collect::<Vec<String>>()
+                    .join(" -o ");
+                let find_prune_clause = if find_prunes.is_empty() {
+                    "".to_string()
+                } else {
+                    format!("\\( {} \\) -prune -o ", find_prunes)
+                };
+
+                let cmd = format!(
+                    "if ! command -v fzf >/dev/null 2>&1; then exit 127; fi; (command -v fd >/dev/null 2>&1 && fd . '/' --type d --max-depth {} {} 2>/dev/null || find / -maxdepth {} {} -type d -print 2>/dev/null) | fzf",
+                    max_depth, fd_excludes, max_depth, find_prune_clause
+                );
+
                 let output = std::process::Command::new("sh")
                     .arg("-c")
-                    .arg(r#"if ! command -v fzf >/dev/null 2>&1; then exit 127; fi; (command -v fd >/dev/null 2>&1 && fd . '/' --type d --max-depth 6 --exclude System --exclude Library --exclude Applications --exclude private --exclude var --exclude usr --exclude bin --exclude sbin --exclude dev --exclude Volumes --exclude cores --exclude opt --exclude .git --exclude node_modules --exclude .Trash --exclude .cargo --exclude .npm 2>/dev/null || find / -maxdepth 6 \( -path '/System' -o -path '/Library' -o -path '/Applications' -o -path '/private' -o -path '/usr' -o -path '/bin' -o -path '/sbin' -o -path '/var' -o -path '/dev' -o -path '/Volumes' -o -path '/cores' -o -path '/opt' -o -path '*/.*' -o -path '*/node_modules' \) -prune -o -type d -print 2>/dev/null) | fzf"#)
+                    .arg(&cmd)
                     .stdin(std::process::Stdio::inherit())
                     .stderr(std::process::Stdio::inherit())
                     .stdout(std::process::Stdio::piped())
@@ -2574,7 +2603,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::SortOrder;
+    use crate::config::{FzfConfig, SortOrder, ThemeConfig};
     use std::collections::HashMap;
 
     struct TestFileGuard {
@@ -2600,6 +2629,8 @@ mod tests {
             visits: HashMap::new(),
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            fzf: FzfConfig::default(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_sort.toml");
         let _guard = TestFileGuard {
@@ -2652,6 +2683,8 @@ mod tests {
             visits: HashMap::new(),
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            fzf: FzfConfig::default(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_duplicate.toml");
         // Ensure starting with a clean state and clean up upon drop
@@ -2756,6 +2789,8 @@ mod tests {
             visits: HashMap::new(),
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            fzf: FzfConfig::default(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_pin.toml");
         let _guard = TestFileGuard {
@@ -2830,6 +2865,8 @@ mod tests {
             visits: HashMap::new(),
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            fzf: FzfConfig::default(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_commit_scroll.toml");
         let _guard = TestFileGuard {

@@ -1,7 +1,66 @@
-items = [
+# Twig Configuration File
 
+# Repository/directory paths shown in the main list.
+items = [
 ]
 
-# How long the event loop waits for input before re-drawing (milliseconds).
+# List of pinned repository paths. Pinned items always stay on top.
+pinned = [
+]
+
+# Event-loop poll interval in milliseconds.
 # Lower → more responsive, higher → less CPU. Default: 100. Sane range: 16–500.
 poll_interval_ms = 100
+
+# Default sort mode for the main page.
+# Options: "custom", "alphabetical", "recent_visit", "latest_changes"
+sort_by = "custom"
+
+# Whether sorting should be reversed.
+sort_reverse = false
+
+# Theme settings for styling the terminal UI.
+[theme]
+# Accent color for selections, focus borders, active tabs.
+# Options: "black", "red", "green", "yellow", "blue", "magenta", "cyan", "gray",
+#          "darkgray", "lightred", "lightgreen", "lightyellow", "lightblue", 
+#          "lightmagenta", "lightcyan", "white"
+accent = "cyan"
+
+# Warning color for edit state, modified status badges, etc.
+warning = "yellow"
+
+# Danger color for delete prompts, conflict status badges, removed lines, etc.
+danger = "red"
+
+# Success color for committed badges, added lines, amend checkboxes, etc.
+success = "green"
+
+# Block border style. Options: "plain", "rounded", "double", "thick"
+border_type = "rounded"
+
+# Configuration for interactive repository search (fzf).
+[fzf]
+# Maximum depth of directories fzf scans from root.
+max_depth = 6
+
+# Directory paths to prune/exclude from fzf scans to keep search fast.
+excludes = [
+    "System",
+    "Library",
+    "Applications",
+    "private",
+    "var",
+    "usr",
+    "bin",
+    "sbin",
+    "dev",
+    "Volumes",
+    "cores",
+    "opt",
+    ".git",
+    "node_modules",
+    ".Trash",
+    ".cargo",
+    ".npm"
+]

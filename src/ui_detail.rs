@@ -179,42 +179,42 @@ pub fn draw(
             style_overview,
         ) = (
             if detail_tab == 0 {
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             },
             if detail_tab == 1 {
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             },
             if detail_tab == 2 {
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             },
             if detail_tab == 3 {
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             },
             if detail_tab == 4 {
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             },
             if detail_tab == 5 {
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             },
             if detail_tab == 6 {
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             },
             if detail_tab == 7 {
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             },
@@ -333,7 +333,7 @@ pub fn draw(
                 // Render Graph view (tab 3, index 2)
                 let block = Block::default()
                     .borders(Borders::ALL)
-                    .border_type(CARD_BORDER)
+                    .border_type(CARD_BORDER())
                     .border_style(muted_style())
                     .title(Line::from(vec![
                         Span::raw(" "),
@@ -513,7 +513,7 @@ fn draw_commit_files_panel(
 
     // ── Left Top: changed files ───────────────────────────────────────────────
     let left_border_style = if left_focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
@@ -563,7 +563,7 @@ fn draw_commit_files_panel(
     // ── Left Bottom: commit details ───────────────────────────────────────────
     let details_focused = focus == DetailSection::CommitDetails;
     let details_border_style = if details_focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
@@ -625,7 +625,7 @@ fn draw_commit_files_panel(
                     .fg(ratatui::style::Color::Yellow)
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
             };
             ref_spans.push(Span::styled(r.clone(), style));
         }
@@ -648,7 +648,7 @@ fn draw_commit_files_panel(
 
     // ── Right: diff panel ─────────────────────────────────────────────────
     let right_border_style = if right_focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
@@ -696,8 +696,8 @@ fn draw_commit_files_panel(
             .iter()
             .map(|line| {
                 let style = match line.kind {
-                    DiffLineKind::Added => Style::default().fg(SUCCESS),
-                    DiffLineKind::Removed => Style::default().fg(DANGER),
+                    DiffLineKind::Added => Style::default().fg(SUCCESS()),
+                    DiffLineKind::Removed => Style::default().fg(DANGER()),
                     DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
                     DiffLineKind::Context => Style::default(),
                 };
@@ -743,7 +743,7 @@ fn draw_staging_panels(
 
     // ── Left panel: outer border labelled "Staging Area" ──────────────────
     let left_border_style = if left_focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
@@ -771,7 +771,7 @@ fn draw_staging_panels(
     draw_file_subpanel(
         f,
         "Staged",
-        SUCCESS,
+        SUCCESS(),
         &changes.staged,
         "Nothing staged",
         Borders::BOTTOM,
@@ -788,7 +788,7 @@ fn draw_staging_panels(
     draw_file_subpanel(
         f,
         "Unstaged",
-        WARNING,
+        WARNING(),
         &changes.unstaged,
         "No unstaged changes",
         Borders::empty(),
@@ -808,7 +808,7 @@ fn draw_staging_panels(
 
     // ── Right panel – Staging Details ─────────────────────────────────────
     let right_border_style = if right_focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
@@ -867,8 +867,8 @@ fn draw_staging_panels(
             .iter()
             .map(|line| {
                 let style = match line.kind {
-                    DiffLineKind::Added => Style::default().fg(SUCCESS),
-                    DiffLineKind::Removed => Style::default().fg(DANGER),
+                    DiffLineKind::Added => Style::default().fg(SUCCESS()),
+                    DiffLineKind::Removed => Style::default().fg(DANGER()),
                     DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
                     DiffLineKind::Context => Style::default(),
                 };
@@ -901,13 +901,13 @@ fn draw_file_subpanel(
     // When focused, highlight the title in accent; border stays muted (contained inside outer).
     let title_style = if focused {
         Style::default()
-            .fg(ACCENT)
+            .fg(ACCENT())
             .add_modifier(ratatui::style::Modifier::BOLD)
     } else {
         Style::default().fg(title_color)
     };
     let border_style = if focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
@@ -1066,7 +1066,7 @@ fn draw_detail_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
             Span::raw("  "),
             Span::styled(
                 padded,
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
             ),
             Span::raw("   "),
             Span::raw((*desc).to_string()),
@@ -1077,7 +1077,7 @@ fn draw_detail_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(ACCENT))
+        .border_style(Style::default().fg(ACCENT()))
         .title(Line::from(vec![
             Span::raw(" "),
             Span::styled("Detail Shortcuts", primary_style()),
@@ -1105,7 +1105,7 @@ fn draw_detail_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
             ratatui::widgets::Scrollbar::new(ratatui::widgets::ScrollbarOrientation::VerticalRight)
                 .begin_symbol(Some("▲"))
                 .end_symbol(Some("▼"))
-                .thumb_style(Style::default().fg(ACCENT));
+                .thumb_style(Style::default().fg(ACCENT()));
         f.render_stateful_widget(scrollbar, popup_area, &mut scrollbar_state);
     }
 }
@@ -1119,7 +1119,7 @@ fn draw_detail_commits(
 ) {
     let focused = focus == DetailSection::Commits;
     let border_style = if focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
@@ -1168,7 +1168,7 @@ fn draw_detail_commits(
         Cell::from("Date"),
         Cell::from("Summary"),
     ])
-    .style(Style::default().add_modifier(Modifier::BOLD).fg(ACCENT));
+    .style(Style::default().add_modifier(Modifier::BOLD).fg(ACCENT()));
 
     // Prepend a virtual "uncommitted changes" row when the worktree is dirty.
     let mut rows: Vec<Row> = Vec::new();
@@ -1177,7 +1177,10 @@ fn draw_detail_commits(
             Cell::from(Span::styled("-", muted_style())),
             Cell::from(Span::styled("-", muted_style())),
             Cell::from(Span::styled("-", muted_style())),
-            Cell::from(Span::styled("<uncommitted>", Style::default().fg(WARNING))),
+            Cell::from(Span::styled(
+                "<uncommitted>",
+                Style::default().fg(WARNING()),
+            )),
         ]));
     }
     rows.extend(info.commits.iter().map(|commit| {
@@ -1188,19 +1191,19 @@ fn draw_detail_commits(
                 // Tag — yellow
                 (
                     format!("[{}]", tag),
-                    Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+                    Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
                 )
             } else if let Some(remote) = r.strip_prefix("remote:") {
                 // Remote tracking branch — green
                 (
                     format!("[{}]", remote),
-                    Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD),
+                    Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
                 )
             } else {
                 // Local branch — cyan
                 (
                     format!("[{}]", r),
-                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
                 )
             };
             spans.push(Span::styled(label, style));
@@ -1211,7 +1214,7 @@ fn draw_detail_commits(
         Row::new(vec![
             Cell::from(Span::styled(
                 commit.id.clone(),
-                Style::default().fg(WARNING),
+                Style::default().fg(WARNING()),
             )),
             Cell::from(Span::styled(commit.author.clone(), Style::default())),
             Cell::from(Span::styled(commit.when.clone(), muted_style())),
@@ -1248,7 +1251,7 @@ fn build_body(detail: &ItemDetail) -> Vec<Line<'static>> {
             push_section_header(&mut lines, "Overview");
             lines.push(kind_line(
                 "✕",
-                DANGER,
+                DANGER(),
                 "Not a directory",
                 "(path does not exist or isn't accessible)",
             ));
@@ -1263,7 +1266,7 @@ fn build_body(detail: &ItemDetail) -> Vec<Line<'static>> {
             push_section_header(&mut lines, "Overview");
             lines.push(kind_line(
                 "○",
-                WARNING,
+                WARNING(),
                 "Plain directory",
                 "(exists, but no .git entry was found)",
             ));
@@ -1278,7 +1281,7 @@ fn build_body(detail: &ItemDetail) -> Vec<Line<'static>> {
             push_section_header(&mut lines, "Overview");
             lines.push(kind_line(
                 "⚠",
-                WARNING,
+                WARNING(),
                 "Could not read repository",
                 "(libgit2 reported an error — see below)",
             ));
@@ -1289,7 +1292,7 @@ fn build_body(detail: &ItemDetail) -> Vec<Line<'static>> {
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
                 Span::raw(FIELD_INDENT),
-                Span::styled(message.clone(), Style::default().fg(DANGER)),
+                Span::styled(message.clone(), Style::default().fg(DANGER())),
             ]));
             lines
         }
@@ -1304,7 +1307,7 @@ fn build_repo_body(resolved: &std::path::Path, info: &RepoInfo) -> Vec<Line<'sta
     push_section_header(&mut lines, "General");
     lines.push(kind_line(
         "●",
-        SUCCESS,
+        SUCCESS(),
         "Git Repository",
         "(inspectable libgit2)",
     ));
@@ -1323,7 +1326,7 @@ fn build_repo_body(resolved: &std::path::Path, info: &RepoInfo) -> Vec<Line<'sta
     if let Some(head) = &info.head {
         lines.push(field_line(
             "Hash",
-            Span::styled(head.short_id.clone(), Style::default().fg(WARNING)),
+            Span::styled(head.short_id.clone(), Style::default().fg(WARNING())),
         ));
         lines.push(field_line(
             "Message",
@@ -1352,7 +1355,7 @@ fn push_section_header(lines: &mut Vec<Line<'static>>, title: &'static str) {
     lines.push(Line::from(""));
     lines.push(Line::from(vec![
         Span::raw(FIELD_INDENT),
-        Span::styled("▍ ", Style::default().fg(ACCENT)),
+        Span::styled("▍ ", Style::default().fg(ACCENT())),
         Span::styled(title, primary_style()),
     ]));
     lines.push(Line::from(""));
@@ -1372,13 +1375,13 @@ fn append_sync(lines: &mut Vec<Line<'static>>, info: &RepoInfo) {
         Some(name) => {
             lines.push(field_line(
                 "Upstream",
-                Span::styled(name.clone(), Style::default().fg(ACCENT)),
+                Span::styled(name.clone(), Style::default().fg(ACCENT())),
             ));
             let s = &info.summary;
             if s.is_synced() {
                 lines.push(field_line(
                     "Sync",
-                    Span::styled("in sync", Style::default().fg(SUCCESS)),
+                    Span::styled("in sync", Style::default().fg(SUCCESS())),
                 ));
             } else {
                 let mut spans = vec![
@@ -1394,7 +1397,7 @@ fn append_sync(lines: &mut Vec<Line<'static>>, info: &RepoInfo) {
                     }
                     spans.push(Span::styled(
                         format!("{} behind", s.behind),
-                        Style::default().fg(WARNING),
+                        Style::default().fg(WARNING()),
                     ));
                 }
                 lines.push(Line::from(spans));
@@ -1416,7 +1419,7 @@ fn append_sync(lines: &mut Vec<Line<'static>>, info: &RepoInfo) {
 fn remote_line(remote: &RemoteInfo) -> Line<'static> {
     Line::from(vec![
         Span::raw("    "),
-        Span::styled(format!("{:<8}", remote.name), Style::default().fg(ACCENT)),
+        Span::styled(format!("{:<8}", remote.name), Style::default().fg(ACCENT())),
         Span::raw("  "),
         Span::raw(remote.url.clone()),
     ])
@@ -1424,12 +1427,12 @@ fn remote_line(remote: &RemoteInfo) -> Line<'static> {
 
 fn file_entry_line(entry: &FileEntry) -> Line<'static> {
     let label_style = match entry.label {
-        "N" => Style::default().fg(SUCCESS),
-        "D" => Style::default().fg(DANGER),
-        "C" => Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
-        "R" | "T" => Style::default().fg(ACCENT),
+        "N" => Style::default().fg(SUCCESS()),
+        "D" => Style::default().fg(DANGER()),
+        "C" => Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+        "R" | "T" => Style::default().fg(ACCENT()),
         "?" => muted_style(),
-        _ => Style::default().fg(WARNING), // "M"
+        _ => Style::default().fg(WARNING()), // "M"
     };
     Line::from(vec![
         Span::raw(FILE_INDENT),
@@ -1485,7 +1488,7 @@ fn draw_commit_popup(
     let popup_area = centred_rect(60, 25, area);
     f.render_widget(Clear, popup_area);
 
-    let border_color = if editing { ACCENT } else { WARNING };
+    let border_color = if editing { ACCENT() } else { WARNING() };
     let border_style = Style::default().fg(border_color);
 
     let title_text = if editing {
@@ -1531,7 +1534,7 @@ fn draw_commit_popup(
     // Render the amend checkbox.
     let checkbox = if commit_amend { "[X]" } else { "[ ]" };
     let checkbox_style = if commit_amend {
-        Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD)
+        Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)
     } else {
         muted_style()
     };
@@ -1601,27 +1604,27 @@ fn graph_line_spans(line: &crate::repo::GraphLine) -> Line<'static> {
                 if let Some(stripped) = ref_item.strip_prefix("HEAD -> ") {
                     spans.push(Span::styled(
                         "HEAD -> ",
-                        Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD),
+                        Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
                     ));
                     spans.push(Span::styled(
                         stripped.to_string(),
-                        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                        Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
                     ));
                 } else if let Some(stripped) = ref_item.strip_prefix("tag: ") {
-                    spans.push(Span::styled("tag: ", Style::default().fg(WARNING)));
+                    spans.push(Span::styled("tag: ", Style::default().fg(WARNING())));
                     spans.push(Span::styled(
                         stripped.to_string(),
-                        Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+                        Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
                     ));
                 } else if ref_item.contains('/') {
                     spans.push(Span::styled(
                         ref_item.to_string(),
-                        Style::default().fg(DANGER),
+                        Style::default().fg(DANGER()),
                     ));
                 } else {
                     spans.push(Span::styled(
                         ref_item.to_string(),
-                        Style::default().fg(SUCCESS),
+                        Style::default().fg(SUCCESS()),
                     ));
                 }
             }
@@ -1663,13 +1666,13 @@ fn draw_branches_view(
     // ── Local Branches Panel ──
     let local_focused = focus == DetailSection::LocalBranches;
     let local_border_style = if local_focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
     let local_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(CARD_BORDER)
+        .border_type(CARD_BORDER())
         .border_style(local_border_style)
         .title(Line::from(vec![
             Span::raw(" "),
@@ -1683,13 +1686,13 @@ fn draw_branches_view(
         .iter()
         .map(|b| {
             let style = if b.is_head {
-                Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD)
+                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             };
             let prefix = if b.is_head { " " } else { "  " };
             let mut spans = vec![
-                Span::styled(prefix, Style::default().fg(SUCCESS)),
+                Span::styled(prefix, Style::default().fg(SUCCESS())),
                 Span::styled(b.name.clone(), style),
             ];
             if !b.short_sha.is_empty() {
@@ -1719,13 +1722,13 @@ fn draw_branches_view(
     // ── Remote Branches Panel ──
     let remote_focused = focus == DetailSection::RemoteBranches;
     let remote_border_style = if remote_focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
     let remote_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(CARD_BORDER)
+        .border_type(CARD_BORDER())
         .border_style(remote_border_style)
         .title(Line::from(vec![
             Span::raw(" "),
@@ -1787,14 +1790,14 @@ fn draw_files_view(
 
     let focused = focus == DetailSection::Files;
     let border_style = if focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
 
     let left_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(CARD_BORDER)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(Line::from(vec![
             Span::raw(" "),
@@ -1845,7 +1848,7 @@ fn draw_files_view(
             };
             let right_block = Block::default()
                 .borders(Borders::ALL)
-                .border_type(CARD_BORDER)
+                .border_type(CARD_BORDER())
                 .border_style(muted_style())
                 .title(Line::from(vec![
                     Span::raw(" "),
@@ -1891,7 +1894,7 @@ fn draw_files_view(
                     if is_dir {
                         lines.push(Line::from(vec![
                             Span::raw("  "),
-                            Span::styled("📁 ", Style::default().fg(ACCENT)),
+                            Span::styled("📁 ", Style::default().fg(ACCENT())),
                             Span::styled(name, primary_style()),
                         ]));
                     } else {
@@ -1912,7 +1915,7 @@ fn draw_files_view(
             // Selected item is a file: show its contents
             let right_block = Block::default()
                 .borders(Borders::ALL)
-                .border_type(CARD_BORDER)
+                .border_type(CARD_BORDER())
                 .border_style(muted_style())
                 .title(Line::from(vec![
                     Span::raw(" "),
@@ -1938,7 +1941,7 @@ fn draw_files_view(
         // Fallback: render an empty block on the right
         let right_block = Block::default()
             .borders(Borders::ALL)
-            .border_type(CARD_BORDER)
+            .border_type(CARD_BORDER())
             .border_style(muted_style())
             .title(Line::from(vec![
                 Span::raw(" "),
@@ -1968,7 +1971,7 @@ fn draw_branch_create_popup(
     let popup_area = centred_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(ACCENT);
+    let border_style = Style::default().fg(ACCENT());
     let title = Line::from(vec![
         Span::raw(" "),
         Span::styled("Create Branch", primary_style()),
@@ -2020,7 +2023,7 @@ fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area
     let popup_area = centred_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(DANGER);
+    let border_style = Style::default().fg(DANGER());
     let title = Line::from(vec![
         Span::raw(" "),
         Span::styled("Delete Branch", primary_style()),
@@ -2055,7 +2058,7 @@ fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area
             Span::raw("  "),
             Span::styled(
                 branch_name,
-                Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
             ),
         ]),
         Line::from(""),
@@ -2075,7 +2078,7 @@ fn draw_branch_push_popup(f: &mut Frame, target: &Option<(String, bool)>, area: 
     let popup_area = centred_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(ACCENT);
+    let border_style = Style::default().fg(ACCENT());
     let title = Line::from(vec![
         Span::raw(" "),
         Span::styled("Push Branch", primary_style()),
@@ -2122,7 +2125,7 @@ fn draw_tag_create_popup(
     let popup_area = centred_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(ACCENT);
+    let border_style = Style::default().fg(ACCENT());
     let title = Line::from(vec![
         Span::raw(" "),
         Span::styled("Create Tag", primary_style()),
@@ -2187,13 +2190,13 @@ fn draw_tags_view(
     // ── Local Tags Panel ──
     let local_focused = focus == DetailSection::LocalTags;
     let local_border_style = if local_focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
     let local_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(CARD_BORDER)
+        .border_type(CARD_BORDER())
         .border_style(local_border_style)
         .title(Line::from(vec![
             Span::raw(" "),
@@ -2229,7 +2232,7 @@ fn draw_tags_view(
 
             if !is_pushed {
                 spans.push(Span::raw("  "));
-                spans.push(Span::styled("unpushed", Style::default().fg(WARNING)));
+                spans.push(Span::styled("unpushed", Style::default().fg(WARNING())));
             }
 
             ListItem::new(Line::from(spans))
@@ -2267,7 +2270,7 @@ fn draw_remotes_view(
 
     let focused = focus == DetailSection::Remotes;
     let border_style = if focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
@@ -2275,7 +2278,7 @@ fn draw_remotes_view(
     // ── Remotes List Panel ──
     let list_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(CARD_BORDER)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(Line::from(vec![
             Span::raw(" "),
@@ -2308,7 +2311,7 @@ fn draw_remotes_view(
     // ── Remote Details Panel ──
     let details_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(CARD_BORDER)
+        .border_type(CARD_BORDER())
         .border_style(muted_style())
         .title(Line::from(vec![
             Span::raw(" "),
@@ -2366,7 +2369,7 @@ fn draw_tag_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: R
     let popup_area = centred_rect(55, 25, area);
     f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(DANGER);
+    let border_style = Style::default().fg(DANGER());
     let title = Line::from(vec![
         Span::raw(" "),
         Span::styled("Delete Tag", primary_style()),
@@ -2398,7 +2401,7 @@ fn draw_tag_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: R
         content.push(Line::from(vec![
             Span::styled(
                 "Warning: ",
-                Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+                Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
             ),
             Span::raw(
                 "This tag is also present on the remote and will be deleted from the remote.",
@@ -2424,7 +2427,7 @@ fn draw_stash_delete_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
     let popup_area = centred_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(DANGER);
+    let border_style = Style::default().fg(DANGER());
     let title = Line::from(vec![
         Span::raw(" "),
         Span::styled("Delete Stash", primary_style()),
@@ -2453,7 +2456,7 @@ fn draw_stash_delete_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
             Span::raw("  "),
             Span::styled(
                 stash_name,
-                Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
             ),
         ]),
         Line::from(""),
@@ -2475,7 +2478,7 @@ fn draw_stash_apply_popup(f: &mut Frame, target: &Option<String>, delete_after: 
     let popup_area = centred_rect(55, 25, area);
     f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(ACCENT);
+    let border_style = Style::default().fg(ACCENT());
     let title = Line::from(vec![
         Span::raw(" "),
         Span::styled("Apply Stash", primary_style()),
@@ -2504,14 +2507,14 @@ fn draw_stash_apply_popup(f: &mut Frame, target: &Option<String>, delete_after: 
             Span::raw("  "),
             Span::styled(
                 stash_name,
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
             ),
         ]),
         Line::from(""),
     ];
 
     let delete_after_style = if delete_after {
-        Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD)
+        Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(ratatui::style::Color::DarkGray)
     };
@@ -2543,7 +2546,7 @@ fn draw_tag_push_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
     let popup_area = centred_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(SUCCESS);
+    let border_style = Style::default().fg(SUCCESS());
     let title = Line::from(vec![
         Span::raw(" "),
         Span::styled("Push Tag", primary_style()),
@@ -2584,7 +2587,7 @@ fn draw_tag_push_all_popup(f: &mut Frame, area: Rect) {
     let popup_area = centred_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(SUCCESS);
+    let border_style = Style::default().fg(SUCCESS());
     let title = Line::from(vec![
         Span::raw(" "),
         Span::styled("Push All Tags", primary_style()),
@@ -2603,7 +2606,7 @@ fn draw_tag_push_all_popup(f: &mut Frame, area: Rect) {
             Span::styled("Are you sure you want to push ", primary_style()),
             Span::styled(
                 "ALL local tags",
-                Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+                Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
             ),
             Span::styled(" to remote?", primary_style()),
         ]),
@@ -2666,14 +2669,14 @@ fn draw_stashes_view(
     // ── Stashes List Panel ──
     let stashes_focused = focus == DetailSection::Stashes;
     let stashes_border_style = if stashes_focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
 
     let list_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(CARD_BORDER)
+        .border_type(CARD_BORDER())
         .border_style(stashes_border_style)
         .title(Line::from(vec![
             Span::raw(" "),
@@ -2711,7 +2714,7 @@ fn draw_stashes_view(
     draw_file_subpanel(
         f,
         "Stashed Files",
-        WARNING,
+        WARNING(),
         stashed_files,
         "No files in this stash",
         Borders::ALL,
@@ -2727,7 +2730,7 @@ fn draw_stashes_view(
     // ── Right panel: Diff/Stash Details ──
     let diff_focused = focus == DetailSection::StagingDetails;
     let right_border_style = if diff_focused {
-        Style::default().fg(ACCENT)
+        Style::default().fg(ACCENT())
     } else {
         muted_style()
     };
@@ -2738,7 +2741,7 @@ fn draw_stashes_view(
 
     let right_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(CARD_BORDER)
+        .border_type(CARD_BORDER())
         .border_style(right_border_style)
         .title(Line::from(vec![
             Span::raw(" "),
@@ -2777,8 +2780,8 @@ fn draw_stashes_view(
             .iter()
             .map(|line| {
                 let style = match line.kind {
-                    DiffLineKind::Added => Style::default().fg(SUCCESS),
-                    DiffLineKind::Removed => Style::default().fg(DANGER),
+                    DiffLineKind::Added => Style::default().fg(SUCCESS()),
+                    DiffLineKind::Removed => Style::default().fg(DANGER()),
                     DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
                     DiffLineKind::Context => Style::default(),
                 };

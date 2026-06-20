@@ -25,11 +25,87 @@ use crate::repo::{ItemStatus, RepoSummary};
 // helpers below: `muted_style()` for de-emphasis, bold for emphasis, and the
 // accent colors only for true accents (selection, mode, warnings).
 
-pub(crate) const ACCENT: Color = Color::Cyan;
-pub(crate) const WARNING: Color = Color::Yellow;
-pub(crate) const DANGER: Color = Color::Red;
-pub(crate) const SUCCESS: Color = Color::Green;
-pub(crate) const CARD_BORDER: BorderType = BorderType::Rounded;
+pub(crate) struct ThemeState {
+    pub accent: Color,
+    pub warning: Color,
+    pub danger: Color,
+    pub success: Color,
+    pub border_type: BorderType,
+}
+
+pub(crate) static THEME: std::sync::RwLock<ThemeState> = std::sync::RwLock::new(ThemeState {
+    accent: Color::Cyan,
+    warning: Color::Yellow,
+    danger: Color::Red,
+    success: Color::Green,
+    border_type: BorderType::Rounded,
+});
+
+#[allow(non_snake_case)]
+pub(crate) fn ACCENT() -> Color {
+    THEME.read().map(|l| l.accent).unwrap_or(Color::Cyan)
+}
+#[allow(non_snake_case)]
+pub(crate) fn WARNING() -> Color {
+    THEME.read().map(|l| l.warning).unwrap_or(Color::Yellow)
+}
+#[allow(non_snake_case)]
+pub(crate) fn DANGER() -> Color {
+    THEME.read().map(|l| l.danger).unwrap_or(Color::Red)
+}
+#[allow(non_snake_case)]
+pub(crate) fn SUCCESS() -> Color {
+    THEME.read().map(|l| l.success).unwrap_or(Color::Green)
+}
+#[allow(non_snake_case)]
+pub(crate) fn CARD_BORDER() -> BorderType {
+    THEME
+        .read()
+        .map(|l| l.border_type)
+        .unwrap_or(BorderType::Rounded)
+}
+
+pub fn parse_color(s: &str) -> Color {
+    match s.to_lowercase().as_str() {
+        "black" => Color::Black,
+        "red" => Color::Red,
+        "green" => Color::Green,
+        "yellow" => Color::Yellow,
+        "blue" => Color::Blue,
+        "magenta" => Color::Magenta,
+        "cyan" => Color::Cyan,
+        "gray" => Color::Gray,
+        "darkgray" => Color::DarkGray,
+        "lightred" => Color::LightRed,
+        "lightgreen" => Color::LightGreen,
+        "lightyellow" => Color::LightYellow,
+        "lightblue" => Color::LightBlue,
+        "lightmagenta" => Color::LightMagenta,
+        "lightcyan" => Color::LightCyan,
+        "white" => Color::White,
+        _ => Color::Cyan,
+    }
+}
+
+pub fn parse_border_type(s: &str) -> BorderType {
+    match s.to_lowercase().as_str() {
+        "plain" => BorderType::Plain,
+        "rounded" => BorderType::Rounded,
+        "double" => BorderType::Double,
+        "thick" => BorderType::Thick,
+        _ => BorderType::Rounded,
+    }
+}
+
+pub fn update_theme(theme: &crate::config::ThemeConfig) {
+    if let Ok(mut lock) = THEME.write() {
+        lock.accent = parse_color(&theme.accent);
+        lock.warning = parse_color(&theme.warning);
+        lock.danger = parse_color(&theme.danger);
+        lock.success = parse_color(&theme.success);
+        lock.border_type = parse_border_type(&theme.border_type);
+    }
+}
 
 /// Width of the per-item status zone on the right of each card. Wide
 /// enough to fit a busy repo's worth of indicators ("● 99+ 99! 99? 99↑")
@@ -56,7 +132,7 @@ pub(crate) fn primary_style() -> Style {
 /// Accent-colored, bold. Used for keys in the status bar / help overlay,
 /// and the app title.
 pub(crate) fn accent_style() -> Style {
-    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
 }
 
 /// Lines of the help overlay. Update this whenever a binding is added or
@@ -205,7 +281,7 @@ fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(CARD_BORDER)
+        .border_type(CARD_BORDER())
         .border_style(muted_style())
         .title(
             Line::from(vec![
@@ -271,11 +347,11 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         // the terminal's default foreground (dimmed) so they stay legible
         // on both light and dark backgrounds.
         let border_style = if pending_delete {
-            Style::default().fg(DANGER)
+            Style::default().fg(DANGER())
         } else if pending_edit {
-            Style::default().fg(WARNING)
+            Style::default().fg(WARNING())
         } else if is_selected {
-            Style::default().fg(ACCENT)
+            Style::default().fg(ACCENT())
         } else {
             muted_style()
         };
@@ -291,7 +367,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         //   row 1 — branch name (left-aligned, muted)
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_type(CARD_BORDER)
+            .border_type(CARD_BORDER())
             .border_style(border_style)
             .padding(Padding::horizontal(1));
         let inner = block.inner(chunks[i]);
@@ -311,7 +387,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         let is_pinned = app.config.pinned.contains(item);
         let mut spans = vec![Span::styled(mark, mark_style)];
         if is_pinned {
-            spans.push(Span::styled("📌 ", Style::default().fg(WARNING)));
+            spans.push(Span::styled("📌 ", Style::default().fg(WARNING())));
         }
         spans.push(Span::styled(item.as_str(), text_style));
         let name_line = Line::from(spans);
@@ -337,7 +413,7 @@ fn branch_name_line(status: &ItemStatus) -> Line<'static> {
         Some(b) => Line::from(vec![
             Span::raw(UNSELECTED_INDENT), // align with item text
             Span::styled("  ", muted_style()),
-            Span::styled(b, Style::default().fg(ACCENT)),
+            Span::styled(b, Style::default().fg(ACCENT())),
         ]),
         None => Line::from(""),
     }
@@ -407,17 +483,17 @@ fn draw_empty_state(f: &mut Frame, area: Rect) {
 fn status_indicator_line(status: &ItemStatus) -> Line<'static> {
     match status {
         ItemStatus::Missing => Line::from(vec![
-            Span::styled("✕", Style::default().fg(DANGER)),
+            Span::styled("✕", Style::default().fg(DANGER())),
             Span::raw(" "),
             Span::styled("missing", muted_style()),
         ]),
         ItemStatus::Directory => Line::from(vec![
-            Span::styled("○", Style::default().fg(WARNING)),
+            Span::styled("○", Style::default().fg(WARNING())),
             Span::raw(" "),
             Span::styled("dir", muted_style()),
         ]),
         ItemStatus::GitRepo(None) => Line::from(vec![
-            Span::styled("●", Style::default().fg(SUCCESS)),
+            Span::styled("●", Style::default().fg(SUCCESS())),
             Span::raw(" "),
             Span::styled("?", muted_style()),
         ]),
@@ -426,7 +502,7 @@ fn status_indicator_line(status: &ItemStatus) -> Line<'static> {
 }
 
 fn repo_indicator_line(summary: &RepoSummary) -> Line<'static> {
-    let mut spans = vec![Span::styled("●", Style::default().fg(SUCCESS))];
+    let mut spans = vec![Span::styled("●", Style::default().fg(SUCCESS()))];
     if summary.unchanged() {
         spans.push(Span::raw(" "));
         spans.push(Span::styled("clean", muted_style()));
@@ -435,11 +511,11 @@ fn repo_indicator_line(summary: &RepoSummary) -> Line<'static> {
     // Each (count, symbol, style) is rendered only if count > 0. The
     // ordering matches the Detail view's worktree section for consistency.
     let parts: [(usize, &str, Style); 5] = [
-        (summary.staged, "+", Style::default().fg(ACCENT)),
-        (summary.modified, "!", Style::default().fg(WARNING)),
+        (summary.staged, "+", Style::default().fg(ACCENT())),
+        (summary.modified, "!", Style::default().fg(WARNING())),
         (summary.untracked, "?", muted_style()),
         (summary.ahead, "↑", primary_style()),
-        (summary.behind, "↓", Style::default().fg(WARNING)),
+        (summary.behind, "↓", Style::default().fg(WARNING())),
     ];
     for (count, symbol, style) in parts {
         if count > 0 {
@@ -892,7 +968,7 @@ fn confirm_delete_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<Stat
         Span::raw("Delete "),
         Span::styled(
             format!("\"{}\"", target),
-            Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("? "),
     ]);
@@ -903,7 +979,7 @@ fn confirm_delete_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<Stat
             Span::styled("[", muted_style()),
             Span::styled(
                 "y",
-                Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
             ),
             Span::styled("]", muted_style()),
         ]),
@@ -934,7 +1010,7 @@ fn confirm_branch_delete_entries(
         Span::raw(" "),
         Span::styled(
             format!("\"{}\"", target),
-            Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("? "),
     ]);
@@ -945,7 +1021,7 @@ fn confirm_branch_delete_entries(
             Span::styled("[", muted_style()),
             Span::styled(
                 "y",
-                Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
             ),
             Span::styled("]", muted_style()),
         ]),
@@ -966,7 +1042,7 @@ fn confirm_stash_delete_entries(target: &str) -> (Option<Vec<Span<'static>>>, Ve
         Span::raw("Delete stash "),
         Span::styled(
             format!("\"{}\"", target),
-            Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("? "),
     ]);
@@ -977,7 +1053,7 @@ fn confirm_stash_delete_entries(target: &str) -> (Option<Vec<Span<'static>>>, Ve
             Span::styled("[", muted_style()),
             Span::styled(
                 "y",
-                Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
             ),
             Span::styled("]", muted_style()),
         ]),
@@ -1001,7 +1077,7 @@ fn confirm_stash_apply_entries(
         Span::raw("Apply stash "),
         Span::styled(
             format!("\"{}\"", target),
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("? "),
     ]);
@@ -1017,7 +1093,7 @@ fn confirm_stash_apply_entries(
             Span::styled("[", muted_style()),
             Span::styled(
                 "y",
-                Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD),
+                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
             ),
             Span::styled("]", muted_style()),
         ]),
@@ -1046,7 +1122,7 @@ fn confirm_branch_push_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec
         Span::raw("Push branch "),
         Span::styled(
             format!("\"{}\"", target),
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("? "),
     ]);
@@ -1057,7 +1133,7 @@ fn confirm_branch_push_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec
             Span::styled("[", muted_style()),
             Span::styled(
                 "y",
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
             ),
             Span::styled("]", muted_style()),
         ]),
@@ -1092,7 +1168,7 @@ fn draw_input_status(f: &mut Frame, area: Rect, verb: &str, buffer: &str) {
     let spans = vec![
         Span::styled(
             prefix.clone(),
-            Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+            Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
         ),
         Span::styled(buffer.to_string(), primary_style()),
         Span::styled(" ", muted_style()),
@@ -1156,19 +1232,19 @@ fn draw_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
     };
     lines.push(pad_symbol(
         "●",
-        SUCCESS,
+        SUCCESS(),
         "git",
         "Directory is a git repository",
     ));
     lines.push(pad_symbol(
         "○",
-        WARNING,
+        WARNING(),
         "dir",
         "Directory exists but is not a git repo",
     ));
     lines.push(pad_symbol(
         "✕",
-        DANGER,
+        DANGER(),
         "missing",
         "Path does not exist or is not a directory",
     ));
@@ -1187,12 +1263,12 @@ fn draw_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
     };
     lines.push(pad_suffix(
         "+",
-        Style::default().fg(ACCENT),
+        Style::default().fg(ACCENT()),
         "files staged for commit",
     ));
     lines.push(pad_suffix(
         "!",
-        Style::default().fg(WARNING),
+        Style::default().fg(WARNING()),
         "files modified but not staged",
     ));
     lines.push(pad_suffix("?", muted_style(), "untracked files"));
@@ -1203,15 +1279,15 @@ fn draw_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
     ));
     lines.push(pad_suffix(
         "↓",
-        Style::default().fg(WARNING),
+        Style::default().fg(WARNING()),
         "commits behind upstream",
     ));
     lines.push(Line::from(""));
 
     let help_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(CARD_BORDER)
-        .border_style(Style::default().fg(ACCENT))
+        .border_type(CARD_BORDER())
+        .border_style(Style::default().fg(ACCENT()))
         .title(
             Line::from(vec![
                 Span::raw(" "),
@@ -1244,7 +1320,7 @@ fn draw_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
             ratatui::widgets::Scrollbar::new(ratatui::widgets::ScrollbarOrientation::VerticalRight)
                 .begin_symbol(Some("▲"))
                 .end_symbol(Some("▼"))
-                .thumb_style(Style::default().fg(ACCENT));
+                .thumb_style(Style::default().fg(ACCENT()));
         f.render_stateful_widget(scrollbar, popup_area, &mut scrollbar_state);
     }
 }
@@ -1278,14 +1354,14 @@ fn confirm_tag_delete_entries(
         Span::raw("Delete tag "),
         Span::styled(
             format!("\"{}\"", target),
-            Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("? "),
     ];
     if is_on_remote {
         spans.push(Span::styled(
             "(will also delete from remote) ",
-            Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+            Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
         ));
     }
     let message_spans = Some(spans);
@@ -1296,7 +1372,7 @@ fn confirm_tag_delete_entries(
             Span::styled("[", muted_style()),
             Span::styled(
                 "y",
-                Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
             ),
             Span::styled("]", muted_style()),
         ]),
@@ -1317,7 +1393,7 @@ fn confirm_tag_push_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<St
         Span::raw("Push tag "),
         Span::styled(
             format!("\"{}\"", target),
-            Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD),
+            Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("? "),
     ]);
@@ -1328,7 +1404,7 @@ fn confirm_tag_push_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<St
             Span::styled("[", muted_style()),
             Span::styled(
                 "y",
-                Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD),
+                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
             ),
             Span::styled("]", muted_style()),
         ]),
@@ -1349,7 +1425,7 @@ fn confirm_tag_push_all_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntr
         Span::raw("Push "),
         Span::styled(
             "ALL",
-            Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+            Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
         ),
         Span::raw(" local tags? "),
     ]);
@@ -1360,7 +1436,7 @@ fn confirm_tag_push_all_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntr
             Span::styled("[", muted_style()),
             Span::styled(
                 "y",
-                Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD),
+                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
             ),
             Span::styled("]", muted_style()),
         ]),
@@ -1380,7 +1456,7 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
     let popup_area = centered_rect(50, 15, area);
     f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(ACCENT);
+    let border_style = Style::default().fg(ACCENT());
     let title = Line::from(vec![
         Span::raw(" "),
         Span::styled("Network Operation", primary_style()),
@@ -1415,7 +1491,7 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
 
     let gauge = Gauge::default()
         .block(Block::default().padding(Padding::ZERO))
-        .gauge_style(Style::default().fg(ACCENT))
+        .gauge_style(Style::default().fg(ACCENT()))
         .percent(app.fetch_progress)
         .use_unicode(true);
     f.render_widget(gauge, chunks[2]);
