@@ -109,6 +109,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_branch_rebase(),
             _ => {}
         },
+        Mode::BranchInteractiveRebaseConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_branch_interactive_rebase(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                app.cancel_branch_interactive_rebase()
+            }
+            _ => {}
+        },
         Mode::TagDeleteConfirm => match code {
             KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_tag_delete(),
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_tag_delete(),
@@ -223,6 +230,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.start_tag_create();
                     }
                 }
+                KeyCode::Char('i') | KeyCode::Char('I') => {
+                    if detail_focus == DetailSection::Commits {
+                        app.run_interactive_rebase();
+                    }
+                }
                 KeyCode::Char('w') | KeyCode::Char('W') => app.cycle_detail_focus(),
                 KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::Commits => {
                     app.detail_commit_up()
@@ -328,6 +340,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char('d') | KeyCode::Char('D') => app.request_branch_delete(),
                 KeyCode::Char('m') | KeyCode::Char('M') => app.request_branch_merge(),
                 KeyCode::Char('r') | KeyCode::Char('R') => app.request_branch_rebase(),
+                KeyCode::Char('i') | KeyCode::Char('I') => app.request_branch_interactive_rebase(),
                 KeyCode::Char('F') => {
                     if app.detail_focus == DetailSection::LocalBranches {
                         app.fetch_selected_branch();

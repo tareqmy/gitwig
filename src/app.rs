@@ -79,6 +79,8 @@ pub enum Mode {
     BranchMergeConfirm,
     /// Confirming rebase onto a branch.
     BranchRebaseConfirm,
+    /// Confirming interactive rebase onto a branch.
+    BranchInteractiveRebaseConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -201,6 +203,8 @@ pub struct App {
     pub pending_gitui: bool,
     /// Whether fzf search launch is pending.
     pub pending_fzf: bool,
+    /// Whether interactive rebase is pending.
+    pub pending_interactive_rebase: Option<(PathBuf, String)>,
     /// Target branch name and remote flag for deletion/creation actions.
     pub branch_action_target: Option<(String, bool)>,
     /// Target commit OID for tag creation.
@@ -292,6 +296,7 @@ impl App {
             fetching: false,
             pending_gitui: false,
             pending_fzf: false,
+            pending_interactive_rebase: None,
             branch_action_target: None,
             tag_action_target_oid: None,
             tag_delete_target: None,
@@ -1617,6 +1622,89 @@ impl App {
     pub fn cancel_branch_rebase(&mut self) {
         self.branch_action_target = None;
         self.mode = Mode::Detail;
+    }
+
+    pub fn request_branch_interactive_rebase(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if self.detail_focus == DetailSection::LocalBranches {
+                if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
+                    if !branch_info.is_head {
+                        self.branch_action_target = Some((branch_info.name.clone(), false));
+                        self.mode = Mode::BranchInteractiveRebaseConfirm;
+                    }
+                }
+            } else if self.detail_focus == DetailSection::RemoteBranches {
+                if let Some(branch_info) = info.remote_branches.get(self.remote_branch_selection) {
+                    self.branch_action_target = Some((branch_info.name.clone(), true));
+                    self.mode = Mode::BranchInteractiveRebaseConfirm;
+                }
+            }
+        }
+    }
+
+    pub fn confirm_branch_interactive_rebase(&mut self) {
+        let target = self.branch_action_target.take();
+        self.mode = Mode::Detail;
+
+        if let Some((branch_name, _is_remote)) = target {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                self.pending_interactive_rebase = Some((resolved.clone(), branch_name));
+            }
+        }
+    }
+
+    pub fn cancel_branch_interactive_rebase(&mut self) {
+        self.branch_action_target = None;
+        self.mode = Mode::Detail;
+    }
+
+    pub fn run_interactive_rebase(&mut self) {
+        if self.is_uncommitted_selected() {
+            self.status_message =
+                Some("Cannot run interactive rebase on <uncommitted> row.".to_string());
+            return;
+        }
+        let params = match &self.current_detail {
+            Some(repo::ItemDetail::Repo { resolved, info }) => {
+                let dirty = !info.changes.staged.is_empty()
+                    || !info.changes.unstaged.is_empty()
+                    || !info.changes.untracked.is_empty()
+                    || !info.changes.conflicted.is_empty();
+                let commit_idx = if dirty {
+                    self.commit_selection.saturating_sub(1)
+                } else {
+                    self.commit_selection
+                };
+                info.commits
+                    .get(commit_idx)
+                    .map(|c| (resolved.clone(), c.oid.clone()))
+            }
+            _ => None,
+        };
+
+        if let Some((repo_path, commit_oid)) = params {
+            // Check if the commit is root using git2
+            let is_root = if let Ok(repo) = git2::Repository::open(&repo_path) {
+                if let Ok(oid) = git2::Oid::from_str(&commit_oid) {
+                    if let Ok(commit) = repo.find_commit(oid) {
+                        commit.parent_count() == 0
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
+            let target = if is_root {
+                "--root".to_string()
+            } else {
+                format!("{}~1", commit_oid)
+            };
+            self.pending_interactive_rebase = Some((repo_path, target));
+        }
     }
 
     /// Move commit selection up one row.
@@ -3075,6 +3163,56 @@ where
                         }
                     }
                 }
+            }
+        }
+
+        if let Some((repo_path, target)) = app.pending_interactive_rebase.take() {
+            let raw_res = crossterm::terminal::disable_raw_mode();
+            let exec_res = crossterm::execute!(
+                std::io::stdout(),
+                crossterm::terminal::LeaveAlternateScreen,
+                crossterm::event::DisableMouseCapture
+            );
+            let cursor_res = terminal.show_cursor();
+
+            if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+                let status = std::process::Command::new("git")
+                    .arg("rebase")
+                    .arg("-i")
+                    .arg(&target)
+                    .current_dir(&repo_path)
+                    .status();
+
+                let _ = crossterm::terminal::enable_raw_mode();
+                let _ = crossterm::execute!(
+                    std::io::stdout(),
+                    crossterm::terminal::EnterAlternateScreen,
+                    crossterm::event::EnableMouseCapture
+                );
+                let _ = terminal.clear();
+
+                match status {
+                    Ok(s) if s.success() => {
+                        app.status_message =
+                            Some("Interactive rebase completed successfully".to_string());
+                    }
+                    Ok(s) => {
+                        app.status_message = Some(format!(
+                            "Rebase exited with status: {}. Check terminal/git status.",
+                            s
+                        ));
+                    }
+                    Err(e) => {
+                        app.status_message = Some(format!("Failed to run git rebase: {}", e));
+                    }
+                }
+                if let Some(item) = app.config.items.get(app.selected_index) {
+                    let new_status = repo::inspect_summary(item);
+                    if let Some(slot) = app.statuses.get_mut(app.selected_index) {
+                        *slot = new_status;
+                    }
+                }
+                app.refresh_detail();
             }
         }
 

@@ -60,6 +60,7 @@
 | `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) or Local/Remote tag (Tags tab) |
 | `←` / `→` or `<` / `>` or `,` / `.` | Detail | Collapse/Expand directory (Files tab) |
 | `c`                  | Detail          | Open commit prompt (Details tab), or Create branch from HEAD (Branches tab) |
+| `i`                  | Detail          | Interactive rebase from selected commit (Details tab commits list) |
 | `d`                  | Detail          | Delete selected branch (Branches tab; asks confirmation) or tag (Tags tab; asks confirmation) |
 | `m`                  | Detail          | Merge selected branch into current branch (Branches tab; asks confirmation) |
 | `r`                  | Detail          | Rebase current branch onto selected branch (Branches tab; asks confirmation) |

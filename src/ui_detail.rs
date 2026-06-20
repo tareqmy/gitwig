@@ -432,6 +432,15 @@ pub fn draw(
             if matches!(mode, Mode::BranchRebaseConfirm) {
                 draw_branch_rebase_popup(f, branch_action_target, branch.as_deref(), body_area);
             }
+            // Draw branch interactive rebase popup on top when requested.
+            if matches!(mode, Mode::BranchInteractiveRebaseConfirm) {
+                draw_branch_interactive_rebase_popup(
+                    f,
+                    branch_action_target,
+                    branch.as_deref(),
+                    body_area,
+                );
+            }
             // Draw tag delete popup on top when requested.
             if matches!(mode, Mode::TagDeleteConfirm) {
                 draw_tag_delete_popup(f, tag_delete_target, body_area);
@@ -1101,6 +1110,10 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ),
     ("c", "Commit changes (Details) / Create branch (Branches)"),
     ("t", "Create tag (Details tab commits list)"),
+    (
+        "i",
+        "Interactive rebase from selected commit (Details tab commits list)",
+    ),
     ("/", "Filter commits list by search query (Details tab)"),
     ("d", "Delete selected branch (Branches) / tag (Tags)"),
     ("m", "Merge selected branch into current branch (Branches)"),
@@ -2306,6 +2319,79 @@ fn draw_branch_rebase_popup(
     let content = vec![
         Line::from(vec![
             Span::styled("Are you sure you want to rebase the ", primary_style()),
+            Span::styled(
+                format!("current branch '{}'", current),
+                accent_style().add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("onto the ", primary_style()),
+            Span::styled(type_label, accent_style()),
+            Span::raw(":"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                branch_name,
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block);
+    f.render_widget(paragraph, popup_area);
+}
+
+fn draw_branch_interactive_rebase_popup(
+    f: &mut Frame,
+    target: &Option<(String, bool)>,
+    current_branch: Option<&str>,
+    area: Rect,
+) {
+    let popup_area = centred_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Interactive Rebase Branch", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let (branch_name, is_remote) = match target {
+        Some((name, remote)) => (name.as_str(), *remote),
+        None => ("", false),
+    };
+
+    let type_label = if is_remote {
+        "remote-tracking branch"
+    } else {
+        "branch"
+    };
+
+    let current = current_branch.unwrap_or("HEAD");
+
+    let content = vec![
+        Line::from(vec![
+            Span::styled(
+                "Are you sure you want to interactively rebase the ",
+                primary_style(),
+            ),
             Span::styled(
                 format!("current branch '{}'", current),
                 accent_style().add_modifier(Modifier::BOLD),

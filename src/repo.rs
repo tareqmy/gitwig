@@ -801,6 +801,12 @@ fn populate_file_changes(repo: &Repository, info: &mut RepoInfo) {
                     label: "?",
                 });
             }
+            if info.changes.unstaged.len() < MAX_FILES_PER_SECTION {
+                info.changes.unstaged.push(FileEntry {
+                    path: path.clone(),
+                    label: "N",
+                });
+            }
         } else if (flags.is_wt_modified()
             || flags.is_wt_deleted()
             || flags.is_wt_renamed()
@@ -1012,6 +1018,8 @@ fn get_worktree_diff_inner(
     let repo = Repository::open(repo_path).ok()?;
     let mut opts = git2::DiffOptions::new();
     opts.pathspec(file_path);
+    opts.include_untracked(true);
+    opts.recurse_untracked_dirs(true);
 
     let diff = if staged {
         // Staged: diff HEAD tree (or empty tree for new repos) → index.
@@ -1539,6 +1547,46 @@ mod tests {
         assert_eq!(stats[0].email, "test@example.com");
         assert_eq!(stats[0].count, 1);
         assert!(!limit_reached);
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_untracked_files_in_unstaged() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // Init repo
+        let _repo = Repository::init(&temp_path).unwrap();
+
+        // Create an untracked file
+        let file_path = temp_path.join("untracked.txt");
+        let mut file = File::create(&file_path).unwrap();
+        writeln!(file, "hello untracked").unwrap();
+
+        // Inspect detail
+        let detail = inspect_detail(temp_path.to_str().unwrap());
+        match detail {
+            ItemDetail::Repo { info, .. } => {
+                // Verify the untracked file is in both untracked AND unstaged changes list
+                assert_eq!(info.changes.untracked.len(), 1);
+                assert_eq!(info.changes.untracked[0].path, "untracked.txt");
+                assert_eq!(info.changes.untracked[0].label, "?");
+
+                assert_eq!(info.changes.unstaged.len(), 1);
+                assert_eq!(info.changes.unstaged[0].path, "untracked.txt");
+                assert_eq!(info.changes.unstaged[0].label, "N");
+            }
+            _ => panic!("Expected ItemDetail::Repo"),
+        }
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);

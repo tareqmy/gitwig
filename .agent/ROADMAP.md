@@ -54,6 +54,6 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Commit amending support (a / A / Space in confirm mode).
 - [x] Interactive fzf directory picker to add items (a).
 - [x] Search and filter in history and file lists (commits search).
-- [ ] Interactive Rebase.
+- [x] Interactive Rebase.
 - [ ] Conflict resolution UI.
 - [ ] Custom themes and keybindings.
