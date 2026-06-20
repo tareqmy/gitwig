@@ -24,16 +24,24 @@ use crate::ui_detail::DetailAreas;
 /// the item path and the branch name respectively.
 pub const ITEM_HEIGHT: u16 = 4;
 
-/// Interaction modes for the item list. The mode dictates how keystrokes
-/// are interpreted and what guidance the status bar shows.
+/// What operation the remote picker was opened for.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum RemotePickerAction {
+    PushBranch,
+    PushTag,
+    PushAllTags,
+    DeleteRemoteTag,
+    FetchTags,
+}
+
+/// Interaction modes for the item list.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
-    /// Browsing the list. Navigation + add/edit/delete shortcuts are active.
+    /// Browsing the list.
     Normal,
-    /// Typing a new item to append. Enter commits, Esc cancels.
     #[allow(dead_code)]
     Adding,
-    /// Typing replacement text for the selected item. Enter commits, Esc cancels.
+    /// Typing replacement text for the selected item.
     Editing,
     /// Asking the user to confirm deletion of the selected item.
     ConfirmDelete,
@@ -41,28 +49,30 @@ pub enum Mode {
     Help,
     /// Showing the full-screen detail view for the selected item.
     Detail,
-    /// Showing the shortcut reference overlay inside the detail view (triggered by '?').
+    /// Showing the shortcut reference overlay inside the detail view.
     DetailHelp,
-    /// Typing a commit message. Enter commits, Esc cancels.
+    /// Typing a commit message.
     CommitInput,
-    /// Typing a branch name to create. Enter commits, Esc cancels.
+    /// Typing a branch name to create.
     BranchCreateInput,
-    /// Typing a tag name to create. Enter commits, Esc cancels.
+    /// Typing a tag name to create.
     TagCreateInput,
-    /// Confirming deletion of a branch. y deletes, n/Esc cancels.
+    /// Confirming deletion of a branch.
     BranchDeleteConfirm,
-    /// Confirming push of a branch. y pushes, n/Esc cancels.
+    /// Confirming push of a branch.
     BranchPushConfirm,
-    /// Confirming deletion of a tag. y deletes, n/Esc cancels.
+    /// Confirming deletion of a tag.
     TagDeleteConfirm,
-    /// Confirming push of a tag. y pushes, n/Esc cancels.
+    /// Confirming push of a tag.
     TagPushConfirm,
-    /// Confirming push of all tags. y pushes, n/Esc cancels.
+    /// Confirming push of all tags.
     TagPushAllConfirm,
-    /// Confirming deletion of a stash. y deletes, n/Esc cancels.
+    /// Confirming deletion of a stash.
     StashDeleteConfirm,
     /// Confirming apply of a stash.
     StashApplyConfirm,
+    /// Picking a remote when multiple are available.
+    RemotePicker,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -199,6 +209,10 @@ pub struct App {
     pub commit_amend: bool,
     /// Preserved original order of repository items from the config.
     pub original_items: Vec<String>,
+    /// Which action the remote picker was opened for.
+    pub remote_picker_action: Option<RemotePickerAction>,
+    /// Selected row in the remote picker popup.
+    pub remote_picker_selection: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -276,6 +290,8 @@ impl App {
             fetch_progress: 0,
             stash_apply_delete_after: true,
             commit_amend: false,
+            remote_picker_action: None,
+            remote_picker_selection: 0,
         };
 
         if app.config.sort_by != SortOrder::Custom {
@@ -854,14 +870,41 @@ impl App {
     /// If no upstream is configured, it falls back to the first configured remote (typically origin)
     /// and sets upstream tracking (-u).
     /// Requests confirmation to push the selected local branch.
+    /// If multiple remotes exist and no upstream is configured, opens the remote picker first.
     pub fn request_branch_push(&mut self) {
         if self.fetching {
             return;
         }
-        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+        if let Some(repo::ItemDetail::Repo { info, resolved }) = &self.current_detail {
             if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
-                self.branch_action_target = Some((branch_info.name.clone(), false));
-                self.mode = Mode::BranchPushConfirm;
+                let branch_name = branch_info.name.clone();
+                // Check if this branch already has a configured upstream remote.
+                let has_upstream = git2::Repository::open(resolved)
+                    .ok()
+                    .and_then(|repo| {
+                        repo.find_branch(&branch_name, git2::BranchType::Local)
+                            .ok()
+                            .and_then(|b| {
+                                b.upstream().ok().and_then(|up| {
+                                    up.get()
+                                        .name()
+                                        .ok()
+                                        .and_then(|n| repo.branch_upstream_remote(n).ok())
+                                })
+                            })
+                    })
+                    .is_some();
+
+                if !has_upstream && info.remotes.len() > 1 {
+                    // Multiple remotes, no upstream — ask user to pick.
+                    self.branch_action_target = Some((branch_name, false));
+                    self.remote_picker_action = Some(RemotePickerAction::PushBranch);
+                    self.remote_picker_selection = 0;
+                    self.mode = Mode::RemotePicker;
+                } else {
+                    self.branch_action_target = Some((branch_name, false));
+                    self.mode = Mode::BranchPushConfirm;
+                }
             }
         }
     }
@@ -1082,10 +1125,11 @@ impl App {
 
     pub fn confirm_tag_delete(&mut self) {
         if let Some((tag_name, is_on_remote)) = self.tag_delete_target.take() {
-            let (repo_path, remote_name) =
+            let (repo_path, remotes_len, first_remote) =
                 if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
                     (
                         resolved.clone(),
+                        info.remotes.len(),
                         info.remotes.first().map(|r| r.name.clone()),
                     )
                 } else {
@@ -1101,31 +1145,15 @@ impl App {
                     self.local_tag_selection = 0;
 
                     if is_on_remote {
-                        if let Some(remote_name) = remote_name {
-                            let repo_path = repo_path.clone();
-                            let tag_to_delete = tag_name.clone();
-                            let tx = self.tx.clone();
-                            self.fetching = true;
-                            self.status_message =
-                                Some(format!("Deleting remote tag '{}'...", tag_name));
-                            std::thread::spawn(move || {
-                                match repo::delete_remote_tag(
-                                    &repo_path,
-                                    &remote_name,
-                                    &tag_to_delete,
-                                ) {
-                                    Ok(()) => {
-                                        let _ = tx.send(format!(
-                                            "Deleted remote tag '{}'",
-                                            tag_to_delete
-                                        ));
-                                    }
-                                    Err(e) => {
-                                        let _ =
-                                            tx.send(format!("Failed to delete remote tag: {}", e));
-                                    }
-                                }
-                            });
+                        if remotes_len > 1 {
+                            // Ask which remote to delete from.
+                            self.tag_delete_target = Some((tag_name, true));
+                            self.remote_picker_action = Some(RemotePickerAction::DeleteRemoteTag);
+                            self.remote_picker_selection = 0;
+                            self.mode = Mode::RemotePicker;
+                            return;
+                        } else if let Some(remote_name) = first_remote {
+                            self.execute_delete_remote_tag_on(&tag_name, &remote_name);
                         }
                     }
                 }
@@ -1157,8 +1185,15 @@ impl App {
                         Some(format!("Tag '{}' is already on the remote", tag_info.name));
                     return;
                 }
-                self.tag_push_target = Some(tag_info.name.clone());
-                self.mode = Mode::TagPushConfirm;
+                if info.remotes.len() > 1 {
+                    self.tag_push_target = Some(tag_info.name.clone());
+                    self.remote_picker_action = Some(RemotePickerAction::PushTag);
+                    self.remote_picker_selection = 0;
+                    self.mode = Mode::RemotePicker;
+                } else {
+                    self.tag_push_target = Some(tag_info.name.clone());
+                    self.mode = Mode::TagPushConfirm;
+                }
             }
         }
     }
@@ -1224,7 +1259,13 @@ impl App {
                 self.status_message = Some("No remotes configured for this repository".to_string());
                 return;
             }
-            self.mode = Mode::TagPushAllConfirm;
+            if info.remotes.len() > 1 {
+                self.remote_picker_action = Some(RemotePickerAction::PushAllTags);
+                self.remote_picker_selection = 0;
+                self.mode = Mode::RemotePicker;
+            } else {
+                self.mode = Mode::TagPushAllConfirm;
+            }
         }
     }
 
@@ -2119,7 +2160,13 @@ impl App {
 
     pub fn fetch_remote_tags(&mut self) {
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(remote) = info.remotes.first() {
+            // Use the currently selected remote in the Remotes tab if available,
+            // otherwise fall back to the first remote.
+            let remote = info
+                .remotes
+                .get(self.remote_selection)
+                .or_else(|| info.remotes.first());
+            if let Some(remote) = remote {
                 let repo_path = resolved.clone();
                 let remote_name = remote.name.clone();
                 let tx = self.tx.clone();
@@ -2137,6 +2184,254 @@ impl App {
                 );
             }
         }
+    }
+
+    /// Confirm the remote picker selection and proceed with the queued action.
+    pub fn confirm_remote_picker(&mut self) {
+        let action = match self.remote_picker_action.take() {
+            Some(a) => a,
+            None => {
+                self.mode = Mode::Detail;
+                return;
+            }
+        };
+        let remote_name = if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            info.remotes
+                .get(self.remote_picker_selection)
+                .map(|r| r.name.clone())
+        } else {
+            None
+        };
+        let remote_name = match remote_name {
+            Some(n) => n,
+            None => {
+                self.mode = Mode::Detail;
+                return;
+            }
+        };
+
+        match action {
+            RemotePickerAction::PushBranch => {
+                // Override the execute path by injecting the chosen remote directly.
+                self.mode = Mode::BranchPushConfirm;
+                // Store picked remote in branch_action_target second field (reused as remote override).
+                if let Some((ref name, _)) = self.branch_action_target.clone() {
+                    self.execute_branch_push_to(name, &remote_name);
+                }
+                self.branch_action_target = None;
+                self.mode = Mode::Detail;
+            }
+            RemotePickerAction::PushTag => {
+                if let Some(tag_name) = self.tag_push_target.take() {
+                    self.execute_tag_push_to(&tag_name, &remote_name);
+                }
+                self.mode = Mode::Detail;
+            }
+            RemotePickerAction::PushAllTags => {
+                self.execute_tag_push_all_to(&remote_name);
+                self.mode = Mode::Detail;
+            }
+            RemotePickerAction::DeleteRemoteTag => {
+                if let Some((tag_name, _)) = self.tag_delete_target.take() {
+                    self.execute_delete_remote_tag_on(&tag_name, &remote_name);
+                }
+                self.mode = Mode::Detail;
+            }
+            RemotePickerAction::FetchTags => {
+                if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                    let repo_path = resolved.clone();
+                    let tx = self.tx.clone();
+                    self.fetching = true;
+                    self.status_message = Some(format!("Fetching tags from '{}'...", remote_name));
+                    std::thread::spawn(move || {
+                        match repo::get_remote_tags(&repo_path, &remote_name) {
+                            Ok(tags) => {
+                                let serialized = repo::serialize_tags(&tags);
+                                let _ = tx.send(format!("REMOTE_TAGS:{}", serialized));
+                            }
+                            Err(e) => {
+                                let _ = tx.send(format!(
+                                    "REMOTE_TAGS_ERR:Failed to get remote tags: {}",
+                                    e
+                                ));
+                            }
+                        }
+                    });
+                }
+                self.mode = Mode::Detail;
+            }
+        }
+    }
+
+    pub fn cancel_remote_picker(&mut self) {
+        self.remote_picker_action = None;
+        self.branch_action_target = None;
+        self.tag_push_target = None;
+        self.tag_delete_target = None;
+        self.mode = Mode::Detail;
+    }
+
+    /// Force-dismiss a stuck progress popup.
+    /// The background thread may still be running; any result it eventually
+    /// sends will be received and silently dropped or displayed as a status
+    /// message. The UI is unblocked immediately.
+    pub fn dismiss_fetch(&mut self) {
+        self.fetching = false;
+        self.status_message =
+            Some("Operation dismissed (may still be running in background)".to_string());
+    }
+
+    pub fn remote_picker_up(&mut self) {
+        self.remote_picker_selection = self.remote_picker_selection.saturating_sub(1);
+    }
+
+    pub fn remote_picker_down(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.remotes.len();
+            if total > 0 && self.remote_picker_selection + 1 < total {
+                self.remote_picker_selection += 1;
+            }
+        }
+    }
+
+    /// Push a branch to a specific remote by name (bypasses upstream detection).
+    fn execute_branch_push_to(&mut self, branch_name: &str, remote_name: &str) {
+        if self.fetching {
+            return;
+        }
+        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+            let repo_path = resolved.clone();
+            let branch_name = branch_name.to_string();
+            let remote_name = remote_name.to_string();
+            self.fetching = true;
+            self.status_message =
+                Some(format!("Pushing '{}' to '{}'...", branch_name, remote_name));
+            let tx = self.tx.clone();
+            std::thread::spawn(move || {
+                let mut cmd = std::process::Command::new("git");
+                cmd.arg("push")
+                    .arg("-u")
+                    .arg(&remote_name)
+                    .arg(&branch_name)
+                    .current_dir(&repo_path);
+                let output = match cmd.output() {
+                    Ok(o) => o,
+                    Err(e) => {
+                        let _ = tx.send(format!("Failed to run git push: {}", e));
+                        return;
+                    }
+                };
+                if output.status.success() {
+                    let _ = tx.send(format!(
+                        "Pushed '{}' to '{}' successfully",
+                        branch_name, remote_name
+                    ));
+                } else {
+                    let _ = tx.send(format!(
+                        "Failed to push: {}",
+                        String::from_utf8_lossy(&output.stderr).trim()
+                    ));
+                }
+            });
+        }
+    }
+
+    /// Push a single tag to a specific remote.
+    fn execute_tag_push_to(&mut self, tag_name: &str, remote_name: &str) {
+        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+            let repo_path = resolved.clone();
+            let tag_name = tag_name.to_string();
+            let remote_name = remote_name.to_string();
+            self.fetching = true;
+            self.status_message = Some(format!(
+                "Pushing tag '{}' to '{}'...",
+                tag_name, remote_name
+            ));
+            let tx = self.tx.clone();
+            std::thread::spawn(move || {
+                let mut cmd = std::process::Command::new("git");
+                cmd.arg("push")
+                    .arg(&remote_name)
+                    .arg(&tag_name)
+                    .current_dir(&repo_path);
+                let output = match cmd.output() {
+                    Ok(o) => o,
+                    Err(e) => {
+                        let _ = tx.send(format!("Failed to run git push: {}", e));
+                        return;
+                    }
+                };
+                if output.status.success() {
+                    let _ = tx.send(format!(
+                        "Pushed tag '{}' to '{}' successfully",
+                        tag_name, remote_name
+                    ));
+                } else {
+                    let _ = tx.send(format!(
+                        "Failed to push tag: {}",
+                        String::from_utf8_lossy(&output.stderr).trim()
+                    ));
+                }
+            });
+        }
+    }
+
+    /// Push all tags to a specific remote.
+    fn execute_tag_push_all_to(&mut self, remote_name: &str) {
+        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+            let repo_path = resolved.clone();
+            let remote_name = remote_name.to_string();
+            self.fetching = true;
+            self.status_message = Some(format!("Pushing all tags to '{}'...", remote_name));
+            let tx = self.tx.clone();
+            std::thread::spawn(move || {
+                let mut cmd = std::process::Command::new("git");
+                cmd.arg("push")
+                    .arg(&remote_name)
+                    .arg("--tags")
+                    .current_dir(&repo_path);
+                let output = match cmd.output() {
+                    Ok(o) => o,
+                    Err(e) => {
+                        let _ = tx.send(format!("Failed to run git push: {}", e));
+                        return;
+                    }
+                };
+                if output.status.success() {
+                    let _ = tx.send(format!("Pushed all tags to '{}' successfully", remote_name));
+                } else {
+                    let _ = tx.send(format!(
+                        "Failed to push tags: {}",
+                        String::from_utf8_lossy(&output.stderr).trim()
+                    ));
+                }
+            });
+        }
+    }
+
+    /// Delete a remote tag on a specific remote.
+    fn execute_delete_remote_tag_on(&mut self, tag_name: &str, remote_name: &str) {
+        let repo_path = if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail
+        {
+            resolved.clone()
+        } else {
+            return;
+        };
+        let tag_name = tag_name.to_string();
+        let remote_name = remote_name.to_string();
+        let tx = self.tx.clone();
+        self.fetching = true;
+        self.status_message = Some(format!("Deleting remote tag '{}'...", tag_name));
+        std::thread::spawn(move || {
+            match repo::delete_remote_tag(&repo_path, &remote_name, &tag_name) {
+                Ok(()) => {
+                    let _ = tx.send(format!("Deleted remote tag '{}'", tag_name));
+                }
+                Err(e) => {
+                    let _ = tx.send(format!("Failed to delete remote tag: {}", e));
+                }
+            }
+        });
     }
 
     pub fn local_tag_up(&mut self) {
@@ -2403,8 +2698,10 @@ where
                     info.remote_tags = tags;
                     info.remote_tags_loaded = true;
                 }
+                app.fetching = false;
             } else if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
                 app.status_message = Some(err_msg.to_string());
+                app.fetching = false;
             } else {
                 app.status_message = Some(msg);
                 app.fetching = false;

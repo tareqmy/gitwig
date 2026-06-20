@@ -18,7 +18,7 @@ use ratatui::widgets::{
     Table, TableState, Wrap,
 };
 
-use crate::app::DetailSection;
+use crate::app::{DetailSection, Mode};
 use crate::repo::{
     CommitEntry, DiffLine, DiffLineKind, FileEntry, ItemDetail, RemoteInfo, RepoInfo,
     WorktreeChanges,
@@ -34,8 +34,6 @@ const FIELD_LABEL_WIDTH: usize = 9;
 const FILE_INDENT: &str = "      ";
 /// Column width for the file-status label ("T" = 1 char).
 const FILE_LABEL_WIDTH: usize = 2;
-
-use crate::app::Mode;
 
 // ── Hit-test areas ─────────────────────────────────────────────────────────
 
@@ -96,6 +94,7 @@ pub fn draw(
     remote_branch_selection: usize,
     local_tag_selection: usize,
     remote_selection: usize,
+    remote_picker_selection: usize,
     stash_selection: usize,
     stash_file_selection: usize,
     file_list_selection: usize,
@@ -441,6 +440,12 @@ pub fn draw(
                     _ => None,
                 };
                 draw_stash_apply_popup(f, &stash_name, stash_apply_delete_after, body_area);
+            }
+            // Draw remote picker popup on top when requested.
+            if matches!(mode, Mode::RemotePicker) {
+                if let ItemDetail::Repo { info, .. } = detail {
+                    draw_remote_picker_popup(f, &info.remotes, remote_picker_selection, body_area);
+                }
             }
         }
         _ => {
@@ -2118,6 +2123,64 @@ fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area
 
     let paragraph = Paragraph::new(content).block(block);
     f.render_widget(paragraph, popup_area);
+}
+
+fn draw_remote_picker_popup(f: &mut Frame, remotes: &[RemoteInfo], selection: usize, area: Rect) {
+    let popup_area = centred_rect(50, 60, area);
+
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Select Remote", primary_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::horizontal(1));
+
+    let inner = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    // Split inner: list on top, hint at bottom.
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(1)])
+        .split(inner);
+
+    let items: Vec<ListItem> = remotes
+        .iter()
+        .enumerate()
+        .map(|(i, r)| {
+            let style = if i == selection {
+                accent_style().add_modifier(Modifier::BOLD | Modifier::REVERSED)
+            } else {
+                primary_style()
+            };
+            ListItem::new(Line::from(vec![
+                Span::raw("  "),
+                Span::styled(r.name.clone(), style),
+                Span::styled("  ", muted_style()),
+                Span::styled(r.url.clone(), muted_style()),
+            ]))
+        })
+        .collect();
+
+    let mut list_state = ListState::default();
+    list_state.select(Some(selection));
+    f.render_stateful_widget(List::new(items), chunks[0], &mut list_state);
+
+    let hint = Line::from(vec![
+        Span::styled("↑↓ navigate  ", muted_style()),
+        Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" confirm  ", muted_style()),
+        Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" cancel", muted_style()),
+    ]);
+    f.render_widget(Paragraph::new(hint), chunks[1]);
 }
 
 fn draw_branch_push_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {

@@ -203,6 +203,7 @@ pub fn draw(
             | Mode::TagPushAllConfirm
             | Mode::StashDeleteConfirm
             | Mode::StashApplyConfirm
+            | Mode::RemotePicker
     ) {
         if let Some(detail) = &app.current_detail {
             let item_name = app
@@ -227,6 +228,7 @@ pub fn draw(
                 app.remote_branch_selection,
                 app.local_tag_selection,
                 app.remote_selection,
+                app.remote_picker_selection,
                 app.stash_selection,
                 app.stash_file_selection,
                 app.file_list_selection,
@@ -652,6 +654,10 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             };
             let (msg_spans, entries) =
                 confirm_stash_apply_entries(&target, app.stash_apply_delete_after);
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
+        }
+        Mode::RemotePicker => {
+            let (msg_spans, entries) = remote_picker_status_entries();
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
     }
@@ -1117,6 +1123,34 @@ fn confirm_stash_apply_entries(
     (message_spans, entries)
 }
 
+fn remote_picker_status_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let message_spans = Some(vec![Span::raw("Select a remote to use for this operation")]);
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Navigate"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("↑↓", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::raw(" Confirm"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("⏎", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::raw(" Cancel"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("⎋", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (message_spans, entries)
+}
+
 fn confirm_branch_push_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let message_spans = Some(vec![
         Span::raw("Push branch "),
@@ -1476,9 +1510,10 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Min(0),
+            Constraint::Length(1), // status text
+            Constraint::Length(1), // spacer
+            Constraint::Min(1),    // gauge
+            Constraint::Length(1), // dismiss hint
         ])
         .split(inner);
 
@@ -1495,4 +1530,12 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
         .percent(app.fetch_progress)
         .use_unicode(true);
     f.render_widget(gauge, chunks[2]);
+
+    let hint = Paragraph::new(Line::from(vec![
+        Span::styled("Press ", muted_style()),
+        Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" to dismiss if stuck", muted_style()),
+    ]))
+    .alignment(ratatui::layout::Alignment::Center);
+    f.render_widget(hint, chunks[3]);
 }

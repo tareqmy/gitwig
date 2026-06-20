@@ -7,13 +7,17 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Position;
 
-use crate::app::{App, DetailSection, Mode};
+use crate::app::{App, DetailSection, Mode, RemotePickerAction};
 
 /// Dispatch a key press. Returns `false` if the user requested quit.
 pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     let code = key.code;
 
     if app.fetching {
+        // Allow Esc / q to dismiss a stuck progress popup.
+        if matches!(code, KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q')) {
+            app.dismiss_fetch();
+        }
         return true;
     }
 
@@ -396,6 +400,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::PageDown => {
                     app.remote_page_down(10);
                 }
+                // f / F — fetch remote tags from the selected remote
+                KeyCode::Char('f') | KeyCode::Char('F') => {
+                    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+                        if info.remotes.len() > 1 {
+                            app.remote_picker_action = Some(RemotePickerAction::FetchTags);
+                            app.remote_picker_selection = app.remote_selection;
+                            app.mode = Mode::RemotePicker;
+                        } else {
+                            app.fetch_remote_tags();
+                        }
+                    }
+                }
                 _ => {}
             },
             _ if app.detail_tab == 6 => match code {
@@ -455,6 +471,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::PageDown => {
                 app.help_scroll_page_down(10);
             }
+            _ => {}
+        },
+        Mode::RemotePicker => match code {
+            KeyCode::Up | KeyCode::Char('k') => app.remote_picker_up(),
+            KeyCode::Down | KeyCode::Char('j') => app.remote_picker_down(),
+            KeyCode::Enter => app.confirm_remote_picker(),
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.cancel_remote_picker(),
             _ => {}
         },
         Mode::CommitInput => {
