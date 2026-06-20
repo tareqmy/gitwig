@@ -119,6 +119,7 @@ pub fn draw(
             | Mode::TagCreateInput
             | Mode::BranchDeleteConfirm
             | Mode::BranchPushConfirm
+            | Mode::TagDeleteConfirm
     ) {
         if let Some(detail) = &app.current_detail {
             let item_name = app
@@ -153,6 +154,7 @@ pub fn draw(
                 app.commit_editing,
                 &app.branch_action_target,
                 &app.tag_action_target_oid,
+                &app.tag_delete_target,
                 content_area,
             );
         }
@@ -490,6 +492,15 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 .map(|(name, _)| name.as_str())
                 .unwrap_or("");
             let (msg_spans, entries) = confirm_branch_push_entries(target);
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
+        }
+        Mode::TagDeleteConfirm => {
+            let (target, is_on_remote) = app
+                .tag_delete_target
+                .as_ref()
+                .map(|(name, is_on_remote)| (name.as_str(), *is_on_remote))
+                .unwrap_or(("", false));
+            let (msg_spans, entries) = confirm_tag_delete_entries(target, is_on_remote);
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
     }
@@ -1062,4 +1073,46 @@ fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(vertical[1])[1]
+}
+
+fn confirm_tag_delete_entries(
+    target: &str,
+    is_on_remote: bool,
+) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let mut spans = vec![
+        Span::raw("Delete tag "),
+        Span::styled(
+            format!("\"{}\"", target),
+            Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("? "),
+    ];
+    if is_on_remote {
+        spans.push(Span::styled(
+            "(will also delete from remote) ",
+            Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+        ));
+    }
+    let message_spans = Some(spans);
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Confirm"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled(
+                "y",
+                Style::default().fg(DANGER).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Cancel"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("n/⎋", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (message_spans, entries)
 }

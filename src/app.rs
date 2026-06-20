@@ -54,6 +54,8 @@ pub enum Mode {
     BranchDeleteConfirm,
     /// Confirming push of a branch. y pushes, n/Esc cancels.
     BranchPushConfirm,
+    /// Confirming deletion of a tag. y deletes, n/Esc cancels.
+    TagDeleteConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -166,6 +168,8 @@ pub struct App {
     pub branch_action_target: Option<(String, bool)>,
     /// Target commit OID for tag creation.
     pub tag_action_target_oid: Option<String>,
+    /// Target tag name and remote flag for deletion action.
+    pub tag_delete_target: Option<(String, bool)>,
 }
 
 #[derive(Clone, Debug)]
@@ -231,6 +235,7 @@ impl App {
             pending_gitui: false,
             branch_action_target: None,
             tag_action_target_oid: None,
+            tag_delete_target: None,
         }
     }
 
@@ -840,6 +845,84 @@ impl App {
                 }
             }
         }
+        self.mode = Mode::Detail;
+    }
+
+    pub fn request_tag_delete(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if let Some(tag_info) = info.local_tags.get(self.local_tag_selection) {
+                let is_on_remote = if info.remotes.is_empty() {
+                    false
+                } else if info.remote_tags_loaded {
+                    info.remote_tags.iter().any(|rt| rt.name == tag_info.name)
+                } else {
+                    false
+                };
+                self.tag_delete_target = Some((tag_info.name.clone(), is_on_remote));
+                self.mode = Mode::TagDeleteConfirm;
+            }
+        }
+    }
+
+    pub fn confirm_tag_delete(&mut self) {
+        if let Some((tag_name, is_on_remote)) = self.tag_delete_target.take() {
+            let (repo_path, remote_name) =
+                if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+                    (
+                        resolved.clone(),
+                        info.remotes.first().map(|r| r.name.clone()),
+                    )
+                } else {
+                    return;
+                };
+
+            match repo::delete_tag(&repo_path, &tag_name) {
+                Ok(()) => {
+                    self.status_message = Some(format!("Deleted local tag '{}'", tag_name));
+                    let item = &self.config.items[self.selected_index];
+                    self.current_detail = Some(repo::inspect_detail(item));
+                    self.rebuild_visible_files();
+                    self.local_tag_selection = 0;
+
+                    if is_on_remote {
+                        if let Some(remote_name) = remote_name {
+                            let repo_path = repo_path.clone();
+                            let tag_to_delete = tag_name.clone();
+                            let tx = self.tx.clone();
+                            self.fetching = true;
+                            self.status_message =
+                                Some(format!("Deleting remote tag '{}'...", tag_name));
+                            std::thread::spawn(move || {
+                                match repo::delete_remote_tag(
+                                    &repo_path,
+                                    &remote_name,
+                                    &tag_to_delete,
+                                ) {
+                                    Ok(()) => {
+                                        let _ = tx.send(format!(
+                                            "Deleted remote tag '{}'",
+                                            tag_to_delete
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ =
+                                            tx.send(format!("Failed to delete remote tag: {}", e));
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+                Err(e) => {
+                    self.status_message = Some(format!("Failed to delete tag: {}", e));
+                }
+            }
+        }
+        self.mode = Mode::Detail;
+    }
+
+    pub fn cancel_tag_delete(&mut self) {
+        self.tag_delete_target = None;
         self.mode = Mode::Detail;
     }
 

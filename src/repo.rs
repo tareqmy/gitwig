@@ -1120,6 +1120,33 @@ pub fn create_tag(
     Ok(())
 }
 
+/// Deletes a local tag.
+pub fn delete_tag(repo_path: &Path, tag_name: &str) -> Result<(), git2::Error> {
+    let repo = Repository::open(repo_path)?;
+    repo.tag_delete(tag_name)?;
+    Ok(())
+}
+
+/// Deletes a tag on the remote.
+pub fn delete_remote_tag(
+    repo_path: &Path,
+    remote_name: &str,
+    tag_name: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let output = std::process::Command::new("git")
+        .arg("push")
+        .arg(remote_name)
+        .arg("--delete")
+        .arg(tag_name)
+        .current_dir(repo_path)
+        .output()?;
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(err.into());
+    }
+    Ok(())
+}
+
 /// Checks out a tag.
 pub fn checkout_tag(repo_path: &Path, tag_name: &str) -> Result<(), git2::Error> {
     let repo = Repository::open(repo_path)?;

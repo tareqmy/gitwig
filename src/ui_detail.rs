@@ -102,6 +102,7 @@ pub fn draw(
     commit_editing: bool,
     branch_action_target: &Option<(String, bool)>,
     tag_action_target_oid: &Option<String>,
+    tag_delete_target: &Option<(String, bool)>,
     area: Rect,
 ) {
     // Extract branch name if this is a repo detail.
@@ -372,6 +373,10 @@ pub fn draw(
             // Draw branch push popup on top when requested.
             if matches!(mode, Mode::BranchPushConfirm) {
                 draw_branch_push_popup(f, branch_action_target, body_area);
+            }
+            // Draw tag delete popup on top when requested.
+            if matches!(mode, Mode::TagDeleteConfirm) {
+                draw_tag_delete_popup(f, tag_delete_target, body_area);
             }
         }
         _ => {
@@ -2106,4 +2111,62 @@ fn draw_remotes_view(
 
     let details_paragraph = Paragraph::new(details_lines).block(details_block);
     f.render_widget(details_paragraph, right_area);
+}
+
+fn draw_tag_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
+    let popup_area = centred_rect(55, 25, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(DANGER);
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Delete Tag", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let (tag_name, is_on_remote) = match target {
+        Some((name, is_on_remote)) => (name.as_str(), *is_on_remote),
+        None => ("", false),
+    };
+
+    let mut content = vec![
+        Line::from(vec![
+            Span::styled("Are you sure you want to delete the tag ", primary_style()),
+            Span::styled(tag_name, accent_style()),
+            Span::raw("?"),
+        ]),
+        Line::from(""),
+    ];
+
+    if is_on_remote {
+        content.push(Line::from(vec![
+            Span::styled(
+                "Warning: ",
+                Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(
+                "This tag is also present on the remote and will be deleted from the remote.",
+            ),
+        ]));
+        content.push(Line::from(""));
+    }
+
+    content.push(Line::from(vec![
+        Span::styled("Confirm: ", muted_style()),
+        Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" / Cancel: ", muted_style()),
+        Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+    ]));
+
+    let paragraph = Paragraph::new(content)
+        .block(block)
+        .wrap(Wrap { trim: false });
+    f.render_widget(paragraph, popup_area);
 }

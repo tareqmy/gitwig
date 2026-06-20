@@ -88,6 +88,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_branch_push(),
             _ => {}
         },
+        Mode::TagDeleteConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_tag_delete(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_tag_delete(),
+            _ => {}
+        },
         Mode::Help => match code {
             KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_dialog();
@@ -325,6 +330,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 KeyCode::PageDown => {
                     app.local_tag_page_down(10);
+                }
+                KeyCode::Char('d') | KeyCode::Char('D') => {
+                    app.request_tag_delete();
                 }
                 _ => {}
             },
