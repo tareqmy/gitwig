@@ -74,10 +74,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("e", "Edit selected item"),
     ("d", "Delete selected item / branch (Branches) / tag (Tags)"),
     ("r", "Refresh status of selected item"),
-    (
-        "o",
-        "Cycle sorting mode (Custom / Alphabetical / Recent / Changes)",
-    ),
+    ("o / O", "Cycle sorting mode / Toggle reverse sorting"),
     ("g", "Launch gitui for selected repository"),
     (
         "⎋ [Esc]",
@@ -196,6 +193,11 @@ fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
         SortOrder::RecentVisit => "Sort: Recent Visit",
         SortOrder::LatestChanges => "Sort: Latest Changes",
     };
+    let sort_label_with_dir = if app.config.sort_reverse {
+        format!("{} (Rev)", sort_label)
+    } else {
+        sort_label.to_string()
+    };
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -212,7 +214,7 @@ fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
         .title(
             Line::from(vec![
                 Span::raw(" "),
-                Span::styled(sort_label, accent_style()),
+                Span::styled(sort_label_with_dir, accent_style()),
                 Span::raw(" "),
             ])
             .alignment(Alignment::Center),
@@ -458,8 +460,11 @@ impl StatusEntry {
 fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
     match &app.mode {
         Mode::Normal => {
-            let (msg_spans, entries) =
-                normal_status_entries(&app.status_message, app.config.sort_by);
+            let (msg_spans, entries) = normal_status_entries(
+                &app.status_message,
+                app.config.sort_by,
+                app.config.sort_reverse,
+            );
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
         Mode::Adding => {
@@ -814,6 +819,7 @@ fn draw_status_layout(
 fn normal_status_entries(
     status_message: &Option<String>,
     sort_by: SortOrder,
+    sort_reverse: bool,
 ) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let mut message_spans = None;
     if let Some(msg) = status_message {
@@ -825,14 +831,15 @@ fn normal_status_entries(
         SortOrder::RecentVisit => "Recent",
         SortOrder::LatestChanges => "Changes",
     };
-    let sort_key_label = format!("Sort: {}", sort_label);
+    let sort_dir = if sort_reverse { " (Rev)" } else { "" };
+    let sort_key_label = format!("Sort: {}{}", sort_label, sort_dir);
 
     let entries_data = vec![
         ("Navigate", "↑↓"),
         ("Page", "⇟/⇞"),
         ("Detail", "↵"),
         ("gitui", "g"),
-        (&sort_key_label, "o"),
+        (&sort_key_label, "o/O"),
         ("Add", "a"),
         ("Edit", "e"),
         ("Delete", "d"),

@@ -401,6 +401,10 @@ impl App {
                     .iter()
                     .map(|s| repo::inspect_summary(s))
                     .collect();
+                if self.config.sort_reverse {
+                    self.config.items.reverse();
+                    self.statuses.reverse();
+                }
             }
             SortOrder::Alphabetical => {
                 let mut zipped: Vec<(String, ItemStatus)> = self
@@ -410,6 +414,9 @@ impl App {
                     .zip(self.statuses.drain(..))
                     .collect();
                 zipped.sort_by(|a, b| a.0.cmp(&b.0));
+                if self.config.sort_reverse {
+                    zipped.reverse();
+                }
                 let (items, statuses): (Vec<String>, Vec<ItemStatus>) = zipped.into_iter().unzip();
                 self.config.items = items;
                 self.statuses = statuses;
@@ -427,6 +434,9 @@ impl App {
                     let time_b = visits.get(&b.0).copied().unwrap_or(0);
                     time_b.cmp(&time_a) // Descending
                 });
+                if self.config.sort_reverse {
+                    zipped.reverse();
+                }
                 let (items, statuses): (Vec<String>, Vec<ItemStatus>) = zipped.into_iter().unzip();
                 self.config.items = items;
                 self.statuses = statuses;
@@ -443,6 +453,9 @@ impl App {
                     let time_b = repo::get_latest_change_time(&b.0);
                     time_b.cmp(&time_a) // Descending
                 });
+                if self.config.sort_reverse {
+                    zipped.reverse();
+                }
                 let (items, statuses): (Vec<String>, Vec<ItemStatus>) = zipped.into_iter().unzip();
                 self.config.items = items;
                 self.statuses = statuses;
@@ -469,6 +482,22 @@ impl App {
         }
 
         self.persist("Sort mode updated");
+    }
+
+    pub fn toggle_sort_reverse(&mut self) {
+        self.config.sort_reverse = !self.config.sort_reverse;
+
+        let selected_item = self.config.items.get(self.selected_index).cloned();
+
+        self.sort_items_in_place();
+
+        if let Some(item) = selected_item {
+            if let Some(pos) = self.config.items.iter().position(|x| x == &item) {
+                self.selected_index = pos;
+            }
+        }
+
+        self.persist("Sort direction updated");
     }
 
     /// Snapshot the selected item's filesystem/git state and enter the
@@ -2407,6 +2436,7 @@ mod tests {
             poll_interval_ms: 100,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
+            sort_reverse: false,
         };
         let mut app = App::new(config, PathBuf::from("dummy_path"));
 
@@ -2420,6 +2450,17 @@ mod tests {
         assert_eq!(app.config.items[0], "a_repo");
         assert_eq!(app.config.items[1], "m_repo");
         assert_eq!(app.config.items[2], "z_repo");
+
+        // Toggle reverse sorting
+        app.toggle_sort_reverse();
+        assert!(app.config.sort_reverse);
+        assert_eq!(app.config.items[0], "z_repo");
+        assert_eq!(app.config.items[1], "m_repo");
+        assert_eq!(app.config.items[2], "a_repo");
+
+        // Toggle back
+        app.toggle_sort_reverse();
+        assert!(!app.config.sort_reverse);
 
         // Cycle to recent visit
         // Set visit times: a_repo visited at 10, z_repo at 20, m_repo at 5

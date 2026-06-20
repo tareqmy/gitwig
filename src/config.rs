@@ -42,6 +42,9 @@ pub struct Config {
     /// Map of repository items to their last visit time.
     #[serde(default = "default_visits")]
     pub visits: std::collections::HashMap<String, u64>,
+    /// Whether sorting should be reversed.
+    #[serde(default)]
+    pub sort_reverse: bool,
 }
 
 /// Returns `~/.twig/`, the canonical Twig data directory.
@@ -81,6 +84,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 poll_interval_ms: default_poll_interval_ms(),
                 sort_by: default_sort_by(),
                 visits: default_visits(),
+                sort_reverse: false,
             },
             path,
         ));
@@ -116,6 +120,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         poll_interval_ms: default_poll_interval_ms(),
         sort_by: default_sort_by(),
         visits: default_visits(),
+        sort_reverse: false,
     };
     save_config(&fallback, &canonical)?;
     Ok((fallback, canonical))
