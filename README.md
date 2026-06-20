@@ -35,31 +35,29 @@
 | `g`                  | Normal          | Launch gitui for selected repository |
 | `Enter`              | Normal          | Open Detail view for selected item|
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
-| `q`                  | Normal          | Quit                              |
+| `⎋` / `q`            | Normal          | Quit                              |
 | `Enter`              | Adding / Editing| Save the typed text and persist   |
 | `Esc`                | Adding / Editing| Cancel without saving             |
 | `Backspace`          | Adding / Editing| Erase one character               |
-| `y`                  | Confirm Delete  | Confirm deletion                  |
-| `n` / `Esc`          | Confirm Delete  | Cancel deletion                   |
+| `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag, push branch/tag/all tags) |
+| `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
 | `Esc` / `q`          | Detail          | Return to the list                |
-| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Details → Graph → Branches → Files) |
-| `w` / `W`            | Detail          | Cycle panel focus (`Commits` → `Staged` → `Unstaged` → `StagingDetails` in Details tab, or Local → Remote in Branches tab) |
-| `1`, `2`, `3`, `4`   | Detail          | Jump directly to Details (1), Graph (2), Branches (3), or Files (4) tab |
+| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Details → Files → Graph → Branches → Tags → Remotes → Overview) |
+| `w` / `W`            | Detail          | Cycle panel focus (`Commits` → `Staged` → `Unstaged` → `StagingDetails` in Details tab, Local → Remote in Branches tab, or Local → Remote in Tags tab) |
+| `1` - `7`            | Detail          | Jump directly to tab: Details (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), or Overview (7) |
 | `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
 | `PgUp` / `PgDn`      | Detail          | Jump 10 rows or page scroll diff/tree |
-| `Enter`              | Detail          | Stage/Unstage file (Details tab), or Checkout branch (Branches tab) |
+| `Enter`              | Detail          | Stage/Unstage file (Details tab), checkout branch (Branches tab), or checkout tag (Tags tab) |
 | `Shift+F`            | Detail          | Fetch selected local branch from remote (Branches tab) |
-| `p`                  | Detail          | Pull selected local branch from remote (Branches tab) |
-| `Shift+P`            | Detail          | Push selected local branch to remote (Branches tab) |
-| `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) |
+| `p`                  | Detail          | Pull selected local branch from remote (Branches tab) or Push selected tag (Tags tab; asks confirmation) |
+| `Shift+P`            | Detail          | Push selected local branch to remote (Branches tab) or Push all tags (Tags tab; asks confirmation) |
+| `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) or Local/Remote tag (Tags tab) |
 | `←` / `→` or `<` / `>` or `,` / `.` | Detail | Collapse/Expand directory (Files tab) |
 | `c`                  | Detail          | Open commit prompt (Details tab), or Create branch from HEAD (Branches tab) |
-| `d`                  | Detail          | Delete selected branch (Branches tab) |
-| `o`                  | Detail          | Toggle repository overview popup  |
+| `d`                  | Detail          | Delete selected branch (Branches tab; asks confirmation) or tag (Tags tab; asks confirmation) |
 | `?`                  | Detail          | Toggle detail help overlay        |
-| `Esc` / `q` / `o`    | DetailOverview  | Close repository overview popup   |
 | `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |
 | `⌃C`                 | CommitInput (Edit) | Finish editing commit message (switches to confirm state) |
 | `↵` (Enter)          | CommitInput (Edit) | Insert a newline                  |
@@ -106,11 +104,14 @@ Items support `~` and `~/...` expansion, so `~/code/twig` resolves to your home 
 
 ## 🔍 Detail view
 
-Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports four tabs for git repositories: **Details**, **Graph**, **Branches**, and **Files**.
+Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports seven tabs for git repositories: **Details**, **Files**, **Graph**, **Branches**, **Tags**, **Remotes**, and **Overview**.
 - Press `1` to switch to the **Details** tab.
-- Press `2` to switch to the **Graph** tab.
-- Press `3` to switch to the **Branches** tab.
-- Press `4` to switch to the **Files** tab.
+- Press `2` to switch to the **Files** tab.
+- Press `3` to switch to the **Graph** tab.
+- Press `4` to switch to the **Branches** tab.
+- Press `5` to switch to the **Tags** tab.
+- Press `6` to switch to the **Remotes** tab.
+- Press `7` to switch to the **Overview** tab.
 - Alternatively, press `Tab` / `Shift+Tab` to cycle forward/backward through the tabs.
 - You can also click on the tab headers directly with the mouse to switch tabs.
 Press `Esc` or `q` to return to the repository list.
@@ -122,9 +123,18 @@ For a **git repository**, the **Details** tab is split into multiple rounded pan
 - **Staging Area / Changed Files (bottom-left 40%):** Lists files that are modified, staged, or untracked. When `Uncommitted changes` is selected at the top, this panel is split vertically into `Staged` and `Unstaged` sections. When a real commit is selected, it is split horizontally, showing the list of files modified in that commit in the top half, and full commit details (hash, author, date, refs, and message) in the bottom half.
 - **Staging Details (bottom-right 60%):** Displays the unified diff of the selected file.
 
+### Files Tab
+
+The **Files** tab displays all tracked files in the repository as an interactive directory tree on the left, and a preview panel on the right.
+- Directory nodes are prefixed with `>` when collapsed and `▼` when expanded.
+- File nodes are prefixed with `🗎`.
+- **Expand Folder:** Select a collapsed directory and press `>` or `.` or `Right-Arrow`.
+- **Collapse Folder:** Select an expanded directory and press `<` or `,` or `Left-Arrow`.
+- **Preview Panel:** Selecting a file displays its content (up to 100 KB) on the right; selecting a directory displays a list of files and folders directly inside it.
+
 ### Graph Tab
 
-The **Graph** tab is currently reserved for the future git branch visualization graph.
+The **Graph** tab renders the git log history graph / branch visualization graph.
 
 ### Branches Tab
 
@@ -134,23 +144,32 @@ The **Branches** tab is split vertically into left and right panels:
 
 You can focus either branch panel by pressing `w` / `W` or using the `←` / `→` arrow keys.
 
-### Files Tab
+### Tags Tab
 
-The **Files** tab displays all tracked files in the repository as an interactive directory tree with nested indentation.
-- Directory nodes are prefixed with `>` when collapsed and `▼` when expanded.
-- File nodes are prefixed with `🗎`.
-- **Expand Folder:** Select a collapsed directory and press `>` or `.` or `Right-Arrow`.
-- **Collapse Folder:** Select an expanded directory and press `<` or `,` or `Left-Arrow`.
+The **Tags** tab lists both local tags and remote tags.
+- Select a local tag and press `↵` (Enter) to checkout that tag.
+- Select any tag and press `d` / `D` to delete it (asks for confirmation).
+- Press `p` to push the selected tag to the remote (asks for confirmation).
+- Press `P` (Shift+P) to push all tags to the remote (asks for confirmation).
+
+### Remotes Tab
+
+The **Remotes** tab lists configured remotes for the repository.
+
+### Overview Tab
+
+The **Overview** tab displays key repository details including resolved paths, branch upstream tracking info, configured remotes, and general status counts.
 
 ### Navigation & Interaction
 
 You can navigate and interact with these panels in the following ways:
-- **Cycle Focus:** In the Details and Branches tabs, press `w` / `W` to cycle panel focus (e.g. `Commits` → `Staged` → `Unstaged` → `StagingDetails` in the Details tab, or toggling between Local and Remote branches in the Branches tab). Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Details tab, `Local Branches` on Branches tab, `Files` on Files tab).
-- **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch list panels and the files list) to focus it immediately.
+- **Cycle Focus:** In the Details, Branches, and Tags tabs, press `w` / `W` to cycle panel focus (e.g. `Commits` → `Staged` → `Unstaged` → `StagingDetails` in the Details tab, toggling between Local and Remote branches in the Branches tab, or Local and Remote tags in the Tags tab). Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Details tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab).
+- **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag list panels and the files list) to focus it immediately.
 - **Mouse Wheel Scroll:** Use the mouse wheel to scroll vertically through the active list, commit history, branch list, files list, or staging details diff.
-- **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, or file tree item in the active list.
+- **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, tag, or file tree item in the active list.
 - **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
 - **Stage/Unstage Files:** Select the `Uncommitted changes` row at the top, select a file in either the `Staged` or `Unstaged` list, and press `Enter` to stage or unstage that file instantly.
+- **Network Progress Bar:** Any long-running network operations (such as Fetch, Pull, or Push) will display a centering animated progress bar popup so the UI thread remains responsive and visual feedback is clear.
 - **Manage Branches:** While on the **Branches** tab:
   - Select any **local branch** (other than the currently active one) and press `Enter` to check it out (safe checkout strategy applies).
   - Select any **local branch** that has an upstream configuration and press `Shift+F` to fetch updates for its remote in the background.
@@ -162,7 +181,6 @@ You can navigate and interact with these panels in the following ways:
 - **Commit Staged Changes:** Press `c` from the Details tab to open a centered Commit popup window (only active if there are staged changes). 
   - **Compose Mode:** Type your commit message. Press `Ctrl+C` to lock in the text and switch to confirmation state, press `Enter` to insert a newline, or `Esc` to cancel.
   - **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, or `Esc`/`q` to close the popup.
-- **Repository Overview:** Press `o` to open a repository overview popup showing details such as resolved paths, branch upstream tracking, configured remotes, and general status counts.
 
 For a **plain directory** the view confirms the resolved path and explains that no `.git` entry was found.
 

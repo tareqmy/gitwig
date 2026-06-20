@@ -16,6 +16,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Detail view gains **Upstream** and **Sync** rows (powered by `branch_upstream_name` + `graph_ahead_behind`); shows `(not configured)` when the branch has no tracking branch.
 - [x] Detail view restructured into named rounded panels: `Commits` (top 50%) and `Staging Area` / `Staging Details` side-by-side (bottom 50%). Breadcrumb header shows item name (left) and active branch name with `` glyph (right).
 - [x] Detail view panel focus cycling via `Tab`: `Commits → Staged → Unstaged → Staging Details → Commits`. Focused panel highlighted with accent border; `Tab  cycle focus` shown in status bar.
+- [x] Support `Esc` key in addition to `q` to quit the application from the home page.
 
 ## Phase 2: Working Tree & Status
 - [x] Display list of changed files (staged and unstaged).
@@ -33,20 +34,20 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] List local and remote branches.
 - [x] Checkout branches (shortcut `Enter` in Branches tab).
 - [x] Create and delete branches.
-- [x] Dedicated Tags tab to list and checkout local and remote tags (shortcut `5`).
+- [x] Dedicated Tags tab to list, checkout local/remote tags, delete local tags, and push tag(s) with confirmation dialogs.
 - [ ] Merge and Rebase (basic support).
 
 - [x] Fetch and Push operations (Fetch via `Shift+F`, Push via `Shift+P` in Branches tab).
 - [x] Pull operations (shortcut `p` in Branches tab).
 - [ ] Manage multiple remotes.
-- [ ] Progress bars for network operations.
+- [x] Progress bars for network operations.
 
 ## Phase 6: Advanced Features
 - [x] Mouse click support to change panel focus in Detail view.
 - [x] Mouse click selection and double-click to open detail view in main list.
 - [x] Mouse click on tab headers to change active tabs in Detail view.
 - [x] Mouse wheel vertical scroll support for all scrollable views (lists, trees, diffs).
-- [x] Files tab showing tracked repository files in an interactive nested tree structure with expand/collapse capabilities.
+- [x] Files tab showing tracked repository files in an interactive nested tree structure with split-panel preview (file contents or folder list).
 - [ ] Stashing (list, apply, drop, pop).
 - [ ] Interactive Rebase.
 - [ ] Conflict resolution UI.
