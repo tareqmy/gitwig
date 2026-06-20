@@ -158,8 +158,8 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ),
     ("⌫ [Backspace]", "Erase character while typing"),
     ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
-    ("w / W", "Cycle panel focus (Details / Branches tabs)"),
-    ("c", "Commit changes (Details) / Create branch (Branches)"),
+    ("w / W", "Cycle panel focus (Workspace / Branches tabs)"),
+    ("c", "Commit changes (Workspace) / Create branch (Branches)"),
     ("⇧F", "Fetch selected branch (Branches tab)"),
     (
         "p",

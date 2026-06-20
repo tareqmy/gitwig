@@ -46,25 +46,25 @@
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
 | `Esc` / `q`          | Detail          | Return to the list                |
-| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Details → Files → Graph → Branches → Tags → Remotes → Stashes → Overview) |
-| `w` / `W`            | Detail          | Cycle panel focus (`Commits` → `Staged` → `Unstaged` → `StagingDetails` in Details tab, Local → Remote in Branches tab, or Local → Remote in Tags tab) |
-| `1` - `8`            | Detail          | Jump directly to tab: Details (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), or Overview (8) |
+| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Workspace → Files → Graph → Branches → Tags → Remotes → Stashes → Overview) |
+| `w` / `W`            | Detail          | Cycle panel focus (`Commits` → `Staged` → `Unstaged` → `StagingDetails` in Workspace tab, Local → Remote in Branches tab, or Local → Remote in Tags tab) |
+| `1` - `8`            | Detail          | Jump directly to tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), or Overview (8) |
 | `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
 | `PgUp` / `PgDn`      | Detail          | Jump 10 rows or page scroll diff/tree |
-| `Enter`              | Detail          | Stage/Unstage file (Details tab), checkout branch (Branches tab), or checkout tag (Tags tab) |
+| `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), or checkout tag (Tags tab) |
 | `Shift+F`            | Detail          | Fetch selected local branch from remote (Branches tab) |
 | `f` / `F`            | Detail          | Fetch selected remote (Remotes tab) |
 | `p`                  | Detail          | Pull selected local branch from remote (Branches tab) or Push selected tag (Tags tab; asks confirmation) |
 | `Shift+P`            | Detail          | Push selected local branch to remote (Branches tab) or Push all tags (Tags tab; asks confirmation) |
 | `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) or Local/Remote tag (Tags tab) |
 | `←` / `→` or `<` / `>` or `,` / `.` | Detail | Collapse/Expand directory (Files tab) |
-| `c`                  | Detail          | Open commit prompt (Details tab), or Create branch from HEAD (Branches tab) |
-| `i`                  | Detail          | Interactive rebase from selected commit (Details tab commits list) |
+| `c`                  | Detail          | Open commit prompt (Workspace tab), or Create branch from HEAD (Branches tab) |
+| `i`                  | Detail          | Interactive rebase from selected commit (Workspace tab commits list) |
 | `d`                  | Detail          | Delete selected branch (Branches tab; asks confirmation) or tag (Tags tab; asks confirmation) |
 | `m`                  | Detail          | Merge selected branch into current branch (Branches tab; asks confirmation) |
 | `r`                  | Detail          | Rebase current branch onto selected branch (Branches tab; asks confirmation) |
-| `/`                  | Detail          | Filter commits list by search query (Details tab) |
+| `/`                  | Detail          | Filter commits list by search query (Workspace tab) |
 | `?`                  | Detail          | Toggle detail help overlay        |
 | `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |
 | `⌃C`                 | CommitInput (Edit) | Finish editing commit message (switches to confirm state) |
@@ -126,9 +126,9 @@ Press `Enter` on a selected item to open a full-screen Detail view. The detail v
 - You can also click on the tab headers directly with the mouse to switch tabs.
 Press `Esc` or `q` to return to the repository list.
 
-### Panel Layout & Navigation (Details Tab)
+### Panel Layout & Navigation (Workspace Tab)
 
-For a **git repository**, the **Details** tab is split into multiple rounded panels with a 40:60 width ratio on the bottom:
+For a **git repository**, the **Workspace** tab is split into multiple rounded panels with a 40:60 width ratio on the bottom:
 - **Commits (top 50%):** Lists the recent commits in the repository. If there are uncommitted changes, a special row named `Uncommitted changes` will be pinned to the very top.
 - **Staging Area / Changed Files (bottom-left 40%):** Lists files that are modified, staged, or untracked. When `Uncommitted changes` is selected at the top, this panel is split vertically into `Staged` and `Unstaged` sections. When a real commit is selected, it is split horizontally, showing the list of files modified in that commit in the top half, and full commit details (hash, author, date, refs, and message) in the bottom half.
 - **Staging Details (bottom-right 60%):** Displays the unified diff of the selected file.
@@ -182,11 +182,11 @@ The **Overview** tab displays key repository details including resolved paths, b
 
 You can navigate and interact with these panels in the following ways:
 - **Cycle Focus:** In the Details, Branches, Tags, and Stashes tabs, press `w` / `W` to cycle panel focus:
-  - **Details tab:** `Commits` → `Staged` → `Unstaged` → `StagingDetails`.
+  - **Workspace tab:** `Commits` → `Staged` → `Unstaged` → `StagingDetails`.
   - **Branches tab:** `Local Branches` ↔ `Remote Branches`.
   - **Tags tab:** `Local Tags` ↔ `Remote Tags`.
   - **Stashes tab:** `Stashes` → `Stashed Files` → `StagingDetails`.
-  Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Details tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab).
+  Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Workspace tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab).
 - **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels, stashed files list, and the files list) to focus it immediately.
 - **Mouse Wheel Scroll:** Use the mouse wheel to scroll vertically through the active list, commit history, branch list, files list, stashed files list, or staging details diff.
 - **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, tag, stash, stashed file, or file tree item in the active list.
@@ -202,7 +202,7 @@ You can navigate and interact with these panels in the following ways:
   - Select any **remote branch** and press `Enter` to check it out (this will switch to the branch, creating a local tracking branch if it doesn't already exist).
   - Press `c` / `C` to create a new branch from the currently checked out branch (or HEAD). A popup dialog will prompt for the new branch name.
   - Select any local or remote-tracking branch and press `d` / `D` to delete it. A confirmation dialog will prompt before performing the deletion. (The currently checked out branch cannot be deleted).
-- **Commit Staged Changes / Amend Last Commit:** Press `c` from the Details tab to open a centered Commit popup window (active if there are staged changes OR a prior HEAD commit exists to amend). 
+- **Commit Staged Changes / Amend Last Commit:** Press `c` from the Workspace tab to open a centered Commit popup window (active if there are staged changes OR a prior HEAD commit exists to amend). 
   - **Compose Mode:** Type your commit message. Press `Ctrl+C` to lock in the text and switch to confirmation state, press `Enter` to insert a newline, or `Esc` to cancel.
   - **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, `a` / `A` / `Space` to toggle the "Amend last commit" option, or `Esc`/`q` to close the popup. Toggling amend to active when the buffer is empty automatically populates the text box with the message from the last commit.
 
