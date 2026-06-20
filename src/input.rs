@@ -574,7 +574,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             if rect.contains(pos) {
                 if is_click {
                     let click_x = pos.x - rect.x;
-                    let use_short = rect.width < 129;
+                    let use_short = rect.width < 131;
                     let tabs_data = [
                         ("Details", "D", 0),
                         ("Files", "F", 1),
@@ -588,7 +588,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     let mut current_offset = 2;
                     for &(long_name, short_name, tab_index) in &tabs_data {
                         let name = if use_short { short_name } else { long_name };
-                        let tab_width = name.len() + 6;
+                        let tab_width = name.len() + 8;
                         if click_x >= current_offset && click_x < current_offset + tab_width as u16
                         {
                             app.detail_tab = tab_index;
@@ -608,7 +608,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                             }
                             break;
                         }
-                        current_offset += tab_width as u16 + 4;
+                        current_offset += tab_width as u16 + 2;
                     }
                 }
                 return;

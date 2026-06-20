@@ -144,11 +144,16 @@ pub fn draw(
         (chunks[0], None, chunks[1])
     };
 
+    let header_rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Length(1)])
+        .split(header_area);
+
     // Split header into left (Item label) and right (branch name).
     let header_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Min(0), Constraint::Length(40)])
-        .split(header_area);
+        .split(header_rows[0]);
 
     let header_left = Paragraph::new(Line::from(vec![
         Span::raw(FIELD_INDENT),
@@ -167,33 +172,56 @@ pub fn draw(
         f.render_widget(header_right, header_chunks[1]);
     }
 
+    {
+        let w = header_area.width as usize;
+        // Zone widths: outer fade → inner fade → solid centre (mirrored)
+        let outer = (w / 10).max(2);
+        let inner = (w / 8).max(3);
+        let centre = w.saturating_sub(outer * 2 + inner * 2);
+
+        let fade_outer = Style::default()
+            .fg(ratatui::style::Color::DarkGray)
+            .add_modifier(Modifier::DIM);
+        let fade_inner = muted_style().add_modifier(Modifier::DIM);
+        let solid = muted_style();
+
+        let divider_line = Line::from(vec![
+            Span::styled(" ".repeat(outer), fade_outer),
+            Span::styled("┄".repeat(inner), fade_inner),
+            Span::styled("┈".repeat(centre), solid),
+            Span::styled("┄".repeat(inner), fade_inner),
+            Span::styled(" ".repeat(outer), fade_outer),
+        ]);
+        f.render_widget(Paragraph::new(divider_line), header_rows[1]);
+    }
+
     if let Some(tab_area) = tab_bar_area {
         let tabs_data = [
-            ("Details", "d", 1),
-            ("Files", "f", 2),
-            ("Graph", "g", 3),
-            ("Branches", "b", 4),
-            ("Tags", "t", 5),
-            ("Remotes", "r", 6),
-            ("Stashes", "s", 7),
-            ("Overview", "o", 8),
+            ("Details", "D", 1),
+            ("Files", "F", 2),
+            ("Graph", "G", 3),
+            ("Branches", "B", 4),
+            ("Tags", "T", 5),
+            ("Remotes", "R", 6),
+            ("Stashes", "S", 7),
+            ("Overview", "O", 8),
         ];
 
-        let use_short = tab_area.width < 129;
+        let use_short = tab_area.width < 131;
         let mut spans = vec![Span::raw("  ")];
         for (i, &(long_name, short_name, index)) in tabs_data.iter().enumerate() {
             if i > 0 {
-                spans.push(Span::raw("    "));
+                spans.push(Span::raw("  "));
             }
             let name = if use_short { short_name } else { long_name };
-            let bullet = if detail_tab == i { "●" } else { "○" };
+            let bullet = if detail_tab == i { "┃" } else { "│" };
             let style = if detail_tab == i {
                 Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             };
             spans.push(Span::styled(
-                format!("{} {} [{}]", bullet, name, index),
+                format!("{} {} [{}] {}", bullet, name, index, bullet),
                 style,
             ));
         }
