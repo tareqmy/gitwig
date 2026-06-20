@@ -199,6 +199,7 @@ pub fn draw(
             | Mode::BranchDeleteConfirm
             | Mode::BranchPushConfirm
             | Mode::BranchMergeConfirm
+            | Mode::BranchRebaseConfirm
             | Mode::TagDeleteConfirm
             | Mode::TagPushConfirm
             | Mode::TagPushAllConfirm
@@ -634,6 +635,15 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = confirm_branch_merge_entries(target, is_remote);
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
+        Mode::BranchRebaseConfirm => {
+            let (target, is_remote) = app
+                .branch_action_target
+                .as_ref()
+                .map(|(name, remote)| (name.as_str(), *remote))
+                .unwrap_or(("", false));
+            let (msg_spans, entries) = confirm_branch_rebase_entries(target, is_remote);
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
+        }
         Mode::TagDeleteConfirm => {
             let (target, is_on_remote) = app
                 .tag_delete_target
@@ -730,6 +740,7 @@ fn detail_dismiss_entries(
             ("Create", "c"),
             ("Delete", "d"),
             ("Merge", "m"),
+            ("Rebase", "r"),
             ("Fetch", "⇧F"),
             ("Pull", "p"),
             ("Push", "⇧P"),
@@ -1089,6 +1100,48 @@ fn confirm_branch_merge_entries(
             Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
         ),
         Span::raw(" into current branch? "),
+    ]);
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Confirm"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled(
+                "y",
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Cancel"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("n/⎋", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (message_spans, entries)
+}
+
+fn confirm_branch_rebase_entries(
+    target: &str,
+    is_remote: bool,
+) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let type_label = if is_remote {
+        "remote-tracking branch"
+    } else {
+        "branch"
+    };
+    let message_spans = Some(vec![
+        Span::raw("Rebase current branch onto "),
+        Span::raw(type_label),
+        Span::raw(" "),
+        Span::styled(
+            format!("\"{}\"", target),
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("? "),
     ]);
     let entries = vec![
         StatusEntry::new(vec![

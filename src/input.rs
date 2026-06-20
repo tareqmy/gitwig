@@ -104,6 +104,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_branch_merge(),
             _ => {}
         },
+        Mode::BranchRebaseConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_branch_rebase(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_branch_rebase(),
+            _ => {}
+        },
         Mode::TagDeleteConfirm => match code {
             KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_tag_delete(),
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_tag_delete(),
@@ -322,6 +327,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char('c') | KeyCode::Char('C') => app.start_branch_create(),
                 KeyCode::Char('d') | KeyCode::Char('D') => app.request_branch_delete(),
                 KeyCode::Char('m') | KeyCode::Char('M') => app.request_branch_merge(),
+                KeyCode::Char('r') | KeyCode::Char('R') => app.request_branch_rebase(),
                 KeyCode::Char('F') => {
                     if app.detail_focus == DetailSection::LocalBranches {
                         app.fetch_selected_branch();

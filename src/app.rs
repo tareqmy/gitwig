@@ -77,6 +77,8 @@ pub enum Mode {
     CommitSearchInput,
     /// Confirming merge of a branch.
     BranchMergeConfirm,
+    /// Confirming rebase onto a branch.
+    BranchRebaseConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -1523,6 +1525,96 @@ impl App {
     }
 
     pub fn cancel_branch_merge(&mut self) {
+        self.branch_action_target = None;
+        self.mode = Mode::Detail;
+    }
+
+    pub fn request_branch_rebase(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if self.detail_focus == DetailSection::LocalBranches {
+                if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
+                    if !branch_info.is_head {
+                        self.branch_action_target = Some((branch_info.name.clone(), false));
+                        self.mode = Mode::BranchRebaseConfirm;
+                    }
+                }
+            } else if self.detail_focus == DetailSection::RemoteBranches {
+                if let Some(branch_info) = info.remote_branches.get(self.remote_branch_selection) {
+                    self.branch_action_target = Some((branch_info.name.clone(), true));
+                    self.mode = Mode::BranchRebaseConfirm;
+                }
+            }
+        }
+    }
+
+    pub fn confirm_branch_rebase(&mut self) {
+        let target = self.branch_action_target.take();
+        self.mode = Mode::Detail;
+
+        if let Some((branch_name, is_remote)) = target {
+            if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+                // Find current checked out branch name (HEAD)
+                let current_branch = match info.local_branches.iter().find(|b| b.is_head) {
+                    Some(b) => b.name.clone(),
+                    None => {
+                        self.status_message = Some(
+                            "No checked-out branch (detached HEAD). Cannot rebase.".to_string(),
+                        );
+                        return;
+                    }
+                };
+
+                // Can't rebase a branch onto itself
+                if !is_remote && branch_name == current_branch {
+                    self.status_message = Some("Cannot rebase a branch onto itself.".to_string());
+                    return;
+                }
+
+                self.fetching = true;
+                self.status_message = Some(format!(
+                    "Rebasing '{}' onto '{}'...",
+                    current_branch, branch_name
+                ));
+
+                let repo_path = resolved.clone();
+                let target_name = branch_name.clone();
+                let tx = self.tx.clone();
+
+                std::thread::spawn(move || {
+                    let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                        let output = std::process::Command::new("git")
+                            .arg("rebase")
+                            .arg(&target_name)
+                            .current_dir(&repo_path)
+                            .output()?;
+
+                        if output.status.success() {
+                            Ok(format!(
+                                "Rebased '{}' onto '{}' successfully",
+                                current_branch, target_name
+                            ))
+                        } else {
+                            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                            let mut err_msg = if !stderr.is_empty() { stderr } else { stdout };
+                            if err_msg.contains("CONFLICT") || err_msg.contains("conflict") {
+                                err_msg = "Rebase conflicts detected. Please resolve in terminal (git rebase --continue/--abort).".to_string();
+                            }
+                            Err(format!("git rebase failed: {}", err_msg).into())
+                        }
+                    })();
+
+                    let msg = match res {
+                        Ok(success) => success,
+                        Err(e) => format!("Rebase failed: {}", e),
+                    };
+                    let _ = tx.send(msg);
+                });
+            }
+        }
+    }
+
+    pub fn cancel_branch_rebase(&mut self) {
         self.branch_action_target = None;
         self.mode = Mode::Detail;
     }
