@@ -62,6 +62,7 @@
 | `c`                  | Detail          | Open commit prompt (Details tab), or Create branch from HEAD (Branches tab) |
 | `d`                  | Detail          | Delete selected branch (Branches tab; asks confirmation) or tag (Tags tab; asks confirmation) |
 | `m`                  | Detail          | Merge selected branch into current branch (Branches tab; asks confirmation) |
+| `r`                  | Detail          | Rebase current branch onto selected branch (Branches tab; asks confirmation) |
 | `/`                  | Detail          | Filter commits list by search query (Details tab) |
 | `?`                  | Detail          | Toggle detail help overlay        |
 | `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |

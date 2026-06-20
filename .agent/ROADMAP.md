@@ -35,7 +35,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Checkout branches (shortcut `Enter` in Branches tab).
 - [x] Create and delete branches.
 - [x] Dedicated Tags tab to list, checkout local/remote tags, delete local tags, and push tag(s) with confirmation dialogs.
-- [ ] Merge and Rebase (basic support).
+- [x] Merge and Rebase (basic support).
 
 - [x] Fetch and Push operations (Fetch via `Shift+F`, Push via `Shift+P` in Branches tab).
 - [x] Pull operations (shortcut `p` in Branches tab).
