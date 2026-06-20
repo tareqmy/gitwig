@@ -159,8 +159,11 @@ The **Remotes** tab lists configured remotes for the repository.
 
 ### Stashes Tab
 
-The **Stashes** tab lists all available stashes in the repository.
-- Select a stash using `↑`/`k` and `↓`/`j` to view its index, commit hash, and stash message in the detail panel on the right.
+The **Stashes** tab lists all available stashes in the repository with a horizontally split layout:
+- **Stashes (Top-Left):** Lists all stashes. Selecting a stash automatically highlights the first file in the files list.
+- **Stashed Files (Bottom-Left):** Lists the files changed/saved in the selected stash.
+- **Stash Diff (Right):** Shows the unified patch diff of the selected file.
+- Navigate stashes or stashed files using `↑`/`k` and `↓`/`j`.
 
 ### Overview Tab
 
@@ -169,10 +172,15 @@ The **Overview** tab displays key repository details including resolved paths, b
 ### Navigation & Interaction
 
 You can navigate and interact with these panels in the following ways:
-- **Cycle Focus:** In the Details, Branches, and Tags tabs, press `w` / `W` to cycle panel focus (e.g. `Commits` → `Staged` → `Unstaged` → `StagingDetails` in the Details tab, toggling between Local and Remote branches in the Branches tab, or Local and Remote tags in the Tags tab). Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Details tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab).
-- **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels and the files list) to focus it immediately.
-- **Mouse Wheel Scroll:** Use the mouse wheel to scroll vertically through the active list, commit history, branch list, files list, or staging details diff.
-- **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, tag, stash, or file tree item in the active list.
+- **Cycle Focus:** In the Details, Branches, Tags, and Stashes tabs, press `w` / `W` to cycle panel focus:
+  - **Details tab:** `Commits` → `Staged` → `Unstaged` → `StagingDetails`.
+  - **Branches tab:** `Local Branches` ↔ `Remote Branches`.
+  - **Tags tab:** `Local Tags` ↔ `Remote Tags`.
+  - **Stashes tab:** `Stashes` → `Stashed Files` → `StagingDetails`.
+  Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Details tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab).
+- **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels, stashed files list, and the files list) to focus it immediately.
+- **Mouse Wheel Scroll:** Use the mouse wheel to scroll vertically through the active list, commit history, branch list, files list, stashed files list, or staging details diff.
+- **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, tag, stash, stashed file, or file tree item in the active list.
 - **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
 - **Stage/Unstage Files:** Select the `Uncommitted changes` row at the top, select a file in either the `Staged` or `Unstaged` list, and press `Enter` to stage or unstage that file instantly.
 - **Network Progress Bar:** Any long-running network operations (such as Fetch, Pull, or Push) will display a centering animated progress bar popup so the UI thread remains responsive and visual feedback is clear.

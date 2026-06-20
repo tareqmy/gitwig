@@ -379,18 +379,31 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 _ => {}
             },
             _ if app.detail_tab == 6 => match code {
-                KeyCode::Up | KeyCode::Char('k') => {
-                    app.stash_up();
-                }
-                KeyCode::Down | KeyCode::Char('j') => {
-                    app.stash_down();
-                }
-                KeyCode::PageUp => {
-                    app.stash_page_up(10);
-                }
-                KeyCode::PageDown => {
-                    app.stash_page_down(10);
-                }
+                KeyCode::Char('w') | KeyCode::Char('W') => app.cycle_detail_focus(),
+                KeyCode::Up | KeyCode::Char('k') => match detail_focus {
+                    DetailSection::Stashes => app.stash_up(),
+                    DetailSection::StashedFiles => app.stash_file_up(),
+                    DetailSection::StagingDetails => app.diff_scroll_up(),
+                    _ => {}
+                },
+                KeyCode::Down | KeyCode::Char('j') => match detail_focus {
+                    DetailSection::Stashes => app.stash_down(),
+                    DetailSection::StashedFiles => app.stash_file_down(),
+                    DetailSection::StagingDetails => app.diff_scroll_down(),
+                    _ => {}
+                },
+                KeyCode::PageUp => match detail_focus {
+                    DetailSection::Stashes => app.stash_page_up(10),
+                    DetailSection::StashedFiles => app.stash_file_page_up(10),
+                    DetailSection::StagingDetails => app.diff_scroll_page_up(10),
+                    _ => {}
+                },
+                KeyCode::PageDown => match detail_focus {
+                    DetailSection::Stashes => app.stash_page_down(10),
+                    DetailSection::StashedFiles => app.stash_file_page_down(10),
+                    DetailSection::StagingDetails => app.diff_scroll_page_down(10),
+                    _ => {}
+                },
                 _ => {}
             },
             _ => {}
@@ -797,6 +810,22 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             } else if is_scroll_down {
                 app.detail_focus = DetailSection::Stashes;
                 app.stash_down();
+            }
+        }
+    }
+    // Stashed files panel.
+    if let Some(rect) = areas.stashed_files {
+        if rect.contains(pos) {
+            if is_click {
+                if app.detail_focus != DetailSection::StashedFiles {
+                    app.detail_focus = DetailSection::StashedFiles;
+                }
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::StashedFiles;
+                app.stash_file_up();
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::StashedFiles;
+                app.stash_file_down();
             }
         }
     }

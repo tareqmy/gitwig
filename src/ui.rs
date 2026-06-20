@@ -145,6 +145,7 @@ pub fn draw(
                 app.local_tag_selection,
                 app.remote_selection,
                 app.stash_selection,
+                app.stash_file_selection,
                 app.file_list_selection,
                 &app.visible_files,
                 app.detail_tab,

@@ -76,6 +76,7 @@ pub enum DetailSection {
     Files,
     Remotes,
     Stashes,
+    StashedFiles,
 }
 
 impl DetailSection {
@@ -94,6 +95,7 @@ impl DetailSection {
             Self::Files => Self::Files,
             Self::Remotes => Self::Remotes,
             Self::Stashes => Self::Stashes,
+            Self::StashedFiles => Self::StashedFiles,
         }
     }
 }
@@ -140,6 +142,8 @@ pub struct App {
     pub remote_selection: usize,
     /// Selected stash index in Stashes tab.
     pub stash_selection: usize,
+    /// Selected file index in the Stashes tab stashed files list.
+    pub stash_file_selection: usize,
     /// Scroll offset for the help overlays.
     pub help_scroll: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
@@ -229,6 +233,7 @@ impl App {
             remote_tag_selection: 0,
             remote_selection: 0,
             stash_selection: 0,
+            stash_file_selection: 0,
             help_scroll: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
@@ -385,6 +390,7 @@ impl App {
             self.remote_tag_selection = 0;
             self.remote_selection = 0;
             self.stash_selection = 0;
+            self.stash_file_selection = 0;
             self.file_list_selection = 0;
             self.expanded_folders.clear();
             self.rebuild_visible_files();
@@ -408,6 +414,14 @@ impl App {
             self.detail_focus = match self.detail_focus {
                 DetailSection::LocalTags => DetailSection::RemoteTags,
                 _ => DetailSection::LocalTags,
+            };
+            return;
+        }
+        if self.detail_tab == 6 {
+            self.detail_focus = match self.detail_focus {
+                DetailSection::Stashes => DetailSection::StashedFiles,
+                DetailSection::StashedFiles => DetailSection::StagingDetails,
+                _ => DetailSection::Stashes,
             };
             return;
         }
@@ -1389,6 +1403,25 @@ impl App {
     }
 
     pub fn refresh_file_diff(&mut self) {
+        if self.detail_tab == 6 {
+            let params = match &self.current_detail {
+                Some(ItemDetail::Repo { resolved, info }) => {
+                    info.stashes.get(self.stash_selection).and_then(|stash| {
+                        stash.files.get(self.stash_file_selection).map(|file| {
+                            (resolved.clone(), stash.commit_id.clone(), file.path.clone())
+                        })
+                    })
+                }
+                _ => None,
+            };
+            if let Some((repo_path, commit_oid, file_path)) = params {
+                self.file_diff = repo::get_commit_file_diff(&repo_path, &commit_oid, &file_path);
+            } else {
+                self.file_diff.clear();
+            }
+            return;
+        }
+
         if self.is_uncommitted_selected() {
             let params = match &self.current_detail {
                 Some(ItemDetail::Repo { resolved, info }) => {
@@ -1772,7 +1805,11 @@ impl App {
                 self.fetch_remote_tags();
             }
             5 => self.detail_focus = DetailSection::Remotes,
-            6 => self.detail_focus = DetailSection::Stashes,
+            6 => {
+                self.detail_focus = DetailSection::Stashes;
+                self.stash_file_selection = 0;
+                self.refresh_file_diff();
+            }
             _ => {}
         }
     }
@@ -1854,6 +1891,8 @@ impl App {
 
     pub fn stash_up(&mut self) {
         self.stash_selection = self.stash_selection.saturating_sub(1);
+        self.stash_file_selection = 0;
+        self.refresh_file_diff();
     }
 
     pub fn stash_down(&mut self) {
@@ -1861,12 +1900,16 @@ impl App {
             let total = info.stashes.len();
             if total > 0 && self.stash_selection + 1 < total {
                 self.stash_selection += 1;
+                self.stash_file_selection = 0;
+                self.refresh_file_diff();
             }
         }
     }
 
     pub fn stash_page_up(&mut self, page: usize) {
         self.stash_selection = self.stash_selection.saturating_sub(page);
+        self.stash_file_selection = 0;
+        self.refresh_file_diff();
     }
 
     pub fn stash_page_down(&mut self, page: usize) {
@@ -1874,6 +1917,43 @@ impl App {
             let total = info.stashes.len();
             if total > 0 {
                 self.stash_selection = (self.stash_selection + page).min(total.saturating_sub(1));
+                self.stash_file_selection = 0;
+                self.refresh_file_diff();
+            }
+        }
+    }
+
+    pub fn stash_file_up(&mut self) {
+        self.stash_file_selection = self.stash_file_selection.saturating_sub(1);
+        self.refresh_file_diff();
+    }
+
+    pub fn stash_file_down(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if let Some(stash) = info.stashes.get(self.stash_selection) {
+                let total = stash.files.len();
+                if total > 0 && self.stash_file_selection + 1 < total {
+                    self.stash_file_selection += 1;
+                    self.refresh_file_diff();
+                }
+            }
+        }
+    }
+
+    pub fn stash_file_page_up(&mut self, page: usize) {
+        self.stash_file_selection = self.stash_file_selection.saturating_sub(page);
+        self.refresh_file_diff();
+    }
+
+    pub fn stash_file_page_down(&mut self, page: usize) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if let Some(stash) = info.stashes.get(self.stash_selection) {
+                let total = stash.files.len();
+                if total > 0 {
+                    self.stash_file_selection =
+                        (self.stash_file_selection + page).min(total.saturating_sub(1));
+                    self.refresh_file_diff();
+                }
             }
         }
     }

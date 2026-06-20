@@ -84,8 +84,10 @@ pub struct BranchInfo {
 #[derive(Debug, Clone, Default)]
 pub struct StashInfo {
     pub index: usize,
+    #[allow(dead_code)]
     pub message: String,
     pub commit_id: String,
+    pub files: Vec<FileEntry>,
 }
 
 #[derive(Debug, Default)]
@@ -621,17 +623,25 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
     }
     info.files = files;
 
-    let mut stashes = Vec::new();
+    let mut temp_stashes = Vec::new();
     let _ = repo.stash_foreach(|index, message, oid| {
-        let id = oid.to_string();
-        let short_sha = id[..7.min(id.len())].to_string();
-        stashes.push(StashInfo {
-            index,
-            message: message.to_string(),
-            commit_id: short_sha,
-        });
+        temp_stashes.push((index, message.to_string(), *oid));
         true
     });
+
+    let mut stashes = Vec::new();
+    for (index, message, oid) in temp_stashes {
+        let mut files = Vec::new();
+        if let Ok(commit) = repo.find_commit(oid) {
+            files = commit_changed_files(&repo, &commit);
+        }
+        stashes.push(StashInfo {
+            index,
+            message,
+            commit_id: oid.to_string(),
+            files,
+        });
+    }
     info.stashes = stashes;
 
     Ok(info)

@@ -74,6 +74,8 @@ pub struct DetailAreas {
     pub remotes: Option<Rect>,
     /// Bounding box of the stashes panel.
     pub stashes: Option<Rect>,
+    /// Bounding box of the stashed files panel.
+    pub stashed_files: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -95,6 +97,7 @@ pub fn draw(
     local_tag_selection: usize,
     remote_selection: usize,
     stash_selection: usize,
+    stash_file_selection: usize,
     file_list_selection: usize,
     visible_files: &[crate::app::FileTreeItem],
     detail_tab: usize,
@@ -377,7 +380,17 @@ pub fn draw(
                 draw_remotes_view(f, info, *focus, remote_selection, areas, body_area);
             } else if detail_tab == 6 {
                 // Render Stashes view (tab 7, index 6)
-                draw_stashes_view(f, info, *focus, stash_selection, areas, body_area);
+                draw_stashes_view(
+                    f,
+                    info,
+                    *focus,
+                    stash_selection,
+                    stash_file_selection,
+                    file_diff,
+                    diff_scroll,
+                    areas,
+                    body_area,
+                );
             } else {
                 // Render Overview tab (tab 8, index 7)
                 draw_overview_tab(f, resolved, info, body_area);
@@ -2423,15 +2436,27 @@ fn draw_tag_push_all_popup(f: &mut Frame, area: Rect) {
     f.render_widget(paragraph, popup_area);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_stashes_view(
     f: &mut Frame,
     info: &RepoInfo,
     focus: DetailSection,
     stash_selection: usize,
+    stash_file_selection: usize,
+    file_diff: &[DiffLine],
+    diff_scroll: usize,
     areas: &mut DetailAreas,
     area: Rect,
 ) {
-    areas.stashes = Some(area);
+    areas.bottom_left = None;
+    areas.bottom_right = None;
+    areas.commits = None;
+    areas.local_branches = None;
+    areas.remote_branches = None;
+    areas.local_tags = None;
+    areas.remote_tags = None;
+    areas.files = None;
+    areas.remotes = None;
 
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -2441,18 +2466,29 @@ fn draw_stashes_view(
     let left_area = chunks[0];
     let right_area = chunks[1];
 
-    let focused = focus == DetailSection::Stashes;
-    let border_style = if focused {
+    areas.bottom_right = Some(right_area);
+
+    // Split left area horizontally: top = Stashes list, bottom = Stashed files
+    let left_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(left_area);
+
+    areas.stashes = Some(left_chunks[0]);
+    areas.stashed_files = Some(left_chunks[1]);
+
+    // ── Stashes List Panel ──
+    let stashes_focused = focus == DetailSection::Stashes;
+    let stashes_border_style = if stashes_focused {
         Style::default().fg(ACCENT)
     } else {
         muted_style()
     };
 
-    // ── Stashes List Panel ──
     let list_block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER)
-        .border_style(border_style)
+        .border_style(stashes_border_style)
         .title(Line::from(vec![
             Span::raw(" "),
             Span::styled("Stashes", primary_style()),
@@ -2476,50 +2512,98 @@ fn draw_stashes_view(
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
     let mut list_state = ListState::default();
-    if focused {
+    if stashes_focused || !info.stashes.is_empty() {
         list_state.select(Some(stash_selection));
     }
-    f.render_stateful_widget(list, left_area, &mut list_state);
+    f.render_stateful_widget(list, left_chunks[0], &mut list_state);
 
-    // ── Stash Details Panel ──
-    let details_block = Block::default()
+    // ── Stashed Files List Panel ──
+    let files_focused = focus == DetailSection::StashedFiles;
+    let selected_stash = info.stashes.get(stash_selection);
+    let stashed_files = selected_stash.map(|s| s.files.as_slice()).unwrap_or(&[]);
+
+    draw_file_subpanel(
+        f,
+        "Stashed Files",
+        WARNING,
+        stashed_files,
+        "No files in this stash",
+        Borders::ALL,
+        files_focused,
+        if files_focused || !stashed_files.is_empty() {
+            Some(stash_file_selection)
+        } else {
+            None
+        },
+        left_chunks[1],
+    );
+
+    // ── Right panel: Diff/Stash Details ──
+    let diff_focused = focus == DetailSection::StagingDetails;
+    let right_border_style = if diff_focused {
+        Style::default().fg(ACCENT)
+    } else {
+        muted_style()
+    };
+
+    let selected_file_name: Option<String> = stashed_files
+        .get(stash_file_selection)
+        .map(|e| e.path.clone());
+
+    let right_block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER)
-        .border_style(muted_style())
+        .border_style(right_border_style)
         .title(Line::from(vec![
             Span::raw(" "),
-            Span::styled("Stash Details", primary_style()),
+            Span::styled("Stash Diff", primary_style()),
+            if let Some(ref name) = selected_file_name {
+                Span::styled(format!("  {}", name), muted_style())
+            } else {
+                Span::raw("")
+            },
             Span::raw(" "),
         ]))
         .padding(Padding::uniform(1));
 
-    let mut details_lines = Vec::new();
-    if let Some(selected_stash) = info.stashes.get(stash_selection) {
-        details_lines.push(Line::from(""));
-        details_lines.push(Line::from(vec![
-            Span::styled("  Stash:     ", accent_style()),
-            Span::styled(
-                format!("stash@{{{}}}", selected_stash.index),
-                primary_style(),
-            ),
-        ]));
-        details_lines.push(Line::from(vec![
-            Span::styled("  Commit ID: ", accent_style()),
-            Span::raw(selected_stash.commit_id.clone()),
-        ]));
-        details_lines.push(Line::from(""));
-        details_lines.push(Line::from(vec![
-            Span::styled("  Message:   ", accent_style()),
-            Span::raw(selected_stash.message.clone()),
-        ]));
-    } else {
-        details_lines.push(Line::from(""));
-        details_lines.push(Line::from(Span::styled(
-            "  No stashes found",
-            muted_style(),
-        )));
-    }
+    let right_inner = right_block.inner(right_area);
+    f.render_widget(right_block, right_area);
 
-    let details_paragraph = Paragraph::new(details_lines).block(details_block);
-    f.render_widget(details_paragraph, right_area);
+    if file_diff.is_empty() {
+        let v_center = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(45),
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
+            .split(right_inner);
+        f.render_widget(
+            Paragraph::new(Span::styled(
+                "Select a file to view its diff",
+                muted_style(),
+            ))
+            .alignment(Alignment::Center),
+            v_center[1],
+        );
+    } else {
+        let diff_spans: Vec<Line> = file_diff
+            .iter()
+            .map(|line| {
+                let style = match line.kind {
+                    DiffLineKind::Added => Style::default().fg(SUCCESS),
+                    DiffLineKind::Removed => Style::default().fg(DANGER),
+                    DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
+                    DiffLineKind::Context => Style::default(),
+                };
+                Line::from(Span::styled(line.content.clone(), style))
+            })
+            .collect();
+        f.render_widget(
+            Paragraph::new(diff_spans)
+                .scroll((diff_scroll as u16, 0))
+                .wrap(Wrap { trim: false }),
+            right_inner,
+        );
+    }
 }
