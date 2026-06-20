@@ -11,7 +11,7 @@ use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
+use ratatui::widgets::{Block, BorderType, Borders, Clear, Gauge, Padding, Paragraph, Wrap};
 
 use crate::app::{App, ITEM_HEIGHT, Mode};
 use crate::repo::{ItemStatus, RepoSummary};
@@ -172,6 +172,10 @@ pub fn draw(
 
     if matches!(app.mode, Mode::Help) {
         draw_help_overlay(f, area, app.help_scroll);
+    }
+
+    if app.fetching {
+        draw_progress_popup(f, area, app);
     }
 }
 
@@ -1174,4 +1178,49 @@ fn confirm_tag_push_all_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntr
         ]),
     ];
     (message_spans, entries)
+}
+
+fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
+    let popup_area = centered_rect(50, 15, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT);
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Network Operation", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(2));
+
+    let inner = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Min(0),
+        ])
+        .split(inner);
+
+    let status_text = app
+        .status_message
+        .as_deref()
+        .unwrap_or("Executing Git network operation...");
+    let status_para = Paragraph::new(Line::from(vec![Span::styled(status_text, muted_style())]));
+    f.render_widget(status_para, chunks[0]);
+
+    let gauge = Gauge::default()
+        .block(Block::default().padding(Padding::ZERO))
+        .gauge_style(Style::default().fg(ACCENT))
+        .percent(app.fetch_progress)
+        .use_unicode(true);
+    f.render_widget(gauge, chunks[2]);
 }

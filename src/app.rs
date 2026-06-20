@@ -174,6 +174,8 @@ pub struct App {
     pub tag_delete_target: Option<(String, bool)>,
     /// Target tag name for push action.
     pub tag_push_target: Option<String>,
+    /// Simulated fetch progress percentage.
+    pub fetch_progress: u16,
 }
 
 #[derive(Clone, Debug)]
@@ -241,6 +243,7 @@ impl App {
             tag_action_target_oid: None,
             tag_delete_target: None,
             tag_push_target: None,
+            fetch_progress: 0,
         }
     }
 
@@ -1988,9 +1991,13 @@ where
 
         // Transient feedback disappears after one frame, unless we are fetching.
         if app.fetching {
-            app.status_message = Some("Fetching...".to_string());
+            if app.status_message.is_none() {
+                app.status_message = Some("Executing Git operation...".to_string());
+            }
+            app.fetch_progress = (app.fetch_progress + 5) % 105;
         } else {
             app.status_message = None;
+            app.fetch_progress = 0;
         }
 
         if event::poll(std::time::Duration::from_millis(

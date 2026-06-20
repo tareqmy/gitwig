@@ -13,6 +13,10 @@ use crate::app::{App, DetailSection, Mode};
 pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     let code = key.code;
 
+    if app.fetching {
+        return true;
+    }
+
     // Toggle status bar expanded mode with '.' (except in text input fields)
     let is_text_input = matches!(
         app.mode,
