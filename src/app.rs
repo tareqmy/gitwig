@@ -1822,6 +1822,19 @@ impl App {
     pub fn commit_add(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
         if !trimmed.is_empty() {
+            let new_expanded = repo::expand_tilde(&trimmed);
+            let already_exists = self
+                .config
+                .items
+                .iter()
+                .any(|item| item.trim() == trimmed || repo::expand_tilde(item) == new_expanded);
+            if already_exists {
+                self.status_message = Some("Repository already added".to_string());
+                self.input_buffer.clear();
+                self.mode = Mode::Normal;
+                return;
+            }
+
             let status = repo::inspect_summary(&trimmed);
             self.statuses.push(status);
             self.config.items.push(trimmed.clone());
@@ -1843,6 +1856,17 @@ impl App {
     pub fn add_repo_path(&mut self, path: String) {
         let trimmed = path.trim().to_string();
         if !trimmed.is_empty() {
+            let new_expanded = repo::expand_tilde(&trimmed);
+            let already_exists = self
+                .config
+                .items
+                .iter()
+                .any(|item| item.trim() == trimmed || repo::expand_tilde(item) == new_expanded);
+            if already_exists {
+                self.status_message = Some("Repository already added".to_string());
+                return;
+            }
+
             let status = repo::inspect_summary(&trimmed);
             self.statuses.push(status);
             self.config.items.push(trimmed.clone());
@@ -2497,6 +2521,16 @@ mod tests {
     use crate::config::SortOrder;
     use std::collections::HashMap;
 
+    struct TestFileGuard {
+        path: PathBuf,
+    }
+
+    impl Drop for TestFileGuard {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+
     #[test]
     fn test_sorting_logic() {
         let config = Config {
@@ -2510,7 +2544,9 @@ mod tests {
             visits: HashMap::new(),
             sort_reverse: false,
         };
-        let mut app = App::new(config, PathBuf::from("dummy_path"));
+        let temp_path = std::env::temp_dir().join("twig_test_config_sort.toml");
+        let _guard = TestFileGuard { path: temp_path.clone() };
+        let mut app = App::new(config, temp_path);
 
         // Assert initial custom sort
         assert_eq!(app.config.items[0], "z_repo");
@@ -2546,5 +2582,102 @@ mod tests {
         assert_eq!(app.config.items[0], "z_repo");
         assert_eq!(app.config.items[1], "a_repo");
         assert_eq!(app.config.items[2], "m_repo");
+    }
+
+    #[test]
+    fn test_duplicate_prevention() {
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_duplicate.toml");
+        // Ensure starting with a clean state and clean up upon drop
+        let _ = std::fs::remove_file(&temp_path);
+        let _guard = TestFileGuard { path: temp_path.clone() };
+        let mut app = App::new(config, temp_path);
+
+        // 1. Test adding a repository via input buffer (commit_add)
+        app.input_buffer = " /path/to/repo ".to_string(); // trimmed to "/path/to/repo"
+        app.commit_add();
+        assert_eq!(app.config.items.len(), 1);
+        assert_eq!(app.config.items[0], "/path/to/repo");
+        assert_eq!(app.status_message, Some("Saved".to_string()));
+        app.status_message = None; // Reset
+
+        // 2. Test trying to add the exact same repo path again (via commit_add)
+        app.input_buffer = "/path/to/repo".to_string();
+        app.commit_add();
+        assert_eq!(app.config.items.len(), 1);
+        assert_eq!(
+            app.status_message,
+            Some("Repository already added".to_string())
+        );
+        app.status_message = None; // Reset
+
+        // 3. Test trying to add a tilde version of the same repo when it's resolved
+        if let Some(home) = dirs::home_dir() {
+            let home_str = home.to_string_lossy().to_string();
+            // First add the tilde path
+            app.input_buffer = "~/my_cool_repo".to_string();
+            app.commit_add();
+            assert_eq!(app.config.items.len(), 2);
+            assert_eq!(app.config.items[1], "~/my_cool_repo");
+            assert_eq!(app.status_message, Some("Saved".to_string()));
+            app.status_message = None; // Reset
+
+            // Now try to add the expanded absolute path
+            let expanded_path = format!("{}/my_cool_repo", home_str);
+            app.input_buffer = expanded_path;
+            app.commit_add();
+            // Should be rejected
+            assert_eq!(app.config.items.len(), 2);
+            assert_eq!(
+                app.status_message,
+                Some("Repository already added".to_string())
+            );
+            app.status_message = None; // Reset
+
+            // Try the opposite direction: add a new absolute path, then try to add with tilde
+            let new_abs = format!("{}/another_cool_repo", home_str);
+            app.input_buffer = new_abs;
+            app.commit_add();
+            assert_eq!(app.config.items.len(), 3);
+            assert_eq!(
+                app.config.items[2],
+                format!("{}/another_cool_repo", home_str)
+            );
+            assert_eq!(app.status_message, Some("Saved".to_string()));
+            app.status_message = None; // Reset
+
+            // Now try to add with tilde
+            app.input_buffer = "~/another_cool_repo".to_string();
+            app.commit_add();
+            // Should be rejected
+            assert_eq!(app.config.items.len(), 3);
+            assert_eq!(
+                app.status_message,
+                Some("Repository already added".to_string())
+            );
+            app.status_message = None; // Reset
+        }
+
+        // 4. Test adding via add_repo_path directly
+        let len_before = app.config.items.len();
+        app.add_repo_path(" /another/path ".to_string());
+        assert_eq!(app.config.items.len(), len_before + 1);
+        assert_eq!(app.config.items.last().unwrap(), "/another/path");
+        assert_eq!(app.status_message, Some("Added repository".to_string()));
+        app.status_message = None; // Reset
+
+        // Try duplicate via add_repo_path
+        app.add_repo_path("/another/path".to_string());
+        assert_eq!(app.config.items.len(), len_before + 1);
+        assert_eq!(
+            app.status_message,
+            Some("Repository already added".to_string())
+        );
     }
 }
