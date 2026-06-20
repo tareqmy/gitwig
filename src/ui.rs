@@ -60,7 +60,7 @@ pub(crate) fn accent_style() -> Style {
 
 /// Lines of the help overlay. Update this whenever a binding is added or
 /// renamed — it is the user's only complete shortcut reference.
-const HELP_LINES: &[(&str, &str)] = &[
+pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("↑ [Up] / k", "Move selection up / scroll up"),
     ("↓ [Down] / j", "Move selection down / scroll down"),
     ("⇟ [PgDn]", "Jump one page down / page down"),
@@ -146,6 +146,7 @@ pub fn draw(
                 &app.visible_files,
                 app.detail_tab,
                 app.graph_scroll,
+                app.help_scroll,
                 detail_areas,
                 &app.input_buffer,
                 app.commit_editing,
@@ -165,7 +166,7 @@ pub fn draw(
     draw_status_bar(f, app, status_chunk);
 
     if matches!(app.mode, Mode::Help) {
-        draw_help_overlay(f, area);
+        draw_help_overlay(f, area, app.help_scroll);
     }
 }
 
@@ -910,7 +911,7 @@ fn draw_input_status(f: &mut Frame, area: Rect, verb: &str, buffer: &str) {
     f.set_cursor_position(Position::new(cursor_x, area.y));
 }
 
-fn draw_help_overlay(f: &mut Frame, area: Rect) {
+fn draw_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
     let popup_area = centered_rect(60, 70, area);
 
     let key_width = HELP_LINES
@@ -1012,13 +1013,31 @@ fn draw_help_overlay(f: &mut Frame, area: Rect) {
         )
         .padding(Padding::horizontal(1));
 
+    let inner_height = popup_area.height.saturating_sub(2) as usize;
+    let max_scroll = lines.len().saturating_sub(inner_height);
+    let scroll = scroll.min(max_scroll);
+
+    let lines_len = lines.len();
     let help = Paragraph::new(lines)
         .block(help_block)
-        .wrap(Wrap { trim: false });
+        .wrap(Wrap { trim: false })
+        .scroll((scroll as u16, 0));
 
     // Clear wipes the underlying cells so the list doesn't bleed through.
     f.render_widget(Clear, popup_area);
     f.render_widget(help, popup_area);
+
+    if max_scroll > 0 {
+        let mut scrollbar_state = ratatui::widgets::ScrollbarState::new(lines_len)
+            .position(scroll)
+            .viewport_content_length(inner_height);
+        let scrollbar =
+            ratatui::widgets::Scrollbar::new(ratatui::widgets::ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("▲"))
+                .end_symbol(Some("▼"))
+                .thumb_style(Style::default().fg(ACCENT));
+        f.render_stateful_widget(scrollbar, popup_area, &mut scrollbar_state);
+    }
 }
 
 /// Returns a `Rect` of `(percent_x, percent_y)` dimensions, centered inside `area`.

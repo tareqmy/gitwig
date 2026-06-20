@@ -128,6 +128,8 @@ pub struct App {
     pub local_tag_selection: usize,
     /// Selected remote tag index in Tags/Branches tabs.
     pub remote_tag_selection: usize,
+    /// Scroll offset for the help overlays.
+    pub help_scroll: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
     pub detail_areas: DetailAreas,
     /// Main panel item bounding boxes recorded after each draw, used for mouse hit-testing.
@@ -207,6 +209,7 @@ impl App {
             remote_branch_selection: 0,
             local_tag_selection: 0,
             remote_tag_selection: 0,
+            help_scroll: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
             last_click: None,
@@ -248,6 +251,21 @@ impl App {
         let max_scroll = self.config.items.len().saturating_sub(visible_count);
         if self.scroll_top > max_scroll {
             self.scroll_top = max_scroll;
+        }
+    }
+
+    /// Clamp the help scroll value so it doesn't go out of bounds.
+    pub fn clamp_help_scroll(&mut self, height: usize) {
+        let (percent_y, lines_len) = match self.mode {
+            Mode::Help => (70, crate::ui::HELP_LINES.len() + 14),
+            Mode::DetailHelp => (55, crate::ui_detail::DETAIL_HELP_LINES.len() + 2),
+            _ => return,
+        };
+        let popup_height = (height * percent_y) / 100;
+        let inner_height = popup_height.saturating_sub(2);
+        let max_scroll = lines_len.saturating_sub(inner_height);
+        if self.help_scroll > max_scroll {
+            self.help_scroll = max_scroll;
         }
     }
 
@@ -306,6 +324,7 @@ impl App {
     }
 
     pub fn open_help(&mut self) {
+        self.help_scroll = 0;
         self.mode = Mode::Help;
     }
 
@@ -1280,6 +1299,7 @@ impl App {
 
     /// Opens the shortcut help overlay inside the detail view.
     pub fn open_detail_help(&mut self) {
+        self.help_scroll = 0;
         self.mode = Mode::DetailHelp;
     }
 
@@ -1599,6 +1619,22 @@ impl App {
             }
         }
     }
+
+    pub fn help_scroll_up(&mut self) {
+        self.help_scroll = self.help_scroll.saturating_sub(1);
+    }
+
+    pub fn help_scroll_down(&mut self) {
+        self.help_scroll = self.help_scroll.saturating_add(1);
+    }
+
+    pub fn help_scroll_page_up(&mut self, amount: usize) {
+        self.help_scroll = self.help_scroll.saturating_sub(amount);
+    }
+
+    pub fn help_scroll_page_down(&mut self, amount: usize) {
+        self.help_scroll = self.help_scroll.saturating_add(amount);
+    }
 }
 
 /// Main event loop: compute layout, draw, poll input, repeat.
@@ -1688,6 +1724,7 @@ where
         let visible_count =
             (available_height / ITEM_HEIGHT).min(app.config.items.len() as u16) as usize;
         app.clamp_scroll(visible_count);
+        app.clamp_help_scroll(area.height as usize);
 
         // Capture panel rects from the draw pass for mouse hit-testing.
         let mut detail_areas = DetailAreas::default();

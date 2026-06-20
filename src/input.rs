@@ -92,6 +92,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_dialog();
             }
+            KeyCode::Up | KeyCode::Char('k') => {
+                app.help_scroll_up();
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                app.help_scroll_down();
+            }
+            KeyCode::PageUp => {
+                app.help_scroll_page_up(10);
+            }
+            KeyCode::PageDown => {
+                app.help_scroll_page_down(10);
+            }
             _ => {}
         },
         Mode::Detail => match code {
@@ -324,6 +336,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_detail_help();
             }
+            KeyCode::Up | KeyCode::Char('k') => {
+                app.help_scroll_up();
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                app.help_scroll_down();
+            }
+            KeyCode::PageUp => {
+                app.help_scroll_page_up(10);
+            }
+            KeyCode::PageDown => {
+                app.help_scroll_page_down(10);
+            }
             _ => {}
         },
         Mode::CommitInput => {
@@ -367,6 +391,15 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         x: mouse.column,
         y: mouse.row,
     };
+
+    if app.mode == Mode::Help || app.mode == Mode::DetailHelp {
+        if is_scroll_up {
+            app.help_scroll_up();
+        } else if is_scroll_down {
+            app.help_scroll_down();
+        }
+        return;
+    }
 
     if app.mode == Mode::Normal {
         if is_click {

@@ -93,6 +93,7 @@ pub fn draw(
     visible_files: &[crate::app::FileTreeItem],
     detail_tab: usize,
     graph_scroll: usize,
+    help_scroll: usize,
     areas: &mut DetailAreas,
     input_buffer: &str,
     commit_editing: bool,
@@ -351,7 +352,7 @@ pub fn draw(
             }
             // Draw detail help overlay on top when requested.
             if matches!(mode, Mode::DetailHelp) {
-                draw_detail_help_overlay(f, body_area);
+                draw_detail_help_overlay(f, body_area, help_scroll);
             }
             // Draw commit popup on top when requested.
             if matches!(mode, Mode::CommitInput) {
@@ -921,7 +922,7 @@ fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 
 // ── Detail help overlay ────────────────────────────────────────────────────
 
-const DETAIL_HELP_LINES: &[(&str, &str)] = &[
+pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     (
         "↑ [Up] / k",
         "Select previous commit / file / branch / file tree item",
@@ -960,7 +961,7 @@ const DETAIL_HELP_LINES: &[(&str, &str)] = &[
 ];
 
 /// Renders a floating shortcut reference overlay centred over `area`.
-fn draw_detail_help_overlay(f: &mut Frame, area: Rect) {
+fn draw_detail_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
     let popup_area = centred_rect(60, 55, area);
     f.render_widget(Clear, popup_area);
 
@@ -998,8 +999,27 @@ fn draw_detail_help_overlay(f: &mut Frame, area: Rect) {
         ]))
         .padding(Padding::horizontal(1));
 
-    let para = Paragraph::new(lines).block(block);
+    let inner_height = popup_area.height.saturating_sub(2) as usize;
+    let max_scroll = lines.len().saturating_sub(inner_height);
+    let scroll = scroll.min(max_scroll);
+
+    let lines_len = lines.len();
+    let para = Paragraph::new(lines)
+        .block(block)
+        .scroll((scroll as u16, 0));
     f.render_widget(para, popup_area);
+
+    if max_scroll > 0 {
+        let mut scrollbar_state = ratatui::widgets::ScrollbarState::new(lines_len)
+            .position(scroll)
+            .viewport_content_length(inner_height);
+        let scrollbar =
+            ratatui::widgets::Scrollbar::new(ratatui::widgets::ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("▲"))
+                .end_symbol(Some("▼"))
+                .thumb_style(Style::default().fg(ACCENT));
+        f.render_stateful_widget(scrollbar, popup_area, &mut scrollbar_state);
+    }
 }
 
 fn draw_detail_commits(
