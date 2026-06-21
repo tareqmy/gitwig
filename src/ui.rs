@@ -259,6 +259,9 @@ pub fn draw(
                 app.workspace_main_split_pct,
                 app.files_horizontal_split_pct,
                 app.branches_horizontal_split_pct,
+                app.stashes_horizontal_split_pct,
+                app.stashes_vertical_split_pct,
+                app.overview_horizontal_split_pct,
                 content_area,
             );
         }

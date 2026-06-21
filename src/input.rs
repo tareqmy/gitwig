@@ -827,6 +827,39 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         }
                     }
                 }
+                Splitter::StashesHorizontal => {
+                    if let (Some(stashes), Some(right)) = (areas.stashes, areas.bottom_right) {
+                        let start_x = stashes.x;
+                        let total_width = (right.x + right.width).saturating_sub(start_x);
+                        if total_width > 0 {
+                            let relative_x = pos.x.saturating_sub(start_x);
+                            let pct = ((relative_x as f32 / total_width as f32) * 100.0) as u16;
+                            app.stashes_horizontal_split_pct = pct.clamp(15, 85);
+                        }
+                    }
+                }
+                Splitter::StashesVertical => {
+                    if let (Some(top), Some(bottom)) = (areas.stashes, areas.stashed_files) {
+                        let start_y = top.y;
+                        let total_height = (bottom.y + bottom.height).saturating_sub(start_y);
+                        if total_height > 0 {
+                            let relative_y = pos.y.saturating_sub(start_y);
+                            let pct = ((relative_y as f32 / total_height as f32) * 100.0) as u16;
+                            app.stashes_vertical_split_pct = pct.clamp(15, 85);
+                        }
+                    }
+                }
+                Splitter::OverviewHorizontal => {
+                    if let Some(tab_bar) = areas.tab_bar {
+                        let start_x = tab_bar.x;
+                        let total_width = tab_bar.width;
+                        if total_width > 0 {
+                            let relative_x = pos.x.saturating_sub(start_x);
+                            let pct = ((relative_x as f32 / total_width as f32) * 100.0) as u16;
+                            app.overview_horizontal_split_pct = pct.clamp(15, 85);
+                        }
+                    }
+                }
             }
         }
         return;
@@ -860,6 +893,24 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         if let Some(rect) = areas.branches_horizontal_splitter {
             if rect.contains(pos) {
                 app.active_drag_splitter = Some(Splitter::BranchesHorizontal);
+                return;
+            }
+        }
+        if let Some(rect) = areas.stashes_horizontal_splitter {
+            if rect.contains(pos) {
+                app.active_drag_splitter = Some(Splitter::StashesHorizontal);
+                return;
+            }
+        }
+        if let Some(rect) = areas.stashes_vertical_splitter {
+            if rect.contains(pos) {
+                app.active_drag_splitter = Some(Splitter::StashesVertical);
+                return;
+            }
+        }
+        if let Some(rect) = areas.overview_horizontal_splitter {
+            if rect.contains(pos) {
+                app.active_drag_splitter = Some(Splitter::OverviewHorizontal);
                 return;
             }
         }

@@ -114,6 +114,9 @@ pub enum Splitter {
     WorkspaceMain,      // Commits list vs staging/files details (vertical split, top/bottom)
     FilesHorizontal,    // Files view: left (tree) vs right (preview)
     BranchesHorizontal, // Branches view: left (local) vs right (remote)
+    StashesHorizontal,  // Stashes view: left (lists) vs right (diff)
+    StashesVertical,    // Stashes view: top list vs bottom files list
+    OverviewHorizontal, // Overview view: left (info) vs right (stats)
 }
 
 impl DetailSection {
@@ -251,6 +254,12 @@ pub struct App {
     pub files_horizontal_split_pct: u16,
     /// Percentage width of the local branches list in the Branches tab (default: 50).
     pub branches_horizontal_split_pct: u16,
+    /// Percentage width of the left list column in the Stashes tab (default: 35).
+    pub stashes_horizontal_split_pct: u16,
+    /// Percentage height of the top stashes list in the Stashes tab (default: 50).
+    pub stashes_vertical_split_pct: u16,
+    /// Percentage width of the left overview panel in the Overview tab (default: 50).
+    pub overview_horizontal_split_pct: u16,
     /// Active drag splitter if dragging is in progress.
     pub active_drag_splitter: Option<Splitter>,
 }
@@ -340,6 +349,9 @@ impl App {
             workspace_main_split_pct: 50,
             files_horizontal_split_pct: 45,
             branches_horizontal_split_pct: 50,
+            stashes_horizontal_split_pct: 35,
+            stashes_vertical_split_pct: 50,
+            overview_horizontal_split_pct: 50,
             active_drag_splitter: None,
         };
 
@@ -3868,6 +3880,7 @@ mod tests {
         assert_eq!(app.active_drag_splitter, None);
 
         // Test Branches splitter dragging
+        app.detail_areas = DetailAreas::default();
         app.detail_areas.local_branches = Some(Rect::new(0, 0, 50, 50));
         app.detail_areas.remote_branches = Some(Rect::new(50, 0, 50, 50));
         app.detail_areas.branches_horizontal_splitter = Some(Rect::new(49, 0, 2, 50));
@@ -3897,6 +3910,100 @@ mod tests {
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
         crate::input::handle_mouse(&mut app, up_event_branches);
+        assert_eq!(app.active_drag_splitter, None);
+
+        // Test Stashes splitter dragging (horizontal & vertical)
+        app.detail_areas = DetailAreas::default();
+        app.detail_areas.stashes = Some(Rect::new(0, 0, 35, 25));
+        app.detail_areas.stashed_files = Some(Rect::new(0, 25, 35, 25));
+        app.detail_areas.bottom_right = Some(Rect::new(35, 0, 65, 50));
+        app.detail_areas.stashes_horizontal_splitter = Some(Rect::new(34, 0, 2, 50));
+        app.detail_areas.stashes_vertical_splitter = Some(Rect::new(0, 24, 35, 2));
+
+        // Click stashes horizontal splitter
+        let down_stashes_h = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 34,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, down_stashes_h);
+        assert_eq!(app.active_drag_splitter, Some(Splitter::StashesHorizontal));
+
+        let drag_stashes_h = MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: 40,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, drag_stashes_h);
+        assert_eq!(app.stashes_horizontal_split_pct, 40);
+
+        let up_stashes_h = MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Left),
+            column: 40,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, up_stashes_h);
+
+        // Click stashes vertical splitter
+        let down_stashes_v = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 10,
+            row: 24,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, down_stashes_v);
+        assert_eq!(app.active_drag_splitter, Some(Splitter::StashesVertical));
+
+        let drag_stashes_v = MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: 10,
+            row: 30,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, drag_stashes_v);
+        assert_eq!(app.stashes_vertical_split_pct, 60);
+
+        let up_stashes_v = MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Left),
+            column: 10,
+            row: 30,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, up_stashes_v);
+
+        // Test Overview splitter dragging
+        app.detail_areas = DetailAreas::default();
+        app.detail_areas.tab_bar = Some(Rect::new(0, 0, 100, 2));
+        app.detail_areas.overview_horizontal_splitter = Some(Rect::new(49, 2, 2, 48));
+
+        let down_overview = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 49,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, down_overview);
+        assert_eq!(app.active_drag_splitter, Some(Splitter::OverviewHorizontal));
+
+        let drag_overview = MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: 30,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, drag_overview);
+        assert_eq!(app.overview_horizontal_split_pct, 30);
+
+        let up_overview = MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Left),
+            column: 30,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, up_overview);
         assert_eq!(app.active_drag_splitter, None);
     }
 }

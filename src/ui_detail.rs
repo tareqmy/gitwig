@@ -84,6 +84,12 @@ pub struct DetailAreas {
     pub files_horizontal_splitter: Option<Rect>,
     /// Bounding box of the horizontal splitter in branches tab.
     pub branches_horizontal_splitter: Option<Rect>,
+    /// Bounding box of the horizontal splitter in stashes tab.
+    pub stashes_horizontal_splitter: Option<Rect>,
+    /// Bounding box of the vertical splitter in left panel of stashes tab.
+    pub stashes_vertical_splitter: Option<Rect>,
+    /// Bounding box of the horizontal splitter in overview tab.
+    pub overview_horizontal_splitter: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -129,6 +135,9 @@ pub fn draw(
     workspace_main_split_pct: u16,
     files_horizontal_split_pct: u16,
     branches_horizontal_split_pct: u16,
+    stashes_horizontal_split_pct: u16,
+    stashes_vertical_split_pct: u16,
+    overview_horizontal_split_pct: u16,
     area: Rect,
 ) {
     if mode == &Mode::Inspect {
@@ -471,11 +480,20 @@ pub fn draw(
                     file_diff,
                     diff_scroll,
                     areas,
+                    stashes_horizontal_split_pct,
+                    stashes_vertical_split_pct,
                     body_area,
                 );
             } else {
                 // Render Overview tab (tab 8, index 7)
-                draw_overview_tab(f, resolved, info, body_area);
+                draw_overview_tab(
+                    f,
+                    resolved,
+                    info,
+                    overview_horizontal_split_pct,
+                    areas,
+                    body_area,
+                );
             }
             // Draw detail help overlay on top when requested.
             if matches!(mode, Mode::DetailHelp) {
@@ -1045,11 +1063,30 @@ fn draw_file_subpanel(
 // ── Overview popup ─────────────────────────────────────────────────────────
 
 /// Renders the repo overview as a floating popup centred over `area`.
-fn draw_overview_tab(f: &mut Frame, resolved: &std::path::Path, info: &RepoInfo, area: Rect) {
+fn draw_overview_tab(
+    f: &mut Frame,
+    resolved: &std::path::Path,
+    info: &RepoInfo,
+    overview_horizontal_split_pct: u16,
+    areas: &mut DetailAreas,
+    area: Rect,
+) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([
+            Constraint::Percentage(overview_horizontal_split_pct),
+            Constraint::Percentage(100 - overview_horizontal_split_pct),
+        ])
         .split(area);
+
+    // Record horizontal splitter boundary in overview tab
+    let split_col = area.x + chunks[0].width;
+    areas.overview_horizontal_splitter = Some(Rect::new(
+        split_col.saturating_sub(1),
+        area.y,
+        2,
+        area.height,
+    ));
 
     let left_block = Block::default()
         .borders(Borders::ALL)
@@ -3194,6 +3231,8 @@ fn draw_stashes_view(
     file_diff: &[DiffLine],
     diff_scroll: usize,
     areas: &mut DetailAreas,
+    stashes_horizontal_split_pct: u16,
+    stashes_vertical_split_pct: u16,
     area: Rect,
 ) {
     areas.bottom_left = None;
@@ -3208,7 +3247,10 @@ fn draw_stashes_view(
 
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(35), Constraint::Percentage(65)])
+        .constraints([
+            Constraint::Percentage(stashes_horizontal_split_pct),
+            Constraint::Percentage(100 - stashes_horizontal_split_pct),
+        ])
         .split(area);
 
     let left_area = chunks[0];
@@ -3216,11 +3258,32 @@ fn draw_stashes_view(
 
     areas.bottom_right = Some(right_area);
 
-    // Split left area horizontally: top = Stashes list, bottom = Stashed files
+    // Record horizontal splitter boundary in stashes tab
+    let split_col = area.x + left_area.width;
+    areas.stashes_horizontal_splitter = Some(Rect::new(
+        split_col.saturating_sub(1),
+        area.y,
+        2,
+        area.height,
+    ));
+
+    // Split left area vertically: top = Stashes list, bottom = Stashed files
     let left_chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([
+            Constraint::Percentage(stashes_vertical_split_pct),
+            Constraint::Percentage(100 - stashes_vertical_split_pct),
+        ])
         .split(left_area);
+
+    // Record vertical splitter boundary in left panel of stashes tab
+    let split_row = left_area.y + left_chunks[0].height;
+    areas.stashes_vertical_splitter = Some(Rect::new(
+        left_area.x,
+        split_row.saturating_sub(1),
+        left_area.width,
+        2,
+    ));
 
     areas.stashes = Some(left_chunks[0]);
     areas.stashed_files = Some(left_chunks[1]);
