@@ -35,7 +35,7 @@ pub enum RemotePickerAction {
 }
 
 /// Interaction modes for the item list.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Mode {
     /// Browsing the list.
     Normal,
@@ -85,6 +85,8 @@ pub enum Mode {
     DiscardChangesConfirm,
     /// Inspecting a selected commit.
     Inspect,
+    /// Settings page.
+    Settings,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -262,6 +264,8 @@ pub struct App {
     pub overview_horizontal_split_pct: u16,
     /// Active drag splitter if dragging is in progress.
     pub active_drag_splitter: Option<Splitter>,
+    pub settings_selected_index: usize,
+    pub settings_editing: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -353,6 +357,8 @@ impl App {
             stashes_vertical_split_pct: 50,
             overview_horizontal_split_pct: 50,
             active_drag_splitter: None,
+            settings_selected_index: 0,
+            settings_editing: false,
         };
 
         if app.config.sort_by != SortOrder::Custom {
@@ -2373,6 +2379,117 @@ impl App {
         self.commit_input_scroll = self.commit_input_scroll.saturating_add(1);
     }
 
+    pub fn toggle_or_edit_setting(&mut self) {
+        match self.settings_selected_index {
+            0 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.poll_interval_ms.to_string();
+            }
+            1 => {
+                self.config.sort_by = match self.config.sort_by {
+                    SortOrder::Custom => SortOrder::Alphabetical,
+                    SortOrder::Alphabetical => SortOrder::RecentVisit,
+                    SortOrder::RecentVisit => SortOrder::LatestChanges,
+                    SortOrder::LatestChanges => SortOrder::Custom,
+                };
+                if self.config.sort_by != SortOrder::Custom {
+                    self.sort_items_in_place();
+                }
+                self.persist("Sort mode updated");
+            }
+            2 => {
+                self.config.sort_reverse = !self.config.sort_reverse;
+                if self.config.sort_by != SortOrder::Custom {
+                    self.sort_items_in_place();
+                }
+                self.persist("Sort direction updated");
+            }
+            3 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.theme_name.clone();
+            }
+            4 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.fzf.max_depth.to_string();
+            }
+            _ => {}
+        }
+    }
+
+    pub fn commit_settings_edit(&mut self) {
+        let trimmed = self.input_buffer.trim();
+        match self.settings_selected_index {
+            0 => {
+                if let Ok(val) = trimmed.parse::<u64>() {
+                    if val >= 10 {
+                        self.config.poll_interval_ms = val;
+                        self.persist("Poll interval updated");
+                        self.settings_editing = false;
+                        self.input_buffer.clear();
+                    } else {
+                        self.status_message =
+                            Some("Poll interval must be at least 10ms".to_string());
+                    }
+                } else {
+                    self.status_message = Some("Invalid integer".to_string());
+                }
+            }
+            3 => {
+                if !trimmed.is_empty() {
+                    self.config.theme_name = trimmed.to_string();
+                    let themes_dir = self
+                        .config_path
+                        .parent()
+                        .unwrap_or(&self.config_path)
+                        .join("themes");
+                    let theme_path = themes_dir.join(format!("{}.theme", trimmed));
+                    if theme_path.exists() {
+                        if let Ok(theme_contents) = std::fs::read_to_string(&theme_path) {
+                            if let Ok(theme) =
+                                toml::from_str::<crate::config::ThemeConfig>(&theme_contents)
+                            {
+                                self.config.theme = theme;
+                                crate::ui::update_theme(&self.config.theme);
+                                self.persist("Theme updated");
+                                self.settings_editing = false;
+                                self.input_buffer.clear();
+                                return;
+                            }
+                        }
+                    }
+                    let theme_serialized = match toml::to_string_pretty(&self.config.theme) {
+                        Ok(s) => s,
+                        Err(_) => "".to_string(),
+                    };
+                    if !theme_serialized.is_empty() {
+                        let _ = std::fs::write(&theme_path, theme_serialized);
+                    }
+                    self.persist("Theme created and updated");
+                    self.settings_editing = false;
+                    self.input_buffer.clear();
+                } else {
+                    self.status_message = Some("Theme name cannot be empty".to_string());
+                }
+            }
+            4 => {
+                if let Ok(val) = trimmed.parse::<usize>() {
+                    self.config.fzf.max_depth = val;
+                    self.persist("FZF max depth updated");
+                    self.settings_editing = false;
+                    self.input_buffer.clear();
+                } else {
+                    self.status_message = Some("Invalid integer".to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn cancel_settings_edit(&mut self) {
+        self.settings_editing = false;
+        self.input_buffer.clear();
+    }
+
     pub fn cancel_input(&mut self) {
         self.input_buffer.clear();
         self.mode = Mode::Normal;
@@ -4005,5 +4122,86 @@ mod tests {
         };
         crate::input::handle_mouse(&mut app, up_overview);
         assert_eq!(app.active_drag_splitter, None);
+    }
+
+    #[test]
+    fn test_settings_mode_navigation_and_editing() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_settings.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        assert_eq!(app.mode, Mode::Normal);
+
+        // Press 's' to enter settings
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('s')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::Settings);
+        assert_eq!(app.settings_selected_index, 0);
+        assert!(!app.settings_editing);
+
+        // Select poll interval, press enter to edit
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(handled);
+        assert!(app.settings_editing);
+        assert_eq!(app.input_buffer, "100");
+
+        // Backspace once and append '5' to make it '105'
+        crate::input::handle_key(&mut app, key_event(KeyCode::Backspace), 10);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Char('5')), 10);
+        assert_eq!(app.input_buffer, "105");
+
+        // Commit change
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(!app.settings_editing);
+        assert_eq!(app.config.poll_interval_ms, 105);
+
+        // Go down to "Sort By"
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.settings_selected_index, 1);
+
+        // Toggle Sort By (Custom -> Alphabetical)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert_eq!(app.config.sort_by, SortOrder::Alphabetical);
+
+        // Go down to "Sort Reverse"
+        crate::input::handle_key(&mut app, key_event(KeyCode::Char('j')), 10);
+        assert_eq!(app.settings_selected_index, 2);
+
+        // Toggle Sort Reverse (false -> true)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Char(' ')), 10);
+        assert!(app.config.sort_reverse);
+
+        // Go down to FZF Max Depth (index 4)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // Theme (index 3)
+        assert_eq!(app.settings_selected_index, 3);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // FZF Max Depth (index 4)
+        assert_eq!(app.settings_selected_index, 4);
+
+        // Edit FZF Max Depth
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(app.settings_editing);
+        app.input_buffer = "3".to_string();
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(!app.settings_editing);
+        assert_eq!(app.config.fzf.max_depth, 3);
+
+        // Press Esc to exit settings
+        crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+        assert_eq!(app.mode, Mode::Normal);
     }
 }

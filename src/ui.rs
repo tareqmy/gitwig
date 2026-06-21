@@ -152,6 +152,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("r", "Refresh status of selected item"),
     ("o / O", "Cycle sorting mode / Toggle reverse sorting"),
     ("g", "Launch gitui for selected repository"),
+    ("s", "Open options/settings page"),
     (
         "⎋ [Esc]",
         "Cancel input, close dialog, leave detail view, or quit",
@@ -266,6 +267,8 @@ pub fn draw(
                 content_area,
             );
         }
+    } else if app.mode == Mode::Settings {
+        draw_settings_page(f, app, content_area);
     } else if app.config.items.is_empty() {
         draw_empty_state(f, content_area);
     } else {
@@ -570,6 +573,49 @@ impl StatusEntry {
 
 fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
     match &app.mode {
+        Mode::Settings => {
+            let msg_spans = if let Some(msg) = &app.status_message {
+                vec![Span::styled(format!("{} ", msg), accent_style())]
+            } else if app.settings_editing {
+                vec![Span::raw("Editing setting...")]
+            } else {
+                vec![
+                    Span::raw("Settings (Esc to exit) | Use "),
+                    Span::styled("Enter", accent_style()),
+                    Span::raw(" / "),
+                    Span::styled("Space", accent_style()),
+                    Span::raw(" to toggle/edit"),
+                ]
+            };
+            let entries = if app.settings_editing {
+                vec![
+                    StatusEntry::new(vec![
+                        Span::styled("↵ [Enter]", accent_style()),
+                        Span::raw(" Save "),
+                    ]),
+                    StatusEntry::new(vec![
+                        Span::styled("⎋ [Esc]", accent_style()),
+                        Span::raw(" Cancel "),
+                    ]),
+                ]
+            } else {
+                vec![
+                    StatusEntry::new(vec![
+                        Span::styled("↑/↓ / k/j", accent_style()),
+                        Span::raw(" Select "),
+                    ]),
+                    StatusEntry::new(vec![
+                        Span::styled("↵ [Enter] / Space", accent_style()),
+                        Span::raw(" Edit/Toggle "),
+                    ]),
+                    StatusEntry::new(vec![
+                        Span::styled("⎋ [Esc] / q", accent_style()),
+                        Span::raw(" Back "),
+                    ]),
+                ]
+            };
+            draw_status_layout(f, area, Some(msg_spans), entries, app.status_expanded);
+        }
         Mode::Normal => {
             let (msg_spans, entries) = normal_status_entries(
                 &app.status_message,
@@ -1500,6 +1546,148 @@ fn draw_input_status(f: &mut Frame, area: Rect, verb: &str, buffer: &str) {
         .x
         .saturating_add(cursor_offset.min(area.width.saturating_sub(1)));
     f.set_cursor_position(Position::new(cursor_x, area.y));
+}
+
+fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
+    let popup_area = centered_rect(65, 75, area);
+
+    // Draw background block
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(accent_style())
+        .title(
+            Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Settings", primary_style()),
+                Span::raw(" "),
+            ])
+            .alignment(Alignment::Center),
+        );
+
+    f.render_widget(Clear, popup_area);
+    f.render_widget(block.clone(), popup_area);
+
+    let inner_rect = block.inner(popup_area);
+
+    let mut items = Vec::new();
+
+    for i in 0..5 {
+        let is_selected = app.settings_selected_index == i;
+
+        let label = match i {
+            0 => "Poll Interval (ms)",
+            1 => "Sort By",
+            2 => "Sort Reverse",
+            3 => "Theme Name",
+            4 => "FZF Max Depth",
+            _ => "",
+        };
+
+        let desc = match i {
+            0 => "Event-loop poll interval in milliseconds. Sane range: 16-500.",
+            1 => "Initial repository sorting criteria.",
+            2 => "Reverse the order of repositories.",
+            3 => "Active theme configuration name (e.g. default, dark, light).",
+            4 => "Maximum directory depth to search for git repositories.",
+            _ => "",
+        };
+
+        let val_str = match i {
+            0 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.poll_interval_ms.to_string()
+                }
+            }
+            1 => {
+                let s = match app.config.sort_by {
+                    SortOrder::Alphabetical => "Alphabetical",
+                    SortOrder::RecentVisit => "Recent Visit",
+                    SortOrder::LatestChanges => "Latest Changes",
+                    SortOrder::Custom => "Custom",
+                };
+                s.to_string()
+            }
+            2 => app.config.sort_reverse.to_string(),
+            3 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.theme_name.clone()
+                }
+            }
+            4 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.fzf.max_depth.to_string()
+                }
+            }
+            _ => String::new(),
+        };
+
+        let prefix = if is_selected { " > " } else { "   " };
+
+        let mut line_spans = vec![
+            Span::styled(
+                prefix,
+                if is_selected {
+                    accent_style()
+                } else {
+                    muted_style()
+                },
+            ),
+            Span::styled(
+                format!("{:<20}", label),
+                if is_selected {
+                    accent_style()
+                } else {
+                    primary_style()
+                },
+            ),
+        ];
+
+        if is_selected && app.settings_editing {
+            line_spans.push(Span::styled(" [Edit]: ", muted_style()));
+            line_spans.push(Span::styled(
+                val_str,
+                Style::default()
+                    .fg(ACCENT())
+                    .add_modifier(Modifier::UNDERLINED),
+            ));
+        } else {
+            line_spans.push(Span::styled(" : ", muted_style()));
+            line_spans.push(Span::styled(
+                val_str,
+                if is_selected {
+                    accent_style()
+                } else {
+                    Style::default()
+                },
+            ));
+        }
+
+        items.push(Line::from(line_spans));
+        items.push(Line::from(vec![
+            Span::raw("     "),
+            Span::styled(desc, muted_style()),
+        ]));
+        items.push(Line::from("")); // spacer
+    }
+
+    let paragraph = Paragraph::new(items)
+        .block(Block::default().padding(Padding::horizontal(1)))
+        .alignment(Alignment::Left);
+
+    f.render_widget(paragraph, inner_rect);
+
+    if app.settings_editing {
+        let cursor_y = inner_rect.y + (app.settings_selected_index * 3) as u16;
+        let cursor_x = inner_rect.x + 1 + 32 + app.input_buffer.chars().count() as u16;
+        f.set_cursor_position(Position::new(cursor_x, cursor_y));
+    }
 }
 
 fn draw_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {

@@ -36,11 +36,17 @@
 | `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes) |
 | `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed) |
 | `g`                  | Normal          | Launch gitui for selected repository |
+| `s`                  | Normal          | Open options/settings page        |
 | `Enter`              | Normal          | Open Detail view for selected item|
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
 | `⎋` / `q`            | Normal          | Quit                              |
 | `Enter`              | Editing         | Save the typed text and persist   |
 | `Esc`                | Editing         | Cancel without saving             |
+| `Enter`              | Settings (Edit) | Save settings edit                |
+| `Esc`                | Settings (Edit) | Cancel settings edit              |
+| `Esc` / `q`          | Settings        | Exit Settings and return to Home  |
+| `↑` / `↓` / `k` / `j` | Settings        | Navigate setting fields           |
+| `Enter` / `Space`    | Settings        | Toggle / Edit selected setting    |
 | `Backspace`          | Editing         | Erase one character               |
 | `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag, push branch/tag/all tags) |
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |

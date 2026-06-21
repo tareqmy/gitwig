@@ -25,7 +25,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     let is_text_input = matches!(
         app.mode,
         Mode::Adding | Mode::Editing | Mode::BranchCreateInput | Mode::TagCreateInput
-    ) || (matches!(app.mode, Mode::CommitInput) && app.commit_editing);
+    ) || (matches!(app.mode, Mode::CommitInput) && app.commit_editing)
+        || (matches!(app.mode, Mode::Settings) && app.settings_editing);
     if !is_text_input && code == KeyCode::Char('.') {
         app.toggle_status_expanded();
         return true;
@@ -47,10 +48,36 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('o') => app.cycle_sort_order(),
             KeyCode::Char('O') => app.toggle_sort_reverse(),
             KeyCode::Char('p') => app.toggle_pin_selected(),
+            KeyCode::Char('s') => {
+                app.mode = Mode::Settings;
+                app.settings_selected_index = 0;
+                app.settings_editing = false;
+            }
             KeyCode::Char('g') => {
                 app.pending_gitui = true;
             }
             KeyCode::Enter => app.open_detail(),
+            _ => {}
+        },
+        Mode::Settings => match code {
+            KeyCode::Esc if app.settings_editing => app.cancel_settings_edit(),
+            KeyCode::Esc => app.mode = Mode::Normal,
+            KeyCode::Char('q') if !app.settings_editing => app.mode = Mode::Normal,
+            KeyCode::Down | KeyCode::Char('j') if !app.settings_editing => {
+                if app.settings_selected_index + 1 < 5 {
+                    app.settings_selected_index += 1;
+                }
+            }
+            KeyCode::Up | KeyCode::Char('k') if !app.settings_editing => {
+                if app.settings_selected_index > 0 {
+                    app.settings_selected_index -= 1;
+                }
+            }
+            KeyCode::Enter if app.settings_editing => app.commit_settings_edit(),
+            KeyCode::Enter => app.toggle_or_edit_setting(),
+            KeyCode::Char(' ') if !app.settings_editing => app.toggle_or_edit_setting(),
+            KeyCode::Backspace if app.settings_editing => app.input_backspace(),
+            KeyCode::Char(c) if app.settings_editing => app.input_char(c),
             _ => {}
         },
         Mode::Adding => match code {
@@ -917,6 +944,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     }
 
     if is_drag || is_release {
+        return;
+    }
+
+    if app.mode == Mode::Settings {
         return;
     }
 
