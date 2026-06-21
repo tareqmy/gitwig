@@ -793,6 +793,17 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         }
                     }
                 }
+                Splitter::WorkspaceMain => {
+                    if let (Some(top), Some(bottom)) = (areas.commits, areas.bottom_right) {
+                        let start_y = top.y;
+                        let total_height = (bottom.y + bottom.height).saturating_sub(start_y);
+                        if total_height > 0 {
+                            let relative_y = pos.y.saturating_sub(start_y);
+                            let pct = ((relative_y as f32 / total_height as f32) * 100.0) as u16;
+                            app.workspace_main_split_pct = pct.clamp(15, 85);
+                        }
+                    }
+                }
             }
         }
         return;
@@ -808,6 +819,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         if let Some(rect) = areas.inspect_vertical_splitter {
             if rect.contains(pos) {
                 app.active_drag_splitter = Some(Splitter::InspectVertical);
+                return;
+            }
+        }
+        if let Some(rect) = areas.workspace_main_splitter {
+            if rect.contains(pos) {
+                app.active_drag_splitter = Some(Splitter::WorkspaceMain);
                 return;
             }
         }

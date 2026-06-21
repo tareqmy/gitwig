@@ -78,6 +78,8 @@ pub struct DetailAreas {
     pub inspect_horizontal_splitter: Option<Rect>,
     /// Bounding box of the vertical splitter in left panel of inspect view.
     pub inspect_vertical_splitter: Option<Rect>,
+    /// Bounding box of the main vertical splitter in workspace tab.
+    pub workspace_main_splitter: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -120,6 +122,7 @@ pub fn draw(
     commit_input_scroll: usize,
     inspect_horizontal_split_pct: u16,
     inspect_vertical_split_pct: u16,
+    workspace_main_split_pct: u16,
     area: Rect,
 ) {
     if mode == &Mode::Inspect {
@@ -291,8 +294,20 @@ pub fn draw(
                 // Split body: top = recent commits, bottom = staging panels
                 let detail_chunks = Layout::default()
                     .direction(Direction::Vertical)
-                    .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                    .constraints([
+                        Constraint::Percentage(workspace_main_split_pct),
+                        Constraint::Percentage(100 - workspace_main_split_pct),
+                    ])
                     .split(body_area);
+
+                // Record main vertical splitter boundary in workspace tab
+                let split_row = body_area.y + detail_chunks[0].height;
+                areas.workspace_main_splitter = Some(Rect::new(
+                    body_area.x,
+                    split_row.saturating_sub(1),
+                    body_area.width,
+                    2,
+                ));
 
                 let dirty = !info.changes.staged.is_empty()
                     || !info.changes.unstaged.is_empty()
@@ -329,8 +344,8 @@ pub fn draw(
                         file_diff,
                         diff_scroll,
                         areas,
-                        40,
-                        50,
+                        inspect_horizontal_split_pct,
+                        inspect_vertical_split_pct,
                         detail_chunks[1],
                     );
                 } else {
@@ -351,6 +366,8 @@ pub fn draw(
                                 diff_scroll,
                                 commit_details_scroll,
                                 areas,
+                                inspect_horizontal_split_pct,
+                                inspect_vertical_split_pct,
                                 detail_chunks[1],
                             );
                         }
@@ -364,8 +381,8 @@ pub fn draw(
                                 file_diff,
                                 diff_scroll,
                                 areas,
-                                40,
-                                50,
+                                inspect_horizontal_split_pct,
+                                inspect_vertical_split_pct,
                                 detail_chunks[1],
                             );
                         }
@@ -569,25 +586,51 @@ fn draw_commit_files_panel(
     diff_scroll: usize,
     commit_details_scroll: usize,
     areas: &mut DetailAreas,
+    inspect_horizontal_split_pct: u16,
+    inspect_vertical_split_pct: u16,
     area: Rect,
 ) {
     let panels = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
+        .constraints([
+            Constraint::Percentage(inspect_horizontal_split_pct),
+            Constraint::Percentage(100 - inspect_horizontal_split_pct),
+        ])
         .split(area);
 
     areas.bottom_right = Some(panels[1]);
     areas.staged_sub = None;
     areas.unstaged_sub = None;
 
+    // Record horizontal splitter boundary
+    let split_col = area.x + panels[0].width;
+    areas.inspect_horizontal_splitter = Some(Rect::new(
+        split_col.saturating_sub(1),
+        area.y,
+        2,
+        area.height,
+    ));
+
     let left_focused = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
     let right_focused = focus == DetailSection::StagingDetails;
 
-    // Split left panel horizontally: top is Changed Files list, bottom is Commit Details
+    // Split left panel vertically: top is Changed Files list, bottom is Commit Details
     let left_chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([
+            Constraint::Percentage(inspect_vertical_split_pct),
+            Constraint::Percentage(100 - inspect_vertical_split_pct),
+        ])
         .split(panels[0]);
+
+    // Record vertical splitter boundary
+    let split_row = panels[0].y + left_chunks[0].height;
+    areas.inspect_vertical_splitter = Some(Rect::new(
+        panels[0].x,
+        split_row.saturating_sub(1),
+        panels[0].width,
+        2,
+    ));
 
     areas.bottom_left = Some(left_chunks[0]);
     areas.commit_details = Some(left_chunks[1]);

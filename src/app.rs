@@ -106,11 +106,12 @@ pub enum DetailSection {
     StashedFiles,
 }
 
-/// Resizable splitter identifier for the Inspect view.
+/// Resizable splitter identifier.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Splitter {
     InspectHorizontal, // Left panel vs Right (Diff) panel
     InspectVertical,   // Top sub-panel vs Bottom sub-panel in left panel
+    WorkspaceMain,     // Commits list vs staging/files details (vertical split, top/bottom)
 }
 
 impl DetailSection {
@@ -242,6 +243,8 @@ pub struct App {
     pub inspect_horizontal_split_pct: u16,
     /// Percentage height of the top left sub-panel in the Inspect view (default: 50).
     pub inspect_vertical_split_pct: u16,
+    /// Percentage height of the commits list in the Workspace tab (default: 50).
+    pub workspace_main_split_pct: u16,
     /// Active drag splitter if dragging is in progress.
     pub active_drag_splitter: Option<Splitter>,
 }
@@ -328,6 +331,7 @@ impl App {
             remote_picker_selection: 0,
             inspect_horizontal_split_pct: 40,
             inspect_vertical_split_pct: 50,
+            workspace_main_split_pct: 50,
             active_drag_splitter: None,
         };
 
@@ -3777,6 +3781,51 @@ mod tests {
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
         crate::input::handle_mouse(&mut app, up_event);
+        assert_eq!(app.active_drag_splitter, None);
+
+        // Test WorkspaceMain splitter dragging
+        app.detail_areas.commits = Some(Rect::new(0, 0, 100, 20));
+        app.detail_areas.bottom_right = Some(Rect::new(0, 20, 100, 30));
+        app.detail_areas.workspace_main_splitter = Some(Rect::new(0, 19, 100, 2));
+
+        // Click on the vertical workspace main splitter
+        let down_event_main = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 10,
+            row: 19,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, down_event_main);
+        assert_eq!(app.active_drag_splitter, Some(Splitter::WorkspaceMain));
+
+        // Drag to row 25 (which is 50% height since total height is 50)
+        let drag_event_main = MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: 10,
+            row: 25,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, drag_event_main);
+        assert_eq!(app.workspace_main_split_pct, 50);
+
+        // Drag to row 15 (which is 30% height)
+        let drag_event_main_2 = MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: 10,
+            row: 15,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, drag_event_main_2);
+        assert_eq!(app.workspace_main_split_pct, 30);
+
+        // Release mouse
+        let up_event_main = MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Left),
+            column: 10,
+            row: 15,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, up_event_main);
         assert_eq!(app.active_drag_splitter, None);
     }
 }

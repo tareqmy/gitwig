@@ -256,6 +256,7 @@ pub fn draw(
                 app.commit_input_scroll,
                 app.inspect_horizontal_split_pct,
                 app.inspect_vertical_split_pct,
+                app.workspace_main_split_pct,
                 content_area,
             );
         }
