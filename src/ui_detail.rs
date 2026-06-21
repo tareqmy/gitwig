@@ -80,6 +80,10 @@ pub struct DetailAreas {
     pub inspect_vertical_splitter: Option<Rect>,
     /// Bounding box of the main vertical splitter in workspace tab.
     pub workspace_main_splitter: Option<Rect>,
+    /// Bounding box of the horizontal splitter in files tab.
+    pub files_horizontal_splitter: Option<Rect>,
+    /// Bounding box of the horizontal splitter in branches tab.
+    pub branches_horizontal_splitter: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -123,6 +127,8 @@ pub fn draw(
     inspect_horizontal_split_pct: u16,
     inspect_vertical_split_pct: u16,
     workspace_main_split_pct: u16,
+    files_horizontal_split_pct: u16,
+    branches_horizontal_split_pct: u16,
     area: Rect,
 ) {
     if mode == &Mode::Inspect {
@@ -398,6 +404,7 @@ pub fn draw(
                     *focus,
                     file_list_selection,
                     areas,
+                    files_horizontal_split_pct,
                     body_area,
                 );
             } else if detail_tab == 2 {
@@ -436,6 +443,7 @@ pub fn draw(
                     local_branch_selection,
                     remote_branch_selection,
                     areas,
+                    branches_horizontal_split_pct,
                     body_area,
                 );
             } else if detail_tab == 4 {
@@ -1838,6 +1846,7 @@ fn graph_line_spans(line: &crate::repo::GraphLine) -> Line<'static> {
     Line::from(spans)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_branches_view(
     f: &mut Frame,
     info: &RepoInfo,
@@ -1845,11 +1854,15 @@ fn draw_branches_view(
     local_branch_selection: usize,
     remote_branch_selection: usize,
     areas: &mut DetailAreas,
+    branches_horizontal_split_pct: u16,
     area: Rect,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([
+            Constraint::Percentage(branches_horizontal_split_pct),
+            Constraint::Percentage(100 - branches_horizontal_split_pct),
+        ])
         .split(area);
 
     let left_area = chunks[0];
@@ -1857,6 +1870,15 @@ fn draw_branches_view(
 
     areas.local_branches = Some(left_area);
     areas.remote_branches = Some(right_area);
+
+    // Record horizontal splitter boundary in branches tab
+    let split_col = area.x + left_area.width;
+    areas.branches_horizontal_splitter = Some(Rect::new(
+        split_col.saturating_sub(1),
+        area.y,
+        2,
+        area.height,
+    ));
 
     // ── Local Branches Panel ──
     let local_focused = focus == DetailSection::LocalBranches;
@@ -1974,14 +1996,27 @@ fn draw_files_view(
     focus: DetailSection,
     file_list_selection: usize,
     areas: &mut DetailAreas,
+    files_horizontal_split_pct: u16,
     area: Rect,
 ) {
     areas.files = Some(area);
 
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(45), Constraint::Percentage(55)])
+        .constraints([
+            Constraint::Percentage(files_horizontal_split_pct),
+            Constraint::Percentage(100 - files_horizontal_split_pct),
+        ])
         .split(area);
+
+    // Record horizontal splitter boundary in files tab
+    let split_col = area.x + chunks[0].width;
+    areas.files_horizontal_splitter = Some(Rect::new(
+        split_col.saturating_sub(1),
+        area.y,
+        2,
+        area.height,
+    ));
 
     let focused = focus == DetailSection::Files;
     let border_style = if focused {

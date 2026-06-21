@@ -804,6 +804,29 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         }
                     }
                 }
+                Splitter::FilesHorizontal => {
+                    if let Some(files) = areas.files {
+                        let start_x = files.x;
+                        let total_width = files.width;
+                        if total_width > 0 {
+                            let relative_x = pos.x.saturating_sub(start_x);
+                            let pct = ((relative_x as f32 / total_width as f32) * 100.0) as u16;
+                            app.files_horizontal_split_pct = pct.clamp(15, 85);
+                        }
+                    }
+                }
+                Splitter::BranchesHorizontal => {
+                    if let (Some(left), Some(right)) = (areas.local_branches, areas.remote_branches)
+                    {
+                        let start_x = left.x;
+                        let total_width = (right.x + right.width).saturating_sub(start_x);
+                        if total_width > 0 {
+                            let relative_x = pos.x.saturating_sub(start_x);
+                            let pct = ((relative_x as f32 / total_width as f32) * 100.0) as u16;
+                            app.branches_horizontal_split_pct = pct.clamp(15, 85);
+                        }
+                    }
+                }
             }
         }
         return;
@@ -825,6 +848,18 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         if let Some(rect) = areas.workspace_main_splitter {
             if rect.contains(pos) {
                 app.active_drag_splitter = Some(Splitter::WorkspaceMain);
+                return;
+            }
+        }
+        if let Some(rect) = areas.files_horizontal_splitter {
+            if rect.contains(pos) {
+                app.active_drag_splitter = Some(Splitter::FilesHorizontal);
+                return;
+            }
+        }
+        if let Some(rect) = areas.branches_horizontal_splitter {
+            if rect.contains(pos) {
+                app.active_drag_splitter = Some(Splitter::BranchesHorizontal);
                 return;
             }
         }

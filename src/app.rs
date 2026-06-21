@@ -109,9 +109,11 @@ pub enum DetailSection {
 /// Resizable splitter identifier.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Splitter {
-    InspectHorizontal, // Left panel vs Right (Diff) panel
-    InspectVertical,   // Top sub-panel vs Bottom sub-panel in left panel
-    WorkspaceMain,     // Commits list vs staging/files details (vertical split, top/bottom)
+    InspectHorizontal,  // Left panel vs Right (Diff) panel
+    InspectVertical,    // Top sub-panel vs Bottom sub-panel in left panel
+    WorkspaceMain,      // Commits list vs staging/files details (vertical split, top/bottom)
+    FilesHorizontal,    // Files view: left (tree) vs right (preview)
+    BranchesHorizontal, // Branches view: left (local) vs right (remote)
 }
 
 impl DetailSection {
@@ -245,6 +247,10 @@ pub struct App {
     pub inspect_vertical_split_pct: u16,
     /// Percentage height of the commits list in the Workspace tab (default: 50).
     pub workspace_main_split_pct: u16,
+    /// Percentage width of the files tree in the Files tab (default: 45).
+    pub files_horizontal_split_pct: u16,
+    /// Percentage width of the local branches list in the Branches tab (default: 50).
+    pub branches_horizontal_split_pct: u16,
     /// Active drag splitter if dragging is in progress.
     pub active_drag_splitter: Option<Splitter>,
 }
@@ -332,6 +338,8 @@ impl App {
             inspect_horizontal_split_pct: 40,
             inspect_vertical_split_pct: 50,
             workspace_main_split_pct: 50,
+            files_horizontal_split_pct: 45,
+            branches_horizontal_split_pct: 50,
             active_drag_splitter: None,
         };
 
@@ -3826,6 +3834,69 @@ mod tests {
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
         crate::input::handle_mouse(&mut app, up_event_main);
+        assert_eq!(app.active_drag_splitter, None);
+
+        // Test Files splitter dragging
+        app.detail_areas.files = Some(Rect::new(0, 0, 100, 50));
+        app.detail_areas.files_horizontal_splitter = Some(Rect::new(44, 0, 2, 50));
+
+        let down_event_files = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 44,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, down_event_files);
+        assert_eq!(app.active_drag_splitter, Some(Splitter::FilesHorizontal));
+
+        let drag_event_files = MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: 60,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, drag_event_files);
+        assert_eq!(app.files_horizontal_split_pct, 60);
+
+        let up_event_files = MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Left),
+            column: 60,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, up_event_files);
+        assert_eq!(app.active_drag_splitter, None);
+
+        // Test Branches splitter dragging
+        app.detail_areas.local_branches = Some(Rect::new(0, 0, 50, 50));
+        app.detail_areas.remote_branches = Some(Rect::new(50, 0, 50, 50));
+        app.detail_areas.branches_horizontal_splitter = Some(Rect::new(49, 0, 2, 50));
+
+        let down_event_branches = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 49,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, down_event_branches);
+        assert_eq!(app.active_drag_splitter, Some(Splitter::BranchesHorizontal));
+
+        let drag_event_branches = MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: 35,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, drag_event_branches);
+        assert_eq!(app.branches_horizontal_split_pct, 35);
+
+        let up_event_branches = MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Left),
+            column: 35,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, up_event_branches);
         assert_eq!(app.active_drag_splitter, None);
     }
 }
