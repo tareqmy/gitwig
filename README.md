@@ -77,6 +77,7 @@
 | `Left-Click` (Mouse) | Normal          | Select the clicked item           |
 | `Double-Click` (Mouse)| Normal         | Open Detail view for clicked item |
 | `Left-Click` (Mouse) | Detail          | Shift focus to the clicked panel or change active tab |
+| `Left-Click + Drag` (Mouse) | Detail    | Drag panel boundary splitters to dynamically resize layout splits |
 | `Scroll Wheel` (Mouse)| Normal / Detail | Scroll selected list, graph view, branches, tree items, or unified diffs |
 
 Press `?` at any time in normal mode to see the full keybinding reference as a centered popup. The help overlay only handles the dismissal keys — your selection and scroll position are preserved underneath.
@@ -188,6 +189,12 @@ You can navigate and interact with these panels in the following ways:
   - **Stashes tab:** `Stashes` → `Stashed Files` → `StagingDetails`.
   Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Workspace tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab).
 - **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels, stashed files list, and the files list) to focus it immediately.
+- **Resize Split Panels:** Left-click and drag the vertical or horizontal boundary splitter lines between panels to resize them dynamically. This is supported in:
+  - **Workspace / Inspect:** Main vertical split (commits vs details), bottom horizontal split (left list vs right diff), and left vertical split (staged vs unstaged or commit details vs files list).
+  - **Files:** Horizontal split (repository files tree vs file content preview).
+  - **Branches:** Horizontal split (local branches vs remote branches).
+  - **Stashes:** Horizontal split (stash lists vs diff) and left vertical split (stashes list vs stashed files).
+  - **Overview:** Horizontal split (overview info vs committer stats).
 - **Mouse Wheel Scroll:** Use the mouse wheel to scroll vertically through the active list, commit history, branch list, files list, stashed files list, or staging details diff.
 - **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, tag, stash, stashed file, or file tree item in the active list.
 - **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).

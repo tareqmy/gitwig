@@ -172,6 +172,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
         "Left-Click",
         "Focus clicked panel / change tab (mouse support)",
     ),
+    ("Left-Click+Drag", "Drag boundaries to resize split panels"),
 ];
 
 /// Top-level draw entry point invoked from inside `terminal.draw`.

@@ -1245,6 +1245,7 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
         "Left-Click",
         "Focus clicked panel / change tab (mouse support)",
     ),
+    ("Left-Click+Drag", "Drag boundaries to resize split panels"),
 ];
 
 /// Renders a floating shortcut reference overlay centred over `area`.
