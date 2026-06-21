@@ -241,6 +241,15 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     }
                 }
                 KeyCode::Char('w') | KeyCode::Char('W') => app.cycle_detail_focus(),
+                KeyCode::Right if detail_focus == DetailSection::Commits => {
+                    if !app.is_uncommitted_selected() {
+                        app.mode = Mode::Inspect;
+                        app.detail_focus = DetailSection::Staged;
+                        app.file_selection = 0;
+                        app.diff_scroll = 0;
+                        app.refresh_file_diff();
+                    }
+                }
                 KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::Commits => {
                     app.detail_commit_up()
                 }
@@ -517,6 +526,66 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             _ => {}
         },
 
+        Mode::Inspect => match code {
+            KeyCode::Esc => {
+                app.mode = Mode::Detail;
+                app.detail_focus = DetailSection::Commits;
+            }
+            KeyCode::Char('?') => {
+                app.open_detail_help();
+            }
+            KeyCode::Char('w') | KeyCode::Char('W') | KeyCode::Tab => {
+                if app.detail_focus == DetailSection::Staged {
+                    app.detail_focus = DetailSection::StagingDetails;
+                } else {
+                    app.detail_focus = DetailSection::Staged;
+                }
+            }
+            KeyCode::Right => {
+                if app.detail_focus == DetailSection::Staged {
+                    app.detail_focus = DetailSection::StagingDetails;
+                }
+            }
+            KeyCode::Left => {
+                if app.detail_focus == DetailSection::StagingDetails {
+                    app.detail_focus = DetailSection::Staged;
+                }
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                if app.detail_focus == DetailSection::Staged {
+                    app.detail_file_up();
+                } else {
+                    app.diff_scroll_up();
+                }
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if app.detail_focus == DetailSection::Staged {
+                    app.detail_file_down();
+                } else {
+                    app.diff_scroll_down();
+                }
+            }
+            KeyCode::PageUp => {
+                if app.detail_focus == DetailSection::Staged {
+                    for _ in 0..10 {
+                        app.detail_file_up();
+                    }
+                } else {
+                    app.diff_scroll_page_up(10);
+                }
+            }
+            KeyCode::PageDown => {
+                if app.detail_focus == DetailSection::Staged {
+                    for _ in 0..10 {
+                        app.detail_file_down();
+                    }
+                } else {
+                    app.diff_scroll_page_down(10);
+                }
+            }
+            _ => {}
+        },
+
         Mode::DetailHelp => match code {
             KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_detail_help();
@@ -660,7 +729,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     }
 
     // Only handle detail modes beyond this point.
-    if !matches!(app.mode, Mode::Detail | Mode::DetailHelp) {
+    if !matches!(app.mode, Mode::Detail | Mode::DetailHelp | Mode::Inspect) {
         return;
     }
 

@@ -209,6 +209,7 @@ pub fn draw(
             | Mode::RemotePicker
             | Mode::CommitSearchInput
             | Mode::DiscardChangesConfirm
+            | Mode::Inspect
     ) {
         if let Some(detail) = &app.current_detail {
             let item_name = app
@@ -715,6 +716,10 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = confirm_discard_changes_entries(target, staged);
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
+        Mode::Inspect => {
+            let (msg_spans, entries) = inspect_dismiss_entries(&app.status_message);
+            draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
+        }
     }
 }
 
@@ -801,6 +806,37 @@ fn detail_dismiss_entries(
         7 => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Help", "?")],
         _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Help", "?")],
     };
+    for (i, (label, key)) in entries_data.iter().enumerate() {
+        let mut spans = Vec::new();
+        if i > 0 {
+            spans.push(Span::styled(" ", muted_style()));
+        }
+        spans.push(Span::raw((*label).to_string()));
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled("[", muted_style()));
+        spans.push(Span::styled((*key).to_string(), accent_style()));
+        spans.push(Span::styled("]", muted_style()));
+        entries.push(StatusEntry::new(spans));
+    }
+    (message_spans, entries)
+}
+
+fn inspect_dismiss_entries(
+    status_message: &Option<String>,
+) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let mut message_spans = None;
+    if let Some(msg) = status_message {
+        message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
+    }
+
+    let mut entries = Vec::new();
+    let entries_data = [
+        ("Workspace", "⎋"),
+        ("Cycle Focus", "w/W"),
+        ("Select File", "↑↓/j/k"),
+        ("Scroll Diff", "↑↓/j/k (focused)"),
+        ("Help", "?"),
+    ];
     for (i, (label, key)) in entries_data.iter().enumerate() {
         let mut spans = Vec::new();
         if i > 0 {

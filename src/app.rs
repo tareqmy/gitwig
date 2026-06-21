@@ -83,6 +83,8 @@ pub enum Mode {
     BranchInteractiveRebaseConfirm,
     /// Confirming discarding changes in a file.
     DiscardChangesConfirm,
+    /// Inspecting a selected commit.
+    Inspect,
 }
 
 /// Which panel in the detail view currently has keyboard focus.

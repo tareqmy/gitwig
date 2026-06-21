@@ -116,6 +116,33 @@ pub fn draw(
     commit_input_scroll: usize,
     area: Rect,
 ) {
+    if mode == &Mode::Inspect {
+        if let ItemDetail::Repo { info, .. } = detail {
+            let dirty = !info.changes.staged.is_empty()
+                || !info.changes.unstaged.is_empty()
+                || !info.changes.untracked.is_empty()
+                || !info.changes.conflicted.is_empty();
+            let commit_idx = if dirty {
+                commit_selection.saturating_sub(1)
+            } else {
+                commit_selection
+            };
+            if let Some(commit) = info.commits.get(commit_idx) {
+                draw_inspect_window(
+                    f,
+                    commit,
+                    *focus,
+                    file_selection,
+                    file_diff,
+                    diff_scroll,
+                    areas,
+                    area,
+                );
+                return;
+            }
+        }
+    }
+
     // Extract branch name if this is a repo detail.
     let branch: Option<String> = match detail {
         ItemDetail::Repo { info, .. } => info.branch.clone(),
@@ -1140,6 +1167,11 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ),
     ("? / ⎋ [Esc]", "Close this help"),
     ("q / ⎋ [Esc]", "Back to repository list"),
+    (
+        "→ [Right]",
+        "Inspect selected commit (Workspace commits list)",
+    ),
+    ("⎋ [Esc]", "Back to workspace commits list (Inspect mode)"),
     (
         "Left-Click",
         "Focus clicked panel / change tab (mouse support)",
@@ -3225,6 +3257,199 @@ fn draw_stashes_view(
 
     let right_inner = right_block.inner(right_area);
     f.render_widget(right_block, right_area);
+
+    if file_diff.is_empty() {
+        let v_center = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(45),
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
+            .split(right_inner);
+        f.render_widget(
+            Paragraph::new(Span::styled(
+                "Select a file to view its diff",
+                muted_style(),
+            ))
+            .alignment(Alignment::Center),
+            v_center[1],
+        );
+    } else {
+        let diff_spans: Vec<Line> = file_diff
+            .iter()
+            .map(|line| {
+                let style = match line.kind {
+                    DiffLineKind::Added => Style::default().fg(SUCCESS()),
+                    DiffLineKind::Removed => Style::default().fg(DANGER()),
+                    DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
+                    DiffLineKind::Context => Style::default(),
+                };
+                Line::from(Span::styled(line.content.clone(), style))
+            })
+            .collect();
+        f.render_widget(
+            Paragraph::new(diff_spans)
+                .scroll((diff_scroll as u16, 0))
+                .wrap(Wrap { trim: false }),
+            right_inner,
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_inspect_window(
+    f: &mut Frame,
+    commit: &CommitEntry,
+    focus: DetailSection,
+    file_selection: usize,
+    file_diff: &[DiffLine],
+    diff_scroll: usize,
+    areas: &mut DetailAreas,
+    area: Rect,
+) {
+    // Layout: top is header row, bottom is panels
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(2), Constraint::Min(0)])
+        .split(area);
+
+    let header_rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Length(1)])
+        .split(chunks[0]);
+
+    // Split header into left (commit summary/info) and right (date/author).
+    let header_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Min(0), Constraint::Length(40)])
+        .split(header_rows[0]);
+
+    let header_left = Paragraph::new(Line::from(vec![
+        Span::raw(FIELD_INDENT),
+        Span::styled("Inspect Commit: ", primary_style()),
+        Span::styled(commit.id.clone(), accent_style()),
+        Span::raw(" - "),
+        Span::styled(commit.summary.clone(), muted_style()),
+    ]));
+    f.render_widget(header_left, header_chunks[0]);
+
+    let header_right = Paragraph::new(Line::from(vec![
+        Span::styled("by ", muted_style()),
+        Span::styled(commit.author.clone(), primary_style()),
+        Span::raw("  "),
+    ]))
+    .alignment(Alignment::Right);
+    f.render_widget(header_right, header_chunks[1]);
+
+    // Divider line
+    {
+        let w = chunks[0].width as usize;
+        let outer = (w / 10).max(2);
+        let inner = (w / 8).max(3);
+        let centre = w.saturating_sub(outer * 2 + inner * 2);
+
+        let fade_outer = Style::default().add_modifier(Modifier::DIM);
+        let fade_inner = Style::default();
+        let solid = Style::default().fg(ACCENT());
+
+        let divider_line = Line::from(vec![
+            Span::styled(" ".repeat(outer), fade_outer),
+            Span::styled("┄".repeat(inner), fade_inner),
+            Span::styled("┈".repeat(centre), solid),
+            Span::styled("┄".repeat(inner), fade_inner),
+            Span::styled(" ".repeat(outer), fade_outer),
+        ]);
+        f.render_widget(Paragraph::new(divider_line), header_rows[1]);
+    }
+
+    // Body: divided vertically: Left panel (40%), Right panel (60%)
+    let panels = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
+        .split(chunks[1]);
+
+    // Record panel areas for mouse hit testing/scrolling
+    areas.bottom_left = Some(panels[0]);
+    areas.bottom_right = Some(panels[1]);
+
+    let left_focused = focus == DetailSection::Staged;
+    let right_focused = focus == DetailSection::StagingDetails;
+
+    // ── Left: Changed Files ───────────────────────────────────────────
+    let left_border_style = if left_focused {
+        Style::default().fg(ACCENT())
+    } else {
+        muted_style()
+    };
+    let left_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(left_border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Changed Files", primary_style()),
+            Span::raw("  "),
+            Span::styled(format!("({})", commit.files.len()), muted_style()),
+            Span::raw(" "),
+        ]));
+    let left_inner = left_block.inner(panels[0]);
+    f.render_widget(left_block, panels[0]);
+
+    if commit.files.is_empty() {
+        let v = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(40),
+                Constraint::Length(1),
+                Constraint::Min(0),
+            ])
+            .split(left_inner);
+        f.render_widget(
+            Paragraph::new(Span::styled("No files changed", muted_style()))
+                .alignment(Alignment::Center),
+            v[1],
+        );
+    } else {
+        let items: Vec<ListItem> = commit
+            .files
+            .iter()
+            .map(|f| ListItem::new(file_entry_line(f)))
+            .collect();
+        let list =
+            List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+        let mut state = ListState::default();
+        state.select(Some(file_selection));
+        f.render_stateful_widget(list, left_inner, &mut state);
+    }
+
+    // ── Right: Diff ───────────────────────────────────────────────────
+    let right_border_style = if right_focused {
+        Style::default().fg(ACCENT())
+    } else {
+        muted_style()
+    };
+    let right_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(right_border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Diff", primary_style()),
+            if right_focused && diff_scroll > 0 {
+                Span::styled(format!("  ↕ line {}", diff_scroll + 1), muted_style())
+            } else {
+                Span::raw("")
+            },
+            if right_focused {
+                Span::styled("  ↑↓ scroll", muted_style())
+            } else {
+                Span::raw("")
+            },
+            Span::raw(" "),
+        ]));
+    let right_inner = right_block.inner(panels[1]);
+    f.render_widget(right_block, panels[1]);
 
     if file_diff.is_empty() {
         let v_center = Layout::default()
