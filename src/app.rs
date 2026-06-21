@@ -106,6 +106,13 @@ pub enum DetailSection {
     StashedFiles,
 }
 
+/// Resizable splitter identifier for the Inspect view.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Splitter {
+    InspectHorizontal, // Left panel vs Right (Diff) panel
+    InspectVertical,   // Top sub-panel vs Bottom sub-panel in left panel
+}
+
 impl DetailSection {
     /// Advance to the next section in the cycle.
     pub fn next(self) -> Self {
@@ -231,6 +238,12 @@ pub struct App {
     pub remote_picker_action: Option<RemotePickerAction>,
     /// Selected row in the remote picker popup.
     pub remote_picker_selection: usize,
+    /// Percentage width of the left panel in the Inspect view (default: 40).
+    pub inspect_horizontal_split_pct: u16,
+    /// Percentage height of the top left sub-panel in the Inspect view (default: 50).
+    pub inspect_vertical_split_pct: u16,
+    /// Active drag splitter if dragging is in progress.
+    pub active_drag_splitter: Option<Splitter>,
 }
 
 #[derive(Clone, Debug)]
@@ -313,6 +326,9 @@ impl App {
             commit_amend: false,
             remote_picker_action: None,
             remote_picker_selection: 0,
+            inspect_horizontal_split_pct: 40,
+            inspect_vertical_split_pct: 50,
+            active_drag_splitter: None,
         };
 
         if app.config.sort_by != SortOrder::Custom {
@@ -3701,5 +3717,66 @@ mod tests {
         // Cancel resets it
         app.cancel_commit();
         assert_eq!(app.commit_input_scroll, 0);
+    }
+
+    #[test]
+    fn test_splitter_dragging() {
+        use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+        use ratatui::layout::Rect;
+
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_splitter.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Mock the detail_areas to simulate a drawn UI frame.
+        // Left panel is 40 columns wide (from 0 to 40), Right is 60 columns wide (40 to 100).
+        // Total width = 100. Horizontal splitter is at column 40.
+        // We set the bounding boxes.
+        app.detail_areas.bottom_left = Some(Rect::new(0, 0, 40, 50));
+        app.detail_areas.bottom_right = Some(Rect::new(40, 0, 60, 50));
+        app.detail_areas.inspect_horizontal_splitter = Some(Rect::new(39, 0, 2, 50));
+
+        // Click on the horizontal splitter
+        let down_event = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 39,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, down_event);
+        assert_eq!(app.active_drag_splitter, Some(Splitter::InspectHorizontal));
+
+        // Drag to column 30 (which means 30% of total width 100)
+        let drag_event = MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: 30,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, drag_event);
+        assert_eq!(app.inspect_horizontal_split_pct, 30);
+
+        // Release mouse
+        let up_event = MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Left),
+            column: 30,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, up_event);
+        assert_eq!(app.active_drag_splitter, None);
     }
 }

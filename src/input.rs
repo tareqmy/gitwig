@@ -7,7 +7,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Position;
 
-use crate::app::{App, DetailSection, Mode, RemotePickerAction};
+use crate::app::{App, DetailSection, Mode, RemotePickerAction, Splitter};
 
 /// Dispatch a key press. Returns `false` if the user requested quit.
 pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
@@ -738,10 +738,12 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
 /// Dispatch a mouse event.
 pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     let is_click = mouse.kind == MouseEventKind::Down(MouseButton::Left);
+    let is_drag = mouse.kind == MouseEventKind::Drag(MouseButton::Left);
+    let is_release = mouse.kind == MouseEventKind::Up(MouseButton::Left);
     let is_scroll_up = mouse.kind == MouseEventKind::ScrollUp;
     let is_scroll_down = mouse.kind == MouseEventKind::ScrollDown;
 
-    if !is_click && !is_scroll_up && !is_scroll_down {
+    if !is_click && !is_drag && !is_release && !is_scroll_up && !is_scroll_down {
         return;
     }
 
@@ -749,6 +751,71 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         x: mouse.column,
         y: mouse.row,
     };
+
+    let areas = app.detail_areas;
+
+    // Handle splitter dragging
+    if let Some(splitter) = app.active_drag_splitter {
+        if is_release {
+            app.active_drag_splitter = None;
+        } else if is_drag {
+            match splitter {
+                Splitter::InspectHorizontal => {
+                    if let (Some(left), Some(right)) = (areas.bottom_left, areas.bottom_right) {
+                        let start_x = areas.commit_details.map(|r| r.x).unwrap_or(left.x);
+                        let total_width = (right.x + right.width).saturating_sub(start_x);
+                        if total_width > 0 {
+                            let relative_x = pos.x.saturating_sub(start_x);
+                            let pct = ((relative_x as f32 / total_width as f32) * 100.0) as u16;
+                            app.inspect_horizontal_split_pct = pct.clamp(15, 85);
+                        }
+                    }
+                }
+                Splitter::InspectVertical => {
+                    let mut start_y = None;
+                    let mut total_height = None;
+
+                    if let (Some(top), Some(bottom)) = (areas.staged_sub, areas.unstaged_sub) {
+                        start_y = Some(top.y);
+                        total_height = Some((bottom.y + bottom.height).saturating_sub(top.y));
+                    } else if let (Some(top), Some(bottom)) =
+                        (areas.commit_details, areas.bottom_left)
+                    {
+                        start_y = Some(top.y);
+                        total_height = Some((bottom.y + bottom.height).saturating_sub(top.y));
+                    }
+
+                    if let (Some(sy), Some(th)) = (start_y, total_height) {
+                        if th > 0 {
+                            let relative_y = pos.y.saturating_sub(sy);
+                            let pct = ((relative_y as f32 / th as f32) * 100.0) as u16;
+                            app.inspect_vertical_split_pct = pct.clamp(15, 85);
+                        }
+                    }
+                }
+            }
+        }
+        return;
+    }
+
+    if is_click {
+        if let Some(rect) = areas.inspect_horizontal_splitter {
+            if rect.contains(pos) {
+                app.active_drag_splitter = Some(Splitter::InspectHorizontal);
+                return;
+            }
+        }
+        if let Some(rect) = areas.inspect_vertical_splitter {
+            if rect.contains(pos) {
+                app.active_drag_splitter = Some(Splitter::InspectVertical);
+                return;
+            }
+        }
+    }
+
+    if is_drag || is_release {
+        return;
+    }
 
     if app.mode == Mode::Help || app.mode == Mode::DetailHelp {
         if is_scroll_up {

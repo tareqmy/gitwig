@@ -254,6 +254,8 @@ pub fn draw(
                 app.stash_apply_delete_after,
                 app.commit_amend,
                 app.commit_input_scroll,
+                app.inspect_horizontal_split_pct,
+                app.inspect_vertical_split_pct,
                 content_area,
             );
         }

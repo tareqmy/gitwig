@@ -74,6 +74,10 @@ pub struct DetailAreas {
     pub stashes: Option<Rect>,
     /// Bounding box of the stashed files panel.
     pub stashed_files: Option<Rect>,
+    /// Bounding box of the horizontal splitter in inspect view.
+    pub inspect_horizontal_splitter: Option<Rect>,
+    /// Bounding box of the vertical splitter in left panel of inspect view.
+    pub inspect_vertical_splitter: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -114,6 +118,8 @@ pub fn draw(
     stash_apply_delete_after: bool,
     commit_amend: bool,
     commit_input_scroll: usize,
+    inspect_horizontal_split_pct: u16,
+    inspect_vertical_split_pct: u16,
     area: Rect,
 ) {
     if mode == &Mode::Inspect {
@@ -133,6 +139,8 @@ pub fn draw(
                     file_diff,
                     diff_scroll,
                     areas,
+                    inspect_horizontal_split_pct,
+                    inspect_vertical_split_pct,
                     area,
                 );
                 return;
@@ -152,6 +160,8 @@ pub fn draw(
                         diff_scroll,
                         commit_details_scroll,
                         areas,
+                        inspect_horizontal_split_pct,
+                        inspect_vertical_split_pct,
                         area,
                     );
                     return;
@@ -319,6 +329,8 @@ pub fn draw(
                         file_diff,
                         diff_scroll,
                         areas,
+                        40,
+                        50,
                         detail_chunks[1],
                     );
                 } else {
@@ -352,6 +364,8 @@ pub fn draw(
                                 file_diff,
                                 diff_scroll,
                                 areas,
+                                40,
+                                50,
                                 detail_chunks[1],
                             );
                         }
@@ -717,16 +731,30 @@ fn draw_staging_panels(
     file_diff: &[DiffLine],
     diff_scroll: usize,
     areas: &mut DetailAreas,
+    inspect_horizontal_split_pct: u16,
+    inspect_vertical_split_pct: u16,
     area: Rect,
 ) {
     let panels = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
+        .constraints([
+            Constraint::Percentage(inspect_horizontal_split_pct),
+            Constraint::Percentage(100 - inspect_horizontal_split_pct),
+        ])
         .split(area);
 
     areas.bottom_left = Some(panels[0]);
     areas.bottom_right = Some(panels[1]);
     areas.commit_details = None;
+
+    // Record horizontal splitter boundary
+    let split_col = area.x + panels[0].width;
+    areas.inspect_horizontal_splitter = Some(Rect::new(
+        split_col.saturating_sub(1),
+        area.y,
+        2,
+        area.height,
+    ));
 
     // Focus-aware border helpers.
     let left_focused = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
@@ -753,8 +781,20 @@ fn draw_staging_panels(
     // Split left inner vertically: top = Staged, bottom = Unstaged
     let left_split = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([
+            Constraint::Percentage(inspect_vertical_split_pct),
+            Constraint::Percentage(100 - inspect_vertical_split_pct),
+        ])
         .split(left_inner);
+
+    // Record vertical splitter boundary in left inner
+    let split_row = left_inner.y + left_split[0].height;
+    areas.inspect_vertical_splitter = Some(Rect::new(
+        left_inner.x,
+        split_row.saturating_sub(1),
+        left_inner.width,
+        2,
+    ));
 
     areas.staged_sub = Some(left_split[0]);
     areas.unstaged_sub = Some(left_split[1]);
@@ -3248,19 +3288,45 @@ fn draw_inspect_window(
     diff_scroll: usize,
     commit_details_scroll: usize,
     areas: &mut DetailAreas,
+    inspect_horizontal_split_pct: u16,
+    inspect_vertical_split_pct: u16,
     area: Rect,
 ) {
-    // Body: divided vertically: Left panel (40%), Right panel (60%)
+    // Body: divided vertically: Left panel, Right panel
     let panels = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
+        .constraints([
+            Constraint::Percentage(inspect_horizontal_split_pct),
+            Constraint::Percentage(100 - inspect_horizontal_split_pct),
+        ])
         .split(area);
+
+    // Record horizontal splitter boundary
+    let split_col = area.x + panels[0].width;
+    areas.inspect_horizontal_splitter = Some(Rect::new(
+        split_col.saturating_sub(1),
+        area.y,
+        2,
+        area.height,
+    ));
 
     // Split left panel vertically: top is Commit Details, bottom is Changed Files
     let left_chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([
+            Constraint::Percentage(inspect_vertical_split_pct),
+            Constraint::Percentage(100 - inspect_vertical_split_pct),
+        ])
         .split(panels[0]);
+
+    // Record vertical splitter boundary in left panel
+    let split_row = panels[0].y + left_chunks[0].height;
+    areas.inspect_vertical_splitter = Some(Rect::new(
+        panels[0].x,
+        split_row.saturating_sub(1),
+        panels[0].width,
+        2,
+    ));
 
     // Record panel areas for mouse hit testing/scrolling
     areas.commit_details = Some(left_chunks[0]);
