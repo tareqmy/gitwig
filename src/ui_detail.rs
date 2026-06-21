@@ -150,6 +150,7 @@ pub fn draw(
                         file_selection,
                         file_diff,
                         diff_scroll,
+                        commit_details_scroll,
                         areas,
                         area,
                     );
@@ -627,90 +628,14 @@ fn draw_commit_files_panel(
     }
 
     // ── Left Bottom: commit details ───────────────────────────────────────────
-    let details_focused = focus == DetailSection::CommitDetails;
-    let details_border_style = if details_focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
-    let details_block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(details_border_style)
-        .title(Line::from(vec![
-            Span::raw(" "),
-            Span::styled("Commit Details", primary_style()),
-            if details_focused && commit_details_scroll > 0 {
-                Span::styled(
-                    format!("  ↕ line {}", commit_details_scroll + 1),
-                    muted_style(),
-                )
-            } else {
-                Span::raw("")
-            },
-            if details_focused {
-                Span::styled("  ↑↓ scroll", muted_style())
-            } else {
-                Span::raw("")
-            },
-            Span::raw(" "),
-        ]))
-        .padding(Padding::horizontal(1));
-    let details_inner = details_block.inner(left_chunks[1]);
-    f.render_widget(details_block, left_chunks[1]);
-
-    let mut detail_lines = Vec::new();
-
-    // Hash
-    detail_lines.push(Line::from(vec![
-        Span::styled("Hash:   ", primary_style()),
-        Span::raw(&commit.oid),
-    ]));
-
-    // Author
-    detail_lines.push(Line::from(vec![
-        Span::styled("Author: ", primary_style()),
-        Span::raw(&commit.author),
-    ]));
-
-    // Date
-    detail_lines.push(Line::from(vec![
-        Span::styled("Date:   ", primary_style()),
-        Span::raw(format!("{} ({})", commit.date, commit.when)),
-    ]));
-
-    // Labels
-    if !commit.refs.is_empty() {
-        let mut ref_spans = vec![Span::styled("Refs:   ", primary_style())];
-        for (idx, r) in commit.refs.iter().enumerate() {
-            if idx > 0 {
-                ref_spans.push(Span::raw(", "));
-            }
-            let style = if r.starts_with("tag:") {
-                Style::default()
-                    .fg(ratatui::style::Color::Yellow)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
-            };
-            ref_spans.push(Span::styled(r.clone(), style));
-        }
-        detail_lines.push(Line::from(ref_spans));
-    }
-
-    // Empty separator
-    detail_lines.push(Line::from(""));
-
-    // Message
-    detail_lines.push(Line::from(vec![Span::styled("Message:", primary_style())]));
-    for line in commit.message.lines() {
-        detail_lines.push(Line::from(vec![Span::raw(line.to_string())]));
-    }
-
-    let details_paragraph = Paragraph::new(detail_lines)
-        .scroll((commit_details_scroll as u16, 0))
-        .wrap(Wrap { trim: true });
-    f.render_widget(details_paragraph, details_inner);
+    draw_commit_details_widget(
+        f,
+        commit,
+        focus == DetailSection::CommitDetails,
+        commit_details_scroll,
+        left_chunks[1],
+    );
+    areas.commit_details = Some(left_chunks[1]);
 
     // ── Right: diff panel ─────────────────────────────────────────────────
     let right_border_style = if right_focused {
@@ -3321,6 +3246,7 @@ fn draw_inspect_window(
     file_selection: usize,
     file_diff: &[DiffLine],
     diff_scroll: usize,
+    commit_details_scroll: usize,
     areas: &mut DetailAreas,
     area: Rect,
 ) {
@@ -3385,14 +3311,31 @@ fn draw_inspect_window(
         .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
         .split(chunks[1]);
 
+    // Split left panel vertically: top is Commit Details, bottom is Changed Files
+    let left_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(panels[0]);
+
     // Record panel areas for mouse hit testing/scrolling
-    areas.bottom_left = Some(panels[0]);
+    areas.commit_details = Some(left_chunks[0]);
+    areas.bottom_left = Some(left_chunks[1]);
     areas.bottom_right = Some(panels[1]);
 
+    let details_focused = focus == DetailSection::CommitDetails;
     let left_focused = focus == DetailSection::Staged;
     let right_focused = focus == DetailSection::StagingDetails;
 
-    // ── Left: Changed Files ───────────────────────────────────────────
+    // ── Left Top: Commit Info (Commit Details) ─────────────────────────
+    draw_commit_details_widget(
+        f,
+        commit,
+        details_focused,
+        commit_details_scroll,
+        left_chunks[0],
+    );
+
+    // ── Left Bottom: Changed Files ─────────────────────────────────────
     let left_border_style = if left_focused {
         Style::default().fg(ACCENT())
     } else {
@@ -3409,8 +3352,8 @@ fn draw_inspect_window(
             Span::styled(format!("({})", commit.files.len()), muted_style()),
             Span::raw(" "),
         ]));
-    let left_inner = left_block.inner(panels[0]);
-    f.render_widget(left_block, panels[0]);
+    let left_inner = left_block.inner(left_chunks[1]);
+    f.render_widget(left_block, left_chunks[1]);
 
     if commit.files.is_empty() {
         let v = Layout::default()
@@ -3567,4 +3510,93 @@ fn draw_inspect_uncommitted(
         areas,
         chunks[1],
     );
+}
+
+fn draw_commit_details_widget(
+    f: &mut Frame,
+    commit: &CommitEntry,
+    focused: bool,
+    scroll: usize,
+    area: Rect,
+) {
+    let border_style = if focused {
+        Style::default().fg(ACCENT())
+    } else {
+        muted_style()
+    };
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Commit Info", primary_style()),
+            if focused && scroll > 0 {
+                Span::styled(format!("  ↕ line {}", scroll + 1), muted_style())
+            } else {
+                Span::raw("")
+            },
+            if focused {
+                Span::styled("  ↑↓ scroll", muted_style())
+            } else {
+                Span::raw("")
+            },
+            Span::raw(" "),
+        ]))
+        .padding(Padding::horizontal(1));
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+
+    let mut lines = Vec::new();
+
+    // Hash
+    lines.push(Line::from(vec![
+        Span::styled("Hash:   ", primary_style()),
+        Span::raw(&commit.oid),
+    ]));
+
+    // Author
+    lines.push(Line::from(vec![
+        Span::styled("Author: ", primary_style()),
+        Span::raw(&commit.author),
+    ]));
+
+    // Date
+    lines.push(Line::from(vec![
+        Span::styled("Date:   ", primary_style()),
+        Span::raw(format!("{} ({})", commit.date, commit.when)),
+    ]));
+
+    // Refs
+    if !commit.refs.is_empty() {
+        let mut ref_spans = vec![Span::styled("Refs:   ", primary_style())];
+        for (idx, r) in commit.refs.iter().enumerate() {
+            if idx > 0 {
+                ref_spans.push(Span::raw(", "));
+            }
+            let style = if r.starts_with("tag:") {
+                Style::default()
+                    .fg(ratatui::style::Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
+            };
+            ref_spans.push(Span::styled(r.clone(), style));
+        }
+        lines.push(Line::from(ref_spans));
+    }
+
+    // Empty separator
+    lines.push(Line::from(""));
+
+    // Message
+    lines.push(Line::from(vec![Span::styled("Message:", primary_style())]));
+    for line in commit.message.lines() {
+        lines.push(Line::from(vec![Span::raw(line.to_string())]));
+    }
+
+    let paragraph = Paragraph::new(lines)
+        .scroll((scroll as u16, 0))
+        .wrap(Wrap { trim: true });
+    f.render_widget(paragraph, inner);
 }

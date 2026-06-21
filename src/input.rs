@@ -547,11 +547,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.diff_scroll = 0;
                     app.refresh_staging_diff();
                 } else {
-                    if app.detail_focus == DetailSection::Staged {
-                        app.detail_focus = DetailSection::StagingDetails;
-                    } else {
-                        app.detail_focus = DetailSection::Staged;
-                    }
+                    app.detail_focus = match app.detail_focus {
+                        DetailSection::Staged => DetailSection::CommitDetails,
+                        DetailSection::CommitDetails => DetailSection::StagingDetails,
+                        _ => DetailSection::Staged,
+                    };
                 }
             }
             KeyCode::Right => {
@@ -562,7 +562,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.detail_focus = DetailSection::StagingDetails;
                     }
                 } else {
-                    if app.detail_focus == DetailSection::Staged {
+                    if app.detail_focus == DetailSection::Staged
+                        || app.detail_focus == DetailSection::CommitDetails
+                    {
                         app.detail_focus = DetailSection::StagingDetails;
                     }
                 }
@@ -581,6 +583,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     } else {
                         app.detail_file_up();
                     }
+                } else if app.detail_focus == DetailSection::CommitDetails {
+                    app.commit_details_scroll_up();
                 } else {
                     app.diff_scroll_up();
                 }
@@ -594,6 +598,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     } else {
                         app.detail_file_down();
                     }
+                } else if app.detail_focus == DetailSection::CommitDetails {
+                    app.commit_details_scroll_down();
                 } else {
                     app.diff_scroll_down();
                 }
@@ -611,6 +617,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                             app.detail_file_up();
                         }
                     }
+                } else if app.detail_focus == DetailSection::CommitDetails {
+                    for _ in 0..10 {
+                        app.commit_details_scroll_up();
+                    }
                 } else {
                     app.diff_scroll_page_up(10);
                 }
@@ -627,6 +637,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         for _ in 0..10 {
                             app.detail_file_down();
                         }
+                    }
+                } else if app.detail_focus == DetailSection::CommitDetails {
+                    for _ in 0..10 {
+                        app.commit_details_scroll_down();
                     }
                 } else {
                     app.diff_scroll_page_down(10);
