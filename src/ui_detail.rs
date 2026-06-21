@@ -125,7 +125,7 @@ pub fn draw(
             let is_uncommitted = dirty && commit_selection == 0;
 
             if is_uncommitted {
-                draw_inspect_uncommitted(
+                draw_staging_panels(
                     f,
                     &info.changes,
                     *focus,
@@ -3250,66 +3250,11 @@ fn draw_inspect_window(
     areas: &mut DetailAreas,
     area: Rect,
 ) {
-    // Layout: top is header row, bottom is panels
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(2), Constraint::Min(0)])
-        .split(area);
-
-    let header_rows = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Length(1)])
-        .split(chunks[0]);
-
-    // Split header into left (commit summary/info) and right (date/author).
-    let header_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Min(0), Constraint::Length(40)])
-        .split(header_rows[0]);
-
-    let header_left = Paragraph::new(Line::from(vec![
-        Span::raw(FIELD_INDENT),
-        Span::styled("Inspect Commit: ", primary_style()),
-        Span::styled(commit.id.clone(), accent_style()),
-        Span::raw(" - "),
-        Span::styled(commit.summary.clone(), muted_style()),
-    ]));
-    f.render_widget(header_left, header_chunks[0]);
-
-    let header_right = Paragraph::new(Line::from(vec![
-        Span::styled("by ", muted_style()),
-        Span::styled(commit.author.clone(), primary_style()),
-        Span::raw("  "),
-    ]))
-    .alignment(Alignment::Right);
-    f.render_widget(header_right, header_chunks[1]);
-
-    // Divider line
-    {
-        let w = chunks[0].width as usize;
-        let outer = (w / 10).max(2);
-        let inner = (w / 8).max(3);
-        let centre = w.saturating_sub(outer * 2 + inner * 2);
-
-        let fade_outer = Style::default().add_modifier(Modifier::DIM);
-        let fade_inner = Style::default();
-        let solid = Style::default().fg(ACCENT());
-
-        let divider_line = Line::from(vec![
-            Span::styled(" ".repeat(outer), fade_outer),
-            Span::styled("┄".repeat(inner), fade_inner),
-            Span::styled("┈".repeat(centre), solid),
-            Span::styled("┄".repeat(inner), fade_inner),
-            Span::styled(" ".repeat(outer), fade_outer),
-        ]);
-        f.render_widget(Paragraph::new(divider_line), header_rows[1]);
-    }
-
     // Body: divided vertically: Left panel (40%), Right panel (60%)
     let panels = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
-        .split(chunks[1]);
+        .split(area);
 
     // Split left panel vertically: top is Commit Details, bottom is Changed Files
     let left_chunks = Layout::default()
@@ -3447,69 +3392,6 @@ fn draw_inspect_window(
             right_inner,
         );
     }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn draw_inspect_uncommitted(
-    f: &mut Frame,
-    changes: &WorktreeChanges,
-    focus: DetailSection,
-    staging_file_selection: usize,
-    file_diff: &[DiffLine],
-    diff_scroll: usize,
-    areas: &mut DetailAreas,
-    area: Rect,
-) {
-    // Layout: top is header row, bottom is panels
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(2), Constraint::Min(0)])
-        .split(area);
-
-    let header_rows = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Length(1)])
-        .split(chunks[0]);
-
-    let header_left = Paragraph::new(Line::from(vec![
-        Span::raw(FIELD_INDENT),
-        Span::styled("Inspect: ", primary_style()),
-        Span::styled("Uncommitted Changes", accent_style()),
-    ]));
-    f.render_widget(header_left, header_rows[0]);
-
-    // Divider line
-    {
-        let w = chunks[0].width as usize;
-        let outer = (w / 10).max(2);
-        let inner = (w / 8).max(3);
-        let centre = w.saturating_sub(outer * 2 + inner * 2);
-
-        let fade_outer = Style::default().add_modifier(Modifier::DIM);
-        let fade_inner = Style::default();
-        let solid = Style::default().fg(ACCENT());
-
-        let divider_line = Line::from(vec![
-            Span::styled(" ".repeat(outer), fade_outer),
-            Span::styled("┄".repeat(inner), fade_inner),
-            Span::styled("┈".repeat(centre), solid),
-            Span::styled("┄".repeat(inner), fade_inner),
-            Span::styled(" ".repeat(outer), fade_outer),
-        ]);
-        f.render_widget(Paragraph::new(divider_line), header_rows[1]);
-    }
-
-    // Body: draw staging panels in chunks[1]
-    draw_staging_panels(
-        f,
-        changes,
-        focus,
-        staging_file_selection,
-        file_diff,
-        diff_scroll,
-        areas,
-        chunks[1],
-    );
 }
 
 fn draw_commit_details_widget(
