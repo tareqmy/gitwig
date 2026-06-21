@@ -242,13 +242,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 KeyCode::Char('w') | KeyCode::Char('W') => app.cycle_detail_focus(),
                 KeyCode::Right if detail_focus == DetailSection::Commits => {
-                    if !app.is_uncommitted_selected() {
-                        app.mode = Mode::Inspect;
+                    app.mode = Mode::Inspect;
+                    if app.is_uncommitted_selected() {
+                        app.detail_focus = DetailSection::Staged;
+                        app.staging_file_selection = 0;
+                    } else {
                         app.detail_focus = DetailSection::Staged;
                         app.file_selection = 0;
-                        app.diff_scroll = 0;
-                        app.refresh_file_diff();
                     }
+                    app.diff_scroll = 0;
+                    app.refresh_file_diff();
                 }
                 KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::Commits => {
                     app.detail_commit_up()
@@ -535,15 +538,33 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.open_detail_help();
             }
             KeyCode::Char('w') | KeyCode::Char('W') | KeyCode::Tab => {
-                if app.detail_focus == DetailSection::Staged {
-                    app.detail_focus = DetailSection::StagingDetails;
+                if app.is_uncommitted_selected() {
+                    app.detail_focus = match app.detail_focus {
+                        DetailSection::Staged => DetailSection::Unstaged,
+                        DetailSection::Unstaged => DetailSection::StagingDetails,
+                        _ => DetailSection::Staged,
+                    };
+                    app.diff_scroll = 0;
+                    app.refresh_staging_diff();
                 } else {
-                    app.detail_focus = DetailSection::Staged;
+                    if app.detail_focus == DetailSection::Staged {
+                        app.detail_focus = DetailSection::StagingDetails;
+                    } else {
+                        app.detail_focus = DetailSection::Staged;
+                    }
                 }
             }
             KeyCode::Right => {
-                if app.detail_focus == DetailSection::Staged {
-                    app.detail_focus = DetailSection::StagingDetails;
+                if app.is_uncommitted_selected() {
+                    if app.detail_focus == DetailSection::Staged
+                        || app.detail_focus == DetailSection::Unstaged
+                    {
+                        app.detail_focus = DetailSection::StagingDetails;
+                    }
+                } else {
+                    if app.detail_focus == DetailSection::Staged {
+                        app.detail_focus = DetailSection::StagingDetails;
+                    }
                 }
             }
             KeyCode::Left => {
@@ -552,36 +573,78 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
             }
             KeyCode::Up | KeyCode::Char('k') => {
-                if app.detail_focus == DetailSection::Staged {
-                    app.detail_file_up();
+                if app.detail_focus == DetailSection::Staged
+                    || app.detail_focus == DetailSection::Unstaged
+                {
+                    if app.is_uncommitted_selected() {
+                        app.staging_file_up();
+                    } else {
+                        app.detail_file_up();
+                    }
                 } else {
                     app.diff_scroll_up();
                 }
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                if app.detail_focus == DetailSection::Staged {
-                    app.detail_file_down();
+                if app.detail_focus == DetailSection::Staged
+                    || app.detail_focus == DetailSection::Unstaged
+                {
+                    if app.is_uncommitted_selected() {
+                        app.staging_file_down();
+                    } else {
+                        app.detail_file_down();
+                    }
                 } else {
                     app.diff_scroll_down();
                 }
             }
             KeyCode::PageUp => {
-                if app.detail_focus == DetailSection::Staged {
-                    for _ in 0..10 {
-                        app.detail_file_up();
+                if app.detail_focus == DetailSection::Staged
+                    || app.detail_focus == DetailSection::Unstaged
+                {
+                    if app.is_uncommitted_selected() {
+                        for _ in 0..10 {
+                            app.staging_file_up();
+                        }
+                    } else {
+                        for _ in 0..10 {
+                            app.detail_file_up();
+                        }
                     }
                 } else {
                     app.diff_scroll_page_up(10);
                 }
             }
             KeyCode::PageDown => {
-                if app.detail_focus == DetailSection::Staged {
-                    for _ in 0..10 {
-                        app.detail_file_down();
+                if app.detail_focus == DetailSection::Staged
+                    || app.detail_focus == DetailSection::Unstaged
+                {
+                    if app.is_uncommitted_selected() {
+                        for _ in 0..10 {
+                            app.staging_file_down();
+                        }
+                    } else {
+                        for _ in 0..10 {
+                            app.detail_file_down();
+                        }
                     }
                 } else {
                     app.diff_scroll_page_down(10);
                 }
+            }
+            KeyCode::Enter if app.is_uncommitted_selected() => {
+                if app.detail_focus == DetailSection::Staged {
+                    app.unstage_selected_file();
+                } else if app.detail_focus == DetailSection::Unstaged {
+                    app.stage_selected_file();
+                }
+            }
+            KeyCode::Char('x') | KeyCode::Char('X')
+                if app.is_uncommitted_selected()
+                    && (app.detail_focus == DetailSection::Staged
+                        || app.detail_focus == DetailSection::Unstaged) =>
+            {
+                app.request_discard_changes();
             }
             _ => {}
         },

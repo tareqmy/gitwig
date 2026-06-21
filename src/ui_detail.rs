@@ -122,23 +122,39 @@ pub fn draw(
                 || !info.changes.unstaged.is_empty()
                 || !info.changes.untracked.is_empty()
                 || !info.changes.conflicted.is_empty();
-            let commit_idx = if dirty {
-                commit_selection.saturating_sub(1)
-            } else {
-                commit_selection
-            };
-            if let Some(commit) = info.commits.get(commit_idx) {
-                draw_inspect_window(
+            let is_uncommitted = dirty && commit_selection == 0;
+
+            if is_uncommitted {
+                draw_inspect_uncommitted(
                     f,
-                    commit,
+                    &info.changes,
                     *focus,
-                    file_selection,
+                    staging_file_selection,
                     file_diff,
                     diff_scroll,
                     areas,
                     area,
                 );
                 return;
+            } else {
+                let commit_idx = if dirty {
+                    commit_selection.saturating_sub(1)
+                } else {
+                    commit_selection
+                };
+                if let Some(commit) = info.commits.get(commit_idx) {
+                    draw_inspect_window(
+                        f,
+                        commit,
+                        *focus,
+                        file_selection,
+                        file_diff,
+                        diff_scroll,
+                        areas,
+                        area,
+                    );
+                    return;
+                }
             }
         }
     }
@@ -3488,4 +3504,67 @@ fn draw_inspect_window(
             right_inner,
         );
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_inspect_uncommitted(
+    f: &mut Frame,
+    changes: &WorktreeChanges,
+    focus: DetailSection,
+    staging_file_selection: usize,
+    file_diff: &[DiffLine],
+    diff_scroll: usize,
+    areas: &mut DetailAreas,
+    area: Rect,
+) {
+    // Layout: top is header row, bottom is panels
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(2), Constraint::Min(0)])
+        .split(area);
+
+    let header_rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Length(1)])
+        .split(chunks[0]);
+
+    let header_left = Paragraph::new(Line::from(vec![
+        Span::raw(FIELD_INDENT),
+        Span::styled("Inspect: ", primary_style()),
+        Span::styled("Uncommitted Changes", accent_style()),
+    ]));
+    f.render_widget(header_left, header_rows[0]);
+
+    // Divider line
+    {
+        let w = chunks[0].width as usize;
+        let outer = (w / 10).max(2);
+        let inner = (w / 8).max(3);
+        let centre = w.saturating_sub(outer * 2 + inner * 2);
+
+        let fade_outer = Style::default().add_modifier(Modifier::DIM);
+        let fade_inner = Style::default();
+        let solid = Style::default().fg(ACCENT());
+
+        let divider_line = Line::from(vec![
+            Span::styled(" ".repeat(outer), fade_outer),
+            Span::styled("┄".repeat(inner), fade_inner),
+            Span::styled("┈".repeat(centre), solid),
+            Span::styled("┄".repeat(inner), fade_inner),
+            Span::styled(" ".repeat(outer), fade_outer),
+        ]);
+        f.render_widget(Paragraph::new(divider_line), header_rows[1]);
+    }
+
+    // Body: draw staging panels in chunks[1]
+    draw_staging_panels(
+        f,
+        changes,
+        focus,
+        staging_file_selection,
+        file_diff,
+        diff_scroll,
+        areas,
+        chunks[1],
+    );
 }
