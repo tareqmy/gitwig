@@ -2640,15 +2640,24 @@ impl App {
         self.input_buffer.pop();
     }
 
+    fn canonical_path(p: &std::path::Path) -> PathBuf {
+        match std::fs::canonicalize(p) {
+            Ok(canon) => canon,
+            Err(_) => p.to_path_buf(),
+        }
+    }
+
     pub fn commit_add(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
         if !trimmed.is_empty() {
             let new_expanded = repo::expand_tilde(&trimmed);
-            let already_exists = self
-                .config
-                .items
-                .iter()
-                .any(|item| item.trim() == trimmed || repo::expand_tilde(item) == new_expanded);
+            let new_canonical = Self::canonical_path(&new_expanded);
+            let already_exists = self.config.items.iter().any(|item| {
+                let item_expanded = repo::expand_tilde(item);
+                item.trim() == trimmed
+                    || item_expanded == new_expanded
+                    || Self::canonical_path(&item_expanded) == new_canonical
+            });
             if already_exists {
                 self.status_message = Some("Repository already added".to_string());
                 self.input_buffer.clear();
@@ -2678,11 +2687,13 @@ impl App {
         let trimmed = path.trim().to_string();
         if !trimmed.is_empty() {
             let new_expanded = repo::expand_tilde(&trimmed);
-            let already_exists = self
-                .config
-                .items
-                .iter()
-                .any(|item| item.trim() == trimmed || repo::expand_tilde(item) == new_expanded);
+            let new_canonical = Self::canonical_path(&new_expanded);
+            let already_exists = self.config.items.iter().any(|item| {
+                let item_expanded = repo::expand_tilde(item);
+                item.trim() == trimmed
+                    || item_expanded == new_expanded
+                    || Self::canonical_path(&item_expanded) == new_canonical
+            });
             if already_exists {
                 self.status_message = Some("Repository already added".to_string());
                 return;
