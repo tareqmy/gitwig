@@ -270,6 +270,8 @@ pub struct App {
     pub active_drag_splitter: Option<Splitter>,
     pub settings_selected_index: usize,
     pub settings_editing: bool,
+    pub settings_theme_list: Vec<String>,
+    pub settings_theme_index: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -364,6 +366,8 @@ impl App {
             active_drag_splitter: None,
             settings_selected_index: 0,
             settings_editing: false,
+            settings_theme_list: Vec::new(),
+            settings_theme_index: 0,
         };
 
         if app.config.sort_by != SortOrder::Custom {
@@ -2499,8 +2503,13 @@ impl App {
                 self.persist("Sort direction updated");
             }
             3 => {
+                self.settings_theme_list = self.get_available_themes();
+                self.settings_theme_index = self
+                    .settings_theme_list
+                    .iter()
+                    .position(|t| t == &self.config.theme_name)
+                    .unwrap_or(0);
                 self.settings_editing = true;
-                self.input_buffer = self.config.theme_name.clone();
             }
             4 => {
                 self.settings_editing = true;
@@ -2529,14 +2538,16 @@ impl App {
                 }
             }
             3 => {
-                if !trimmed.is_empty() {
-                    self.config.theme_name = trimmed.to_string();
+                if self.settings_theme_index < self.settings_theme_list.len() {
+                    let selected_theme =
+                        self.settings_theme_list[self.settings_theme_index].clone();
+                    self.config.theme_name = selected_theme.clone();
                     let themes_dir = self
                         .config_path
                         .parent()
                         .unwrap_or(&self.config_path)
                         .join("themes");
-                    let theme_path = themes_dir.join(format!("{}.theme", trimmed));
+                    let theme_path = themes_dir.join(format!("{}.theme", selected_theme));
                     if theme_path.exists() {
                         if let Ok(theme_contents) = std::fs::read_to_string(&theme_path) {
                             if let Ok(theme) =
@@ -2546,23 +2557,13 @@ impl App {
                                 crate::ui::update_theme(&self.config.theme);
                                 self.persist("Theme updated");
                                 self.settings_editing = false;
-                                self.input_buffer.clear();
                                 return;
                             }
                         }
                     }
-                    let theme_serialized = match toml::to_string_pretty(&self.config.theme) {
-                        Ok(s) => s,
-                        Err(_) => "".to_string(),
-                    };
-                    if !theme_serialized.is_empty() {
-                        let _ = std::fs::write(&theme_path, theme_serialized);
-                    }
-                    self.persist("Theme created and updated");
+                    crate::ui::update_theme(&self.config.theme);
                     self.settings_editing = false;
-                    self.input_buffer.clear();
-                } else {
-                    self.status_message = Some("Theme name cannot be empty".to_string());
+                    self.persist("Theme updated");
                 }
             }
             4 => {
@@ -2582,6 +2583,32 @@ impl App {
     pub fn cancel_settings_edit(&mut self) {
         self.settings_editing = false;
         self.input_buffer.clear();
+    }
+
+    pub fn get_available_themes(&self) -> Vec<String> {
+        let mut themes = vec!["default".to_string()];
+        let themes_dir = self
+            .config_path
+            .parent()
+            .unwrap_or(&self.config_path)
+            .join("themes");
+        if themes_dir.exists() {
+            if let Ok(entries) = std::fs::read_dir(themes_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file() && path.extension().is_some_and(|ext| ext == "theme") {
+                        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                            let theme_name = stem.to_string();
+                            if theme_name != "default" && !themes.contains(&theme_name) {
+                                themes.push(theme_name);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        themes.sort();
+        themes
     }
 
     pub fn cancel_input(&mut self) {
@@ -4284,10 +4311,28 @@ mod tests {
         crate::input::handle_key(&mut app, key_event(KeyCode::Char(' ')), 10);
         assert!(app.config.sort_reverse);
 
-        // Go down to FZF Max Depth (index 4)
-        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // Theme (index 3)
+        // Go down to Theme (index 3)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
         assert_eq!(app.settings_selected_index, 3);
-        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // FZF Max Depth (index 4)
+
+        // Edit Theme Name dropdown
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(app.settings_editing);
+        assert!(app.settings_theme_list.contains(&"default".to_string()));
+
+        // Pressing Down increases index (if there are other themes available)
+        let prev_idx = app.settings_theme_index;
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        if app.settings_theme_list.len() > 1 {
+            assert_eq!(app.settings_theme_index, prev_idx + 1);
+        }
+
+        // Cancel theme edit
+        crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+        assert!(!app.settings_editing);
+
+        // Go down to FZF Max Depth (index 4)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
         assert_eq!(app.settings_selected_index, 4);
 
         // Edit FZF Max Depth

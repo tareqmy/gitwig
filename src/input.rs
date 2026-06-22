@@ -59,27 +59,45 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Enter => app.open_detail(),
             _ => {}
         },
-        Mode::Settings => match code {
-            KeyCode::Esc if app.settings_editing => app.cancel_settings_edit(),
-            KeyCode::Esc => app.mode = Mode::Normal,
-            KeyCode::Char('q') if !app.settings_editing => app.mode = Mode::Normal,
-            KeyCode::Down | KeyCode::Char('j') if !app.settings_editing => {
-                if app.settings_selected_index + 1 < 5 {
-                    app.settings_selected_index += 1;
+        Mode::Settings => {
+            if app.settings_editing && app.settings_selected_index == 3 {
+                match code {
+                    KeyCode::Esc => app.cancel_settings_edit(),
+                    KeyCode::Enter => app.commit_settings_edit(),
+                    KeyCode::Down | KeyCode::Char('j')
+                        if app.settings_theme_index + 1 < app.settings_theme_list.len() =>
+                    {
+                        app.settings_theme_index += 1;
+                    }
+                    KeyCode::Up | KeyCode::Char('k') if app.settings_theme_index > 0 => {
+                        app.settings_theme_index -= 1;
+                    }
+                    _ => {}
+                }
+            } else {
+                match code {
+                    KeyCode::Esc if app.settings_editing => app.cancel_settings_edit(),
+                    KeyCode::Esc => app.mode = Mode::Normal,
+                    KeyCode::Char('q') if !app.settings_editing => app.mode = Mode::Normal,
+                    KeyCode::Down | KeyCode::Char('j') if !app.settings_editing => {
+                        if app.settings_selected_index + 1 < 5 {
+                            app.settings_selected_index += 1;
+                        }
+                    }
+                    KeyCode::Up | KeyCode::Char('k') if !app.settings_editing => {
+                        if app.settings_selected_index > 0 {
+                            app.settings_selected_index -= 1;
+                        }
+                    }
+                    KeyCode::Enter if app.settings_editing => app.commit_settings_edit(),
+                    KeyCode::Enter => app.toggle_or_edit_setting(),
+                    KeyCode::Char(' ') if !app.settings_editing => app.toggle_or_edit_setting(),
+                    KeyCode::Backspace if app.settings_editing => app.input_backspace(),
+                    KeyCode::Char(c) if app.settings_editing => app.input_char(c),
+                    _ => {}
                 }
             }
-            KeyCode::Up | KeyCode::Char('k') if !app.settings_editing => {
-                if app.settings_selected_index > 0 {
-                    app.settings_selected_index -= 1;
-                }
-            }
-            KeyCode::Enter if app.settings_editing => app.commit_settings_edit(),
-            KeyCode::Enter => app.toggle_or_edit_setting(),
-            KeyCode::Char(' ') if !app.settings_editing => app.toggle_or_edit_setting(),
-            KeyCode::Backspace if app.settings_editing => app.input_backspace(),
-            KeyCode::Char(c) if app.settings_editing => app.input_char(c),
-            _ => {}
-        },
+        }
         Mode::Adding => match code {
             KeyCode::Esc => app.cancel_input(),
             KeyCode::Enter => app.commit_add(),

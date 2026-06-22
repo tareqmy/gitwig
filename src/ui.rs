@@ -600,7 +600,11 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let msg_spans = if let Some(msg) = &app.status_message {
                 vec![Span::styled(format!("{} ", msg), accent_style())]
             } else if app.settings_editing {
-                vec![Span::raw("Editing setting...")]
+                if app.settings_selected_index == 3 {
+                    vec![Span::raw("Selecting theme... (Press Up/Down to choose)")]
+                } else {
+                    vec![Span::raw("Editing setting...")]
+                }
             } else {
                 vec![
                     Span::raw("Settings (Esc to exit) | Use "),
@@ -1612,7 +1616,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             0 => "Event-loop poll interval in milliseconds. Sane range: 16-500.",
             1 => "Initial repository sorting criteria.",
             2 => "Reverse the order of repositories.",
-            3 => "Active theme configuration name (e.g. default, dark, light).",
+            3 => "Active theme configuration name. Press Enter/Space to select from dropdown.",
             4 => "Maximum directory depth to search for git repositories.",
             _ => "",
         };
@@ -1637,7 +1641,11 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             2 => app.config.sort_reverse.to_string(),
             3 => {
                 if is_selected && app.settings_editing {
-                    format!("{}█", app.input_buffer)
+                    if app.settings_theme_index < app.settings_theme_list.len() {
+                        app.settings_theme_list[app.settings_theme_index].clone()
+                    } else {
+                        app.config.theme_name.clone()
+                    }
                 } else {
                     app.config.theme_name.clone()
                 }
@@ -1674,7 +1682,8 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         ];
 
         if is_selected && app.settings_editing {
-            line_spans.push(Span::styled(" [Edit]: ", muted_style()));
+            let label = if i == 3 { " [Select]: " } else { " [Edit]: " };
+            line_spans.push(Span::styled(label, muted_style()));
             line_spans.push(Span::styled(
                 val_str,
                 Style::default()
@@ -1707,7 +1716,54 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     f.render_widget(paragraph, inner_rect);
 
-    if app.settings_editing {
+    if app.settings_editing && app.settings_selected_index == 3 {
+        // Draw the dropdown box
+        let dropdown_width = 30;
+        let dropdown_height = (app.settings_theme_list.len() + 2) as u16;
+
+        // Position it near the theme name row
+        // Theme name row index is 3, so its y coordinate starts at inner_rect.y + 9
+        let dropdown_x = inner_rect.x + 25;
+        let dropdown_y = inner_rect.y + 10;
+
+        let dropdown_area = Rect::new(
+            dropdown_x.min(area.right().saturating_sub(dropdown_width)),
+            dropdown_y.min(area.bottom().saturating_sub(dropdown_height)),
+            dropdown_width.min(area.width),
+            dropdown_height.min(area.height),
+        );
+
+        let dropdown_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(accent_style())
+            .title(Span::styled(" Select Theme ", accent_style()));
+
+        f.render_widget(Clear, dropdown_area);
+        f.render_widget(dropdown_block.clone(), dropdown_area);
+
+        let dropdown_inner = dropdown_block.inner(dropdown_area);
+
+        let mut theme_spans = Vec::new();
+        for (idx, theme_name) in app.settings_theme_list.iter().enumerate() {
+            let is_active = idx == app.settings_theme_index;
+            let prefix = if is_active { "▶ " } else { "  " };
+            let style = if is_active {
+                accent_style().add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            theme_spans.push(Line::from(Span::styled(
+                format!("{}{}", prefix, theme_name),
+                style,
+            )));
+        }
+
+        let list = Paragraph::new(theme_spans);
+        f.render_widget(list, dropdown_inner);
+    }
+
+    if app.settings_editing && app.settings_selected_index != 3 {
         let cursor_y = inner_rect.y + (app.settings_selected_index * 3) as u16;
         let cursor_x = inner_rect.x + 1 + 32 + app.input_buffer.chars().count() as u16;
         f.set_cursor_position(Position::new(cursor_x, cursor_y));
