@@ -374,6 +374,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         let is_selected = actual_index == app.selected_index;
         let pending_delete = is_selected && matches!(app.mode, Mode::ConfirmDelete);
         let pending_edit = is_selected && matches!(app.mode, Mode::Editing);
+        let is_pinned = app.config.pinned.contains(item);
 
         // Selected/pending cards use an accent color; unselected cards use
         // the terminal's default foreground (dimmed) so they stay legible
@@ -384,6 +385,8 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             Style::default().fg(WARNING())
         } else if is_selected {
             Style::default().fg(ACCENT())
+        } else if is_pinned {
+            Style::default().fg(WARNING())
         } else {
             muted_style()
         };
@@ -394,12 +397,18 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             (UNSELECTED_INDENT, Style::default(), Style::default())
         };
 
+        let border_type = if is_selected {
+            BorderType::LightDoubleDashed
+        } else {
+            CARD_BORDER()
+        };
+
         // Render the border block; split its inner rect into two rows:
         //   row 0 — item path (left) + status indicator (right)
         //   row 1 — branch name (left-aligned, muted)
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_type(CARD_BORDER())
+            .border_type(border_type)
             .border_style(border_style)
             .padding(Padding::horizontal(1));
         let inner = block.inner(chunks[i]);
@@ -410,10 +419,10 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             .constraints([Constraint::Length(1), Constraint::Min(0)])
             .split(inner);
 
-        // Row 0: repo name + status
+        // Row 0: repo name + pin sign
         let name_cols = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Min(0), Constraint::Length(STATUS_ZONE_WIDTH)])
+            .constraints([Constraint::Min(0), Constraint::Length(4)])
             .split(rows[0]);
 
         let repo_name = std::path::Path::new(item)
@@ -421,21 +430,32 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             .and_then(|s| s.to_str())
             .unwrap_or(item.as_str());
 
-        let is_pinned = app.config.pinned.contains(item);
+        let fallback = ItemStatus::Missing;
+        let status = app.statuses.get(actual_index).unwrap_or(&fallback);
+        let is_git = matches!(status, ItemStatus::GitRepo(_));
+
         let mut spans = vec![Span::styled(mark, mark_style)];
-        if is_pinned {
-            spans.push(Span::styled("📌 ", Style::default().fg(WARNING())));
+        if is_git {
+            spans.push(Span::styled("⎇  ", muted_style()));
         }
         spans.push(Span::styled(repo_name, text_style));
         let name_line = Line::from(spans);
         f.render_widget(Paragraph::new(name_line), name_cols[0]);
 
-        let fallback = ItemStatus::Missing;
-        let status = app.statuses.get(actual_index).unwrap_or(&fallback);
-        let status_line = status_indicator_line(status).alignment(Alignment::Right);
-        f.render_widget(Paragraph::new(status_line), name_cols[1]);
+        if is_pinned {
+            let pin_line = Line::from(Span::styled("📌", Style::default().fg(WARNING()))).alignment(Alignment::Right);
+            f.render_widget(Paragraph::new(pin_line), name_cols[1]);
+        }
 
-        // Row 1: branch name (git repos only; empty for others)
+        // Row 1: Left column (branch name) and Right column (status section)
+        let row1_cols = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Min(0),
+                Constraint::Length(STATUS_ZONE_WIDTH),
+            ])
+            .split(rows[1]);
+
         let branch = match status {
             ItemStatus::GitRepo(Some(s)) => s.branch.clone(),
             _ => None,
@@ -448,7 +468,10 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             ]),
             None => Line::from(""),
         };
-        f.render_widget(Paragraph::new(branch_line), rows[1]);
+        f.render_widget(Paragraph::new(branch_line), row1_cols[0]);
+
+        let status_line = status_indicator_line(status).alignment(Alignment::Right);
+        f.render_widget(Paragraph::new(status_line), row1_cols[1]);
     }
 }
 
