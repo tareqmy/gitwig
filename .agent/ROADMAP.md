@@ -57,6 +57,6 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Interactive Rebase.
 - [ ] Conflict resolution UI.
 - [ ] Custom themes and keybindings.
-- [ ] Line by line diff allow or decline.
-- [x] Allow option to revert a dirty file.
+- [ ] Line-by-line diffs allow or decline.
+- [x] Allow an option to revert a dirty file.
 - [x] In-app settings page (accessed with `s` shortcut) to edit and persist settings in `config.toml` (poll interval, sort mode, reverse sort, active theme, and fzf max depth).

@@ -68,6 +68,8 @@ pub struct DetailAreas {
     pub tab_bar: Option<Rect>,
     /// Bounding box of the files list.
     pub files: Option<Rect>,
+    /// Bounding box of the file content preview.
+    pub file_content: Option<Rect>,
     /// Bounding box of the remotes panel.
     pub remotes: Option<Rect>,
     /// Bounding box of the stashes panel.
@@ -115,6 +117,7 @@ pub fn draw(
     stash_selection: usize,
     stash_file_selection: usize,
     file_list_selection: usize,
+    file_content_scroll: usize,
     visible_files: &[crate::app::FileTreeItem],
     detail_tab: usize,
     graph_scroll: usize,
@@ -412,6 +415,7 @@ pub fn draw(
                     visible_files,
                     *focus,
                     file_list_selection,
+                    file_content_scroll,
                     areas,
                     files_horizontal_split_pct,
                     body_area,
@@ -1202,7 +1206,7 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("⇞ [PgUp]", "Jump 10 rows up"),
     ("⇟ [PgDn]", "Jump 10 rows down"),
     ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
-    ("w / W", "Cycle panel focus (Workspace / Branches tabs)"),
+    ("w / W", "Cycle panel focus (Workspace / Files / Branches tabs)"),
     ("← / →", "Focus Local/Remote branch (Branches tab)"),
     ("← / → or < / >", "Collapse/Expand folder (Files tab)"),
     (
@@ -2033,12 +2037,11 @@ fn draw_files_view(
     visible_files: &[crate::app::FileTreeItem],
     focus: DetailSection,
     file_list_selection: usize,
+    file_content_scroll: usize,
     areas: &mut DetailAreas,
     files_horizontal_split_pct: u16,
     area: Rect,
 ) {
-    areas.files = Some(area);
-
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
@@ -2046,6 +2049,9 @@ fn draw_files_view(
             Constraint::Percentage(100 - files_horizontal_split_pct),
         ])
         .split(area);
+
+    areas.files = Some(chunks[0]);
+    areas.file_content = Some(chunks[1]);
 
     // Record horizontal splitter boundary in files tab
     let split_col = area.x + chunks[0].width;
@@ -2114,15 +2120,30 @@ fn draw_files_view(
             } else {
                 &selected_item.name
             };
+            let right_focused = focus == DetailSection::FileContent;
+            let right_border_style = if right_focused {
+                Style::default().fg(ACCENT())
+            } else {
+                muted_style()
+            };
+
+            let mut title_spans = vec![
+                Span::raw(" "),
+                Span::styled(format!("Contents of {}", folder_name), primary_style()),
+            ];
+            if right_focused && file_content_scroll > 0 {
+                title_spans.push(Span::styled(
+                    format!("  ↕ line {}", file_content_scroll + 1),
+                    muted_style(),
+                ));
+            }
+            title_spans.push(Span::raw(" "));
+
             let right_block = Block::default()
                 .borders(Borders::ALL)
                 .border_type(CARD_BORDER())
-                .border_style(muted_style())
-                .title(Line::from(vec![
-                    Span::raw(" "),
-                    Span::styled(format!("Contents of {}", folder_name), primary_style()),
-                    Span::raw(" "),
-                ]))
+                .border_style(right_border_style)
+                .title(Line::from(title_spans))
                 .padding(Padding::uniform(1));
 
             let prefix = if selected_item.full_path.is_empty() {
@@ -2177,22 +2198,38 @@ fn draw_files_view(
 
             let body = Paragraph::new(lines)
                 .block(right_block)
-                .wrap(Wrap { trim: false });
+                .wrap(Wrap { trim: false })
+                .scroll((file_content_scroll as u16, 0));
             f.render_widget(body, chunks[1]);
         } else {
             // Selected item is a file: show its contents
+            let right_focused = focus == DetailSection::FileContent;
+            let right_border_style = if right_focused {
+                Style::default().fg(ACCENT())
+            } else {
+                muted_style()
+            };
+
+            let mut title_spans = vec![
+                Span::raw(" "),
+                Span::styled(
+                    format!("Content of {}", selected_item.name),
+                    primary_style(),
+                ),
+            ];
+            if right_focused && file_content_scroll > 0 {
+                title_spans.push(Span::styled(
+                    format!("  ↕ line {}", file_content_scroll + 1),
+                    muted_style(),
+                ));
+            }
+            title_spans.push(Span::raw(" "));
+
             let right_block = Block::default()
                 .borders(Borders::ALL)
                 .border_type(CARD_BORDER())
-                .border_style(muted_style())
-                .title(Line::from(vec![
-                    Span::raw(" "),
-                    Span::styled(
-                        format!("Content of {}", selected_item.name),
-                        primary_style(),
-                    ),
-                    Span::raw(" "),
-                ]))
+                .border_style(right_border_style)
+                .title(Line::from(title_spans))
                 .padding(Padding::uniform(1));
 
             let file_path = resolved.join(&selected_item.full_path);
@@ -2202,7 +2239,8 @@ fn draw_files_view(
             };
             let body = Paragraph::new(content_text)
                 .block(right_block)
-                .wrap(Wrap { trim: false });
+                .wrap(Wrap { trim: false })
+                .scroll((file_content_scroll as u16, 0));
             f.render_widget(body, chunks[1]);
         }
     } else {
@@ -3244,6 +3282,7 @@ fn draw_stashes_view(
     areas.local_tags = None;
     areas.remote_tags = None;
     areas.files = None;
+    areas.file_content = None;
     areas.remotes = None;
 
     let chunks = Layout::default()

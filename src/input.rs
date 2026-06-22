@@ -358,23 +358,46 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 _ => {}
             },
             _ if app.detail_tab == 1 => match code {
+                KeyCode::Char('w') | KeyCode::Char('W') => {
+                    app.cycle_detail_focus();
+                }
                 KeyCode::Up | KeyCode::Char('k') => {
-                    app.file_list_up();
+                    if app.detail_focus == DetailSection::FileContent {
+                        app.file_content_scroll_up();
+                    } else {
+                        app.file_list_up();
+                    }
                 }
                 KeyCode::Down | KeyCode::Char('j') => {
-                    app.file_list_down();
+                    if app.detail_focus == DetailSection::FileContent {
+                        app.file_content_scroll_down();
+                    } else {
+                        app.file_list_down();
+                    }
                 }
                 KeyCode::PageUp => {
-                    app.file_list_page_up(10);
+                    if app.detail_focus == DetailSection::FileContent {
+                        app.file_content_scroll_page_up(10);
+                    } else {
+                        app.file_list_page_up(10);
+                    }
                 }
                 KeyCode::PageDown => {
-                    app.file_list_page_down(10);
+                    if app.detail_focus == DetailSection::FileContent {
+                        app.file_content_scroll_page_down(10);
+                    } else {
+                        app.file_list_page_down(10);
+                    }
                 }
                 KeyCode::Char('>') | KeyCode::Char('.') | KeyCode::Right => {
-                    app.expand_selected_folder();
+                    if app.detail_focus == DetailSection::Files {
+                        app.expand_selected_folder();
+                    }
                 }
                 KeyCode::Char('<') | KeyCode::Char(',') | KeyCode::Left => {
-                    app.collapse_selected_folder();
+                    if app.detail_focus == DetailSection::Files {
+                        app.collapse_selected_folder();
+                    }
                 }
                 _ => {}
             },
@@ -832,9 +855,9 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     }
                 }
                 Splitter::FilesHorizontal => {
-                    if let Some(files) = areas.files {
-                        let start_x = files.x;
-                        let total_width = files.width;
+                    if let (Some(left), Some(right)) = (areas.files, areas.file_content) {
+                        let start_x = left.x;
+                        let total_width = (right.x + right.width).saturating_sub(start_x);
                         if total_width > 0 {
                             let relative_x = pos.x.saturating_sub(start_x);
                             let pct = ((relative_x as f32 / total_width as f32) * 100.0) as u16;
@@ -1280,6 +1303,22 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             } else if is_scroll_down {
                 app.detail_focus = DetailSection::Files;
                 app.file_list_down();
+            }
+        }
+    }
+    // File content preview panel (inside Files view).
+    if let Some(rect) = areas.file_content {
+        if rect.contains(pos) {
+            if is_click {
+                if app.detail_focus != DetailSection::FileContent {
+                    app.detail_focus = DetailSection::FileContent;
+                }
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::FileContent;
+                app.file_content_scroll_up();
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::FileContent;
+                app.file_content_scroll_down();
             }
         }
     }

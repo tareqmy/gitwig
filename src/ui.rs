@@ -241,6 +241,7 @@ pub fn draw(
                 app.stash_selection,
                 app.stash_file_selection,
                 app.file_list_selection,
+                app.file_content_scroll,
                 &app.visible_files,
                 app.detail_tab,
                 app.graph_scroll,
@@ -805,7 +806,8 @@ fn detail_dismiss_entries(
         1 => vec![
             ("Home", "⎋/q"),
             ("Tabs", "Tab/1-8"),
-            ("Navigate", "↑↓"),
+            ("Cycle Focus", "w/W"),
+            ("Navigate/Scroll", "↑↓"),
             ("Expand/Collapse", "←/→"),
             ("Help", "?"),
         ],

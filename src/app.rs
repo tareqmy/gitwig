@@ -103,6 +103,7 @@ pub enum DetailSection {
     LocalTags,
     RemoteTags,
     Files,
+    FileContent,
     Remotes,
     Stashes,
     StashedFiles,
@@ -134,7 +135,8 @@ impl DetailSection {
             Self::RemoteBranches => Self::LocalBranches,
             Self::LocalTags => Self::RemoteTags,
             Self::RemoteTags => Self::LocalTags,
-            Self::Files => Self::Files,
+            Self::Files => Self::FileContent,
+            Self::FileContent => Self::Files,
             Self::Remotes => Self::Remotes,
             Self::Stashes => Self::Stashes,
             Self::StashedFiles => Self::StashedFiles,
@@ -202,6 +204,8 @@ pub struct App {
     pub detail_tab: usize,
     /// Selected file index in the Files tab.
     pub file_list_selection: usize,
+    /// Vertical scroll offset for the file content preview in Files tab.
+    pub file_content_scroll: usize,
     /// Set of expanded folder paths.
     pub expanded_folders: std::collections::HashSet<String>,
     /// Flattened visible files inside the Files tab.
@@ -327,6 +331,7 @@ impl App {
             last_click: None,
             detail_tab: 0,
             file_list_selection: 0,
+            file_content_scroll: 0,
             expanded_folders: std::collections::HashSet::new(),
             visible_files: Vec::new(),
             graph_scroll: 0,
@@ -663,6 +668,7 @@ impl App {
             self.stash_selection = 0;
             self.stash_file_selection = 0;
             self.file_list_selection = 0;
+            self.file_content_scroll = 0;
             self.expanded_folders.clear();
             self.rebuild_visible_files();
             self.detail_tab = 0;
@@ -685,6 +691,13 @@ impl App {
             self.detail_focus = match self.detail_focus {
                 DetailSection::LocalTags => DetailSection::RemoteTags,
                 _ => DetailSection::LocalTags,
+            };
+            return;
+        }
+        if self.detail_tab == 1 {
+            self.detail_focus = match self.detail_focus {
+                DetailSection::Files => DetailSection::FileContent,
+                _ => DetailSection::Files,
             };
             return;
         }
@@ -790,6 +803,7 @@ impl App {
     /// Move file selection up in the Files tab.
     pub fn file_list_up(&mut self) {
         self.file_list_selection = self.file_list_selection.saturating_sub(1);
+        self.file_content_scroll = 0;
     }
 
     /// Move file selection down in the Files tab.
@@ -797,12 +811,14 @@ impl App {
         let total = self.visible_files.len();
         if total > 0 && self.file_list_selection + 1 < total {
             self.file_list_selection += 1;
+            self.file_content_scroll = 0;
         }
     }
 
     /// Scroll file selection up by page.
     pub fn file_list_page_up(&mut self, page: usize) {
         self.file_list_selection = self.file_list_selection.saturating_sub(page);
+        self.file_content_scroll = 0;
     }
 
     /// Scroll file selection down by page.
@@ -811,6 +827,7 @@ impl App {
         if total > 0 {
             self.file_list_selection =
                 (self.file_list_selection + page).min(total.saturating_sub(1));
+            self.file_content_scroll = 0;
         }
     }
 
@@ -1856,6 +1873,84 @@ impl App {
         self.diff_scroll = (self.diff_scroll + page).min(max);
     }
 
+    pub fn get_file_content_line_count(&self) -> usize {
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+            if let Some(selected_item) = self.visible_files.get(self.file_list_selection) {
+                if selected_item.is_dir {
+                    let prefix = if selected_item.full_path.is_empty() {
+                        "".to_string()
+                    } else {
+                        format!("{}/", selected_item.full_path)
+                    };
+                    let mut direct_children = std::collections::BTreeSet::new();
+                    for f_path in &info.files {
+                        if f_path.starts_with(&prefix) {
+                            let relative = &f_path[prefix.len()..];
+                            if let Some(idx) = relative.find('/') {
+                                let subdir = &relative[..idx];
+                                direct_children.insert((subdir.to_string(), true));
+                            } else {
+                                direct_children.insert((relative.to_string(), false));
+                            }
+                        }
+                    }
+                    if direct_children.is_empty() {
+                        1
+                    } else {
+                        direct_children.len()
+                    }
+                } else {
+                    let file_path = resolved.join(&selected_item.full_path);
+                    let count = match std::fs::File::open(&file_path) {
+                        Ok(file) => {
+                            use std::io::Read;
+                            let mut buffer = Vec::new();
+                            if file.take(100_000).read_to_end(&mut buffer).is_ok() {
+                                if let Ok(s) = String::from_utf8(buffer) {
+                                    s.lines().count()
+                                } else {
+                                    1
+                                }
+                            } else {
+                                1
+                            }
+                        }
+                        Err(_) => 1,
+                    };
+                    count
+                }
+            } else {
+                1
+            }
+        } else {
+            1
+        }
+    }
+
+    /// Scroll the file content panel up by one line.
+    pub fn file_content_scroll_up(&mut self) {
+        self.file_content_scroll = self.file_content_scroll.saturating_sub(1);
+    }
+
+    /// Scroll the file content panel down by one line.
+    pub fn file_content_scroll_down(&mut self) {
+        let max = self.get_file_content_line_count().saturating_sub(1);
+        if self.file_content_scroll < max {
+            self.file_content_scroll += 1;
+        }
+    }
+
+    /// Scroll the file content panel up by `page` lines.
+    pub fn file_content_scroll_page_up(&mut self, page: usize) {
+        self.file_content_scroll = self.file_content_scroll.saturating_sub(page);
+    }
+
+    /// Scroll the file content panel down by `page` lines.
+    pub fn file_content_scroll_page_down(&mut self, page: usize) {
+        let max = self.get_file_content_line_count().saturating_sub(1);
+        self.file_content_scroll = (self.file_content_scroll + page).min(max);
+    }
+
     /// Scroll the graph view up by one line.
     pub fn graph_scroll_up(&mut self) {
         self.graph_scroll = self.graph_scroll.saturating_sub(1);
@@ -2733,7 +2828,10 @@ impl App {
     pub fn set_default_focus_for_tab(&mut self) {
         match self.detail_tab {
             0 => self.detail_focus = DetailSection::Commits,
-            1 => self.detail_focus = DetailSection::Files,
+            1 => {
+                self.detail_focus = DetailSection::Files;
+                self.file_content_scroll = 0;
+            }
             3 => self.detail_focus = DetailSection::LocalBranches,
             4 => {
                 self.detail_focus = DetailSection::LocalTags;
@@ -3966,7 +4064,8 @@ mod tests {
         assert_eq!(app.active_drag_splitter, None);
 
         // Test Files splitter dragging
-        app.detail_areas.files = Some(Rect::new(0, 0, 100, 50));
+        app.detail_areas.files = Some(Rect::new(0, 0, 45, 50));
+        app.detail_areas.file_content = Some(Rect::new(45, 0, 55, 50));
         app.detail_areas.files_horizontal_splitter = Some(Rect::new(44, 0, 2, 50));
 
         let down_event_files = MouseEvent {
