@@ -53,7 +53,7 @@
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
 | `Esc` / `q`          | Detail          | Return to the list                |
 | `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Workspace → Files → Graph → Branches → Tags → Remotes → Stashes → Overview) |
-| `w` / `W`            | Detail          | Cycle panel focus (`Commits` → `Staged` → `Unstaged` → `StagingDetails` in Workspace tab, Local → Remote in Branches tab, or Local → Remote in Tags tab) |
+| `w` / `W`            | Detail          | Cycle panel focus (Workspace tab: `Commits` → `Staged` → `Unstaged` → `StagingDetails`, Files tab: `Files` ↔ `FileContent`, Branches tab: Local ↔ Remote, or Tags tab: Local ↔ Remote) |
 | `1` - `8`            | Detail          | Jump directly to tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), or Overview (8) |
 | `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
@@ -188,22 +188,24 @@ The **Overview** tab displays key repository details including resolved paths, b
 ### Navigation & Interaction
 
 You can navigate and interact with these panels in the following ways:
-- **Cycle Focus:** In the Details, Branches, Tags, and Stashes tabs, press `w` / `W` to cycle panel focus:
+- **Cycle Focus:** In the Details, Files, Branches, Tags, and Stashes tabs, press `w` / `W` to cycle panel focus:
   - **Workspace tab:** `Commits` → `Staged` → `Unstaged` → `StagingDetails`.
+  - **Files tab:** `Files` (left tree list) ↔ `FileContent` (right preview panel).
   - **Branches tab:** `Local Branches` ↔ `Remote Branches`.
   - **Tags tab:** `Local Tags` ↔ `Remote Tags`.
   - **Stashes tab:** `Stashes` → `Stashed Files` → `StagingDetails`.
   Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Workspace tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab).
-- **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels, stashed files list, and the files list) to focus it immediately.
+- **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels, stashed files list, files list, and the files tab content preview panel) to focus it immediately.
 - **Resize Split Panels:** Left-click and drag the vertical or horizontal boundary splitter lines between panels to resize them dynamically. This is supported in:
   - **Workspace / Inspect:** Main vertical split (commits vs details), bottom horizontal split (left list vs right diff), and left vertical split (staged vs unstaged or commit details vs files list).
   - **Files:** Horizontal split (repository files tree vs file content preview).
   - **Branches:** Horizontal split (local branches vs remote branches).
   - **Stashes:** Horizontal split (stash lists vs diff) and left vertical split (stashes list vs stashed files).
   - **Overview:** Horizontal split (overview info vs committer stats).
-- **Mouse Wheel Scroll:** Use the mouse wheel to scroll vertically through the active list, commit history, branch list, files list, stashed files list, or staging details diff.
+- **Mouse Wheel Scroll:** Use the mouse wheel to scroll vertically through the active list, commit history, branch list, files list, stashed files list, staging details diff, or files tab preview panel.
 - **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, tag, stash, stashed file, or file tree item in the active list.
 - **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
+- **Scroll File Content:** When the files tab `FileContent` preview panel is focused, you can scroll the preview text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
 - **Stage/Unstage Files:** Select the `Uncommitted changes` row at the top, select a file in either the `Staged` or `Unstaged` list, and press `Enter` to stage or unstage that file instantly.
 - **Network Progress Bar:** Any long-running network operations (such as Fetch, Pull, or Push) will display a centering animated progress bar popup so the UI thread remains responsive and visual feedback is clear. If an operation hangs or takes too long, you can press `Esc` to force-dismiss the progress popup and resume TUI interaction immediately.
 - **Multi-Remote Selection Picker:** For write operations (pushing branch/tags, deleting tags, fetching tags), if the repository has multiple configured remotes and no upstream tracking branch is set, a selection picker popup will appear allowing you to select which remote to target using ↑↓ and Enter.
