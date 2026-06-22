@@ -226,6 +226,7 @@ pub fn draw(
                 detail,
                 &app.mode,
                 &app.detail_focus,
+                app.last_staging_focus,
                 app.commit_selection,
                 &app.commit_search_query,
                 app.file_selection,
@@ -436,7 +437,10 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
 
         let mut spans = vec![Span::styled(mark, mark_style)];
         if is_git {
-            spans.push(Span::styled("⎇  ", muted_style()));
+            spans.push(Span::styled(
+                "⎇  ",
+                muted_style().add_modifier(Modifier::BOLD),
+            ));
         }
         spans.push(Span::styled(repo_name, text_style));
         let name_line = Line::from(spans);

@@ -19,7 +19,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Support `Esc` key in addition to `q` to quit the application from the home page.
 
 ## Phase 2: Working Tree & Status
-- [x] Display list of changed files (staged and unstaged).
+- [x] Display a list of changed files (staged and unstaged).
 - [x] Support staging/unstaging individual files (shortcut `Enter` in staging lists).
 - [x] Basic commit functionality (shortcut `c`).
 - [x] Side-by-side or unified diff view for the selected file.
@@ -34,7 +34,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] List local and remote branches.
 - [x] Checkout branches (shortcut `Enter` in Branches tab).
 - [x] Create and delete branches.
-- [x] Dedicated Tags tab to list, checkout local/remote tags, delete local tags, and push tag(s) with confirmation dialogs.
+- [x] Dedicated Tags tab to list, check out local/remote tags, delete local tags, and push tag(s) with confirmation dialogs.
 - [x] Merge and Rebase (basic support).
 
 - [x] Fetch and Push operations (Fetch via `Shift+F`, Push via `Shift+P` in Branches tab).
@@ -43,17 +43,17 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Progress bars for network operations.
 
 ## Phase 6: Advanced Features
-- [x] Mouse click support to change panel focus in Detail view.
-- [x] Mouse click selection and double-click to open detail view in main list.
-- [x] Mouse click on tab headers to change active tabs in Detail view.
+- [x] Mouse-click support to change the panel focus in the Detail view.
+- [x] Mouse-click the selection and double-click to open the detail view in the main list.
+- [x] Mice click on tab headers to change active tabs in the Detail view.
 - [x] Mouse wheel vertical scroll support for all scrollable views (lists, trees, diffs).
 - [x] Files tab showing tracked repository files in an interactive nested tree structure with split-panel preview (file contents or folder list).
 - [x] Stash list (dedicated Stashes detail tab).
 - [x] Stashing actions: apply and delete stash (Details / Stashes).
 - [x] Main page sorting (Alphabetical, Recent Visit, Latest Changes, Custom) and direction toggle (o / O).
-- [x] Commit amending support (a / A / Space in confirm mode).
+- [x] Commit amending support (a / A / Space in confirmation mode).
 - [x] Interactive fzf directory picker to add items (a).
-- [x] Search and filter in history and file lists (commits search).
+- [x] Search and filter in history and file lists (commit search).
 - [x] Interactive Rebase.
 - [ ] Conflict resolution UI.
 - [x] Custom themes and keybindings.

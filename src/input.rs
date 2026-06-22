@@ -290,13 +290,29 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.mode = Mode::Inspect;
                     if app.is_uncommitted_selected() {
                         app.detail_focus = DetailSection::Staged;
+                        app.last_staging_focus = DetailSection::Staged;
                         app.staging_file_selection = 0;
                     } else {
                         app.detail_focus = DetailSection::Staged;
+                        app.last_staging_focus = DetailSection::Staged;
                         app.file_selection = 0;
                     }
                     app.diff_scroll = 0;
                     app.refresh_file_diff();
+                }
+                KeyCode::Right
+                    if detail_focus == DetailSection::Staged
+                        || detail_focus == DetailSection::Unstaged
+                        || detail_focus == DetailSection::CommitDetails =>
+                {
+                    app.mode = Mode::Inspect;
+                    app.detail_focus = DetailSection::StagingDetails;
+                    app.diff_scroll = 0;
+                    if app.is_uncommitted_selected() {
+                        app.refresh_staging_diff();
+                    } else {
+                        app.refresh_file_diff();
+                    }
                 }
                 KeyCode::Up | KeyCode::Char('k') if detail_focus == DetailSection::Commits => {
                     app.detail_commit_up()
@@ -639,7 +655,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             KeyCode::Left => {
                 if app.detail_focus == DetailSection::StagingDetails {
-                    app.detail_focus = DetailSection::Staged;
+                    if app.is_uncommitted_selected() {
+                        app.detail_focus = app.last_staging_focus;
+                    } else {
+                        app.detail_focus = DetailSection::CommitDetails;
+                    }
                 }
             }
             KeyCode::Up | KeyCode::Char('k') => {
@@ -1123,12 +1143,14 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             if is_click {
                 if app.detail_focus != DetailSection::Staged {
                     app.detail_focus = DetailSection::Staged;
+                    app.last_staging_focus = DetailSection::Staged;
                     app.staging_file_selection = 0;
                     app.diff_scroll = 0;
                     app.refresh_staging_diff();
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::Staged;
+                app.last_staging_focus = DetailSection::Staged;
                 if app.is_uncommitted_selected() {
                     app.staging_file_up();
                 } else {
@@ -1136,6 +1158,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 }
             } else if is_scroll_down {
                 app.detail_focus = DetailSection::Staged;
+                app.last_staging_focus = DetailSection::Staged;
                 if app.is_uncommitted_selected() {
                     app.staging_file_down();
                 } else {
@@ -1151,12 +1174,14 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             if is_click {
                 if app.detail_focus != DetailSection::Unstaged {
                     app.detail_focus = DetailSection::Unstaged;
+                    app.last_staging_focus = DetailSection::Unstaged;
                     app.staging_file_selection = 0;
                     app.diff_scroll = 0;
                     app.refresh_staging_diff();
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::Unstaged;
+                app.last_staging_focus = DetailSection::Unstaged;
                 if app.is_uncommitted_selected() {
                     app.staging_file_up();
                 } else {
@@ -1164,6 +1189,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 }
             } else if is_scroll_down {
                 app.detail_focus = DetailSection::Unstaged;
+                app.last_staging_focus = DetailSection::Unstaged;
                 if app.is_uncommitted_selected() {
                     app.staging_file_down();
                 } else {

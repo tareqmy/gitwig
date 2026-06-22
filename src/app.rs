@@ -272,6 +272,7 @@ pub struct App {
     pub settings_editing: bool,
     pub settings_theme_list: Vec<String>,
     pub settings_theme_index: usize,
+    pub last_staging_focus: DetailSection,
 }
 
 #[derive(Clone, Debug)]
@@ -368,6 +369,7 @@ impl App {
             settings_editing: false,
             settings_theme_list: Vec::new(),
             settings_theme_index: 0,
+            last_staging_focus: DetailSection::Staged,
         };
 
         if app.config.sort_by != SortOrder::Custom {
@@ -719,6 +721,11 @@ impl App {
         }
         if self.is_uncommitted_selected() && self.detail_focus == DetailSection::CommitDetails {
             self.detail_focus = self.detail_focus.next();
+        }
+        if self.detail_focus == DetailSection::Staged
+            || self.detail_focus == DetailSection::Unstaged
+        {
+            self.last_staging_focus = self.detail_focus;
         }
         // Reset staging selection and pre-load diff when landing on Staged/Unstaged.
         match self.detail_focus {
@@ -2172,7 +2179,16 @@ impl App {
     pub fn refresh_staging_diff(&mut self) {
         let params = match &self.current_detail {
             Some(ItemDetail::Repo { resolved, info }) => {
-                let (files, staged) = match self.detail_focus {
+                let focus_to_use = match self.detail_focus {
+                    DetailSection::Staged => DetailSection::Staged,
+                    DetailSection::Unstaged => DetailSection::Unstaged,
+                    DetailSection::StagingDetails => self.last_staging_focus,
+                    _ => {
+                        self.file_diff.clear();
+                        return;
+                    }
+                };
+                let (files, staged) = match focus_to_use {
                     DetailSection::Staged => (&info.changes.staged, true),
                     DetailSection::Unstaged => (&info.changes.unstaged, false),
                     _ => {
@@ -4346,5 +4362,81 @@ mod tests {
         // Press Esc to exit settings
         crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
         assert_eq!(app.mode, Mode::Normal);
+    }
+
+    #[test]
+    fn test_workspace_tab_right_arrow_inspect() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_inspect.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Open details view
+        app.mode = Mode::Detail;
+        app.detail_tab = 0;
+        app.detail_focus = DetailSection::Staged;
+
+        let mut changes = crate::repo::WorktreeChanges::default();
+        changes.staged.push(crate::repo::FileEntry {
+            path: "dummy.txt".to_string(),
+            label: "M",
+        });
+        let info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary::default(),
+            changes,
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: PathBuf::from("."),
+            info: Box::new(info),
+        });
+        app.commit_selection = 0;
+
+        // Verify we are not in Inspect mode
+        assert_ne!(app.mode, Mode::Inspect);
+
+        // Press Right arrow on Staged files list
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+        assert!(handled);
+
+        // Verify we transitioned to Inspect mode and focused StagingDetails
+        assert_eq!(app.mode, Mode::Inspect);
+        assert_eq!(app.detail_focus, DetailSection::StagingDetails);
+
+        // Press Left arrow in Inspect mode on StagingDetails
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Left), 10);
+        assert!(handled);
+
+        // Verify we are still in Inspect mode, but focus returned to Staged files list
+        assert_eq!(app.mode, Mode::Inspect);
+        assert_eq!(app.detail_focus, DetailSection::Staged);
     }
 }

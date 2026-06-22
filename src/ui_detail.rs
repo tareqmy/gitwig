@@ -102,6 +102,7 @@ pub fn draw(
     detail: &ItemDetail,
     mode: &Mode,
     focus: &DetailSection,
+    last_staging_focus: DetailSection,
     commit_selection: usize,
     commit_search_query: &Option<String>,
     file_selection: usize,
@@ -156,6 +157,7 @@ pub fn draw(
                     f,
                     &info.changes,
                     *focus,
+                    last_staging_focus,
                     staging_file_selection,
                     file_diff,
                     diff_scroll,
@@ -233,7 +235,7 @@ pub fn draw(
 
     let header_left = Paragraph::new(Line::from(vec![
         Span::raw(FIELD_INDENT),
-        Span::styled("⎇  ", muted_style()),
+        Span::styled("⎇  ", muted_style().add_modifier(Modifier::BOLD)),
         Span::styled(item_name.to_string(), accent_style()),
     ]));
     f.render_widget(header_left, header_chunks[0]);
@@ -358,6 +360,7 @@ pub fn draw(
                         f,
                         &info.changes,
                         *focus,
+                        last_staging_focus,
                         staging_file_selection,
                         file_diff,
                         diff_scroll,
@@ -395,6 +398,7 @@ pub fn draw(
                                 f,
                                 &info.changes,
                                 *focus,
+                                last_staging_focus,
                                 staging_file_selection,
                                 file_diff,
                                 diff_scroll,
@@ -800,6 +804,7 @@ fn draw_staging_panels(
     f: &mut Frame,
     changes: &WorktreeChanges,
     focus: DetailSection,
+    last_staging_focus: DetailSection,
     staging_file_selection: usize,
     file_diff: &[DiffLine],
     diff_scroll: usize,
@@ -920,15 +925,19 @@ fn draw_staging_panels(
         let (files, idx) = match focus {
             DetailSection::Staged => (Some(&changes.staged), staging_file_selection),
             DetailSection::Unstaged => (Some(&changes.unstaged), staging_file_selection),
-            _ => {
-                if !changes.staged.is_empty() {
-                    (Some(&changes.staged), 0)
-                } else if !changes.unstaged.is_empty() {
-                    (Some(&changes.unstaged), 0)
-                } else {
-                    (None, 0)
+            _ => match last_staging_focus {
+                DetailSection::Staged => (Some(&changes.staged), staging_file_selection),
+                DetailSection::Unstaged => (Some(&changes.unstaged), staging_file_selection),
+                _ => {
+                    if !changes.staged.is_empty() {
+                        (Some(&changes.staged), 0)
+                    } else if !changes.unstaged.is_empty() {
+                        (Some(&changes.unstaged), 0)
+                    } else {
+                        (None, 0)
+                    }
                 }
-            }
+            },
         };
         files.and_then(|f| f.get(idx)).map(|e| e.path.clone())
     };
