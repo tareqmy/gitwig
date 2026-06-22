@@ -1901,7 +1901,7 @@ impl App {
                     }
                 } else {
                     let file_path = resolved.join(&selected_item.full_path);
-                    let count = match std::fs::File::open(&file_path) {
+                    match std::fs::File::open(&file_path) {
                         Ok(file) => {
                             use std::io::Read;
                             let mut buffer = Vec::new();
@@ -1916,8 +1916,7 @@ impl App {
                             }
                         }
                         Err(_) => 1,
-                    };
-                    count
+                    }
                 }
             } else {
                 1

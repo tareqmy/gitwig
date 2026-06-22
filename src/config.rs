@@ -187,6 +187,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
 
             let themes_dir = path.parent().unwrap_or(&path).join("themes");
             fs::create_dir_all(&themes_dir)?;
+            write_popular_themes(&themes_dir)?;
 
             let theme_path = themes_dir.join(format!("{}.theme", config.theme_name));
             if theme_path.exists() {
@@ -212,6 +213,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
 
         let themes_dir = path.parent().unwrap_or(&path).join("themes");
         fs::create_dir_all(&themes_dir)?;
+        write_popular_themes(&themes_dir)?;
         let theme_path = themes_dir.join(format!("{}.theme", fallback_theme_name));
         let theme_serialized = toml::to_string_pretty(&fallback_theme)?;
         fs::write(&theme_path, theme_serialized)?;
@@ -238,6 +240,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
     let canonical = twig_dir.join("config.toml");
     let themes_dir = twig_dir.join("themes");
     fs::create_dir_all(&themes_dir)?;
+    write_popular_themes(&themes_dir)?;
 
     // ── 2. Canonical file already present ─────────────────────────────────
     if canonical.exists() {
@@ -310,6 +313,74 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
     fs::write(&theme_path, theme_serialized)?;
 
     Ok((fallback, canonical))
+}
+
+/// Writes the popular themes to the themes directory if they don't already exist.
+fn write_popular_themes(themes_dir: &Path) -> Result<(), Box<dyn Error>> {
+    let popular_themes = [
+        (
+            "dracula",
+            r#"accent = "lightmagenta"
+warning = "lightyellow"
+danger = "lightred"
+success = "lightgreen"
+border_type = "rounded"
+"#,
+        ),
+        (
+            "forest",
+            r#"accent = "lightgreen"
+warning = "yellow"
+danger = "lightred"
+success = "green"
+border_type = "rounded"
+"#,
+        ),
+        (
+            "gruvbox",
+            r#"accent = "yellow"
+warning = "lightyellow"
+danger = "red"
+success = "green"
+border_type = "plain"
+"#,
+        ),
+        (
+            "monokai",
+            r#"accent = "lightyellow"
+warning = "yellow"
+danger = "red"
+success = "green"
+border_type = "rounded"
+"#,
+        ),
+        (
+            "nord",
+            r#"accent = "lightblue"
+warning = "yellow"
+danger = "red"
+success = "green"
+border_type = "rounded"
+"#,
+        ),
+        (
+            "oceanic",
+            r#"accent = "lightcyan"
+warning = "yellow"
+danger = "red"
+success = "lightgreen"
+border_type = "rounded"
+"#,
+        ),
+    ];
+
+    for (name, content) in popular_themes {
+        let theme_path = themes_dir.join(format!("{}.theme", name));
+        if !theme_path.exists() {
+            fs::write(theme_path, content)?;
+        }
+    }
+    Ok(())
 }
 
 /// Searches for a pre-existing config at legacy / local locations.
@@ -409,6 +480,32 @@ border_type = "double"
         assert!(config_content_after_save.contains("theme = \"default\""));
 
         // Clean up
+        let _ = fs::remove_dir_all(&test_dir);
+    }
+
+    #[test]
+    fn test_write_popular_themes_creates_files() {
+        let unique_id = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let test_dir = std::env::temp_dir().join(format!("twig_test_popular_themes_{}", unique_id));
+        fs::create_dir_all(&test_dir).unwrap();
+
+        write_popular_themes(&test_dir).unwrap();
+
+        // Verify that Dracula, Forest, Gruvbox, Monokai, Nord, and Oceanic files are written
+        assert!(test_dir.join("dracula.theme").exists());
+        assert!(test_dir.join("forest.theme").exists());
+        assert!(test_dir.join("gruvbox.theme").exists());
+        assert!(test_dir.join("monokai.theme").exists());
+        assert!(test_dir.join("nord.theme").exists());
+        assert!(test_dir.join("oceanic.theme").exists());
+
+        // Read one theme to verify content
+        let contents = fs::read_to_string(test_dir.join("oceanic.theme")).unwrap();
+        assert!(contents.contains("accent = \"lightcyan\""));
+
         let _ = fs::remove_dir_all(&test_dir);
     }
 }

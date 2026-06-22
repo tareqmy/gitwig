@@ -389,15 +389,15 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.file_list_page_down(10);
                     }
                 }
-                KeyCode::Char('>') | KeyCode::Char('.') | KeyCode::Right => {
-                    if app.detail_focus == DetailSection::Files {
-                        app.expand_selected_folder();
-                    }
+                KeyCode::Char('>') | KeyCode::Char('.') | KeyCode::Right
+                    if app.detail_focus == DetailSection::Files =>
+                {
+                    app.expand_selected_folder();
                 }
-                KeyCode::Char('<') | KeyCode::Char(',') | KeyCode::Left => {
-                    if app.detail_focus == DetailSection::Files {
-                        app.collapse_selected_folder();
-                    }
+                KeyCode::Char('<') | KeyCode::Char(',') | KeyCode::Left
+                    if app.detail_focus == DetailSection::Files =>
+                {
+                    app.collapse_selected_folder();
                 }
                 _ => {}
             },

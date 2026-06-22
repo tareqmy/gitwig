@@ -443,17 +443,15 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         f.render_widget(Paragraph::new(name_line), name_cols[0]);
 
         if is_pinned {
-            let pin_line = Line::from(Span::styled("📌", Style::default().fg(WARNING()))).alignment(Alignment::Right);
+            let pin_line = Line::from(Span::styled("📌", Style::default().fg(WARNING())))
+                .alignment(Alignment::Right);
             f.render_widget(Paragraph::new(pin_line), name_cols[1]);
         }
 
         // Row 1: Left column (branch name) and Right column (status section)
         let row1_cols = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Min(0),
-                Constraint::Length(STATUS_ZONE_WIDTH),
-            ])
+            .constraints([Constraint::Min(0), Constraint::Length(STATUS_ZONE_WIDTH)])
             .split(rows[1]);
 
         let branch = match status {
