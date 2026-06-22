@@ -410,18 +410,23 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             .constraints([Constraint::Length(1), Constraint::Min(0)])
             .split(inner);
 
-        // Row 0: path + status
+        // Row 0: repo name + status
         let name_cols = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Min(0), Constraint::Length(STATUS_ZONE_WIDTH)])
             .split(rows[0]);
+
+        let repo_name = std::path::Path::new(item)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or(item.as_str());
 
         let is_pinned = app.config.pinned.contains(item);
         let mut spans = vec![Span::styled(mark, mark_style)];
         if is_pinned {
             spans.push(Span::styled("📌 ", Style::default().fg(WARNING())));
         }
-        spans.push(Span::styled(item.as_str(), text_style));
+        spans.push(Span::styled(repo_name, text_style));
         let name_line = Line::from(spans);
         f.render_widget(Paragraph::new(name_line), name_cols[0]);
 
@@ -431,23 +436,19 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         f.render_widget(Paragraph::new(status_line), name_cols[1]);
 
         // Row 1: branch name (git repos only; empty for others)
-        f.render_widget(Paragraph::new(branch_name_line(status)), rows[1]);
-    }
-}
-
-/// Second card row: branch name for git repos, blank line for everything else.
-fn branch_name_line(status: &ItemStatus) -> Line<'static> {
-    let branch = match status {
-        ItemStatus::GitRepo(Some(s)) => s.branch.clone(),
-        _ => None,
-    };
-    match branch {
-        Some(b) => Line::from(vec![
-            Span::raw(UNSELECTED_INDENT), // align with item text
-            Span::styled("  ", muted_style()),
-            Span::styled(b, Style::default().fg(ACCENT())),
-        ]),
-        None => Line::from(""),
+        let branch = match status {
+            ItemStatus::GitRepo(Some(s)) => s.branch.clone(),
+            _ => None,
+        };
+        let branch_line = match branch {
+            Some(b) => Line::from(vec![
+                Span::raw(UNSELECTED_INDENT), // align with item text
+                Span::styled("  ", muted_style()),
+                Span::styled(b, Style::default().fg(ACCENT())),
+            ]),
+            None => Line::from(""),
+        };
+        f.render_widget(Paragraph::new(branch_line), rows[1]);
     }
 }
 
