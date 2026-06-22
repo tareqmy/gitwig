@@ -80,7 +80,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     KeyCode::Esc => app.mode = Mode::Normal,
                     KeyCode::Char('q') if !app.settings_editing => app.mode = Mode::Normal,
                     KeyCode::Down | KeyCode::Char('j') if !app.settings_editing => {
-                        if app.settings_selected_index + 1 < 5 {
+                        if app.settings_selected_index + 1 < 6 {
                             app.settings_selected_index += 1;
                         }
                     }

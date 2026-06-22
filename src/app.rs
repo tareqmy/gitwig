@@ -2531,6 +2531,10 @@ impl App {
                 self.settings_editing = true;
                 self.input_buffer = self.config.fzf.max_depth.to_string();
             }
+            5 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.fzf.start_dir.clone();
+            }
             _ => {}
         }
     }
@@ -2591,6 +2595,12 @@ impl App {
                 } else {
                     self.status_message = Some("Invalid integer".to_string());
                 }
+            }
+            5 => {
+                self.config.fzf.start_dir = trimmed.to_string();
+                self.persist("FZF start directory updated");
+                self.settings_editing = false;
+                self.input_buffer.clear();
             }
             _ => {}
         }
@@ -3613,9 +3623,13 @@ where
                     format!("\\( {} \\) -prune -o ", find_prunes)
                 };
 
+                let expanded_start_dir = crate::repo::expand_tilde(&app.config.fzf.start_dir);
+                let start_dir_str = expanded_start_dir.to_string_lossy().into_owned();
+                let start_dir = start_dir_str.replace('\'', "'\\''");
+
                 let cmd = format!(
-                    "if ! command -v fzf >/dev/null 2>&1; then exit 127; fi; (command -v fd >/dev/null 2>&1 && fd . '/' --type d --max-depth {} {} 2>/dev/null || find / -maxdepth {} {} -type d -print 2>/dev/null) | fzf",
-                    max_depth, fd_excludes, max_depth, find_prune_clause
+                    "if ! command -v fzf >/dev/null 2>&1; then exit 127; fi; (command -v fd >/dev/null 2>&1 && fd . '{}' --type d --max-depth {} {} 2>/dev/null || find '{}' -maxdepth {} {} -type d -print 2>/dev/null) | fzf",
+                    start_dir, max_depth, fd_excludes, start_dir, max_depth, find_prune_clause
                 );
 
                 let output = std::process::Command::new("sh")
@@ -4369,6 +4383,18 @@ mod tests {
         crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
         assert!(!app.settings_editing);
         assert_eq!(app.config.fzf.max_depth, 3);
+
+        // Go down to FZF Start Dir (index 5)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.settings_selected_index, 5);
+
+        // Edit FZF Start Dir
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(app.settings_editing);
+        app.input_buffer = "/some/path".to_string();
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(!app.settings_editing);
+        assert_eq!(app.config.fzf.start_dir, "/some/path");
 
         // Press Esc to exit settings
         crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);

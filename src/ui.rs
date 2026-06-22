@@ -1604,7 +1604,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     let mut items = Vec::new();
 
-    for i in 0..5 {
+    for i in 0..6 {
         let is_selected = app.settings_selected_index == i;
 
         let label = match i {
@@ -1613,6 +1613,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             2 => "Sort Reverse",
             3 => "Theme Name",
             4 => "FZF Max Depth",
+            5 => "FZF Start Dir",
             _ => "",
         };
 
@@ -1622,6 +1623,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             2 => "Reverse the order of repositories.",
             3 => "Active theme configuration name. Press Enter/Space to select from dropdown.",
             4 => "Maximum directory depth to search for git repositories.",
+            5 => "Starting directory for interactive repository discovery via FZF.",
             _ => "",
         };
 
@@ -1659,6 +1661,13 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
                     format!("{}█", app.input_buffer)
                 } else {
                     app.config.fzf.max_depth.to_string()
+                }
+            }
+            5 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.fzf.start_dir.clone()
                 }
             }
             _ => String::new(),
