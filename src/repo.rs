@@ -280,12 +280,17 @@ pub fn unstage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
 
 /// Stage a single hunk of unstaged changes (equivalent to `git apply --cached -`).
 pub fn stage_hunk(repo_path: &Path, file_path: &str, hunk: &[DiffLine]) -> Result<(), String> {
-    apply_hunk_patch(repo_path, file_path, hunk, false)
+    apply_hunk_patch(repo_path, file_path, hunk, false, true)
 }
 
 /// Unstage a single hunk of staged changes (equivalent to `git apply --cached --reverse -`).
 pub fn unstage_hunk(repo_path: &Path, file_path: &str, hunk: &[DiffLine]) -> Result<(), String> {
-    apply_hunk_patch(repo_path, file_path, hunk, true)
+    apply_hunk_patch(repo_path, file_path, hunk, true, true)
+}
+
+/// Discard a single hunk of unstaged changes in the working tree (equivalent to `git apply --reverse -`).
+pub fn discard_hunk(repo_path: &Path, file_path: &str, hunk: &[DiffLine]) -> Result<(), String> {
+    apply_hunk_patch(repo_path, file_path, hunk, true, false)
 }
 
 fn apply_hunk_patch(
@@ -293,6 +298,7 @@ fn apply_hunk_patch(
     file_path: &str,
     hunk: &[DiffLine],
     reverse: bool,
+    cached: bool,
 ) -> Result<(), String> {
     use std::io::Write;
     use std::process::{Command, Stdio};
@@ -313,7 +319,10 @@ fn apply_hunk_patch(
         patch.push('\n');
     }
 
-    let mut args = vec!["apply", "--cached"];
+    let mut args = vec!["apply"];
+    if cached {
+        args.push("--cached");
+    }
     if reverse {
         args.push("--reverse");
     }
@@ -1998,6 +2007,83 @@ mod tests {
         // Staged diff should now be empty
         let staged_diff_after = get_worktree_file_diff(&temp_path, "multihunk.txt", true);
         assert!(staged_diff_after.is_empty());
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_discard_hunk() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // Init repo
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // Create initial file with multiple lines
+        let file_path = temp_path.join("discardhunk.txt");
+        let mut file = File::create(&file_path).unwrap();
+        for i in 1..=20 {
+            writeln!(file, "Line {}", i).unwrap();
+        }
+        drop(file);
+
+        // Stage and commit initial
+        stage_file(&temp_path, "discardhunk.txt").unwrap();
+        commit_changes(&temp_path, "initial commit").unwrap();
+
+        // Now modify lines 2 and 18 to create two distinct hunks
+        let mut file = File::create(&file_path).unwrap();
+        for i in 1..=20 {
+            if i == 2 || i == 18 {
+                writeln!(file, "Line {} modified", i).unwrap();
+            } else {
+                writeln!(file, "Line {}", i).unwrap();
+            }
+        }
+        drop(file);
+
+        // Get the unstaged diff lines
+        let diff_lines = get_worktree_file_diff(&temp_path, "discardhunk.txt", false);
+        // Identify hunk ranges
+        let mut hunk_ranges = Vec::new();
+        let mut current_start = None;
+        for (i, line) in diff_lines.iter().enumerate() {
+            if line.kind == DiffLineKind::Header {
+                if let Some(start) = current_start {
+                    hunk_ranges.push(start..i);
+                }
+                current_start = Some(i);
+            }
+        }
+        if let Some(start) = current_start {
+            hunk_ranges.push(start..diff_lines.len());
+        }
+
+        // We expect exactly 2 hunks
+        assert_eq!(hunk_ranges.len(), 2);
+
+        // Discard the second hunk (Line 18 modified)
+        let hunk2 = &diff_lines[hunk_ranges[1].clone()];
+        discard_hunk(&temp_path, "discardhunk.txt", hunk2).unwrap();
+
+        // Now check file contents: line 18 should be reverted to "Line 18", while line 2 should remain "Line 2 modified"
+        let contents = std::fs::read_to_string(&file_path).unwrap();
+        assert!(contents.contains("Line 2 modified"));
+        assert!(contents.contains("Line 18\n"));
+        assert!(!contents.contains("Line 18 modified"));
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);

@@ -13,7 +13,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Gauge, Padding, Paragraph, Wrap};
 
-use crate::app::{App, ITEM_HEIGHT, Mode};
+use crate::app::{App, DetailSection, ITEM_HEIGHT, Mode};
 use crate::config::SortOrder;
 use crate::repo::{ItemStatus, RepoSummary};
 
@@ -926,7 +926,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
         Mode::Inspect => {
-            let (msg_spans, entries) = inspect_dismiss_entries(&app.status_message, app.in_logs_ui);
+            let (msg_spans, entries) = inspect_dismiss_entries(app);
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
     }
@@ -1062,24 +1062,44 @@ fn detail_dismiss_entries(
     (message_spans, entries)
 }
 
-fn inspect_dismiss_entries(
-    status_message: &Option<String>,
-    in_logs_ui: bool,
-) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let mut message_spans = None;
-    if let Some(msg) = status_message {
+    if let Some(msg) = &app.status_message {
         message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
     }
 
     let mut entries = Vec::new();
-    let exit_label = if in_logs_ui { "Logs UI" } else { "Workspace" };
-    let entries_data = [
-        (exit_label, "⎋/q"),
-        ("Cycle Focus", "w/W"),
-        ("Select File", "↑↓"),
-        ("Scroll Diff", "↑↓ (focused)"),
-        ("Help", "?"),
-    ];
+    let exit_label = if app.in_logs_ui {
+        "Logs UI"
+    } else {
+        "Workspace"
+    };
+    let mut entries_data = vec![(exit_label, "⎋/q"), ("Cycle Focus", "w/W")];
+
+    if app.is_uncommitted_selected() {
+        match app.detail_focus {
+            DetailSection::Staged => {
+                entries_data.push(("Unstage File", "↵"));
+            }
+            DetailSection::Unstaged => {
+                entries_data.push(("Stage File", "↵"));
+            }
+            DetailSection::StagingDetails => {
+                if app.last_staging_focus == DetailSection::Staged {
+                    entries_data.push(("Unstage Hunk", "↵"));
+                } else if app.last_staging_focus == DetailSection::Unstaged {
+                    entries_data.push(("Stage Hunk", "↵"));
+                    entries_data.push(("Discard Hunk", "x/Del"));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    entries_data.push(("Select File", "↑↓"));
+    entries_data.push(("Scroll Diff", "↑↓ (focused)"));
+    entries_data.push(("Help", "?"));
+
     for (i, (label, key)) in entries_data.iter().enumerate() {
         let mut spans = Vec::new();
         if i > 0 {
@@ -2367,4 +2387,153 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
     ]))
     .alignment(ratatui::layout::Alignment::Center);
     f.render_widget(hint, chunks[3]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::{App, DetailSection};
+    use crate::config::{Config, FzfConfig, SortOrder, ThemeConfig};
+    use crate::repo::{FileEntry, ItemDetail, RepoInfo};
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_inspect_status_bar_shortcuts() {
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+
+        // 1. Setup dirty working tree detail
+        let mut info = RepoInfo::default();
+        info.changes.staged.push(FileEntry {
+            path: "file.txt".to_string(),
+            label: "M",
+        });
+
+        app.current_detail = Some(ItemDetail::Repo {
+            resolved: PathBuf::from("/dummy"),
+            info: Box::new(info),
+        });
+        app.commit_selection = 0; // selection = uncommitted
+        app.in_logs_ui = false;
+
+        // A) Staged focus -> Unstage File [↵]
+        app.detail_focus = DetailSection::Staged;
+        let (_, entries) = inspect_dismiss_entries(&app);
+        let entry_labels: Vec<String> = entries
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Unstage File [↵]"))
+        );
+
+        // B) Unstaged focus -> Stage File [↵]
+        app.detail_focus = DetailSection::Unstaged;
+        let (_, entries) = inspect_dismiss_entries(&app);
+        let entry_labels: Vec<String> = entries
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Stage File [↵]"))
+        );
+
+        // C) StagingDetails with last_staging_focus == Staged -> Unstage Hunk [↵]
+        app.detail_focus = DetailSection::StagingDetails;
+        app.last_staging_focus = DetailSection::Staged;
+        let (_, entries) = inspect_dismiss_entries(&app);
+        let entry_labels: Vec<String> = entries
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Unstage Hunk [↵]"))
+        );
+
+        // D) StagingDetails with last_staging_focus == Unstaged -> Stage Hunk [↵]
+        app.detail_focus = DetailSection::StagingDetails;
+        app.last_staging_focus = DetailSection::Unstaged;
+        let (_, entries) = inspect_dismiss_entries(&app);
+        let entry_labels: Vec<String> = entries
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Stage Hunk [↵]"))
+        );
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Discard Hunk [x/Del]"))
+        );
+
+        // E) If in_logs_ui is true, it should NOT render any staging entry
+        app.in_logs_ui = true;
+        let (_, entries) = inspect_dismiss_entries(&app);
+        let entry_labels: Vec<String> = entries
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            !entry_labels
+                .iter()
+                .any(|label| label.contains("Stage") || label.contains("Unstage"))
+        );
+    }
 }

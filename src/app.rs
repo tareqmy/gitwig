@@ -2476,6 +2476,46 @@ impl App {
         }
     }
 
+    /// Discard the currently-selected hunk in the Unstaged diff (`git apply --reverse -`).
+    pub fn discard_selected_hunk(&mut self) {
+        let params = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => {
+                let focus_to_use = match self.detail_focus {
+                    DetailSection::Staged => DetailSection::Staged,
+                    DetailSection::Unstaged => DetailSection::Unstaged,
+                    DetailSection::StagingDetails => self.last_staging_focus,
+                    _ => return,
+                };
+                if focus_to_use != DetailSection::Unstaged {
+                    return;
+                }
+                info.changes
+                    .unstaged
+                    .get(self.staging_file_selection)
+                    .map(|f| (resolved.clone(), f.path.clone()))
+            }
+            _ => None,
+        };
+        if let Some((repo_path, file_path)) = params {
+            let ranges = self.get_diff_hunk_ranges();
+            if let Some(range) = ranges.get(self.diff_hunk_selection) {
+                let hunk = &self.file_diff[range.clone()];
+                match repo::discard_hunk(&repo_path, &file_path, hunk) {
+                    Ok(()) => {
+                        self.status_message = Some(format!("Discarded hunk from: {}", file_path));
+                        let prev_hunk_idx = self.diff_hunk_selection;
+                        self.refresh_detail();
+                        let new_hunk_count = self.get_diff_hunk_ranges().len();
+                        self.diff_hunk_selection =
+                            prev_hunk_idx.min(new_hunk_count.saturating_sub(1));
+                        self.scroll_to_selected_hunk();
+                    }
+                    Err(e) => self.status_message = Some(format!("Discard hunk failed: {}", e)),
+                }
+            }
+        }
+    }
+
     pub fn get_file_content_line_count(&self) -> usize {
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
             if let Some(selected_item) = self.visible_files.get(self.file_list_selection) {
@@ -2661,6 +2701,9 @@ impl App {
     }
 
     pub fn is_uncommitted_selected(&self) -> bool {
+        if self.in_logs_ui {
+            return false;
+        }
         match &self.current_detail {
             Some(ItemDetail::Repo { info, .. }) => {
                 let dirty = !info.changes.staged.is_empty()

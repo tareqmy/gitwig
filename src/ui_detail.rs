@@ -240,7 +240,7 @@ pub fn draw(
                 || !info.changes.unstaged.is_empty()
                 || !info.changes.untracked.is_empty()
                 || !info.changes.conflicted.is_empty();
-            let is_uncommitted = dirty && commit_selection == 0;
+            let is_uncommitted = dirty && commit_selection == 0 && !app.in_logs_ui;
 
             if is_uncommitted {
                 draw_staging_panels(

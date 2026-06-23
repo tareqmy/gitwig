@@ -55,8 +55,9 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Interactive fzf directory picker to add items (a).
 - [x] Search and filter in history and file lists (commit search).
 - [x] Interactive Rebase.
-- [ ] Conflict resolution UI.
 - [x] Custom themes and keybindings.
-- [ ] Line-by-line diffs allow or decline.
 - [x] Allow an option to revert a dirty file.
 - [x] In-app settings page (accessed with `s` shortcut) to edit and persist settings in `config.toml` (poll interval, sort mode, reverse sort, active theme, fzf max depth, and fzf start dir).
+- [x] Hunk-by-hunk diffs allow or decline.
+- [ ] Line-by-line diffs allow or decline.
+- [ ] Conflict resolution UI.
