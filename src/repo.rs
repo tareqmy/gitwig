@@ -293,6 +293,260 @@ pub fn discard_hunk(repo_path: &Path, file_path: &str, hunk: &[DiffLine]) -> Res
     apply_hunk_patch(repo_path, file_path, hunk, true, false)
 }
 
+/// Stage a single line from the Unstaged diff.
+pub fn stage_line(
+    repo_path: &Path,
+    file_path: &str,
+    hunk: &[DiffLine],
+    selected_line_idx: usize,
+) -> Result<(), String> {
+    apply_line_patch_inner(
+        repo_path,
+        file_path,
+        hunk,
+        selected_line_idx,
+        false,
+        false,
+        true,
+    )
+}
+
+/// Unstage a single line from the Staged diff.
+pub fn unstage_line(
+    repo_path: &Path,
+    file_path: &str,
+    hunk: &[DiffLine],
+    selected_line_idx: usize,
+) -> Result<(), String> {
+    apply_line_patch_inner(
+        repo_path,
+        file_path,
+        hunk,
+        selected_line_idx,
+        true,
+        true,
+        true,
+    )
+}
+
+/// Discard a single line from the Unstaged diff in the working tree.
+pub fn discard_line(
+    repo_path: &Path,
+    file_path: &str,
+    hunk: &[DiffLine],
+    selected_line_idx: usize,
+) -> Result<(), String> {
+    apply_line_patch_inner(
+        repo_path,
+        file_path,
+        hunk,
+        selected_line_idx,
+        true,
+        true,
+        false,
+    )
+}
+
+fn parse_hunk_header(header: &str) -> Option<(usize, usize, usize, usize)> {
+    if !header.starts_with("@@") {
+        return None;
+    }
+    let parts: Vec<&str> = header.split("@@").collect();
+    if parts.len() < 3 {
+        return None;
+    }
+    let meta = parts[1].trim();
+    let subparts: Vec<&str> = meta.split_whitespace().collect();
+    if subparts.len() < 2 {
+        return None;
+    }
+
+    let parse_part = |p: &str| -> (usize, usize) {
+        let s = p.trim_start_matches(['-', '+']);
+        let comps: Vec<&str> = s.split(',').collect();
+        let start = comps[0].parse::<usize>().unwrap_or(0);
+        let count = if comps.len() > 1 {
+            comps[1].parse::<usize>().unwrap_or(1)
+        } else {
+            1
+        };
+        (start, count)
+    };
+
+    let (old_start, old_count) = parse_part(subparts[0]);
+    let (new_start, new_count) = parse_part(subparts[1]);
+    Some((old_start, old_count, new_start, new_count))
+}
+
+fn apply_line_patch_inner(
+    repo_path: &Path,
+    file_path: &str,
+    hunk: &[DiffLine],
+    selected_line_idx_in_hunk: usize,
+    revert: bool,
+    target_has_modification: bool,
+    cached: bool,
+) -> Result<(), String> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    if hunk.is_empty() {
+        return Err("Empty hunk".to_string());
+    }
+
+    let selected_line = match hunk.get(selected_line_idx_in_hunk) {
+        Some(line) => line,
+        None => return Err("Invalid line index".to_string()),
+    };
+
+    if selected_line.kind != DiffLineKind::Added && selected_line.kind != DiffLineKind::Removed {
+        return Err("Selected line is not a modification (must be + or -)".to_string());
+    }
+
+    let header_line = &hunk[0];
+    let (old_start, _old_count, new_start, _new_count) =
+        match parse_hunk_header(&header_line.content) {
+            Some(coords) => coords,
+            None => return Err(format!("Invalid hunk header: {}", header_line.content)),
+        };
+
+    let mut patch_lines = Vec::new();
+    let mut new_old_count = 0;
+    let mut new_new_count = 0;
+
+    for (i, line) in hunk.iter().enumerate() {
+        if i == 0 {
+            continue;
+        }
+
+        if i == selected_line_idx_in_hunk {
+            if revert {
+                match line.kind {
+                    DiffLineKind::Added => {
+                        patch_lines.push(DiffLine {
+                            kind: DiffLineKind::Removed,
+                            content: line.content.clone(),
+                        });
+                        new_old_count += 1;
+                    }
+                    DiffLineKind::Removed => {
+                        patch_lines.push(DiffLine {
+                            kind: DiffLineKind::Added,
+                            content: line.content.clone(),
+                        });
+                        new_new_count += 1;
+                    }
+                    _ => {}
+                }
+            } else {
+                match line.kind {
+                    DiffLineKind::Added => {
+                        patch_lines.push(DiffLine {
+                            kind: DiffLineKind::Added,
+                            content: line.content.clone(),
+                        });
+                        new_new_count += 1;
+                    }
+                    DiffLineKind::Removed => {
+                        patch_lines.push(DiffLine {
+                            kind: DiffLineKind::Removed,
+                            content: line.content.clone(),
+                        });
+                        new_old_count += 1;
+                    }
+                    _ => {}
+                }
+            }
+        } else {
+            match line.kind {
+                DiffLineKind::Context => {
+                    patch_lines.push(line.clone());
+                    new_old_count += 1;
+                    new_new_count += 1;
+                }
+                DiffLineKind::Added => {
+                    if target_has_modification {
+                        patch_lines.push(DiffLine {
+                            kind: DiffLineKind::Context,
+                            content: line.content.clone(),
+                        });
+                        new_old_count += 1;
+                        new_new_count += 1;
+                    } else {
+                        // Omit
+                    }
+                }
+                DiffLineKind::Removed => {
+                    if target_has_modification {
+                        // Omit
+                    } else {
+                        patch_lines.push(DiffLine {
+                            kind: DiffLineKind::Context,
+                            content: line.content.clone(),
+                        });
+                        new_old_count += 1;
+                        new_new_count += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    let mut patch = String::new();
+    patch.push_str(&format!("diff --git a/{} b/{}\n", file_path, file_path));
+    patch.push_str(&format!("--- a/{}\n", file_path));
+    patch.push_str(&format!("+++ b/{}\n", file_path));
+    patch.push_str(&format!(
+        "@@ -{},{} +{},{} @@\n",
+        old_start, new_old_count, new_start, new_new_count
+    ));
+
+    for line in patch_lines {
+        let prefix = match line.kind {
+            DiffLineKind::Added => "+",
+            DiffLineKind::Removed => "-",
+            DiffLineKind::Context => " ",
+            DiffLineKind::Header => "",
+        };
+        patch.push_str(prefix);
+        patch.push_str(&line.content);
+        patch.push('\n');
+    }
+
+    let mut args = vec!["apply"];
+    if cached {
+        args.push("--cached");
+    }
+    args.push("-");
+
+    let mut child = Command::new("git")
+        .args(&args)
+        .current_dir(repo_path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn git apply: {}", e))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(patch.as_bytes())
+            .map_err(|e| format!("Failed to write patch to stdin: {}", e))?;
+    }
+
+    let output = child
+        .wait_with_output()
+        .map_err(|e| format!("Failed to wait for git apply: {}", e))?;
+
+    if !output.status.success() {
+        let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(format!("git apply failed: {}", err_msg.trim()));
+    }
+
+    Ok(())
+}
+
 fn apply_hunk_patch(
     repo_path: &Path,
     file_path: &str,
@@ -2084,6 +2338,121 @@ mod tests {
         assert!(contents.contains("Line 2 modified"));
         assert!(contents.contains("Line 18\n"));
         assert!(!contents.contains("Line 18 modified"));
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_stage_unstage_discard_line() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        let repo = Repository::init(&temp_path).unwrap();
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // 1. Create initial file
+        let file_path = temp_path.join("line_test.txt");
+        let mut file = File::create(&file_path).unwrap();
+        writeln!(file, "line A").unwrap();
+        writeln!(file, "line B").unwrap();
+        writeln!(file, "line C").unwrap();
+        drop(file);
+
+        stage_file(&temp_path, "line_test.txt").unwrap();
+        commit_changes(&temp_path, "initial").unwrap();
+
+        // 2. Modify to introduce two distinct changes in one hunk
+        let mut file = File::create(&file_path).unwrap();
+        writeln!(file, "line A modified").unwrap();
+        writeln!(file, "line B").unwrap();
+        writeln!(file, "line C modified").unwrap();
+        drop(file);
+
+        let diff_lines = get_worktree_file_diff(&temp_path, "line_test.txt", false);
+        let mut hunk_ranges = Vec::new();
+        let mut current_start = None;
+        for (i, line) in diff_lines.iter().enumerate() {
+            if line.kind == DiffLineKind::Header {
+                if let Some(start) = current_start {
+                    hunk_ranges.push(start..i);
+                }
+                current_start = Some(i);
+            }
+        }
+        if let Some(start) = current_start {
+            hunk_ranges.push(start..diff_lines.len());
+        }
+
+        assert_eq!(hunk_ranges.len(), 1);
+        let hunk0 = &diff_lines[hunk_ranges[0].clone()];
+
+        assert_eq!(hunk0[2].content, "line A modified");
+        assert_eq!(hunk0[5].content, "line C modified");
+
+        // A) Stage line A modified (relative index 2)
+        stage_line(&temp_path, "line_test.txt", hunk0, 2).unwrap();
+
+        // Check staged diff
+        let staged_diff = get_worktree_file_diff(&temp_path, "line_test.txt", true);
+        assert!(
+            staged_diff
+                .iter()
+                .any(|l| l.kind == DiffLineKind::Added && l.content == "line A modified")
+        );
+        assert!(
+            !staged_diff
+                .iter()
+                .any(|l| l.kind == DiffLineKind::Added && l.content == "line C modified")
+        );
+
+        // Check unstaged diff
+        let unstaged_diff = get_worktree_file_diff(&temp_path, "line_test.txt", false);
+        assert!(
+            !unstaged_diff
+                .iter()
+                .any(|l| l.kind == DiffLineKind::Added && l.content == "line A modified")
+        );
+        assert!(
+            unstaged_diff
+                .iter()
+                .any(|l| l.kind == DiffLineKind::Added && l.content == "line C modified")
+        );
+
+        // B) Unstage line A modified
+        assert_eq!(staged_diff[2].content, "line A modified");
+        unstage_line(&temp_path, "line_test.txt", &staged_diff, 2).unwrap();
+
+        // Staged diff should now be empty
+        assert!(get_worktree_file_diff(&temp_path, "line_test.txt", true).is_empty());
+
+        // C) Discard line C modified (index 5) in unstaged diff
+        let unstaged_diff2 = get_worktree_file_diff(&temp_path, "line_test.txt", false);
+        assert_eq!(unstaged_diff2[5].content, "line C modified");
+        discard_line(&temp_path, "line_test.txt", &unstaged_diff2, 5).unwrap();
+
+        let unstaged_diff3 = get_worktree_file_diff(&temp_path, "line_test.txt", false);
+        let remove_idx = unstaged_diff3
+            .iter()
+            .position(|l| l.kind == DiffLineKind::Removed && l.content == "line C")
+            .unwrap();
+        discard_line(&temp_path, "line_test.txt", &unstaged_diff3, remove_idx).unwrap();
+
+        // File contents check
+        let contents = std::fs::read_to_string(&file_path).unwrap();
+        assert!(contents.contains("line A modified"));
+        assert!(contents.contains("line B"));
+        assert!(contents.contains("line C\n"));
+        assert!(!contents.contains("line C modified"));
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);

@@ -1074,11 +1074,31 @@ fn draw_staging_panels(
             .enumerate()
             .map(|(i, line)| {
                 let is_selected_hunk = selected_hunk_range.map(|r| r.contains(&i)).unwrap_or(false);
-                let (prefix, bg_style) = if is_selected_hunk && right_focused {
-                    (
-                        "▎",
-                        Style::default().bg(ratatui::style::Color::Rgb(50, 50, 50)),
-                    )
+                let (prefix, bg_style) = if right_focused {
+                    if app.diff_line_mode {
+                        if i == app.diff_line_selection {
+                            (
+                                "▎",
+                                Style::default().bg(ratatui::style::Color::Rgb(70, 70, 70)),
+                            )
+                        } else if is_selected_hunk {
+                            (
+                                " ",
+                                Style::default().bg(ratatui::style::Color::Rgb(40, 40, 40)),
+                            )
+                        } else {
+                            (" ", Style::default())
+                        }
+                    } else {
+                        if is_selected_hunk {
+                            (
+                                "▎",
+                                Style::default().bg(ratatui::style::Color::Rgb(50, 50, 50)),
+                            )
+                        } else {
+                            (" ", Style::default())
+                        }
+                    }
                 } else {
                     (" ", Style::default())
                 };

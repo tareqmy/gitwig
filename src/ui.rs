@@ -1085,11 +1085,22 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
                 entries_data.push(("Stage File", "↵"));
             }
             DetailSection::StagingDetails => {
-                if app.last_staging_focus == DetailSection::Staged {
-                    entries_data.push(("Unstage Hunk", "↵"));
-                } else if app.last_staging_focus == DetailSection::Unstaged {
-                    entries_data.push(("Stage Hunk", "↵"));
-                    entries_data.push(("Discard Hunk", "x/Del"));
+                if app.diff_line_mode {
+                    entries_data.push(("Hunk Mode", "l"));
+                    if app.last_staging_focus == DetailSection::Staged {
+                        entries_data.push(("Unstage Line", "↵"));
+                    } else if app.last_staging_focus == DetailSection::Unstaged {
+                        entries_data.push(("Stage Line", "↵"));
+                        entries_data.push(("Discard Line", "x/Del"));
+                    }
+                } else {
+                    entries_data.push(("Line Mode", "l"));
+                    if app.last_staging_focus == DetailSection::Staged {
+                        entries_data.push(("Unstage Hunk", "↵"));
+                    } else if app.last_staging_focus == DetailSection::Unstaged {
+                        entries_data.push(("Stage Hunk", "↵"));
+                        entries_data.push(("Discard Hunk", "x/Del"));
+                    }
                 }
             }
             _ => {}
@@ -2514,6 +2525,36 @@ mod tests {
             entry_labels
                 .iter()
                 .any(|label| label.contains("Discard Hunk [x/Del]"))
+        );
+
+        // D2) StagingDetails with last_staging_focus == Unstaged and diff_line_mode == true -> Stage Line [↵] & Discard Line [x/Del] & Hunk Mode [l]
+        app.diff_line_mode = true;
+        let (_, entries) = inspect_dismiss_entries(&app);
+        let entry_labels: Vec<String> = entries
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Stage Line [↵]"))
+        );
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Discard Line [x/Del]"))
+        );
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Hunk Mode [l]"))
         );
 
         // E) If in_logs_ui is true, it should NOT render any staging entry

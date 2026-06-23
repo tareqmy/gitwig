@@ -211,6 +211,10 @@ pub struct App {
     pub diff_scroll: usize,
     /// Selected hunk index for stage/unstage by hunk (StagingDetails focus).
     pub diff_hunk_selection: usize,
+    /// Whether we are selecting lines (true) or hunks (false) in StagingDetails.
+    pub diff_line_mode: bool,
+    /// Selected line index in the file_diff.
+    pub diff_line_selection: usize,
     /// Vertical scroll offset for the commit details panel (CommitDetails focus).
     pub commit_details_scroll: usize,
     /// Vertical scroll offset for the commit input popup.
@@ -380,6 +384,8 @@ impl App {
             file_diff: Vec::new(),
             diff_scroll: 0,
             diff_hunk_selection: 0,
+            diff_line_mode: false,
+            diff_line_selection: 0,
             commit_details_scroll: 0,
             commit_input_scroll: 0,
             local_branch_selection: 0,
@@ -2396,6 +2402,62 @@ impl App {
         }
     }
 
+    pub fn toggle_diff_line_mode(&mut self) {
+        if self.file_diff.is_empty() {
+            return;
+        }
+        self.diff_line_mode = !self.diff_line_mode;
+        if self.diff_line_mode {
+            let ranges = self.get_diff_hunk_ranges();
+            if let Some(range) = ranges.get(self.diff_hunk_selection) {
+                self.diff_line_selection = range.start;
+            } else {
+                self.diff_line_selection = 0;
+            }
+        } else {
+            let ranges = self.get_diff_hunk_ranges();
+            for (idx, range) in ranges.iter().enumerate() {
+                if range.contains(&self.diff_line_selection) {
+                    self.diff_hunk_selection = idx;
+                    break;
+                }
+            }
+        }
+        self.scroll_to_selected_hunk();
+    }
+
+    pub fn diff_line_up(&mut self) {
+        if self.diff_line_selection > 0 {
+            self.diff_line_selection -= 1;
+            let ranges = self.get_diff_hunk_ranges();
+            for (idx, range) in ranges.iter().enumerate() {
+                if range.contains(&self.diff_line_selection) {
+                    self.diff_hunk_selection = idx;
+                    break;
+                }
+            }
+            if self.diff_line_selection < self.diff_scroll {
+                self.diff_scroll = self.diff_line_selection;
+            }
+        }
+    }
+
+    pub fn diff_line_down(&mut self) {
+        if self.diff_line_selection + 1 < self.file_diff.len() {
+            self.diff_line_selection += 1;
+            let ranges = self.get_diff_hunk_ranges();
+            for (idx, range) in ranges.iter().enumerate() {
+                if range.contains(&self.diff_line_selection) {
+                    self.diff_hunk_selection = idx;
+                    break;
+                }
+            }
+            if self.diff_line_selection >= self.diff_scroll + 18 {
+                self.diff_scroll = self.diff_line_selection.saturating_sub(17);
+            }
+        }
+    }
+
     /// Stage the currently-selected hunk in the Unstaged diff (`git apply --cached -`).
     pub fn stage_selected_hunk(&mut self) {
         let params = match &self.current_detail {
@@ -2513,6 +2575,161 @@ impl App {
                     Err(e) => self.status_message = Some(format!("Discard hunk failed: {}", e)),
                 }
             }
+        }
+    }
+
+    /// Stage the currently-selected line in the Unstaged diff (`git apply --cached -`).
+    pub fn stage_selected_line(&mut self) {
+        let params = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => {
+                let focus_to_use = match self.detail_focus {
+                    DetailSection::Staged => DetailSection::Staged,
+                    DetailSection::Unstaged => DetailSection::Unstaged,
+                    DetailSection::StagingDetails => self.last_staging_focus,
+                    _ => return,
+                };
+                if focus_to_use != DetailSection::Unstaged {
+                    return;
+                }
+                info.changes
+                    .unstaged
+                    .get(self.staging_file_selection)
+                    .map(|f| (resolved.clone(), f.path.clone()))
+            }
+            _ => None,
+        };
+        if let Some((repo_path, file_path)) = params {
+            let ranges = self.get_diff_hunk_ranges();
+            if let Some(range) = ranges.get(self.diff_hunk_selection) {
+                if range.contains(&self.diff_line_selection) {
+                    let hunk = &self.file_diff[range.clone()];
+                    let selected_line_idx_in_hunk = self.diff_line_selection - range.start;
+                    match repo::stage_line(&repo_path, &file_path, hunk, selected_line_idx_in_hunk)
+                    {
+                        Ok(()) => {
+                            self.status_message = Some(format!("Staged line from: {}", file_path));
+                            self.refresh_detail_for_line_action();
+                        }
+                        Err(e) => self.status_message = Some(format!("Stage line failed: {}", e)),
+                    }
+                }
+            }
+        }
+    }
+
+    /// Unstage the currently-selected line in the Staged diff (`git apply --cached --reverse -`).
+    pub fn unstage_selected_line(&mut self) {
+        let params = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => {
+                let focus_to_use = match self.detail_focus {
+                    DetailSection::Staged => DetailSection::Staged,
+                    DetailSection::Unstaged => DetailSection::Unstaged,
+                    DetailSection::StagingDetails => self.last_staging_focus,
+                    _ => return,
+                };
+                if focus_to_use != DetailSection::Staged {
+                    return;
+                }
+                info.changes
+                    .staged
+                    .get(self.staging_file_selection)
+                    .map(|f| (resolved.clone(), f.path.clone()))
+            }
+            _ => None,
+        };
+        if let Some((repo_path, file_path)) = params {
+            let ranges = self.get_diff_hunk_ranges();
+            if let Some(range) = ranges.get(self.diff_hunk_selection) {
+                if range.contains(&self.diff_line_selection) {
+                    let hunk = &self.file_diff[range.clone()];
+                    let selected_line_idx_in_hunk = self.diff_line_selection - range.start;
+                    match repo::unstage_line(
+                        &repo_path,
+                        &file_path,
+                        hunk,
+                        selected_line_idx_in_hunk,
+                    ) {
+                        Ok(()) => {
+                            self.status_message =
+                                Some(format!("Unstaged line from: {}", file_path));
+                            self.refresh_detail_for_line_action();
+                        }
+                        Err(e) => self.status_message = Some(format!("Unstage line failed: {}", e)),
+                    }
+                }
+            }
+        }
+    }
+
+    /// Discard the currently-selected line in the Unstaged diff (`git apply --reverse -`).
+    pub fn discard_selected_line(&mut self) {
+        let params = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => {
+                let focus_to_use = match self.detail_focus {
+                    DetailSection::Staged => DetailSection::Staged,
+                    DetailSection::Unstaged => DetailSection::Unstaged,
+                    DetailSection::StagingDetails => self.last_staging_focus,
+                    _ => return,
+                };
+                if focus_to_use != DetailSection::Unstaged {
+                    return;
+                }
+                info.changes
+                    .unstaged
+                    .get(self.staging_file_selection)
+                    .map(|f| (resolved.clone(), f.path.clone()))
+            }
+            _ => None,
+        };
+        if let Some((repo_path, file_path)) = params {
+            let ranges = self.get_diff_hunk_ranges();
+            if let Some(range) = ranges.get(self.diff_hunk_selection) {
+                if range.contains(&self.diff_line_selection) {
+                    let hunk = &self.file_diff[range.clone()];
+                    let selected_line_idx_in_hunk = self.diff_line_selection - range.start;
+                    match repo::discard_line(
+                        &repo_path,
+                        &file_path,
+                        hunk,
+                        selected_line_idx_in_hunk,
+                    ) {
+                        Ok(()) => {
+                            self.status_message =
+                                Some(format!("Discarded line from: {}", file_path));
+                            self.refresh_detail_for_line_action();
+                        }
+                        Err(e) => self.status_message = Some(format!("Discard line failed: {}", e)),
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn refresh_detail_for_line_action(&mut self) {
+        let prev_line_idx = self.diff_line_selection;
+        self.refresh_detail();
+
+        let new_len = self.file_diff.len();
+        if new_len == 0 {
+            self.diff_line_selection = 0;
+            self.diff_hunk_selection = 0;
+            self.diff_scroll = 0;
+            return;
+        }
+
+        self.diff_line_selection = prev_line_idx.min(new_len - 1);
+        let ranges = self.get_diff_hunk_ranges();
+        for (idx, range) in ranges.iter().enumerate() {
+            if range.contains(&self.diff_line_selection) {
+                self.diff_hunk_selection = idx;
+                break;
+            }
+        }
+
+        if self.diff_line_selection < self.diff_scroll {
+            self.diff_scroll = self.diff_line_selection;
+        } else if self.diff_line_selection >= self.diff_scroll + 18 {
+            self.diff_scroll = self.diff_line_selection.saturating_sub(17);
         }
     }
 

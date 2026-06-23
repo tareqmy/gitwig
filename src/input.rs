@@ -970,7 +970,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.commit_details_scroll_up();
                 } else {
                     if app.is_uncommitted_selected() {
-                        app.diff_hunk_up();
+                        if app.diff_line_mode {
+                            app.diff_line_up();
+                        } else {
+                            app.diff_hunk_up();
+                        }
                     } else {
                         app.diff_scroll_up();
                     }
@@ -989,7 +993,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.commit_details_scroll_down();
                 } else {
                     if app.is_uncommitted_selected() {
-                        app.diff_hunk_down();
+                        if app.diff_line_mode {
+                            app.diff_line_down();
+                        } else {
+                            app.diff_hunk_down();
+                        }
                     } else {
                         app.diff_scroll_down();
                     }
@@ -1050,8 +1058,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.commit_details_scroll = 0;
                 } else {
                     if app.is_uncommitted_selected() {
-                        app.diff_hunk_selection = 0;
-                        app.scroll_to_selected_hunk();
+                        if app.diff_line_mode {
+                            app.diff_line_selection = 0;
+                            app.diff_scroll = 0;
+                        } else {
+                            app.diff_hunk_selection = 0;
+                            app.scroll_to_selected_hunk();
+                        }
                     } else {
                         app.diff_scroll_to_top();
                     }
@@ -1070,9 +1083,14 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.commit_details_scroll = usize::MAX;
                 } else {
                     if app.is_uncommitted_selected() {
-                        let hunk_count = app.get_diff_hunk_ranges().len();
-                        app.diff_hunk_selection = hunk_count.saturating_sub(1);
-                        app.scroll_to_selected_hunk();
+                        if app.diff_line_mode {
+                            app.diff_line_selection = app.file_diff.len().saturating_sub(1);
+                            app.diff_scroll = app.diff_line_selection.saturating_sub(17);
+                        } else {
+                            let hunk_count = app.get_diff_hunk_ranges().len();
+                            app.diff_hunk_selection = hunk_count.saturating_sub(1);
+                            app.scroll_to_selected_hunk();
+                        }
                     } else {
                         app.diff_scroll_to_bottom();
                     }
@@ -1084,10 +1102,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 } else if app.detail_focus == DetailSection::Unstaged {
                     app.stage_selected_file();
                 } else if app.detail_focus == DetailSection::StagingDetails {
-                    if app.last_staging_focus == DetailSection::Staged {
-                        app.unstage_selected_hunk();
-                    } else if app.last_staging_focus == DetailSection::Unstaged {
-                        app.stage_selected_hunk();
+                    if app.diff_line_mode {
+                        if app.last_staging_focus == DetailSection::Staged {
+                            app.unstage_selected_line();
+                        } else if app.last_staging_focus == DetailSection::Unstaged {
+                            app.stage_selected_line();
+                        }
+                    } else {
+                        if app.last_staging_focus == DetailSection::Staged {
+                            app.unstage_selected_hunk();
+                        } else if app.last_staging_focus == DetailSection::Unstaged {
+                            app.stage_selected_hunk();
+                        }
                     }
                 }
             }
@@ -1096,7 +1122,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     && app.detail_focus == DetailSection::StagingDetails
                     && app.last_staging_focus == DetailSection::Unstaged =>
             {
-                app.discard_selected_hunk();
+                if app.diff_line_mode {
+                    app.discard_selected_line();
+                } else {
+                    app.discard_selected_hunk();
+                }
             }
             KeyCode::Char('x') | KeyCode::Char('X') if app.is_uncommitted_selected() => {
                 if app.detail_focus == DetailSection::Staged
@@ -1106,8 +1136,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 } else if app.detail_focus == DetailSection::StagingDetails
                     && app.last_staging_focus == DetailSection::Unstaged
                 {
-                    app.discard_selected_hunk();
+                    if app.diff_line_mode {
+                        app.discard_selected_line();
+                    } else {
+                        app.discard_selected_hunk();
+                    }
                 }
+            }
+            KeyCode::Char('l') | KeyCode::Char('L')
+                if app.is_uncommitted_selected()
+                    && app.detail_focus == DetailSection::StagingDetails =>
+            {
+                app.toggle_diff_line_mode();
             }
             _ => {}
         },

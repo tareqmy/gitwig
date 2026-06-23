@@ -59,5 +59,5 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Allow an option to revert a dirty file.
 - [x] In-app settings page (accessed with `s` shortcut) to edit and persist settings in `config.toml` (poll interval, sort mode, reverse sort, active theme, fzf max depth, and fzf start dir).
 - [x] Hunk-by-hunk diffs allow or decline.
-- [ ] Line-by-line diffs allow or decline.
+- [x] Line-by-line diffs allow or decline.
 - [ ] Conflict resolution UI.
