@@ -223,12 +223,7 @@ pub fn draw(
             | Mode::LogsSearchInput
     ) {
         if let Some(detail) = &app.current_detail {
-            let item_name = app
-                .config
-                .items
-                .get(app.selected_index)
-                .map(String::as_str)
-                .unwrap_or("");
+            let item_name = app.get_selected_item().map(String::as_str).unwrap_or("");
             crate::ui_detail::draw(
                 f,
                 item_name,
@@ -283,6 +278,12 @@ pub fn draw(
         draw_settings_page(f, app, content_area);
     } else if app.config.items.is_empty() {
         draw_empty_state(f, content_area);
+    } else if app.get_items_len() == 0 {
+        if let Some(ref query) = app.repo_search_query {
+            draw_search_empty_state(f, content_area, query);
+        } else {
+            draw_empty_state(f, content_area);
+        }
     } else {
         let list_chunks = item_chunks(content_area, visible_count);
         *main_areas = list_chunks.clone();
@@ -377,12 +378,13 @@ fn item_chunks(content_area: Rect, visible_count: usize) -> Vec<Rect> {
 }
 
 fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
-    let upper = (app.scroll_top + chunks.len()).min(app.config.items.len());
-    let visible_items = &app.config.items[app.scroll_top..upper];
+    let filtered_items = app.get_filtered_items();
+    let upper = (app.scroll_top + chunks.len()).min(filtered_items.len());
+    let visible_items = &filtered_items[app.scroll_top..upper];
 
-    for (i, item) in visible_items.iter().enumerate() {
-        let actual_index = i + app.scroll_top;
-        let is_selected = actual_index == app.selected_index;
+    for (i, &(actual_index, item)) in visible_items.iter().enumerate() {
+        let display_index = i + app.scroll_top;
+        let is_selected = display_index == app.selected_index;
         let pending_delete = is_selected && matches!(app.mode, Mode::ConfirmDelete);
         let pending_edit = is_selected && matches!(app.mode, Mode::Editing);
         let is_pinned = app.config.pinned.contains(item);
@@ -544,6 +546,34 @@ fn draw_empty_state(f: &mut Frame, area: Rect) {
     f.render_widget(para, vert[1]);
 }
 
+/// Renders a centered empty-state message when search matches no repositories.
+fn draw_search_empty_state(f: &mut Frame, area: Rect, query: &str) {
+    let vert = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage(25),
+            Constraint::Min(0),
+            Constraint::Percentage(40),
+        ])
+        .split(area);
+
+    let lines = vec![
+        Line::from(vec![Span::styled(
+            format!("No repositories matching '{}'.", query),
+            primary_style(),
+        )]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("Press  "),
+            Span::styled("Esc", accent_style()),
+            Span::raw("  to clear the search filter"),
+        ]),
+    ];
+
+    let p = Paragraph::new(lines).alignment(Alignment::Center);
+    f.render_widget(p, vert[1]);
+}
+
 /// Renders the per-item status as a colored symbol + (for git repos) a
 /// compact set of `N+` (staged), `N!` (modified), `N?` (untracked),
 /// `N↑` (commits ahead), `N↓` (commits behind) suffixes. Only non-zero
@@ -670,11 +700,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             draw_status_layout(f, area, Some(msg_spans), entries, app.status_expanded);
         }
         Mode::Normal => {
-            let (msg_spans, entries) = normal_status_entries(
-                &app.status_message,
-                app.config.sort_by,
-                app.config.sort_reverse,
-            );
+            let (msg_spans, entries) = normal_status_entries(app);
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
         Mode::Adding => {
@@ -683,13 +709,11 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         Mode::Editing => {
             draw_input_status(f, area, "Edit", &app.input_buffer);
         }
+        Mode::RepoSearchInput => {
+            draw_input_status(f, area, "Find", &app.input_buffer);
+        }
         Mode::ConfirmDelete => {
-            let target = app
-                .config
-                .items
-                .get(app.selected_index)
-                .map(|s| s.as_str())
-                .unwrap_or("");
+            let target = app.get_selected_item().map(|s| s.as_str()).unwrap_or("");
             let (msg_spans, entries) = confirm_delete_entries(target);
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
@@ -1238,22 +1262,28 @@ fn draw_status_layout(
     }
 }
 
-fn normal_status_entries(
-    status_message: &Option<String>,
-    sort_by: SortOrder,
-    sort_reverse: bool,
-) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let mut message_spans = None;
-    if let Some(msg) = status_message {
+    if let Some(msg) = &app.status_message {
         message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
+    } else if let Some(query) = &app.repo_search_query {
+        message_spans = Some(vec![
+            Span::styled("Filtered by: ", muted_style()),
+            Span::styled(format!("\"{}\" ", query), accent_style()),
+            Span::styled("(Esc to clear) ", muted_style()),
+        ]);
     }
-    let sort_label = match sort_by {
+    let sort_label = match app.config.sort_by {
         SortOrder::Custom => "Custom",
         SortOrder::Alphabetical => "Alphabetical",
         SortOrder::RecentVisit => "Recent",
         SortOrder::LatestChanges => "Changes",
     };
-    let sort_dir = if sort_reverse { " (Rev)" } else { "" };
+    let sort_dir = if app.config.sort_reverse {
+        " (Rev)"
+    } else {
+        ""
+    };
     let sort_key_label = format!("Sort: {}{}", sort_label, sort_dir);
 
     let entries_data = vec![
@@ -1264,6 +1294,7 @@ fn normal_status_entries(
         ("gitui", "g"),
         ("lazygit", "l"),
         (&sort_key_label, "o/O"),
+        ("Find", "f"),
         ("Add", "a"),
         ("Edit", "e"),
         ("Delete", "d"),

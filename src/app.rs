@@ -98,6 +98,8 @@ pub enum Mode {
     BranchCheckoutConfirm,
     /// Confirming checkout of a tag.
     TagCheckoutConfirm,
+    /// Search input for repositories on the home page.
+    RepoSearchInput,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -197,6 +199,8 @@ pub struct App {
     pub commit_selection: usize,
     /// Active query for filtering commits in the commits panel
     pub commit_search_query: Option<String>,
+    /// Active query for filtering repositories in the home page list
+    pub repo_search_query: Option<String>,
     /// Selected file index inside the Changed Files panel (real commits).
     pub file_selection: usize,
     /// Selected file index inside the Staged/Unstaged sub-panels (uncommitted view).
@@ -368,6 +372,7 @@ impl App {
             detail_focus: DetailSection::Commits,
             commit_selection: 0,
             commit_search_query: None,
+            repo_search_query: None,
             file_selection: 0,
             staging_file_selection: 0,
             file_diff: Vec::new(),
@@ -453,18 +458,60 @@ impl App {
         self.status_expanded = !self.status_expanded;
     }
 
-    /// Ensure `selected_index` is a valid index into `config.items`.
+    pub fn get_filtered_items(&self) -> Vec<(usize, &String)> {
+        if let Some(ref query) = self.repo_search_query {
+            let query_lower = query.to_lowercase();
+            self.config
+                .items
+                .iter()
+                .enumerate()
+                .filter(|(_, item)| {
+                    let file_name = std::path::Path::new(item)
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or(item.as_str())
+                        .to_lowercase();
+                    let full_path = item.to_lowercase();
+                    file_name.contains(&query_lower) || full_path.contains(&query_lower)
+                })
+                .collect()
+        } else {
+            self.config.items.iter().enumerate().collect()
+        }
+    }
+
+    pub fn get_items_len(&self) -> usize {
+        if self.repo_search_query.is_some() {
+            self.get_filtered_items().len()
+        } else {
+            self.config.items.len()
+        }
+    }
+
+    pub fn get_selected_item(&self) -> Option<&String> {
+        let orig_idx = self.get_selected_item_index()?;
+        self.config.items.get(orig_idx)
+    }
+
+    pub fn get_selected_item_index(&self) -> Option<usize> {
+        self.get_filtered_items()
+            .get(self.selected_index)
+            .map(|(orig_idx, _)| *orig_idx)
+    }
+
+    /// Ensure `selected_index` is a valid index into `config.items` (or filtered items).
     pub fn clamp_selection(&mut self) {
-        if self.config.items.is_empty() {
+        let len = self.get_items_len();
+        if len == 0 {
             self.selected_index = 0;
-        } else if self.selected_index >= self.config.items.len() {
-            self.selected_index = self.config.items.len() - 1;
+        } else if self.selected_index >= len {
+            self.selected_index = len - 1;
         }
     }
 
     /// Ensure the scroll window doesn't extend past the end of the list.
     pub fn clamp_scroll(&mut self, visible_count: usize) {
-        let max_scroll = self.config.items.len().saturating_sub(visible_count);
+        let max_scroll = self.get_items_len().saturating_sub(visible_count);
         if self.scroll_top > max_scroll {
             self.scroll_top = max_scroll;
         }
@@ -486,7 +533,8 @@ impl App {
     }
 
     pub fn move_down(&mut self, visible_count: usize) {
-        if self.selected_index + 1 < self.config.items.len() {
+        let len = self.get_items_len();
+        if self.selected_index + 1 < len {
             self.selected_index += 1;
             let bottom = self.scroll_top + visible_count;
             if self.selected_index >= bottom {
@@ -508,7 +556,8 @@ impl App {
     /// The scroll window advances by the same amount so the newly selected
     /// item is always at the top of the visible area.
     pub fn page_down(&mut self, visible_count: usize) {
-        let last = self.config.items.len().saturating_sub(1);
+        let len = self.get_items_len();
+        let last = len.saturating_sub(1);
         self.selected_index = (self.selected_index + visible_count).min(last);
         // Align scroll so the selection lands at the top of the viewport,
         // then let clamp_scroll cap it at the list end.
@@ -527,8 +576,9 @@ impl App {
     }
 
     pub fn move_to_bottom(&mut self, visible_count: usize) {
-        if !self.config.items.is_empty() {
-            self.selected_index = self.config.items.len() - 1;
+        let len = self.get_items_len();
+        if len > 0 {
+            self.selected_index = len - 1;
             self.scroll_top = self.selected_index.saturating_sub(visible_count - 1);
         }
     }
@@ -538,14 +588,14 @@ impl App {
     }
 
     pub fn start_edit(&mut self) {
-        if let Some(current) = self.config.items.get(self.selected_index) {
+        if let Some(current) = self.get_selected_item() {
             self.input_buffer = current.clone();
             self.mode = Mode::Editing;
         }
     }
 
     pub fn request_delete(&mut self) {
-        if !self.config.items.is_empty() {
+        if self.get_items_len() > 0 {
             self.mode = Mode::ConfirmDelete;
         }
     }
@@ -560,11 +610,14 @@ impl App {
     /// "Refresh failed" message in the status bar so the user knows the
     /// keystroke landed (the indicator alone may not visibly change).
     pub fn refresh_selected_status(&mut self) {
-        let Some(item) = self.config.items.get(self.selected_index) else {
+        let Some(orig_idx) = self.get_selected_item_index() else {
+            return;
+        };
+        let Some(item) = self.config.items.get(orig_idx) else {
             return;
         };
         let new_status = repo::inspect_summary(item);
-        if let Some(slot) = self.statuses.get_mut(self.selected_index) {
+        if let Some(slot) = self.statuses.get_mut(orig_idx) {
             *slot = new_status;
         }
         self.status_message = Some("Refreshed".to_string());
@@ -660,12 +713,13 @@ impl App {
             SortOrder::LatestChanges => SortOrder::Custom,
         };
 
-        let selected_item = self.config.items.get(self.selected_index).cloned();
+        let selected_item = self.get_selected_item().cloned();
 
         self.sort_items_in_place();
 
         if let Some(item) = selected_item {
-            if let Some(pos) = self.config.items.iter().position(|x| x == &item) {
+            let filtered = self.get_filtered_items();
+            if let Some(pos) = filtered.iter().position(|(_, x)| *x == &item) {
                 self.selected_index = pos;
             }
         }
@@ -676,12 +730,13 @@ impl App {
     pub fn toggle_sort_reverse(&mut self) {
         self.config.sort_reverse = !self.config.sort_reverse;
 
-        let selected_item = self.config.items.get(self.selected_index).cloned();
+        let selected_item = self.get_selected_item().cloned();
 
         self.sort_items_in_place();
 
         if let Some(item) = selected_item {
-            if let Some(pos) = self.config.items.iter().position(|x| x == &item) {
+            let filtered = self.get_filtered_items();
+            if let Some(pos) = filtered.iter().position(|(_, x)| *x == &item) {
                 self.selected_index = pos;
             }
         }
@@ -690,10 +745,9 @@ impl App {
     }
 
     pub fn toggle_pin_selected(&mut self) {
-        if self.config.items.is_empty() {
+        let Some(selected_item) = self.get_selected_item().cloned() else {
             return;
-        }
-        let selected_item = self.config.items[self.selected_index].clone();
+        };
         if self.config.pinned.contains(&selected_item) {
             self.config.pinned.remove(&selected_item);
             self.status_message = Some("Unpinned repository".to_string());
@@ -704,7 +758,8 @@ impl App {
 
         self.sort_items_in_place();
 
-        if let Some(pos) = self.config.items.iter().position(|x| x == &selected_item) {
+        let filtered = self.get_filtered_items();
+        if let Some(pos) = filtered.iter().position(|(_, x)| *x == &selected_item) {
             self.selected_index = pos;
         }
 
@@ -720,7 +775,7 @@ impl App {
     /// Detail view. The snapshot is held in `current_detail` for as long
     /// as the view is open; closing clears it.
     pub fn open_detail(&mut self) {
-        if let Some(item) = self.config.items.get(self.selected_index).cloned() {
+        if let Some(item) = self.get_selected_item().cloned() {
             // Update visit time
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -731,7 +786,8 @@ impl App {
 
             if self.config.sort_by == SortOrder::RecentVisit {
                 self.sort_items_in_place();
-                if let Some(pos) = self.config.items.iter().position(|x| x == &item) {
+                let filtered = self.get_filtered_items();
+                if let Some(pos) = filtered.iter().position(|(_, x)| *x == &item) {
                     self.selected_index = pos;
                 }
             }
@@ -744,6 +800,7 @@ impl App {
             self.file_diff.clear();
             self.diff_scroll = 0;
             self.commit_details_scroll = 0;
+            self.commit_input_scroll = 0;
             self.local_branch_selection = 0;
             self.remote_branch_selection = 0;
             self.local_tag_selection = 0;
@@ -765,7 +822,7 @@ impl App {
     /// Resync the selected item's filesystem/git state inside the Detail view,
     /// clamping selection indices to their new totals.
     pub fn resync_detail(&mut self) {
-        if let Some(item) = self.config.items.get(self.selected_index).cloned() {
+        if let Some(item) = self.get_selected_item().cloned() {
             self.current_detail = Some(self.inspect_repo_detail(&item));
             self.rebuild_visible_files();
 
@@ -1447,7 +1504,7 @@ impl App {
                     Ok(msg) => {
                         self.status_message = Some(msg);
                         // Refresh detail snapshot
-                        let item = &self.config.items[self.selected_index];
+                        let item = self.get_selected_item().unwrap();
                         self.current_detail = Some(self.inspect_repo_detail(item));
                         self.rebuild_visible_files();
                         self.local_branch_selection = 0;
@@ -1508,7 +1565,7 @@ impl App {
                     Ok(()) => {
                         self.status_message = Some(format!("Created tag '{}'", tag_name));
                         // Refresh detail view to display the new tag refs
-                        let item = &self.config.items[self.selected_index];
+                        let item = self.get_selected_item().unwrap();
                         self.current_detail = Some(self.inspect_repo_detail(item));
                     }
                     Err(e) => {
@@ -1552,7 +1609,7 @@ impl App {
             match repo::delete_tag(&repo_path, &tag_name) {
                 Ok(()) => {
                     self.status_message = Some(format!("Deleted local tag '{}'", tag_name));
-                    let item = &self.config.items[self.selected_index];
+                    let item = self.get_selected_item().unwrap();
                     self.current_detail = Some(self.inspect_repo_detail(item));
                     self.rebuild_visible_files();
                     self.local_tag_selection = 0;
@@ -1758,7 +1815,7 @@ impl App {
                             ));
                         }
                     }
-                    let item = &self.config.items[self.selected_index];
+                    let item = self.get_selected_item().unwrap();
                     self.current_detail = Some(self.inspect_repo_detail(item));
                     self.rebuild_visible_files();
                     self.local_branch_selection = 0;
@@ -1817,7 +1874,7 @@ impl App {
                 match res {
                     Ok(()) => {
                         self.status_message = Some(format!("Deleted branch '{}'", branch_name));
-                        let item = &self.config.items[self.selected_index];
+                        let item = self.get_selected_item().unwrap();
                         self.current_detail = Some(self.inspect_repo_detail(item));
                         self.rebuild_visible_files();
                         self.local_branch_selection = 0;
@@ -2634,7 +2691,7 @@ impl App {
     /// Re-snapshot the repo for the selected item, preserving focus and clamping selection.
     /// Call this after any index-mutating operation (stage / unstage).
     pub fn refresh_detail(&mut self) {
-        if let Some(item) = self.config.items.get(self.selected_index) {
+        if let Some(item) = self.get_selected_item() {
             self.current_detail = Some(self.inspect_repo_detail(item));
             self.rebuild_visible_files();
             // Clamp staging_file_selection to the new list length.
@@ -3176,6 +3233,7 @@ impl App {
 
             self.sort_items_in_place();
 
+            self.repo_search_query = None;
             if let Some(pos) = self.config.items.iter().position(|x| x == &trimmed) {
                 self.selected_index = pos;
             } else {
@@ -3210,6 +3268,7 @@ impl App {
 
             self.sort_items_in_place();
 
+            self.repo_search_query = None;
             if let Some(pos) = self.config.items.iter().position(|x| x == &trimmed) {
                 self.selected_index = pos;
             } else {
@@ -3221,48 +3280,58 @@ impl App {
 
     pub fn commit_edit(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
-        if !trimmed.is_empty() && self.selected_index < self.config.items.len() {
-            let old_item = self.config.items[self.selected_index].clone();
+        if !trimmed.is_empty() {
+            if let Some(orig_idx) = self.get_selected_item_index() {
+                if orig_idx < self.config.items.len() {
+                    let old_item = self.config.items[orig_idx].clone();
 
-            if let Some(pos) = self.original_items.iter().position(|x| x == &old_item) {
-                self.original_items[pos] = trimmed.clone();
+                    if let Some(pos) = self.original_items.iter().position(|x| x == &old_item) {
+                        self.original_items[pos] = trimmed.clone();
+                    }
+
+                    if let Some(time) = self.config.visits.remove(&old_item) {
+                        self.config.visits.insert(trimmed.clone(), time);
+                    }
+
+                    if self.config.pinned.remove(&old_item) {
+                        self.config.pinned.insert(trimmed.clone());
+                    }
+
+                    self.config.items[orig_idx] = trimmed.clone();
+                    self.statuses[orig_idx] = repo::inspect_summary(&trimmed);
+
+                    self.sort_items_in_place();
+
+                    self.repo_search_query = None;
+
+                    if let Some(pos) = self.config.items.iter().position(|x| x == &trimmed) {
+                        self.selected_index = pos;
+                    }
+                    self.persist("Saved");
+                }
             }
-
-            if let Some(time) = self.config.visits.remove(&old_item) {
-                self.config.visits.insert(trimmed.clone(), time);
-            }
-
-            if self.config.pinned.remove(&old_item) {
-                self.config.pinned.insert(trimmed.clone());
-            }
-
-            self.config.items[self.selected_index] = trimmed.clone();
-            self.statuses[self.selected_index] = repo::inspect_summary(&trimmed);
-
-            self.sort_items_in_place();
-
-            if let Some(pos) = self.config.items.iter().position(|x| x == &trimmed) {
-                self.selected_index = pos;
-            }
-            self.persist("Saved");
         }
         self.input_buffer.clear();
         self.mode = Mode::Normal;
     }
 
     pub fn confirm_delete(&mut self) {
-        if self.selected_index < self.config.items.len() {
-            let item = self.config.items.remove(self.selected_index);
-            if self.selected_index < self.statuses.len() {
-                self.statuses.remove(self.selected_index);
+        if let Some(orig_idx) = self.get_selected_item_index() {
+            if orig_idx < self.config.items.len() {
+                let item = self.config.items.remove(orig_idx);
+                if orig_idx < self.statuses.len() {
+                    self.statuses.remove(orig_idx);
+                }
+                if let Some(pos) = self.original_items.iter().position(|x| x == &item) {
+                    self.original_items.remove(pos);
+                }
+                self.config.visits.remove(&item);
+                self.config.pinned.remove(&item);
+                self.persist("Deleted");
             }
-            if let Some(pos) = self.original_items.iter().position(|x| x == &item) {
-                self.original_items.remove(pos);
-            }
-            self.config.visits.remove(&item);
-            self.config.pinned.remove(&item);
-            self.persist("Deleted");
         }
+        self.repo_search_query = None;
+        self.selected_index = 0;
         self.mode = Mode::Normal;
     }
 
@@ -4453,7 +4522,7 @@ where
 
         let available_height = inner_area.height.saturating_sub(app.status_height());
         let visible_count =
-            (available_height / ITEM_HEIGHT).min(app.config.items.len() as u16) as usize;
+            (available_height / ITEM_HEIGHT).min(app.get_items_len() as u16) as usize;
         app.clamp_scroll(visible_count);
         app.clamp_help_scroll(area.height as usize);
 
@@ -5977,5 +6046,61 @@ mod tests {
         assert!(handled);
         assert_eq!(app.mode, Mode::Detail);
         assert_eq!(app.tag_checkout_target, None);
+    }
+
+    #[test]
+    fn test_repo_search_filtering() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec![
+                "z_repo".to_string(),
+                "a_repo".to_string(),
+                "m_repo".to_string(),
+            ],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_search.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Initially we should have 3 items
+        assert_eq!(app.get_items_len(), 3);
+        assert_eq!(app.get_filtered_items().len(), 3);
+
+        // Press 'f' to enter search mode
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('f')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::RepoSearchInput);
+
+        // Type 'a'
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
+        assert!(handled);
+        assert_eq!(app.repo_search_query.as_deref(), Some("a"));
+        assert_eq!(app.get_items_len(), 1);
+        assert_eq!(app.get_filtered_items()[0].1, &"a_repo".to_string());
+
+        // Press Enter to confirm/exit search input mode
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::Normal);
+        assert_eq!(app.repo_search_query.as_deref(), Some("a"));
+
+        // Press Esc in normal mode to clear the filter
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+        assert!(handled);
+        assert_eq!(app.repo_search_query, None);
+        assert_eq!(app.get_items_len(), 3);
     }
 }

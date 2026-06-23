@@ -24,7 +24,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     // Toggle status bar expanded mode with '.' (except in text input fields)
     let is_text_input = matches!(
         app.mode,
-        Mode::Adding | Mode::Editing | Mode::BranchCreateInput | Mode::TagCreateInput
+        Mode::Adding
+            | Mode::Editing
+            | Mode::BranchCreateInput
+            | Mode::TagCreateInput
+            | Mode::RepoSearchInput
     ) || (matches!(app.mode, Mode::CommitInput) && app.commit_editing)
         || (matches!(app.mode, Mode::Settings) && app.settings_editing);
     if !is_text_input && code == KeyCode::Char('.') {
@@ -35,6 +39,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     let detail_focus = app.detail_focus; // Copy before borrow in match
     match &app.mode {
         Mode::Normal => match code {
+            KeyCode::Esc if app.repo_search_query.is_some() => {
+                app.repo_search_query = None;
+                app.selected_index = 0;
+                app.scroll_top = 0;
+            }
             KeyCode::Char('q') | KeyCode::Esc => return false,
             KeyCode::Down | KeyCode::Char('j') => app.move_down(visible_count),
             KeyCode::Up | KeyCode::Char('k') => app.move_up(),
@@ -60,6 +69,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             KeyCode::Char('l') => {
                 app.pending_lazygit = true;
+            }
+            KeyCode::Char('f') => {
+                app.input_buffer.clear();
+                if let Some(ref q) = app.repo_search_query {
+                    app.input_buffer.push_str(q);
+                }
+                app.mode = Mode::RepoSearchInput;
             }
             KeyCode::Enter => app.open_detail(),
             _ => {}
@@ -136,6 +152,36 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
             }
         }
+        Mode::RepoSearchInput => match code {
+            KeyCode::Esc => {
+                app.repo_search_query = None;
+                app.selected_index = 0;
+                app.scroll_top = 0;
+                app.mode = Mode::Normal;
+            }
+            KeyCode::Enter => {
+                app.mode = Mode::Normal;
+            }
+            KeyCode::Backspace => {
+                app.input_backspace();
+                let query = app.input_buffer.clone();
+                if query.is_empty() {
+                    app.repo_search_query = None;
+                } else {
+                    app.repo_search_query = Some(query);
+                }
+                app.clamp_selection();
+                app.clamp_scroll(visible_count);
+            }
+            KeyCode::Char(c) => {
+                app.input_char(c);
+                let query = app.input_buffer.clone();
+                app.repo_search_query = Some(query);
+                app.clamp_selection();
+                app.clamp_scroll(visible_count);
+            }
+            _ => {}
+        },
         Mode::Adding => match code {
             KeyCode::Esc => app.cancel_input(),
             KeyCode::Enter => app.commit_add(),
@@ -1390,7 +1436,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             for (i, rect) in app.main_areas.iter().enumerate() {
                 if rect.contains(pos) {
                     let actual_index = i + app.scroll_top;
-                    if actual_index < app.config.items.len() {
+                    if actual_index < app.get_items_len() {
                         let now = std::time::Instant::now();
                         let is_double_click = if let Some((last_time, last_idx)) = app.last_click {
                             last_idx == actual_index
