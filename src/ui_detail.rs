@@ -1211,6 +1211,7 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("w / W", "Cycle panel focus forward (w) / backward (W)"),
     ("← / →", "Focus Local/Remote branch (Branches tab)"),
     ("← / → or < / >", "Collapse/Expand folder (Files tab)"),
+    ("f", "Fuzzy find files (Files tab)"),
     (
         "↵ [Enter]",
         "Stage/Unstage file, Checkout branch, Checkout tag, or Inspect commit",

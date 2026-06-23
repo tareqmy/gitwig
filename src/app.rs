@@ -248,6 +248,8 @@ pub struct App {
     pub pending_lazygit: bool,
     /// Whether fzf search launch is pending.
     pub pending_fzf: bool,
+    /// Whether fzf files search launch is pending.
+    pub pending_files_fzf: bool,
     /// Whether interactive rebase is pending.
     pub pending_interactive_rebase: Option<(PathBuf, String)>,
     /// Target branch name and remote flag for deletion/creation actions.
@@ -368,6 +370,7 @@ impl App {
             pending_gitui: false,
             pending_lazygit: false,
             pending_fzf: false,
+            pending_files_fzf: false,
             pending_interactive_rebase: None,
             branch_action_target: None,
             tag_action_target_oid: None,
@@ -3834,6 +3837,97 @@ where
             }
         }
 
+        if app.pending_files_fzf {
+            app.pending_files_fzf = false;
+            if let Some(repo::ItemDetail::Repo { resolved, info }) = &app.current_detail {
+                let repo_path = resolved.clone();
+                let files = info.files.clone();
+
+                let raw_res = crossterm::terminal::disable_raw_mode();
+                let exec_res = crossterm::execute!(
+                    std::io::stdout(),
+                    crossterm::terminal::LeaveAlternateScreen,
+                    crossterm::event::DisableMouseCapture
+                );
+                let cursor_res = terminal.show_cursor();
+
+                if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+                    let mut child_cmd = std::process::Command::new("fzf");
+                    child_cmd.arg("--prompt").arg("Select file> ");
+                    let child = child_cmd
+                        .current_dir(&repo_path)
+                        .stdin(std::process::Stdio::piped())
+                        .stdout(std::process::Stdio::piped())
+                        .stderr(std::process::Stdio::inherit())
+                        .spawn();
+
+                    let output = match child {
+                        Ok(mut c) => {
+                            if let Some(mut stdin) = c.stdin.take() {
+                                use std::io::Write;
+                                for file in files {
+                                    let _ = writeln!(stdin, "{}", file);
+                                }
+                            }
+                            c.wait_with_output()
+                        }
+                        Err(e) => Err(e),
+                    };
+
+                    let _ = crossterm::terminal::enable_raw_mode();
+                    let _ = crossterm::execute!(
+                        std::io::stdout(),
+                        crossterm::terminal::EnterAlternateScreen,
+                        crossterm::event::EnableMouseCapture
+                    );
+                    let _ = terminal.clear();
+
+                    match output {
+                        Ok(out) => {
+                            if out.status.success() {
+                                let selected =
+                                    String::from_utf8_lossy(&out.stdout).trim().to_string();
+                                if !selected.is_empty() {
+                                    // Expand the parent directories of the selected file
+                                    let parts: Vec<&str> = selected.split('/').collect();
+                                    let mut accumulated = String::new();
+                                    for part in parts.iter().take(parts.len().saturating_sub(1)) {
+                                        if !accumulated.is_empty() {
+                                            accumulated.push('/');
+                                        }
+                                        accumulated.push_str(part);
+                                        app.expanded_folders.insert(accumulated.clone());
+                                    }
+                                    app.rebuild_visible_files();
+                                    if let Some(pos) = app
+                                        .visible_files
+                                        .iter()
+                                        .position(|item| item.full_path == selected)
+                                    {
+                                        app.file_list_selection = pos;
+                                        app.file_content_scroll = 0;
+                                        app.detail_focus = DetailSection::Files;
+                                    }
+                                    app.status_message = Some(format!("Selected {}", selected));
+                                }
+                            } else if out.status.code() == Some(127) {
+                                app.status_message =
+                                    Some("fzf is not installed. Please install fzf.".to_string());
+                            }
+                        }
+                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                            app.status_message = Some("fzf is not installed".to_string());
+                        }
+                        Err(e) => {
+                            app.status_message = Some(format!("Could not run fzf: {}", e));
+                        }
+                    }
+                }
+            } else {
+                app.status_message = Some("Not inside a repository".to_string());
+            }
+        }
+
         app.clamp_selection();
 
         let size = terminal.size()?;
@@ -4860,5 +4954,36 @@ mod tests {
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('l')), 10);
         assert!(handled);
         assert!(app.pending_lazygit);
+    }
+
+    #[test]
+    fn test_files_fzf_shortcut_triggers_pending() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_files_fzf.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+        app.mode = Mode::Detail;
+        app.detail_tab = 1; // Files tab
+
+        assert!(!app.pending_files_fzf);
+
+        // Pressing 'f' triggers pending_files_fzf when in files tab
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('f')), 10);
+        assert!(handled);
+        assert!(app.pending_files_fzf);
     }
 }

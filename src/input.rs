@@ -398,6 +398,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             _ if app.detail_tab == 1 => match code {
                 KeyCode::Char('w') => app.cycle_detail_focus(false),
                 KeyCode::Char('W') => app.cycle_detail_focus(true),
+                KeyCode::Char('f') => {
+                    app.pending_files_fzf = true;
+                }
                 KeyCode::Up | KeyCode::Char('k') => {
                     if app.detail_focus == DetailSection::FileContent {
                         app.file_content_scroll_up();

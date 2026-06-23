@@ -66,6 +66,7 @@
 | `Shift+P`            | Detail          | Push selected local branch to remote (Branches tab) or Push all tags (Tags tab; asks confirmation) |
 | `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) or Local/Remote tag (Tags tab) |
 | `←` / `→` or `<` / `>` or `,` / `.` | Detail | Collapse/Expand directory (Files tab) |
+| `f`                  | Detail          | Fuzzy find files (Files tab)      |
 | `c`                  | Detail          | Open commit prompt (Workspace tab), or Create branch from HEAD (Branches tab) |
 | `i`                  | Detail          | Interactive rebase from selected commit (Workspace tab commits list) |
 | `d`                  | Detail          | Delete selected branch (Branches tab; asks confirmation) or tag (Tags tab; asks confirmation) |
