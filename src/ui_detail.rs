@@ -254,6 +254,7 @@ pub fn draw(
                     areas,
                     inspect_horizontal_split_pct,
                     inspect_vertical_split_pct,
+                    app,
                     area,
                 );
                 return;
@@ -452,6 +453,7 @@ pub fn draw(
                         areas,
                         inspect_horizontal_split_pct,
                         inspect_vertical_split_pct,
+                        app,
                         detail_chunks[1],
                     );
                 } else {
@@ -485,6 +487,7 @@ pub fn draw(
                                 areas,
                                 inspect_horizontal_split_pct,
                                 inspect_vertical_split_pct,
+                                app,
                                 detail_chunks[1],
                             );
                         }
@@ -903,6 +906,7 @@ fn draw_staging_panels(
     areas: &mut DetailAreas,
     inspect_horizontal_split_pct: u16,
     inspect_vertical_split_pct: u16,
+    app: &crate::app::App,
     area: Rect,
 ) {
     let panels = Layout::default()
@@ -1061,16 +1065,34 @@ fn draw_staging_panels(
             v_center[1],
         );
     } else {
+        let hunk_ranges = app.get_diff_hunk_ranges();
+        let selected_hunk_range = hunk_ranges.get(app.diff_hunk_selection);
         let diff_spans: Vec<Line> = file_diff
             .iter()
-            .map(|line| {
-                let style = match line.kind {
+            .enumerate()
+            .map(|(i, line)| {
+                let is_selected_hunk = selected_hunk_range.map(|r| r.contains(&i)).unwrap_or(false);
+                let (prefix, bg_style) = if is_selected_hunk && right_focused {
+                    (
+                        "▎",
+                        Style::default().bg(ratatui::style::Color::Rgb(50, 50, 50)),
+                    )
+                } else {
+                    (" ", Style::default())
+                };
+
+                let mut style = match line.kind {
                     DiffLineKind::Added => Style::default().fg(SUCCESS()),
                     DiffLineKind::Removed => Style::default().fg(DANGER()),
                     DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
                     DiffLineKind::Context => Style::default(),
                 };
-                Line::from(Span::styled(line.content.clone(), style))
+                style = style.patch(bg_style);
+
+                Line::from(vec![
+                    Span::styled(prefix, style),
+                    Span::styled(line.content.clone(), style),
+                ])
             })
             .collect();
         f.render_widget(
@@ -1290,11 +1312,11 @@ fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 
 pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     (
-        "↑ [Up] / k",
+        "↑ [Up]",
         "Select previous commit / file / branch / file tree item",
     ),
     (
-        "↓ [Down] / j",
+        "↓ [Down]",
         "Select next commit / file / branch / file tree item",
     ),
     ("⇞ [PgUp]", "Jump page size rows up"),

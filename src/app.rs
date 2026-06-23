@@ -209,6 +209,8 @@ pub struct App {
     pub file_diff: Vec<DiffLine>,
     /// Vertical scroll offset for the diff panel (StagingDetails focus).
     pub diff_scroll: usize,
+    /// Selected hunk index for stage/unstage by hunk (StagingDetails focus).
+    pub diff_hunk_selection: usize,
     /// Vertical scroll offset for the commit details panel (CommitDetails focus).
     pub commit_details_scroll: usize,
     /// Vertical scroll offset for the commit input popup.
@@ -377,6 +379,7 @@ impl App {
             staging_file_selection: 0,
             file_diff: Vec::new(),
             diff_scroll: 0,
+            diff_hunk_selection: 0,
             commit_details_scroll: 0,
             commit_input_scroll: 0,
             local_branch_selection: 0,
@@ -2354,6 +2357,125 @@ impl App {
         self.diff_scroll = (self.diff_scroll + page).min(max);
     }
 
+    pub fn get_diff_hunk_ranges(&self) -> Vec<std::ops::Range<usize>> {
+        let mut ranges = Vec::new();
+        let mut current_start = None;
+        for (i, line) in self.file_diff.iter().enumerate() {
+            if line.kind == repo::DiffLineKind::Header {
+                if let Some(start) = current_start {
+                    ranges.push(start..i);
+                }
+                current_start = Some(i);
+            }
+        }
+        if let Some(start) = current_start {
+            ranges.push(start..self.file_diff.len());
+        }
+        ranges
+    }
+
+    pub fn diff_hunk_up(&mut self) {
+        if self.diff_hunk_selection > 0 {
+            self.diff_hunk_selection -= 1;
+            self.scroll_to_selected_hunk();
+        }
+    }
+
+    pub fn diff_hunk_down(&mut self) {
+        let hunk_count = self.get_diff_hunk_ranges().len();
+        if self.diff_hunk_selection + 1 < hunk_count {
+            self.diff_hunk_selection += 1;
+            self.scroll_to_selected_hunk();
+        }
+    }
+
+    pub fn scroll_to_selected_hunk(&mut self) {
+        let ranges = self.get_diff_hunk_ranges();
+        if let Some(range) = ranges.get(self.diff_hunk_selection) {
+            self.diff_scroll = range.start;
+        }
+    }
+
+    /// Stage the currently-selected hunk in the Unstaged diff (`git apply --cached -`).
+    pub fn stage_selected_hunk(&mut self) {
+        let params = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => {
+                let focus_to_use = match self.detail_focus {
+                    DetailSection::Staged => DetailSection::Staged,
+                    DetailSection::Unstaged => DetailSection::Unstaged,
+                    DetailSection::StagingDetails => self.last_staging_focus,
+                    _ => return,
+                };
+                if focus_to_use != DetailSection::Unstaged {
+                    return;
+                }
+                info.changes
+                    .unstaged
+                    .get(self.staging_file_selection)
+                    .map(|f| (resolved.clone(), f.path.clone()))
+            }
+            _ => None,
+        };
+        if let Some((repo_path, file_path)) = params {
+            let ranges = self.get_diff_hunk_ranges();
+            if let Some(range) = ranges.get(self.diff_hunk_selection) {
+                let hunk = &self.file_diff[range.clone()];
+                match repo::stage_hunk(&repo_path, &file_path, hunk) {
+                    Ok(()) => {
+                        self.status_message = Some(format!("Staged hunk from: {}", file_path));
+                        let prev_hunk_idx = self.diff_hunk_selection;
+                        self.refresh_detail();
+                        let new_hunk_count = self.get_diff_hunk_ranges().len();
+                        self.diff_hunk_selection =
+                            prev_hunk_idx.min(new_hunk_count.saturating_sub(1));
+                        self.scroll_to_selected_hunk();
+                    }
+                    Err(e) => self.status_message = Some(format!("Stage hunk failed: {}", e)),
+                }
+            }
+        }
+    }
+
+    /// Unstage the currently-selected hunk in the Staged diff (`git apply --cached --reverse -`).
+    pub fn unstage_selected_hunk(&mut self) {
+        let params = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => {
+                let focus_to_use = match self.detail_focus {
+                    DetailSection::Staged => DetailSection::Staged,
+                    DetailSection::Unstaged => DetailSection::Unstaged,
+                    DetailSection::StagingDetails => self.last_staging_focus,
+                    _ => return,
+                };
+                if focus_to_use != DetailSection::Staged {
+                    return;
+                }
+                info.changes
+                    .staged
+                    .get(self.staging_file_selection)
+                    .map(|f| (resolved.clone(), f.path.clone()))
+            }
+            _ => None,
+        };
+        if let Some((repo_path, file_path)) = params {
+            let ranges = self.get_diff_hunk_ranges();
+            if let Some(range) = ranges.get(self.diff_hunk_selection) {
+                let hunk = &self.file_diff[range.clone()];
+                match repo::unstage_hunk(&repo_path, &file_path, hunk) {
+                    Ok(()) => {
+                        self.status_message = Some(format!("Unstaged hunk from: {}", file_path));
+                        let prev_hunk_idx = self.diff_hunk_selection;
+                        self.refresh_detail();
+                        let new_hunk_count = self.get_diff_hunk_ranges().len();
+                        self.diff_hunk_selection =
+                            prev_hunk_idx.min(new_hunk_count.saturating_sub(1));
+                        self.scroll_to_selected_hunk();
+                    }
+                    Err(e) => self.status_message = Some(format!("Unstage hunk failed: {}", e)),
+                }
+            }
+        }
+    }
+
     pub fn get_file_content_line_count(&self) -> usize {
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
             if let Some(selected_item) = self.visible_files.get(self.file_list_selection) {
@@ -2686,6 +2808,7 @@ impl App {
         } else {
             self.file_diff.clear();
         }
+        self.diff_hunk_selection = 0;
     }
 
     /// Re-snapshot the repo for the selected item, preserving focus and clamping selection.
@@ -5198,7 +5321,7 @@ mod tests {
         assert_eq!(app.config.sort_by, SortOrder::Alphabetical);
 
         // Go down to "Sort Reverse"
-        crate::input::handle_key(&mut app, key_event(KeyCode::Char('j')), 10);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
         assert_eq!(app.settings_selected_index, 2);
 
         // Toggle Sort Reverse (false -> true)

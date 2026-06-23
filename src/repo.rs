@@ -278,6 +278,74 @@ pub fn unstage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Stage a single hunk of unstaged changes (equivalent to `git apply --cached -`).
+pub fn stage_hunk(repo_path: &Path, file_path: &str, hunk: &[DiffLine]) -> Result<(), String> {
+    apply_hunk_patch(repo_path, file_path, hunk, false)
+}
+
+/// Unstage a single hunk of staged changes (equivalent to `git apply --cached --reverse -`).
+pub fn unstage_hunk(repo_path: &Path, file_path: &str, hunk: &[DiffLine]) -> Result<(), String> {
+    apply_hunk_patch(repo_path, file_path, hunk, true)
+}
+
+fn apply_hunk_patch(
+    repo_path: &Path,
+    file_path: &str,
+    hunk: &[DiffLine],
+    reverse: bool,
+) -> Result<(), String> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let mut patch = String::new();
+    patch.push_str(&format!("diff --git a/{} b/{}\n", file_path, file_path));
+    patch.push_str(&format!("--- a/{}\n", file_path));
+    patch.push_str(&format!("+++ b/{}\n", file_path));
+    for line in hunk {
+        let prefix = match line.kind {
+            DiffLineKind::Added => "+",
+            DiffLineKind::Removed => "-",
+            DiffLineKind::Context => " ",
+            DiffLineKind::Header => "",
+        };
+        patch.push_str(prefix);
+        patch.push_str(&line.content);
+        patch.push('\n');
+    }
+
+    let mut args = vec!["apply", "--cached"];
+    if reverse {
+        args.push("--reverse");
+    }
+    args.push("-");
+
+    let mut child = Command::new("git")
+        .args(&args)
+        .current_dir(repo_path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn git apply: {}", e))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(patch.as_bytes())
+            .map_err(|e| format!("Failed to write patch to stdin: {}", e))?;
+    }
+
+    let output = child
+        .wait_with_output()
+        .map_err(|e| format!("Failed to wait for git apply: {}", e))?;
+
+    if !output.status.success() {
+        let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(format!("git apply failed: {}", err_msg.trim()));
+    }
+
+    Ok(())
+}
+
 /// Discards uncommitted changes in `file_path`.
 /// - If the file is untracked, it is deleted from the filesystem.
 /// - If the file is tracked and modified/deleted, it is restored from the index.
@@ -1814,6 +1882,122 @@ mod tests {
             std::fs::read_to_string(&file_tracked).unwrap(),
             "original content\n"
         );
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_stage_unstage_by_hunk() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // Init repo
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // Create initial file with multiple lines
+        let file_path = temp_path.join("multihunk.txt");
+        let mut file = File::create(&file_path).unwrap();
+        for i in 1..=20 {
+            writeln!(file, "Line {}", i).unwrap();
+        }
+        drop(file);
+
+        // Stage and commit initial
+        stage_file(&temp_path, "multihunk.txt").unwrap();
+        commit_changes(&temp_path, "initial commit").unwrap();
+
+        // Now modify lines 2 and 18 to create two distinct hunks
+        let mut file = File::create(&file_path).unwrap();
+        for i in 1..=20 {
+            if i == 2 || i == 18 {
+                writeln!(file, "Line {} modified", i).unwrap();
+            } else {
+                writeln!(file, "Line {}", i).unwrap();
+            }
+        }
+        drop(file);
+
+        // Get the unstaged diff lines
+        let diff_lines = get_worktree_file_diff(&temp_path, "multihunk.txt", false);
+        // Identify hunk ranges. A hunk header starts with "@@"
+        let mut hunk_ranges = Vec::new();
+        let mut current_start = None;
+        for (i, line) in diff_lines.iter().enumerate() {
+            if line.kind == DiffLineKind::Header {
+                if let Some(start) = current_start {
+                    hunk_ranges.push(start..i);
+                }
+                current_start = Some(i);
+            }
+        }
+        if let Some(start) = current_start {
+            hunk_ranges.push(start..diff_lines.len());
+        }
+
+        // We expect exactly 2 hunks
+        assert_eq!(hunk_ranges.len(), 2);
+
+        // Stage the second hunk
+        let hunk2 = &diff_lines[hunk_ranges[1].clone()];
+        stage_hunk(&temp_path, "multihunk.txt", hunk2).unwrap();
+
+        // Now check staged diff for the file: it should contain the second modification
+        let staged_diff = get_worktree_file_diff(&temp_path, "multihunk.txt", true);
+        let staged_content: String = staged_diff
+            .iter()
+            .map(|l| l.content.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(staged_content.contains("Line 18 modified"));
+        assert!(!staged_content.contains("Line 2 modified"));
+
+        // Check unstaged diff for the file: it should contain the first modification
+        let unstaged_diff = get_worktree_file_diff(&temp_path, "multihunk.txt", false);
+        let unstaged_content: String = unstaged_diff
+            .iter()
+            .map(|l| l.content.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(unstaged_content.contains("Line 2 modified"));
+        assert!(!unstaged_content.contains("Line 18 modified"));
+
+        // Unstage the staged hunk
+        let staged_hunk_ranges = {
+            let mut ranges = Vec::new();
+            let mut current_start = None;
+            for (i, line) in staged_diff.iter().enumerate() {
+                if line.kind == DiffLineKind::Header {
+                    if let Some(start) = current_start {
+                        ranges.push(start..i);
+                    }
+                    current_start = Some(i);
+                }
+            }
+            if let Some(start) = current_start {
+                ranges.push(start..staged_diff.len());
+            }
+            ranges
+        };
+        assert_eq!(staged_hunk_ranges.len(), 1);
+        let staged_hunk = &staged_diff[staged_hunk_ranges[0].clone()];
+        unstage_hunk(&temp_path, "multihunk.txt", staged_hunk).unwrap();
+
+        // Staged diff should now be empty
+        let staged_diff_after = get_worktree_file_diff(&temp_path, "multihunk.txt", true);
+        assert!(staged_diff_after.is_empty());
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);

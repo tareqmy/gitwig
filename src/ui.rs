@@ -138,8 +138,8 @@ pub(crate) fn accent_style() -> Style {
 /// Lines of the help overlay. Update this whenever a binding is added or
 /// renamed — it is the user's only complete shortcut reference.
 pub(crate) const HELP_LINES: &[(&str, &str)] = &[
-    ("↑ [Up] / k", "Move selection up / scroll up"),
-    ("↓ [Down] / j", "Move selection down / scroll down"),
+    ("↑ [Up]", "Move selection up / scroll up"),
+    ("↓ [Down]", "Move selection down / scroll down"),
     ("⇟ [PgDn]", "Jump one page down / page down"),
     ("⇞ [PgUp]", "Jump one page up / page up"),
     ("Home", "Go to top / scroll to top"),
@@ -677,7 +677,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 entries
             } else {
                 let entries_data = [
-                    ("Select", "↑/↓/k/j"),
+                    ("Select", "↑/↓"),
                     ("Page", "⇟/⇞"),
                     ("Jump", "Home/End"),
                     ("Edit/Toggle", "Enter/Space"),
@@ -1076,8 +1076,8 @@ fn inspect_dismiss_entries(
     let entries_data = [
         (exit_label, "⎋/q"),
         ("Cycle Focus", "w/W"),
-        ("Select File", "↑↓/j/k"),
-        ("Scroll Diff", "↑↓/j/k (focused)"),
+        ("Select File", "↑↓"),
+        ("Scroll Diff", "↑↓ (focused)"),
         ("Help", "?"),
     ];
     for (i, (label, key)) in entries_data.iter().enumerate() {
