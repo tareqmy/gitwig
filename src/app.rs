@@ -382,7 +382,7 @@ impl App {
             inspect_horizontal_split_pct: 40,
             inspect_vertical_split_pct: 50,
             workspace_main_split_pct: 50,
-            files_horizontal_split_pct: 45,
+            files_horizontal_split_pct: 25,
             branches_horizontal_split_pct: 50,
             stashes_horizontal_split_pct: 35,
             stashes_vertical_split_pct: 50,
