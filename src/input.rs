@@ -656,11 +656,29 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.diff_scroll = 0;
                     app.refresh_staging_diff();
                 } else {
-                    app.detail_focus = match app.detail_focus {
+                    let mut next_focus = match app.detail_focus {
                         DetailSection::Staged => DetailSection::CommitDetails,
                         DetailSection::CommitDetails => DetailSection::StagingDetails,
                         _ => DetailSection::Staged,
                     };
+                    for _ in 0..3 {
+                        let skip = match next_focus {
+                            DetailSection::Staged => app.is_selected_commit_empty(),
+                            DetailSection::CommitDetails => false,
+                            DetailSection::StagingDetails => app.is_selected_commit_empty(),
+                            _ => false,
+                        };
+                        if skip {
+                            next_focus = match next_focus {
+                                DetailSection::Staged => DetailSection::CommitDetails,
+                                DetailSection::CommitDetails => DetailSection::StagingDetails,
+                                _ => DetailSection::Staged,
+                            };
+                        } else {
+                            break;
+                        }
+                    }
+                    app.detail_focus = next_focus;
                 }
             }
             KeyCode::Char('W') => {
@@ -693,11 +711,29 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.diff_scroll = 0;
                     app.refresh_staging_diff();
                 } else {
-                    app.detail_focus = match app.detail_focus {
+                    let mut next_focus = match app.detail_focus {
                         DetailSection::Staged => DetailSection::StagingDetails,
                         DetailSection::StagingDetails => DetailSection::CommitDetails,
                         _ => DetailSection::Staged,
                     };
+                    for _ in 0..3 {
+                        let skip = match next_focus {
+                            DetailSection::Staged => app.is_selected_commit_empty(),
+                            DetailSection::CommitDetails => false,
+                            DetailSection::StagingDetails => app.is_selected_commit_empty(),
+                            _ => false,
+                        };
+                        if skip {
+                            next_focus = match next_focus {
+                                DetailSection::Staged => DetailSection::StagingDetails,
+                                DetailSection::StagingDetails => DetailSection::CommitDetails,
+                                _ => DetailSection::Staged,
+                            };
+                        } else {
+                            break;
+                        }
+                    }
+                    app.detail_focus = next_focus;
                 }
             }
             KeyCode::Right => {

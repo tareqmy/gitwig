@@ -1215,10 +1215,7 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("⇞ [PgUp]", "Jump 10 rows up"),
     ("⇟ [PgDn]", "Jump 10 rows down"),
     ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
-    (
-        "w / W",
-        "Cycle panel focus forward (w) / backward (W)",
-    ),
+    ("w / W", "Cycle panel focus forward (w) / backward (W)"),
     ("← / →", "Focus Local/Remote branch (Branches tab)"),
     ("← / → or < / >", "Collapse/Expand folder (Files tab)"),
     (

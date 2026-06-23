@@ -754,13 +754,23 @@ impl App {
             };
             for _ in 0..5 {
                 let skip = match next_focus {
-                    DetailSection::Staged => self.is_staged_empty(),
+                    DetailSection::Staged => {
+                        if self.is_uncommitted_selected() {
+                            self.is_staged_empty()
+                        } else {
+                            self.is_selected_commit_empty()
+                        }
+                    }
                     DetailSection::Unstaged => {
                         self.is_unstaged_empty() || !self.is_uncommitted_selected()
                     }
                     DetailSection::CommitDetails => self.is_uncommitted_selected(),
                     DetailSection::StagingDetails => {
-                        self.is_staged_empty() && self.is_unstaged_empty()
+                        if self.is_uncommitted_selected() {
+                            self.is_staged_empty() && self.is_unstaged_empty()
+                        } else {
+                            self.is_selected_commit_empty()
+                        }
                     }
                     _ => false,
                 };
@@ -2149,6 +2159,40 @@ impl App {
     pub fn is_unstaged_empty(&self) -> bool {
         match &self.current_detail {
             Some(ItemDetail::Repo { info, .. }) => info.changes.unstaged.is_empty(),
+            _ => true,
+        }
+    }
+
+    pub fn is_selected_commit_empty(&self) -> bool {
+        match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => {
+                let dirty = !info.changes.staged.is_empty()
+                    || !info.changes.unstaged.is_empty()
+                    || !info.changes.untracked.is_empty()
+                    || !info.changes.conflicted.is_empty();
+                let show_dirty = if dirty {
+                    if let Some(ref query) = self.commit_search_query {
+                        "<uncommitted>".contains(&query.to_lowercase())
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                };
+                if show_dirty && self.commit_selection == 0 {
+                    return true;
+                }
+                let commit_idx = if show_dirty {
+                    self.commit_selection.saturating_sub(1)
+                } else {
+                    self.commit_selection
+                };
+                let filtered = self.get_filtered_commits();
+                filtered
+                    .get(commit_idx)
+                    .map(|c| c.files.is_empty())
+                    .unwrap_or(true)
+            }
             _ => true,
         }
     }
