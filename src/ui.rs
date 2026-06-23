@@ -627,31 +627,43 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 ]
             };
             let entries = if app.settings_editing {
-                vec![
-                    StatusEntry::new(vec![
-                        Span::styled("↵ [Enter]", accent_style()),
-                        Span::raw(" Save "),
-                    ]),
-                    StatusEntry::new(vec![
-                        Span::styled("⎋ [Esc]", accent_style()),
-                        Span::raw(" Cancel "),
-                    ]),
-                ]
+                let entries_data = [("Save", "Enter"), ("Cancel", "Esc")];
+                let mut entries = Vec::new();
+                for (i, (label, key)) in entries_data.iter().enumerate() {
+                    let mut spans = Vec::new();
+                    if i > 0 {
+                        spans.push(Span::styled(" ", muted_style()));
+                    }
+                    spans.push(Span::raw((*label).to_string()));
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled("[", muted_style()));
+                    spans.push(Span::styled((*key).to_string(), accent_style()));
+                    spans.push(Span::styled("]", muted_style()));
+                    entries.push(StatusEntry::new(spans));
+                }
+                entries
             } else {
-                vec![
-                    StatusEntry::new(vec![
-                        Span::styled("↑/↓ / k/j", accent_style()),
-                        Span::raw(" Select "),
-                    ]),
-                    StatusEntry::new(vec![
-                        Span::styled("↵ [Enter] / Space", accent_style()),
-                        Span::raw(" Edit/Toggle "),
-                    ]),
-                    StatusEntry::new(vec![
-                        Span::styled("⎋ [Esc] / q", accent_style()),
-                        Span::raw(" Back "),
-                    ]),
-                ]
+                let entries_data = [
+                    ("Select", "↑/↓/k/j"),
+                    ("Page", "⇟/⇞"),
+                    ("Jump", "Home/End"),
+                    ("Edit/Toggle", "Enter/Space"),
+                    ("Back", "Esc/q"),
+                ];
+                let mut entries = Vec::new();
+                for (i, (label, key)) in entries_data.iter().enumerate() {
+                    let mut spans = Vec::new();
+                    if i > 0 {
+                        spans.push(Span::styled(" ", muted_style()));
+                    }
+                    spans.push(Span::raw((*label).to_string()));
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled("[", muted_style()));
+                    spans.push(Span::styled((*key).to_string(), accent_style()));
+                    spans.push(Span::styled("]", muted_style()));
+                    entries.push(StatusEntry::new(spans));
+                }
+                entries
             };
             draw_status_layout(f, area, Some(msg_spans), entries, app.status_expanded);
         }
@@ -840,7 +852,11 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     muted_style(),
                 ),
             ];
-            let entries_data = [("Search / Columns", "f"), ("Back to Workspace", "Esc/q")];
+            let entries_data = [
+                ("Inspect", "Enter"),
+                ("Search / Columns", "f"),
+                ("Back to Workspace", "Esc/q"),
+            ];
             let mut entries = Vec::new();
             for (i, (label, key)) in entries_data.iter().enumerate() {
                 let mut spans = Vec::new();
@@ -869,7 +885,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
         Mode::Inspect => {
-            let (msg_spans, entries) = inspect_dismiss_entries(&app.status_message);
+            let (msg_spans, entries) = inspect_dismiss_entries(&app.status_message, app.in_logs_ui);
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
     }
@@ -891,12 +907,15 @@ fn detail_dismiss_entries(
             ("Tabs", "Tab/1-8"),
             ("Cycle Focus", "w/W"),
             ("Navigate/Scroll", "↑↓"),
+            ("Page", "⇟/⇞"),
+            ("Jump", "Home/End"),
             ("Stage/Unstage", "↵"),
             ("Discard", "x"),
             ("Commit", "c"),
             ("Tag", "t"),
             ("Interactive Rebase", "i"),
-            ("Filter", "/"),
+            ("Search/Columns", "f"),
+            ("Resync", "R"),
             ("Help", "?"),
         ],
         1 => vec![
@@ -904,13 +923,19 @@ fn detail_dismiss_entries(
             ("Tabs", "Tab/1-8"),
             ("Cycle Focus", "w/W"),
             ("Navigate/Scroll", "↑↓"),
+            ("Page", "⇟/⇞"),
+            ("Jump", "Home/End"),
             ("Expand/Collapse", "←/→"),
+            ("Resync", "R"),
             ("Help", "?"),
         ],
         2 => vec![
             ("Home", "⎋/q"),
             ("Tabs", "Tab/1-8"),
             ("Scroll", "↑↓"),
+            ("Page", "⇟/⇞"),
+            ("Jump", "Home/End"),
+            ("Resync", "R"),
             ("Help", "?"),
         ],
         3 => vec![
@@ -927,7 +952,10 @@ fn detail_dismiss_entries(
             ("Pull", "p"),
             ("Push", "⇧P"),
             ("Navigate", "↑↓"),
+            ("Page", "⇟/⇞"),
+            ("Jump", "Home/End"),
             ("Focus L/R", "←/→"),
+            ("Resync", "R"),
             ("Help", "?"),
         ],
         4 => vec![
@@ -935,16 +963,22 @@ fn detail_dismiss_entries(
             ("Tabs", "Tab/1-8"),
             ("Checkout", "↵"),
             ("Navigate", "↑↓"),
+            ("Page", "⇟/⇞"),
+            ("Jump", "Home/End"),
             ("Push", "p"),
             ("Push All", "⇧P"),
             ("Delete", "d"),
+            ("Resync", "R"),
             ("Help", "?"),
         ],
         5 => vec![
             ("Home", "⎋/q"),
             ("Tabs", "Tab/1-8"),
             ("Navigate", "↑↓"),
+            ("Page", "⇟/⇞"),
+            ("Jump", "Home/End"),
             ("Fetch", "f/F"),
+            ("Resync", "R"),
             ("Help", "?"),
         ],
         6 => vec![
@@ -952,12 +986,25 @@ fn detail_dismiss_entries(
             ("Tabs", "Tab/1-8"),
             ("Cycle Focus", "w/W"),
             ("Navigate", "↑↓"),
+            ("Page", "⇟/⇞"),
+            ("Jump", "Home/End"),
             ("Apply", "a"),
             ("Delete", "d"),
+            ("Resync", "R"),
             ("Help", "?"),
         ],
-        7 => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Help", "?")],
-        _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Help", "?")],
+        7 => vec![
+            ("Home", "⎋/q"),
+            ("Tabs", "Tab/1-8"),
+            ("Resync", "R"),
+            ("Help", "?"),
+        ],
+        _ => vec![
+            ("Home", "⎋/q"),
+            ("Tabs", "Tab/1-8"),
+            ("Resync", "R"),
+            ("Help", "?"),
+        ],
     };
     for (i, (label, key)) in entries_data.iter().enumerate() {
         let mut spans = Vec::new();
@@ -976,6 +1023,7 @@ fn detail_dismiss_entries(
 
 fn inspect_dismiss_entries(
     status_message: &Option<String>,
+    in_logs_ui: bool,
 ) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let mut message_spans = None;
     if let Some(msg) = status_message {
@@ -983,8 +1031,9 @@ fn inspect_dismiss_entries(
     }
 
     let mut entries = Vec::new();
+    let exit_label = if in_logs_ui { "Logs UI" } else { "Workspace" };
     let entries_data = [
-        ("Workspace", "⎋"),
+        (exit_label, "⎋/q"),
         ("Cycle Focus", "w/W"),
         ("Select File", "↑↓/j/k"),
         ("Scroll Diff", "↑↓/j/k (focused)"),
@@ -1194,6 +1243,7 @@ fn normal_status_entries(
     let entries_data = vec![
         ("Navigate", "↑↓"),
         ("Page", "⇟/⇞"),
+        ("Jump", "Home/End"),
         ("Detail", "↵"),
         ("gitui", "g"),
         ("lazygit", "l"),

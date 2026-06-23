@@ -746,9 +746,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         },
 
         Mode::Inspect => match code {
-            KeyCode::Esc => {
-                app.mode = Mode::Detail;
-                app.detail_focus = DetailSection::Commits;
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                if app.in_logs_ui {
+                    app.mode = Mode::Logs;
+                } else {
+                    app.mode = Mode::Detail;
+                    app.detail_focus = DetailSection::Commits;
+                }
             }
             KeyCode::Char('?') => {
                 app.open_detail_help();
@@ -1092,6 +1096,20 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('f') => {
                 app.search_column_selection = 0;
                 app.mode = Mode::SearchColumnPicker;
+            }
+            KeyCode::Enter => {
+                app.mode = Mode::Inspect;
+                if app.is_uncommitted_selected() {
+                    app.detail_focus = DetailSection::Staged;
+                    app.last_staging_focus = DetailSection::Staged;
+                    app.staging_file_selection = 0;
+                } else {
+                    app.detail_focus = DetailSection::Staged;
+                    app.last_staging_focus = DetailSection::Staged;
+                    app.file_selection = 0;
+                }
+                app.diff_scroll = 0;
+                app.refresh_file_diff();
             }
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.in_logs_ui = false;

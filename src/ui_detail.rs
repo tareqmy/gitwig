@@ -145,7 +145,12 @@ pub fn draw(
     app: &crate::app::App,
     area: Rect,
 ) {
-    if app.in_logs_ui {
+    if app.in_logs_ui
+        && matches!(
+            mode,
+            Mode::Logs | Mode::LogsSearchInput | Mode::SearchColumnPicker
+        )
+    {
         if let ItemDetail::Repo { info, .. } = detail {
             let header_rows = Layout::default()
                 .direction(Direction::Vertical)
@@ -253,12 +258,7 @@ pub fn draw(
                 );
                 return;
             } else {
-                let commit_idx = if dirty {
-                    commit_selection.saturating_sub(1)
-                } else {
-                    commit_selection
-                };
-                if let Some(commit) = info.commits.get(commit_idx) {
+                if let Some(commit) = app.get_selected_commit() {
                     draw_inspect_window(
                         f,
                         commit,
@@ -456,12 +456,7 @@ pub fn draw(
                     );
                 } else {
                     // Real commit selected — show its changed files.
-                    let commit_idx = if dirty {
-                        commit_selection.saturating_sub(1)
-                    } else {
-                        commit_selection
-                    };
-                    match info.commits.get(commit_idx) {
+                    match app.get_selected_commit() {
                         Some(commit) => {
                             draw_commit_files_panel(
                                 f,

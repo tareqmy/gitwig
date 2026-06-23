@@ -2419,8 +2419,7 @@ impl App {
         }
     }
 
-    /// Total files in the currently-selected commit's Changed Files panel.
-    pub fn file_total(&self) -> usize {
+    pub fn get_selected_commit(&self) -> Option<&crate::repo::CommitEntry> {
         match &self.current_detail {
             Some(ItemDetail::Repo { info, .. }) => {
                 let dirty = !info.changes.staged.is_empty()
@@ -2436,20 +2435,29 @@ impl App {
                 } else {
                     false
                 };
-                // Uncommitted row (staging area) has no file list.
                 if show_dirty && self.commit_selection == 0 {
-                    return 0;
+                    return None;
                 }
                 let idx = if show_dirty {
                     self.commit_selection.saturating_sub(1)
                 } else {
                     self.commit_selection
                 };
-                let filtered = self.get_filtered_commits();
-                filtered.get(idx).map(|c| c.files.len()).unwrap_or(0)
+                if self.in_logs_ui {
+                    info.commits.get(idx)
+                } else {
+                    self.get_filtered_commits().get(idx).copied()
+                }
             }
-            _ => 0,
+            _ => None,
         }
+    }
+
+    /// Total files in the currently-selected commit's Changed Files panel.
+    pub fn file_total(&self) -> usize {
+        self.get_selected_commit()
+            .map(|c| c.files.len())
+            .unwrap_or(0)
     }
 
     pub fn is_uncommitted_selected(&self) -> bool {
@@ -2489,65 +2497,15 @@ impl App {
     }
 
     pub fn is_selected_commit_empty(&self) -> bool {
-        match &self.current_detail {
-            Some(ItemDetail::Repo { info, .. }) => {
-                let dirty = !info.changes.staged.is_empty()
-                    || !info.changes.unstaged.is_empty()
-                    || !info.changes.untracked.is_empty()
-                    || !info.changes.conflicted.is_empty();
-                let show_dirty = if dirty {
-                    if let Some(ref query) = self.commit_search_query {
-                        "<uncommitted>".contains(&query.to_lowercase())
-                    } else {
-                        true
-                    }
-                } else {
-                    false
-                };
-                if show_dirty && self.commit_selection == 0 {
-                    return true;
-                }
-                let commit_idx = if show_dirty {
-                    self.commit_selection.saturating_sub(1)
-                } else {
-                    self.commit_selection
-                };
-                let filtered = self.get_filtered_commits();
-                filtered
-                    .get(commit_idx)
-                    .map(|c| c.files.is_empty())
-                    .unwrap_or(true)
-            }
-            _ => true,
-        }
+        self.get_selected_commit()
+            .map(|c| c.files.is_empty())
+            .unwrap_or(true)
     }
 
     fn current_diff_params(&self) -> Option<(PathBuf, String, String)> {
         match &self.current_detail {
-            Some(ItemDetail::Repo { resolved, info }) => {
-                let dirty = !info.changes.staged.is_empty()
-                    || !info.changes.unstaged.is_empty()
-                    || !info.changes.untracked.is_empty()
-                    || !info.changes.conflicted.is_empty();
-                let show_dirty = if dirty {
-                    if let Some(ref query) = self.commit_search_query {
-                        "<uncommitted>".contains(&query.to_lowercase())
-                    } else {
-                        true
-                    }
-                } else {
-                    false
-                };
-                if show_dirty && self.commit_selection == 0 {
-                    return None;
-                }
-                let commit_idx = if show_dirty {
-                    self.commit_selection.saturating_sub(1)
-                } else {
-                    self.commit_selection
-                };
-                let filtered = self.get_filtered_commits();
-                let commit = filtered.get(commit_idx)?;
+            Some(ItemDetail::Repo { resolved, .. }) => {
+                let commit = self.get_selected_commit()?;
                 let file = commit.files.get(self.file_selection)?;
                 Some((resolved.clone(), commit.oid.clone(), file.path.clone()))
             }
@@ -5746,6 +5704,26 @@ mod tests {
             files: vec![],
         };
         assert!(!app.commit_matches_query(&non_matching_commit));
+
+        // Test entering inspect UI via Enter key when in Mode::Logs
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert_eq!(app.mode, Mode::Inspect);
+        assert!(app.in_logs_ui);
+
+        // Press 'q' to go back to Mode::Logs
+        crate::input::handle_key(&mut app, key_event(KeyCode::Char('q')), 10);
+        assert_eq!(app.mode, Mode::Logs);
+        assert!(app.in_logs_ui);
+
+        // Press Enter again to transition to Mode::Inspect
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert_eq!(app.mode, Mode::Inspect);
+        assert!(app.in_logs_ui);
+
+        // Press Esc to go back to Mode::Logs
+        crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+        assert_eq!(app.mode, Mode::Logs);
+        assert!(app.in_logs_ui);
 
         // 7. Press Esc to go back to workspace
         crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
