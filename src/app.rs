@@ -426,7 +426,7 @@ impl App {
             commit_amend: false,
             remote_picker_action: None,
             remote_picker_selection: 0,
-            inspect_horizontal_split_pct: 40,
+            inspect_horizontal_split_pct: 25,
             inspect_vertical_split_pct: 50,
             workspace_main_split_pct: 50,
             files_horizontal_split_pct: 25,

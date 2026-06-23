@@ -516,6 +516,8 @@ pub fn draw(
                     .title(Line::from(vec![
                         Span::raw(" "),
                         Span::styled("Branch History Graph", primary_style()),
+                        Span::raw("  "),
+                        Span::styled(format!("({})", info.graph_lines.len()), muted_style()),
                         Span::raw(" "),
                     ]))
                     .padding(Padding::uniform(1));
@@ -1452,28 +1454,6 @@ fn draw_detail_commits(
         muted_style()
     };
 
-    let title_spans = if let Some(q) = commit_search_query {
-        vec![
-            Span::raw(" "),
-            Span::styled("Commits (Filter: ", primary_style()),
-            Span::styled(q.clone(), accent_style().add_modifier(Modifier::BOLD)),
-            Span::styled(")", primary_style()),
-            Span::raw(" "),
-        ]
-    } else {
-        vec![
-            Span::raw(" "),
-            Span::styled("Commits", primary_style()),
-            Span::raw(" "),
-        ]
-    };
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(Line::from(title_spans));
-
     // Filter commits based on search query
     let filtered_commits: Vec<&crate::repo::CommitEntry> = if let Some(query) = commit_search_query
     {
@@ -1506,6 +1486,45 @@ fn draw_detail_commits(
     } else {
         false
     };
+
+    let total_entries = filtered_commits.len() + if show_dirty { 1 } else { 0 };
+    let selected_num = if total_entries > 0 {
+        (commit_selection + 1).min(total_entries)
+    } else {
+        0
+    };
+
+    let count_text = if total_entries > 0 {
+        format!("({}/{})", selected_num, total_entries)
+    } else {
+        "(0/0)".to_string()
+    };
+
+    let title_spans = if let Some(q) = commit_search_query {
+        vec![
+            Span::raw(" "),
+            Span::styled("Commits (Filter: ", primary_style()),
+            Span::styled(q.clone(), accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(")", primary_style()),
+            Span::raw("  "),
+            Span::styled(count_text, muted_style()),
+            Span::raw(" "),
+        ]
+    } else {
+        vec![
+            Span::raw(" "),
+            Span::styled("Commits", primary_style()),
+            Span::raw("  "),
+            Span::styled(count_text, muted_style()),
+            Span::raw(" "),
+        ]
+    };
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(Line::from(title_spans));
 
     // Show empty placeholder only when truly empty (no commits AND clean).
     if filtered_commits.is_empty() && !show_dirty {
