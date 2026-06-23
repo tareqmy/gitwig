@@ -2970,6 +2970,10 @@ impl App {
                 self.settings_editing = true;
                 self.input_buffer = self.config.page_size.to_string();
             }
+            8 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.fzf.excludes.join(",");
+            }
             _ => {}
         }
     }
@@ -3060,6 +3064,16 @@ impl App {
                 } else {
                     self.status_message = Some("Invalid integer".to_string());
                 }
+            }
+            8 => {
+                self.config.fzf.excludes = trimmed
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                self.persist("FZF exclude folders updated");
+                self.settings_editing = false;
+                self.input_buffer.clear();
             }
             _ => {}
         }
@@ -5156,24 +5170,43 @@ mod tests {
         assert!(!app.settings_editing);
         assert_eq!(app.config.page_size, 15);
 
+        // Go down to FZF Excludes (index 8)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.settings_selected_index, 8);
+
+        // Edit FZF Excludes
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(app.settings_editing);
+        app.input_buffer = "target, node_modules ,.git".to_string();
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(!app.settings_editing);
+        assert_eq!(
+            app.config.fzf.excludes,
+            vec![
+                "target".to_string(),
+                "node_modules".to_string(),
+                ".git".to_string()
+            ]
+        );
+
         // Test PageUp, PageDown, Home, and End key navigation in Settings Mode
         app.config.page_size = 3;
 
-        // At index 7: PageUp should go to 7 - 3 = 4
+        // At index 8: PageUp should go to 8 - 3 = 5
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.settings_selected_index, 4);
+        assert_eq!(app.settings_selected_index, 5);
 
-        // PageUp should go to 4 - 3 = 1
+        // PageUp should go to 5 - 3 = 2
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.settings_selected_index, 1);
+        assert_eq!(app.settings_selected_index, 2);
 
-        // PageDown should go to 1 + 3 = 4
+        // PageDown should go to 2 + 3 = 5
         crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
-        assert_eq!(app.settings_selected_index, 4);
+        assert_eq!(app.settings_selected_index, 5);
 
-        // End should go to 7
+        // End should go to 8
         crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
-        assert_eq!(app.settings_selected_index, 7);
+        assert_eq!(app.settings_selected_index, 8);
 
         // Home should go to 0
         crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
