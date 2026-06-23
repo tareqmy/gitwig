@@ -833,7 +833,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
-                    "Use arrow keys / j / k to navigate commits  ",
+                    "Use arrow keys / PgUp / PgDn to navigate commits  ",
                     muted_style(),
                 ),
             ];

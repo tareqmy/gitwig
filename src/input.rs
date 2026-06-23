@@ -924,8 +924,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             _ => {}
         },
         Mode::Logs => match code {
-            KeyCode::Up | KeyCode::Char('k') => app.detail_commit_up(),
-            KeyCode::Down | KeyCode::Char('j') => app.detail_commit_down(),
+            KeyCode::Up => app.detail_commit_up(),
+            KeyCode::Down => app.detail_commit_down(),
             KeyCode::PageUp => app.detail_commit_page_up(10),
             KeyCode::PageDown => app.detail_commit_page_down(10),
             KeyCode::Char('f') => {

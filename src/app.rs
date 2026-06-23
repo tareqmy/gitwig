@@ -331,6 +331,13 @@ struct TempNode {
     children: std::collections::BTreeMap<String, TempNode>,
 }
 
+enum LogsNavDirection {
+    Up,
+    Down,
+    PageUp(usize),
+    PageDown(usize),
+}
+
 impl App {
     pub fn new(config: Config, config_path: PathBuf) -> Self {
         crate::ui::update_theme(&config.theme);
@@ -1887,9 +1894,92 @@ impl App {
         }
     }
 
+    fn get_logs_matching_indices(&self) -> Vec<usize> {
+        if !self.in_logs_ui || self.commit_search_query.is_none() {
+            return Vec::new();
+        }
+        match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => info
+                .commits
+                .iter()
+                .enumerate()
+                .filter(|(_, c)| self.commit_matches_query(c))
+                .map(|(i, _)| i)
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    fn get_logs_nav_index(&self, direction: LogsNavDirection) -> Option<usize> {
+        let matching_indices = self.get_logs_matching_indices();
+        if matching_indices.is_empty() {
+            return None;
+        }
+
+        let pos_opt = matching_indices
+            .iter()
+            .position(|&idx| idx >= self.commit_selection);
+
+        match direction {
+            LogsNavDirection::Down => {
+                if let Some(pos) = pos_opt {
+                    if matching_indices[pos] == self.commit_selection {
+                        if pos + 1 < matching_indices.len() {
+                            Some(matching_indices[pos + 1])
+                        } else {
+                            Some(matching_indices[pos])
+                        }
+                    } else {
+                        Some(matching_indices[pos])
+                    }
+                } else {
+                    Some(*matching_indices.last().unwrap())
+                }
+            }
+            LogsNavDirection::Up => {
+                if let Some(pos) = pos_opt {
+                    if pos > 0 {
+                        Some(matching_indices[pos - 1])
+                    } else {
+                        Some(matching_indices[0])
+                    }
+                } else {
+                    Some(*matching_indices.last().unwrap())
+                }
+            }
+            LogsNavDirection::PageDown(page) => {
+                if let Some(pos) = pos_opt {
+                    let target_pos = if matching_indices[pos] == self.commit_selection {
+                        pos + page
+                    } else {
+                        pos + page - 1
+                    };
+                    let final_pos = target_pos.min(matching_indices.len() - 1);
+                    Some(matching_indices[final_pos])
+                } else {
+                    Some(*matching_indices.last().unwrap())
+                }
+            }
+            LogsNavDirection::PageUp(page) => {
+                if let Some(pos) = pos_opt {
+                    let target_pos = pos.saturating_sub(page);
+                    Some(matching_indices[target_pos])
+                } else {
+                    let last_pos = matching_indices.len() - 1;
+                    let target_pos = last_pos.saturating_sub(page);
+                    Some(matching_indices[target_pos])
+                }
+            }
+        }
+    }
+
     /// Move commit selection up one row.
     pub fn detail_commit_up(&mut self) {
-        self.commit_selection = self.commit_selection.saturating_sub(1);
+        if let Some(next_idx) = self.get_logs_nav_index(LogsNavDirection::Up) {
+            self.commit_selection = next_idx;
+        } else {
+            self.commit_selection = self.commit_selection.saturating_sub(1);
+        }
         self.file_selection = 0;
         self.diff_scroll = 0;
         self.refresh_file_diff();
@@ -1897,9 +1987,13 @@ impl App {
 
     /// Move commit selection down one row, clamped to the last visible row.
     pub fn detail_commit_down(&mut self) {
-        let total = self.commit_total();
-        if total > 0 && self.commit_selection + 1 < total {
-            self.commit_selection += 1;
+        if let Some(next_idx) = self.get_logs_nav_index(LogsNavDirection::Down) {
+            self.commit_selection = next_idx;
+        } else {
+            let total = self.commit_total();
+            if total > 0 && self.commit_selection + 1 < total {
+                self.commit_selection += 1;
+            }
         }
         self.file_selection = 0;
         self.diff_scroll = 0;
@@ -1908,7 +2002,11 @@ impl App {
 
     /// Jump commit selection up by `page` rows.
     pub fn detail_commit_page_up(&mut self, page: usize) {
-        self.commit_selection = self.commit_selection.saturating_sub(page);
+        if let Some(next_idx) = self.get_logs_nav_index(LogsNavDirection::PageUp(page)) {
+            self.commit_selection = next_idx;
+        } else {
+            self.commit_selection = self.commit_selection.saturating_sub(page);
+        }
         self.file_selection = 0;
         self.diff_scroll = 0;
         self.refresh_file_diff();
@@ -1916,9 +2014,13 @@ impl App {
 
     /// Jump commit selection down by `page` rows, clamped to the last row.
     pub fn detail_commit_page_down(&mut self, page: usize) {
-        let total = self.commit_total();
-        if total > 0 {
-            self.commit_selection = (self.commit_selection + page).min(total - 1);
+        if let Some(next_idx) = self.get_logs_nav_index(LogsNavDirection::PageDown(page)) {
+            self.commit_selection = next_idx;
+        } else {
+            let total = self.commit_total();
+            if total > 0 {
+                self.commit_selection = (self.commit_selection + page).min(total - 1);
+            }
         }
         self.file_selection = 0;
         self.diff_scroll = 0;
@@ -5134,7 +5236,18 @@ mod tests {
                 crate::repo::CommitEntry {
                     id: "1234567".to_string(),
                     oid: "1234567890abcdef1234567890abcdef12345678".to_string(),
-                    summary: "first commit".to_string(),
+                    summary: "first test".to_string(),
+                    author: "test author 1".to_string(),
+                    when: "today".to_string(),
+                    date: "today".to_string(),
+                    refs: vec![],
+                    message: "msg".to_string(),
+                    files: vec![],
+                },
+                crate::repo::CommitEntry {
+                    id: "2234567".to_string(),
+                    oid: "2234567890abcdef1234567890abcdef12345678".to_string(),
+                    summary: "no match".to_string(),
                     author: "author 1".to_string(),
                     when: "today".to_string(),
                     date: "today".to_string(),
@@ -5146,7 +5259,29 @@ mod tests {
                     id: "2345678".to_string(),
                     oid: "234567890abcdef1234567890abcdef12345678a".to_string(),
                     summary: "second test".to_string(),
-                    author: "author 2".to_string(),
+                    author: "test author 2".to_string(),
+                    when: "today".to_string(),
+                    date: "today".to_string(),
+                    refs: vec![],
+                    message: "msg".to_string(),
+                    files: vec![],
+                },
+                crate::repo::CommitEntry {
+                    id: "3234567".to_string(),
+                    oid: "3234567890abcdef1234567890abcdef12345678".to_string(),
+                    summary: "no match".to_string(),
+                    author: "author 1".to_string(),
+                    when: "today".to_string(),
+                    date: "today".to_string(),
+                    refs: vec![],
+                    message: "msg".to_string(),
+                    files: vec![],
+                },
+                crate::repo::CommitEntry {
+                    id: "4234567".to_string(),
+                    oid: "4234567890abcdef1234567890abcdef12345678".to_string(),
+                    summary: "third test".to_string(),
+                    author: "test author 1".to_string(),
                     when: "today".to_string(),
                     date: "today".to_string(),
                     refs: vec![],
@@ -5180,12 +5315,26 @@ mod tests {
 
         assert_eq!(app.mode, Mode::Logs);
         assert_eq!(app.commit_search_query.as_deref(), Some("test"));
-        assert_eq!(app.commit_total(), 2);
+        assert_eq!(app.commit_total(), 5);
 
-        // Test scrolling/navigation
-        assert_eq!(app.commit_selection, 0);
+        // Test scrolling/navigation (should only jump between matches: 0, 2, 4)
+        assert_eq!(app.commit_selection, 0); // starts at 0 (which is a match)
         crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
-        assert_eq!(app.commit_selection, 1);
+        assert_eq!(app.commit_selection, 2); // skips non-match at index 1
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.commit_selection, 4); // skips non-match at index 3
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.commit_selection, 4); // remains at last match
+
+        crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
+        assert_eq!(app.commit_selection, 0); // jumps back to first match
+        crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
+        assert_eq!(app.commit_selection, 4); // jumps back to last match
+
+        crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
+        assert_eq!(app.commit_selection, 2);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
+        assert_eq!(app.commit_selection, 0);
 
         // 6. Test match helper
         let matching_commit = crate::repo::CommitEntry {
