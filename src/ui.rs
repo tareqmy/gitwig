@@ -152,6 +152,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("e", "Edit selected item"),
     ("d", "Delete selected item / branch (Branches) / tag (Tags)"),
     ("r", "Refresh status of selected item"),
+    ("R", "Resync active tab (Detail)"),
     ("o / O", "Cycle sorting mode / Toggle reverse sorting"),
     ("g", "Launch gitui for selected repository"),
     ("l", "Launch lazygit for selected repository"),

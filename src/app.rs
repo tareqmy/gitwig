@@ -755,6 +755,146 @@ impl App {
         }
     }
 
+    /// Resync the selected item's filesystem/git state inside the Detail view,
+    /// clamping selection indices to their new totals.
+    pub fn resync_detail(&mut self) {
+        if let Some(item) = self.config.items.get(self.selected_index).cloned() {
+            self.current_detail = Some(self.inspect_repo_detail(&item));
+            self.rebuild_visible_files();
+
+            // Extract all lengths first to avoid borrow-checker conflicts
+            let mut info_lengths = None;
+            if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+                let commits_len = info.commits.len();
+                let local_branches_len = info.local_branches.len();
+                let remote_branches_len = info.remote_branches.len();
+                let local_tags_len = info.local_tags.len();
+                let remote_tags_len = info.remote_tags.len();
+                let remotes_len = info.remotes.len();
+                let stashes_len = info.stashes.len();
+                let staged_len = info.changes.staged.len();
+                let unstaged_len = info.changes.unstaged.len();
+
+                let commit_files_len = info
+                    .commits
+                    .get(self.commit_selection)
+                    .map(|c| c.files.len())
+                    .unwrap_or(0);
+
+                info_lengths = Some((
+                    commits_len,
+                    local_branches_len,
+                    remote_branches_len,
+                    local_tags_len,
+                    remote_tags_len,
+                    remotes_len,
+                    stashes_len,
+                    staged_len,
+                    unstaged_len,
+                    commit_files_len,
+                ));
+            }
+
+            if let Some((
+                commits_len,
+                local_branches_len,
+                remote_branches_len,
+                local_tags_len,
+                remote_tags_len,
+                remotes_len,
+                stashes_len,
+                staged_len,
+                unstaged_len,
+                commit_files_len,
+            )) = info_lengths
+            {
+                // 1. Commit selection
+                if commits_len == 0 {
+                    self.commit_selection = 0;
+                } else if self.commit_selection >= commits_len {
+                    self.commit_selection = commits_len - 1;
+                }
+
+                // 2. File list selection (Files tab)
+                let visible_files_len = self.visible_files.len();
+                if visible_files_len == 0 {
+                    self.file_list_selection = 0;
+                } else if self.file_list_selection >= visible_files_len {
+                    self.file_list_selection = visible_files_len - 1;
+                }
+
+                // 3. Local branches selection
+                if local_branches_len == 0 {
+                    self.local_branch_selection = 0;
+                } else if self.local_branch_selection >= local_branches_len {
+                    self.local_branch_selection = local_branches_len - 1;
+                }
+
+                // 4. Remote branches selection
+                if remote_branches_len == 0 {
+                    self.remote_branch_selection = 0;
+                } else if self.remote_branch_selection >= remote_branches_len {
+                    self.remote_branch_selection = remote_branches_len - 1;
+                }
+
+                // 5. Local tags selection
+                if local_tags_len == 0 {
+                    self.local_tag_selection = 0;
+                } else if self.local_tag_selection >= local_tags_len {
+                    self.local_tag_selection = local_tags_len - 1;
+                }
+
+                // 6. Remote tags selection
+                if remote_tags_len == 0 {
+                    self.remote_tag_selection = 0;
+                } else if self.remote_tag_selection >= remote_tags_len {
+                    self.remote_tag_selection = remote_tags_len - 1;
+                }
+
+                // 7. Remotes selection
+                if remotes_len == 0 {
+                    self.remote_selection = 0;
+                } else if self.remote_selection >= remotes_len {
+                    self.remote_selection = remotes_len - 1;
+                }
+
+                // 8. Stashes selection
+                if stashes_len == 0 {
+                    self.stash_selection = 0;
+                } else if self.stash_selection >= stashes_len {
+                    self.stash_selection = stashes_len - 1;
+                }
+
+                // 9. Files/Diff selection in Workspace/Commits details
+                // Workspace stage/unstage file lists
+                if self.is_uncommitted_selected() {
+                    // Staged files vs Unstaged files selection
+                    let active_len = if self.detail_focus == DetailSection::Staged {
+                        staged_len
+                    } else if self.detail_focus == DetailSection::Unstaged {
+                        unstaged_len
+                    } else {
+                        0
+                    };
+                    if active_len == 0 {
+                        self.staging_file_selection = 0;
+                    } else if self.staging_file_selection >= active_len {
+                        self.staging_file_selection = active_len - 1;
+                    }
+                } else {
+                    // Commits file selection
+                    if commit_files_len == 0 {
+                        self.file_selection = 0;
+                    } else if self.file_selection >= commit_files_len {
+                        self.file_selection = commit_files_len - 1;
+                    }
+                }
+            }
+
+            self.refresh_file_diff();
+        }
+    }
+
     /// Advance focus to the next detail panel (Tab key).
     pub fn cycle_detail_focus(&mut self, reverse: bool) {
         if self.detail_tab == 3 {
@@ -5589,5 +5729,66 @@ mod tests {
         assert_eq!(app.mode, Mode::Detail);
         assert!(!app.in_logs_ui);
         assert!(app.commit_search_query.is_none());
+    }
+
+    #[test]
+    fn test_detail_view_sync_on_tab_change_and_refresh() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec![".".to_string()],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_sync.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+        app.mode = Mode::Detail;
+        app.detail_tab = 0;
+
+        let mock_info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary::default(),
+            changes: crate::repo::WorktreeChanges::default(),
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from("."),
+            info: Box::new(mock_info),
+        });
+
+        // 1. Simulate tab switch (e.g. key '2')
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('2')), 10);
+        assert!(handled);
+        assert_eq!(app.detail_tab, 1);
+        assert!(app.current_detail.is_some());
+
+        // 2. Press 'R' to refresh/resync manually
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('R')), 10);
+        assert!(handled);
+        assert_eq!(app.status_message.as_deref(), Some("Refreshed"));
     }
 }

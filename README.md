@@ -74,6 +74,7 @@
 | `m`                  | Detail          | Merge selected branch into current branch (Branches tab; asks confirmation) |
 | `r`                  | Detail          | Rebase current branch onto selected branch (Branches tab; asks confirmation) |
 | `f`                  | Detail          | Open search column picker and go to logs (Workspace tab) |
+| `R`                  | Detail          | Resync the active tab state       |
 | `?`                  | Detail          | Toggle detail help overlay        |
 | `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |
 | `⌃C`                 | CommitInput (Edit) | Finish editing commit message (switches to confirm state) |

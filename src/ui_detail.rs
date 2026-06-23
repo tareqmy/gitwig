@@ -1335,6 +1335,7 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
         "⇧P [Shift+P]",
         "Push branch (Branches) / Push all tags (Tags)",
     ),
+    ("R", "Resync current tab state"),
     ("? / ⎋ [Esc]", "Close this help"),
     ("q / ⎋ [Esc]", "Back to repository list"),
     (
