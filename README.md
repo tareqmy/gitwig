@@ -31,7 +31,8 @@
 | `a`                  | Normal          | Add a new item (via interactive fzf search) |
 | `e`                  | Normal          | Edit the selected item            |
 | `d`                  | Normal          | Delete the selected item (asks)   |
-| `r`                  | Normal          | Refresh status of selected item   |
+| `R`                  | Normal          | Refresh status of selected item   |
+| `f`                  | Normal          | Enter repository search mode      |
 | `p`                  | Normal          | Toggle pin status of selected item |
 | `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes) |
 | `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed) |
@@ -41,8 +42,11 @@
 | `Enter`              | Normal / Commits list | Open Detail view for selected item / Inspect selected commit |
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
 | `⎋` / `q`            | Normal          | Quit                              |
+| `Esc`                | Normal          | Clear active repository search filter |
 | `Enter`              | Editing         | Save the typed text and persist   |
 | `Esc`                | Editing         | Cancel without saving             |
+| `Enter`              | RepoSearchInput | Apply repository search and return to Normal mode |
+| `Esc`                | RepoSearchInput | Clear repository search and return to Normal mode |
 | `Enter`              | Settings (Edit) | Save settings edit                |
 | `Esc`                | Settings (Edit) | Cancel settings edit              |
 | `Esc` / `q`          | Settings        | Exit Settings and return to Home  |

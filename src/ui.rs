@@ -151,6 +151,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("a", "Add a new item"),
     ("e", "Edit selected item"),
     ("d", "Delete selected item / branch (Branches) / tag (Tags)"),
+    ("f", "Enter repository search mode"),
     ("R", "Refresh status of selected item"),
     ("R", "Resync active tab (Detail)"),
     ("o / O", "Cycle sorting mode / Toggle reverse sorting"),
