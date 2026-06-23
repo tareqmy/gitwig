@@ -56,6 +56,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('g') => {
                 app.pending_gitui = true;
             }
+            KeyCode::Char('l') => {
+                app.pending_lazygit = true;
+            }
             KeyCode::Enter => app.open_detail(),
             _ => {}
         },

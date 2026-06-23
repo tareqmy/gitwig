@@ -1217,13 +1217,13 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
     (
         "w / W",
-        "Cycle panel focus (Workspace / Files / Branches tabs)",
+        "Cycle panel focus forward (w) / backward (W)",
     ),
     ("← / →", "Focus Local/Remote branch (Branches tab)"),
     ("← / → or < / >", "Collapse/Expand folder (Files tab)"),
     (
         "↵ [Enter]",
-        "Stage/Unstage file, Checkout branch, or Checkout tag",
+        "Stage/Unstage file, Checkout branch, Checkout tag, or Inspect commit",
     ),
     ("c", "Commit changes (Workspace) / Create branch (Branches)"),
     ("t", "Create tag (Workspace tab commits list)"),
@@ -1253,7 +1253,7 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("? / ⎋ [Esc]", "Close this help"),
     ("q / ⎋ [Esc]", "Back to repository list"),
     (
-        "→ [Right]",
+        "→ [Right] / ↵ [Enter]",
         "Inspect selected commit (Workspace commits list)",
     ),
     ("⎋ [Esc]", "Back to workspace commits list (Inspect mode)"),

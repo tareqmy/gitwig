@@ -36,8 +36,9 @@
 | `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes) |
 | `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed) |
 | `g`                  | Normal          | Launch gitui for selected repository |
+| `l`                  | Normal          | Launch lazygit for selected repository |
 | `s`                  | Normal          | Open options/settings page        |
-| `Enter`              | Normal          | Open Detail view for selected item|
+| `Enter`              | Normal / Commits list | Open Detail view for selected item / Inspect selected commit |
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
 | `⎋` / `q`            | Normal          | Quit                              |
 | `Enter`              | Editing         | Save the typed text and persist   |
@@ -53,12 +54,12 @@
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
 | `Esc` / `q`          | Detail          | Return to the list                |
 | `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Workspace → Files → Graph → Branches → Tags → Remotes → Stashes → Overview) |
-| `w` / `W`            | Detail          | Cycle panel focus (Workspace tab: `Commits` → `Staged` → `Unstaged` → `StagingDetails`, Files tab: `Files` ↔ `FileContent`, Branches tab: Local ↔ Remote, or Tags tab: Local ↔ Remote) |
+| `w` / `W`            | Detail          | Cycle panel focus forward (w) / backward (W) |
 | `1` - `8`            | Detail          | Jump directly to tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), or Overview (8) |
 | `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
 | `PgUp` / `PgDn`      | Detail          | Jump 10 rows or page scroll diff/tree |
-| `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), or checkout tag (Tags tab) |
+| `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), checkout tag (Tags tab), or Inspect commit |
 | `Shift+F`            | Detail          | Fetch selected local branch from remote (Branches tab) |
 | `f` / `F`            | Detail          | Fetch selected remote (Remotes tab) |
 | `p`                  | Detail          | Pull selected local branch from remote (Branches tab) or Push selected tag (Tags tab; asks confirmation) |

@@ -244,6 +244,8 @@ pub struct App {
     pub fetching: bool,
     /// Whether gitui launch is pending.
     pub pending_gitui: bool,
+    /// Whether lazygit launch is pending.
+    pub pending_lazygit: bool,
     /// Whether fzf search launch is pending.
     pub pending_fzf: bool,
     /// Whether interactive rebase is pending.
@@ -364,6 +366,7 @@ impl App {
             rx,
             fetching: false,
             pending_gitui: false,
+            pending_lazygit: false,
             pending_fzf: false,
             pending_interactive_rebase: None,
             branch_action_target: None,
@@ -3609,6 +3612,52 @@ where
             }
         }
 
+        if app.pending_lazygit {
+            app.pending_lazygit = false;
+            if let Some(item) = app.config.items.get(app.selected_index) {
+                let path = repo::expand_tilde(item);
+
+                let raw_res = crossterm::terminal::disable_raw_mode();
+                let exec_res = crossterm::execute!(
+                    std::io::stdout(),
+                    crossterm::terminal::LeaveAlternateScreen,
+                    crossterm::event::DisableMouseCapture
+                );
+                let cursor_res = terminal.show_cursor();
+
+                if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+                    let status = std::process::Command::new("lazygit")
+                        .current_dir(&path)
+                        .status();
+
+                    let _ = crossterm::terminal::enable_raw_mode();
+                    let _ = crossterm::execute!(
+                        std::io::stdout(),
+                        crossterm::terminal::EnterAlternateScreen,
+                        crossterm::event::EnableMouseCapture
+                    );
+                    let _ = terminal.clear();
+
+                    match status {
+                        Ok(s) if s.success() => {
+                            app.status_message = Some("Returned from lazygit".to_string());
+                            app.refresh_selected_status();
+                        }
+                        Ok(_) => {
+                            app.status_message = Some("lazygit exited with error".to_string());
+                            app.refresh_selected_status();
+                        }
+                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                            app.status_message = Some("lazygit is not installed".to_string());
+                        }
+                        Err(e) => {
+                            app.status_message = Some(format!("Could not run lazygit: {}", e));
+                        }
+                    }
+                }
+            }
+        }
+
         if let Some((repo_path, target)) = app.pending_interactive_rebase.take() {
             let raw_res = crossterm::terminal::disable_raw_mode();
             let exec_res = crossterm::execute!(
@@ -4738,5 +4787,34 @@ mod tests {
         // Cycle reverse: CommitDetails -> Commits
         app.cycle_detail_focus(true);
         assert_eq!(app.detail_focus, DetailSection::Commits);
+    }
+
+    #[test]
+    fn test_lazygit_shortcut_triggers_pending() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_lazygit.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        assert!(!app.pending_lazygit);
+
+        // Pressing 'l' triggers pending_lazygit
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('l')), 10);
+        assert!(handled);
+        assert!(app.pending_lazygit);
     }
 }

@@ -152,6 +152,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("r", "Refresh status of selected item"),
     ("o / O", "Cycle sorting mode / Toggle reverse sorting"),
     ("g", "Launch gitui for selected repository"),
+    ("l", "Launch lazygit for selected repository"),
     ("s", "Open options/settings page"),
     (
         "⎋ [Esc]",
@@ -159,7 +160,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ),
     ("⌫ [Backspace]", "Erase character while typing"),
     ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
-    ("w / W", "Cycle panel focus (Workspace / Branches tabs)"),
+    ("w / W", "Cycle panel focus forward (w) / backward (W)"),
     ("c", "Commit changes (Workspace) / Create branch (Branches)"),
     ("⇧F", "Fetch selected branch (Branches tab)"),
     (
@@ -1130,6 +1131,7 @@ fn normal_status_entries(
         ("Page", "⇟/⇞"),
         ("Detail", "↵"),
         ("gitui", "g"),
+        ("lazygit", "l"),
         (&sort_key_label, "o/O"),
         ("Add", "a"),
         ("Edit", "e"),
