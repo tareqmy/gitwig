@@ -74,6 +74,7 @@ pub enum Mode {
     /// Picking a remote when multiple are available.
     RemotePicker,
     /// Typing a search query for commits.
+    #[allow(dead_code)]
     CommitSearchInput,
     /// Confirming merge of a branch.
     BranchMergeConfirm,
@@ -87,6 +88,12 @@ pub enum Mode {
     Inspect,
     /// Settings page.
     Settings,
+    /// Choosing which columns to filter on.
+    SearchColumnPicker,
+    /// logs UI with commits only.
+    Logs,
+    /// Search input in the logs UI.
+    LogsSearchInput,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -252,6 +259,15 @@ pub struct App {
     pub pending_files_fzf: bool,
     /// Whether interactive rebase is pending.
     pub pending_interactive_rebase: Option<(PathBuf, String)>,
+    /// Whether we are currently viewing logs UI.
+    pub in_logs_ui: bool,
+    /// Selection in search column picker.
+    pub search_column_selection: usize,
+    /// Columns to include in search.
+    pub search_columns_sha: bool,
+    pub search_columns_message: bool,
+    pub search_columns_author: bool,
+    pub search_columns_date: bool,
     /// Target branch name and remote flag for deletion/creation actions.
     pub branch_action_target: Option<(String, bool)>,
     /// Target commit OID for tag creation.
@@ -372,6 +388,12 @@ impl App {
             pending_fzf: false,
             pending_files_fzf: false,
             pending_interactive_rebase: None,
+            in_logs_ui: false,
+            search_column_selection: 0,
+            search_columns_sha: true,
+            search_columns_message: true,
+            search_columns_author: true,
+            search_columns_date: true,
             branch_action_target: None,
             tag_action_target_oid: None,
             tag_delete_target: None,
@@ -2077,6 +2099,9 @@ impl App {
     fn commit_total(&self) -> usize {
         match &self.current_detail {
             Some(ItemDetail::Repo { info, .. }) => {
+                if self.in_logs_ui {
+                    return info.commits.len();
+                }
                 let dirty = !info.changes.staged.is_empty()
                     || !info.changes.unstaged.is_empty()
                     || !info.changes.untracked.is_empty()
@@ -2464,6 +2489,31 @@ impl App {
         }
     }
 
+    pub fn commit_matches_query(&self, commit: &crate::repo::CommitEntry) -> bool {
+        if let Some(ref query) = self.commit_search_query {
+            if query.is_empty() {
+                return false;
+            }
+            let q = query.to_lowercase();
+            let mut matches = false;
+            if self.search_columns_sha && commit.id.to_lowercase().contains(&q) {
+                matches = true;
+            }
+            if self.search_columns_message && commit.summary.to_lowercase().contains(&q) {
+                matches = true;
+            }
+            if self.search_columns_author && commit.author.to_lowercase().contains(&q) {
+                matches = true;
+            }
+            if self.search_columns_date && commit.when.to_lowercase().contains(&q) {
+                matches = true;
+            }
+            matches
+        } else {
+            false
+        }
+    }
+
     pub fn clamp_commit_selection(&mut self) {
         let total = self.commit_total();
         if total == 0 {
@@ -2473,6 +2523,7 @@ impl App {
         }
     }
 
+    #[allow(dead_code)]
     pub fn start_commit_search(&mut self) {
         self.input_buffer = self.commit_search_query.clone().unwrap_or_default();
         self.mode = Mode::CommitSearchInput;
@@ -4985,5 +5036,146 @@ mod tests {
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('f')), 10);
         assert!(handled);
         assert!(app.pending_files_fzf);
+    }
+
+    #[test]
+    fn test_logs_search_picker_flow() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_logs_search.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+        app.mode = Mode::Detail;
+        app.detail_tab = 0; // Workspace tab
+        app.detail_focus = DetailSection::Commits;
+
+        // 1. Press 'f' to open search column picker
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('f')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::SearchColumnPicker);
+        assert_eq!(app.search_column_selection, 0);
+
+        // 2. Select down
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.search_column_selection, 1);
+
+        // 3. Toggle column message (initially true, should become false)
+        assert!(app.search_columns_message);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Char(' ')), 10);
+        assert!(!app.search_columns_message);
+
+        // 4. Press Enter to transition to LogsSearchInput
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert_eq!(app.mode, Mode::LogsSearchInput);
+        assert!(app.in_logs_ui);
+
+        let mock_info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary::default(),
+            changes: crate::repo::WorktreeChanges::default(),
+            commits: vec![
+                crate::repo::CommitEntry {
+                    id: "1234567".to_string(),
+                    oid: "1234567890abcdef1234567890abcdef12345678".to_string(),
+                    summary: "first commit".to_string(),
+                    author: "author 1".to_string(),
+                    when: "today".to_string(),
+                    date: "today".to_string(),
+                    refs: vec![],
+                    message: "msg".to_string(),
+                    files: vec![],
+                },
+                crate::repo::CommitEntry {
+                    id: "2345678".to_string(),
+                    oid: "234567890abcdef1234567890abcdef12345678a".to_string(),
+                    summary: "second test".to_string(),
+                    author: "author 2".to_string(),
+                    when: "today".to_string(),
+                    date: "today".to_string(),
+                    refs: vec![],
+                    message: "msg".to_string(),
+                    files: vec![],
+                },
+            ],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from("."),
+            info: Box::new(mock_info),
+        });
+
+        // 5. Input search query characters and hit Enter
+        crate::input::handle_key(&mut app, key_event(KeyCode::Char('t')), 10);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Char('e')), 10);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Char('s')), 10);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Char('t')), 10);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+
+        assert_eq!(app.mode, Mode::Logs);
+        assert_eq!(app.commit_search_query.as_deref(), Some("test"));
+        assert_eq!(app.commit_total(), 2);
+
+        // Test scrolling/navigation
+        assert_eq!(app.commit_selection, 0);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.commit_selection, 1);
+
+        // 6. Test match helper
+        let matching_commit = crate::repo::CommitEntry {
+            id: "1234567".to_string(),
+            oid: "1234567890abcdef1234567890abcdef12345678".to_string(),
+            summary: "a test message".to_string(), // message column disabled, so shouldn't match message!
+            author: "test author".to_string(),     // author column enabled, should match author!
+            when: "today".to_string(),
+            date: "today".to_string(),
+            refs: vec![],
+            message: "message body".to_string(),
+            files: vec![],
+        };
+        assert!(app.commit_matches_query(&matching_commit));
+
+        let non_matching_commit = crate::repo::CommitEntry {
+            id: "1234567".to_string(),
+            oid: "1234567890abcdef1234567890abcdef12345678".to_string(),
+            summary: "a test message".to_string(), // message column disabled, message has test but is ignored!
+            author: "other author".to_string(),    // author doesn't match!
+            when: "today".to_string(),
+            date: "today".to_string(),
+            refs: vec![],
+            message: "message body".to_string(),
+            files: vec![],
+        };
+        assert!(!app.commit_matches_query(&non_matching_commit));
+
+        // 7. Press Esc to go back to workspace
+        crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+        assert_eq!(app.mode, Mode::Detail);
+        assert!(!app.in_logs_ui);
+        assert!(app.commit_search_query.is_none());
     }
 }

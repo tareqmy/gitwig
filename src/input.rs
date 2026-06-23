@@ -274,8 +274,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.detail_focus = DetailSection::Commits;
             }
             _ if app.detail_tab == 0 => match code {
-                KeyCode::Char('/') if detail_focus == DetailSection::Commits => {
-                    app.start_commit_search();
+                KeyCode::Char('f') if detail_focus == DetailSection::Commits => {
+                    app.search_column_selection = 0;
+                    app.mode = Mode::SearchColumnPicker;
                 }
                 KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
                 KeyCode::Char('t') | KeyCode::Char('T') => {
@@ -870,6 +871,74 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             _ => {}
         },
+        Mode::SearchColumnPicker => match code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                app.search_column_selection = app.search_column_selection.saturating_sub(1);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if app.search_column_selection < 3 {
+                    app.search_column_selection += 1;
+                }
+            }
+            KeyCode::Char(' ') => match app.search_column_selection {
+                0 => app.search_columns_sha = !app.search_columns_sha,
+                1 => app.search_columns_message = !app.search_columns_message,
+                2 => app.search_columns_author = !app.search_columns_author,
+                3 => app.search_columns_date = !app.search_columns_date,
+                _ => {}
+            },
+            KeyCode::Enter => {
+                app.input_buffer = app.commit_search_query.clone().unwrap_or_default();
+                app.in_logs_ui = true;
+                app.mode = Mode::LogsSearchInput;
+            }
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                if app.in_logs_ui {
+                    app.mode = Mode::Logs;
+                } else {
+                    app.mode = Mode::Detail;
+                }
+            }
+            _ => {}
+        },
+        Mode::LogsSearchInput => match code {
+            KeyCode::Esc => {
+                app.commit_search_query = None;
+                app.mode = Mode::Logs;
+            }
+            KeyCode::Enter => {
+                let query = app.input_buffer.clone();
+                if query.trim().is_empty() {
+                    app.commit_search_query = None;
+                } else {
+                    app.commit_search_query = Some(query);
+                }
+                app.mode = Mode::Logs;
+            }
+            KeyCode::Backspace => {
+                app.input_backspace();
+            }
+            KeyCode::Char(c) => {
+                app.input_char(c);
+            }
+            _ => {}
+        },
+        Mode::Logs => match code {
+            KeyCode::Up | KeyCode::Char('k') => app.detail_commit_up(),
+            KeyCode::Down | KeyCode::Char('j') => app.detail_commit_down(),
+            KeyCode::PageUp => app.detail_commit_page_up(10),
+            KeyCode::PageDown => app.detail_commit_page_down(10),
+            KeyCode::Char('f') => {
+                app.search_column_selection = 0;
+                app.mode = Mode::SearchColumnPicker;
+            }
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                app.in_logs_ui = false;
+                app.commit_search_query = None;
+                app.mode = Mode::Detail;
+            }
+            _ => {}
+        },
         Mode::RemotePicker => match code {
             KeyCode::Up | KeyCode::Char('k') => app.remote_picker_up(),
             KeyCode::Down | KeyCode::Char('j') => app.remote_picker_down(),
@@ -1169,7 +1238,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     }
 
     // Only handle detail modes beyond this point.
-    if !matches!(app.mode, Mode::Detail | Mode::DetailHelp | Mode::Inspect) {
+    if !matches!(
+        app.mode,
+        Mode::Detail | Mode::DetailHelp | Mode::Inspect | Mode::Logs
+    ) {
         return;
     }
 

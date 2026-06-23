@@ -213,6 +213,9 @@ pub fn draw(
             | Mode::CommitSearchInput
             | Mode::DiscardChangesConfirm
             | Mode::Inspect
+            | Mode::SearchColumnPicker
+            | Mode::Logs
+            | Mode::LogsSearchInput
     ) {
         if let Some(detail) = &app.current_detail {
             let item_name = app
@@ -267,6 +270,7 @@ pub fn draw(
                 app.stashes_horizontal_split_pct,
                 app.stashes_vertical_split_pct,
                 app.overview_horizontal_split_pct,
+                app,
                 content_area,
             );
         }
@@ -790,6 +794,53 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         Mode::RemotePicker => {
             let (msg_spans, entries) = remote_picker_status_entries();
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
+        }
+        Mode::SearchColumnPicker => {
+            let msg_spans = vec![
+                Span::styled(
+                    "Search Columns  ",
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled("Choose columns to apply search on", muted_style()),
+            ];
+            let entries = vec![
+                StatusEntry::new(vec![
+                    Span::styled("Space", accent_style()),
+                    Span::raw(" Toggle "),
+                ]),
+                StatusEntry::new(vec![
+                    Span::styled("↵ [Enter]", accent_style()),
+                    Span::raw(" Confirm & Search "),
+                ]),
+                StatusEntry::new(vec![
+                    Span::styled("⎋ [Esc] / q", accent_style()),
+                    Span::raw(" Cancel "),
+                ]),
+            ];
+            draw_status_layout(f, area, Some(msg_spans), entries, app.status_expanded);
+        }
+        Mode::LogsSearchInput => {
+            draw_input_status(f, area, "Search Logs", &app.input_buffer);
+        }
+        Mode::Logs => {
+            let msg_spans = vec![
+                Span::styled(
+                    "Logs UI  ",
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled("Use arrow keys / j / k to navigate commits", muted_style()),
+            ];
+            let entries = vec![
+                StatusEntry::new(vec![
+                    Span::styled("f", accent_style()),
+                    Span::raw(" Search / Columns "),
+                ]),
+                StatusEntry::new(vec![
+                    Span::styled("⎋ [Esc] / q", accent_style()),
+                    Span::raw(" Back to Workspace "),
+                ]),
+            ];
+            draw_status_layout(f, area, Some(msg_spans), entries, app.status_expanded);
         }
         Mode::CommitSearchInput => {
             draw_input_status(f, area, "Search Commits", &app.input_buffer);

@@ -142,8 +142,93 @@ pub fn draw(
     stashes_horizontal_split_pct: u16,
     stashes_vertical_split_pct: u16,
     overview_horizontal_split_pct: u16,
+    app: &crate::app::App,
     area: Rect,
 ) {
+    if app.in_logs_ui {
+        if let ItemDetail::Repo { info, .. } = detail {
+            let header_rows = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(1), // Title
+                    Constraint::Length(1), // Divider
+                    Constraint::Min(0),    // Commits list
+                ])
+                .split(area);
+
+            // Header: title left, branch right
+            let header_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(header_rows[0]);
+
+            let branch = info.branch.as_ref();
+            let header_left = Paragraph::new(Line::from(vec![
+                Span::styled(
+                    "▍ ",
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!("Logs - {}", item_name),
+                    primary_style().add_modifier(Modifier::BOLD),
+                ),
+            ]));
+            f.render_widget(header_left, header_chunks[0]);
+
+            if let Some(branch_name) = branch {
+                let header_right = Paragraph::new(Line::from(vec![
+                    Span::styled("  ", muted_style()),
+                    Span::styled(branch_name.as_str(), accent_style()),
+                    Span::raw("  "),
+                ]))
+                .alignment(Alignment::Right);
+                f.render_widget(header_right, header_chunks[1]);
+            }
+
+            // Divider
+            {
+                let w = area.width as usize;
+                let outer = (w / 10).max(2);
+                let inner = (w / 8).max(3);
+                let centre = w.saturating_sub(outer * 2 + inner * 2);
+                let divider_line = Line::from(vec![
+                    Span::styled(
+                        " ".repeat(outer),
+                        Style::default()
+                            .fg(ratatui::style::Color::DarkGray)
+                            .add_modifier(Modifier::DIM),
+                    ),
+                    Span::styled("┄".repeat(inner), muted_style().add_modifier(Modifier::DIM)),
+                    Span::styled("┈".repeat(centre), muted_style()),
+                    Span::styled("┄".repeat(inner), muted_style().add_modifier(Modifier::DIM)),
+                    Span::styled(
+                        " ".repeat(outer),
+                        Style::default()
+                            .fg(ratatui::style::Color::DarkGray)
+                            .add_modifier(Modifier::DIM),
+                    ),
+                ]);
+                f.render_widget(Paragraph::new(divider_line), header_rows[1]);
+            }
+
+            areas.commits = Some(header_rows[2]);
+            draw_logs_view(
+                f,
+                info,
+                commit_selection,
+                commit_search_query,
+                app,
+                header_rows[2],
+            );
+
+            // Draw SearchColumnPicker overlay if in that mode
+            if matches!(mode, Mode::SearchColumnPicker) {
+                draw_search_column_picker(f, app, area);
+            }
+        }
+        return;
+    }
+
     if mode == &Mode::Inspect {
         if let ItemDetail::Repo { info, .. } = detail {
             let dirty = !info.changes.staged.is_empty()
@@ -517,6 +602,10 @@ pub fn draw(
                     commit_input_scroll,
                     body_area,
                 );
+            }
+            // Draw search column picker popup on top when requested.
+            if matches!(mode, Mode::SearchColumnPicker) {
+                draw_search_column_picker(f, app, body_area);
             }
             // Draw branch create popup on top when requested.
             if matches!(mode, Mode::BranchCreateInput) {
@@ -1222,7 +1311,10 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
         "i",
         "Interactive rebase from selected commit (Workspace tab commits list)",
     ),
-    ("/", "Filter commits list by search query (Workspace tab)"),
+    (
+        "f",
+        "Open search column picker and go to logs (Workspace tab)",
+    ),
     ("d", "Delete selected branch (Branches) / tag (Tags)"),
     ("m", "Merge selected branch into current branch (Branches)"),
     ("r", "Rebase current branch onto selected branch (Branches)"),
@@ -3735,4 +3827,234 @@ fn draw_commit_details_widget(
         .scroll((scroll as u16, 0))
         .wrap(Wrap { trim: true });
     f.render_widget(paragraph, inner);
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
+    let vertical = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(area);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(vertical[1])[1]
+}
+
+fn draw_search_column_picker(f: &mut Frame, app: &crate::app::App, area: Rect) {
+    let popup_area = centered_rect(50, 30, area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(ACCENT()))
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Search Columns Selector", primary_style()),
+            Span::raw(" "),
+        ]));
+
+    let inner = block.inner(popup_area);
+    f.render_widget(Clear, popup_area);
+    f.render_widget(block, popup_area);
+
+    let vertical_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // Spacer
+            Constraint::Length(4), // Columns
+            Constraint::Min(0),    // Instructions
+        ])
+        .split(inner);
+
+    let columns = [
+        ("SHA", app.search_columns_sha),
+        ("Message", app.search_columns_message),
+        ("Author", app.search_columns_author),
+        ("Date", app.search_columns_date),
+    ];
+
+    let mut lines = Vec::new();
+    for (idx, (name, enabled)) in columns.iter().enumerate() {
+        let is_selected = idx == app.search_column_selection;
+        let checkbox = if *enabled { "[x]" } else { "[ ]" };
+
+        let checkbox_span = if *enabled {
+            Span::styled(
+                checkbox,
+                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+            )
+        } else {
+            Span::styled(checkbox, muted_style())
+        };
+
+        let style = if is_selected {
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+        };
+
+        let select_indicator = if is_selected { "▸ " } else { "  " };
+
+        lines.push(Line::from(vec![
+            Span::styled(select_indicator, style),
+            checkbox_span,
+            Span::raw(" "),
+            Span::styled(name.to_string(), style),
+        ]));
+    }
+
+    f.render_widget(Paragraph::new(lines), vertical_chunks[1]);
+
+    let instructions = Line::from(vec![
+        Span::styled(" [Space]", accent_style()),
+        Span::raw(" Toggle  "),
+        Span::styled("[Enter]", accent_style()),
+        Span::raw(" Confirm  "),
+        Span::styled("[Esc]", accent_style()),
+        Span::raw(" Cancel "),
+    ]);
+    f.render_widget(
+        Paragraph::new(instructions).alignment(Alignment::Center),
+        vertical_chunks[2],
+    );
+}
+
+fn draw_logs_view(
+    f: &mut Frame,
+    info: &RepoInfo,
+    commit_selection: usize,
+    _commit_search_query: &Option<String>,
+    app: &crate::app::App,
+    area: Rect,
+) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(ACCENT()))
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Git Commits Logs", primary_style()),
+            Span::raw(" "),
+        ]));
+
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+
+    if info.commits.is_empty() {
+        f.render_widget(
+            Paragraph::new(Span::styled("No commits yet", muted_style()))
+                .alignment(Alignment::Center),
+            inner,
+        );
+        return;
+    }
+
+    let header = Row::new(vec![
+        Cell::from("ID"),
+        Cell::from("Author"),
+        Cell::from("Date"),
+        Cell::from("Summary"),
+    ])
+    .style(Style::default().add_modifier(Modifier::BOLD).fg(ACCENT()));
+
+    let mut rows: Vec<Row> = Vec::new();
+    for (i, commit) in info.commits.iter().enumerate() {
+        let is_selected = i == commit_selection;
+        let is_match = app.commit_matches_query(commit);
+
+        let mut spans: Vec<Span<'static>> = Vec::new();
+        if is_match {
+            spans.push(Span::styled(
+                "★ ",
+                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+            ));
+        }
+
+        for r in &commit.refs {
+            let (label, style) = if let Some(tag) = r.strip_prefix("tag:") {
+                (
+                    format!("[{}]", tag),
+                    Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
+                )
+            } else if let Some(remote) = r.strip_prefix("remote:") {
+                (
+                    format!("[{}]", remote),
+                    Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+                )
+            } else {
+                (
+                    format!("[{}]", r),
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+                )
+            };
+            spans.push(Span::styled(label, style));
+            spans.push(Span::raw(" "));
+        }
+
+        let summary_style = if is_match {
+            Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+        };
+        spans.push(Span::styled(commit.summary.clone(), summary_style));
+
+        let mut row_style = Style::default();
+        if is_selected {
+            row_style = row_style.bg(ratatui::style::Color::Rgb(60, 60, 60));
+        }
+
+        rows.push(
+            Row::new(vec![
+                Cell::from(Span::styled(
+                    commit.id.clone(),
+                    if is_match {
+                        Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(WARNING())
+                    },
+                )),
+                Cell::from(Span::styled(
+                    commit.author.clone(),
+                    if is_match {
+                        Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default()
+                    },
+                )),
+                Cell::from(Span::styled(
+                    commit.when.clone(),
+                    if is_match {
+                        Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)
+                    } else {
+                        muted_style()
+                    },
+                )),
+                Cell::from(Line::from(spans)),
+            ])
+            .style(row_style),
+        );
+    }
+
+    let widths = [
+        Constraint::Length(9),
+        Constraint::Length(18),
+        Constraint::Length(16),
+        Constraint::Min(20),
+    ];
+
+    let mut state = TableState::default();
+    state.select(Some(commit_selection));
+
+    let table = Table::new(rows, widths).header(header).column_spacing(2);
+
+    f.render_stateful_widget(table, inner, &mut state);
 }
