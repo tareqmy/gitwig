@@ -427,6 +427,10 @@ impl App {
         app
     }
 
+    pub fn inspect_repo_detail(&self, item: &str) -> repo::ItemDetail {
+        repo::inspect_detail(item, self.config.max_commits)
+    }
+
     pub fn status_height(&self) -> u16 {
         if self.status_expanded { 3 } else { 1 }
     }
@@ -706,7 +710,7 @@ impl App {
                 }
             }
 
-            self.current_detail = Some(repo::inspect_detail(&item));
+            self.current_detail = Some(self.inspect_repo_detail(&item));
             self.detail_focus = DetailSection::Commits;
             self.commit_selection = 0;
             self.file_selection = 0;
@@ -1209,7 +1213,7 @@ impl App {
                                 Some(format!("Switched to branch '{}'", branch_info.name));
                             // Refresh detail snapshot
                             let item = &self.config.items[self.selected_index];
-                            self.current_detail = Some(repo::inspect_detail(item));
+                            self.current_detail = Some(self.inspect_repo_detail(item));
                             self.rebuild_visible_files();
                             self.local_branch_selection = 0;
                         }
@@ -1231,7 +1235,7 @@ impl App {
                         self.status_message = Some(msg);
                         // Refresh detail snapshot
                         let item = &self.config.items[self.selected_index];
-                        self.current_detail = Some(repo::inspect_detail(item));
+                        self.current_detail = Some(self.inspect_repo_detail(item));
                         self.rebuild_visible_files();
                         self.local_branch_selection = 0;
                     }
@@ -1286,7 +1290,7 @@ impl App {
                         self.status_message = Some(format!("Created tag '{}'", tag_name));
                         // Refresh detail view to display the new tag refs
                         let item = &self.config.items[self.selected_index];
-                        self.current_detail = Some(repo::inspect_detail(item));
+                        self.current_detail = Some(self.inspect_repo_detail(item));
                     }
                     Err(e) => {
                         self.status_message = Some(format!("Failed to create tag: {}", e));
@@ -1330,7 +1334,7 @@ impl App {
                 Ok(()) => {
                     self.status_message = Some(format!("Deleted local tag '{}'", tag_name));
                     let item = &self.config.items[self.selected_index];
-                    self.current_detail = Some(repo::inspect_detail(item));
+                    self.current_detail = Some(self.inspect_repo_detail(item));
                     self.rebuild_visible_files();
                     self.local_tag_selection = 0;
 
@@ -1536,7 +1540,7 @@ impl App {
                         }
                     }
                     let item = &self.config.items[self.selected_index];
-                    self.current_detail = Some(repo::inspect_detail(item));
+                    self.current_detail = Some(self.inspect_repo_detail(item));
                     self.rebuild_visible_files();
                     self.local_branch_selection = 0;
                 }
@@ -1595,7 +1599,7 @@ impl App {
                     Ok(()) => {
                         self.status_message = Some(format!("Deleted branch '{}'", branch_name));
                         let item = &self.config.items[self.selected_index];
-                        self.current_detail = Some(repo::inspect_detail(item));
+                        self.current_detail = Some(self.inspect_repo_detail(item));
                         self.rebuild_visible_files();
                         self.local_branch_selection = 0;
                         self.remote_branch_selection = 0;
@@ -2359,7 +2363,7 @@ impl App {
     /// Call this after any index-mutating operation (stage / unstage).
     pub fn refresh_detail(&mut self) {
         if let Some(item) = self.config.items.get(self.selected_index) {
-            self.current_detail = Some(repo::inspect_detail(item));
+            self.current_detail = Some(self.inspect_repo_detail(item));
             self.rebuild_visible_files();
             // Clamp staging_file_selection to the new list length.
             let new_total = self.staging_file_total();
@@ -2707,6 +2711,10 @@ impl App {
                 self.settings_editing = true;
                 self.input_buffer = self.config.fzf.start_dir.clone();
             }
+            6 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.max_commits.to_string();
+            }
             _ => {}
         }
     }
@@ -2773,6 +2781,16 @@ impl App {
                 self.persist("FZF start directory updated");
                 self.settings_editing = false;
                 self.input_buffer.clear();
+            }
+            6 => {
+                if let Ok(val) = trimmed.parse::<usize>() {
+                    self.config.max_commits = val;
+                    self.persist("Max commits updated");
+                    self.settings_editing = false;
+                    self.input_buffer.clear();
+                } else {
+                    self.status_message = Some("Invalid integer".to_string());
+                }
             }
             _ => {}
         }
@@ -3521,7 +3539,7 @@ impl App {
                         self.status_message =
                             Some(format!("Deleted stash@{{{}}}", index_to_delete));
                         let item = &self.config.items[self.selected_index];
-                        self.current_detail = Some(repo::inspect_detail(item));
+                        self.current_detail = Some(self.inspect_repo_detail(item));
                         self.rebuild_visible_files();
                         self.stash_selection = 0;
                         self.stash_file_selection = 0;
@@ -3569,7 +3587,7 @@ impl App {
                         }
                         self.status_message = Some(success_msg);
                         let item = &self.config.items[self.selected_index];
-                        self.current_detail = Some(repo::inspect_detail(item));
+                        self.current_detail = Some(self.inspect_repo_detail(item));
                         self.rebuild_visible_files();
                         self.stash_selection = 0;
                         self.stash_file_selection = 0;
@@ -3602,7 +3620,7 @@ impl App {
                             tag_info.name
                         ));
                         let item = &self.config.items[self.selected_index];
-                        self.current_detail = Some(repo::inspect_detail(item));
+                        self.current_detail = Some(self.inspect_repo_detail(item));
                         self.rebuild_visible_files();
                     }
                     Err(e) => {
@@ -3655,7 +3673,7 @@ where
                 app.status_message = Some(msg);
                 app.fetching = false;
                 if let Some(item) = app.config.items.get(app.selected_index) {
-                    app.current_detail = Some(repo::inspect_detail(item));
+                    app.current_detail = Some(app.inspect_repo_detail(item));
                     app.rebuild_visible_files();
                     if success_fetch {
                         app.fetch_remote_tags(false);
@@ -4065,6 +4083,7 @@ mod tests {
                 "m_repo".to_string(),
             ],
             poll_interval_ms: 100,
+            max_commits: 0,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4120,6 +4139,7 @@ mod tests {
         let config = Config {
             items: vec![],
             poll_interval_ms: 100,
+            max_commits: 0,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4227,6 +4247,7 @@ mod tests {
                 "m_repo".to_string(),
             ],
             poll_interval_ms: 100,
+            max_commits: 0,
             sort_by: SortOrder::Alphabetical,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4304,6 +4325,7 @@ mod tests {
         let config = Config {
             items: vec![],
             poll_interval_ms: 100,
+            max_commits: 0,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4342,6 +4364,7 @@ mod tests {
         let config = Config {
             items: vec![],
             poll_interval_ms: 100,
+            max_commits: 0,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4606,6 +4629,7 @@ mod tests {
         let config = Config {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
+            max_commits: 0,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4705,6 +4729,18 @@ mod tests {
         assert!(!app.settings_editing);
         assert_eq!(app.config.fzf.start_dir, "/some/path");
 
+        // Go down to Max Commits (index 6)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.settings_selected_index, 6);
+
+        // Edit Max Commits
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(app.settings_editing);
+        app.input_buffer = "100".to_string();
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(!app.settings_editing);
+        assert_eq!(app.config.max_commits, 100);
+
         // Press Esc to exit settings
         crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
         assert_eq!(app.mode, Mode::Normal);
@@ -4717,6 +4753,7 @@ mod tests {
         let config = Config {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
+            max_commits: 0,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4793,6 +4830,7 @@ mod tests {
         let config = Config {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
+            max_commits: 0,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4859,6 +4897,7 @@ mod tests {
         let config = Config {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
+            max_commits: 0,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4985,6 +5024,7 @@ mod tests {
         let config = Config {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
+            max_commits: 0,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -5014,6 +5054,7 @@ mod tests {
         let config = Config {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
+            max_commits: 0,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -5045,6 +5086,7 @@ mod tests {
         let config = Config {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
+            max_commits: 0,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,

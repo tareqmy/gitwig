@@ -400,7 +400,7 @@ pub fn inspect_summary(item: &str) -> ItemStatus {
 }
 
 /// Inspect `item` and produce the rich detail report shown on Enter.
-pub fn inspect_detail(item: &str) -> ItemDetail {
+pub fn inspect_detail(item: &str, commit_limit: usize) -> ItemDetail {
     let resolved = expand_tilde(item);
     if !resolved.is_dir() {
         return ItemDetail::Missing { resolved };
@@ -408,7 +408,7 @@ pub fn inspect_detail(item: &str) -> ItemDetail {
     if !resolved.join(".git").exists() {
         return ItemDetail::Directory { resolved };
     }
-    match collect_info(&resolved) {
+    match collect_info(&resolved, commit_limit) {
         Ok(info) => ItemDetail::Repo {
             resolved,
             info: Box::new(info),
@@ -432,7 +432,13 @@ fn collect_commits(
     walk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?;
 
     let mut commits = Vec::new();
-    for id in walk.take(limit) {
+    let oids: Vec<Result<git2::Oid, git2::Error>> = if limit > 0 {
+        walk.take(limit).collect()
+    } else {
+        walk.collect()
+    };
+
+    for id in oids {
         let oid = id?;
         if let Ok(commit) = repo.find_commit(oid) {
             let short_id = format!("{:.7}", commit.id());
@@ -552,7 +558,7 @@ fn commit_changed_files(repo: &Repository, commit: &git2::Commit) -> Vec<FileEnt
 
 // ── Internal collection ────────────────────────────────────────────────────
 
-fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
+fn collect_info(path: &Path, commit_limit: usize) -> Result<RepoInfo, git2::Error> {
     let mut repo = Repository::open(path)?;
     let summary = collect_summary(&repo);
     let mut info = RepoInfo {
@@ -616,7 +622,7 @@ fn collect_info(path: &Path) -> Result<RepoInfo, git2::Error> {
         }
     }
 
-    if let Ok(commits) = collect_commits(&repo, 50, &build_ref_map(&repo)) {
+    if let Ok(commits) = collect_commits(&repo, commit_limit, &build_ref_map(&repo)) {
         info.commits = commits;
     }
 
@@ -1633,7 +1639,7 @@ mod tests {
         std::fs::write(&nested_file_path, "nested untracked file").unwrap();
 
         // Inspect detail
-        let detail = inspect_detail(temp_path.to_str().unwrap());
+        let detail = inspect_detail(temp_path.to_str().unwrap(), 0);
         match detail {
             ItemDetail::Repo { info, .. } => {
                 // Verify no folders are in the unstaged/untracked list
@@ -1709,7 +1715,7 @@ mod tests {
         stage_file(&temp_path, "init.txt").unwrap();
 
         // Check status of repo
-        let detail = inspect_detail(temp_path.to_str().unwrap());
+        let detail = inspect_detail(temp_path.to_str().unwrap(), 0);
         match detail {
             ItemDetail::Repo { info, .. } => {
                 // Both should be in staged changes
@@ -1771,7 +1777,7 @@ mod tests {
         std::fs::write(&file_tracked, "staged modifications\n").unwrap();
         stage_file(&temp_path, "tracked.txt").unwrap();
         // verify it's staged
-        let detail = inspect_detail(temp_path.to_str().unwrap());
+        let detail = inspect_detail(temp_path.to_str().unwrap(), 0);
         match detail {
             ItemDetail::Repo { info, .. } => {
                 assert!(!info.changes.staged.is_empty());
@@ -1784,7 +1790,7 @@ mod tests {
             "original content\n"
         );
         // verify it's no longer staged/unstaged (it's clean)
-        let detail = inspect_detail(temp_path.to_str().unwrap());
+        let detail = inspect_detail(temp_path.to_str().unwrap(), 0);
         match detail {
             ItemDetail::Repo { info, .. } => {
                 assert!(info.changes.staged.is_empty());

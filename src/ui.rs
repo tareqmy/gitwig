@@ -801,22 +801,26 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Search Columns  ",
                     Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
                 ),
-                Span::styled("Choose columns to apply search on", muted_style()),
+                Span::styled("Choose columns to apply search on  ", muted_style()),
             ];
-            let entries = vec![
-                StatusEntry::new(vec![
-                    Span::styled("Space", accent_style()),
-                    Span::raw(" Toggle "),
-                ]),
-                StatusEntry::new(vec![
-                    Span::styled("↵ [Enter]", accent_style()),
-                    Span::raw(" Confirm & Search "),
-                ]),
-                StatusEntry::new(vec![
-                    Span::styled("⎋ [Esc] / q", accent_style()),
-                    Span::raw(" Cancel "),
-                ]),
+            let entries_data = [
+                ("Toggle", "Space"),
+                ("Confirm & Search", "Enter"),
+                ("Cancel", "Esc"),
             ];
+            let mut entries = Vec::new();
+            for (i, (label, key)) in entries_data.iter().enumerate() {
+                let mut spans = Vec::new();
+                if i > 0 {
+                    spans.push(Span::styled(" ", muted_style()));
+                }
+                spans.push(Span::raw((*label).to_string()));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("[", muted_style()));
+                spans.push(Span::styled((*key).to_string(), accent_style()));
+                spans.push(Span::styled("]", muted_style()));
+                entries.push(StatusEntry::new(spans));
+            }
             draw_status_layout(f, area, Some(msg_spans), entries, app.status_expanded);
         }
         Mode::LogsSearchInput => {
@@ -828,18 +832,25 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Logs UI  ",
                     Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
                 ),
-                Span::styled("Use arrow keys / j / k to navigate commits", muted_style()),
+                Span::styled(
+                    "Use arrow keys / j / k to navigate commits  ",
+                    muted_style(),
+                ),
             ];
-            let entries = vec![
-                StatusEntry::new(vec![
-                    Span::styled("f", accent_style()),
-                    Span::raw(" Search / Columns "),
-                ]),
-                StatusEntry::new(vec![
-                    Span::styled("⎋ [Esc] / q", accent_style()),
-                    Span::raw(" Back to Workspace "),
-                ]),
-            ];
+            let entries_data = [("Search / Columns", "f"), ("Back to Workspace", "Esc/q")];
+            let mut entries = Vec::new();
+            for (i, (label, key)) in entries_data.iter().enumerate() {
+                let mut spans = Vec::new();
+                if i > 0 {
+                    spans.push(Span::styled(" ", muted_style()));
+                }
+                spans.push(Span::raw((*label).to_string()));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("[", muted_style()));
+                spans.push(Span::styled((*key).to_string(), accent_style()));
+                spans.push(Span::styled("]", muted_style()));
+                entries.push(StatusEntry::new(spans));
+            }
             draw_status_layout(f, area, Some(msg_spans), entries, app.status_expanded);
         }
         Mode::CommitSearchInput => {
@@ -1657,7 +1668,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     let mut items = Vec::new();
 
-    for i in 0..6 {
+    for i in 0..7 {
         let is_selected = app.settings_selected_index == i;
 
         let label = match i {
@@ -1667,6 +1678,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             3 => "Theme Name",
             4 => "FZF Max Depth",
             5 => "FZF Start Dir",
+            6 => "Max Commits",
             _ => "",
         };
 
@@ -1677,6 +1689,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             3 => "Active theme configuration name. Press Enter/Space to select from dropdown.",
             4 => "Maximum directory depth to search for git repositories.",
             5 => "Starting directory for interactive repository discovery via FZF.",
+            6 => "Maximum commits to load in workspace view. Set to 0 for unlimited.",
             _ => "",
         };
 
@@ -1721,6 +1734,13 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
                     format!("{}█", app.input_buffer)
                 } else {
                     app.config.fzf.start_dir.clone()
+                }
+            }
+            6 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.max_commits.to_string()
                 }
             }
             _ => String::new(),

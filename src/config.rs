@@ -27,6 +27,10 @@ fn default_poll_interval_ms() -> u64 {
     100
 }
 
+fn default_max_commits() -> usize {
+    0
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct ThemeConfig {
     #[serde(default = "default_accent")]
@@ -147,6 +151,9 @@ pub struct Config {
     /// Lower → more responsive, higher → less CPU. Sane range: 16–500.
     #[serde(default = "default_poll_interval_ms")]
     pub poll_interval_ms: u64,
+    /// Maximum commits to load in workspace view. Default is 0 (unlimited).
+    #[serde(default = "default_max_commits")]
+    pub max_commits: usize,
     /// Sort mode for the main page.
     #[serde(default = "default_sort_by")]
     pub sort_by: SortOrder,
@@ -237,6 +244,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
             Config {
                 items: vec![],
                 poll_interval_ms: default_poll_interval_ms(),
+                max_commits: default_max_commits(),
                 sort_by: default_sort_by(),
                 visits: default_visits(),
                 sort_reverse: false,
@@ -313,6 +321,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
             "Still looking... it's not here either.".to_string(),
         ],
         poll_interval_ms: default_poll_interval_ms(),
+        max_commits: default_max_commits(),
         sort_by: default_sort_by(),
         visits: default_visits(),
         sort_reverse: false,
