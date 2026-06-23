@@ -4476,4 +4476,72 @@ mod tests {
         assert_eq!(app.mode, Mode::Inspect);
         assert_eq!(app.detail_focus, DetailSection::Staged);
     }
+
+    #[test]
+    fn test_commit_enter_key_inspect() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_inspect_enter.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Open details view and focus Commits section
+        app.mode = Mode::Detail;
+        app.detail_tab = 0;
+        app.detail_focus = DetailSection::Commits;
+
+        let mut changes = crate::repo::WorktreeChanges::default();
+        changes.staged.push(crate::repo::FileEntry {
+            path: "dummy.txt".to_string(),
+            label: "M",
+        });
+        let info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary::default(),
+            changes,
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: PathBuf::from("."),
+            info: Box::new(info),
+        });
+        app.commit_selection = 0;
+
+        // Verify we are not in Inspect mode
+        assert_ne!(app.mode, Mode::Inspect);
+
+        // Press Enter on Commits section
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(handled);
+
+        // Verify we transitioned to Inspect mode and focused Staged files list
+        assert_eq!(app.mode, Mode::Inspect);
+        assert_eq!(app.detail_focus, DetailSection::Staged);
+    }
 }

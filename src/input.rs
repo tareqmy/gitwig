@@ -286,7 +286,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     }
                 }
                 KeyCode::Char('w') | KeyCode::Char('W') => app.cycle_detail_focus(),
-                KeyCode::Right if detail_focus == DetailSection::Commits => {
+                KeyCode::Right | KeyCode::Enter if detail_focus == DetailSection::Commits => {
                     app.mode = Mode::Inspect;
                     if app.is_uncommitted_selected() {
                         app.detail_focus = DetailSection::Staged;
