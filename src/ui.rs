@@ -142,6 +142,8 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("↓ [Down] / j", "Move selection down / scroll down"),
     ("⇟ [PgDn]", "Jump one page down / page down"),
     ("⇞ [PgUp]", "Jump one page up / page up"),
+    ("Home", "Go to top / scroll to top"),
+    ("End", "Go to bottom / scroll to bottom"),
     (
         "↵ [Enter]",
         "Open detail view for selected item / stage file",
@@ -833,7 +835,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
-                    "Use arrow keys / PgUp / PgDn to navigate commits  ",
+                    "Use arrow keys / PgUp / PgDn / Home / End to navigate commits  ",
                     muted_style(),
                 ),
             ];
