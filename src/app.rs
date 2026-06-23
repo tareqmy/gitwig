@@ -142,6 +142,26 @@ impl DetailSection {
             Self::StashedFiles => Self::StashedFiles,
         }
     }
+
+    /// Move back to the previous section in the cycle.
+    pub fn prev(self) -> Self {
+        match self {
+            Self::Commits => Self::StagingDetails,
+            Self::Staged => Self::Commits,
+            Self::Unstaged => Self::Staged,
+            Self::CommitDetails => Self::Unstaged,
+            Self::StagingDetails => Self::CommitDetails,
+            Self::LocalBranches => Self::RemoteBranches,
+            Self::RemoteBranches => Self::LocalBranches,
+            Self::LocalTags => Self::RemoteTags,
+            Self::RemoteTags => Self::LocalTags,
+            Self::Files => Self::FileContent,
+            Self::FileContent => Self::Files,
+            Self::Remotes => Self::Remotes,
+            Self::Stashes => Self::Stashes,
+            Self::StashedFiles => Self::StashedFiles,
+        }
+    }
 }
 
 /// All mutable session state.
@@ -685,7 +705,7 @@ impl App {
     }
 
     /// Advance focus to the next detail panel (Tab key).
-    pub fn cycle_detail_focus(&mut self) {
+    pub fn cycle_detail_focus(&mut self, reverse: bool) {
         if self.detail_tab == 3 {
             self.detail_focus = match self.detail_focus {
                 DetailSection::LocalBranches => DetailSection::RemoteBranches,
@@ -708,19 +728,56 @@ impl App {
             return;
         }
         if self.detail_tab == 6 {
-            self.detail_focus = match self.detail_focus {
-                DetailSection::Stashes => DetailSection::StashedFiles,
-                DetailSection::StashedFiles => DetailSection::StagingDetails,
-                _ => DetailSection::Stashes,
+            self.detail_focus = if reverse {
+                match self.detail_focus {
+                    DetailSection::Stashes => DetailSection::StagingDetails,
+                    DetailSection::StagingDetails => DetailSection::StashedFiles,
+                    _ => DetailSection::Stashes,
+                }
+            } else {
+                match self.detail_focus {
+                    DetailSection::Stashes => DetailSection::StashedFiles,
+                    DetailSection::StashedFiles => DetailSection::StagingDetails,
+                    _ => DetailSection::Stashes,
+                }
             };
             return;
         }
-        self.detail_focus = self.detail_focus.next();
-        if !self.is_uncommitted_selected() && self.detail_focus == DetailSection::Unstaged {
-            self.detail_focus = self.detail_focus.next();
-        }
-        if self.is_uncommitted_selected() && self.detail_focus == DetailSection::CommitDetails {
-            self.detail_focus = self.detail_focus.next();
+        if self.detail_tab == 0 {
+            let mut next_focus = if reverse {
+                self.detail_focus.prev()
+            } else {
+                self.detail_focus.next()
+            };
+            for _ in 0..5 {
+                let skip = match next_focus {
+                    DetailSection::Staged => self.is_staged_empty(),
+                    DetailSection::Unstaged => {
+                        self.is_unstaged_empty() || !self.is_uncommitted_selected()
+                    }
+                    DetailSection::CommitDetails => self.is_uncommitted_selected(),
+                    DetailSection::StagingDetails => {
+                        self.is_staged_empty() && self.is_unstaged_empty()
+                    }
+                    _ => false,
+                };
+                if skip {
+                    next_focus = if reverse {
+                        next_focus.prev()
+                    } else {
+                        next_focus.next()
+                    };
+                } else {
+                    break;
+                }
+            }
+            self.detail_focus = next_focus;
+        } else {
+            self.detail_focus = if reverse {
+                self.detail_focus.prev()
+            } else {
+                self.detail_focus.next()
+            };
         }
         if self.detail_focus == DetailSection::Staged
             || self.detail_focus == DetailSection::Unstaged
@@ -2076,6 +2133,20 @@ impl App {
                 show_dirty && self.commit_selection == 0
             }
             _ => false,
+        }
+    }
+
+    pub fn is_staged_empty(&self) -> bool {
+        match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => info.changes.staged.is_empty(),
+            _ => true,
+        }
+    }
+
+    pub fn is_unstaged_empty(&self) -> bool {
+        match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => info.changes.unstaged.is_empty(),
+            _ => true,
         }
     }
 
@@ -4543,5 +4614,129 @@ mod tests {
         // Verify we transitioned to Inspect mode and focused Staged files list
         assert_eq!(app.mode, Mode::Inspect);
         assert_eq!(app.detail_focus, DetailSection::Staged);
+    }
+
+    #[test]
+    fn test_workspace_tab_focus_cycle_skips_empty_panels() {
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_cycle.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // 1. Uncommitted selected, Staged is not empty, Unstaged is empty
+        app.mode = Mode::Detail;
+        app.detail_tab = 0;
+        app.detail_focus = DetailSection::Commits;
+
+        let mut changes = crate::repo::WorktreeChanges::default();
+        changes.staged.push(crate::repo::FileEntry {
+            path: "staged_file.txt".to_string(),
+            label: "M",
+        });
+        // Unstaged is empty
+        let info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary::default(),
+            changes,
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: PathBuf::from("."),
+            info: Box::new(info),
+        });
+        app.commit_selection = 0; // index 0 is "<uncommitted>"
+
+        // We cycle from Commits -> Staged (since Staged is not empty)
+        app.cycle_detail_focus(false);
+        assert_eq!(app.detail_focus, DetailSection::Staged);
+
+        // Cycle from Staged -> StagingDetails (skips empty Unstaged, skips CommitDetails because uncommitted is selected)
+        app.cycle_detail_focus(false);
+        assert_eq!(app.detail_focus, DetailSection::StagingDetails);
+
+        // Cycle from StagingDetails -> Commits
+        app.cycle_detail_focus(false);
+        assert_eq!(app.detail_focus, DetailSection::Commits);
+
+        // Cycle reverse: Commits -> StagingDetails
+        app.cycle_detail_focus(true);
+        assert_eq!(app.detail_focus, DetailSection::StagingDetails);
+
+        // Cycle reverse: StagingDetails -> Staged
+        app.cycle_detail_focus(true);
+        assert_eq!(app.detail_focus, DetailSection::Staged);
+
+        // Cycle reverse: Staged -> Commits
+        app.cycle_detail_focus(true);
+        assert_eq!(app.detail_focus, DetailSection::Commits);
+
+        // 2. Regular commit selected (is_uncommitted_selected is false)
+        // With a regular commit, staged & unstaged are empty.
+        app.commit_selection = 1; // Not uncommitted
+
+        let empty_info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary::default(),
+            changes: crate::repo::WorktreeChanges::default(),
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: PathBuf::from("."),
+            info: Box::new(empty_info),
+        });
+
+        // We cycle from Commits -> CommitDetails (skips empty Staged and empty Unstaged)
+        app.cycle_detail_focus(false);
+        assert_eq!(app.detail_focus, DetailSection::CommitDetails);
+
+        // Cycle from CommitDetails -> Commits (skips empty StagingDetails because staged & unstaged are empty)
+        app.cycle_detail_focus(false);
+        assert_eq!(app.detail_focus, DetailSection::Commits);
+
+        // Cycle reverse: Commits -> CommitDetails
+        app.cycle_detail_focus(true);
+        assert_eq!(app.detail_focus, DetailSection::CommitDetails);
+
+        // Cycle reverse: CommitDetails -> Commits
+        app.cycle_detail_focus(true);
+        assert_eq!(app.detail_focus, DetailSection::Commits);
     }
 }
