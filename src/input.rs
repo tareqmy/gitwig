@@ -46,7 +46,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('e') => app.start_edit(),
             KeyCode::Char('d') => app.request_delete(),
             KeyCode::Char('?') => app.open_help(),
-            KeyCode::Char('r') => app.refresh_selected_status(),
+            KeyCode::Char('R') => app.refresh_selected_status(),
             KeyCode::Char('o') => app.cycle_sort_order(),
             KeyCode::Char('O') => app.toggle_sort_reverse(),
             KeyCode::Char('p') => app.toggle_pin_selected(),
