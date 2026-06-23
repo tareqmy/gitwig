@@ -887,8 +887,6 @@ fn draw_staging_panels(
         focus == DetailSection::Staged,
         if focus == DetailSection::Staged {
             Some(staging_file_selection)
-        } else if focus == DetailSection::Commits && !changes.staged.is_empty() {
-            Some(0)
         } else {
             None
         },
@@ -904,11 +902,6 @@ fn draw_staging_panels(
         focus == DetailSection::Unstaged,
         if focus == DetailSection::Unstaged {
             Some(staging_file_selection)
-        } else if focus == DetailSection::Commits
-            && changes.staged.is_empty()
-            && !changes.unstaged.is_empty()
-        {
-            Some(0)
         } else {
             None
         },
@@ -3579,7 +3572,11 @@ fn draw_inspect_window(
         let list =
             List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
         let mut state = ListState::default();
-        state.select(Some(file_selection));
+        if left_focused {
+            state.select(Some(file_selection));
+        } else {
+            state.select(None);
+        }
         f.render_stateful_widget(list, left_inner, &mut state);
     }
 
