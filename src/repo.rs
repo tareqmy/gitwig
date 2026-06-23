@@ -1181,12 +1181,17 @@ fn collect_graph_lines(repo_path: &Path) -> Vec<GraphLine> {
 }
 
 pub fn checkout_local_branch(repo_path: &Path, branch_name: &str) -> Result<(), git2::Error> {
-    let repo = Repository::open(repo_path)?;
-    let ref_name = format!("refs/heads/{}", branch_name);
-    repo.set_head(&ref_name)?;
-    let mut opts = git2::build::CheckoutBuilder::new();
-    // Default strategy is safe checkout, which fails if there are conflicts/unstaged changes
-    repo.checkout_head(Some(&mut opts))?;
+    let output = std::process::Command::new("git")
+        .arg("checkout")
+        .arg(branch_name)
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| git2::Error::from_str(&e.to_string()))?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(git2::Error::from_str(&err));
+    }
     Ok(())
 }
 
@@ -1194,42 +1199,40 @@ pub fn checkout_remote_branch(
     repo_path: &Path,
     remote_branch_name: &str,
 ) -> Result<String, git2::Error> {
-    let repo = Repository::open(repo_path)?;
     let parts: Vec<&str> = remote_branch_name.splitn(2, '/').collect();
     if parts.len() < 2 {
         return Err(git2::Error::from_str("Invalid remote branch name"));
     }
     let local_name = parts[1];
 
-    let ref_name = format!("refs/heads/{}", local_name);
-    let mut exists = false;
-    if repo
-        .find_branch(local_name, git2::BranchType::Local)
-        .is_ok()
-    {
-        exists = true;
+    let output = std::process::Command::new("git")
+        .arg("checkout")
+        .arg(local_name)
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| git2::Error::from_str(&e.to_string()))?;
+
+    if output.status.success() {
+        return Ok(format!("Switched to existing branch '{}'", local_name));
     }
 
-    if !exists {
-        let full_remote_ref = format!("refs/remotes/{}", remote_branch_name);
-        let remote_ref = repo.find_reference(&full_remote_ref)?;
-        let target_commit = remote_ref.peel_to_commit()?;
-        let mut local_branch = repo.branch(local_name, &target_commit, false)?;
-        local_branch.set_upstream(Some(remote_branch_name))?;
+    let output = std::process::Command::new("git")
+        .arg("checkout")
+        .arg("--track")
+        .arg(remote_branch_name)
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| git2::Error::from_str(&e.to_string()))?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(git2::Error::from_str(&err));
     }
 
-    repo.set_head(&ref_name)?;
-    let mut opts = git2::build::CheckoutBuilder::new();
-    repo.checkout_head(Some(&mut opts))?;
-
-    if exists {
-        Ok(format!("Switched to existing branch '{}'", local_name))
-    } else {
-        Ok(format!(
-            "Created and switched to branch '{}' tracking '{}'",
-            local_name, remote_branch_name
-        ))
-    }
+    Ok(format!(
+        "Created and switched to branch '{}' tracking '{}'",
+        local_name, remote_branch_name
+    ))
 }
 
 /// Creates a new local branch pointing at HEAD.
@@ -1297,13 +1300,18 @@ pub fn delete_remote_tag(
     Ok(())
 }
 
-/// Checks out a tag.
 pub fn checkout_tag(repo_path: &Path, tag_name: &str) -> Result<(), git2::Error> {
-    let repo = Repository::open(repo_path)?;
-    let ref_name = format!("refs/tags/{}", tag_name);
-    repo.set_head(&ref_name)?;
-    let mut opts = git2::build::CheckoutBuilder::new();
-    repo.checkout_head(Some(&mut opts))?;
+    let output = std::process::Command::new("git")
+        .arg("checkout")
+        .arg(tag_name)
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| git2::Error::from_str(&e.to_string()))?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(git2::Error::from_str(&err));
+    }
     Ok(())
 }
 
