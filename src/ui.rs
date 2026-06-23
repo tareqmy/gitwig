@@ -1666,9 +1666,22 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     let inner_rect = block.inner(popup_area);
 
+    // Calculate scroll offset based on the selected setting to keep it visible
+    let total_height = 8 * 3; // 8 items, 3 lines each
+    let viewport_height = inner_rect.height as usize;
+    let scroll_y = if viewport_height >= total_height {
+        0
+    } else {
+        let item_center = app.settings_selected_index * 3 + 1;
+        let half_viewport = viewport_height / 2;
+        let target_scroll = item_center.saturating_sub(half_viewport);
+        let max_scroll = total_height.saturating_sub(viewport_height);
+        target_scroll.min(max_scroll)
+    };
+
     let mut items = Vec::new();
 
-    for i in 0..7 {
+    for i in 0..8 {
         let is_selected = app.settings_selected_index == i;
 
         let label = match i {
@@ -1679,6 +1692,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             4 => "FZF Max Depth",
             5 => "FZF Start Dir",
             6 => "Max Commits",
+            7 => "Page Size",
             _ => "",
         };
 
@@ -1690,6 +1704,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             4 => "Maximum directory depth to search for git repositories.",
             5 => "Starting directory for interactive repository discovery via FZF.",
             6 => "Maximum commits to load in workspace view. Set to 0 for unlimited.",
+            7 => "Number of lines/items scrolled by Page Up / Page Down.",
             _ => "",
         };
 
@@ -1741,6 +1756,13 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
                     format!("{}█", app.input_buffer)
                 } else {
                     app.config.max_commits.to_string()
+                }
+            }
+            7 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.page_size.to_string()
                 }
             }
             _ => String::new(),
@@ -1798,7 +1820,8 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     let paragraph = Paragraph::new(items)
         .block(Block::default().padding(Padding::horizontal(1)))
-        .alignment(Alignment::Left);
+        .alignment(Alignment::Left)
+        .scroll((scroll_y as u16, 0));
 
     f.render_widget(paragraph, inner_rect);
 
@@ -1808,9 +1831,10 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         let dropdown_height = (app.settings_theme_list.len() + 2) as u16;
 
         // Position it near the theme name row
-        // Theme name row index is 3, so its y coordinate starts at inner_rect.y + 9
+        // Theme name row index is 3, so its relative y coordinate starts at 9
+        // Adjusted by scroll_y
         let dropdown_x = inner_rect.x + 25;
-        let dropdown_y = inner_rect.y + 10;
+        let dropdown_y = (inner_rect.y + 10).saturating_sub(scroll_y as u16);
 
         let dropdown_area = Rect::new(
             dropdown_x.min(area.right().saturating_sub(dropdown_width)),
@@ -1850,7 +1874,8 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     }
 
     if app.settings_editing && app.settings_selected_index != 3 {
-        let cursor_y = inner_rect.y + (app.settings_selected_index * 3) as u16;
+        let cursor_y = inner_rect.y
+            + ((app.settings_selected_index * 3) as u16).saturating_sub(scroll_y as u16);
         let cursor_x = inner_rect.x + 1 + 32 + app.input_buffer.chars().count() as u16;
         f.set_cursor_position(Position::new(cursor_x, cursor_y));
     }

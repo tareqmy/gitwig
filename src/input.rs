@@ -38,8 +38,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('q') | KeyCode::Esc => return false,
             KeyCode::Down | KeyCode::Char('j') => app.move_down(visible_count),
             KeyCode::Up | KeyCode::Char('k') => app.move_up(),
-            KeyCode::PageDown => app.page_down(visible_count),
-            KeyCode::PageUp => app.page_up(visible_count),
+            KeyCode::PageDown => app.page_down(app.config.page_size),
+            KeyCode::PageUp => app.page_up(app.config.page_size),
+            KeyCode::Home => app.move_to_top(),
+            KeyCode::End => app.move_to_bottom(visible_count),
             KeyCode::Char('a') => app.start_add(),
             KeyCode::Char('e') => app.start_edit(),
             KeyCode::Char('d') => app.request_delete(),
@@ -83,7 +85,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     KeyCode::Esc => app.mode = Mode::Normal,
                     KeyCode::Char('q') if !app.settings_editing => app.mode = Mode::Normal,
                     KeyCode::Down | KeyCode::Char('j') if !app.settings_editing => {
-                        if app.settings_selected_index + 1 < 7 {
+                        if app.settings_selected_index + 1 < 8 {
                             app.settings_selected_index += 1;
                         }
                     }
@@ -212,10 +214,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.help_scroll_down();
             }
             KeyCode::PageUp => {
-                app.help_scroll_page_up(10);
+                app.help_scroll_page_up(app.config.page_size);
             }
             KeyCode::PageDown => {
-                app.help_scroll_page_down(10);
+                app.help_scroll_page_down(app.config.page_size);
+            }
+            KeyCode::Home => {
+                app.help_scroll_to_top();
+            }
+            KeyCode::End => {
+                app.help_scroll_to_bottom();
             }
             _ => {}
         },
@@ -326,10 +334,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.detail_commit_down()
                 }
                 KeyCode::PageUp if detail_focus == DetailSection::Commits => {
-                    app.detail_commit_page_up(10)
+                    app.detail_commit_page_up(app.config.page_size)
                 }
                 KeyCode::PageDown if detail_focus == DetailSection::Commits => {
-                    app.detail_commit_page_down(10)
+                    app.detail_commit_page_down(app.config.page_size)
+                }
+                KeyCode::Home if detail_focus == DetailSection::Commits => {
+                    app.detail_commit_to_top()
+                }
+                KeyCode::End if detail_focus == DetailSection::Commits => {
+                    app.detail_commit_to_bottom()
                 }
                 KeyCode::Up | KeyCode::Char('k')
                     if detail_focus == DetailSection::Staged
@@ -379,10 +393,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.diff_scroll_down()
                 }
                 KeyCode::PageUp if detail_focus == DetailSection::StagingDetails => {
-                    app.diff_scroll_page_up(10)
+                    app.diff_scroll_page_up(app.config.page_size)
                 }
                 KeyCode::PageDown if detail_focus == DetailSection::StagingDetails => {
-                    app.diff_scroll_page_down(10)
+                    app.diff_scroll_page_down(app.config.page_size)
+                }
+                KeyCode::Home if detail_focus == DetailSection::StagingDetails => {
+                    app.diff_scroll_to_top()
+                }
+                KeyCode::End if detail_focus == DetailSection::StagingDetails => {
+                    app.diff_scroll_to_bottom()
                 }
                 KeyCode::Up | KeyCode::Char('k')
                     if detail_focus == DetailSection::CommitDetails =>
@@ -418,16 +438,30 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 KeyCode::PageUp => {
                     if app.detail_focus == DetailSection::FileContent {
-                        app.file_content_scroll_page_up(10);
+                        app.file_content_scroll_page_up(app.config.page_size);
                     } else {
-                        app.file_list_page_up(10);
+                        app.file_list_page_up(app.config.page_size);
                     }
                 }
                 KeyCode::PageDown => {
                     if app.detail_focus == DetailSection::FileContent {
-                        app.file_content_scroll_page_down(10);
+                        app.file_content_scroll_page_down(app.config.page_size);
                     } else {
-                        app.file_list_page_down(10);
+                        app.file_list_page_down(app.config.page_size);
+                    }
+                }
+                KeyCode::Home => {
+                    if app.detail_focus == DetailSection::FileContent {
+                        app.file_content_scroll_to_top();
+                    } else {
+                        app.file_list_to_top();
+                    }
+                }
+                KeyCode::End => {
+                    if app.detail_focus == DetailSection::FileContent {
+                        app.file_content_scroll_to_bottom();
+                    } else {
+                        app.file_list_to_bottom();
                     }
                 }
                 KeyCode::Char('>') | KeyCode::Char('.') | KeyCode::Right
@@ -445,8 +479,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             _ if app.detail_tab == 2 => match code {
                 KeyCode::Up | KeyCode::Char('k') => app.graph_scroll_up(),
                 KeyCode::Down | KeyCode::Char('j') => app.graph_scroll_down(),
-                KeyCode::PageUp => app.graph_scroll_page_up(10),
-                KeyCode::PageDown => app.graph_scroll_page_down(10),
+                KeyCode::PageUp => app.graph_scroll_page_up(app.config.page_size),
+                KeyCode::PageDown => app.graph_scroll_page_down(app.config.page_size),
+                KeyCode::Home => app.graph_scroll_to_top(),
+                KeyCode::End => app.graph_scroll_to_bottom(),
                 _ => {}
             },
             _ if app.detail_tab == 3 => match code {
@@ -495,16 +531,30 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 KeyCode::PageUp => {
                     if app.detail_focus == DetailSection::LocalBranches {
-                        app.local_branch_page_up(10);
+                        app.local_branch_page_up(app.config.page_size);
                     } else {
-                        app.remote_branch_page_up(10);
+                        app.remote_branch_page_up(app.config.page_size);
                     }
                 }
                 KeyCode::PageDown => {
                     if app.detail_focus == DetailSection::LocalBranches {
-                        app.local_branch_page_down(10);
+                        app.local_branch_page_down(app.config.page_size);
                     } else {
-                        app.remote_branch_page_down(10);
+                        app.remote_branch_page_down(app.config.page_size);
+                    }
+                }
+                KeyCode::Home => {
+                    if app.detail_focus == DetailSection::LocalBranches {
+                        app.local_branch_to_top();
+                    } else {
+                        app.remote_branch_to_top();
+                    }
+                }
+                KeyCode::End => {
+                    if app.detail_focus == DetailSection::LocalBranches {
+                        app.local_branch_to_bottom();
+                    } else {
+                        app.remote_branch_to_bottom();
                     }
                 }
                 KeyCode::Left => app.move_focus_left(),
@@ -522,10 +572,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.local_tag_down();
                 }
                 KeyCode::PageUp => {
-                    app.local_tag_page_up(10);
+                    app.local_tag_page_up(app.config.page_size);
                 }
                 KeyCode::PageDown => {
-                    app.local_tag_page_down(10);
+                    app.local_tag_page_down(app.config.page_size);
+                }
+                KeyCode::Home => {
+                    app.local_tag_to_top();
+                }
+                KeyCode::End => {
+                    app.local_tag_to_bottom();
                 }
                 KeyCode::Char('d') | KeyCode::Char('D') => {
                     app.request_tag_delete();
@@ -546,10 +602,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.remote_down();
                 }
                 KeyCode::PageUp => {
-                    app.remote_page_up(10);
+                    app.remote_page_up(app.config.page_size);
                 }
                 KeyCode::PageDown => {
-                    app.remote_page_down(10);
+                    app.remote_page_down(app.config.page_size);
+                }
+                KeyCode::Home => {
+                    app.remote_to_top();
+                }
+                KeyCode::End => {
+                    app.remote_to_bottom();
                 }
                 // f / F — fetch remote tags from the selected remote
                 KeyCode::Char('f') | KeyCode::Char('F') => {
@@ -606,15 +668,29 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     _ => {}
                 },
                 KeyCode::PageUp => match detail_focus {
-                    DetailSection::Stashes => app.stash_page_up(10),
-                    DetailSection::StashedFiles => app.stash_file_page_up(10),
-                    DetailSection::StagingDetails => app.diff_scroll_page_up(10),
+                    DetailSection::Stashes => app.stash_page_up(app.config.page_size),
+                    DetailSection::StashedFiles => app.stash_file_page_up(app.config.page_size),
+                    DetailSection::StagingDetails => app.diff_scroll_page_up(app.config.page_size),
                     _ => {}
                 },
                 KeyCode::PageDown => match detail_focus {
-                    DetailSection::Stashes => app.stash_page_down(10),
-                    DetailSection::StashedFiles => app.stash_file_page_down(10),
-                    DetailSection::StagingDetails => app.diff_scroll_page_down(10),
+                    DetailSection::Stashes => app.stash_page_down(app.config.page_size),
+                    DetailSection::StashedFiles => app.stash_file_page_down(app.config.page_size),
+                    DetailSection::StagingDetails => {
+                        app.diff_scroll_page_down(app.config.page_size)
+                    }
+                    _ => {}
+                },
+                KeyCode::Home => match detail_focus {
+                    DetailSection::Stashes => app.stash_to_top(),
+                    DetailSection::StashedFiles => app.stash_file_to_top(),
+                    DetailSection::StagingDetails => app.diff_scroll_to_top(),
+                    _ => {}
+                },
+                KeyCode::End => match detail_focus {
+                    DetailSection::Stashes => app.stash_to_bottom(),
+                    DetailSection::StashedFiles => app.stash_file_to_bottom(),
+                    DetailSection::StagingDetails => app.diff_scroll_to_bottom(),
                     _ => {}
                 },
                 _ => {}
@@ -799,20 +875,20 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     || app.detail_focus == DetailSection::Unstaged
                 {
                     if app.is_uncommitted_selected() {
-                        for _ in 0..10 {
+                        for _ in 0..app.config.page_size {
                             app.staging_file_up();
                         }
                     } else {
-                        for _ in 0..10 {
+                        for _ in 0..app.config.page_size {
                             app.detail_file_up();
                         }
                     }
                 } else if app.detail_focus == DetailSection::CommitDetails {
-                    for _ in 0..10 {
+                    for _ in 0..app.config.page_size {
                         app.commit_details_scroll_up();
                     }
                 } else {
-                    app.diff_scroll_page_up(10);
+                    app.diff_scroll_page_up(app.config.page_size);
                 }
             }
             KeyCode::PageDown => {
@@ -820,20 +896,50 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     || app.detail_focus == DetailSection::Unstaged
                 {
                     if app.is_uncommitted_selected() {
-                        for _ in 0..10 {
+                        for _ in 0..app.config.page_size {
                             app.staging_file_down();
                         }
                     } else {
-                        for _ in 0..10 {
+                        for _ in 0..app.config.page_size {
                             app.detail_file_down();
                         }
                     }
                 } else if app.detail_focus == DetailSection::CommitDetails {
-                    for _ in 0..10 {
+                    for _ in 0..app.config.page_size {
                         app.commit_details_scroll_down();
                     }
                 } else {
-                    app.diff_scroll_page_down(10);
+                    app.diff_scroll_page_down(app.config.page_size);
+                }
+            }
+            KeyCode::Home => {
+                if app.detail_focus == DetailSection::Staged
+                    || app.detail_focus == DetailSection::Unstaged
+                {
+                    if app.is_uncommitted_selected() {
+                        app.staging_file_selection = 0;
+                    } else {
+                        app.file_selection = 0;
+                    }
+                } else if app.detail_focus == DetailSection::CommitDetails {
+                    app.commit_details_scroll = 0;
+                } else {
+                    app.diff_scroll_to_top();
+                }
+            }
+            KeyCode::End => {
+                if app.detail_focus == DetailSection::Staged
+                    || app.detail_focus == DetailSection::Unstaged
+                {
+                    if app.is_uncommitted_selected() {
+                        app.staging_file_selection = app.staging_file_total().saturating_sub(1);
+                    } else {
+                        app.file_selection = app.file_total().saturating_sub(1);
+                    }
+                } else if app.detail_focus == DetailSection::CommitDetails {
+                    app.commit_details_scroll = usize::MAX;
+                } else {
+                    app.diff_scroll_to_bottom();
                 }
             }
             KeyCode::Enter if app.is_uncommitted_selected() => {
@@ -864,10 +970,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.help_scroll_down();
             }
             KeyCode::PageUp => {
-                app.help_scroll_page_up(10);
+                app.help_scroll_page_up(app.config.page_size);
             }
             KeyCode::PageDown => {
-                app.help_scroll_page_down(10);
+                app.help_scroll_page_down(app.config.page_size);
+            }
+            KeyCode::Home => {
+                app.help_scroll_to_top();
+            }
+            KeyCode::End => {
+                app.help_scroll_to_bottom();
             }
             _ => {}
         },
@@ -926,8 +1038,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         Mode::Logs => match code {
             KeyCode::Up => app.detail_commit_up(),
             KeyCode::Down => app.detail_commit_down(),
-            KeyCode::PageUp => app.detail_commit_page_up(10),
-            KeyCode::PageDown => app.detail_commit_page_down(10),
+            KeyCode::PageUp => app.detail_commit_page_up(app.config.page_size),
+            KeyCode::PageDown => app.detail_commit_page_down(app.config.page_size),
+            KeyCode::Home => app.detail_commit_to_top(),
+            KeyCode::End => app.detail_commit_to_bottom(),
             KeyCode::Char('f') => {
                 app.search_column_selection = 0;
                 app.mode = Mode::SearchColumnPicker;

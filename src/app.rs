@@ -514,6 +514,18 @@ impl App {
         self.scroll_top = self.selected_index;
     }
 
+    pub fn move_to_top(&mut self) {
+        self.selected_index = 0;
+        self.scroll_top = 0;
+    }
+
+    pub fn move_to_bottom(&mut self, visible_count: usize) {
+        if !self.config.items.is_empty() {
+            self.selected_index = self.config.items.len() - 1;
+            self.scroll_top = self.selected_index.saturating_sub(visible_count - 1);
+        }
+    }
+
     pub fn start_add(&mut self) {
         self.pending_fzf = true;
     }
@@ -944,6 +956,45 @@ impl App {
         if total > 0 {
             self.file_list_selection =
                 (self.file_list_selection + page).min(total.saturating_sub(1));
+            self.file_content_scroll = 0;
+        }
+    }
+
+    pub fn local_branch_to_top(&mut self) {
+        self.local_branch_selection = 0;
+    }
+
+    pub fn local_branch_to_bottom(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.local_branches.len();
+            if total > 0 {
+                self.local_branch_selection = total - 1;
+            }
+        }
+    }
+
+    pub fn remote_branch_to_top(&mut self) {
+        self.remote_branch_selection = 0;
+    }
+
+    pub fn remote_branch_to_bottom(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.remote_branches.len();
+            if total > 0 {
+                self.remote_branch_selection = total - 1;
+            }
+        }
+    }
+
+    pub fn file_list_to_top(&mut self) {
+        self.file_list_selection = 0;
+        self.file_content_scroll = 0;
+    }
+
+    pub fn file_list_to_bottom(&mut self) {
+        let total = self.visible_files.len();
+        if total > 0 {
+            self.file_list_selection = total - 1;
             self.file_content_scroll = 0;
         }
     }
@@ -2229,7 +2280,7 @@ impl App {
     }
 
     /// Total files in the currently-selected commit's Changed Files panel.
-    fn file_total(&self) -> usize {
+    pub fn file_total(&self) -> usize {
         match &self.current_detail {
             Some(ItemDetail::Repo { info, .. }) => {
                 let dirty = !info.changes.staged.is_empty()
@@ -2416,7 +2467,7 @@ impl App {
     }
 
     /// Total files in the currently-focused Staged or Unstaged sub-panel.
-    fn staging_file_total(&self) -> usize {
+    pub fn staging_file_total(&self) -> usize {
         match &self.current_detail {
             Some(ItemDetail::Repo { info, .. }) => match self.detail_focus {
                 DetailSection::Staged => info.changes.staged.len(),
@@ -2817,6 +2868,10 @@ impl App {
                 self.settings_editing = true;
                 self.input_buffer = self.config.max_commits.to_string();
             }
+            7 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.page_size.to_string();
+            }
             _ => {}
         }
     }
@@ -2890,6 +2945,20 @@ impl App {
                     self.persist("Max commits updated");
                     self.settings_editing = false;
                     self.input_buffer.clear();
+                } else {
+                    self.status_message = Some("Invalid integer".to_string());
+                }
+            }
+            7 => {
+                if let Ok(val) = trimmed.parse::<usize>() {
+                    if val >= 1 {
+                        self.config.page_size = val;
+                        self.persist("Page size updated");
+                        self.settings_editing = false;
+                        self.input_buffer.clear();
+                    } else {
+                        self.status_message = Some("Page size must be at least 1".to_string());
+                    }
                 } else {
                     self.status_message = Some("Invalid integer".to_string());
                 }
@@ -3624,6 +3693,126 @@ impl App {
         }
     }
 
+    pub fn local_tag_to_top(&mut self) {
+        self.local_tag_selection = 0;
+    }
+
+    pub fn local_tag_to_bottom(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.local_tags.len();
+            if total > 0 {
+                self.local_tag_selection = total - 1;
+            }
+        }
+    }
+
+    pub fn remote_to_top(&mut self) {
+        self.remote_selection = 0;
+    }
+
+    pub fn remote_to_bottom(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.remotes.len();
+            if total > 0 {
+                self.remote_selection = total - 1;
+            }
+        }
+    }
+
+    pub fn stash_to_top(&mut self) {
+        self.stash_selection = 0;
+        self.stash_file_selection = 0;
+        self.refresh_file_diff();
+    }
+
+    pub fn stash_to_bottom(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.stashes.len();
+            if total > 0 {
+                self.stash_selection = total - 1;
+                self.stash_file_selection = 0;
+                self.refresh_file_diff();
+            }
+        }
+    }
+
+    pub fn stash_file_to_top(&mut self) {
+        self.stash_file_selection = 0;
+        self.refresh_file_diff();
+    }
+
+    pub fn stash_file_to_bottom(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if let Some(stash) = info.stashes.get(self.stash_selection) {
+                let total = stash.files.len();
+                if total > 0 {
+                    self.stash_file_selection = total - 1;
+                    self.refresh_file_diff();
+                }
+            }
+        }
+    }
+
+    pub fn graph_scroll_to_top(&mut self) {
+        self.graph_scroll = 0;
+    }
+
+    pub fn graph_scroll_to_bottom(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let max = info.graph_lines.len().saturating_sub(1);
+            self.graph_scroll = max;
+        }
+    }
+
+    pub fn file_content_scroll_to_top(&mut self) {
+        self.file_content_scroll = 0;
+    }
+
+    pub fn file_content_scroll_to_bottom(&mut self) {
+        let max = self.get_file_content_line_count().saturating_sub(1);
+        self.file_content_scroll = max;
+    }
+
+    pub fn diff_scroll_to_top(&mut self) {
+        self.diff_scroll = 0;
+    }
+
+    pub fn diff_scroll_to_bottom(&mut self) {
+        let max = self.file_diff.len().saturating_sub(1);
+        self.diff_scroll = max;
+    }
+
+    pub fn detail_commit_to_top(&mut self) {
+        if self.in_logs_ui && self.commit_search_query.is_some() {
+            let matching_indices = self.get_logs_matching_indices();
+            if let Some(&first) = matching_indices.first() {
+                self.commit_selection = first;
+            }
+        } else {
+            self.commit_selection = 0;
+        }
+        self.file_selection = 0;
+        self.diff_scroll = 0;
+        self.refresh_file_diff();
+    }
+
+    pub fn detail_commit_to_bottom(&mut self) {
+        if self.in_logs_ui && self.commit_search_query.is_some() {
+            let matching_indices = self.get_logs_matching_indices();
+            if let Some(&last) = matching_indices.last() {
+                self.commit_selection = last;
+            }
+        } else {
+            let total = self.commit_total();
+            if total > 0 {
+                self.commit_selection = total - 1;
+            }
+        }
+        self.file_selection = 0;
+        self.diff_scroll = 0;
+        self.refresh_file_diff();
+    }
+
     pub fn request_stash_delete(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if info.stashes.get(self.stash_selection).is_some() {
@@ -3747,6 +3936,14 @@ impl App {
 
     pub fn help_scroll_page_down(&mut self, amount: usize) {
         self.help_scroll = self.help_scroll.saturating_add(amount);
+    }
+
+    pub fn help_scroll_to_top(&mut self) {
+        self.help_scroll = 0;
+    }
+
+    pub fn help_scroll_to_bottom(&mut self) {
+        self.help_scroll = usize::MAX;
     }
 }
 
@@ -4186,6 +4383,7 @@ mod tests {
             ],
             poll_interval_ms: 100,
             max_commits: 0,
+            page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4242,6 +4440,7 @@ mod tests {
             items: vec![],
             poll_interval_ms: 100,
             max_commits: 0,
+            page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4350,6 +4549,7 @@ mod tests {
             ],
             poll_interval_ms: 100,
             max_commits: 0,
+            page_size: 10,
             sort_by: SortOrder::Alphabetical,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4428,6 +4628,7 @@ mod tests {
             items: vec![],
             poll_interval_ms: 100,
             max_commits: 0,
+            page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4467,6 +4668,7 @@ mod tests {
             items: vec![],
             poll_interval_ms: 100,
             max_commits: 0,
+            page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4732,6 +4934,7 @@ mod tests {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
             max_commits: 0,
+            page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4843,6 +5046,18 @@ mod tests {
         assert!(!app.settings_editing);
         assert_eq!(app.config.max_commits, 100);
 
+        // Go down to Page Size (index 7)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.settings_selected_index, 7);
+
+        // Edit Page Size
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(app.settings_editing);
+        app.input_buffer = "15".to_string();
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(!app.settings_editing);
+        assert_eq!(app.config.page_size, 15);
+
         // Press Esc to exit settings
         crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
         assert_eq!(app.mode, Mode::Normal);
@@ -4856,6 +5071,7 @@ mod tests {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
             max_commits: 0,
+            page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -4933,6 +5149,7 @@ mod tests {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
             max_commits: 0,
+            page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -5000,6 +5217,7 @@ mod tests {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
             max_commits: 0,
+            page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -5127,6 +5345,7 @@ mod tests {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
             max_commits: 0,
+            page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -5157,6 +5376,7 @@ mod tests {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
             max_commits: 0,
+            page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
@@ -5189,6 +5409,7 @@ mod tests {
             items: vec!["a_repo".to_string()],
             poll_interval_ms: 100,
             max_commits: 0,
+            page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
             sort_reverse: false,
