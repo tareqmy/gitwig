@@ -12,6 +12,12 @@ pinned = [
 # Lower → more responsive, higher → less CPU. Default: 100. Sane range: 16–500.
 poll_interval_ms = 100
 
+# Maximum commits to load in workspace view. Set to 0 for unlimited.
+max_commits = 0
+
+# Number of lines/items to scroll when PageUp or PageDown is pressed.
+page_size = 10
+
 # Default sort mode for the main page.
 # Options: "custom", "alphabetical", "recent_visit", "latest_changes"
 sort_by = "custom"
@@ -27,6 +33,9 @@ theme = "default"
 [fzf]
 # Maximum depth of directories fzf scans from root.
 max_depth = 6
+
+# Starting directory for interactive repository discovery via FZF.
+start_dir = "~/"
 
 # Directory paths to prune/exclude from fzf scans to keep search fast.
 excludes = [
