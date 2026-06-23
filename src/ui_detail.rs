@@ -679,6 +679,14 @@ pub fn draw(
             if matches!(mode, Mode::DiscardChangesConfirm) {
                 draw_discard_changes_popup(f, discard_target, body_area);
             }
+            // Draw branch checkout popup on top when requested.
+            if matches!(mode, Mode::BranchCheckoutConfirm) {
+                draw_branch_checkout_popup(f, branch_action_target, body_area);
+            }
+            // Draw tag checkout popup on top when requested.
+            if matches!(mode, Mode::TagCheckoutConfirm) {
+                draw_tag_checkout_popup(f, &app.tag_checkout_target, body_area);
+            }
         }
         _ => {
             let body_lines = build_body(detail);
@@ -2458,6 +2466,107 @@ fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area
             Span::styled(
                 branch_name,
                 Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block);
+    f.render_widget(paragraph, popup_area);
+}
+
+fn draw_branch_checkout_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
+    let popup_area = centred_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Checkout Branch", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let (branch_name, is_remote) = match target {
+        Some((name, remote)) => (name.as_str(), *remote),
+        None => ("", false),
+    };
+
+    let type_label = if is_remote {
+        "remote-tracking branch"
+    } else {
+        "branch"
+    };
+    let content = vec![
+        Line::from(vec![
+            Span::styled("Are you sure you want to checkout the ", primary_style()),
+            Span::styled(type_label, accent_style()),
+            Span::raw(":"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                branch_name,
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block);
+    f.render_widget(paragraph, popup_area);
+}
+
+fn draw_tag_checkout_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
+    let popup_area = centred_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Checkout Tag", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let tag_name = target.as_deref().unwrap_or("");
+
+    let content = vec![
+        Line::from(vec![Span::styled(
+            "Are you sure you want to checkout the tag (detached HEAD):",
+            primary_style(),
+        )]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                tag_name,
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
             ),
         ]),
         Line::from(""),

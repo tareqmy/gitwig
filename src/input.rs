@@ -236,6 +236,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             _ => {}
         },
+        Mode::BranchCheckoutConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_branch_checkout(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_branch_checkout(),
+            _ => {}
+        },
+        Mode::TagCheckoutConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_tag_checkout(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_tag_checkout(),
+            _ => {}
+        },
         Mode::Help => match code {
             KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_dialog();
@@ -556,11 +566,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     }
                 }
                 KeyCode::Enter => {
-                    if app.detail_focus == DetailSection::LocalBranches {
-                        app.checkout_selected_local_branch();
-                    } else {
-                        app.checkout_selected_remote_branch();
-                    }
+                    app.request_branch_checkout();
                 }
                 KeyCode::Up | KeyCode::Char('k') => {
                     if app.detail_focus == DetailSection::LocalBranches {
@@ -610,7 +616,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             },
             _ if app.detail_tab == 4 => match code {
                 KeyCode::Enter => {
-                    app.checkout_selected_local_tag();
+                    app.request_tag_checkout();
                 }
                 KeyCode::Up | KeyCode::Char('k') => {
                     app.local_tag_up();

@@ -94,6 +94,10 @@ pub enum Mode {
     Logs,
     /// Search input in the logs UI.
     LogsSearchInput,
+    /// Confirming checkout of a branch.
+    BranchCheckoutConfirm,
+    /// Confirming checkout of a tag.
+    TagCheckoutConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -274,6 +278,8 @@ pub struct App {
     pub tag_action_target_oid: Option<String>,
     /// Target tag name and remote flag for deletion action.
     pub tag_delete_target: Option<(String, bool)>,
+    /// Target tag name for checkout action.
+    pub tag_checkout_target: Option<String>,
     /// Target tag name for push action.
     pub tag_push_target: Option<String>,
     /// Target file path and staged flag for discard/revert action.
@@ -404,6 +410,7 @@ impl App {
             branch_action_target: None,
             tag_action_target_oid: None,
             tag_delete_target: None,
+            tag_checkout_target: None,
             tag_push_target: None,
             discard_target: None,
             fetch_progress: 0,
@@ -1401,34 +1408,42 @@ impl App {
         }
     }
 
-    pub fn checkout_selected_local_branch(&mut self) {
-        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
-                if !branch_info.is_head {
-                    match repo::checkout_local_branch(resolved, &branch_info.name) {
-                        Ok(()) => {
-                            self.status_message =
-                                Some(format!("Switched to branch '{}'", branch_info.name));
-                            // Refresh detail snapshot
-                            let item = &self.config.items[self.selected_index];
-                            self.current_detail = Some(self.inspect_repo_detail(item));
-                            self.rebuild_visible_files();
-                            self.local_branch_selection = 0;
-                        }
-                        Err(e) => {
-                            self.status_message = Some(format!("Checkout failed: {}", e));
+    pub fn request_branch_checkout(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            match self.detail_focus {
+                DetailSection::LocalBranches => {
+                    if let Some(branch_info) = info.local_branches.get(self.local_branch_selection)
+                    {
+                        if !branch_info.is_head {
+                            self.branch_action_target = Some((branch_info.name.clone(), false));
+                            self.mode = Mode::BranchCheckoutConfirm;
                         }
                     }
                 }
+                DetailSection::RemoteBranches => {
+                    if let Some(branch_info) =
+                        info.remote_branches.get(self.remote_branch_selection)
+                    {
+                        self.branch_action_target = Some((branch_info.name.clone(), true));
+                        self.mode = Mode::BranchCheckoutConfirm;
+                    }
+                }
+                _ => {}
             }
         }
     }
 
-    /// Checks out the selected remote branch, creating a local tracking branch if needed.
-    pub fn checkout_selected_remote_branch(&mut self) {
-        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(branch_info) = info.remote_branches.get(self.remote_branch_selection) {
-                match repo::checkout_remote_branch(resolved, &branch_info.name) {
+    pub fn confirm_branch_checkout(&mut self) {
+        if let Some((branch_name, is_remote)) = self.branch_action_target.take() {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                let res = if is_remote {
+                    repo::checkout_remote_branch(resolved, &branch_name)
+                } else {
+                    repo::checkout_local_branch(resolved, &branch_name)
+                        .map(|_| format!("Switched to branch '{}'", branch_name))
+                };
+
+                match res {
                     Ok(msg) => {
                         self.status_message = Some(msg);
                         // Refresh detail snapshot
@@ -1443,6 +1458,12 @@ impl App {
                 }
             }
         }
+        self.mode = Mode::Detail;
+    }
+
+    pub fn cancel_branch_checkout(&mut self) {
+        self.branch_action_target = None;
+        self.mode = Mode::Detail;
     }
 
     pub fn start_tag_create(&mut self) {
@@ -4013,15 +4034,22 @@ impl App {
         self.mode = Mode::Detail;
     }
 
-    pub fn checkout_selected_local_tag(&mut self) {
-        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+    pub fn request_tag_checkout(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if let Some(tag_info) = info.local_tags.get(self.local_tag_selection) {
-                match repo::checkout_tag(resolved, &tag_info.name) {
+                self.tag_checkout_target = Some(tag_info.name.clone());
+                self.mode = Mode::TagCheckoutConfirm;
+            }
+        }
+    }
+
+    pub fn confirm_tag_checkout(&mut self) {
+        if let Some(tag_name) = self.tag_checkout_target.take() {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                match repo::checkout_tag(resolved, &tag_name) {
                     Ok(()) => {
-                        self.status_message = Some(format!(
-                            "Checked out tag '{}' (detached HEAD)",
-                            tag_info.name
-                        ));
+                        self.status_message =
+                            Some(format!("Checked out tag '{}' (detached HEAD)", tag_name));
                         let item = &self.config.items[self.selected_index];
                         self.current_detail = Some(self.inspect_repo_detail(item));
                         self.rebuild_visible_files();
@@ -4032,6 +4060,12 @@ impl App {
                 }
             }
         }
+        self.mode = Mode::Detail;
+    }
+
+    pub fn cancel_tag_checkout(&mut self) {
+        self.tag_checkout_target = None;
+        self.mode = Mode::Detail;
     }
 
     pub fn help_scroll_up(&mut self) {
@@ -5824,5 +5858,124 @@ mod tests {
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('R')), 10);
         assert!(handled);
         assert_eq!(app.status_message.as_deref(), Some("Refreshed"));
+    }
+
+    #[test]
+    fn test_branch_and_tag_checkout_confirmation() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec![".twig".to_string()],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_checkout.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+        app.mode = Mode::Detail;
+        app.detail_tab = 3; // branches tab
+        app.detail_focus = DetailSection::LocalBranches;
+
+        let mock_info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary::default(),
+            changes: crate::repo::WorktreeChanges::default(),
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![
+                crate::repo::BranchInfo {
+                    name: "main".to_string(),
+                    is_head: true,
+                    short_sha: "".to_string(),
+                    short_message: "".to_string(),
+                },
+                crate::repo::BranchInfo {
+                    name: "feature-branch".to_string(),
+                    is_head: false,
+                    short_sha: "".to_string(),
+                    short_message: "".to_string(),
+                },
+            ],
+            remote_branches: vec![crate::repo::BranchInfo {
+                name: "origin/feature-branch".to_string(),
+                is_head: false,
+                short_sha: "".to_string(),
+                short_message: "".to_string(),
+            }],
+            remotes: vec![],
+            local_tags: vec![crate::repo::BranchInfo {
+                name: "v1.0.0".to_string(),
+                is_head: false,
+                short_sha: "".to_string(),
+                short_message: "".to_string(),
+            }],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from("."),
+            info: Box::new(mock_info),
+        });
+
+        // Select the non-head local branch "feature-branch" (index 1)
+        app.local_branch_selection = 1;
+
+        // Pressing Enter should request confirmation
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::BranchCheckoutConfirm);
+        assert_eq!(
+            app.branch_action_target,
+            Some(("feature-branch".to_string(), false))
+        );
+
+        // Cancel branch checkout confirmation via 'n'
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('n')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::Detail);
+        assert_eq!(app.branch_action_target, None);
+
+        // Request again
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::BranchCheckoutConfirm);
+
+        // Confirm branch checkout confirmation via 'y' (it will fail to checkout in dummy/test repo path, but checks handler path)
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('y')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::Detail);
+        assert_eq!(app.branch_action_target, None);
+
+        // Switch to Tags tab (detail_tab = 4)
+        app.detail_tab = 4;
+        app.local_tag_selection = 0;
+
+        // Pressing Enter should request tag checkout confirmation
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::TagCheckoutConfirm);
+        assert_eq!(app.tag_checkout_target, Some("v1.0.0".to_string()));
+
+        // Cancel tag checkout confirmation via Esc
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::Detail);
+        assert_eq!(app.tag_checkout_target, None);
     }
 }

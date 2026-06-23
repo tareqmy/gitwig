@@ -1128,8 +1128,6 @@ fn collect_graph_lines(repo_path: &Path) -> Vec<GraphLine> {
             "--date=relative",
             &format!("--pretty=format:{}", format_str),
             "--color=never",
-            "-n",
-            "100",
         ])
         .current_dir(repo_path)
         .output();
