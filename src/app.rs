@@ -5198,6 +5198,29 @@ mod tests {
         assert!(!app.settings_editing);
         assert_eq!(app.config.page_size, 15);
 
+        // Test PageUp, PageDown, Home, and End key navigation in Settings Mode
+        app.config.page_size = 3;
+
+        // At index 7: PageUp should go to 7 - 3 = 4
+        crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
+        assert_eq!(app.settings_selected_index, 4);
+
+        // PageUp should go to 4 - 3 = 1
+        crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
+        assert_eq!(app.settings_selected_index, 1);
+
+        // PageDown should go to 1 + 3 = 4
+        crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
+        assert_eq!(app.settings_selected_index, 4);
+
+        // End should go to 7
+        crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
+        assert_eq!(app.settings_selected_index, 7);
+
+        // Home should go to 0
+        crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
+        assert_eq!(app.settings_selected_index, 0);
+
         // Press Esc to exit settings
         crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
         assert_eq!(app.mode, Mode::Normal);

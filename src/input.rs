@@ -77,6 +77,24 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     KeyCode::Up | KeyCode::Char('k') if app.settings_theme_index > 0 => {
                         app.settings_theme_index -= 1;
                     }
+                    KeyCode::PageUp if app.settings_theme_index > 0 => {
+                        app.settings_theme_index = app
+                            .settings_theme_index
+                            .saturating_sub(app.config.page_size);
+                    }
+                    KeyCode::PageDown
+                        if app.settings_theme_index + 1 < app.settings_theme_list.len() =>
+                    {
+                        app.settings_theme_index = (app.settings_theme_index
+                            + app.config.page_size)
+                            .min(app.settings_theme_list.len().saturating_sub(1));
+                    }
+                    KeyCode::Home => {
+                        app.settings_theme_index = 0;
+                    }
+                    KeyCode::End if !app.settings_theme_list.is_empty() => {
+                        app.settings_theme_index = app.settings_theme_list.len() - 1;
+                    }
                     _ => {}
                 }
             } else {
@@ -93,6 +111,21 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         if app.settings_selected_index > 0 {
                             app.settings_selected_index -= 1;
                         }
+                    }
+                    KeyCode::PageUp if !app.settings_editing => {
+                        app.settings_selected_index = app
+                            .settings_selected_index
+                            .saturating_sub(app.config.page_size);
+                    }
+                    KeyCode::PageDown if !app.settings_editing => {
+                        app.settings_selected_index =
+                            (app.settings_selected_index + app.config.page_size).min(7);
+                    }
+                    KeyCode::Home if !app.settings_editing => {
+                        app.settings_selected_index = 0;
+                    }
+                    KeyCode::End if !app.settings_editing => {
+                        app.settings_selected_index = 7;
                     }
                     KeyCode::Enter if app.settings_editing => app.commit_settings_edit(),
                     KeyCode::Enter => app.toggle_or_edit_setting(),

@@ -58,8 +58,8 @@
 | `1` - `8`            | Detail          | Jump directly to tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), or Overview (8) |
 | `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
-| `PgUp` / `PgDn`      | Detail / Normal | Scroll list/diff/tree by configured `page_size` |
-| `Home` / `End`       | Detail / Normal | Jump to top / bottom of list/diff/tree |
+| `PgUp` / `PgDn`      | Detail / Normal / Settings | Scroll list/diff/tree/settings by configured `page_size` |
+| `Home` / `End`       | Detail / Normal / Settings | Jump to top / bottom of list/diff/tree/settings |
 | `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), checkout tag (Tags tab), or Inspect commit |
 | `Shift+F`            | Detail          | Fetch selected local branch from remote (Branches tab) |
 | `f` / `F`            | Detail          | Fetch selected remote (Remotes tab) |
