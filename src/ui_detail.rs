@@ -271,6 +271,7 @@ pub fn draw(
                         areas,
                         inspect_horizontal_split_pct,
                         inspect_vertical_split_pct,
+                        app,
                         area,
                     );
                     return;
@@ -911,107 +912,7 @@ fn draw_staging_panels(
     app: &crate::app::App,
     area: Rect,
 ) {
-    let panels = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(inspect_horizontal_split_pct),
-            Constraint::Percentage(100 - inspect_horizontal_split_pct),
-        ])
-        .split(area);
-
-    areas.bottom_left = Some(panels[0]);
-    areas.bottom_right = Some(panels[1]);
-    areas.commit_details = None;
-
-    // Record horizontal splitter boundary
-    let split_col = area.x + panels[0].width;
-    areas.inspect_horizontal_splitter = Some(Rect::new(
-        split_col.saturating_sub(1),
-        area.y,
-        2,
-        area.height,
-    ));
-
-    // Focus-aware border helpers.
-    let left_focused = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
     let right_focused = focus == DetailSection::StagingDetails;
-
-    // ── Left panel: outer border labelled "Staging Area" ──────────────────
-    let left_border_style = if left_focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
-    let left_outer = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(left_border_style)
-        .title(Line::from(vec![
-            Span::raw(" "),
-            Span::styled("Staging Area", primary_style()),
-            Span::raw(" "),
-        ]));
-    let left_inner = left_outer.inner(panels[0]);
-    f.render_widget(left_outer, panels[0]);
-
-    // Split left inner vertically: top = Staged, bottom = Unstaged
-    let left_split = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage(inspect_vertical_split_pct),
-            Constraint::Percentage(100 - inspect_vertical_split_pct),
-        ])
-        .split(left_inner);
-
-    // Record vertical splitter boundary in left inner
-    let split_row = left_inner.y + left_split[0].height;
-    areas.inspect_vertical_splitter = Some(Rect::new(
-        left_inner.x,
-        split_row.saturating_sub(1),
-        left_inner.width,
-        2,
-    ));
-
-    areas.staged_sub = Some(left_split[0]);
-    areas.unstaged_sub = Some(left_split[1]);
-
-    draw_file_subpanel(
-        f,
-        "Staged",
-        SUCCESS(),
-        &changes.staged,
-        "Nothing staged",
-        Borders::BOTTOM,
-        focus == DetailSection::Staged,
-        if focus == DetailSection::Staged {
-            Some(staging_file_selection)
-        } else {
-            None
-        },
-        left_split[0],
-    );
-    draw_file_subpanel(
-        f,
-        "Unstaged",
-        WARNING(),
-        &changes.unstaged,
-        "No unstaged changes",
-        Borders::empty(),
-        focus == DetailSection::Unstaged,
-        if focus == DetailSection::Unstaged {
-            Some(staging_file_selection)
-        } else {
-            None
-        },
-        left_split[1],
-    );
-
-    // ── Right panel – Staging Details ─────────────────────────────────────
-    let right_border_style = if right_focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
     let selected_file_name: Option<String> = {
         let (files, idx) = match focus {
             DetailSection::Staged => (Some(&changes.staged), staging_file_selection),
@@ -1032,22 +933,152 @@ fn draw_staging_panels(
         };
         files.and_then(|f| f.get(idx)).map(|e| e.path.clone())
     };
-    let right_block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(right_border_style)
-        .title(Line::from(vec![
-            Span::raw(" "),
-            Span::styled("Staging Details", primary_style()),
-            if let Some(ref name) = selected_file_name {
-                Span::styled(format!("  {}", name), muted_style())
+
+    let right_inner = if app.inspect_full_diff {
+        areas.bottom_left = None;
+        areas.bottom_right = Some(area);
+        areas.commit_details = None;
+        areas.inspect_horizontal_splitter = None;
+        areas.inspect_vertical_splitter = None;
+        areas.staged_sub = None;
+        areas.unstaged_sub = None;
+
+        let right_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(Style::default().fg(ACCENT()))
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Staging Details", primary_style()),
+                if let Some(ref name) = selected_file_name {
+                    Span::styled(format!("  {} (Full Screen)", name), muted_style())
+                } else {
+                    Span::raw("")
+                },
+                Span::raw(" "),
+            ]));
+        let inner = right_block.inner(area);
+        f.render_widget(right_block, area);
+        inner
+    } else {
+        let panels = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(inspect_horizontal_split_pct),
+                Constraint::Percentage(100 - inspect_horizontal_split_pct),
+            ])
+            .split(area);
+
+        areas.bottom_left = Some(panels[0]);
+        areas.bottom_right = Some(panels[1]);
+        areas.commit_details = None;
+
+        // Record horizontal splitter boundary
+        let split_col = area.x + panels[0].width;
+        areas.inspect_horizontal_splitter = Some(Rect::new(
+            split_col.saturating_sub(1),
+            area.y,
+            2,
+            area.height,
+        ));
+
+        // Focus-aware border helpers.
+        let left_focused = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
+
+        // ── Left panel: outer border labelled "Staging Area" ──────────────────
+        let left_border_style = if left_focused {
+            Style::default().fg(ACCENT())
+        } else {
+            muted_style()
+        };
+        let left_outer = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(left_border_style)
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Staging Area", primary_style()),
+                Span::raw(" "),
+            ]));
+        let left_inner = left_outer.inner(panels[0]);
+        f.render_widget(left_outer, panels[0]);
+
+        // Split left inner vertically: top = Staged, bottom = Unstaged
+        let left_split = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(inspect_vertical_split_pct),
+                Constraint::Percentage(100 - inspect_vertical_split_pct),
+            ])
+            .split(left_inner);
+
+        // Record vertical splitter boundary in left inner
+        let split_row = left_inner.y + left_split[0].height;
+        areas.inspect_vertical_splitter = Some(Rect::new(
+            left_inner.x,
+            split_row.saturating_sub(1),
+            left_inner.width,
+            2,
+        ));
+
+        areas.staged_sub = Some(left_split[0]);
+        areas.unstaged_sub = Some(left_split[1]);
+
+        draw_file_subpanel(
+            f,
+            "Staged",
+            SUCCESS(),
+            &changes.staged,
+            "Nothing staged",
+            Borders::BOTTOM,
+            focus == DetailSection::Staged,
+            if focus == DetailSection::Staged {
+                Some(staging_file_selection)
             } else {
-                Span::raw("")
+                None
             },
-            Span::raw(" "),
-        ]));
-    let right_inner = right_block.inner(panels[1]);
-    f.render_widget(right_block, panels[1]);
+            left_split[0],
+        );
+        draw_file_subpanel(
+            f,
+            "Unstaged",
+            WARNING(),
+            &changes.unstaged,
+            "No unstaged changes",
+            Borders::empty(),
+            focus == DetailSection::Unstaged,
+            if focus == DetailSection::Unstaged {
+                Some(staging_file_selection)
+            } else {
+                None
+            },
+            left_split[1],
+        );
+
+        // ── Right panel – Staging Details ─────────────────────────────────────
+        let right_border_style = if right_focused {
+            Style::default().fg(ACCENT())
+        } else {
+            muted_style()
+        };
+        let right_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(right_border_style)
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Staging Details", primary_style()),
+                if let Some(ref name) = selected_file_name {
+                    Span::styled(format!("  {}", name), muted_style())
+                } else {
+                    Span::raw("")
+                },
+                Span::raw(" "),
+            ]));
+        let inner = right_block.inner(panels[1]);
+        f.render_widget(right_block, panels[1]);
+        inner
+    };
 
     if file_diff.is_empty() {
         let v_center = Layout::default()
@@ -3738,140 +3769,174 @@ fn draw_inspect_window(
     areas: &mut DetailAreas,
     inspect_horizontal_split_pct: u16,
     inspect_vertical_split_pct: u16,
+    app: &crate::app::App,
     area: Rect,
 ) {
-    // Body: divided vertically: Left panel, Right panel
-    let panels = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(inspect_horizontal_split_pct),
-            Constraint::Percentage(100 - inspect_horizontal_split_pct),
-        ])
-        .split(area);
-
-    // Record horizontal splitter boundary
-    let split_col = area.x + panels[0].width;
-    areas.inspect_horizontal_splitter = Some(Rect::new(
-        split_col.saturating_sub(1),
-        area.y,
-        2,
-        area.height,
-    ));
-
-    // Split left panel vertically: top is Commit Details, bottom is Changed Files
-    let left_chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage(inspect_vertical_split_pct),
-            Constraint::Percentage(100 - inspect_vertical_split_pct),
-        ])
-        .split(panels[0]);
-
-    // Record vertical splitter boundary in left panel
-    let split_row = panels[0].y + left_chunks[0].height;
-    areas.inspect_vertical_splitter = Some(Rect::new(
-        panels[0].x,
-        split_row.saturating_sub(1),
-        panels[0].width,
-        2,
-    ));
-
-    // Record panel areas for mouse hit testing/scrolling
-    areas.commit_details = Some(left_chunks[0]);
-    areas.bottom_left = Some(left_chunks[1]);
-    areas.bottom_right = Some(panels[1]);
-
-    let details_focused = focus == DetailSection::CommitDetails;
-    let left_focused = focus == DetailSection::Staged;
     let right_focused = focus == DetailSection::StagingDetails;
 
-    // ── Left Top: Commit Info (Commit Details) ─────────────────────────
-    draw_commit_details_widget(
-        f,
-        commit,
-        details_focused,
-        commit_details_scroll,
-        left_chunks[0],
-    );
+    let right_inner = if app.inspect_full_diff {
+        areas.bottom_left = None;
+        areas.bottom_right = Some(area);
+        areas.commit_details = None;
+        areas.inspect_horizontal_splitter = None;
+        areas.inspect_vertical_splitter = None;
 
-    // ── Left Bottom: Changed Files ─────────────────────────────────────
-    let left_border_style = if left_focused {
-        Style::default().fg(ACCENT())
+        let right_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(Style::default().fg(ACCENT()))
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Diff", primary_style()),
+                if right_focused && diff_scroll > 0 {
+                    Span::styled(format!("  ↕ line {}", diff_scroll + 1), muted_style())
+                } else {
+                    Span::raw("")
+                },
+                if right_focused {
+                    Span::styled("  ↑↓ scroll  (Full Screen)", muted_style())
+                } else {
+                    Span::raw("")
+                },
+                Span::raw(" "),
+            ]));
+        let right_inner = right_block.inner(area);
+        f.render_widget(right_block, area);
+        right_inner
     } else {
-        muted_style()
-    };
-    let left_block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(left_border_style)
-        .title(Line::from(vec![
-            Span::raw(" "),
-            Span::styled("Changed Files", primary_style()),
-            Span::raw("  "),
-            Span::styled(format!("({})", commit.files.len()), muted_style()),
-            Span::raw(" "),
-        ]));
-    let left_inner = left_block.inner(left_chunks[1]);
-    f.render_widget(left_block, left_chunks[1]);
+        // Body: divided vertically: Left panel, Right panel
+        let panels = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(inspect_horizontal_split_pct),
+                Constraint::Percentage(100 - inspect_horizontal_split_pct),
+            ])
+            .split(area);
 
-    if commit.files.is_empty() {
-        let v = Layout::default()
+        // Record horizontal splitter boundary
+        let split_col = area.x + panels[0].width;
+        areas.inspect_horizontal_splitter = Some(Rect::new(
+            split_col.saturating_sub(1),
+            area.y,
+            2,
+            area.height,
+        ));
+
+        // Split left panel vertically: top is Commit Details, bottom is Changed Files
+        let left_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Percentage(40),
-                Constraint::Length(1),
-                Constraint::Min(0),
+                Constraint::Percentage(inspect_vertical_split_pct),
+                Constraint::Percentage(100 - inspect_vertical_split_pct),
             ])
-            .split(left_inner);
-        f.render_widget(
-            Paragraph::new(Span::styled("No files changed", muted_style()))
-                .alignment(Alignment::Center),
-            v[1],
-        );
-    } else {
-        let items: Vec<ListItem> = commit
-            .files
-            .iter()
-            .map(|f| ListItem::new(file_entry_line(f)))
-            .collect();
-        let list =
-            List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-        let mut state = ListState::default();
-        if left_focused {
-            state.select(Some(file_selection));
-        } else {
-            state.select(None);
-        }
-        f.render_stateful_widget(list, left_inner, &mut state);
-    }
+            .split(panels[0]);
 
-    // ── Right: Diff ───────────────────────────────────────────────────
-    let right_border_style = if right_focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
+        // Record vertical splitter boundary in left panel
+        let split_row = panels[0].y + left_chunks[0].height;
+        areas.inspect_vertical_splitter = Some(Rect::new(
+            panels[0].x,
+            split_row.saturating_sub(1),
+            panels[0].width,
+            2,
+        ));
+
+        // Record panel areas for mouse hit testing/scrolling
+        areas.commit_details = Some(left_chunks[0]);
+        areas.bottom_left = Some(left_chunks[1]);
+        areas.bottom_right = Some(panels[1]);
+
+        let details_focused = focus == DetailSection::CommitDetails;
+        let left_focused = focus == DetailSection::Staged;
+
+        // ── Left Top: Commit Info (Commit Details) ─────────────────────────
+        draw_commit_details_widget(
+            f,
+            commit,
+            details_focused,
+            commit_details_scroll,
+            left_chunks[0],
+        );
+
+        // ── Left Bottom: Changed Files ─────────────────────────────────────
+        let left_border_style = if left_focused {
+            Style::default().fg(ACCENT())
+        } else {
+            muted_style()
+        };
+        let left_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(left_border_style)
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Changed Files", primary_style()),
+                Span::raw("  "),
+                Span::styled(format!("({})", commit.files.len()), muted_style()),
+                Span::raw(" "),
+            ]));
+        let left_inner = left_block.inner(left_chunks[1]);
+        f.render_widget(left_block, left_chunks[1]);
+
+        if commit.files.is_empty() {
+            let v = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Percentage(40),
+                    Constraint::Length(1),
+                    Constraint::Min(0),
+                ])
+                .split(left_inner);
+            f.render_widget(
+                Paragraph::new(Span::styled("No files changed", muted_style()))
+                    .alignment(Alignment::Center),
+                v[1],
+            );
+        } else {
+            let items: Vec<ListItem> = commit
+                .files
+                .iter()
+                .map(|f| ListItem::new(file_entry_line(f)))
+                .collect();
+            let list =
+                List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+            let mut state = ListState::default();
+            if left_focused {
+                state.select(Some(file_selection));
+            } else {
+                state.select(None);
+            }
+            f.render_stateful_widget(list, left_inner, &mut state);
+        }
+
+        // ── Right: Diff ───────────────────────────────────────────────────
+        let right_border_style = if right_focused {
+            Style::default().fg(ACCENT())
+        } else {
+            muted_style()
+        };
+        let right_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(right_border_style)
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Diff", primary_style()),
+                if right_focused && diff_scroll > 0 {
+                    Span::styled(format!("  ↕ line {}", diff_scroll + 1), muted_style())
+                } else {
+                    Span::raw("")
+                },
+                if right_focused {
+                    Span::styled("  ↑↓ scroll", muted_style())
+                } else {
+                    Span::raw("")
+                },
+                Span::raw(" "),
+            ]));
+        let right_inner = right_block.inner(panels[1]);
+        f.render_widget(right_block, panels[1]);
+        right_inner
     };
-    let right_block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(right_border_style)
-        .title(Line::from(vec![
-            Span::raw(" "),
-            Span::styled("Diff", primary_style()),
-            if right_focused && diff_scroll > 0 {
-                Span::styled(format!("  ↕ line {}", diff_scroll + 1), muted_style())
-            } else {
-                Span::raw("")
-            },
-            if right_focused {
-                Span::styled("  ↑↓ scroll", muted_style())
-            } else {
-                Span::raw("")
-            },
-            Span::raw(" "),
-        ]));
-    let right_inner = right_block.inner(panels[1]);
-    f.render_widget(right_block, panels[1]);
 
     if file_diff.is_empty() {
         let v_center = Layout::default()

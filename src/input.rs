@@ -802,7 +802,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
 
         Mode::Inspect => match code {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
-                if app.in_logs_ui {
+                if app.inspect_full_diff {
+                    app.inspect_full_diff = false;
+                } else if app.in_logs_ui {
                     app.mode = Mode::Logs;
                 } else {
                     app.mode = Mode::Detail;
@@ -933,7 +935,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
             }
             KeyCode::Right => {
-                if app.is_uncommitted_selected() {
+                if app.detail_focus == DetailSection::StagingDetails {
+                    app.inspect_full_diff = true;
+                } else if app.is_uncommitted_selected() {
                     if app.detail_focus == DetailSection::Staged
                         || app.detail_focus == DetailSection::Unstaged
                     {
@@ -949,7 +953,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
             }
             KeyCode::Left => {
-                if app.detail_focus == DetailSection::StagingDetails {
+                if app.inspect_full_diff {
+                    app.inspect_full_diff = false;
+                } else if app.detail_focus == DetailSection::StagingDetails {
                     if app.is_uncommitted_selected() {
                         app.detail_focus = app.last_staging_focus;
                     } else {

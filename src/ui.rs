@@ -1071,47 +1071,81 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
     }
 
     let mut entries = Vec::new();
-    let exit_label = if app.in_logs_ui {
-        "Logs UI"
-    } else {
-        "Workspace"
-    };
-    let mut entries_data = vec![(exit_label, "⎋/q"), ("Cycle Focus", "w/W")];
+    let mut entries_data = Vec::new();
 
-    if app.is_uncommitted_selected() {
-        match app.detail_focus {
-            DetailSection::Staged => {
-                entries_data.push(("Unstage File", "↵"));
-            }
-            DetailSection::Unstaged => {
-                entries_data.push(("Stage File", "↵"));
-            }
-            DetailSection::StagingDetails => {
-                if app.diff_line_mode {
-                    entries_data.push(("Hunk Mode", "l"));
-                    if app.last_staging_focus == DetailSection::Staged {
-                        entries_data.push(("Unstage Line", "↵"));
-                    } else if app.last_staging_focus == DetailSection::Unstaged {
-                        entries_data.push(("Stage Line", "↵"));
-                        entries_data.push(("Discard Line", "x/Del"));
-                    }
-                } else {
-                    entries_data.push(("Line Mode", "l"));
-                    if app.last_staging_focus == DetailSection::Staged {
-                        entries_data.push(("Unstage Hunk", "↵"));
-                    } else if app.last_staging_focus == DetailSection::Unstaged {
-                        entries_data.push(("Stage Hunk", "↵"));
-                        entries_data.push(("Discard Hunk", "x/Del"));
-                    }
+    if app.inspect_full_diff {
+        entries_data.push(("Exit Full Screen", "←/⎋/q"));
+
+        if app.is_uncommitted_selected() {
+            if app.diff_line_mode {
+                entries_data.push(("Hunk Mode", "l"));
+                if app.last_staging_focus == DetailSection::Staged {
+                    entries_data.push(("Unstage Line", "↵"));
+                } else if app.last_staging_focus == DetailSection::Unstaged {
+                    entries_data.push(("Stage Line", "↵"));
+                    entries_data.push(("Discard Line", "x/Del"));
+                }
+            } else {
+                entries_data.push(("Line Mode", "l"));
+                if app.last_staging_focus == DetailSection::Staged {
+                    entries_data.push(("Unstage Hunk", "↵"));
+                } else if app.last_staging_focus == DetailSection::Unstaged {
+                    entries_data.push(("Stage Hunk", "↵"));
+                    entries_data.push(("Discard Hunk", "x/Del"));
                 }
             }
-            _ => {}
         }
-    }
+        entries_data.push(("Scroll Diff", "↑↓"));
+        entries_data.push(("Help", "?"));
+    } else {
+        let exit_label = if app.in_logs_ui {
+            "Logs UI"
+        } else {
+            "Workspace"
+        };
+        entries_data.push((exit_label, "⎋/q"));
+        entries_data.push(("Cycle Focus", "w/W"));
 
-    entries_data.push(("Select File", "↑↓"));
-    entries_data.push(("Scroll Diff", "↑↓ (focused)"));
-    entries_data.push(("Help", "?"));
+        if app.is_uncommitted_selected() {
+            match app.detail_focus {
+                DetailSection::Staged => {
+                    entries_data.push(("Unstage File", "↵"));
+                }
+                DetailSection::Unstaged => {
+                    entries_data.push(("Stage File", "↵"));
+                }
+                DetailSection::StagingDetails => {
+                    if app.diff_line_mode {
+                        entries_data.push(("Hunk Mode", "l"));
+                        if app.last_staging_focus == DetailSection::Staged {
+                            entries_data.push(("Unstage Line", "↵"));
+                        } else if app.last_staging_focus == DetailSection::Unstaged {
+                            entries_data.push(("Stage Line", "↵"));
+                            entries_data.push(("Discard Line", "x/Del"));
+                        }
+                    } else {
+                        entries_data.push(("Line Mode", "l"));
+                        if app.last_staging_focus == DetailSection::Staged {
+                            entries_data.push(("Unstage Hunk", "↵"));
+                        } else if app.last_staging_focus == DetailSection::Unstaged {
+                            entries_data.push(("Stage Hunk", "↵"));
+                            entries_data.push(("Discard Hunk", "x/Del"));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        entries_data.push(("Select File", "↑↓"));
+        if app.detail_focus == DetailSection::StagingDetails {
+            entries_data.push(("Full Screen Diff", "→"));
+            entries_data.push(("Scroll Diff", "↑↓"));
+        } else {
+            entries_data.push(("Scroll Diff", "↑↓ (focused)"));
+        }
+        entries_data.push(("Help", "?"));
+    }
 
     for (i, (label, key)) in entries_data.iter().enumerate() {
         let mut spans = Vec::new();

@@ -275,6 +275,8 @@ pub struct App {
     pub pending_interactive_rebase: Option<(PathBuf, String)>,
     /// Whether we are currently viewing logs UI.
     pub in_logs_ui: bool,
+    /// Whether we are in full-screen diff mode under inspect view.
+    pub inspect_full_diff: bool,
     /// Selection in search column picker.
     pub search_column_selection: usize,
     /// Columns to include in search.
@@ -416,6 +418,7 @@ impl App {
             pending_files_fzf: false,
             pending_interactive_rebase: None,
             in_logs_ui: false,
+            inspect_full_diff: false,
             search_column_selection: 0,
             search_columns_sha: true,
             search_columns_message: true,
@@ -823,6 +826,7 @@ impl App {
             self.rebuild_visible_files();
             self.detail_tab = 0;
             self.graph_scroll = 0;
+            self.inspect_full_diff = false;
             self.mode = Mode::Detail;
             self.refresh_file_diff();
         }
@@ -6518,5 +6522,55 @@ mod tests {
 
         // Verify we opened detail view
         assert_eq!(app.mode, Mode::Detail);
+    }
+
+    #[test]
+    fn test_inspect_full_screen_diff_toggle() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_full_diff.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Transition to Mode::Inspect and focus StagingDetails
+        app.mode = Mode::Inspect;
+        app.detail_focus = DetailSection::StagingDetails;
+        app.inspect_full_diff = false;
+
+        // Press Right arrow
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+        assert!(handled);
+        assert!(app.inspect_full_diff);
+
+        // Press Left arrow to exit full diff
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Left), 10);
+        assert!(handled);
+        assert!(!app.inspect_full_diff);
+
+        // Press Right arrow again to enter full diff
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+        assert!(handled);
+        assert!(app.inspect_full_diff);
+
+        // Press Esc to exit full diff
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+        assert!(handled);
+        assert!(!app.inspect_full_diff);
+        assert_eq!(app.mode, Mode::Inspect); // Still in Inspect mode!
     }
 }
