@@ -301,10 +301,34 @@ Twig writes back to whichever file it loaded from, so edits made in the UI persi
 
 ---
 
-## 🚀 Building & Running
+## 🚀 Installation & Running
+
+### Installation
+
+You can install **Twig** directly from [crates.io](https://crates.io/crates/twig):
 
 ```sh
+cargo install twig
+```
+
+### Building from Source
+
+Alternatively, you can clone the repository and build it from source:
+
+```sh
+git clone https://github.com/tareqmy/twig.git
+cd twig
 cargo build --release
-cargo run                       # uses default config resolution
-cargo run -- path/to/config.toml  # explicit config path
+```
+
+The compiled binary will be located at `target/release/twig`. You can copy it to a directory in your `$PATH` or run it directly.
+
+### Running
+
+```sh
+# Run with default config resolution
+twig
+
+# Run with an explicit config path
+twig path/to/config.toml
 ```
