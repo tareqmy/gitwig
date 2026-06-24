@@ -1,4 +1,4 @@
-//! Twig entry point.
+//! Gitwig entry point.
 //!
 //! `main` is intentionally thin: it sets up the terminal, hands control to
 //! `app::run`, and tears the terminal down on the way out. Application

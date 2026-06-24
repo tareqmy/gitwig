@@ -1,6 +1,6 @@
-# Twig Roadmap
+# Gitwig Roadmap
 
-This roadmap outlines the progression of Twig from a basic list viewer to a full-featured Git TUI.
+This roadmap outlines the progression of Gitwig from a basic list viewer to a full-featured Git TUI.
 
 ## Phase 1: Foundation (Current)
 - [x] Basic TUI setup with `crossterm` and `tui-rs`.

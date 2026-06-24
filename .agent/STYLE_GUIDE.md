@@ -1,4 +1,4 @@
-# Twig Style Guide
+# Gitwig Style Guide
 
 ## Rust Coding Standards
 - **Naming:** Follow standard Rust naming conventions (`snake_case` for functions/variables, `PascalCase` for structs/enums).

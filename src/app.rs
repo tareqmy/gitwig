@@ -5362,7 +5362,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_stash.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_stash.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -5445,7 +5445,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_network.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_network.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -5514,7 +5514,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_sort.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_sort.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -5572,7 +5572,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_duplicate.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_duplicate.toml");
         // Ensure starting with a clean state and clean up upon drop
         let _ = std::fs::remove_file(&temp_path);
         let _guard = TestFileGuard {
@@ -5682,7 +5682,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_pin.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_pin.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -5762,7 +5762,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_commit_scroll.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_scroll.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -5800,7 +5800,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_commit_amend.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_amend.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -5859,7 +5859,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_splitter.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_splitter.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -6127,7 +6127,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_mouse_select.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_mouse_select.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -6483,7 +6483,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_settings.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_settings.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -6675,7 +6675,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_inspect.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -6754,7 +6754,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_inspect_enter.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_enter.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -6825,7 +6825,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_inspect_commit.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_commit.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -6898,7 +6898,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_workspace_all.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_workspace_all.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -6959,7 +6959,7 @@ mod tests {
     fn test_workspace_all_changes_focus_transitions() {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
-            "twig_test_app_all_{}",
+            "gitwig_test_app_all_{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -7029,7 +7029,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_cycle.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_cycle.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -7158,7 +7158,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_git_app.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_git_app.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -7190,7 +7190,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_files_fzf.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_files_fzf.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -7225,7 +7225,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_logs_search.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_logs_search.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -7436,7 +7436,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_sync.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_sync.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -7498,7 +7498,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_checkout.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_checkout.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -7622,7 +7622,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_search.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_search.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -7675,7 +7675,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_right_arrow.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_right_arrow.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -7709,7 +7709,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_full_diff.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_full_diff.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
@@ -7760,7 +7760,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_files_full.toml");
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_files_full.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };

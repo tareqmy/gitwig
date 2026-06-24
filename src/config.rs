@@ -488,7 +488,7 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let test_dir = std::env::temp_dir().join(format!("twig_test_theme_{}", unique_id));
+        let test_dir = std::env::temp_dir().join(format!("gitwig_test_theme_{}", unique_id));
         fs::create_dir_all(&test_dir).unwrap();
         let config_path = test_dir.join("config.toml");
         let themes_dir = test_dir.join("themes");
@@ -545,7 +545,8 @@ border_type = "double"
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let test_dir = std::env::temp_dir().join(format!("twig_test_popular_themes_{}", unique_id));
+        let test_dir =
+            std::env::temp_dir().join(format!("gitwig_test_popular_themes_{}", unique_id));
         fs::create_dir_all(&test_dir).unwrap();
 
         write_popular_themes(&test_dir).unwrap();

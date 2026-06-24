@@ -1,7 +1,7 @@
-# Twig - Project Instructions
+# Gitwig - Project Instructions
 
 ## Project Overview
-Twig is a Rust-based Terminal User Interface (TUI) for Git, aiming to provide a SourceTree-like experience in the terminal.
+Gitwig is a Rust-based Terminal User Interface (TUI) for Git, aiming to provide a SourceTree-like experience in the terminal.
 
 ## Core Mandates
 - **Performance:** Must be fast even in large repositories.

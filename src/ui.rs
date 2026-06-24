@@ -321,7 +321,7 @@ fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
         .title(
             Line::from(vec![
                 Span::raw(" "),
-                Span::styled("Twig", accent_style()),
+                Span::styled("Gitwig", accent_style()),
                 Span::raw(" "),
             ])
             .alignment(Alignment::Left),

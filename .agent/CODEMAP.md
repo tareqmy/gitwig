@@ -1,12 +1,12 @@
-# Twig Codebase Map
+# Gitwig Codebase Map
 
-This document provides a map of the Twig codebase, outlining its architectural patterns, module responsibilities, core state/mode management, and event control flow.
+This document provides a map of the Gitwig codebase, outlining its architectural patterns, module responsibilities, core state/mode management, and event control flow.
 
 ---
 
 ## 1. Architectural Overview
 
-Twig follows a synchronous, single-threaded model for UI rendering and input handling, while offloading long-running Git operations (like fetch, pull, and rebase) to background threads. 
+Gitwig follows a synchronous, single-threaded model for UI rendering and input handling, while offloading long-running Git operations (like fetch, pull, and rebase) to background threads. 
 
 ```mermaid
 graph TD
@@ -33,7 +33,7 @@ The crate is organized into single-responsibility modules:
 | **Home UI** | `src/ui.rs` | Renders the repository list on the home page, the layout splitters, help overlays, normal-mode status bars, and defines general theme style helpers. |
 | **Detail UI** | `src/ui_detail.rs` | Renders the full-screen repository detail view. Manages drawing of Tabs 0 through 7 (Workspace, Files, Graph, Branches, Tags, Remotes, Stashes, Overview), popup overlays, and confirmation dialogs. |
 | **Git Domain** | `src/repo.rs` | Abstracted git operations using `git2-rs` bindings or shelling out to the CLI. Handles staging, unstaging, committing, fetching, pulling, rebasing, tag management, stash operations, and diff generation. |
-| **Configuration** | `src/config.rs` | Manages loading, updating, and saving user settings in `~/.twig/config.toml` (themes, sorting, fzf settings, polling intervals). |
+| **Configuration** | `src/config.rs` | Manages loading, updating, and saving user settings in `~/.gitwig/config.toml` (themes, sorting, fzf settings, polling intervals). |
 
 ---
 

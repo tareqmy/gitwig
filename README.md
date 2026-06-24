@@ -1,6 +1,6 @@
-# 🌿 Twig — A Minimal Terminal Git UI
+# 🌿 Gitwig — A Minimal Terminal Git UI
 
-**Twig** is a lightweight terminal-based Git UI, designed as a fast and minimal alternative to GUI tools like SourceTree. Built with Rust and `ratatui`, Twig presents your Git-related items in a clean, bordered layout directly in the terminal.
+**Gitwig** (from **Git** + **Twig**, representing the branches of a repository) is a lightweight terminal-based Git UI, designed as a fast and minimal alternative to GUI tools like SourceTree. Built with Rust and `ratatui`, Gitwig presents your Git-related items in a clean, bordered layout directly in the terminal.
 
 ---
 
@@ -131,7 +131,7 @@ For git repositories the indicator also shows compact counts for any non-zero va
 
 When all counts are zero the indicator shows `● clean`. When the branch has no configured upstream, only the worktree counts appear (no `↑`/`↓`). Press `?` at any time to see the legend inside the app.
 
-Items support `~` and `~/...` expansion, so `~/code/twig` resolves to your home directory. Statuses are recomputed only when you add, edit, or delete an item — they are not polled in the background. Press `r` to manually refresh the selected item's status if you've changed the filesystem outside the app (e.g. `git init` in a directory that was previously `○ dir`); the status bar briefly flashes `Refreshed` so you know the check ran.
+Items support `~` and `~/...` expansion, so `~/code/gitwig` resolves to your home directory. Statuses are recomputed only when you add, edit, or delete an item — they are not polled in the background. Press `r` to manually refresh the selected item's status if you've changed the filesystem outside the app (e.g. `git init` in a directory that was previously `○ dir`); the status bar briefly flashes `Refreshed` so you know the check ran.
 
 ## 🔍 Detail view
 
@@ -297,7 +297,7 @@ sort_reverse = false
 | `fzf.start_dir` | `String` | `"$HOME"` | Starting directory for interactive repository discovery via FZF. |
 | `fzf.excludes` | `[String]` | `[".git", "node_modules", "target"]` | Directory names excluded from FZF discovery. |
 
-Twig writes back to whichever file it loaded from, so edits made in the UI persist across runs.
+Gitwig writes back to whichever file it loaded from, so edits made in the UI persist across runs.
 
 ---
 
@@ -305,7 +305,7 @@ Twig writes back to whichever file it loaded from, so edits made in the UI persi
 
 ### Installation
 
-You can install **Twig** directly from [crates.io](https://crates.io/crates/gitwig):
+You can install **Gitwig** directly from [crates.io](https://crates.io/crates/gitwig):
 
 ```sh
 cargo install gitwig
@@ -316,8 +316,8 @@ cargo install gitwig
 Alternatively, you can clone the repository and build it from source:
 
 ```sh
-git clone https://github.com/tareqmy/twig.git
-cd twig
+git clone https://github.com/tareqmy/gitwig.git
+cd gitwig
 cargo build --release
 ```
 

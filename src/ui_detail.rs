@@ -1,7 +1,7 @@
 //! Full-screen detail view for the currently-selected item.
 //!
 //! Reads a snapshot prepared by `repo::inspect_detail` and renders it as a
-//! padded paragraph in the body of the outer Twig frame. Drawing is pure —
+//! padded paragraph in the body of the outer Gitwig frame. Drawing is pure —
 //! all git2 work happens once in `App::open_detail`, not per frame.
 //!
 //! The view is divided into labelled sections (Overview, Repository, Sync,
