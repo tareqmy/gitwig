@@ -92,6 +92,26 @@ pub struct DetailAreas {
     pub stashes_vertical_splitter: Option<Rect>,
     /// Bounding box of the horizontal splitter in overview tab.
     pub overview_horizontal_splitter: Option<Rect>,
+    /// Inner area of commits list.
+    pub commits_inner: Option<Rect>,
+    /// Inner area of staged files list.
+    pub staged_sub_inner: Option<Rect>,
+    /// Inner area of unstaged files list.
+    pub unstaged_sub_inner: Option<Rect>,
+    /// Inner area of changed files list.
+    pub changed_files_inner: Option<Rect>,
+    /// Inner area of local branches list.
+    pub local_branches_inner: Option<Rect>,
+    /// Inner area of remote branches list.
+    pub remote_branches_inner: Option<Rect>,
+    /// Inner area of local tags list.
+    pub local_tags_inner: Option<Rect>,
+    /// Inner area of remotes list.
+    pub remotes_inner: Option<Rect>,
+    /// Inner area of stashes list.
+    pub stashes_inner: Option<Rect>,
+    /// Inner area of stashed files list.
+    pub stashed_files_inner: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -438,6 +458,8 @@ pub fn draw(
                     commit_selection,
                     commit_search_query,
                     detail_chunks[0],
+                    &app.commits_table_state,
+                    areas,
                 );
                 areas.commits = Some(detail_chunks[0]);
 
@@ -472,6 +494,7 @@ pub fn draw(
                                 areas,
                                 inspect_horizontal_split_pct,
                                 inspect_vertical_split_pct,
+                                &app.changed_files_list_state,
                                 detail_chunks[1],
                             );
                         }
@@ -547,6 +570,7 @@ pub fn draw(
                     remote_branch_selection,
                     areas,
                     branches_horizontal_split_pct,
+                    app,
                     body_area,
                 );
             } else if detail_tab == 4 {
@@ -558,11 +582,12 @@ pub fn draw(
                     local_tag_selection,
                     info.remote_tags_loaded,
                     areas,
+                    app,
                     body_area,
                 );
             } else if detail_tab == 5 {
                 // Render Remotes view (tab 6, index 5)
-                draw_remotes_view(f, info, *focus, remote_selection, areas, body_area);
+                draw_remotes_view(f, info, *focus, remote_selection, areas, app, body_area);
             } else if detail_tab == 6 {
                 // Render Stashes view (tab 7, index 6)
                 draw_stashes_view(
@@ -576,6 +601,7 @@ pub fn draw(
                     areas,
                     stashes_horizontal_split_pct,
                     stashes_vertical_split_pct,
+                    app,
                     body_area,
                 );
             } else {
@@ -720,6 +746,7 @@ fn draw_commit_files_panel(
     areas: &mut DetailAreas,
     inspect_horizontal_split_pct: u16,
     inspect_vertical_split_pct: u16,
+    changed_files_list_state: &std::cell::RefCell<ListState>,
     area: Rect,
 ) {
     let panels = Layout::default()
@@ -785,6 +812,7 @@ fn draw_commit_files_panel(
             Span::raw(" "),
         ]));
     let left_inner = left_block.inner(left_chunks[0]);
+    areas.changed_files_inner = Some(left_inner);
     f.render_widget(left_block, left_chunks[0]);
 
     if commit.files.is_empty() {
@@ -809,11 +837,13 @@ fn draw_commit_files_panel(
             .collect();
         let list =
             List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-        let mut state = ListState::default();
+        let mut state = changed_files_list_state.borrow_mut();
         if left_focused {
             state.select(Some(file_selection));
+        } else {
+            state.select(None);
         }
-        f.render_stateful_widget(list, left_inner, &mut state);
+        f.render_stateful_widget(list, left_inner, &mut *state);
     }
 
     // ── Left Bottom: commit details ───────────────────────────────────────────
@@ -1024,7 +1054,7 @@ fn draw_staging_panels(
         areas.staged_sub = Some(left_split[0]);
         areas.unstaged_sub = Some(left_split[1]);
 
-        draw_file_subpanel(
+        let staged_inner = draw_file_subpanel(
             f,
             "Staged",
             SUCCESS(),
@@ -1037,9 +1067,12 @@ fn draw_staging_panels(
             } else {
                 None
             },
+            &app.staged_list_state,
             left_split[0],
         );
-        draw_file_subpanel(
+        areas.staged_sub_inner = Some(staged_inner);
+
+        let unstaged_inner = draw_file_subpanel(
             f,
             "Unstaged",
             WARNING(),
@@ -1052,8 +1085,10 @@ fn draw_staging_panels(
             } else {
                 None
             },
+            &app.unstaged_list_state,
             left_split[1],
         );
+        areas.unstaged_sub_inner = Some(unstaged_inner);
 
         // ── Right panel – Staging Details ─────────────────────────────────────
         let right_border_style = if right_focused {
@@ -1169,8 +1204,9 @@ fn draw_file_subpanel(
     borders: Borders,
     focused: bool,
     selection: Option<usize>,
+    list_state: &std::cell::RefCell<ListState>,
     area: Rect,
-) {
+) -> Rect {
     // When focused, highlight the title in accent; border stays muted (contained inside outer).
     let title_style = if focused {
         Style::default()
@@ -1212,7 +1248,7 @@ fn draw_file_subpanel(
             Paragraph::new(Span::styled(empty_msg, muted_style())).alignment(Alignment::Center),
             v[1],
         );
-        return;
+        return inner;
     }
 
     if let Some(sel_idx) = selection {
@@ -1223,14 +1259,15 @@ fn draw_file_subpanel(
             .collect();
         let list =
             List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-        let mut state = ListState::default();
+        let mut state = list_state.borrow_mut();
         state.select(Some(sel_idx));
-        f.render_stateful_widget(list, inner, &mut state);
+        f.render_stateful_widget(list, inner, &mut *state);
     } else {
         // Not focused: plain paragraph.
         let file_lines: Vec<Line<'static>> = files.iter().map(file_entry_line).collect();
         f.render_widget(Paragraph::new(file_lines).wrap(Wrap { trim: false }), inner);
     }
+    inner
 }
 
 // ── Overview popup ─────────────────────────────────────────────────────────
@@ -1508,6 +1545,7 @@ fn draw_detail_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_detail_commits(
     f: &mut Frame,
     info: &RepoInfo,
@@ -1515,6 +1553,8 @@ fn draw_detail_commits(
     commit_selection: usize,
     commit_search_query: &Option<String>,
     area: Rect,
+    commits_table_state: &std::cell::RefCell<TableState>,
+    areas: &mut DetailAreas,
 ) {
     let focused = focus == DetailSection::Commits;
     let border_style = if focused {
@@ -1598,6 +1638,7 @@ fn draw_detail_commits(
     // Show empty placeholder only when truly empty (no commits AND clean).
     if filtered_commits.is_empty() && !show_dirty {
         let inner = block.inner(area);
+        areas.commits_inner = Some(inner);
         f.render_widget(block, area);
         let v = Layout::default()
             .direction(Direction::Vertical)
@@ -1685,17 +1726,22 @@ fn draw_detail_commits(
         Constraint::Min(20),    // Summary
     ];
 
+    let inner = block.inner(area);
+    areas.commits_inner = Some(inner);
+
     let table = Table::new(rows, widths)
         .header(header)
         .block(block)
         .row_highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .column_spacing(2);
 
-    let mut state = TableState::default();
+    let mut state = commits_table_state.borrow_mut();
     if focused {
         state.select(Some(commit_selection));
+    } else {
+        state.select(None);
     }
-    f.render_stateful_widget(table, area, &mut state);
+    f.render_stateful_widget(table, area, &mut *state);
 }
 
 // ── Body builder ───────────────────────────────────────────────────────────
@@ -2108,6 +2154,7 @@ fn draw_branches_view(
     remote_branch_selection: usize,
     areas: &mut DetailAreas,
     branches_horizontal_split_pct: u16,
+    app: &crate::app::App,
     area: Rect,
 ) {
     let chunks = Layout::default()
@@ -2179,15 +2226,20 @@ fn draw_branches_view(
         })
         .collect();
 
+    let inner = local_block.inner(left_area);
+    areas.local_branches_inner = Some(inner);
+
     let local_list = List::new(local_items)
         .block(local_block)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    let mut local_state = ListState::default();
+    let mut local_state = app.local_branch_list_state.borrow_mut();
     if local_focused {
         local_state.select(Some(local_branch_selection));
+    } else {
+        local_state.select(None);
     }
-    f.render_stateful_widget(local_list, left_area, &mut local_state);
+    f.render_stateful_widget(local_list, left_area, &mut *local_state);
 
     // ── Remote Branches Panel ──
     let remote_focused = focus == DetailSection::RemoteBranches;
@@ -2229,15 +2281,20 @@ fn draw_branches_view(
         })
         .collect();
 
+    let inner = remote_block.inner(right_area);
+    areas.remote_branches_inner = Some(inner);
+
     let remote_list = List::new(remote_items)
         .block(remote_block)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    let mut remote_state = ListState::default();
+    let mut remote_state = app.remote_branch_list_state.borrow_mut();
     if remote_focused {
         remote_state.select(Some(remote_branch_selection));
+    } else {
+        remote_state.select(None);
     }
-    f.render_stateful_widget(remote_list, right_area, &mut remote_state);
+    f.render_stateful_widget(remote_list, right_area, &mut *remote_state);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3122,6 +3179,7 @@ fn draw_tag_create_popup(
     f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_tags_view(
     f: &mut Frame,
     info: &RepoInfo,
@@ -3129,6 +3187,7 @@ fn draw_tags_view(
     local_tag_selection: usize,
     remote_tags_loaded: bool,
     areas: &mut DetailAreas,
+    app: &crate::app::App,
     area: Rect,
 ) {
     areas.local_tags = Some(area);
@@ -3186,15 +3245,20 @@ fn draw_tags_view(
         })
         .collect();
 
+    let inner = local_block.inner(area);
+    areas.local_tags_inner = Some(inner);
+
     let local_list = List::new(local_items)
         .block(local_block)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    let mut local_state = ListState::default();
+    let mut local_state = app.local_tag_list_state.borrow_mut();
     if local_focused {
         local_state.select(Some(local_tag_selection));
+    } else {
+        local_state.select(None);
     }
-    f.render_stateful_widget(local_list, area, &mut local_state);
+    f.render_stateful_widget(local_list, area, &mut *local_state);
 }
 
 fn draw_remotes_view(
@@ -3203,6 +3267,7 @@ fn draw_remotes_view(
     focus: DetailSection,
     remote_selection: usize,
     areas: &mut DetailAreas,
+    app: &crate::app::App,
     area: Rect,
 ) {
     areas.remotes = Some(area);
@@ -3245,15 +3310,20 @@ fn draw_remotes_view(
         })
         .collect();
 
+    let inner = list_block.inner(left_area);
+    areas.remotes_inner = Some(inner);
+
     let list = List::new(list_items)
         .block(list_block)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    let mut list_state = ListState::default();
+    let mut list_state = app.remote_list_state.borrow_mut();
     if focused {
         list_state.select(Some(remote_selection));
+    } else {
+        list_state.select(None);
     }
-    f.render_stateful_widget(list, left_area, &mut list_state);
+    f.render_stateful_widget(list, left_area, &mut *list_state);
 
     // ── Remote Details Panel ──
     let details_block = Block::default()
@@ -3584,6 +3654,7 @@ fn draw_stashes_view(
     areas: &mut DetailAreas,
     stashes_horizontal_split_pct: u16,
     stashes_vertical_split_pct: u16,
+    app: &crate::app::App,
     area: Rect,
 ) {
     areas.bottom_left = None;
@@ -3670,22 +3741,27 @@ fn draw_stashes_view(
         })
         .collect();
 
+    let inner = list_block.inner(left_chunks[0]);
+    areas.stashes_inner = Some(inner);
+
     let list = List::new(list_items)
         .block(list_block)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    let mut list_state = ListState::default();
+    let mut list_state = app.stash_list_state.borrow_mut();
     if stashes_focused || !info.stashes.is_empty() {
         list_state.select(Some(stash_selection));
+    } else {
+        list_state.select(None);
     }
-    f.render_stateful_widget(list, left_chunks[0], &mut list_state);
+    f.render_stateful_widget(list, left_chunks[0], &mut *list_state);
 
     // ── Stashed Files List Panel ──
     let files_focused = focus == DetailSection::StashedFiles;
     let selected_stash = info.stashes.get(stash_selection);
     let stashed_files = selected_stash.map(|s| s.files.as_slice()).unwrap_or(&[]);
 
-    draw_file_subpanel(
+    let stashed_files_inner = draw_file_subpanel(
         f,
         "Stashed Files",
         WARNING(),
@@ -3698,8 +3774,10 @@ fn draw_stashes_view(
         } else {
             None
         },
+        &app.stash_file_list_state,
         left_chunks[1],
     );
+    areas.stashed_files_inner = Some(stashed_files_inner);
 
     // ── Right panel: Diff/Stash Details ──
     let diff_focused = focus == DetailSection::StagingDetails;

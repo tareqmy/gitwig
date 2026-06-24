@@ -1664,13 +1664,47 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if let Some(rect) = areas.staged_sub {
         if rect.contains(pos) {
             if is_click {
-                if app.detail_focus != DetailSection::Staged {
-                    app.detail_focus = DetailSection::Staged;
-                    app.last_staging_focus = DetailSection::Staged;
-                    app.staging_file_selection = 0;
-                    app.diff_scroll = 0;
-                    app.refresh_staging_diff();
+                app.detail_focus = DetailSection::Staged;
+                app.last_staging_focus = DetailSection::Staged;
+
+                let mut clicked_file = false;
+                if let Some(inner) = areas.staged_sub_inner {
+                    if inner.contains(pos) {
+                        let clicked_row = (pos.y - inner.y) as usize;
+                        let offset = if app.detail_focus == DetailSection::Staged {
+                            app.staged_list_state.borrow().offset()
+                        } else {
+                            0
+                        };
+                        let actual_idx = offset + clicked_row;
+                        let total = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                                info.changes.staged.len()
+                            }
+                            _ => 0,
+                        };
+                        if actual_idx < total {
+                            app.staging_file_selection = actual_idx;
+                            clicked_file = true;
+                        }
+                    }
                 }
+
+                if !clicked_file {
+                    let total = match &app.current_detail {
+                        Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                            info.changes.staged.len()
+                        }
+                        _ => 0,
+                    };
+                    if total > 0 {
+                        app.staging_file_selection = app.staging_file_selection.min(total - 1);
+                    } else {
+                        app.staging_file_selection = 0;
+                    }
+                }
+                app.diff_scroll = 0;
+                app.refresh_staging_diff();
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::Staged;
                 app.last_staging_focus = DetailSection::Staged;
@@ -1695,13 +1729,47 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if let Some(rect) = areas.unstaged_sub {
         if rect.contains(pos) {
             if is_click {
-                if app.detail_focus != DetailSection::Unstaged {
-                    app.detail_focus = DetailSection::Unstaged;
-                    app.last_staging_focus = DetailSection::Unstaged;
-                    app.staging_file_selection = 0;
-                    app.diff_scroll = 0;
-                    app.refresh_staging_diff();
+                app.detail_focus = DetailSection::Unstaged;
+                app.last_staging_focus = DetailSection::Unstaged;
+
+                let mut clicked_file = false;
+                if let Some(inner) = areas.unstaged_sub_inner {
+                    if inner.contains(pos) {
+                        let clicked_row = (pos.y - inner.y) as usize;
+                        let offset = if app.detail_focus == DetailSection::Unstaged {
+                            app.unstaged_list_state.borrow().offset()
+                        } else {
+                            0
+                        };
+                        let actual_idx = offset + clicked_row;
+                        let total = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                                info.changes.unstaged.len()
+                            }
+                            _ => 0,
+                        };
+                        if actual_idx < total {
+                            app.staging_file_selection = actual_idx;
+                            clicked_file = true;
+                        }
+                    }
                 }
+
+                if !clicked_file {
+                    let total = match &app.current_detail {
+                        Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                            info.changes.unstaged.len()
+                        }
+                        _ => 0,
+                    };
+                    if total > 0 {
+                        app.staging_file_selection = app.staging_file_selection.min(total - 1);
+                    } else {
+                        app.staging_file_selection = 0;
+                    }
+                }
+                app.diff_scroll = 0;
+                app.refresh_staging_diff();
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::Unstaged;
                 app.last_staging_focus = DetailSection::Unstaged;
@@ -1744,18 +1812,40 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if let Some(rect) = areas.bottom_left {
         if rect.contains(pos) {
             if is_click {
-                // When sub-panels are not shown (real commit), treat the whole
-                // left block as the Staged (Changed Files) focus.
-                if app.detail_focus != DetailSection::Staged {
-                    app.detail_focus = DetailSection::Staged;
-                    app.diff_scroll = 0;
-                    if app.is_uncommitted_selected() {
-                        app.staging_file_selection = 0;
-                        app.refresh_staging_diff();
+                app.detail_focus = DetailSection::Staged;
+                if app.is_uncommitted_selected() {
+                    let total = app.staging_file_total();
+                    if total > 0 {
+                        app.staging_file_selection = app.staging_file_selection.min(total - 1);
                     } else {
-                        app.file_selection = 0;
-                        app.refresh_file_diff();
+                        app.staging_file_selection = 0;
                     }
+                    app.diff_scroll = 0;
+                    app.refresh_staging_diff();
+                } else {
+                    let mut clicked_file = false;
+                    if let Some(inner) = areas.changed_files_inner {
+                        if inner.contains(pos) {
+                            let clicked_row = (pos.y - inner.y) as usize;
+                            let offset = app.changed_files_list_state.borrow().offset();
+                            let actual_idx = offset + clicked_row;
+                            let total = app.file_total();
+                            if actual_idx < total {
+                                app.file_selection = actual_idx;
+                                clicked_file = true;
+                            }
+                        }
+                    }
+                    if !clicked_file {
+                        let total = app.file_total();
+                        if total > 0 {
+                            app.file_selection = app.file_selection.min(total - 1);
+                        } else {
+                            app.file_selection = 0;
+                        }
+                    }
+                    app.diff_scroll = 0;
+                    app.refresh_file_diff();
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::Staged;
@@ -1802,8 +1892,21 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if let Some(rect) = areas.commits {
         if rect.contains(pos) {
             if is_click {
-                if app.detail_focus != DetailSection::Commits {
-                    app.detail_focus = DetailSection::Commits;
+                app.detail_focus = DetailSection::Commits;
+                if let Some(inner) = areas.commits_inner {
+                    if pos.y > inner.y {
+                        let row_clicked = (pos.y - inner.y - 1) as usize;
+                        let offset = app.commits_table_state.borrow().offset();
+                        let actual_idx = offset + row_clicked;
+                        let total = app.commit_total();
+                        if actual_idx < total {
+                            app.commit_selection = actual_idx;
+                            app.file_selection = 0;
+                            app.staging_file_selection = 0;
+                            app.diff_scroll = 0;
+                            app.refresh_file_diff();
+                        }
+                    }
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::Commits;
@@ -1818,8 +1921,22 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if let Some(rect) = areas.local_branches {
         if rect.contains(pos) {
             if is_click {
-                if app.detail_focus != DetailSection::LocalBranches {
-                    app.detail_focus = DetailSection::LocalBranches;
+                app.detail_focus = DetailSection::LocalBranches;
+                if let Some(inner) = areas.local_branches_inner {
+                    if inner.contains(pos) {
+                        let clicked_row = (pos.y - inner.y) as usize;
+                        let offset = app.local_branch_list_state.borrow().offset();
+                        let actual_idx = offset + clicked_row;
+                        let total = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                                info.local_branches.len()
+                            }
+                            _ => 0,
+                        };
+                        if actual_idx < total {
+                            app.local_branch_selection = actual_idx;
+                        }
+                    }
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::LocalBranches;
@@ -1834,8 +1951,22 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if let Some(rect) = areas.remote_branches {
         if rect.contains(pos) {
             if is_click {
-                if app.detail_focus != DetailSection::RemoteBranches {
-                    app.detail_focus = DetailSection::RemoteBranches;
+                app.detail_focus = DetailSection::RemoteBranches;
+                if let Some(inner) = areas.remote_branches_inner {
+                    if inner.contains(pos) {
+                        let clicked_row = (pos.y - inner.y) as usize;
+                        let offset = app.remote_branch_list_state.borrow().offset();
+                        let actual_idx = offset + clicked_row;
+                        let total = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                                info.remote_branches.len()
+                            }
+                            _ => 0,
+                        };
+                        if actual_idx < total {
+                            app.remote_branch_selection = actual_idx;
+                        }
+                    }
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::RemoteBranches;
@@ -1850,8 +1981,22 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if let Some(rect) = areas.local_tags {
         if rect.contains(pos) {
             if is_click {
-                if app.detail_focus != DetailSection::LocalTags {
-                    app.detail_focus = DetailSection::LocalTags;
+                app.detail_focus = DetailSection::LocalTags;
+                if let Some(inner) = areas.local_tags_inner {
+                    if inner.contains(pos) {
+                        let clicked_row = (pos.y - inner.y) as usize;
+                        let offset = app.local_tag_list_state.borrow().offset();
+                        let actual_idx = offset + clicked_row;
+                        let total = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                                info.local_tags.len()
+                            }
+                            _ => 0,
+                        };
+                        if actual_idx < total {
+                            app.local_tag_selection = actual_idx;
+                        }
+                    }
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::LocalTags;
@@ -1898,8 +2043,20 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if let Some(rect) = areas.remotes {
         if rect.contains(pos) {
             if is_click {
-                if app.detail_focus != DetailSection::Remotes {
-                    app.detail_focus = DetailSection::Remotes;
+                app.detail_focus = DetailSection::Remotes;
+                if let Some(inner) = areas.remotes_inner {
+                    if inner.contains(pos) {
+                        let clicked_row = (pos.y - inner.y) as usize;
+                        let offset = app.remote_list_state.borrow().offset();
+                        let actual_idx = offset + clicked_row;
+                        let total = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => info.remotes.len(),
+                            _ => 0,
+                        };
+                        if actual_idx < total {
+                            app.remote_selection = actual_idx;
+                        }
+                    }
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::Remotes;
@@ -1914,8 +2071,23 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if let Some(rect) = areas.stashes {
         if rect.contains(pos) {
             if is_click {
-                if app.detail_focus != DetailSection::Stashes {
-                    app.detail_focus = DetailSection::Stashes;
+                app.detail_focus = DetailSection::Stashes;
+                if let Some(inner) = areas.stashes_inner {
+                    if inner.contains(pos) {
+                        let clicked_row = (pos.y - inner.y) as usize;
+                        let offset = app.stash_list_state.borrow().offset();
+                        let actual_idx = offset + clicked_row;
+                        let total = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => info.stashes.len(),
+                            _ => 0,
+                        };
+                        if actual_idx < total {
+                            app.stash_selection = actual_idx;
+                            app.stash_file_selection = 0;
+                            app.diff_scroll = 0;
+                            app.refresh_file_diff();
+                        }
+                    }
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::Stashes;
@@ -1930,8 +2102,26 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if let Some(rect) = areas.stashed_files {
         if rect.contains(pos) {
             if is_click {
-                if app.detail_focus != DetailSection::StashedFiles {
-                    app.detail_focus = DetailSection::StashedFiles;
+                app.detail_focus = DetailSection::StashedFiles;
+                if let Some(inner) = areas.stashed_files_inner {
+                    if inner.contains(pos) {
+                        let clicked_row = (pos.y - inner.y) as usize;
+                        let offset = app.stash_file_list_state.borrow().offset();
+                        let actual_idx = offset + clicked_row;
+                        let total = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => info
+                                .stashes
+                                .get(app.stash_selection)
+                                .map(|s| s.files.len())
+                                .unwrap_or(0),
+                            _ => 0,
+                        };
+                        if actual_idx < total {
+                            app.stash_file_selection = actual_idx;
+                            app.diff_scroll = 0;
+                            app.refresh_file_diff();
+                        }
+                    }
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::StashedFiles;

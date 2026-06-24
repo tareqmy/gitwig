@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use crossterm::event::{self, Event};
 use ratatui::Terminal;
 use ratatui::layout::{Margin, Rect};
+use ratatui::widgets::{ListState, TableState};
 
 use crate::config::{Config, SortOrder, save_config};
 use crate::input;
@@ -239,6 +240,16 @@ pub struct App {
     pub detail_areas: DetailAreas,
     /// Main panel item bounding boxes recorded after each draw, used for mouse hit-testing.
     pub main_areas: Vec<Rect>,
+    pub commits_table_state: std::cell::RefCell<TableState>,
+    pub staged_list_state: std::cell::RefCell<ListState>,
+    pub unstaged_list_state: std::cell::RefCell<ListState>,
+    pub changed_files_list_state: std::cell::RefCell<ListState>,
+    pub local_branch_list_state: std::cell::RefCell<ListState>,
+    pub remote_branch_list_state: std::cell::RefCell<ListState>,
+    pub local_tag_list_state: std::cell::RefCell<ListState>,
+    pub remote_list_state: std::cell::RefCell<ListState>,
+    pub stash_list_state: std::cell::RefCell<ListState>,
+    pub stash_file_list_state: std::cell::RefCell<ListState>,
     /// Timestamp and selected index of the last mouse click for double-click detection.
     pub last_click: Option<(std::time::Instant, usize)>,
     /// Active tab in the detail view (0 = Details, 1 = Graph, 2 = Branches, 3 = Files).
@@ -400,6 +411,16 @@ impl App {
             help_scroll: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
+            commits_table_state: std::cell::RefCell::new(TableState::default()),
+            staged_list_state: std::cell::RefCell::new(ListState::default()),
+            unstaged_list_state: std::cell::RefCell::new(ListState::default()),
+            changed_files_list_state: std::cell::RefCell::new(ListState::default()),
+            local_branch_list_state: std::cell::RefCell::new(ListState::default()),
+            remote_branch_list_state: std::cell::RefCell::new(ListState::default()),
+            local_tag_list_state: std::cell::RefCell::new(ListState::default()),
+            remote_list_state: std::cell::RefCell::new(ListState::default()),
+            stash_list_state: std::cell::RefCell::new(ListState::default()),
+            stash_file_list_state: std::cell::RefCell::new(ListState::default()),
             last_click: None,
             detail_tab: 0,
             file_list_selection: 0,
@@ -2854,7 +2875,7 @@ impl App {
 
     /// Total number of rows in the Commits panel (dirty row + real commits).
     /// Total number of rows in the Commits panel (dirty row + real commits).
-    fn commit_total(&self) -> usize {
+    pub fn commit_total(&self) -> usize {
         match &self.current_detail {
             Some(ItemDetail::Repo { info, .. }) => {
                 if self.in_logs_ui {
@@ -5571,6 +5592,362 @@ mod tests {
         };
         crate::input::handle_mouse(&mut app, up_overview);
         assert_eq!(app.active_drag_splitter, None);
+    }
+
+    #[test]
+    fn test_mouse_row_selection_in_detail_panels() {
+        use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+        use ratatui::layout::Rect;
+
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_mouse_select.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+        app.mode = Mode::Detail;
+
+        // 1. Commits panel click test
+        app.detail_areas = crate::ui_detail::DetailAreas::default();
+        app.detail_areas.commits = Some(Rect::new(0, 0, 100, 20));
+        app.detail_areas.commits_inner = Some(Rect::new(1, 1, 98, 18));
+        let mock_info = repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: repo::RepoSummary::default(),
+            changes: repo::WorktreeChanges::default(),
+            commits: vec![
+                repo::CommitEntry {
+                    id: "1".to_string(),
+                    oid: "1111111111111111111111111111111111111111".to_string(),
+                    summary: "C1".to_string(),
+                    author: "A".to_string(),
+                    when: "now".to_string(),
+                    date: "now".to_string(),
+                    refs: vec![],
+                    message: "msg".to_string(),
+                    files: vec![],
+                },
+                repo::CommitEntry {
+                    id: "2".to_string(),
+                    oid: "2222222222222222222222222222222222222222".to_string(),
+                    summary: "C2".to_string(),
+                    author: "B".to_string(),
+                    when: "now".to_string(),
+                    date: "now".to_string(),
+                    refs: vec![],
+                    message: "msg".to_string(),
+                    files: vec![],
+                },
+                repo::CommitEntry {
+                    id: "3".to_string(),
+                    oid: "3333333333333333333333333333333333333333".to_string(),
+                    summary: "C3".to_string(),
+                    author: "C".to_string(),
+                    when: "now".to_string(),
+                    date: "now".to_string(),
+                    refs: vec![],
+                    message: "msg".to_string(),
+                    files: vec![],
+                },
+            ],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+            remotes: vec![],
+        };
+        app.current_detail = Some(repo::ItemDetail::Repo {
+            resolved: PathBuf::from("a_repo"),
+            info: Box::new(mock_info),
+        });
+
+        let commit_click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 10,
+            row: 3,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, commit_click);
+        assert_eq!(app.commit_selection, 1);
+        assert_eq!(app.detail_focus, DetailSection::Commits);
+
+        // 2. Staged subpanel click test
+        app.detail_areas = crate::ui_detail::DetailAreas::default();
+        let mut mock_info_2 = repo::RepoInfo::default();
+        mock_info_2.changes.staged = vec![
+            repo::FileEntry {
+                path: "s1.rs".to_string(),
+                label: "M",
+            },
+            repo::FileEntry {
+                path: "s2.rs".to_string(),
+                label: "M",
+            },
+        ];
+        mock_info_2.changes.unstaged = vec![repo::FileEntry {
+            path: "u1.rs".to_string(),
+            label: "M",
+        }];
+        app.current_detail = Some(repo::ItemDetail::Repo {
+            resolved: PathBuf::from("a_repo"),
+            info: Box::new(mock_info_2),
+        });
+
+        app.detail_areas.staged_sub = Some(Rect::new(0, 20, 50, 10));
+        app.detail_areas.staged_sub_inner = Some(Rect::new(1, 21, 48, 8));
+        let staged_click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 5,
+            row: 22,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, staged_click);
+        assert_eq!(app.staging_file_selection, 1);
+        assert_eq!(app.detail_focus, DetailSection::Staged);
+
+        // 3. Unstaged subpanel click test
+        app.detail_areas = crate::ui_detail::DetailAreas::default();
+        let mut mock_info_2_unstaged = repo::RepoInfo::default();
+        mock_info_2_unstaged.changes.unstaged = vec![repo::FileEntry {
+            path: "u1.rs".to_string(),
+            label: "M",
+        }];
+        app.current_detail = Some(repo::ItemDetail::Repo {
+            resolved: PathBuf::from("a_repo"),
+            info: Box::new(mock_info_2_unstaged),
+        });
+        app.detail_areas.unstaged_sub = Some(Rect::new(0, 30, 50, 10));
+        app.detail_areas.unstaged_sub_inner = Some(Rect::new(1, 31, 48, 8));
+        let unstaged_click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 5,
+            row: 31,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, unstaged_click);
+        assert_eq!(app.staging_file_selection, 0);
+        assert_eq!(app.detail_focus, DetailSection::Unstaged);
+
+        // 4. Local branches click test
+        app.detail_areas = crate::ui_detail::DetailAreas::default();
+        let mock_info_3 = repo::RepoInfo {
+            local_branches: vec![
+                repo::BranchInfo {
+                    name: "b1".to_string(),
+                    is_head: true,
+                    short_sha: "123".to_string(),
+                    short_message: "msg".to_string(),
+                },
+                repo::BranchInfo {
+                    name: "b2".to_string(),
+                    is_head: false,
+                    short_sha: "456".to_string(),
+                    short_message: "msg".to_string(),
+                },
+            ],
+            remote_branches: vec![repo::BranchInfo {
+                name: "origin/b1".to_string(),
+                is_head: false,
+                short_sha: "123".to_string(),
+                short_message: "msg".to_string(),
+            }],
+            ..Default::default()
+        };
+        app.current_detail = Some(repo::ItemDetail::Repo {
+            resolved: PathBuf::from("a_repo"),
+            info: Box::new(mock_info_3),
+        });
+
+        app.detail_areas.local_branches = Some(Rect::new(0, 0, 50, 20));
+        app.detail_areas.local_branches_inner = Some(Rect::new(1, 1, 48, 18));
+        let local_branch_click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 5,
+            row: 2, // inner.y = 1, so row 2 is index 1
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, local_branch_click);
+        assert_eq!(app.local_branch_selection, 1);
+        assert_eq!(app.detail_focus, DetailSection::LocalBranches);
+
+        // 5. Remote branches click test
+        app.detail_areas = crate::ui_detail::DetailAreas::default();
+        let mock_info_3_remote = repo::RepoInfo {
+            remote_branches: vec![repo::BranchInfo {
+                name: "origin/b1".to_string(),
+                is_head: false,
+                short_sha: "123".to_string(),
+                short_message: "msg".to_string(),
+            }],
+            ..Default::default()
+        };
+        app.current_detail = Some(repo::ItemDetail::Repo {
+            resolved: PathBuf::from("a_repo"),
+            info: Box::new(mock_info_3_remote),
+        });
+        app.detail_areas.remote_branches = Some(Rect::new(50, 0, 50, 20));
+        app.detail_areas.remote_branches_inner = Some(Rect::new(51, 1, 48, 18));
+        let remote_branch_click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 55,
+            row: 1, // index 0
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, remote_branch_click);
+        assert_eq!(app.remote_branch_selection, 0);
+        assert_eq!(app.detail_focus, DetailSection::RemoteBranches);
+
+        // 6. Local tags click test
+        app.detail_areas = crate::ui_detail::DetailAreas::default();
+        let mock_info_4 = repo::RepoInfo {
+            local_tags: vec![
+                repo::BranchInfo {
+                    name: "t1".to_string(),
+                    is_head: false,
+                    short_sha: "123".to_string(),
+                    short_message: "msg".to_string(),
+                },
+                repo::BranchInfo {
+                    name: "t2".to_string(),
+                    is_head: false,
+                    short_sha: "456".to_string(),
+                    short_message: "msg".to_string(),
+                },
+            ],
+            ..Default::default()
+        };
+        app.current_detail = Some(repo::ItemDetail::Repo {
+            resolved: PathBuf::from("a_repo"),
+            info: Box::new(mock_info_4),
+        });
+
+        app.detail_areas.local_tags = Some(Rect::new(0, 0, 100, 20));
+        app.detail_areas.local_tags_inner = Some(Rect::new(1, 1, 98, 18));
+        let tag_click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 10,
+            row: 2, // index 1
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, tag_click);
+        assert_eq!(app.local_tag_selection, 1);
+        assert_eq!(app.detail_focus, DetailSection::LocalTags);
+
+        // 7. Remotes click test
+        app.detail_areas = crate::ui_detail::DetailAreas::default();
+        let mock_info_5 = repo::RepoInfo {
+            remotes: vec![
+                repo::RemoteInfo {
+                    name: "r1".to_string(),
+                    url: "url1".to_string(),
+                    push_url: None,
+                    refspecs: vec![],
+                },
+                repo::RemoteInfo {
+                    name: "r2".to_string(),
+                    url: "url2".to_string(),
+                    push_url: None,
+                    refspecs: vec![],
+                },
+            ],
+            ..Default::default()
+        };
+        app.current_detail = Some(repo::ItemDetail::Repo {
+            resolved: PathBuf::from("a_repo"),
+            info: Box::new(mock_info_5),
+        });
+
+        app.detail_areas.remotes = Some(Rect::new(0, 0, 100, 20));
+        app.detail_areas.remotes_inner = Some(Rect::new(1, 1, 98, 18));
+        let remote_click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 10,
+            row: 2, // index 1
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, remote_click);
+        assert_eq!(app.remote_selection, 1);
+        assert_eq!(app.detail_focus, DetailSection::Remotes);
+
+        // 8. Stashes and Stashed Files click test
+        app.detail_areas = crate::ui_detail::DetailAreas::default();
+        let mock_info_6 = repo::RepoInfo {
+            stashes: vec![
+                repo::StashInfo {
+                    index: 0,
+                    commit_id: "123".to_string(),
+                    message: "s1".to_string(),
+                    files: vec![
+                        repo::FileEntry {
+                            path: "f1.rs".to_string(),
+                            label: "M",
+                        },
+                        repo::FileEntry {
+                            path: "f2.rs".to_string(),
+                            label: "M",
+                        },
+                    ],
+                },
+                repo::StashInfo {
+                    index: 1,
+                    commit_id: "456".to_string(),
+                    message: "s2".to_string(),
+                    files: vec![],
+                },
+            ],
+            ..Default::default()
+        };
+        app.current_detail = Some(repo::ItemDetail::Repo {
+            resolved: PathBuf::from("a_repo"),
+            info: Box::new(mock_info_6),
+        });
+
+        app.detail_areas.stashes = Some(Rect::new(0, 0, 100, 20));
+        app.detail_areas.stashes_inner = Some(Rect::new(1, 1, 98, 18));
+        let stash_click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 10,
+            row: 2, // index 1
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, stash_click);
+        assert_eq!(app.stash_selection, 1);
+        assert_eq!(app.detail_focus, DetailSection::Stashes);
+
+        app.detail_areas = crate::ui_detail::DetailAreas::default();
+        // re-apply mock info if needed (already in app.current_detail)
+        app.stash_selection = 0;
+        app.detail_areas.stashed_files = Some(Rect::new(0, 20, 100, 20));
+        app.detail_areas.stashed_files_inner = Some(Rect::new(1, 21, 98, 18));
+        let stash_file_click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 10,
+            row: 22, // index 1 (relative to 21)
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, stash_file_click);
+        assert_eq!(app.stash_file_selection, 1);
+        assert_eq!(app.detail_focus, DetailSection::StashedFiles);
     }
 
     #[test]
