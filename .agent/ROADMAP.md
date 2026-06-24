@@ -21,7 +21,8 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 ## Phase 2: Working Tree & Status
 - [x] Display a list of changed files (staged and unstaged).
 - [x] Support staging/unstaging individual files (shortcut `Enter` in staging lists).
-- [x] Basic commit functionality (shortcut `c`).
+- [x] Stage all, unstage all, and discard all changes (shortcuts `a`/`X` in Workspace tab).
+- [x] Basic commit functionality (shortcut `c` in Workspace tab or Inspect view).
 - [x] Side-by-side or unified diff view for the selected file.
 
 ## Phase 3: History & Log
@@ -60,4 +61,6 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] In-app settings page (accessed with `s` shortcut) to edit and persist settings in `config.toml` (poll interval, sort mode, reverse sort, active theme, fzf max depth, and fzf start dir).
 - [x] Hunk-by-hunk diffs allow or decline.
 - [x] Line-by-line diffs allow or decline.
+- [x] Dynamic focus-aware status bar shortcuts showing only actions available to the focused panel.
+- [x] Auto-shift focus between Staged and Unstaged lists when all changes are staged/unstaged (shortcut `a`).
 - [ ] Conflict resolution UI.

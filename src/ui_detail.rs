@@ -1385,7 +1385,10 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
         "↵ [Enter]",
         "Stage/Unstage file, Checkout branch, Checkout tag, or Inspect commit",
     ),
-    ("c", "Commit changes (Workspace) / Create branch (Branches)"),
+    (
+        "c",
+        "Commit changes (Workspace / Inspect) / Create branch (Branches)",
+    ),
     ("t", "Create tag (Workspace tab commits list)"),
     (
         "i",
@@ -1399,7 +1402,18 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
         "d",
         "Delete selected branch (Branches) / tag (Tags) / stash (Stashes)",
     ),
-    ("a", "Apply selected stash (Stashes)"),
+    (
+        "a",
+        "Stage/Unstage All (Workspace) / Apply selected stash (Stashes)",
+    ),
+    (
+        "x",
+        "Discard changes in selected file (Workspace / Inspect)",
+    ),
+    (
+        "X",
+        "Discard all changes in repository (Workspace / Inspect)",
+    ),
     ("m", "Merge selected branch into current branch (Branches)"),
     ("r", "Rebase current branch onto selected branch (Branches)"),
     ("1", "Go to Workspace tab"),

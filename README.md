@@ -72,9 +72,12 @@
 | `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) or Local/Remote tag (Tags tab) |
 | `←` / `→` or `<` / `>` or `,` / `.` | Detail | Collapse/Expand directory (Files tab) |
 | `f`                  | Detail          | Fuzzy find files (Files tab)      |
-| `c`                  | Detail          | Open commit prompt (Workspace tab), or Create branch from HEAD (Branches tab) |
+| `c`                  | Detail          | Open commit prompt (Workspace tab or Inspect view), or Create branch from HEAD (Branches tab) |
+| `a`                  | Detail          | Stage All (Workspace tab Unstaged focus) / Unstage All (Workspace tab Staged focus) or Apply stash (Stashes tab) |
+| `x`                  | Detail          | Discard selected file changes (Workspace tab or Inspect view; asks confirmation) |
+| `X`                  | Detail          | Discard all changes in repository (Workspace tab or Inspect view; asks confirmation) |
 | `i`                  | Detail          | Interactive rebase from selected commit (Workspace tab commits list) |
-| `d`                  | Detail          | Delete selected branch (Branches tab; asks confirmation) or tag (Tags tab; asks confirmation) |
+| `d`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), or stash (Stashes tab; asks confirmation) |
 | `m`                  | Detail          | Merge selected branch into current branch (Branches tab; asks confirmation) |
 | `r`                  | Detail          | Rebase current branch onto selected branch (Branches tab; asks confirmation) |
 | `f`                  | Detail          | Open search column picker and go to logs (Workspace tab) |
@@ -214,7 +217,7 @@ You can navigate and interact with these panels in the following ways:
 - **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, tag, stash, stashed file, or file tree item in the active list.
 - **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
 - **Scroll File Content:** When the files tab `FileContent` preview panel is focused, you can scroll the preview text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
-- **Stage/Unstage Files:** Select the `Uncommitted changes` row at the top, select a file in either the `Staged` or `Unstaged` list, and press `Enter` to stage or unstage that file instantly.
+- **Stage/Unstage Files:** Select the `Uncommitted changes` row at the top, select a file in either the `Staged` or `Unstaged` list, and press `Enter` to stage or unstage that file instantly. Press `a` to Stage All (when focused on Unstaged) or Unstage All (when focused on Staged), which automatically shifts panel focus to the opposite list. Press `x` to discard changes in the selected file, or `X` to discard all changes in the repository (both ask for confirmation before performing).
 - **Network Progress Bar:** Any long-running network operations (such as Fetch, Pull, or Push) will display a centering animated progress bar popup so the UI thread remains responsive and visual feedback is clear. If an operation hangs or takes too long, you can press `Esc` to force-dismiss the progress popup and resume TUI interaction immediately.
 - **Multi-Remote Selection Picker:** For write operations (pushing branch/tags, deleting tags, fetching tags), if the repository has multiple configured remotes and no upstream tracking branch is set, a selection picker popup will appear allowing you to select which remote to target using ↑↓ and Enter.
 - **Manage Branches:** While on the **Branches** tab:
@@ -225,7 +228,7 @@ You can navigate and interact with these panels in the following ways:
   - Select any **remote branch** and press `Enter` to check it out (this will switch to the branch, creating a local tracking branch if it doesn't already exist).
   - Press `c` / `C` to create a new branch from the currently checked out branch (or HEAD). A popup dialog will prompt for the new branch name.
   - Select any local or remote-tracking branch and press `d` / `D` to delete it. A confirmation dialog will prompt before performing the deletion. (The currently checked out branch cannot be deleted).
-- **Commit Staged Changes / Amend Last Commit:** Press `c` from the Workspace tab to open a centered Commit popup window (active if there are staged changes OR a prior HEAD commit exists to amend). 
+- **Commit Staged Changes / Amend Last Commit:** Press `c` from the Workspace tab or from the Inspect view to open a centered Commit popup window (active if there are staged changes OR a prior HEAD commit exists to amend). 
   - **Compose Mode:** Type your commit message. Press `Ctrl+C` to lock in the text and switch to confirmation state, press `Enter` to insert a newline, or `Esc` to cancel.
   - **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, `a` / `A` / `Space` to toggle the "Amend last commit" option, or `Esc`/`q` to close the popup. Toggling amend to active when the buffer is empty automatically populates the text box with the message from the last commit.
 
