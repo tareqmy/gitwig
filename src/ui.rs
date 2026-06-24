@@ -155,8 +155,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("R", "Refresh status of selected item"),
     ("R", "Resync active tab (Detail)"),
     ("o / O", "Cycle sorting mode / Toggle reverse sorting"),
-    ("g", "Launch gitui for selected repository"),
-    ("l", "Launch lazygit for selected repository"),
+    ("g", "Launch preferred Git client for selected repository"),
     ("s", "Open options/settings page"),
     (
         "⎋ [Esc]",
@@ -1405,8 +1404,7 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
         ("Page", "⇟/⇞"),
         ("Jump", "Home/End"),
         ("Detail", "↵/→"),
-        ("gitui", "g"),
-        ("lazygit", "l"),
+        (&app.config.git_app, "g"),
         (&sort_key_label, "o/O"),
         ("Find", "f"),
         ("Add", "a"),
@@ -1960,7 +1958,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     let inner_rect = block.inner(popup_area);
 
     // Calculate scroll offset based on the selected setting to keep it visible
-    let total_height = 9 * 3; // 9 items, 3 lines each
+    let total_height = 10 * 3; // 10 items, 3 lines each
     let viewport_height = inner_rect.height as usize;
     let scroll_y = if viewport_height >= total_height {
         0
@@ -1974,7 +1972,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     let mut items = Vec::new();
 
-    for i in 0..9 {
+    for i in 0..10 {
         let is_selected = app.settings_selected_index == i;
 
         let label = match i {
@@ -1987,6 +1985,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             6 => "Max Commits",
             7 => "Page Size",
             8 => "FZF Exclude Folders",
+            9 => "Preferred Git Client",
             _ => "",
         };
 
@@ -2000,6 +1999,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             6 => "Maximum commits to load in workspace view. Set to 0 for unlimited.",
             7 => "Number of lines/items scrolled by Page Up / Page Down.",
             8 => "Comma-separated list of folders/patterns to exclude from FZF search.",
+            9 => "External Git application triggered by 'g' key (e.g. gitui or lazygit).",
             _ => "",
         };
 
@@ -2065,6 +2065,13 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
                     format!("{}█", app.input_buffer)
                 } else {
                     app.config.fzf.excludes.join(",")
+                }
+            }
+            9 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.git_app.clone()
                 }
             }
             _ => String::new(),
@@ -2565,6 +2572,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 
@@ -2760,6 +2768,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 

@@ -35,6 +35,10 @@ fn default_page_size() -> usize {
     10
 }
 
+fn default_git_app() -> String {
+    "gitui".to_string()
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct ThemeConfig {
     #[serde(default = "default_accent")]
@@ -182,6 +186,9 @@ pub struct Config {
     /// Configuration for interactive repository discovery via fzf.
     #[serde(default = "default_fzf")]
     pub fzf: FzfConfig,
+    /// Preferred Git application (e.g. gitui or lazygit).
+    #[serde(default = "default_git_app")]
+    pub git_app: String,
 }
 
 /// Returns `~/.twig/`, the canonical Twig data directory.
@@ -260,6 +267,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 theme_name: fallback_theme_name,
                 theme: fallback_theme,
                 fzf: default_fzf(),
+                git_app: default_git_app(),
             },
             path,
         ));
@@ -338,6 +346,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         theme_name: default_theme_name(),
         theme: default_theme(),
         fzf: default_fzf(),
+        git_app: default_git_app(),
     };
     save_config(&fallback, &canonical)?;
 

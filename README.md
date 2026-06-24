@@ -36,8 +36,7 @@
 | `p`                  | Normal          | Toggle pin status of selected item |
 | `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes) |
 | `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed) |
-| `g`                  | Normal          | Launch gitui for selected repository |
-| `l`                  | Normal          | Launch lazygit for selected repository |
+| `g`                  | Normal          | Launch the preferred Git client for selected repository (configurable in settings, default is gitui) |
 | `s`                  | Normal          | Open options/settings page        |
 | `Enter`              | Normal / Commits list | Open Detail view for selected item / Inspect selected commit |
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |

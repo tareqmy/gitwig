@@ -277,10 +277,8 @@ pub struct App {
     pub rx: std::sync::mpsc::Receiver<String>,
     /// Whether a background fetch is active.
     pub fetching: bool,
-    /// Whether gitui launch is pending.
-    pub pending_gitui: bool,
-    /// Whether lazygit launch is pending.
-    pub pending_lazygit: bool,
+    /// Whether external Git application launch is pending.
+    pub pending_git_app: bool,
     /// Whether fzf search launch is pending.
     pub pending_fzf: bool,
     /// Whether fzf files search launch is pending.
@@ -437,8 +435,7 @@ impl App {
             tx,
             rx,
             fetching: false,
-            pending_gitui: false,
-            pending_lazygit: false,
+            pending_git_app: false,
             pending_fzf: false,
             pending_files_fzf: false,
             pending_interactive_rebase: None,
@@ -460,14 +457,14 @@ impl App {
             commit_amend: false,
             remote_picker_action: None,
             remote_picker_selection: 0,
-            inspect_horizontal_split_pct: 25,
-            inspect_vertical_split_pct: 50,
-            workspace_main_split_pct: 50,
-            files_horizontal_split_pct: 25,
+            inspect_horizontal_split_pct: 38,
+            inspect_vertical_split_pct: 38,
+            workspace_main_split_pct: 38,
+            files_horizontal_split_pct: 38,
             branches_horizontal_split_pct: 50,
-            stashes_horizontal_split_pct: 35,
-            stashes_vertical_split_pct: 50,
-            overview_horizontal_split_pct: 50,
+            stashes_horizontal_split_pct: 38,
+            stashes_vertical_split_pct: 38,
+            overview_horizontal_split_pct: 38,
             active_drag_splitter: None,
             settings_selected_index: 0,
             settings_editing: false,
@@ -3544,6 +3541,10 @@ impl App {
                 self.settings_editing = true;
                 self.input_buffer = self.config.fzf.excludes.join(",");
             }
+            9 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.git_app.clone();
+            }
             _ => {}
         }
     }
@@ -3644,6 +3645,17 @@ impl App {
                 self.persist("FZF exclude folders updated");
                 self.settings_editing = false;
                 self.input_buffer.clear();
+            }
+            9 => {
+                let trimmed_app = trimmed.to_string();
+                if !trimmed_app.is_empty() {
+                    self.config.git_app = trimmed_app;
+                    self.persist("Preferred Git Client updated");
+                    self.settings_editing = false;
+                    self.input_buffer.clear();
+                } else {
+                    self.status_message = Some("Preferred Git Client cannot be empty".to_string());
+                }
             }
             _ => {}
         }
@@ -4698,8 +4710,8 @@ where
             }
         }
 
-        if app.pending_gitui {
-            app.pending_gitui = false;
+        if app.pending_git_app {
+            app.pending_git_app = false;
             if let Some(item) = app.config.items.get(app.selected_index) {
                 let path = repo::expand_tilde(item);
 
@@ -4712,7 +4724,8 @@ where
                 let cursor_res = terminal.show_cursor();
 
                 if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
-                    let status = std::process::Command::new("gitui")
+                    let git_app_name = &app.config.git_app;
+                    let status = std::process::Command::new(git_app_name)
                         .current_dir(&path)
                         .status();
 
@@ -4726,64 +4739,20 @@ where
 
                     match status {
                         Ok(s) if s.success() => {
-                            app.status_message = Some("Returned from gitui".to_string());
+                            app.status_message = Some(format!("Returned from {}", git_app_name));
                             app.refresh_selected_status();
                         }
                         Ok(_) => {
-                            app.status_message = Some("gitui exited with error".to_string());
+                            app.status_message =
+                                Some(format!("{} exited with error", git_app_name));
                             app.refresh_selected_status();
                         }
                         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                            app.status_message = Some("gitui is not installed".to_string());
+                            app.status_message = Some(format!("{} is not installed", git_app_name));
                         }
                         Err(e) => {
-                            app.status_message = Some(format!("Could not run gitui: {}", e));
-                        }
-                    }
-                }
-            }
-        }
-
-        if app.pending_lazygit {
-            app.pending_lazygit = false;
-            if let Some(item) = app.config.items.get(app.selected_index) {
-                let path = repo::expand_tilde(item);
-
-                let raw_res = crossterm::terminal::disable_raw_mode();
-                let exec_res = crossterm::execute!(
-                    std::io::stdout(),
-                    crossterm::terminal::LeaveAlternateScreen,
-                    crossterm::event::DisableMouseCapture
-                );
-                let cursor_res = terminal.show_cursor();
-
-                if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
-                    let status = std::process::Command::new("lazygit")
-                        .current_dir(&path)
-                        .status();
-
-                    let _ = crossterm::terminal::enable_raw_mode();
-                    let _ = crossterm::execute!(
-                        std::io::stdout(),
-                        crossterm::terminal::EnterAlternateScreen,
-                        crossterm::event::EnableMouseCapture
-                    );
-                    let _ = terminal.clear();
-
-                    match status {
-                        Ok(s) if s.success() => {
-                            app.status_message = Some("Returned from lazygit".to_string());
-                            app.refresh_selected_status();
-                        }
-                        Ok(_) => {
-                            app.status_message = Some("lazygit exited with error".to_string());
-                            app.refresh_selected_status();
-                        }
-                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                            app.status_message = Some("lazygit is not installed".to_string());
-                        }
-                        Err(e) => {
-                            app.status_message = Some(format!("Could not run lazygit: {}", e));
+                            app.status_message =
+                                Some(format!("Could not run {}: {}", git_app_name, e));
                         }
                     }
                 }
@@ -5106,6 +5075,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_stash.toml");
         let _guard = TestFileGuard {
@@ -5188,6 +5158,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_network.toml");
         let _guard = TestFileGuard {
@@ -5256,6 +5227,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_sort.toml");
         let _guard = TestFileGuard {
@@ -5313,6 +5285,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_duplicate.toml");
         // Ensure starting with a clean state and clean up upon drop
@@ -5422,6 +5395,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_pin.toml");
         let _guard = TestFileGuard {
@@ -5501,6 +5475,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_commit_scroll.toml");
         let _guard = TestFileGuard {
@@ -5541,6 +5516,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_splitter.toml");
         let _guard = TestFileGuard {
@@ -5808,6 +5784,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_mouse_select.toml");
         let _guard = TestFileGuard {
@@ -6163,6 +6140,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_settings.toml");
         let _guard = TestFileGuard {
@@ -6298,24 +6276,36 @@ mod tests {
             ]
         );
 
+        // Go down to Preferred Git Client (index 9)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.settings_selected_index, 9);
+
+        // Edit Preferred Git Client
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(app.settings_editing);
+        app.input_buffer = "lazygit".to_string();
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(!app.settings_editing);
+        assert_eq!(app.config.git_app, "lazygit");
+
         // Test PageUp, PageDown, Home, and End key navigation in Settings Mode
         app.config.page_size = 3;
 
-        // At index 8: PageUp should go to 8 - 3 = 5
+        // At index 9: PageUp should go to 9 - 3 = 6
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.settings_selected_index, 5);
+        assert_eq!(app.settings_selected_index, 6);
 
-        // PageUp should go to 5 - 3 = 2
+        // PageUp should go to 6 - 3 = 3
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.settings_selected_index, 2);
+        assert_eq!(app.settings_selected_index, 3);
 
-        // PageDown should go to 2 + 3 = 5
+        // PageDown should go to 3 + 3 = 6
         crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
-        assert_eq!(app.settings_selected_index, 5);
+        assert_eq!(app.settings_selected_index, 6);
 
-        // End should go to 8
+        // End should go to 9
         crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
-        assert_eq!(app.settings_selected_index, 8);
+        assert_eq!(app.settings_selected_index, 9);
 
         // Home should go to 0
         crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
@@ -6342,6 +6332,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_inspect.toml");
         let _guard = TestFileGuard {
@@ -6420,6 +6411,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_inspect_enter.toml");
         let _guard = TestFileGuard {
@@ -6490,6 +6482,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_inspect_commit.toml");
         let _guard = TestFileGuard {
@@ -6562,6 +6555,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_workspace_all.toml");
         let _guard = TestFileGuard {
@@ -6656,6 +6650,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let mut app = App::new(config, temp_path.join("config.toml"));
 
@@ -6691,6 +6686,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_cycle.toml");
         let _guard = TestFileGuard {
@@ -6804,7 +6800,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lazygit_shortcut_triggers_pending() {
+    fn test_git_app_shortcut_triggers_pending() {
         use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
         let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
         let config = Config {
@@ -6819,19 +6815,20 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
-        let temp_path = std::env::temp_dir().join("twig_test_config_lazygit.toml");
+        let temp_path = std::env::temp_dir().join("twig_test_config_git_app.toml");
         let _guard = TestFileGuard {
             path: temp_path.clone(),
         };
         let mut app = App::new(config, temp_path);
 
-        assert!(!app.pending_lazygit);
+        assert!(!app.pending_git_app);
 
-        // Pressing 'l' triggers pending_lazygit
-        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('l')), 10);
+        // Pressing 'g' triggers pending_git_app
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('g')), 10);
         assert!(handled);
-        assert!(app.pending_lazygit);
+        assert!(app.pending_git_app);
     }
 
     #[test]
@@ -6850,6 +6847,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_files_fzf.toml");
         let _guard = TestFileGuard {
@@ -6884,6 +6882,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_logs_search.toml");
         let _guard = TestFileGuard {
@@ -7094,6 +7093,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_sync.toml");
         let _guard = TestFileGuard {
@@ -7155,6 +7155,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_checkout.toml");
         let _guard = TestFileGuard {
@@ -7278,6 +7279,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_search.toml");
         let _guard = TestFileGuard {
@@ -7330,6 +7332,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_right_arrow.toml");
         let _guard = TestFileGuard {
@@ -7363,6 +7366,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
         };
         let temp_path = std::env::temp_dir().join("twig_test_config_full_diff.toml");
         let _guard = TestFileGuard {

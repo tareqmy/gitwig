@@ -80,10 +80,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.settings_editing = false;
             }
             KeyCode::Char('g') => {
-                app.pending_gitui = true;
-            }
-            KeyCode::Char('l') => {
-                app.pending_lazygit = true;
+                app.pending_git_app = true;
             }
             KeyCode::Char('f') => {
                 app.input_buffer.clear();
@@ -134,7 +131,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     KeyCode::Esc => app.mode = Mode::Normal,
                     KeyCode::Char('q') if !app.settings_editing => app.mode = Mode::Normal,
                     KeyCode::Down if !app.settings_editing => {
-                        if app.settings_selected_index + 1 < 9 {
+                        if app.settings_selected_index + 1 < 10 {
                             app.settings_selected_index += 1;
                         }
                     }
@@ -150,13 +147,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     }
                     KeyCode::PageDown if !app.settings_editing => {
                         app.settings_selected_index =
-                            (app.settings_selected_index + app.config.page_size).min(8);
+                            (app.settings_selected_index + app.config.page_size).min(9);
                     }
                     KeyCode::Home if !app.settings_editing => {
                         app.settings_selected_index = 0;
                     }
                     KeyCode::End if !app.settings_editing => {
-                        app.settings_selected_index = 8;
+                        app.settings_selected_index = 9;
                     }
                     KeyCode::Enter if app.settings_editing => app.commit_settings_edit(),
                     KeyCode::Enter => app.toggle_or_edit_setting(),
