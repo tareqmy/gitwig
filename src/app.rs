@@ -3135,6 +3135,46 @@ impl App {
         }
     }
 
+    /// Stage all unstaged/untracked changes in the repository (`git add -A`).
+    pub fn stage_all_changes(&mut self) {
+        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+            match repo::stage_all_changes(resolved) {
+                Ok(()) => {
+                    self.status_message = Some("Staged all changes".to_string());
+                    self.refresh_detail();
+                    if self.detail_focus == DetailSection::Unstaged {
+                        self.detail_focus = DetailSection::Staged;
+                    }
+                }
+                Err(e) => self.status_message = Some(format!("Stage all failed: {}", e)),
+            }
+        }
+    }
+
+    /// Unstage all staged changes in the repository (`git reset`).
+    pub fn unstage_all_changes(&mut self) {
+        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+            match repo::unstage_all_changes(resolved) {
+                Ok(()) => {
+                    self.status_message = Some("Unstaged all changes".to_string());
+                    self.refresh_detail();
+                    if self.detail_focus == DetailSection::Staged {
+                        self.detail_focus = DetailSection::Unstaged;
+                    }
+                }
+                Err(e) => self.status_message = Some(format!("Unstage all failed: {}", e)),
+            }
+        }
+    }
+
+    /// Discard all changes in the repository after confirmation.
+    pub fn request_discard_all_changes(&mut self) {
+        if let Some(repo::ItemDetail::Repo { .. }) = &self.current_detail {
+            self.discard_target = Some(("All Changes".to_string(), false));
+            self.mode = Mode::DiscardChangesConfirm;
+        }
+    }
+
     pub fn request_discard_changes(&mut self) {
         let params = match &self.current_detail {
             Some(repo::ItemDetail::Repo { resolved, info }) => match self.detail_focus {
@@ -3164,7 +3204,12 @@ impl App {
         let target = self.discard_target.take();
         if let Some((file_path, staged)) = target {
             if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
-                match repo::discard_file_changes(resolved, &file_path, staged) {
+                let res = if file_path == "All Changes" {
+                    repo::discard_all_changes(resolved)
+                } else {
+                    repo::discard_file_changes(resolved, &file_path, staged)
+                };
+                match res {
                     Ok(()) => {
                         self.status_message = Some(format!("Discarded: {}", file_path));
                         self.refresh_detail();
@@ -5925,6 +5970,137 @@ mod tests {
 
         // Verify we transitioned to CommitInput mode
         assert_eq!(app.mode, Mode::CommitInput);
+    }
+
+    #[test]
+    fn test_workspace_all_changes_shortcuts() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_workspace_all.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Open details Workspace view and focus Unstaged section
+        app.mode = Mode::Detail;
+        app.detail_tab = 0;
+        app.detail_focus = DetailSection::Unstaged;
+
+        let mut changes = crate::repo::WorktreeChanges::default();
+        changes.unstaged.push(crate::repo::FileEntry {
+            path: "dummy.txt".to_string(),
+            label: "M",
+        });
+        let info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary {
+                modified: 1,
+                ..Default::default()
+            },
+            changes,
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: PathBuf::from("."),
+            info: Box::new(info),
+        });
+        app.commit_selection = 0;
+
+        assert!(app.is_uncommitted_selected());
+
+        // Press 'X' to discard all changes
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('X')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::DiscardChangesConfirm);
+        assert_eq!(app.discard_target.as_ref().unwrap().0, "All Changes");
+
+        // Cancel discard all
+        app.cancel_discard_changes();
+        assert_eq!(app.mode, Mode::Detail);
+    }
+
+    #[test]
+    fn test_workspace_all_changes_focus_transitions() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_app_all_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+        let repo = git2::Repository::init(&temp_path).unwrap();
+
+        // Configure author
+        let mut config_git = repo.config().unwrap();
+        config_git.set_str("user.name", "Test User").unwrap();
+        config_git
+            .set_str("user.email", "test@example.com")
+            .unwrap();
+
+        // Create initial commit so we have a HEAD
+        let file_path = temp_path.join("file.txt");
+        std::fs::write(&file_path, "initial").unwrap();
+
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let mut app = App::new(config, temp_path.join("config.toml"));
+
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: temp_path.clone(),
+            info: Box::new(crate::repo::RepoInfo::default()),
+        });
+
+        // 1. Stage All Focus Transition (Unstaged -> Staged)
+        app.detail_focus = DetailSection::Unstaged;
+        app.stage_all_changes();
+        assert_eq!(app.detail_focus, DetailSection::Staged);
+
+        // 2. Unstage All Focus Transition (Staged -> Unstaged)
+        app.detail_focus = DetailSection::Staged;
+        app.unstage_all_changes();
+        assert_eq!(app.detail_focus, DetailSection::Unstaged);
+
+        let _ = std::fs::remove_dir_all(&temp_path);
     }
 
     #[test]

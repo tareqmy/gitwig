@@ -490,12 +490,30 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.stage_selected_hunk();
                     }
                 }
-                KeyCode::Char('x') | KeyCode::Char('X')
+                KeyCode::Char('a') | KeyCode::Char('A')
+                    if detail_focus == DetailSection::Unstaged && app.is_uncommitted_selected() =>
+                {
+                    app.stage_all_changes()
+                }
+                KeyCode::Char('a') | KeyCode::Char('A')
+                    if detail_focus == DetailSection::Staged && app.is_uncommitted_selected() =>
+                {
+                    app.unstage_all_changes()
+                }
+                KeyCode::Char('x')
                     if (detail_focus == DetailSection::Staged
                         || detail_focus == DetailSection::Unstaged)
                         && app.is_uncommitted_selected() =>
                 {
                     app.request_discard_changes()
+                }
+                KeyCode::Char('X')
+                    if (detail_focus == DetailSection::Staged
+                        || detail_focus == DetailSection::Unstaged
+                        || detail_focus == DetailSection::StagingDetails)
+                        && app.is_uncommitted_selected() =>
+                {
+                    app.request_discard_all_changes()
                 }
                 KeyCode::Up if detail_focus == DetailSection::StagingDetails => {
                     app.diff_scroll_up()

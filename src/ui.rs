@@ -954,7 +954,13 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
                 v.push(("Jump", "Home/End"));
                 if app.is_uncommitted_selected() {
                     v.push(("Stage/Unstage", "↵"));
+                    if app.detail_focus == DetailSection::Unstaged {
+                        v.push(("Stage All", "a"));
+                    } else if app.detail_focus == DetailSection::Staged {
+                        v.push(("Unstage All", "a"));
+                    }
                     v.push(("Discard", "x"));
+                    v.push(("Discard All", "X"));
                 }
                 v.push(("Inspect", "→"));
             } else {
@@ -1561,17 +1567,28 @@ fn confirm_discard_changes_entries(
     target: &str,
     staged: bool,
 ) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
-    let area_label = if staged { "staged" } else { "unstaged" };
-    let message_spans = Some(vec![
-        Span::raw("Discard "),
-        Span::raw(area_label),
-        Span::raw(" changes in "),
-        Span::styled(
-            format!("\"{}\"", target),
-            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-        ),
-        Span::raw("? "),
-    ]);
+    let message_spans = if target == "All Changes" {
+        Some(vec![
+            Span::raw("Discard "),
+            Span::styled(
+                "ALL",
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" changes in the repository? "),
+        ])
+    } else {
+        let area_label = if staged { "staged" } else { "unstaged" };
+        Some(vec![
+            Span::raw("Discard "),
+            Span::raw(area_label),
+            Span::raw(" changes in "),
+            Span::styled(
+                format!("\"{}\"", target),
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("? "),
+        ])
+    };
     let entries = vec![
         StatusEntry::new(vec![
             Span::raw("Confirm"),
@@ -2707,6 +2724,22 @@ mod tests {
         );
         assert!(entry_labels_w.iter().any(|label| label.contains("Tag [t]")));
 
+        // Setup uncommitted changes mock for Tab 0 uncommitted shortcuts
+        let mut info = RepoInfo::default();
+        info.changes.staged.push(FileEntry {
+            path: "file.txt".to_string(),
+            label: "M",
+        });
+        info.changes.unstaged.push(FileEntry {
+            path: "other.txt".to_string(),
+            label: "M",
+        });
+        app.current_detail = Some(ItemDetail::Repo {
+            resolved: PathBuf::from("/dummy"),
+            info: Box::new(info),
+        });
+        app.commit_selection = 0; // selection = uncommitted
+
         // Tab 0: Workspace, Staged focus
         app.detail_focus = DetailSection::Staged;
         let (_, entries_s) = detail_dismiss_entries(&app);
@@ -2726,7 +2759,42 @@ mod tests {
                 .iter()
                 .any(|label| label.contains("Inspect [→]"))
         );
+        assert!(
+            entry_labels_s
+                .iter()
+                .any(|label| label.contains("Unstage All [a]"))
+        );
+        assert!(
+            entry_labels_s
+                .iter()
+                .any(|label| label.contains("Discard All [X]"))
+        );
         assert!(!entry_labels_s.iter().any(|label| label.contains("Tag [t]")));
+
+        // Tab 0: Workspace, Unstaged focus
+        app.detail_focus = DetailSection::Unstaged;
+        let (_, entries_u) = detail_dismiss_entries(&app);
+        let entry_labels_u: Vec<String> = entries_u
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels_u
+                .iter()
+                .any(|label| label.contains("Stage All [a]"))
+        );
+        assert!(
+            entry_labels_u
+                .iter()
+                .any(|label| label.contains("Discard All [X]"))
+        );
 
         // Tab 0: Workspace, StagingDetails focus
         app.detail_focus = DetailSection::StagingDetails;

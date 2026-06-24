@@ -278,6 +278,77 @@ pub fn unstage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Stage all unstaged/untracked changes (equivalent to `git add -A`).
+pub fn stage_all_changes(repo_path: &Path) -> Result<(), String> {
+    let output = std::process::Command::new("git")
+        .arg("add")
+        .arg("-A")
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
+}
+
+/// Unstage all staged changes (equivalent to `git reset`).
+pub fn unstage_all_changes(repo_path: &Path) -> Result<(), String> {
+    let output = std::process::Command::new("git")
+        .arg("reset")
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
+}
+
+/// Discard all staged, unstaged, and untracked changes in the repository.
+pub fn discard_all_changes(repo_path: &Path) -> Result<(), String> {
+    // 1. Unstage all first so everything is in the working tree
+    let _ = std::process::Command::new("git")
+        .arg("reset")
+        .current_dir(repo_path)
+        .output();
+
+    // 2. Discard all tracked modifications
+    let checkout_out = std::process::Command::new("git")
+        .arg("checkout")
+        .arg("--")
+        .arg(".")
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !checkout_out.status.success() {
+        return Err(String::from_utf8_lossy(&checkout_out.stderr)
+            .trim()
+            .to_string());
+    }
+
+    // 3. Clean all untracked files/folders
+    let clean_out = std::process::Command::new("git")
+        .arg("clean")
+        .arg("-fd")
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !clean_out.status.success() {
+        return Err(String::from_utf8_lossy(&clean_out.stderr)
+            .trim()
+            .to_string());
+    }
+
+    Ok(())
+}
+
 /// Stage a single hunk of unstaged changes (equivalent to `git apply --cached -`).
 pub fn stage_hunk(repo_path: &Path, file_path: &str, hunk: &[DiffLine]) -> Result<(), String> {
     apply_hunk_patch(repo_path, file_path, hunk, false, true)
@@ -2453,6 +2524,83 @@ mod tests {
         assert!(contents.contains("line B"));
         assert!(contents.contains("line C\n"));
         assert!(!contents.contains("line C modified"));
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_stage_unstage_discard_all_changes() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_all_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // Init repo
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // Create initial file & commit it
+        let file_path = temp_path.join("tracked.txt");
+        std::fs::write(&file_path, "original content\n").unwrap();
+        stage_file(&temp_path, "tracked.txt").unwrap();
+        commit_changes(&temp_path, "initial").unwrap();
+
+        // 1. Make a modification and create a new untracked file
+        std::fs::write(&file_path, "modified content\n").unwrap();
+        let untracked_path = temp_path.join("untracked.txt");
+        std::fs::write(&untracked_path, "untracked content\n").unwrap();
+
+        // Verify status has unstaged changes
+        let status = repo.statuses(None).unwrap();
+        assert_eq!(status.len(), 2);
+
+        // Stage all changes
+        stage_all_changes(&temp_path).unwrap();
+
+        // Verify all changes are staged
+        let status = repo.statuses(None).unwrap();
+        for entry in status.iter() {
+            assert!(
+                entry
+                    .status()
+                    .intersects(git2::Status::INDEX_MODIFIED | git2::Status::INDEX_NEW)
+            );
+        }
+
+        // Unstage all changes
+        unstage_all_changes(&temp_path).unwrap();
+
+        // Verify all changes are unstaged again
+        let status = repo.statuses(None).unwrap();
+        for entry in status.iter() {
+            assert!(
+                entry
+                    .status()
+                    .intersects(git2::Status::WT_MODIFIED | git2::Status::WT_NEW)
+            );
+        }
+
+        // Discard all changes
+        discard_all_changes(&temp_path).unwrap();
+
+        // Verify repo is completely clean
+        let status = repo.statuses(None).unwrap();
+        assert_eq!(status.len(), 0);
+
+        // Verify tracked file is reset and untracked file is removed
+        let contents = std::fs::read_to_string(&file_path).unwrap();
+        assert_eq!(contents, "original content\n");
+        assert!(!untracked_path.exists());
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);
