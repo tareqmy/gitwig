@@ -6956,6 +6956,91 @@ mod tests {
     }
 
     #[test]
+    fn test_inspect_workspace_all_changes_shortcuts() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+        };
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_workspace_all.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Open details Inspect view and focus Unstaged section
+        app.mode = Mode::Inspect;
+        app.detail_tab = 0;
+        app.detail_focus = DetailSection::Unstaged;
+
+        let mut changes = crate::repo::WorktreeChanges::default();
+        changes.unstaged.push(crate::repo::FileEntry {
+            path: "dummy.txt".to_string(),
+            label: "M",
+        });
+        let info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary {
+                modified: 1,
+                ..Default::default()
+            },
+            changes,
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: PathBuf::from("."),
+            info: Box::new(info),
+        });
+        app.commit_selection = 0;
+
+        assert!(app.is_uncommitted_selected());
+
+        // Press 'X' to discard all changes in Inspect mode
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('X')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::DiscardChangesConfirm);
+        assert_eq!(app.discard_target.as_ref().unwrap().0, "All Changes");
+
+        // Cancel discard all and reset to Inspect mode
+        app.cancel_discard_changes();
+        app.mode = Mode::Inspect;
+
+        // Press 'a' (stage all) on Unstaged focus
+        app.detail_focus = DetailSection::Unstaged;
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
+        assert!(handled);
+
+        // Press 'a' (unstage all) on Staged focus
+        app.detail_focus = DetailSection::Staged;
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
+        assert!(handled);
+    }
+
+    #[test]
     fn test_workspace_all_changes_focus_transitions() {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(

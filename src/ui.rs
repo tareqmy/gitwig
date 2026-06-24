@@ -1294,9 +1294,15 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
             match app.detail_focus {
                 DetailSection::Staged => {
                     entries_data.push(("Unstage File", "↵"));
+                    entries_data.push(("Unstage All", "a"));
+                    entries_data.push(("Discard", "x"));
+                    entries_data.push(("Discard All", "X"));
                 }
                 DetailSection::Unstaged => {
                     entries_data.push(("Stage File", "↵"));
+                    entries_data.push(("Stage All", "a"));
+                    entries_data.push(("Discard", "x"));
+                    entries_data.push(("Discard All", "X"));
                 }
                 DetailSection::StagingDetails => {
                     if app.diff_line_mode {
@@ -2805,6 +2811,21 @@ mod tests {
         assert!(
             entry_labels
                 .iter()
+                .any(|label| label.contains("Unstage All [a]"))
+        );
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Discard [x]"))
+        );
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Discard All [X]"))
+        );
+        assert!(
+            entry_labels
+                .iter()
                 .any(|label| label.contains("Commit/Amend [c/C]"))
         );
 
@@ -2826,6 +2847,21 @@ mod tests {
             entry_labels
                 .iter()
                 .any(|label| label.contains("Stage File [↵]"))
+        );
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Stage All [a]"))
+        );
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Discard [x]"))
+        );
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Discard All [X]"))
         );
 
         // C) StagingDetails with last_staging_focus == Staged -> Unstage Hunk [↵]

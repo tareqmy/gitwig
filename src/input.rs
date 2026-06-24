@@ -1358,7 +1358,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.discard_selected_hunk();
                 }
             }
-            KeyCode::Char('x') | KeyCode::Char('X') if app.is_uncommitted_selected() => {
+            KeyCode::Char('x') if app.is_uncommitted_selected() => {
                 if app.detail_focus == DetailSection::Staged
                     || app.detail_focus == DetailSection::Unstaged
                 {
@@ -1371,6 +1371,28 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     } else {
                         app.discard_selected_hunk();
                     }
+                }
+            }
+            KeyCode::Char('X') if app.is_uncommitted_selected() => {
+                if app.detail_focus == DetailSection::Staged
+                    || app.detail_focus == DetailSection::Unstaged
+                {
+                    app.request_discard_all_changes();
+                } else if app.detail_focus == DetailSection::StagingDetails
+                    && app.last_staging_focus == DetailSection::Unstaged
+                {
+                    if app.diff_line_mode {
+                        app.discard_selected_line();
+                    } else {
+                        app.discard_selected_hunk();
+                    }
+                }
+            }
+            KeyCode::Char('a') if app.is_uncommitted_selected() => {
+                if app.detail_focus == DetailSection::Unstaged {
+                    app.stage_all_changes();
+                } else if app.detail_focus == DetailSection::Staged {
+                    app.unstage_all_changes();
                 }
             }
             KeyCode::Char('l') | KeyCode::Char('L')
