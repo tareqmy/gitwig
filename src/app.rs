@@ -7407,7 +7407,7 @@ mod tests {
         use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
         let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
         let config = Config {
-            items: vec![".twig".to_string()],
+            items: vec![".gitwig".to_string()],
             poll_interval_ms: 100,
             max_commits: 0,
             page_size: 10,

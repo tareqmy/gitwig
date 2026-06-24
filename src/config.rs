@@ -191,26 +191,27 @@ pub struct Config {
     pub git_app: String,
 }
 
-/// Returns `~/.twig/`, the canonical Twig data directory.
-/// Falls back to `./.twig/` in the unlikely event that the home directory
+/// Returns `~/.gitwig/`, the canonical Gitwig data directory.
+/// Falls back to `./.gitwig/` in the unlikely event that the home directory
 /// cannot be resolved (e.g. inside a stripped-down container).
-fn home_twig_dir() -> PathBuf {
+fn home_gitwig_dir() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".twig")
+        .join(".gitwig")
 }
 
-/// Loads the configuration, ensuring `~/.twig/` always exists.
+/// Loads the configuration, ensuring `~/.gitwig/` always exists.
 ///
 /// Resolution order:
 /// 1. CLI-provided path (if given, skip all migration logic).
-/// 2. `~/.twig/config.toml` — the canonical location. If it already
+/// 2. `~/.gitwig/config.toml` — the canonical location. If it already
 ///    exists it is loaded directly.
 /// 3. First-run migration: copy the first config found among
-///    `./config/config.toml` (CWD or exe-dir) or `~/.config/twig/config.toml`
-///    into `~/.twig/config.toml`, then load from there.
+///    `./config/config.toml` (CWD or exe-dir), `~/.twig/config.toml`,
+///    `~/.config/gitwig/config.toml`, or `~/.config/twig/config.toml`
+///    into `~/.gitwig/config.toml`, then load from there.
 /// 4. No prior config anywhere: write a default config to
-///    `~/.twig/config.toml` so the next run is an ordinary case 2.
+///    `~/.gitwig/config.toml` so the next run is an ordinary case 2.
 ///
 /// # Returns
 /// `Ok((Config, PathBuf))` — the parsed config plus its write-back path.
@@ -273,11 +274,11 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         ));
     }
 
-    // ── Always ensure ~/.twig/ exists ─────────────────────────────────────
-    let twig_dir = home_twig_dir();
-    fs::create_dir_all(&twig_dir)?;
-    let canonical = twig_dir.join("config.toml");
-    let themes_dir = twig_dir.join("themes");
+    // ── Always ensure ~/.gitwig/ exists ───────────────────────────────────
+    let gitwig_dir = home_gitwig_dir();
+    fs::create_dir_all(&gitwig_dir)?;
+    let canonical = gitwig_dir.join("config.toml");
+    let themes_dir = gitwig_dir.join("themes");
     fs::create_dir_all(&themes_dir)?;
     write_popular_themes(&themes_dir)?;
 
@@ -292,7 +293,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
             let theme: ThemeConfig = toml::from_str(&theme_contents)?;
             config.theme = theme;
         } else {
-            let legacy_theme_path = twig_dir.join("theme.toml");
+            let legacy_theme_path = gitwig_dir.join("theme.toml");
             if legacy_theme_path.exists() {
                 let _ = fs::copy(&legacy_theme_path, themes_dir.join("default.theme"));
                 let _ = fs::remove_file(&legacy_theme_path);
@@ -305,7 +306,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         return Ok((config, canonical));
     }
 
-    // ── 3. First run: migrate an existing config into ~/.twig/ ────────────
+    // ── 3. First run: migrate an existing config into ~/.gitwig/ ──────────
     if let Some(source) = find_legacy_config() {
         fs::copy(&source, &canonical)?;
         let contents = fs::read_to_string(&canonical)?;
@@ -317,7 +318,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
             let theme: ThemeConfig = toml::from_str(&theme_contents)?;
             config.theme = theme;
         } else {
-            let legacy_theme_path = twig_dir.join("theme.toml");
+            let legacy_theme_path = gitwig_dir.join("theme.toml");
             if legacy_theme_path.exists() {
                 let _ = fs::copy(&legacy_theme_path, themes_dir.join("default.theme"));
                 let _ = fs::remove_file(&legacy_theme_path);
@@ -442,7 +443,20 @@ fn find_legacy_config() -> Option<PathBuf> {
             }
         }
     }
-    // Old XDG location: ~/.config/twig/config.toml.
+    // Legacy Twig home location: ~/.twig/config.toml.
+    if let Some(home) = dirs::home_dir() {
+        let p = home.join(".twig/config.toml");
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    // New Gitwig XDG config location: ~/.config/gitwig/config.toml.
+    if let Some(p) = dirs::config_dir().map(|d| d.join("gitwig/config.toml")) {
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    // Legacy Twig XDG config location: ~/.config/twig/config.toml.
     if let Some(p) = dirs::config_dir().map(|d| d.join("twig/config.toml")) {
         if p.exists() {
             return Some(p);

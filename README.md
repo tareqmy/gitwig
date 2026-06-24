@@ -254,17 +254,17 @@ The main page repository list can be sorted dynamically using shortcuts:
 
 ## 🔧 Configuration
 
-Twig stores its config in `~/.twig/config.toml`. The directory is created automatically on first launch.
+Gitwig stores its config in `~/.gitwig/config.toml`. The directory is created automatically on first launch.
 
 ### First-run migration
 
-If `~/.twig/config.toml` doesn't exist yet, Twig looks for an existing config to migrate from:
+If `~/.gitwig/config.toml` doesn't exist yet, Gitwig looks for an existing config to migrate from:
 
-1. A path passed as the first CLI argument (`twig path/to/config.toml`).
+1. A path passed as the first CLI argument (`gitwig path/to/config.toml`).
 2. `./config/config.toml` relative to the current working directory.
 3. `./config/config.toml` relative to the executable.
-4. `~/.config/twig/config.toml` (previous XDG location).
-5. Nothing found — a default config is written to `~/.twig/config.toml`.
+4. `~/.config/gitwig/config.toml` (new XDG location), `~/.config/twig/config.toml` (legacy Twig XDG location), or `~/.twig/config.toml` (legacy Twig home location).
+5. Nothing found — a default config is written to `~/.gitwig/config.toml`.
 
 After the first run the migrated (or generated) file becomes the sole source of truth; the original is left untouched.
 
@@ -305,10 +305,10 @@ Twig writes back to whichever file it loaded from, so edits made in the UI persi
 
 ### Installation
 
-You can install **Twig** directly from [crates.io](https://crates.io/crates/twig):
+You can install **Twig** directly from [crates.io](https://crates.io/crates/gitwig):
 
 ```sh
-cargo install twig
+cargo install gitwig
 ```
 
 ### Building from Source
@@ -321,14 +321,14 @@ cd twig
 cargo build --release
 ```
 
-The compiled binary will be located at `target/release/twig`. You can copy it to a directory in your `$PATH` or run it directly.
+The compiled binary will be located at `target/release/gitwig`. You can copy it to a directory in your `$PATH` or run it directly.
 
 ### Running
 
 ```sh
 # Run with default config resolution
-twig
+gitwig
 
 # Run with an explicit config path
-twig path/to/config.toml
+gitwig path/to/config.toml
 ```

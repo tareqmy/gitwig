@@ -486,6 +486,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "gitwig"
+version = "1.2.2"
+dependencies = [
+ "crossterm",
+ "dirs",
+ "git2",
+ "ratatui",
+ "serde",
+ "toml",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1545,18 +1557,6 @@ name = "toml_write"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfb942dfe1d8e29a7ee7fcbde5bd2b9a25fb89aa70caea2eba3bee836ff41076"
-
-[[package]]
-name = "twig"
-version = "1.2.2"
-dependencies = [
- "crossterm",
- "dirs",
- "git2",
- "ratatui",
- "serde",
- "toml",
-]
 
 [[package]]
 name = "typenum"
