@@ -3660,6 +3660,28 @@ impl App {
         }
     }
 
+    /// Enters the commit input mode for amending the last commit, pre-populating its message.
+    pub fn start_commit_amend(&mut self) {
+        let has_head = match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => info.head.is_some(),
+            _ => false,
+        };
+        if has_head {
+            self.input_buffer.clear();
+            if let Some(ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                if let Some(last_msg) = repo::get_last_commit_message(resolved) {
+                    self.input_buffer = last_msg;
+                }
+            }
+            self.commit_editing = true;
+            self.commit_amend = true;
+            self.commit_input_scroll = 0;
+            self.mode = Mode::CommitInput;
+        } else {
+            self.status_message = Some("No commit to amend".to_string());
+        }
+    }
+
     /// Cancels commit input and returns to the detail view.
     pub fn cancel_commit(&mut self) {
         self.input_buffer.clear();
@@ -5760,6 +5782,62 @@ mod tests {
         // Cancel resets it
         app.cancel_commit();
         assert_eq!(app.commit_input_scroll, 0);
+    }
+
+    #[test]
+    fn test_commit_amend_flow() {
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_commit_amend.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        assert!(!app.commit_amend);
+
+        app.toggle_commit_amend();
+        assert!(app.commit_amend);
+
+        app.toggle_commit_amend();
+        assert!(!app.commit_amend);
+
+        // Without HEAD
+        app.start_commit_amend();
+        assert_eq!(app.status_message.as_deref(), Some("No commit to amend"));
+        assert_eq!(app.mode, Mode::Normal);
+
+        // With HEAD
+        let info = crate::repo::RepoInfo {
+            head: Some(crate::repo::HeadInfo {
+                short_id: "dummy_sha".to_string(),
+                summary: "dummy message".to_string(),
+                author: "author".to_string(),
+                when: "now".to_string(),
+            }),
+            ..Default::default()
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: PathBuf::from("/dummy"),
+            info: Box::new(info),
+        });
+
+        app.start_commit_amend();
+        assert!(app.commit_amend);
+        assert!(app.commit_editing);
+        assert_eq!(app.mode, Mode::CommitInput);
     }
 
     #[test]

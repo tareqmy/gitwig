@@ -1517,8 +1517,8 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
         "Stage/Unstage file, Checkout branch, Checkout tag, or Inspect commit",
     ),
     (
-        "c",
-        "Commit changes (Workspace / Inspect) / Create branch (Branches)",
+        "c / C",
+        "Commit (c) / Amend last commit (C) (Workspace/Inspect) / Create branch (Branches)",
     ),
     ("t", "Create tag (Workspace tab commits list)"),
     (
@@ -2100,9 +2100,17 @@ fn draw_commit_popup(
     let border_style = Style::default().fg(border_color);
 
     let title_text = if editing {
-        " Commit Message "
+        if commit_amend {
+            " Amend Commit Message "
+        } else {
+            " Commit Message "
+        }
     } else {
-        " Confirm Commit "
+        if commit_amend {
+            " Confirm Amend Commit "
+        } else {
+            " Confirm Commit "
+        }
     };
 
     let title = Line::from(vec![
@@ -2152,7 +2160,7 @@ fn draw_commit_popup(
         if !editing {
             Span::styled(" (toggle: [a/space])", muted_style())
         } else {
-            Span::raw("")
+            Span::styled(" (toggle: [⌃A])", muted_style())
         },
     ]);
     f.render_widget(Paragraph::new(checkbox_line), chunks[1]);

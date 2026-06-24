@@ -164,7 +164,10 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("⌫ [Backspace]", "Erase character while typing"),
     ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
     ("w / W", "Cycle panel focus forward (w) / backward (W)"),
-    ("c", "Commit changes (Workspace) / Create branch (Branches)"),
+    (
+        "c / C",
+        "Commit (c) / Amend last commit (C) (Workspace) / Create branch (Branches)",
+    ),
     ("⇧F", "Fetch selected branch (Branches tab)"),
     (
         "p",
@@ -1064,7 +1067,13 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
                     v.push(("Stash", "s"));
                 }
             }
-            v.push(("Commit", "c"));
+            if app.detail_focus != DetailSection::Conflicts
+                && app.detail_focus != DetailSection::ConflictDiff
+            {
+                v.push(("Commit/Amend", "c/C"));
+            } else {
+                v.push(("Commit", "c"));
+            }
             v.push(("Resync", "R"));
             v.push(("Help", "?"));
             v
@@ -1268,7 +1277,7 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
                     entries_data.push(("Discard Hunk", "x/Del"));
                 }
             }
-            entries_data.push(("Commit", "c"));
+            entries_data.push(("Commit/Amend", "c/C"));
         }
         entries_data.push(("Scroll Diff", "↑↓"));
         entries_data.push(("Help", "?"));
@@ -1310,7 +1319,7 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
                 }
                 _ => {}
             }
-            entries_data.push(("Commit", "c"));
+            entries_data.push(("Commit/Amend", "c/C"));
         }
 
         entries_data.push(("Select File", "↑↓"));
@@ -1356,6 +1365,14 @@ fn commit_input_editing_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntr
             Span::raw(" "),
             Span::styled("[", muted_style()),
             Span::styled("⌃C", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Toggle Amend"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("⌃A", accent_style()),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -2788,7 +2805,7 @@ mod tests {
         assert!(
             entry_labels
                 .iter()
-                .any(|label| label.contains("Commit [c]"))
+                .any(|label| label.contains("Commit/Amend [c/C]"))
         );
 
         // B) Unstaged focus -> Stage File [↵]
@@ -2905,7 +2922,7 @@ mod tests {
         assert!(
             entry_labels_full
                 .iter()
-                .any(|label| label.contains("Commit [c]"))
+                .any(|label| label.contains("Commit/Amend [c/C]"))
         );
 
         // E) If in_logs_ui is true, it should NOT render any staging entry

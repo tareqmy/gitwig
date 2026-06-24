@@ -432,11 +432,17 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.search_column_selection = 0;
                     app.mode = Mode::SearchColumnPicker;
                 }
-                KeyCode::Char('c') | KeyCode::Char('C')
+                KeyCode::Char('c')
                     if detail_focus != DetailSection::Conflicts
                         && detail_focus != DetailSection::ConflictDiff =>
                 {
                     app.start_commit()
+                }
+                KeyCode::Char('C')
+                    if detail_focus != DetailSection::Conflicts
+                        && detail_focus != DetailSection::ConflictDiff =>
+                {
+                    app.start_commit_amend()
                 }
                 KeyCode::Char('t') | KeyCode::Char('T')
                     if detail_focus == DetailSection::Commits =>
@@ -1408,8 +1414,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             {
                 app.mode = Mode::MergeContinueConfirm;
             }
-            KeyCode::Char('c') | KeyCode::Char('C') if app.is_uncommitted_selected() => {
+            KeyCode::Char('c') if app.is_uncommitted_selected() => {
                 app.start_commit();
+            }
+            KeyCode::Char('C') if app.is_uncommitted_selected() => {
+                app.start_commit_amend();
             }
             _ => {}
         },
@@ -1551,6 +1560,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         if key.modifiers.contains(KeyModifiers::CONTROL) =>
                     {
                         app.commit_done_editing()
+                    }
+                    KeyCode::Char('a') | KeyCode::Char('A')
+                        if key.modifiers.contains(KeyModifiers::CONTROL) =>
+                    {
+                        app.toggle_commit_amend()
                     }
                     KeyCode::Backspace => app.input_backspace(),
                     KeyCode::Up => app.commit_input_scroll_up(),
