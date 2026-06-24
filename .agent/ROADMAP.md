@@ -63,4 +63,7 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Line-by-line diffs allow or decline.
 - [x] Dynamic focus-aware status bar shortcuts showing only actions available to the focused panel.
 - [x] Auto-shift focus between Staged and Unstaged lists when all changes are staged/unstaged (shortcut `a`).
+- [x] Mouse selection support for branches, tags, remotes, and stashes lists in Detail panels.
+- [x] Modal error popups for failed Git network and stash operations.
+- [x] Stash uncommitted files with a stash comment/name input popup.
 - [ ] Conflict resolution UI.

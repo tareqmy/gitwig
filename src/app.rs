@@ -72,6 +72,8 @@ pub enum Mode {
     StashDeleteConfirm,
     /// Confirming apply of a stash.
     StashApplyConfirm,
+    /// Typing a stash name/message to create.
+    StashCreateInput,
     /// Picking a remote when multiple are available.
     RemotePicker,
     /// Typing a search query for commits.
@@ -1613,6 +1615,37 @@ impl App {
         self.mode = Mode::Detail;
     }
 
+    pub fn start_stash_create(&mut self) {
+        self.input_buffer.clear();
+        self.mode = Mode::StashCreateInput;
+    }
+
+    pub fn commit_stash_create(&mut self) {
+        let stash_name = self.input_buffer.trim().to_string();
+        if stash_name.is_empty() {
+            self.status_message = Some("Stash name cannot be empty".to_string());
+            self.mode = Mode::Detail;
+            return;
+        }
+        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+            match repo::save_stash(resolved, &stash_name) {
+                Ok(()) => {
+                    self.status_message = Some(format!("Created stash '{}'", stash_name));
+                    // Refresh detail view to display the new stash
+                    if let Some(item) = self.get_selected_item().cloned() {
+                        self.current_detail = Some(self.inspect_repo_detail(&item));
+                    }
+                    self.stash_selection = 0;
+                    self.stash_file_selection = 0;
+                }
+                Err(e) => {
+                    self.error_message = Some(format!("Failed to stash changes: {}", e));
+                }
+            }
+        }
+        self.mode = Mode::Detail;
+    }
+
     pub fn request_tag_delete(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if let Some(tag_info) = info.local_tags.get(self.local_tag_selection) {
@@ -2981,6 +3014,10 @@ impl App {
             Some(ItemDetail::Repo { info, .. }) => info.changes.unstaged.is_empty(),
             _ => true,
         }
+    }
+
+    pub fn has_uncommitted_changes(&self) -> bool {
+        !self.is_staged_empty() || !self.is_unstaged_empty()
     }
 
     pub fn is_selected_commit_empty(&self) -> bool {
@@ -5051,6 +5088,88 @@ mod tests {
         fn drop(&mut self) {
             let _ = std::fs::remove_file(&self.path);
         }
+    }
+
+    #[test]
+    fn test_stash_creation_flow() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_stash.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+        app.mode = Mode::Detail;
+
+        // Verify starting stash creation triggers correct state
+        app.start_stash_create();
+        assert_eq!(app.mode, Mode::StashCreateInput);
+        assert!(app.input_buffer.is_empty());
+
+        // Simulate typing stash name
+        app.input_buffer = "my_custom_stash".to_string();
+
+        // Simulate pressing Esc (cancel)
+        let esc_key = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
+        let consumed = crate::input::handle_key(&mut app, esc_key, 0);
+        assert!(consumed);
+        assert_eq!(app.mode, Mode::Detail);
+
+        // Re-start and simulate typing again
+        app.start_stash_create();
+        app.input_buffer = "my_custom_stash".to_string();
+
+        // Simulate backspace and typing character
+        let backspace_key = KeyEvent::new(KeyCode::Backspace, KeyModifiers::empty());
+        crate::input::handle_key(&mut app, backspace_key, 0);
+        assert_eq!(app.input_buffer, "my_custom_stas");
+
+        let char_key = KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty());
+        crate::input::handle_key(&mut app, char_key, 0);
+        assert_eq!(app.input_buffer, "my_custom_stash");
+
+        // Simulate enter (commit stash)
+        let enter_key = KeyEvent::new(KeyCode::Enter, KeyModifiers::empty());
+        crate::input::handle_key(&mut app, enter_key, 0);
+
+        // Mode returns to detail
+        assert_eq!(app.mode, Mode::Detail);
+
+        // Verify we can trigger stash creation from Commits panel if we have uncommitted changes
+        app.mode = Mode::Detail;
+        app.detail_focus = DetailSection::Commits;
+
+        // Mock uncommitted changes
+        let mut mock_info = repo::RepoInfo::default();
+        mock_info.changes.unstaged = vec![repo::FileEntry {
+            path: "dirty.rs".to_string(),
+            label: "M",
+        }];
+        app.current_detail = Some(repo::ItemDetail::Repo {
+            resolved: PathBuf::from("a_repo"),
+            info: Box::new(mock_info),
+        });
+
+        assert!(app.has_uncommitted_changes());
+
+        // Pressing 's' should activate StashCreateInput
+        let s_key = KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty());
+        let consumed = crate::input::handle_key(&mut app, s_key, 0);
+        assert!(consumed);
+        assert_eq!(app.mode, Mode::StashCreateInput);
     }
 
     #[test]

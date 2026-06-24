@@ -42,6 +42,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::Editing
             | Mode::BranchCreateInput
             | Mode::TagCreateInput
+            | Mode::StashCreateInput
             | Mode::RepoSearchInput
     ) || (matches!(app.mode, Mode::CommitInput) && app.commit_editing)
         || (matches!(app.mode, Mode::Settings) && app.settings_editing);
@@ -228,6 +229,15 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.mode = Mode::Detail;
             }
             KeyCode::Enter => app.commit_tag_create(),
+            KeyCode::Backspace => app.input_backspace(),
+            KeyCode::Char(c) => app.input_char(c),
+            _ => {}
+        },
+        Mode::StashCreateInput => match code {
+            KeyCode::Esc => {
+                app.mode = Mode::Detail;
+            }
+            KeyCode::Enter => app.commit_stash_create(),
             KeyCode::Backspace => app.input_backspace(),
             KeyCode::Char(c) => app.input_char(c),
             _ => {}
@@ -529,6 +539,17 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 {
                     app.request_discard_all_changes()
                 }
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    let can_stash = ((detail_focus == DetailSection::Staged
+                        || detail_focus == DetailSection::Unstaged
+                        || detail_focus == DetailSection::StagingDetails)
+                        && app.is_uncommitted_selected())
+                        || (detail_focus == DetailSection::Commits
+                            && app.has_uncommitted_changes());
+                    if can_stash {
+                        app.start_stash_create();
+                    }
+                }
                 KeyCode::Up if detail_focus == DetailSection::StagingDetails => {
                     app.diff_scroll_up()
                 }
@@ -788,6 +809,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char('a') | KeyCode::Char('A') => {
                     if detail_focus == DetailSection::Stashes {
                         app.request_stash_apply();
+                    }
+                }
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    if detail_focus == DetailSection::Stashes {
+                        app.start_stash_create();
                     }
                 }
                 KeyCode::Up => match detail_focus {

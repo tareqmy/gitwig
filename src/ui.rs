@@ -172,6 +172,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
         "Pull branch (Branches) / Push tag (Tags) / Toggle pin (List)",
     ),
     ("⇧P", "Push branch (Branches) / Push all tags (Tags)"),
+    ("s", "Stash changes (Workspace changes or Stashes tab)"),
     ("?", "Toggle this help overlay"),
     ("q", "Quit (also closes detail view)"),
     (
@@ -215,6 +216,7 @@ pub fn draw(
             | Mode::TagPushAllConfirm
             | Mode::StashDeleteConfirm
             | Mode::StashApplyConfirm
+            | Mode::StashCreateInput
             | Mode::RemotePicker
             | Mode::CommitSearchInput
             | Mode::DiscardChangesConfirm
@@ -747,6 +749,9 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         Mode::TagCreateInput => {
             draw_input_status(f, area, "Create Tag", &app.input_buffer);
         }
+        Mode::StashCreateInput => {
+            draw_input_status(f, area, "Stash Changes", &app.input_buffer);
+        }
         Mode::BranchDeleteConfirm => {
             let (target, is_remote) = app
                 .branch_action_target
@@ -963,6 +968,7 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
                     }
                     v.push(("Discard", "x"));
                     v.push(("Discard All", "X"));
+                    v.push(("Stash", "s"));
                 }
                 v.push(("Inspect", "→"));
             } else {
@@ -973,6 +979,9 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
                 v.push(("Tag", "t"));
                 v.push(("Interactive Rebase", "i"));
                 v.push(("Search/Columns", "f"));
+                if app.has_uncommitted_changes() {
+                    v.push(("Stash", "s"));
+                }
             }
             v.push(("Commit", "c"));
             v.push(("Resync", "R"));
@@ -1065,6 +1074,7 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
             if app.detail_focus == DetailSection::Stashes {
                 v.push(("Apply", "a"));
                 v.push(("Delete", "d"));
+                v.push(("Stash New", "s"));
             }
             v.push(("Resync", "R"));
             v.push(("Help", "?"));

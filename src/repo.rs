@@ -1840,6 +1840,23 @@ pub fn apply_stash(repo_path: &Path, index: usize) -> Result<(), String> {
     Ok(())
 }
 
+pub fn save_stash(repo_path: &Path, message: &str) -> Result<(), String> {
+    let output = std::process::Command::new("git")
+        .arg("stash")
+        .arg("push")
+        .arg("-m")
+        .arg(message)
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(err_msg);
+    }
+    Ok(())
+}
+
 pub fn get_latest_change_time(item: &str) -> u64 {
     let path = expand_tilde(item);
     if !path.exists() {
