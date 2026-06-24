@@ -7400,4 +7400,56 @@ mod tests {
         assert!(!app.inspect_full_diff);
         assert_eq!(app.mode, Mode::Inspect); // Still in Inspect mode!
     }
+
+    #[test]
+    fn test_files_tab_full_screen_toggle() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_files_full.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Transition to Mode::Detail, select tab 1 (Files) and focus FileContent
+        app.mode = Mode::Detail;
+        app.detail_tab = 1;
+        app.detail_focus = DetailSection::FileContent;
+        app.inspect_full_diff = false;
+
+        // Press Right arrow on FileContent
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+        assert!(handled);
+        assert!(app.inspect_full_diff);
+
+        // Press Left arrow to exit full screen
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Left), 10);
+        assert!(handled);
+        assert!(!app.inspect_full_diff);
+
+        // Press Right arrow again
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+        assert!(handled);
+        assert!(app.inspect_full_diff);
+
+        // Press Esc to exit full screen
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+        assert!(handled);
+        assert!(!app.inspect_full_diff);
+        assert_eq!(app.mode, Mode::Detail); // Still in Detail mode!
+    }
 }

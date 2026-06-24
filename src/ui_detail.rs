@@ -529,6 +529,7 @@ pub fn draw(
                     file_content_scroll,
                     areas,
                     files_horizontal_split_pct,
+                    app.inspect_full_diff,
                     body_area,
                 );
             } else if detail_tab == 2 {
@@ -2313,76 +2314,89 @@ fn draw_files_view(
     file_content_scroll: usize,
     areas: &mut DetailAreas,
     files_horizontal_split_pct: u16,
+    files_full_screen: bool,
     area: Rect,
 ) {
-    let chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(files_horizontal_split_pct),
-            Constraint::Percentage(100 - files_horizontal_split_pct),
-        ])
-        .split(area);
+    let chunks = if files_full_screen {
+        let left_rect = Rect::new(area.x, area.y, 0, area.height);
+        vec![left_rect, area]
+    } else {
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(files_horizontal_split_pct),
+                Constraint::Percentage(100 - files_horizontal_split_pct),
+            ])
+            .split(area)
+            .to_vec()
+    };
 
     areas.files = Some(chunks[0]);
     areas.file_content = Some(chunks[1]);
 
     // Record horizontal splitter boundary in files tab
-    let split_col = area.x + chunks[0].width;
-    areas.files_horizontal_splitter = Some(Rect::new(
-        split_col.saturating_sub(1),
-        area.y,
-        2,
-        area.height,
-    ));
-
-    let focused = focus == DetailSection::Files;
-    let border_style = if focused {
-        Style::default().fg(ACCENT())
+    if files_full_screen {
+        areas.files_horizontal_splitter = None;
     } else {
-        muted_style()
-    };
+        let split_col = area.x + chunks[0].width;
+        areas.files_horizontal_splitter = Some(Rect::new(
+            split_col.saturating_sub(1),
+            area.y,
+            2,
+            area.height,
+        ));
+    }
 
-    let left_block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(CARD_BORDER())
-        .border_style(border_style)
-        .title(Line::from(vec![
-            Span::raw(" "),
-            Span::styled("Repository Files", primary_style()),
-            Span::raw(" "),
-        ]))
-        .padding(Padding::uniform(1));
+    if !files_full_screen {
+        let focused = focus == DetailSection::Files;
+        let border_style = if focused {
+            Style::default().fg(ACCENT())
+        } else {
+            muted_style()
+        };
 
-    let items: Vec<ListItem> = visible_files
-        .iter()
-        .map(|item| {
-            let indent = "  ".repeat(item.depth);
-            let (prefix, style) = if item.is_dir {
-                if item.is_expanded {
-                    ("▼ ", primary_style())
-                } else {
-                    ("> ", primary_style())
-                }
-            } else {
-                ("  🗎 ", muted_style())
-            };
-
-            ListItem::new(Line::from(vec![
-                Span::raw(indent),
-                Span::styled(prefix, style),
-                Span::styled(item.name.clone(), primary_style()),
+        let left_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER())
+            .border_style(border_style)
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Repository Files", primary_style()),
+                Span::raw(" "),
             ]))
-        })
-        .collect();
+            .padding(Padding::uniform(1));
 
-    let list = List::new(items)
-        .block(left_block)
-        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+        let items: Vec<ListItem> = visible_files
+            .iter()
+            .map(|item| {
+                let indent = "  ".repeat(item.depth);
+                let (prefix, style) = if item.is_dir {
+                    if item.is_expanded {
+                        ("▼ ", primary_style())
+                    } else {
+                        ("> ", primary_style())
+                    }
+                } else {
+                    ("  🗎 ", muted_style())
+                };
 
-    let mut state = ListState::default();
-    state.select(Some(file_list_selection));
+                ListItem::new(Line::from(vec![
+                    Span::raw(indent),
+                    Span::styled(prefix, style),
+                    Span::styled(item.name.clone(), primary_style()),
+                ]))
+            })
+            .collect();
 
-    f.render_stateful_widget(list, chunks[0], &mut state);
+        let list = List::new(items)
+            .block(left_block)
+            .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+
+        let mut state = ListState::default();
+        state.select(Some(file_list_selection));
+
+        f.render_stateful_widget(list, chunks[0], &mut state);
+    }
 
     // Right panel: file preview or folder contents
     if let Some(selected_item) = visible_files.get(file_list_selection) {

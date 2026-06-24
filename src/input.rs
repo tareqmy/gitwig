@@ -339,7 +339,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         },
         Mode::Detail => match code {
             KeyCode::Esc => {
-                if app.commit_search_query.is_some() {
+                if app.inspect_full_diff {
+                    app.inspect_full_diff = false;
+                } else if app.commit_search_query.is_some() {
                     app.cancel_commit_search();
                 } else {
                     app.close_detail();
@@ -352,11 +354,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.status_message = Some("Refreshed".to_string());
             }
             KeyCode::Tab => {
+                app.inspect_full_diff = false;
                 app.detail_tab = (app.detail_tab + 1) % 8;
                 app.set_default_focus_for_tab();
                 app.resync_detail();
             }
             KeyCode::BackTab => {
+                app.inspect_full_diff = false;
                 app.detail_tab = if app.detail_tab == 0 {
                     7
                 } else {
@@ -366,41 +370,49 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.resync_detail();
             }
             KeyCode::Char('1') => {
+                app.inspect_full_diff = false;
                 app.detail_tab = 0;
                 app.detail_focus = DetailSection::Commits;
                 app.resync_detail();
             }
             KeyCode::Char('2') => {
+                app.inspect_full_diff = false;
                 app.detail_tab = 1;
                 app.detail_focus = DetailSection::Files;
                 app.resync_detail();
             }
             KeyCode::Char('3') => {
+                app.inspect_full_diff = false;
                 app.detail_tab = 2;
                 app.resync_detail();
             }
             KeyCode::Char('4') => {
+                app.inspect_full_diff = false;
                 app.detail_tab = 3;
                 app.detail_focus = DetailSection::LocalBranches;
                 app.resync_detail();
             }
             KeyCode::Char('5') => {
+                app.inspect_full_diff = false;
                 app.detail_tab = 4;
                 app.detail_focus = DetailSection::LocalTags;
                 app.fetch_remote_tags(false);
                 app.resync_detail();
             }
             KeyCode::Char('6') => {
+                app.inspect_full_diff = false;
                 app.detail_tab = 5;
                 app.detail_focus = DetailSection::Remotes;
                 app.resync_detail();
             }
             KeyCode::Char('7') => {
+                app.inspect_full_diff = false;
                 app.detail_tab = 6;
                 app.detail_focus = DetailSection::Stashes;
                 app.resync_detail();
             }
             KeyCode::Char('8') => {
+                app.inspect_full_diff = false;
                 app.detail_tab = 7;
                 app.detail_focus = DetailSection::Commits;
                 app.resync_detail();
@@ -630,6 +642,14 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     if app.detail_focus == DetailSection::Files =>
                 {
                     app.collapse_selected_folder();
+                }
+                KeyCode::Right if app.detail_focus == DetailSection::FileContent => {
+                    app.inspect_full_diff = true;
+                }
+                KeyCode::Left
+                    if app.detail_focus == DetailSection::FileContent && app.inspect_full_diff =>
+                {
+                    app.inspect_full_diff = false;
                 }
                 _ => {}
             },
