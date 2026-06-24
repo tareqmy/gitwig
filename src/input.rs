@@ -254,6 +254,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_branch_merge(),
             _ => {}
         },
+        Mode::MergeAbortConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_abort_merge(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.mode = Mode::Detail,
+            _ => {}
+        },
+        Mode::MergeContinueConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_continue_merge(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.mode = Mode::Detail,
+            _ => {}
+        },
         Mode::BranchRebaseConfirm => match code {
             KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_branch_rebase(),
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_branch_rebase(),
@@ -422,16 +432,21 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.search_column_selection = 0;
                     app.mode = Mode::SearchColumnPicker;
                 }
-                KeyCode::Char('c') | KeyCode::Char('C') => app.start_commit(),
-                KeyCode::Char('t') | KeyCode::Char('T') => {
-                    if detail_focus == DetailSection::Commits {
-                        app.start_tag_create();
-                    }
+                KeyCode::Char('c') | KeyCode::Char('C')
+                    if detail_focus != DetailSection::Conflicts
+                        && detail_focus != DetailSection::ConflictDiff =>
+                {
+                    app.start_commit()
                 }
-                KeyCode::Char('i') | KeyCode::Char('I') => {
-                    if detail_focus == DetailSection::Commits {
-                        app.run_interactive_rebase();
-                    }
+                KeyCode::Char('t') | KeyCode::Char('T')
+                    if detail_focus == DetailSection::Commits =>
+                {
+                    app.start_tag_create();
+                }
+                KeyCode::Char('i') | KeyCode::Char('I')
+                    if detail_focus == DetailSection::Commits =>
+                {
+                    app.run_interactive_rebase();
                 }
                 KeyCode::Char('w') => app.cycle_detail_focus(false),
                 KeyCode::Char('W') => app.cycle_detail_focus(true),
@@ -485,22 +500,28 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 KeyCode::Up
                     if detail_focus == DetailSection::Staged
-                        || detail_focus == DetailSection::Unstaged =>
+                        || detail_focus == DetailSection::Unstaged
+                        || detail_focus == DetailSection::Conflicts =>
                 {
-                    if app.is_uncommitted_selected() {
-                        app.staging_file_up()
+                    if detail_focus == DetailSection::Conflicts {
+                        app.conflict_file_up();
+                    } else if app.is_uncommitted_selected() {
+                        app.staging_file_up();
                     } else {
-                        app.detail_file_up()
+                        app.detail_file_up();
                     }
                 }
                 KeyCode::Down
                     if detail_focus == DetailSection::Staged
-                        || detail_focus == DetailSection::Unstaged =>
+                        || detail_focus == DetailSection::Unstaged
+                        || detail_focus == DetailSection::Conflicts =>
                 {
-                    if app.is_uncommitted_selected() {
-                        app.staging_file_down()
+                    if detail_focus == DetailSection::Conflicts {
+                        app.conflict_file_down();
+                    } else if app.is_uncommitted_selected() {
+                        app.staging_file_down();
                     } else {
-                        app.detail_file_down()
+                        app.detail_file_down();
                     }
                 }
                 KeyCode::Enter
@@ -512,6 +533,48 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     if detail_focus == DetailSection::Unstaged && app.is_uncommitted_selected() =>
                 {
                     app.stage_selected_file()
+                }
+                KeyCode::Enter | KeyCode::Right if detail_focus == DetailSection::Conflicts => {
+                    app.mode = Mode::Inspect;
+                    app.last_staging_focus = DetailSection::Conflicts;
+                    app.detail_focus = DetailSection::ConflictDiff;
+                    app.diff_scroll = 0;
+                    app.refresh_staging_diff();
+                }
+                KeyCode::Char('o')
+                    if (detail_focus == DetailSection::Conflicts
+                        || detail_focus == DetailSection::ConflictDiff)
+                        && app.is_uncommitted_selected() =>
+                {
+                    app.resolve_conflict_ours()
+                }
+                KeyCode::Char('t')
+                    if (detail_focus == DetailSection::Conflicts
+                        || detail_focus == DetailSection::ConflictDiff)
+                        && app.is_uncommitted_selected() =>
+                {
+                    app.resolve_conflict_theirs()
+                }
+                KeyCode::Char('r')
+                    if (detail_focus == DetailSection::Conflicts
+                        || detail_focus == DetailSection::ConflictDiff)
+                        && app.is_uncommitted_selected() =>
+                {
+                    app.mark_conflict_resolved()
+                }
+                KeyCode::Char('A')
+                    if (detail_focus == DetailSection::Conflicts
+                        || detail_focus == DetailSection::ConflictDiff)
+                        && app.is_uncommitted_selected() =>
+                {
+                    app.mode = Mode::MergeAbortConfirm;
+                }
+                KeyCode::Char('C')
+                    if (detail_focus == DetailSection::Conflicts
+                        || detail_focus == DetailSection::ConflictDiff)
+                        && app.is_uncommitted_selected() =>
+                {
+                    app.mode = Mode::MergeContinueConfirm;
                 }
                 KeyCode::Enter
                     if detail_focus == DetailSection::StagingDetails
@@ -559,22 +622,40 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.start_stash_create();
                     }
                 }
-                KeyCode::Up if detail_focus == DetailSection::StagingDetails => {
+                KeyCode::Up
+                    if detail_focus == DetailSection::StagingDetails
+                        || detail_focus == DetailSection::ConflictDiff =>
+                {
                     app.diff_scroll_up()
                 }
-                KeyCode::Down if detail_focus == DetailSection::StagingDetails => {
+                KeyCode::Down
+                    if detail_focus == DetailSection::StagingDetails
+                        || detail_focus == DetailSection::ConflictDiff =>
+                {
                     app.diff_scroll_down()
                 }
-                KeyCode::PageUp if detail_focus == DetailSection::StagingDetails => {
+                KeyCode::PageUp
+                    if detail_focus == DetailSection::StagingDetails
+                        || detail_focus == DetailSection::ConflictDiff =>
+                {
                     app.diff_scroll_page_up(app.config.page_size)
                 }
-                KeyCode::PageDown if detail_focus == DetailSection::StagingDetails => {
+                KeyCode::PageDown
+                    if detail_focus == DetailSection::StagingDetails
+                        || detail_focus == DetailSection::ConflictDiff =>
+                {
                     app.diff_scroll_page_down(app.config.page_size)
                 }
-                KeyCode::Home if detail_focus == DetailSection::StagingDetails => {
+                KeyCode::Home
+                    if detail_focus == DetailSection::StagingDetails
+                        || detail_focus == DetailSection::ConflictDiff =>
+                {
                     app.diff_scroll_to_top()
                 }
-                KeyCode::End if detail_focus == DetailSection::StagingDetails => {
+                KeyCode::End
+                    if detail_focus == DetailSection::StagingDetails
+                        || detail_focus == DetailSection::ConflictDiff =>
+                {
                     app.diff_scroll_to_bottom()
                 }
                 KeyCode::Up if detail_focus == DetailSection::CommitDetails => {
@@ -894,22 +975,28 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 if app.is_uncommitted_selected() {
                     let mut next_focus = match app.detail_focus {
                         DetailSection::Staged => DetailSection::Unstaged,
-                        DetailSection::Unstaged => DetailSection::StagingDetails,
+                        DetailSection::Unstaged => DetailSection::Conflicts,
+                        DetailSection::Conflicts => DetailSection::StagingDetails,
+                        DetailSection::StagingDetails => DetailSection::ConflictDiff,
                         _ => DetailSection::Staged,
                     };
-                    for _ in 0..3 {
+                    for _ in 0..6 {
                         let skip = match next_focus {
                             DetailSection::Staged => app.is_staged_empty(),
                             DetailSection::Unstaged => app.is_unstaged_empty(),
+                            DetailSection::Conflicts => app.is_conflicted_empty(),
                             DetailSection::StagingDetails => {
                                 app.is_staged_empty() && app.is_unstaged_empty()
                             }
+                            DetailSection::ConflictDiff => app.is_conflicted_empty(),
                             _ => false,
                         };
                         if skip {
                             next_focus = match next_focus {
                                 DetailSection::Staged => DetailSection::Unstaged,
-                                DetailSection::Unstaged => DetailSection::StagingDetails,
+                                DetailSection::Unstaged => DetailSection::Conflicts,
+                                DetailSection::Conflicts => DetailSection::StagingDetails,
+                                DetailSection::StagingDetails => DetailSection::ConflictDiff,
                                 _ => DetailSection::Staged,
                             };
                         } else {
@@ -918,6 +1005,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     }
                     if app.detail_focus == DetailSection::Staged
                         || app.detail_focus == DetailSection::Unstaged
+                        || app.detail_focus == DetailSection::Conflicts
                     {
                         app.last_staging_focus = app.detail_focus;
                     }
@@ -953,23 +1041,29 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('W') => {
                 if app.is_uncommitted_selected() {
                     let mut next_focus = match app.detail_focus {
-                        DetailSection::Staged => DetailSection::StagingDetails,
-                        DetailSection::StagingDetails => DetailSection::Unstaged,
+                        DetailSection::Staged => DetailSection::ConflictDiff,
+                        DetailSection::ConflictDiff => DetailSection::StagingDetails,
+                        DetailSection::StagingDetails => DetailSection::Conflicts,
+                        DetailSection::Conflicts => DetailSection::Unstaged,
                         _ => DetailSection::Staged,
                     };
-                    for _ in 0..3 {
+                    for _ in 0..6 {
                         let skip = match next_focus {
                             DetailSection::Staged => app.is_staged_empty(),
                             DetailSection::Unstaged => app.is_unstaged_empty(),
+                            DetailSection::Conflicts => app.is_conflicted_empty(),
                             DetailSection::StagingDetails => {
                                 app.is_staged_empty() && app.is_unstaged_empty()
                             }
+                            DetailSection::ConflictDiff => app.is_conflicted_empty(),
                             _ => false,
                         };
                         if skip {
                             next_focus = match next_focus {
-                                DetailSection::Staged => DetailSection::StagingDetails,
-                                DetailSection::StagingDetails => DetailSection::Unstaged,
+                                DetailSection::Staged => DetailSection::ConflictDiff,
+                                DetailSection::ConflictDiff => DetailSection::StagingDetails,
+                                DetailSection::StagingDetails => DetailSection::Conflicts,
+                                DetailSection::Conflicts => DetailSection::Unstaged,
                                 _ => DetailSection::Staged,
                             };
                         } else {
@@ -978,6 +1072,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     }
                     if app.detail_focus == DetailSection::Staged
                         || app.detail_focus == DetailSection::Unstaged
+                        || app.detail_focus == DetailSection::Conflicts
                     {
                         app.last_staging_focus = app.detail_focus;
                     }
@@ -1011,14 +1106,21 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
             }
             KeyCode::Right => {
-                if app.detail_focus == DetailSection::StagingDetails {
+                if app.detail_focus == DetailSection::StagingDetails
+                    || app.detail_focus == DetailSection::ConflictDiff
+                {
                     app.inspect_full_diff = true;
                 } else if app.is_uncommitted_selected() {
                     if app.detail_focus == DetailSection::Staged
                         || app.detail_focus == DetailSection::Unstaged
+                        || app.detail_focus == DetailSection::Conflicts
                     {
                         app.last_staging_focus = app.detail_focus;
-                        app.detail_focus = DetailSection::StagingDetails;
+                        if app.detail_focus == DetailSection::Conflicts {
+                            app.detail_focus = DetailSection::ConflictDiff;
+                        } else {
+                            app.detail_focus = DetailSection::StagingDetails;
+                        }
                     }
                 } else {
                     if app.detail_focus == DetailSection::Staged
@@ -1031,7 +1133,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Left => {
                 if app.inspect_full_diff {
                     app.inspect_full_diff = false;
-                } else if app.detail_focus == DetailSection::StagingDetails {
+                } else if app.detail_focus == DetailSection::StagingDetails
+                    || app.detail_focus == DetailSection::ConflictDiff
+                {
                     if app.is_uncommitted_selected() {
                         app.detail_focus = app.last_staging_focus;
                     } else {
@@ -1042,8 +1146,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Up => {
                 if app.detail_focus == DetailSection::Staged
                     || app.detail_focus == DetailSection::Unstaged
+                    || app.detail_focus == DetailSection::Conflicts
                 {
-                    if app.is_uncommitted_selected() {
+                    if app.detail_focus == DetailSection::Conflicts {
+                        app.conflict_file_up();
+                    } else if app.is_uncommitted_selected() {
                         app.staging_file_up();
                     } else {
                         app.detail_file_up();
@@ -1065,8 +1172,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Down => {
                 if app.detail_focus == DetailSection::Staged
                     || app.detail_focus == DetailSection::Unstaged
+                    || app.detail_focus == DetailSection::Conflicts
                 {
-                    if app.is_uncommitted_selected() {
+                    if app.detail_focus == DetailSection::Conflicts {
+                        app.conflict_file_down();
+                    } else if app.is_uncommitted_selected() {
                         app.staging_file_down();
                     } else {
                         app.detail_file_down();
@@ -1088,8 +1198,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::PageUp => {
                 if app.detail_focus == DetailSection::Staged
                     || app.detail_focus == DetailSection::Unstaged
+                    || app.detail_focus == DetailSection::Conflicts
                 {
-                    if app.is_uncommitted_selected() {
+                    if app.detail_focus == DetailSection::Conflicts {
+                        for _ in 0..app.config.page_size {
+                            app.conflict_file_up();
+                        }
+                    } else if app.is_uncommitted_selected() {
                         for _ in 0..app.config.page_size {
                             app.staging_file_up();
                         }
@@ -1109,8 +1224,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::PageDown => {
                 if app.detail_focus == DetailSection::Staged
                     || app.detail_focus == DetailSection::Unstaged
+                    || app.detail_focus == DetailSection::Conflicts
                 {
-                    if app.is_uncommitted_selected() {
+                    if app.detail_focus == DetailSection::Conflicts {
+                        for _ in 0..app.config.page_size {
+                            app.conflict_file_down();
+                        }
+                    } else if app.is_uncommitted_selected() {
                         for _ in 0..app.config.page_size {
                             app.staging_file_down();
                         }
@@ -1130,11 +1250,17 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Home => {
                 if app.detail_focus == DetailSection::Staged
                     || app.detail_focus == DetailSection::Unstaged
+                    || app.detail_focus == DetailSection::Conflicts
                 {
-                    if app.is_uncommitted_selected() {
+                    if app.detail_focus == DetailSection::Conflicts {
+                        app.conflict_file_selection = 0;
+                        app.refresh_staging_diff();
+                    } else if app.is_uncommitted_selected() {
                         app.staging_file_selection = 0;
+                        app.refresh_staging_diff();
                     } else {
                         app.file_selection = 0;
+                        app.refresh_file_diff();
                     }
                 } else if app.detail_focus == DetailSection::CommitDetails {
                     app.commit_details_scroll = 0;
@@ -1155,11 +1281,23 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::End => {
                 if app.detail_focus == DetailSection::Staged
                     || app.detail_focus == DetailSection::Unstaged
+                    || app.detail_focus == DetailSection::Conflicts
                 {
-                    if app.is_uncommitted_selected() {
+                    if app.detail_focus == DetailSection::Conflicts {
+                        let len = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                                info.changes.conflicted.len()
+                            }
+                            _ => 0,
+                        };
+                        app.conflict_file_selection = len.saturating_sub(1);
+                        app.refresh_staging_diff();
+                    } else if app.is_uncommitted_selected() {
                         app.staging_file_selection = app.staging_file_total().saturating_sub(1);
+                        app.refresh_staging_diff();
                     } else {
                         app.file_selection = app.file_total().saturating_sub(1);
+                        app.refresh_file_diff();
                     }
                 } else if app.detail_focus == DetailSection::CommitDetails {
                     app.commit_details_scroll = usize::MAX;
@@ -1183,6 +1321,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.unstage_selected_file();
                 } else if app.detail_focus == DetailSection::Unstaged {
                     app.stage_selected_file();
+                } else if app.detail_focus == DetailSection::Conflicts {
+                    app.detail_focus = DetailSection::ConflictDiff;
+                    app.diff_scroll = 0;
+                    app.refresh_staging_diff();
                 } else if app.detail_focus == DetailSection::StagingDetails {
                     if app.diff_line_mode {
                         if app.last_staging_focus == DetailSection::Staged {
@@ -1230,6 +1372,41 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     && app.detail_focus == DetailSection::StagingDetails =>
             {
                 app.toggle_diff_line_mode();
+            }
+            KeyCode::Char('o')
+                if (app.detail_focus == DetailSection::Conflicts
+                    || app.detail_focus == DetailSection::ConflictDiff)
+                    && app.is_uncommitted_selected() =>
+            {
+                app.resolve_conflict_ours();
+            }
+            KeyCode::Char('t')
+                if (app.detail_focus == DetailSection::Conflicts
+                    || app.detail_focus == DetailSection::ConflictDiff)
+                    && app.is_uncommitted_selected() =>
+            {
+                app.resolve_conflict_theirs();
+            }
+            KeyCode::Char('r')
+                if (app.detail_focus == DetailSection::Conflicts
+                    || app.detail_focus == DetailSection::ConflictDiff)
+                    && app.is_uncommitted_selected() =>
+            {
+                app.mark_conflict_resolved();
+            }
+            KeyCode::Char('A')
+                if (app.detail_focus == DetailSection::Conflicts
+                    || app.detail_focus == DetailSection::ConflictDiff)
+                    && app.is_uncommitted_selected() =>
+            {
+                app.mode = Mode::MergeAbortConfirm;
+            }
+            KeyCode::Char('C')
+                if (app.detail_focus == DetailSection::Conflicts
+                    || app.detail_focus == DetailSection::ConflictDiff)
+                    && app.is_uncommitted_selected() =>
+            {
+                app.mode = Mode::MergeContinueConfirm;
             }
             KeyCode::Char('c') | KeyCode::Char('C') if app.is_uncommitted_selected() => {
                 app.start_commit();
@@ -1842,6 +2019,81 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     app.staging_file_down();
                 } else {
                     app.detail_file_down();
+                }
+            }
+            return;
+        }
+    }
+    // Conflicts sub-panel.
+    if let Some(rect) = areas.conflicts_sub {
+        if rect.contains(pos) {
+            if is_click {
+                app.detail_focus = DetailSection::Conflicts;
+                app.last_staging_focus = DetailSection::Conflicts;
+
+                let mut clicked_file = false;
+                if let Some(inner) = areas.conflicts_sub_inner {
+                    if inner.contains(pos) {
+                        let clicked_row = (pos.y - inner.y) as usize;
+                        let offset = if app.detail_focus == DetailSection::Conflicts {
+                            app.conflicts_list_state.borrow().offset()
+                        } else {
+                            0
+                        };
+                        let actual_idx = offset + clicked_row;
+                        let total = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                                info.changes.conflicted.len()
+                            }
+                            _ => 0,
+                        };
+                        if actual_idx < total {
+                            app.conflict_file_selection = actual_idx;
+                            clicked_file = true;
+                        }
+                    }
+                }
+
+                if !clicked_file {
+                    let total = match &app.current_detail {
+                        Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                            info.changes.conflicted.len()
+                        }
+                        _ => 0,
+                    };
+                    if total > 0 {
+                        app.conflict_file_selection = app.conflict_file_selection.min(total - 1);
+                    } else {
+                        app.conflict_file_selection = 0;
+                    }
+                }
+                app.diff_scroll = 0;
+                app.refresh_staging_diff();
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::Conflicts;
+                app.last_staging_focus = DetailSection::Conflicts;
+                let total = match &app.current_detail {
+                    Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                        info.changes.conflicted.len()
+                    }
+                    _ => 0,
+                };
+                if total > 0 {
+                    app.conflict_file_selection = app.conflict_file_selection.saturating_sub(1);
+                    app.refresh_staging_diff();
+                }
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::Conflicts;
+                app.last_staging_focus = DetailSection::Conflicts;
+                let total = match &app.current_detail {
+                    Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                        info.changes.conflicted.len()
+                    }
+                    _ => 0,
+                };
+                if total > 0 {
+                    app.conflict_file_selection = (app.conflict_file_selection + 1).min(total - 1);
+                    app.refresh_staging_diff();
                 }
             }
             return;

@@ -47,11 +47,12 @@ Keystrokes are interpreted conditionally depending on the active `Mode`:
 - `Mode::Inspect`: Fullscreen diff view (lines/hunks staging and discard).
 - `Mode::CommitInput`: Centered commit message entry dialog.
 - `Mode::BranchCreateInput` / `Mode::TagCreateInput`: Naming new branches/tags.
+- `Mode::MergeAbortConfirm` / `Mode::MergeContinueConfirm`: Confirmations for merge abort/continue.
 - `Mode::*Confirm`: Deleting, pushing, merging, or rebasing confirmations.
 
 ### Pane Focus (`src/app.rs`)
 Pane focus within tabs in `Mode::Detail` or `Mode::Inspect` is tracked by the `DetailSection` enum:
-- **Workspace (Tab 0)**: `Commits`, `Staged`, `Unstaged`, `CommitDetails`, `StagingDetails`
+- **Workspace (Tab 0)**: `Commits`, `Staged`, `Unstaged`, `Conflicts`, `CommitDetails`, `StagingDetails`, `ConflictDiff`
 - **Files (Tab 1)**: `Files`, `FileContent`
 - **Branches (Tab 3)**: `LocalBranches`, `RemoteBranches`
 - **Stashes (Tab 6)**: `Stashes`, `StashedFiles`, `StagingDetails`

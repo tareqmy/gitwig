@@ -211,6 +211,12 @@ pub enum DiffLineKind {
     Removed,
     /// Unchanged context line.
     Context,
+    /// Line in OURS section of a conflict.
+    ConflictOurs,
+    /// Line in THEIRS section of a conflict.
+    ConflictTheirs,
+    /// Conflict marker line (<<<<<<<, =======, >>>>>>>).
+    ConflictSeparator,
 }
 
 /// One line of a unified diff, as rendered in the Diff panel.
@@ -579,6 +585,7 @@ fn apply_line_patch_inner(
             DiffLineKind::Removed => "-",
             DiffLineKind::Context => " ",
             DiffLineKind::Header => "",
+            _ => "",
         };
         patch.push_str(prefix);
         patch.push_str(&line.content);
@@ -638,6 +645,7 @@ fn apply_hunk_patch(
             DiffLineKind::Removed => "-",
             DiffLineKind::Context => " ",
             DiffLineKind::Header => "",
+            _ => "",
         };
         patch.push_str(prefix);
         patch.push_str(&line.content);
@@ -1928,6 +1936,131 @@ pub fn commit_amend(repo_path: &Path, message: &str) -> Result<(), String> {
     Ok(())
 }
 
+// ── Merge Conflict Helpers ──────────────────────────────────────────────────
+
+/// Returns `true` when `.git/MERGE_HEAD` exists — i.e. a merge is in progress.
+/// Cheap file-existence check, no libgit2 required.
+pub fn is_merging(repo_path: &Path) -> bool {
+    repo_path.join(".git/MERGE_HEAD").exists()
+}
+
+/// Returns the conflict-marker diff for a conflicted file by parsing the file on disk.
+/// Colorizes conflict blocks using DiffLineKind variants.
+pub fn get_conflict_markers_diff(repo_path: &Path, file_path: &str) -> Vec<DiffLine> {
+    let full_path = repo_path.join(file_path);
+    let content = match std::fs::read_to_string(&full_path) {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut lines = Vec::new();
+    let mut in_ours = false;
+    let mut in_theirs = false;
+
+    for line in content.lines() {
+        if line.starts_with("<<<<<<<") {
+            in_ours = true;
+            in_theirs = false;
+            lines.push(DiffLine {
+                kind: DiffLineKind::ConflictSeparator,
+                content: line.to_string(),
+            });
+        } else if line.starts_with("=======") {
+            in_ours = false;
+            in_theirs = true;
+            lines.push(DiffLine {
+                kind: DiffLineKind::ConflictSeparator,
+                content: line.to_string(),
+            });
+        } else if line.starts_with(">>>>>>>") {
+            in_ours = false;
+            in_theirs = false;
+            lines.push(DiffLine {
+                kind: DiffLineKind::ConflictSeparator,
+                content: line.to_string(),
+            });
+        } else if in_ours {
+            lines.push(DiffLine {
+                kind: DiffLineKind::ConflictOurs,
+                content: line.to_string(),
+            });
+        } else if in_theirs {
+            lines.push(DiffLine {
+                kind: DiffLineKind::ConflictTheirs,
+                content: line.to_string(),
+            });
+        } else {
+            lines.push(DiffLine {
+                kind: DiffLineKind::Context,
+                content: line.to_string(),
+            });
+        }
+    }
+    lines
+}
+
+/// Accept the OURS (HEAD) version of a conflicted file.
+/// Equivalent to: git checkout --ours <file> && git add <file>
+pub fn resolve_ours(repo_path: &Path, file_path: &str) -> Result<(), String> {
+    let output1 = std::process::Command::new("git")
+        .args(["checkout", "--ours", file_path])
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !output1.status.success() {
+        return Err(String::from_utf8_lossy(&output1.stderr).to_string());
+    }
+    stage_file(repo_path, file_path)?;
+    Ok(())
+}
+
+/// Accept the THEIRS (incoming) version of a conflicted file.
+/// Equivalent to: git checkout --theirs <file> && git add <file>
+pub fn resolve_theirs(repo_path: &Path, file_path: &str) -> Result<(), String> {
+    let output1 = std::process::Command::new("git")
+        .args(["checkout", "--theirs", file_path])
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !output1.status.success() {
+        return Err(String::from_utf8_lossy(&output1.stderr).to_string());
+    }
+    stage_file(repo_path, file_path)?;
+    Ok(())
+}
+
+/// Mark the file as resolved (stage it) after manual edits.
+pub fn mark_resolved(repo_path: &Path, file_path: &str) -> Result<(), String> {
+    stage_file(repo_path, file_path)
+}
+
+/// Abort the in-progress merge.
+pub fn abort_merge(repo_path: &Path) -> Result<(), String> {
+    let output = std::process::Command::new("git")
+        .args(["merge", "--abort"])
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(())
+}
+
+/// Continue the merge after conflicts are resolved.
+pub fn continue_merge(repo_path: &Path) -> Result<(), String> {
+    let output = std::process::Command::new("git")
+        .args(["merge", "--continue"])
+        .env("GIT_EDITOR", "true")
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2618,6 +2751,137 @@ mod tests {
         let contents = std::fs::read_to_string(&file_path).unwrap();
         assert_eq!(contents, "original content\n");
         assert!(!untracked_path.exists());
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_merge_conflicts_flow() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_conflict_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // Init repo
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // 1. Initial commit on main
+        let file_path = temp_path.join("conflict.txt");
+        std::fs::write(&file_path, "line 1\nline 2\nline 3\n").unwrap();
+        stage_file(&temp_path, "conflict.txt").unwrap();
+        commit_changes(&temp_path, "initial commit").unwrap();
+
+        // Get the main branch name first
+        let output = std::process::Command::new("git")
+            .args(["symbolic-ref", "--short", "HEAD"])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+        let main_branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        // 2. Create feature branch and edit
+        std::process::Command::new("git")
+            .args(["checkout", "-b", "feature"])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+
+        std::fs::write(&file_path, "line 1\nline 2 on feature\nline 3\n").unwrap();
+        stage_file(&temp_path, "conflict.txt").unwrap();
+        commit_changes(&temp_path, "feature commit").unwrap();
+
+        // 3. Checkout main/master and edit differently
+        std::process::Command::new("git")
+            .args(["checkout", &main_branch])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+
+        std::fs::write(&file_path, "line 1\nline 2 on main\nline 3\n").unwrap();
+        stage_file(&temp_path, "conflict.txt").unwrap();
+        commit_changes(&temp_path, "main commit").unwrap();
+
+        // 4. Merge feature into main -> conflict
+        assert!(!is_merging(&temp_path));
+        let merge_output = std::process::Command::new("git")
+            .args(["merge", "feature"])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+
+        assert!(!merge_output.status.success());
+        assert!(is_merging(&temp_path));
+
+        // 5. Check conflict markers diff
+        let diff = get_conflict_markers_diff(&temp_path, "conflict.txt");
+        assert!(!diff.is_empty());
+        let has_separator = diff
+            .iter()
+            .any(|l| matches!(l.kind, DiffLineKind::ConflictSeparator));
+        let has_ours = diff
+            .iter()
+            .any(|l| matches!(l.kind, DiffLineKind::ConflictOurs));
+        let has_theirs = diff
+            .iter()
+            .any(|l| matches!(l.kind, DiffLineKind::ConflictTheirs));
+        assert!(has_separator);
+        assert!(has_ours);
+        assert!(has_theirs);
+
+        // 6. Abort merge and verify
+        abort_merge(&temp_path).unwrap();
+        assert!(!is_merging(&temp_path));
+
+        // 7. Conflict again to test resolve_ours/resolve_theirs
+        std::process::Command::new("git")
+            .args(["merge", "feature"])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+        assert!(is_merging(&temp_path));
+
+        // Test resolve_ours
+        resolve_ours(&temp_path, "conflict.txt").unwrap();
+        let contents = std::fs::read_to_string(&file_path).unwrap();
+        assert!(contents.contains("line 2 on main"));
+        assert!(!contents.contains("<<<<<<<"));
+
+        // Since it's resolved, we can continue merge
+        continue_merge(&temp_path).unwrap();
+        assert!(!is_merging(&temp_path));
+
+        // 8. Test resolve_theirs by resetting main to before the merge
+        std::process::Command::new("git")
+            .args(["reset", "--hard", "HEAD~1"])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+
+        std::process::Command::new("git")
+            .args(["merge", "feature"])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+        assert!(is_merging(&temp_path));
+
+        resolve_theirs(&temp_path, "conflict.txt").unwrap();
+        let contents_theirs = std::fs::read_to_string(&file_path).unwrap();
+        assert!(contents_theirs.contains("line 2 on feature"));
+        assert!(!contents_theirs.contains("<<<<<<<"));
+
+        continue_merge(&temp_path).unwrap();
+        assert!(!is_merging(&temp_path));
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);

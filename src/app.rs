@@ -103,6 +103,10 @@ pub enum Mode {
     TagCheckoutConfirm,
     /// Search input for repositories on the home page.
     RepoSearchInput,
+    /// Confirming aborting of a merge.
+    MergeAbortConfirm,
+    /// Confirming continuation of a merge.
+    MergeContinueConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -112,8 +116,10 @@ pub enum DetailSection {
     Commits,
     Staged,
     Unstaged,
+    Conflicts,
     CommitDetails,
     StagingDetails,
+    ConflictDiff,
     LocalBranches,
     RemoteBranches,
     LocalTags,
@@ -144,9 +150,11 @@ impl DetailSection {
         match self {
             Self::Commits => Self::Staged,
             Self::Staged => Self::Unstaged,
-            Self::Unstaged => Self::CommitDetails,
+            Self::Unstaged => Self::Conflicts,
+            Self::Conflicts => Self::CommitDetails,
             Self::CommitDetails => Self::StagingDetails,
-            Self::StagingDetails => Self::Commits,
+            Self::StagingDetails => Self::ConflictDiff,
+            Self::ConflictDiff => Self::Commits,
             Self::LocalBranches => Self::RemoteBranches,
             Self::RemoteBranches => Self::LocalBranches,
             Self::LocalTags => Self::RemoteTags,
@@ -162,11 +170,13 @@ impl DetailSection {
     /// Move back to the previous section in the cycle.
     pub fn prev(self) -> Self {
         match self {
-            Self::Commits => Self::StagingDetails,
+            Self::Commits => Self::ConflictDiff,
             Self::Staged => Self::Commits,
             Self::Unstaged => Self::Staged,
-            Self::CommitDetails => Self::Unstaged,
+            Self::Conflicts => Self::Unstaged,
+            Self::CommitDetails => Self::Conflicts,
             Self::StagingDetails => Self::CommitDetails,
+            Self::ConflictDiff => Self::StagingDetails,
             Self::LocalBranches => Self::RemoteBranches,
             Self::RemoteBranches => Self::LocalBranches,
             Self::LocalTags => Self::RemoteTags,
@@ -219,6 +229,8 @@ pub struct App {
     pub diff_line_mode: bool,
     /// Selected line index in the file_diff.
     pub diff_line_selection: usize,
+    /// Selected conflict file index in Conflicts panel.
+    pub conflict_file_selection: usize,
     /// Vertical scroll offset for the commit details panel (CommitDetails focus).
     pub commit_details_scroll: usize,
     /// Vertical scroll offset for the commit input popup.
@@ -246,6 +258,7 @@ pub struct App {
     pub commits_table_state: std::cell::RefCell<TableState>,
     pub staged_list_state: std::cell::RefCell<ListState>,
     pub unstaged_list_state: std::cell::RefCell<ListState>,
+    pub conflicts_list_state: std::cell::RefCell<ListState>,
     pub changed_files_list_state: std::cell::RefCell<ListState>,
     pub local_branch_list_state: std::cell::RefCell<ListState>,
     pub remote_branch_list_state: std::cell::RefCell<ListState>,
@@ -401,6 +414,7 @@ impl App {
             diff_hunk_selection: 0,
             diff_line_mode: false,
             diff_line_selection: 0,
+            conflict_file_selection: 0,
             commit_details_scroll: 0,
             commit_input_scroll: 0,
             local_branch_selection: 0,
@@ -416,6 +430,7 @@ impl App {
             commits_table_state: std::cell::RefCell::new(TableState::default()),
             staged_list_state: std::cell::RefCell::new(ListState::default()),
             unstaged_list_state: std::cell::RefCell::new(ListState::default()),
+            conflicts_list_state: std::cell::RefCell::new(ListState::default()),
             changed_files_list_state: std::cell::RefCell::new(ListState::default()),
             local_branch_list_state: std::cell::RefCell::new(ListState::default()),
             remote_branch_list_state: std::cell::RefCell::new(ListState::default()),
@@ -1039,7 +1054,7 @@ impl App {
             } else {
                 self.detail_focus.next()
             };
-            for _ in 0..5 {
+            for _ in 0..10 {
                 let skip = match next_focus {
                     DetailSection::Staged => {
                         if self.is_uncommitted_selected() {
@@ -1051,6 +1066,9 @@ impl App {
                     DetailSection::Unstaged => {
                         self.is_unstaged_empty() || !self.is_uncommitted_selected()
                     }
+                    DetailSection::Conflicts => {
+                        self.is_conflicted_empty() || !self.is_uncommitted_selected()
+                    }
                     DetailSection::CommitDetails => self.is_uncommitted_selected(),
                     DetailSection::StagingDetails => {
                         if self.is_uncommitted_selected() {
@@ -1058,6 +1076,9 @@ impl App {
                         } else {
                             self.is_selected_commit_empty()
                         }
+                    }
+                    DetailSection::ConflictDiff => {
+                        self.is_conflicted_empty() || !self.is_uncommitted_selected()
                     }
                     _ => false,
                 };
@@ -1081,15 +1102,20 @@ impl App {
         }
         if self.detail_focus == DetailSection::Staged
             || self.detail_focus == DetailSection::Unstaged
+            || self.detail_focus == DetailSection::Conflicts
         {
             self.last_staging_focus = self.detail_focus;
         }
-        // Reset staging selection and pre-load diff when landing on Staged/Unstaged.
+        // Reset staging selection and pre-load diff when landing on Staged/Unstaged/Conflicts.
         match self.detail_focus {
-            DetailSection::Staged | DetailSection::Unstaged => {
+            DetailSection::Staged | DetailSection::Unstaged | DetailSection::Conflicts => {
                 self.diff_scroll = 0;
                 if self.is_uncommitted_selected() {
-                    self.staging_file_selection = 0;
+                    if self.detail_focus == DetailSection::Conflicts {
+                        self.conflict_file_selection = 0;
+                    } else {
+                        self.staging_file_selection = 0;
+                    }
                     self.refresh_staging_diff();
                 } else {
                     self.file_selection = 0;
@@ -1099,7 +1125,7 @@ impl App {
             DetailSection::CommitDetails => {
                 self.commit_details_scroll = 0;
             }
-            DetailSection::StagingDetails => {
+            DetailSection::StagingDetails | DetailSection::ConflictDiff => {
                 self.diff_scroll = 0;
             }
             _ => {}
@@ -2396,6 +2422,26 @@ impl App {
         self.refresh_staging_diff();
     }
 
+    /// Move conflict-area file selection up one row.
+    pub fn conflict_file_up(&mut self) {
+        self.conflict_file_selection = self.conflict_file_selection.saturating_sub(1);
+        self.diff_scroll = 0;
+        self.refresh_staging_diff();
+    }
+
+    /// Move conflict-area file selection down one row.
+    pub fn conflict_file_down(&mut self) {
+        let total = match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => info.changes.conflicted.len(),
+            _ => 0,
+        };
+        if total > 0 && self.conflict_file_selection + 1 < total {
+            self.conflict_file_selection += 1;
+        }
+        self.diff_scroll = 0;
+        self.refresh_staging_diff();
+    }
+
     /// Scroll the diff panel up by one line.
     pub fn diff_scroll_up(&mut self) {
         self.diff_scroll = self.diff_scroll.saturating_sub(1);
@@ -3013,8 +3059,15 @@ impl App {
         }
     }
 
+    pub fn is_conflicted_empty(&self) -> bool {
+        match &self.current_detail {
+            Some(ItemDetail::Repo { info, .. }) => info.changes.conflicted.is_empty(),
+            _ => true,
+        }
+    }
+
     pub fn has_uncommitted_changes(&self) -> bool {
-        !self.is_staged_empty() || !self.is_unstaged_empty()
+        !self.is_staged_empty() || !self.is_unstaged_empty() || !self.is_conflicted_empty()
     }
 
     pub fn is_selected_commit_empty(&self) -> bool {
@@ -3053,28 +3106,36 @@ impl App {
             }
             return;
         }
-
         if self.is_uncommitted_selected() {
             let params = match &self.current_detail {
                 Some(ItemDetail::Repo { resolved, info }) => {
-                    if !info.changes.staged.is_empty() {
+                    if !info.changes.conflicted.is_empty() {
+                        info.changes
+                            .conflicted
+                            .first()
+                            .map(|f| (resolved.clone(), f.path.clone(), None))
+                    } else if !info.changes.staged.is_empty() {
                         info.changes
                             .staged
                             .first()
-                            .map(|f| (resolved.clone(), f.path.clone(), true))
+                            .map(|f| (resolved.clone(), f.path.clone(), Some(true)))
                     } else if !info.changes.unstaged.is_empty() {
                         info.changes
                             .unstaged
                             .first()
-                            .map(|f| (resolved.clone(), f.path.clone(), false))
+                            .map(|f| (resolved.clone(), f.path.clone(), Some(false)))
                     } else {
                         None
                     }
                 }
                 _ => None,
             };
-            if let Some((repo_path, file_path, staged)) = params {
-                self.file_diff = repo::get_worktree_file_diff(&repo_path, &file_path, staged);
+            if let Some((repo_path, file_path, staged_opt)) = params {
+                if let Some(staged) = staged_opt {
+                    self.file_diff = repo::get_worktree_file_diff(&repo_path, &file_path, staged);
+                } else {
+                    self.file_diff = repo::get_conflict_markers_diff(&repo_path, &file_path);
+                }
             } else {
                 self.file_diff.clear();
             }
@@ -3091,6 +3152,7 @@ impl App {
             Some(ItemDetail::Repo { info, .. }) => match self.detail_focus {
                 DetailSection::Staged => info.changes.staged.len(),
                 DetailSection::Unstaged => info.changes.unstaged.len(),
+                DetailSection::Conflicts => info.changes.conflicted.len(),
                 _ => 0,
             },
             _ => 0,
@@ -3104,28 +3166,43 @@ impl App {
                 let focus_to_use = match self.detail_focus {
                     DetailSection::Staged => DetailSection::Staged,
                     DetailSection::Unstaged => DetailSection::Unstaged,
+                    DetailSection::Conflicts => DetailSection::Conflicts,
                     DetailSection::StagingDetails => self.last_staging_focus,
                     _ => {
                         self.file_diff.clear();
                         return;
                     }
                 };
-                let (files, staged) = match focus_to_use {
-                    DetailSection::Staged => (&info.changes.staged, true),
-                    DetailSection::Unstaged => (&info.changes.unstaged, false),
+                match focus_to_use {
+                    DetailSection::Staged => info
+                        .changes
+                        .staged
+                        .get(self.staging_file_selection)
+                        .map(|f| (resolved.clone(), f.path.clone(), Some(true))),
+                    DetailSection::Unstaged => info
+                        .changes
+                        .unstaged
+                        .get(self.staging_file_selection)
+                        .map(|f| (resolved.clone(), f.path.clone(), Some(false))),
+                    DetailSection::Conflicts => info
+                        .changes
+                        .conflicted
+                        .get(self.conflict_file_selection)
+                        .map(|f| (resolved.clone(), f.path.clone(), None)),
                     _ => {
                         self.file_diff.clear();
                         return;
                     }
-                };
-                files
-                    .get(self.staging_file_selection)
-                    .map(|f| (resolved.clone(), f.path.clone(), staged))
+                }
             }
             _ => None,
         };
-        if let Some((repo_path, file_path, staged)) = params {
-            self.file_diff = repo::get_worktree_file_diff(&repo_path, &file_path, staged);
+        if let Some((repo_path, file_path, staged_opt)) = params {
+            if let Some(staged) = staged_opt {
+                self.file_diff = repo::get_worktree_file_diff(&repo_path, &file_path, staged);
+            } else {
+                self.file_diff = repo::get_conflict_markers_diff(&repo_path, &file_path);
+            }
         } else {
             self.file_diff.clear();
         }
@@ -3188,6 +3265,139 @@ impl App {
                     self.refresh_detail();
                 }
                 Err(e) => self.status_message = Some(format!("Unstage failed: {}", e)),
+            }
+        }
+    }
+
+    /// Accept the OURS version of the currently-selected conflicted file.
+    pub fn resolve_conflict_ours(&mut self) {
+        let params = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => info
+                .changes
+                .conflicted
+                .get(self.conflict_file_selection)
+                .map(|f| (resolved.clone(), f.path.clone())),
+            _ => None,
+        };
+        if let Some((repo_path, file_path)) = params {
+            match repo::resolve_ours(&repo_path, &file_path) {
+                Ok(()) => {
+                    self.status_message = Some(format!("Resolved (ours): {}", file_path));
+                    self.refresh_detail();
+                    self.clamp_conflict_selection();
+                    self.refresh_staging_diff();
+                }
+                Err(e) => self.status_message = Some(format!("Resolve ours failed: {}", e)),
+            }
+        }
+    }
+
+    /// Accept the THEIRS version of the currently-selected conflicted file.
+    pub fn resolve_conflict_theirs(&mut self) {
+        let params = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => info
+                .changes
+                .conflicted
+                .get(self.conflict_file_selection)
+                .map(|f| (resolved.clone(), f.path.clone())),
+            _ => None,
+        };
+        if let Some((repo_path, file_path)) = params {
+            match repo::resolve_theirs(&repo_path, &file_path) {
+                Ok(()) => {
+                    self.status_message = Some(format!("Resolved (theirs): {}", file_path));
+                    self.refresh_detail();
+                    self.clamp_conflict_selection();
+                    self.refresh_staging_diff();
+                }
+                Err(e) => self.status_message = Some(format!("Resolve theirs failed: {}", e)),
+            }
+        }
+    }
+
+    /// Mark the currently-selected conflicted file as resolved after manual edits.
+    pub fn mark_conflict_resolved(&mut self) {
+        let params = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, info }) => info
+                .changes
+                .conflicted
+                .get(self.conflict_file_selection)
+                .map(|f| (resolved.clone(), f.path.clone())),
+            _ => None,
+        };
+        if let Some((repo_path, file_path)) = params {
+            match repo::mark_resolved(&repo_path, &file_path) {
+                Ok(()) => {
+                    self.status_message = Some(format!("Marked resolved: {}", file_path));
+                    self.refresh_detail();
+                    self.clamp_conflict_selection();
+                    self.refresh_staging_diff();
+                }
+                Err(e) => self.status_message = Some(format!("Mark resolved failed: {}", e)),
+            }
+        }
+    }
+
+    /// Confirm and abort the in-progress merge.
+    pub fn confirm_abort_merge(&mut self) {
+        self.mode = Mode::Detail;
+        let repo_path = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, .. }) => Some(resolved.clone()),
+            _ => None,
+        };
+        if let Some(repo_path) = repo_path {
+            match repo::abort_merge(&repo_path) {
+                Ok(()) => {
+                    self.status_message = Some("Merge aborted successfully".to_string());
+                    self.refresh_detail();
+                    if self.is_conflicted_empty() {
+                        self.detail_focus = DetailSection::Unstaged;
+                    }
+                    self.refresh_staging_diff();
+                }
+                Err(e) => self.status_message = Some(format!("Abort merge failed: {}", e)),
+            }
+        }
+    }
+
+    /// Confirm and continue the in-progress merge.
+    pub fn confirm_continue_merge(&mut self) {
+        self.mode = Mode::Detail;
+        let repo_path = match &self.current_detail {
+            Some(ItemDetail::Repo { resolved, .. }) => Some(resolved.clone()),
+            _ => None,
+        };
+        if let Some(repo_path) = repo_path {
+            match repo::continue_merge(&repo_path) {
+                Ok(()) => {
+                    self.status_message = Some("Merge continued successfully".to_string());
+                    self.refresh_detail();
+                    if self.is_conflicted_empty() {
+                        self.detail_focus = DetailSection::Unstaged;
+                    }
+                    self.refresh_staging_diff();
+                }
+                Err(e) => {
+                    self.status_message = Some(format!("Merge continue failed: {}", e));
+                    self.refresh_detail();
+                    self.refresh_staging_diff();
+                }
+            }
+        }
+    }
+
+    fn clamp_conflict_selection(&mut self) {
+        if let Some(ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.changes.conflicted.len();
+            if total == 0 {
+                self.conflict_file_selection = 0;
+                if self.detail_focus == DetailSection::Conflicts
+                    || self.detail_focus == DetailSection::ConflictDiff
+                {
+                    self.detail_focus = DetailSection::Unstaged;
+                }
+            } else if self.conflict_file_selection >= total {
+                self.conflict_file_selection = total.saturating_sub(1);
             }
         }
     }
@@ -4695,7 +4905,11 @@ where
                     || msg.contains("failed");
 
                 if is_err {
+                    let has_conflict = msg.contains("conflict") || msg.contains("CONFLICT");
                     app.error_message = Some(msg);
+                    if has_conflict {
+                        app.detail_focus = DetailSection::Conflicts;
+                    }
                 } else {
                     app.status_message = Some(msg);
                 }
@@ -4703,6 +4917,9 @@ where
                 if let Some(item) = app.config.items.get(app.selected_index) {
                     app.current_detail = Some(app.inspect_repo_detail(item));
                     app.rebuild_visible_files();
+                    if app.detail_focus == DetailSection::Conflicts {
+                        app.refresh_staging_diff();
+                    }
                     if success_fetch {
                         app.fetch_remote_tags(false);
                     }

@@ -52,6 +52,8 @@ pub struct DetailAreas {
     pub staged_sub: Option<Rect>,
     /// Unstaged sub-panel (only in the uncommitted / staging view).
     pub unstaged_sub: Option<Rect>,
+    /// Conflicts sub-panel (only in the uncommitted / staging view).
+    pub conflicts_sub: Option<Rect>,
     /// Diff / Staging Details panel (right side of the bottom panel).
     pub bottom_right: Option<Rect>,
     /// Commit details panel (bottom-left bottom-half panel).
@@ -98,6 +100,8 @@ pub struct DetailAreas {
     pub staged_sub_inner: Option<Rect>,
     /// Inner area of unstaged files list.
     pub unstaged_sub_inner: Option<Rect>,
+    /// Inner area of conflicts files list.
+    pub conflicts_sub_inner: Option<Rect>,
     /// Inner area of changed files list.
     pub changed_files_inner: Option<Rect>,
     /// Inner area of local branches list.
@@ -659,6 +663,14 @@ pub fn draw(
             if matches!(mode, Mode::BranchMergeConfirm) {
                 draw_branch_merge_popup(f, branch_action_target, branch.as_deref(), body_area);
             }
+            // Draw merge abort popup on top when requested.
+            if matches!(mode, Mode::MergeAbortConfirm) {
+                draw_merge_abort_confirm_popup(f, body_area);
+            }
+            // Draw merge continue popup on top when requested.
+            if matches!(mode, Mode::MergeContinueConfirm) {
+                draw_merge_continue_confirm_popup(f, body_area);
+            }
             // Draw branch rebase popup on top when requested.
             if matches!(mode, Mode::BranchRebaseConfirm) {
                 draw_branch_rebase_popup(f, branch_action_target, branch.as_deref(), body_area);
@@ -915,6 +927,15 @@ fn draw_commit_files_panel(
                     DiffLineKind::Removed => Style::default().fg(DANGER()),
                     DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
                     DiffLineKind::Context => Style::default(),
+                    DiffLineKind::ConflictOurs => {
+                        Style::default().fg(ratatui::style::Color::LightRed)
+                    }
+                    DiffLineKind::ConflictTheirs => {
+                        Style::default().fg(ratatui::style::Color::LightBlue)
+                    }
+                    DiffLineKind::ConflictSeparator => Style::default()
+                        .fg(ratatui::style::Color::Yellow)
+                        .add_modifier(ratatui::style::Modifier::BOLD),
                 };
                 Line::from(Span::styled(line.content.clone(), style))
             })
@@ -947,19 +968,26 @@ fn draw_staging_panels(
     app: &crate::app::App,
     area: Rect,
 ) {
-    let right_focused = focus == DetailSection::StagingDetails;
+    let right_focused =
+        focus == DetailSection::StagingDetails || focus == DetailSection::ConflictDiff;
     let selected_file_name: Option<String> = {
         let (files, idx) = match focus {
             DetailSection::Staged => (Some(&changes.staged), staging_file_selection),
             DetailSection::Unstaged => (Some(&changes.unstaged), staging_file_selection),
+            DetailSection::Conflicts => (Some(&changes.conflicted), app.conflict_file_selection),
             _ => match last_staging_focus {
                 DetailSection::Staged => (Some(&changes.staged), staging_file_selection),
                 DetailSection::Unstaged => (Some(&changes.unstaged), staging_file_selection),
+                DetailSection::Conflicts => {
+                    (Some(&changes.conflicted), app.conflict_file_selection)
+                }
                 _ => {
-                    if !changes.staged.is_empty() {
-                        (Some(&changes.staged), 0)
+                    if !changes.conflicted.is_empty() {
+                        (Some(&changes.conflicted), app.conflict_file_selection)
+                    } else if !changes.staged.is_empty() {
+                        (Some(&changes.staged), staging_file_selection)
                     } else if !changes.unstaged.is_empty() {
-                        (Some(&changes.unstaged), 0)
+                        (Some(&changes.unstaged), staging_file_selection)
                     } else {
                         (None, 0)
                     }
@@ -1018,7 +1046,9 @@ fn draw_staging_panels(
         ));
 
         // Focus-aware border helpers.
-        let left_focused = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
+        let left_focused = focus == DetailSection::Staged
+            || focus == DetailSection::Unstaged
+            || focus == DetailSection::Conflicts;
 
         // ── Left panel: outer border labelled "Staging Area" ──────────────────
         let left_border_style = if left_focused {
@@ -1038,14 +1068,26 @@ fn draw_staging_panels(
         let left_inner = left_outer.inner(panels[0]);
         f.render_widget(left_outer, panels[0]);
 
-        // Split left inner vertically: top = Staged, bottom = Unstaged
-        let left_split = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(inspect_vertical_split_pct),
-                Constraint::Percentage(100 - inspect_vertical_split_pct),
-            ])
-            .split(left_inner);
+        // Split left inner vertically: top = Staged, middle = Unstaged, bottom = Conflicts (if any)
+        let has_conflicts = !changes.conflicted.is_empty();
+        let left_split = if has_conflicts {
+            Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Ratio(1, 3),
+                    Constraint::Ratio(1, 3),
+                    Constraint::Ratio(1, 3),
+                ])
+                .split(left_inner)
+        } else {
+            Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Percentage(inspect_vertical_split_pct),
+                    Constraint::Percentage(100 - inspect_vertical_split_pct),
+                ])
+                .split(left_inner)
+        };
 
         // Record vertical splitter boundary in left inner
         let split_row = left_inner.y + left_split[0].height;
@@ -1058,6 +1100,11 @@ fn draw_staging_panels(
 
         areas.staged_sub = Some(left_split[0]);
         areas.unstaged_sub = Some(left_split[1]);
+        if has_conflicts {
+            areas.conflicts_sub = Some(left_split[2]);
+        } else {
+            areas.conflicts_sub = None;
+        }
 
         let staged_inner = draw_file_subpanel(
             f,
@@ -1083,7 +1130,11 @@ fn draw_staging_panels(
             WARNING(),
             &changes.unstaged,
             "No unstaged changes",
-            Borders::empty(),
+            if has_conflicts {
+                Borders::BOTTOM
+            } else {
+                Borders::empty()
+            },
             focus == DetailSection::Unstaged,
             if focus == DetailSection::Unstaged {
                 Some(staging_file_selection)
@@ -1094,6 +1145,28 @@ fn draw_staging_panels(
             left_split[1],
         );
         areas.unstaged_sub_inner = Some(unstaged_inner);
+
+        if has_conflicts {
+            let conflicts_inner = draw_file_subpanel(
+                f,
+                "Conflicts",
+                DANGER(),
+                &changes.conflicted,
+                "No conflicts",
+                Borders::empty(),
+                focus == DetailSection::Conflicts,
+                if focus == DetailSection::Conflicts {
+                    Some(app.conflict_file_selection)
+                } else {
+                    None
+                },
+                &app.conflicts_list_state,
+                left_split[2],
+            );
+            areas.conflicts_sub_inner = Some(conflicts_inner);
+        } else {
+            areas.conflicts_sub_inner = None;
+        }
 
         // ── Right panel – Staging Details ─────────────────────────────────────
         let right_border_style = if right_focused {
@@ -1107,7 +1180,14 @@ fn draw_staging_panels(
             .border_style(right_border_style)
             .title(Line::from(vec![
                 Span::raw(" "),
-                Span::styled("Staging Details", primary_style()),
+                Span::styled(
+                    if last_staging_focus == DetailSection::Conflicts {
+                        "Conflict Markers"
+                    } else {
+                        "Staging Details"
+                    },
+                    primary_style(),
+                ),
                 if let Some(ref name) = selected_file_name {
                     Span::styled(format!("  {}", name), muted_style())
                 } else {
@@ -1179,6 +1259,15 @@ fn draw_staging_panels(
                     DiffLineKind::Removed => Style::default().fg(DANGER()),
                     DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
                     DiffLineKind::Context => Style::default(),
+                    DiffLineKind::ConflictOurs => {
+                        Style::default().fg(ratatui::style::Color::LightRed)
+                    }
+                    DiffLineKind::ConflictTheirs => {
+                        Style::default().fg(ratatui::style::Color::LightBlue)
+                    }
+                    DiffLineKind::ConflictSeparator => Style::default()
+                        .fg(ratatui::style::Color::Yellow)
+                        .add_modifier(ratatui::style::Modifier::BOLD),
                 };
                 style = style.patch(bg_style);
 
@@ -1475,6 +1564,17 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ),
     ("R", "Resync current tab state"),
     ("s", "Stash changes (Workspace changes or Stashes tab)"),
+    (
+        "o",
+        "Accept OURS version of conflict (Conflicts / ConflictDiff)",
+    ),
+    (
+        "t",
+        "Accept THEIRS version of conflict (Conflicts / ConflictDiff)",
+    ),
+    ("r", "Mark conflict as resolved (Conflicts / ConflictDiff)"),
+    ("A", "Abort the merge (Conflicts / ConflictDiff)"),
+    ("C", "Continue the merge (Conflicts / ConflictDiff)"),
     ("? / ⎋ [Esc]", "Close this help"),
     ("q / ⎋ [Esc]", "Back to repository list"),
     (
@@ -2896,6 +2996,100 @@ fn draw_branch_merge_popup(
     f.render_widget(paragraph, popup_area);
 }
 
+fn draw_merge_abort_confirm_popup(f: &mut Frame, area: Rect) {
+    let popup_area = centred_rect(45, 12, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(DANGER());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled(
+            "Abort Merge",
+            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::uniform(1));
+
+    let content = vec![
+        Line::from(Span::styled(
+            "Are you sure you want to abort the merge?",
+            primary_style(),
+        )),
+        Line::from(""),
+        Line::from(Span::styled(
+            "All unresolved conflict changes will be lost.",
+            muted_style(),
+        )),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled(
+                "y",
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block);
+    f.render_widget(paragraph, popup_area);
+}
+
+fn draw_merge_continue_confirm_popup(f: &mut Frame, area: Rect) {
+    let popup_area = centred_rect(45, 12, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(SUCCESS());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled(
+            "Continue Merge",
+            Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::uniform(1));
+
+    let content = vec![
+        Line::from(Span::styled(
+            "Are you sure you want to commit the merge?",
+            primary_style(),
+        )),
+        Line::from(""),
+        Line::from(Span::styled(
+            "This will finalize the merge commit.",
+            muted_style(),
+        )),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled(
+                "y",
+                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block);
+    f.render_widget(paragraph, popup_area);
+}
+
 fn draw_branch_rebase_popup(
     f: &mut Frame,
     target: &Option<(String, bool)>,
@@ -3902,6 +4096,15 @@ fn draw_stashes_view(
                     DiffLineKind::Removed => Style::default().fg(DANGER()),
                     DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
                     DiffLineKind::Context => Style::default(),
+                    DiffLineKind::ConflictOurs => {
+                        Style::default().fg(ratatui::style::Color::LightRed)
+                    }
+                    DiffLineKind::ConflictTheirs => {
+                        Style::default().fg(ratatui::style::Color::LightBlue)
+                    }
+                    DiffLineKind::ConflictSeparator => Style::default()
+                        .fg(ratatui::style::Color::Yellow)
+                        .add_modifier(ratatui::style::Modifier::BOLD),
                 };
                 Line::from(Span::styled(line.content.clone(), style))
             })
@@ -4122,6 +4325,15 @@ fn draw_inspect_window(
                     DiffLineKind::Removed => Style::default().fg(DANGER()),
                     DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
                     DiffLineKind::Context => Style::default(),
+                    DiffLineKind::ConflictOurs => {
+                        Style::default().fg(ratatui::style::Color::LightRed)
+                    }
+                    DiffLineKind::ConflictTheirs => {
+                        Style::default().fg(ratatui::style::Color::LightBlue)
+                    }
+                    DiffLineKind::ConflictSeparator => Style::default()
+                        .fg(ratatui::style::Color::Yellow)
+                        .add_modifier(ratatui::style::Modifier::BOLD),
                 };
                 Line::from(Span::styled(line.content.clone(), style))
             })

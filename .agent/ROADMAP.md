@@ -66,4 +66,4 @@ This roadmap outlines the progression of Twig from a basic list viewer to a full
 - [x] Mouse selection support for branches, tags, remotes, and stashes lists in Detail panels.
 - [x] Modal error popups for failed Git network and stash operations.
 - [x] Stash uncommitted files with a stash comment/name input popup.
-- [ ] Conflict resolution UI.
+- [x] Conflict resolution UI.
