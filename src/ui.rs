@@ -297,7 +297,9 @@ pub fn draw(
         draw_help_overlay(f, area, app.help_scroll);
     }
 
-    if app.fetching {
+    if let Some(ref err) = app.error_message {
+        draw_error_popup(f, area, err);
+    } else if app.fetching {
         draw_progress_popup(f, area, app);
     }
 }
@@ -2479,6 +2481,55 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
     ]))
     .alignment(ratatui::layout::Alignment::Center);
     f.render_widget(hint, chunks[3]);
+}
+
+fn draw_error_popup(f: &mut Frame, area: Rect, err: &str) {
+    let popup_area = centered_rect(60, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(DANGER());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled(
+            "Error",
+            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(2));
+
+    let inner = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(1),    // error message
+            Constraint::Length(1), // spacer
+            Constraint::Length(1), // dismiss hint
+        ])
+        .split(inner);
+
+    let err_para = Paragraph::new(err)
+        .wrap(ratatui::widgets::Wrap { trim: true })
+        .style(Style::default());
+    f.render_widget(err_para, chunks[0]);
+
+    let hint = Paragraph::new(Line::from(vec![
+        Span::styled("Press ", muted_style()),
+        Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" or ", muted_style()),
+        Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" to dismiss", muted_style()),
+    ]))
+    .alignment(ratatui::layout::Alignment::Center);
+    f.render_widget(hint, chunks[2]);
 }
 
 #[cfg(test)]

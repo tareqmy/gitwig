@@ -190,6 +190,7 @@ pub struct App {
     pub mode: Mode,
     pub input_buffer: String,
     pub status_message: Option<String>,
+    pub error_message: Option<String>,
     /// Populated when entering `Mode::Detail`, cleared when leaving. The
     /// detail snapshot is taken once on open (not re-fetched per frame)
     /// so opening a slow repo only costs one git2 call.
@@ -387,6 +388,7 @@ impl App {
             mode: Mode::Normal,
             input_buffer: String::new(),
             status_message: None,
+            error_message: None,
             current_detail: None,
             detail_focus: DetailSection::Commits,
             commit_selection: 0,
@@ -4633,11 +4635,21 @@ where
                 }
                 app.fetching = false;
             } else if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
-                app.status_message = Some(err_msg.to_string());
+                app.error_message = Some(err_msg.to_string());
                 app.fetching = false;
             } else {
                 let success_fetch = msg.starts_with("Fetched remote ");
-                app.status_message = Some(msg);
+                let is_err = msg.starts_with("Fetch failed:")
+                    || msg.starts_with("Pull failed:")
+                    || msg.starts_with("Push failed:")
+                    || msg.starts_with("Failed to")
+                    || msg.contains("failed");
+
+                if is_err {
+                    app.error_message = Some(msg);
+                } else {
+                    app.status_message = Some(msg);
+                }
                 app.fetching = false;
                 if let Some(item) = app.config.items.get(app.selected_index) {
                     app.current_detail = Some(app.inspect_repo_detail(item));
@@ -5039,6 +5051,72 @@ mod tests {
         fn drop(&mut self) {
             let _ = std::fs::remove_file(&self.path);
         }
+    }
+
+    #[test]
+    fn test_network_action_progress_and_error_handling() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_network.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Simulating the start of a network action
+        app.fetching = true;
+        app.status_message = Some("Pushing...".to_string());
+
+        // Assert progress popup is active
+        assert!(app.fetching);
+        assert_eq!(app.status_message.as_deref(), Some("Pushing..."));
+
+        // Simulate background thread sending a failure message
+        app.tx
+            .send("Push failed: git push rejected".to_string())
+            .unwrap();
+
+        // Run receiver check
+        while let Ok(msg) = app.rx.try_recv() {
+            let is_err = msg.starts_with("Fetch failed:")
+                || msg.starts_with("Pull failed:")
+                || msg.starts_with("Push failed:")
+                || msg.starts_with("Failed to")
+                || msg.contains("failed");
+
+            if is_err {
+                app.error_message = Some(msg);
+            } else {
+                app.status_message = Some(msg);
+            }
+            app.fetching = false;
+        }
+
+        // Verify that fetching is cleared and error_message popup is active
+        assert!(!app.fetching);
+        assert_eq!(
+            app.error_message.as_deref(),
+            Some("Push failed: git push rejected")
+        );
+
+        // Verify keypress dismisses the error popup
+        let esc_key = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
+        let consumed = crate::input::handle_key(&mut app, esc_key, 0);
+        assert!(consumed);
+        assert!(app.error_message.is_none());
     }
 
     #[test]

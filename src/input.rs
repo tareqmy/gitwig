@@ -13,6 +13,20 @@ use crate::app::{App, DetailSection, Mode, RemotePickerAction, Splitter};
 pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     let code = key.code;
 
+    if app.error_message.is_some() {
+        if matches!(
+            code,
+            KeyCode::Esc
+                | KeyCode::Enter
+                | KeyCode::Char('q')
+                | KeyCode::Char('Q')
+                | KeyCode::Char(' ')
+        ) {
+            app.error_message = None;
+        }
+        return true;
+    }
+
     if app.fetching {
         // Allow Esc / q to dismiss a stuck progress popup.
         if matches!(code, KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q')) {
