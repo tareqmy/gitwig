@@ -2596,20 +2596,31 @@ fn confirm_tag_push_all_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntr
     (message_spans, entries)
 }
 
+fn centered_rect_fixed(width: u16, height: u16, area: Rect) -> Rect {
+    let w = width.min(area.width);
+    let h = height.min(area.height);
+    let x = area.x + (area.width.saturating_sub(w)) / 2;
+    let y = area.y + (area.height.saturating_sub(h)) / 2;
+    Rect::new(x, y, w, h)
+}
+
 fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
-    let popup_area = centered_rect(50, 15, area);
+    let popup_area = centered_rect_fixed(50, 7, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
     let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Network Operation", primary_style()),
+        Span::raw(" ⇆ "),
+        Span::styled(
+            "Network Sync",
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+        ),
         Span::raw(" "),
     ]);
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(2));
@@ -2622,41 +2633,56 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
         .constraints([
             Constraint::Length(1), // status text
             Constraint::Length(1), // spacer
-            Constraint::Min(1),    // gauge
+            Constraint::Length(1), // gauge
+            Constraint::Length(1), // spacer
             Constraint::Length(1), // dismiss hint
         ])
         .split(inner);
+
+    let spinner_idx = ((app.fetch_progress / 5) % 10) as usize;
+    let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][spinner_idx];
 
     let status_text = app
         .status_message
         .as_deref()
         .unwrap_or("Executing Git network operation...");
-    let status_para = Paragraph::new(Line::from(vec![Span::styled(status_text, muted_style())]));
+    let status_para = Paragraph::new(Line::from(vec![
+        Span::styled(
+            spinner,
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("  "),
+        Span::styled(status_text, primary_style()),
+    ]));
     f.render_widget(status_para, chunks[0]);
 
     let gauge = Gauge::default()
         .block(Block::default().padding(Padding::ZERO))
         .gauge_style(Style::default().fg(ACCENT()))
+        .style(Style::default().fg(Color::DarkGray))
         .percent(app.fetch_progress)
         .use_unicode(true);
     f.render_widget(gauge, chunks[2]);
 
     let hint = Paragraph::new(Line::from(vec![
         Span::styled("Press ", muted_style()),
-        Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Esc",
+            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" to dismiss if stuck", muted_style()),
     ]))
     .alignment(ratatui::layout::Alignment::Center);
-    f.render_widget(hint, chunks[3]);
+    f.render_widget(hint, chunks[4]);
 }
 
 fn draw_error_popup(f: &mut Frame, area: Rect, err: &str) {
-    let popup_area = centered_rect(60, 20, area);
+    let popup_area = centered_rect_fixed(60, 10, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(DANGER());
     let title = Line::from(vec![
-        Span::raw(" "),
+        Span::raw(" ⚠ "),
         Span::styled(
             "Error",
             Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
@@ -2666,7 +2692,7 @@ fn draw_error_popup(f: &mut Frame, area: Rect, err: &str) {
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(2));
