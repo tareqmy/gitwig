@@ -67,3 +67,17 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Modal error popups for failed Git network and stash operations.
 - [x] Stash uncommitted files with a stash comment/name input popup.
 - [x] Conflict resolution UI.
+
+## Phase 7: Advanced Git Workflows & Power-User Tools
+- [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
+- [ ] **Git Submodules:** Detect, list, initialize, and update submodules.
+- [ ] **Cherry-pick & Revert:** Apply a specific commit (`cherry-pick`) or create a reverting commit (`revert`) from the log view.
+- [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
+- [ ] **Stash Pop:** Perform a single-action "Pop Stash" (apply and delete).
+- [ ] **Commit Signatures:** Display GPG/SSH commit verification status in the history log list.
+
+## Phase 8: Intelligent AI Integrations (Optional/Configurable)
+- [ ] **Semantic Commit Generator:** Press a key (e.g., `⌃G`) in the Commit popup to generate conventional commit messages from staged diffs using Gemini/Ollama/OpenAI APIs.
+- [ ] **Diff Summarizer:** Highlight a large diff/hunk and get a brief explanation of what the change does.
+- [ ] **Smart Conflict Explainer:** Provide a natural-language description of merge conflicts, highlighting the logical differences between "Ours" and "Theirs".
+- [ ] **Local LLM Support:** Integration with local Ollama instances for offline code analysis.
