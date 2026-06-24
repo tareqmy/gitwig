@@ -1120,6 +1120,7 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
                     entries_data.push(("Discard Hunk", "x/Del"));
                 }
             }
+            entries_data.push(("Commit", "c"));
         }
         entries_data.push(("Scroll Diff", "↑↓"));
         entries_data.push(("Help", "?"));
@@ -1161,6 +1162,7 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
                 }
                 _ => {}
             }
+            entries_data.push(("Commit", "c"));
         }
 
         entries_data.push(("Select File", "↑↓"));
@@ -2521,6 +2523,11 @@ mod tests {
                 .iter()
                 .any(|label| label.contains("Unstage File [↵]"))
         );
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Commit [c]"))
+        );
 
         // B) Unstaged focus -> Stage File [↵]
         app.detail_focus = DetailSection::Unstaged;
@@ -2619,7 +2626,28 @@ mod tests {
                 .any(|label| label.contains("Hunk Mode [l]"))
         );
 
+        // D3) Full screen diff mode -> Commit [c]
+        app.inspect_full_diff = true;
+        let (_, entries_full) = inspect_dismiss_entries(&app);
+        let entry_labels_full: Vec<String> = entries_full
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels_full
+                .iter()
+                .any(|label| label.contains("Commit [c]"))
+        );
+
         // E) If in_logs_ui is true, it should NOT render any staging entry
+        app.inspect_full_diff = false;
         app.in_logs_ui = true;
         let (_, entries) = inspect_dismiss_entries(&app);
         let entry_labels: Vec<String> = entries

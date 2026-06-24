@@ -1156,6 +1156,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             {
                 app.toggle_diff_line_mode();
             }
+            KeyCode::Char('c') | KeyCode::Char('C') if app.is_uncommitted_selected() => {
+                app.start_commit();
+            }
             _ => {}
         },
 

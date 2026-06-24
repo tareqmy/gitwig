@@ -5856,6 +5856,78 @@ mod tests {
     }
 
     #[test]
+    fn test_inspect_commit_shortcut() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_inspect_commit.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Open details view and focus Commits section
+        app.mode = Mode::Inspect;
+        app.detail_tab = 0;
+        app.detail_focus = DetailSection::Staged;
+
+        let mut changes = crate::repo::WorktreeChanges::default();
+        changes.staged.push(crate::repo::FileEntry {
+            path: "dummy.txt".to_string(),
+            label: "M",
+        });
+        let info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary {
+                staged: 1,
+                ..Default::default()
+            },
+            changes,
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: PathBuf::from("."),
+            info: Box::new(info),
+        });
+        app.commit_selection = 0;
+
+        assert_eq!(app.mode, Mode::Inspect);
+        assert!(app.is_uncommitted_selected());
+
+        // Press 'c' in Inspect mode
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('c')), 10);
+        assert!(handled);
+
+        // Verify we transitioned to CommitInput mode
+        assert_eq!(app.mode, Mode::CommitInput);
+    }
+
+    #[test]
     fn test_workspace_tab_focus_cycle_skips_empty_panels() {
         let config = Config {
             items: vec!["a_repo".to_string()],
