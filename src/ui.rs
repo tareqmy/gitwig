@@ -1038,9 +1038,9 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
                     v.push(("Accept Ours", "o"));
                     v.push(("Accept Theirs", "t"));
                     v.push(("Mark Resolved", "r"));
+                    v.push(("Abort Merge", "A"));
+                    v.push(("Continue Merge", "C"));
                 }
-                v.push(("Abort Merge", "A"));
-                v.push(("Continue Merge", "C"));
                 v.push(("Inspect", "↵/→"));
             } else if app.detail_focus == DetailSection::ConflictDiff {
                 v.push(("Scroll Diff", "↑↓/⇟⇞"));
@@ -1048,9 +1048,9 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
                     v.push(("Accept Ours", "o"));
                     v.push(("Accept Theirs", "t"));
                     v.push(("Mark Resolved", "r"));
+                    v.push(("Abort Merge", "A"));
+                    v.push(("Continue Merge", "C"));
                 }
-                v.push(("Abort Merge", "A"));
-                v.push(("Continue Merge", "C"));
                 v.push(("Back to List", "←/Esc"));
             } else {
                 v.push(("Navigate/Scroll", "↑↓"));
@@ -1081,6 +1081,12 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
             if app.detail_focus == DetailSection::Files {
                 v.push(("Expand/Collapse", "←/→"));
                 v.push(("Fuzzy Find", "f"));
+            } else if app.detail_focus == DetailSection::FileContent {
+                if app.inspect_full_diff {
+                    v.push(("Exit Full Screen", "←/⎋/q"));
+                } else {
+                    v.push(("Full Screen", "→"));
+                }
             }
             v.push(("Resync", "R"));
             v.push(("Help", "?"));
@@ -1204,15 +1210,42 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
         } else {
             "Workspace"
         };
-        entries_data.push((exit_label, "⎋/q"));
+        let exit_key = if app.inspect_full_diff {
+            "←/⎋/q"
+        } else {
+            "⎋/q"
+        };
+        entries_data.push((exit_label, exit_key));
         if app.is_uncommitted_selected() {
             entries_data.push(("Accept Ours", "o"));
             entries_data.push(("Accept Theirs", "t"));
             entries_data.push(("Mark Resolved", "r"));
+            entries_data.push(("Abort Merge", "A"));
+            entries_data.push(("Continue Merge", "C"));
         }
-        entries_data.push(("Abort Merge", "A"));
-        entries_data.push(("Continue Merge", "C"));
-        entries_data.push(("Scroll Diff", "↑↓/⇟⇞"));
+        if app.inspect_full_diff {
+            entries_data.push(("Scroll Diff", "↑↓"));
+        } else {
+            entries_data.push(("Scroll Diff", "↑↓/⇟⇞"));
+        }
+        entries_data.push(("Help", "?"));
+    } else if app.detail_focus == DetailSection::Conflicts {
+        let exit_label = if app.in_logs_ui {
+            "Logs UI"
+        } else {
+            "Workspace"
+        };
+        entries_data.push((exit_label, "⎋/q"));
+        entries_data.push(("Cycle Focus", "w/W"));
+        if app.is_uncommitted_selected() {
+            entries_data.push(("Accept Ours", "o"));
+            entries_data.push(("Accept Theirs", "t"));
+            entries_data.push(("Mark Resolved", "r"));
+            entries_data.push(("Abort Merge", "A"));
+            entries_data.push(("Continue Merge", "C"));
+        }
+        entries_data.push(("Inspect", "↵/→"));
+        entries_data.push(("Select File", "↑↓"));
         entries_data.push(("Help", "?"));
     } else if app.inspect_full_diff {
         entries_data.push(("Exit Full Screen", "←/⎋/q"));
@@ -2869,6 +2902,97 @@ mod tests {
                 .iter()
                 .any(|label| label.contains("Stage") || label.contains("Unstage"))
         );
+
+        // F) Conflicts focus in Inspect mode -> Accept Ours [o] etc.
+        app.in_logs_ui = false;
+        app.detail_focus = DetailSection::Conflicts;
+        let (_, entries_c) = inspect_dismiss_entries(&app);
+        let entry_labels_c: Vec<String> = entries_c
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels_c
+                .iter()
+                .any(|label| label.contains("Accept Ours [o]"))
+        );
+        assert!(
+            entry_labels_c
+                .iter()
+                .any(|label| label.contains("Accept Theirs [t]"))
+        );
+        assert!(
+            entry_labels_c
+                .iter()
+                .any(|label| label.contains("Mark Resolved [r]"))
+        );
+        assert!(
+            entry_labels_c
+                .iter()
+                .any(|label| label.contains("Abort Merge [A]"))
+        );
+        assert!(
+            entry_labels_c
+                .iter()
+                .any(|label| label.contains("Continue Merge [C]"))
+        );
+        assert!(
+            entry_labels_c
+                .iter()
+                .any(|label| label.contains("Inspect [↵/→]"))
+        );
+
+        // G) ConflictDiff focus in Inspect mode -> Accept Ours [o] etc.
+        app.detail_focus = DetailSection::ConflictDiff;
+        let (_, entries_cd) = inspect_dismiss_entries(&app);
+        let entry_labels_cd: Vec<String> = entries_cd
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels_cd
+                .iter()
+                .any(|label| label.contains("Accept Ours [o]"))
+        );
+        assert!(
+            entry_labels_cd
+                .iter()
+                .any(|label| label.contains("Accept Theirs [t]"))
+        );
+        assert!(
+            entry_labels_cd
+                .iter()
+                .any(|label| label.contains("Mark Resolved [r]"))
+        );
+        assert!(
+            entry_labels_cd
+                .iter()
+                .any(|label| label.contains("Abort Merge [A]"))
+        );
+        assert!(
+            entry_labels_cd
+                .iter()
+                .any(|label| label.contains("Continue Merge [C]"))
+        );
+        assert!(
+            entry_labels_cd
+                .iter()
+                .any(|label| label.contains("Scroll Diff [↑↓/⇟⇞]"))
+        );
     }
 
     #[test]
@@ -3058,6 +3182,31 @@ mod tests {
                 .iter()
                 .any(|label| label.contains("Expand/Collapse [←/→]"))
         );
+        assert!(
+            entry_labels_f2
+                .iter()
+                .any(|label| label.contains("Full Screen [→]"))
+        );
+
+        app.inspect_full_diff = true;
+        let (_, entries_f2_full) = detail_dismiss_entries(&app);
+        let entry_labels_f2_full: Vec<String> = entries_f2_full
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels_f2_full
+                .iter()
+                .any(|label| label.contains("Exit Full Screen [←/⎋/q]"))
+        );
+        app.inspect_full_diff = false;
 
         // Tab 3: Branches - LocalBranches Focus
         app.detail_tab = 3;

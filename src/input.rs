@@ -2174,11 +2174,19 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             return;
         }
     }
-    // Right panel (Diff / Staging Details).
+    // Right panel (Diff / Staging Details / Conflict Diff).
     if let Some(rect) = areas.bottom_right {
         if rect.contains(pos) {
             if is_click {
-                if app.detail_focus != DetailSection::StagingDetails {
+                if app.detail_focus == DetailSection::Conflicts
+                    || app.detail_focus == DetailSection::ConflictDiff
+                    || app.last_staging_focus == DetailSection::Conflicts
+                {
+                    if app.detail_focus == DetailSection::Conflicts {
+                        app.last_staging_focus = DetailSection::Conflicts;
+                    }
+                    app.detail_focus = DetailSection::ConflictDiff;
+                } else if app.detail_focus != DetailSection::StagingDetails {
                     if app.detail_focus == DetailSection::Staged
                         || app.detail_focus == DetailSection::Unstaged
                     {
@@ -2188,11 +2196,27 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     app.diff_scroll = 0;
                 }
             } else if is_scroll_up {
-                app.detail_focus = DetailSection::StagingDetails;
-                app.diff_scroll_up();
+                if app.detail_focus == DetailSection::Conflicts
+                    || app.detail_focus == DetailSection::ConflictDiff
+                    || app.last_staging_focus == DetailSection::Conflicts
+                {
+                    app.detail_focus = DetailSection::ConflictDiff;
+                    app.diff_scroll_up();
+                } else {
+                    app.detail_focus = DetailSection::StagingDetails;
+                    app.diff_scroll_up();
+                }
             } else if is_scroll_down {
-                app.detail_focus = DetailSection::StagingDetails;
-                app.diff_scroll_down();
+                if app.detail_focus == DetailSection::Conflicts
+                    || app.detail_focus == DetailSection::ConflictDiff
+                    || app.last_staging_focus == DetailSection::Conflicts
+                {
+                    app.detail_focus = DetailSection::ConflictDiff;
+                    app.diff_scroll_down();
+                } else {
+                    app.detail_focus = DetailSection::StagingDetails;
+                    app.diff_scroll_down();
+                }
             }
             return;
         }

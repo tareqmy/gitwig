@@ -2466,7 +2466,31 @@ impl App {
         self.diff_scroll = (self.diff_scroll + page).min(max);
     }
 
+    pub fn get_conflict_hunk_ranges(&self) -> Vec<std::ops::Range<usize>> {
+        let mut ranges = Vec::new();
+        let mut start = None;
+        for (i, line) in self.file_diff.iter().enumerate() {
+            if line.kind == repo::DiffLineKind::ConflictSeparator {
+                if line.content.starts_with("<<<<<<<") {
+                    start = Some(i);
+                } else if line.content.starts_with(">>>>>>>") {
+                    if let Some(s) = start {
+                        ranges.push(s..i + 1);
+                        start = None;
+                    }
+                }
+            }
+        }
+        ranges
+    }
+
     pub fn get_diff_hunk_ranges(&self) -> Vec<std::ops::Range<usize>> {
+        if self.detail_focus == DetailSection::Conflicts
+            || self.detail_focus == DetailSection::ConflictDiff
+            || self.last_staging_focus == DetailSection::Conflicts
+        {
+            return self.get_conflict_hunk_ranges();
+        }
         let mut ranges = Vec::new();
         let mut current_start = None;
         for (i, line) in self.file_diff.iter().enumerate() {
@@ -3269,7 +3293,7 @@ impl App {
         }
     }
 
-    /// Accept the OURS version of the currently-selected conflicted file.
+    /// Accept the OURS version of the currently-selected conflicted file (whole file or selected hunk).
     pub fn resolve_conflict_ours(&mut self) {
         let params = match &self.current_detail {
             Some(ItemDetail::Repo { resolved, info }) => info
@@ -3280,9 +3304,20 @@ impl App {
             _ => None,
         };
         if let Some((repo_path, file_path)) = params {
-            match repo::resolve_ours(&repo_path, &file_path) {
+            let result = if self.detail_focus == DetailSection::ConflictDiff {
+                repo::resolve_conflict_hunk(&repo_path, &file_path, self.diff_hunk_selection, true)
+            } else {
+                repo::resolve_ours(&repo_path, &file_path)
+            };
+            match result {
                 Ok(()) => {
-                    self.status_message = Some(format!("Resolved (ours): {}", file_path));
+                    let scope = if self.detail_focus == DetailSection::ConflictDiff {
+                        format!("hunk {}", self.diff_hunk_selection + 1)
+                    } else {
+                        "whole file".to_string()
+                    };
+                    self.status_message =
+                        Some(format!("Resolved (ours, {}): {}", scope, file_path));
                     self.refresh_detail();
                     self.clamp_conflict_selection();
                     self.refresh_staging_diff();
@@ -3292,7 +3327,7 @@ impl App {
         }
     }
 
-    /// Accept the THEIRS version of the currently-selected conflicted file.
+    /// Accept the THEIRS version of the currently-selected conflicted file (whole file or selected hunk).
     pub fn resolve_conflict_theirs(&mut self) {
         let params = match &self.current_detail {
             Some(ItemDetail::Repo { resolved, info }) => info
@@ -3303,9 +3338,20 @@ impl App {
             _ => None,
         };
         if let Some((repo_path, file_path)) = params {
-            match repo::resolve_theirs(&repo_path, &file_path) {
+            let result = if self.detail_focus == DetailSection::ConflictDiff {
+                repo::resolve_conflict_hunk(&repo_path, &file_path, self.diff_hunk_selection, false)
+            } else {
+                repo::resolve_theirs(&repo_path, &file_path)
+            };
+            match result {
                 Ok(()) => {
-                    self.status_message = Some(format!("Resolved (theirs): {}", file_path));
+                    let scope = if self.detail_focus == DetailSection::ConflictDiff {
+                        format!("hunk {}", self.diff_hunk_selection + 1)
+                    } else {
+                        "whole file".to_string()
+                    };
+                    self.status_message =
+                        Some(format!("Resolved (theirs, {}): {}", scope, file_path));
                     self.refresh_detail();
                     self.clamp_conflict_selection();
                     self.refresh_staging_diff();

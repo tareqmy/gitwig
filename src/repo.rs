@@ -2034,6 +2034,93 @@ pub fn mark_resolved(repo_path: &Path, file_path: &str) -> Result<(), String> {
     stage_file(repo_path, file_path)
 }
 
+/// Resolve a specific conflict hunk inside a file (Ours vs Theirs).
+/// Replaces the hunk at index `hunk_idx` in the file on disk.
+/// If no more conflicts remain in the file, it automatically stages the file.
+pub fn resolve_conflict_hunk(
+    repo_path: &Path,
+    file_path: &str,
+    hunk_idx: usize,
+    accept_ours: bool,
+) -> Result<(), String> {
+    let full_path = repo_path.join(file_path);
+    let content = std::fs::read_to_string(&full_path).map_err(|e| e.to_string())?;
+
+    let mut new_lines = Vec::new();
+    let mut lines_iter = content.lines().peekable();
+    let mut current_hunk_idx = 0;
+
+    while let Some(line) = lines_iter.next() {
+        if line.starts_with("<<<<<<<") {
+            let mut ours_block = Vec::new();
+            let mut theirs_block = Vec::new();
+
+            // Read ours block (until =======)
+            let mut found_separator = false;
+            while let Some(next_line) = lines_iter.peek() {
+                if next_line.starts_with("=======") {
+                    lines_iter.next(); // consume =======
+                    found_separator = true;
+                    break;
+                }
+                ours_block.push(lines_iter.next().unwrap().to_string());
+            }
+
+            // Read theirs block (until >>>>>>>)
+            let mut found_end = false;
+            let mut end_line_marker = ">>>>>>>".to_string();
+            while let Some(next_line) = lines_iter.peek() {
+                if next_line.starts_with(">>>>>>>") {
+                    end_line_marker = lines_iter.next().unwrap().to_string(); // consume >>>>>>>
+                    found_end = true;
+                    break;
+                }
+                theirs_block.push(lines_iter.next().unwrap().to_string());
+            }
+
+            if current_hunk_idx == hunk_idx {
+                if accept_ours {
+                    new_lines.extend(ours_block);
+                } else {
+                    new_lines.extend(theirs_block);
+                }
+            } else {
+                new_lines.push(line.to_string());
+                new_lines.extend(ours_block);
+                if found_separator {
+                    new_lines.push("=======".to_string());
+                }
+                new_lines.extend(theirs_block);
+                if found_end {
+                    new_lines.push(end_line_marker);
+                }
+            }
+
+            current_hunk_idx += 1;
+        } else {
+            new_lines.push(line.to_string());
+        }
+    }
+
+    let mut new_content = new_lines.join("\n");
+    if content.ends_with('\n') && !new_content.ends_with('\n') {
+        new_content.push('\n');
+    }
+    std::fs::write(&full_path, new_content).map_err(|e| e.to_string())?;
+
+    // Check if any conflict markers remain in the file
+    let updated_content = std::fs::read_to_string(&full_path).map_err(|e| e.to_string())?;
+    let has_conflict_markers = updated_content
+        .lines()
+        .any(|l| l.starts_with("<<<<<<<") || l.starts_with("=======") || l.starts_with(">>>>>>>"));
+
+    if !has_conflict_markers {
+        stage_file(repo_path, file_path)?;
+    }
+
+    Ok(())
+}
+
 /// Abort the in-progress merge.
 pub fn abort_merge(repo_path: &Path) -> Result<(), String> {
     let output = std::process::Command::new("git")
@@ -2880,6 +2967,116 @@ mod tests {
         assert!(contents_theirs.contains("line 2 on feature"));
         assert!(!contents_theirs.contains("<<<<<<<"));
 
+        continue_merge(&temp_path).unwrap();
+        assert!(!is_merging(&temp_path));
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_resolve_conflict_hunk() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_hunk_conflict_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // Init repo
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // 1. Initial commit on main
+        let file_path = temp_path.join("conflict.txt");
+        let initial_lines = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\n";
+        std::fs::write(&file_path, initial_lines).unwrap();
+        stage_file(&temp_path, "conflict.txt").unwrap();
+        commit_changes(&temp_path, "initial commit").unwrap();
+
+        // Get the main branch name first
+        let output = std::process::Command::new("git")
+            .args(["symbolic-ref", "--short", "HEAD"])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+        let main_branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        // 2. Create feature branch and edit line 2 and line 11
+        std::process::Command::new("git")
+            .args(["checkout", "-b", "feature"])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+        let feature_lines = "line 1\nline 2 on feature\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11 on feature\nline 12\n";
+        std::fs::write(&file_path, feature_lines).unwrap();
+        stage_file(&temp_path, "conflict.txt").unwrap();
+        commit_changes(&temp_path, "feature commit").unwrap();
+
+        // 3. Checkout main/master and edit line 2 and line 11 differently
+        std::process::Command::new("git")
+            .args(["checkout", &main_branch])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+        let main_lines = "line 1\nline 2 on main\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11 on main\nline 12\n";
+        std::fs::write(&file_path, main_lines).unwrap();
+        stage_file(&temp_path, "conflict.txt").unwrap();
+        commit_changes(&temp_path, "main commit").unwrap();
+
+        // 4. Merge feature into main -> conflict
+        let merge_output = std::process::Command::new("git")
+            .args(["merge", "feature"])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+        assert!(!merge_output.status.success());
+        assert!(is_merging(&temp_path));
+
+        // 5. Resolve first hunk as Ours
+        resolve_conflict_hunk(&temp_path, "conflict.txt", 0, true).unwrap();
+        let contents_after_first = std::fs::read_to_string(&file_path).unwrap();
+        // Line 2 should be resolved to main
+        assert!(contents_after_first.contains("line 2 on main"));
+        assert!(!contents_after_first.contains("line 2 on feature"));
+        // Line 11 should still have conflict markers
+        assert!(contents_after_first.contains("<<<<<<<"));
+        assert!(contents_after_first.contains("line 11 on main"));
+        assert!(contents_after_first.contains("line 11 on feature"));
+
+        // Repo should still be in a merging state because 1 conflict hunk remains
+        assert!(is_merging(&temp_path));
+
+        // 6. Resolve second hunk (which is now hunk 0, since hunk 0 was resolved and removed)
+        // Wait, did the hunk count change? Yes, the first conflict block was removed,
+        // so the remaining conflict block at line 11 becomes the 0th hunk in the file!
+        // Let's call resolve_conflict_hunk with hunk_idx 0!
+        resolve_conflict_hunk(&temp_path, "conflict.txt", 0, false).unwrap();
+        let contents_after_second = std::fs::read_to_string(&file_path).unwrap();
+        // Both lines should be resolved, no conflict markers left
+        assert!(contents_after_second.contains("line 2 on main"));
+        assert!(contents_after_second.contains("line 11 on feature"));
+        assert!(!contents_after_second.contains("<<<<<<<"));
+
+        // File is fully resolved so it should have been automatically staged
+        let status = repo.statuses(None).unwrap();
+        assert_eq!(status.len(), 1);
+        assert!(
+            status
+                .get(0)
+                .unwrap()
+                .status()
+                .contains(git2::Status::INDEX_MODIFIED)
+        );
+
+        // Continue and finalize the merge
         continue_merge(&temp_path).unwrap();
         assert!(!is_merging(&temp_path));
 
