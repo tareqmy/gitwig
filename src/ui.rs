@@ -145,7 +145,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("Home", "Go to top / scroll to top"),
     ("End", "Go to bottom / scroll to bottom"),
     (
-        "↵ [Enter]",
+        "↵ [Enter] / → [Right]",
         "Open detail view for selected item / stage file",
     ),
     ("a", "Add a new item"),
@@ -951,6 +951,7 @@ fn detail_dismiss_entries(
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
             ("Stage/Unstage", "↵"),
+            ("Inspect", "→"),
             ("Discard", "x"),
             ("Commit", "c"),
             ("Tag", "t"),
@@ -967,6 +968,7 @@ fn detail_dismiss_entries(
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
             ("Expand/Collapse", "←/→"),
+            ("Fuzzy Find", "f"),
             ("Resync", "R"),
             ("Help", "?"),
         ],
@@ -1322,7 +1324,7 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
         ("Navigate", "↑↓"),
         ("Page", "⇟/⇞"),
         ("Jump", "Home/End"),
-        ("Detail", "↵"),
+        ("Detail", "↵/→"),
         ("gitui", "g"),
         ("lazygit", "l"),
         (&sort_key_label, "o/O"),
@@ -2575,6 +2577,47 @@ mod tests {
             !entry_labels
                 .iter()
                 .any(|label| label.contains("Stage") || label.contains("Unstage"))
+        );
+    }
+
+    #[test]
+    fn test_detail_dismiss_entries_shortcuts() {
+        // Tab 0: Workspace
+        let (_, entries_w) = detail_dismiss_entries(&None, 0);
+        let entry_labels_w: Vec<String> = entries_w
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels_w
+                .iter()
+                .any(|label| label.contains("Inspect [→]"))
+        );
+
+        // Tab 1: Files
+        let (_, entries) = detail_dismiss_entries(&None, 1);
+        let entry_labels: Vec<String> = entries
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels
+                .iter()
+                .any(|label| label.contains("Fuzzy Find [f]"))
         );
     }
 }

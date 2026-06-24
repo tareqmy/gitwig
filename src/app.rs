@@ -6486,4 +6486,37 @@ mod tests {
         assert_eq!(app.repo_search_query, None);
         assert_eq!(app.get_items_len(), 3);
     }
+
+    #[test]
+    fn test_normal_mode_right_arrow_detail() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let temp_path = std::env::temp_dir().join("twig_test_config_right_arrow.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        assert_eq!(app.mode, Mode::Normal);
+
+        // Press Right arrow key in Normal mode
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+        assert!(handled);
+
+        // Verify we opened detail view
+        assert_eq!(app.mode, Mode::Detail);
+    }
 }

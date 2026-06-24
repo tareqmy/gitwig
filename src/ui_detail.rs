@@ -1358,13 +1358,17 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("t", "Create tag (Workspace tab commits list)"),
     (
         "i",
-        "Interactive rebase from selected commit (Workspace tab commits list)",
+        "Interactive rebase from selected commit (Workspace) / selected branch (Branches)",
     ),
     (
         "f",
         "Open search column picker and go to logs (Workspace tab)",
     ),
-    ("d", "Delete selected branch (Branches) / tag (Tags)"),
+    (
+        "d",
+        "Delete selected branch (Branches) / tag (Tags) / stash (Stashes)",
+    ),
+    ("a", "Apply selected stash (Stashes)"),
     ("m", "Merge selected branch into current branch (Branches)"),
     ("r", "Rebase current branch onto selected branch (Branches)"),
     ("1", "Go to Workspace tab"),

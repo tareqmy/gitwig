@@ -77,7 +77,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 app.mode = Mode::RepoSearchInput;
             }
-            KeyCode::Enter => app.open_detail(),
+            KeyCode::Enter | KeyCode::Right => app.open_detail(),
             _ => {}
         },
         Mode::Settings => {
