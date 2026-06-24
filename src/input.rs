@@ -419,7 +419,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Right
                     if detail_focus == DetailSection::Staged
                         || detail_focus == DetailSection::Unstaged
-                        || detail_focus == DetailSection::CommitDetails =>
+                        || detail_focus == DetailSection::CommitDetails
+                        || detail_focus == DetailSection::StagingDetails =>
                 {
                     app.mode = Mode::Inspect;
                     if detail_focus == DetailSection::Staged
@@ -525,7 +526,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             _ if app.detail_tab == 1 => match code {
                 KeyCode::Char('w') => app.cycle_detail_focus(false),
                 KeyCode::Char('W') => app.cycle_detail_focus(true),
-                KeyCode::Char('f') => {
+                KeyCode::Char('f') if app.detail_focus == DetailSection::Files => {
                     app.pending_files_fzf = true;
                 }
                 KeyCode::Up => {

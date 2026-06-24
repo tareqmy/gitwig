@@ -723,7 +723,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
         Mode::Detail => {
-            let (msg_spans, entries) = detail_dismiss_entries(&app.status_message, app.detail_tab);
+            let (msg_spans, entries) = detail_dismiss_entries(app);
             draw_status_layout(f, area, msg_spans, entries, app.status_expanded);
         }
 
@@ -932,46 +932,62 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
     }
 }
 
-fn detail_dismiss_entries(
-    status_message: &Option<String>,
-    detail_tab: usize,
-) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let mut message_spans = None;
-    if let Some(msg) = status_message {
+    if let Some(msg) = &app.status_message {
         message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
     }
 
     let mut entries = Vec::new();
-    let entries_data = match detail_tab {
-        0 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-8"),
-            ("Cycle Focus", "w/W"),
-            ("Navigate/Scroll", "↑↓"),
-            ("Page", "⇟/⇞"),
-            ("Jump", "Home/End"),
-            ("Stage/Unstage", "↵"),
-            ("Inspect", "→"),
-            ("Discard", "x"),
-            ("Commit", "c"),
-            ("Tag", "t"),
-            ("Interactive Rebase", "i"),
-            ("Search/Columns", "f"),
-            ("Resync", "R"),
-            ("Help", "?"),
-        ],
-        1 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-8"),
-            ("Cycle Focus", "w/W"),
-            ("Navigate/Scroll", "↑↓"),
-            ("Page", "⇟/⇞"),
-            ("Jump", "Home/End"),
-            ("Expand/Collapse", "←/→"),
-            ("Fuzzy Find", "f"),
-            ("Resync", "R"),
-            ("Help", "?"),
-        ],
+    let entries_data = match app.detail_tab {
+        0 => {
+            let mut v = vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Cycle Focus", "w/W")];
+            if app.detail_focus == DetailSection::CommitDetails {
+                v.push(("Scroll Info", "↑↓"));
+                v.push(("Inspect", "→"));
+            } else if app.detail_focus == DetailSection::Staged
+                || app.detail_focus == DetailSection::Unstaged
+                || app.detail_focus == DetailSection::StagingDetails
+            {
+                v.push(("Navigate/Scroll", "↑↓"));
+                v.push(("Page", "⇟/⇞"));
+                v.push(("Jump", "Home/End"));
+                if app.is_uncommitted_selected() {
+                    v.push(("Stage/Unstage", "↵"));
+                    v.push(("Discard", "x"));
+                }
+                v.push(("Inspect", "→"));
+            } else {
+                v.push(("Navigate/Scroll", "↑↓"));
+                v.push(("Page", "⇟/⇞"));
+                v.push(("Jump", "Home/End"));
+                v.push(("Inspect", "↵/→"));
+                v.push(("Tag", "t"));
+                v.push(("Interactive Rebase", "i"));
+                v.push(("Search/Columns", "f"));
+            }
+            v.push(("Commit", "c"));
+            v.push(("Resync", "R"));
+            v.push(("Help", "?"));
+            v
+        }
+        1 => {
+            let mut v = vec![
+                ("Home", "⎋/q"),
+                ("Tabs", "Tab/1-8"),
+                ("Cycle Focus", "w/W"),
+                ("Navigate/Scroll", "↑↓"),
+                ("Page", "⇟/⇞"),
+                ("Jump", "Home/End"),
+            ];
+            if app.detail_focus == DetailSection::Files {
+                v.push(("Expand/Collapse", "←/→"));
+                v.push(("Fuzzy Find", "f"));
+            }
+            v.push(("Resync", "R"));
+            v.push(("Help", "?"));
+            v
+        }
         2 => vec![
             ("Home", "⎋/q"),
             ("Tabs", "Tab/1-8"),
@@ -981,26 +997,31 @@ fn detail_dismiss_entries(
             ("Resync", "R"),
             ("Help", "?"),
         ],
-        3 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-8"),
-            ("Cycle Focus", "w/W"),
-            ("Checkout", "↵"),
-            ("Create", "c"),
-            ("Delete", "d"),
-            ("Merge", "m"),
-            ("Rebase", "r"),
-            ("Interactive Rebase", "i"),
-            ("Fetch", "⇧F"),
-            ("Pull", "p"),
-            ("Push", "⇧P"),
-            ("Navigate", "↑↓"),
-            ("Page", "⇟/⇞"),
-            ("Jump", "Home/End"),
-            ("Focus L/R", "←/→"),
-            ("Resync", "R"),
-            ("Help", "?"),
-        ],
+        3 => {
+            let mut v = vec![
+                ("Home", "⎋/q"),
+                ("Tabs", "Tab/1-8"),
+                ("Cycle Focus", "w/W"),
+                ("Checkout", "↵"),
+                ("Create", "c"),
+                ("Delete", "d"),
+                ("Merge", "m"),
+                ("Rebase", "r"),
+                ("Interactive Rebase", "i"),
+            ];
+            if app.detail_focus == DetailSection::LocalBranches {
+                v.push(("Fetch", "⇧F"));
+                v.push(("Pull", "p"));
+                v.push(("Push", "⇧P"));
+            }
+            v.push(("Navigate", "↑↓"));
+            v.push(("Page", "⇟/⇞"));
+            v.push(("Jump", "Home/End"));
+            v.push(("Focus L/R", "←/→"));
+            v.push(("Resync", "R"));
+            v.push(("Help", "?"));
+            v
+        }
         4 => vec![
             ("Home", "⎋/q"),
             ("Tabs", "Tab/1-8"),
@@ -1024,18 +1045,23 @@ fn detail_dismiss_entries(
             ("Resync", "R"),
             ("Help", "?"),
         ],
-        6 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-8"),
-            ("Cycle Focus", "w/W"),
-            ("Navigate", "↑↓"),
-            ("Page", "⇟/⇞"),
-            ("Jump", "Home/End"),
-            ("Apply", "a"),
-            ("Delete", "d"),
-            ("Resync", "R"),
-            ("Help", "?"),
-        ],
+        6 => {
+            let mut v = vec![
+                ("Home", "⎋/q"),
+                ("Tabs", "Tab/1-8"),
+                ("Cycle Focus", "w/W"),
+                ("Navigate", "↑↓"),
+                ("Page", "⇟/⇞"),
+                ("Jump", "Home/End"),
+            ];
+            if app.detail_focus == DetailSection::Stashes {
+                v.push(("Apply", "a"));
+                v.push(("Delete", "d"));
+            }
+            v.push(("Resync", "R"));
+            v.push(("Help", "?"));
+            v
+        }
         7 => vec![
             ("Home", "⎋/q"),
             ("Tabs", "Tab/1-8"),
@@ -2616,8 +2642,25 @@ mod tests {
 
     #[test]
     fn test_detail_dismiss_entries_shortcuts() {
-        // Tab 0: Workspace
-        let (_, entries_w) = detail_dismiss_entries(&None, 0);
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+        };
+        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+
+        // Tab 0: Workspace, Commits focus (default)
+        app.detail_tab = 0;
+        app.detail_focus = DetailSection::Commits;
+        let (_, entries_w) = detail_dismiss_entries(&app);
         let entry_labels_w: Vec<String> = entries_w
             .iter()
             .map(|entry| {
@@ -2632,12 +2675,14 @@ mod tests {
         assert!(
             entry_labels_w
                 .iter()
-                .any(|label| label.contains("Inspect [→]"))
+                .any(|label| label.contains("Inspect [↵/→]"))
         );
+        assert!(entry_labels_w.iter().any(|label| label.contains("Tag [t]")));
 
-        // Tab 1: Files
-        let (_, entries) = detail_dismiss_entries(&None, 1);
-        let entry_labels: Vec<String> = entries
+        // Tab 0: Workspace, Staged focus
+        app.detail_focus = DetailSection::Staged;
+        let (_, entries_s) = detail_dismiss_entries(&app);
+        let entry_labels_s: Vec<String> = entries_s
             .iter()
             .map(|entry| {
                 entry
@@ -2649,9 +2694,198 @@ mod tests {
             })
             .collect();
         assert!(
-            entry_labels
+            entry_labels_s
+                .iter()
+                .any(|label| label.contains("Inspect [→]"))
+        );
+        assert!(!entry_labels_s.iter().any(|label| label.contains("Tag [t]")));
+
+        // Tab 0: Workspace, StagingDetails focus
+        app.detail_focus = DetailSection::StagingDetails;
+        let (_, entries_sd) = detail_dismiss_entries(&app);
+        let entry_labels_sd: Vec<String> = entries_sd
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels_sd
+                .iter()
+                .any(|label| label.contains("Inspect [→]"))
+        );
+        assert!(
+            !entry_labels_sd
+                .iter()
+                .any(|label| label.contains("Tag [t]"))
+        );
+
+        // Tab 1: Files - Files Focus
+        app.detail_tab = 1;
+        app.detail_focus = DetailSection::Files;
+        let (_, entries_f1) = detail_dismiss_entries(&app);
+        let entry_labels_f1: Vec<String> = entries_f1
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels_f1
                 .iter()
                 .any(|label| label.contains("Fuzzy Find [f]"))
+        );
+        assert!(
+            entry_labels_f1
+                .iter()
+                .any(|label| label.contains("Expand/Collapse [←/→]"))
+        );
+
+        // Tab 1: Files - FileContent Focus
+        app.detail_focus = DetailSection::FileContent;
+        let (_, entries_f2) = detail_dismiss_entries(&app);
+        let entry_labels_f2: Vec<String> = entries_f2
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            !entry_labels_f2
+                .iter()
+                .any(|label| label.contains("Fuzzy Find [f]"))
+        );
+        assert!(
+            !entry_labels_f2
+                .iter()
+                .any(|label| label.contains("Expand/Collapse [←/→]"))
+        );
+
+        // Tab 3: Branches - LocalBranches Focus
+        app.detail_tab = 3;
+        app.detail_focus = DetailSection::LocalBranches;
+        let (_, entries_b1) = detail_dismiss_entries(&app);
+        let entry_labels_b1: Vec<String> = entries_b1
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels_b1
+                .iter()
+                .any(|label| label.contains("Fetch [⇧F]"))
+        );
+        assert!(
+            entry_labels_b1
+                .iter()
+                .any(|label| label.contains("Pull [p]"))
+        );
+        assert!(
+            entry_labels_b1
+                .iter()
+                .any(|label| label.contains("Push [⇧P]"))
+        );
+
+        // Tab 3: Branches - RemoteBranches Focus
+        app.detail_focus = DetailSection::RemoteBranches;
+        let (_, entries_b2) = detail_dismiss_entries(&app);
+        let entry_labels_b2: Vec<String> = entries_b2
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            !entry_labels_b2
+                .iter()
+                .any(|label| label.contains("Fetch [⇧F]"))
+        );
+        assert!(
+            !entry_labels_b2
+                .iter()
+                .any(|label| label.contains("Pull [p]"))
+        );
+        assert!(
+            !entry_labels_b2
+                .iter()
+                .any(|label| label.contains("Push [⇧P]"))
+        );
+
+        // Tab 6: Stashes - Stashes Focus
+        app.detail_tab = 6;
+        app.detail_focus = DetailSection::Stashes;
+        let (_, entries_s1) = detail_dismiss_entries(&app);
+        let entry_labels_s1: Vec<String> = entries_s1
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels_s1
+                .iter()
+                .any(|label| label.contains("Apply [a]"))
+        );
+        assert!(
+            entry_labels_s1
+                .iter()
+                .any(|label| label.contains("Delete [d]"))
+        );
+
+        // Tab 6: Stashes - StashedFiles Focus
+        app.detail_focus = DetailSection::StashedFiles;
+        let (_, entries_s2) = detail_dismiss_entries(&app);
+        let entry_labels_s2: Vec<String> = entries_s2
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            !entry_labels_s2
+                .iter()
+                .any(|label| label.contains("Apply [a]"))
+        );
+        assert!(
+            !entry_labels_s2
+                .iter()
+                .any(|label| label.contains("Delete [d]"))
         );
     }
 }

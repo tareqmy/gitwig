@@ -6036,6 +6036,7 @@ mod tests {
         let mut app = App::new(config, temp_path);
         app.mode = Mode::Detail;
         app.detail_tab = 1; // Files tab
+        app.detail_focus = DetailSection::Files;
 
         assert!(!app.pending_files_fzf);
 
