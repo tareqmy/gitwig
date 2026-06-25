@@ -72,8 +72,8 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Add debug panel
 - [x] Git clone
 - [x] Bulk add repo option
+- [x] Optional usage of fzf
 - [ ] **Git Remote add/delete option**
-- [ ] **Add fzf as dependency**
 - [ ] **Per Repository rule**
 - [ ] **For large repo load time is high**
 - [ ] **Solve windows button press bug**
@@ -83,6 +83,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
 - [ ] **Stash Pop:** Perform a single-action "Pop Stash" (apply and delete).
 - [ ] **Commit Signatures:** Display GPG/SSH commit verification status in the history log list.
+- [ ] **Add fzf as dependency**
 
 ## Phase 8: Intelligent AI Integrations (Optional/Configurable)
 - [ ] **Semantic Commit Generator:** Press a key (e.g., `⌃G`) in the Commit popup to generate conventional commit messages from staged diffs using Gemini/Ollama/OpenAI APIs.

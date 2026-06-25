@@ -670,9 +670,14 @@ impl App {
 
     pub fn start_add(&mut self) {
         crate::debug_log::info("Initiating repository add");
-        if !self.config.fzf.enabled || !self.is_fzf_installed() {
+        if !self.config.fzf.enabled {
             self.mode = Mode::Adding;
             self.input_buffer.clear();
+        } else if !self.is_fzf_installed() {
+            self.mode = Mode::Adding;
+            self.input_buffer.clear();
+            self.status_message =
+                Some("fzf is not installed. Falling back to manual add.".to_string());
         } else {
             self.pending_fzf = true;
         }
@@ -4077,12 +4082,14 @@ impl App {
 
     pub fn start_bulk_add(&mut self) {
         crate::debug_log::info("Initiating bulk repository add");
-        if !self.config.fzf.enabled || !self.is_fzf_installed() {
-            crate::debug_log::info(
-                "FZF disabled or not installed, falling back to manual bulk repository add",
-            );
+        if !self.config.fzf.enabled {
             self.mode = Mode::BulkAddInput;
             self.input_buffer.clear();
+        } else if !self.is_fzf_installed() {
+            self.mode = Mode::BulkAddInput;
+            self.input_buffer.clear();
+            self.status_message =
+                Some("fzf is not installed. Falling back to manual bulk add.".to_string());
         } else {
             self.pending_bulk_fzf = true;
         }
