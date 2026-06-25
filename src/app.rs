@@ -1691,13 +1691,7 @@ impl App {
     pub fn request_tag_delete(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if let Some(tag_info) = info.local_tags.get(self.local_tag_selection) {
-                let is_on_remote = if info.remotes.is_empty() {
-                    false
-                } else if info.remote_tags_loaded {
-                    info.remote_tags.iter().any(|rt| rt.name == tag_info.name)
-                } else {
-                    false
-                };
+                let is_on_remote = !info.remotes.is_empty();
                 self.tag_delete_target = Some((tag_info.name.clone(), is_on_remote));
                 self.mode = Mode::TagDeleteConfirm;
             }
