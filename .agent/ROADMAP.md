@@ -77,12 +77,12 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Per Repository rule**
 - [ ] **For large repo load time is high**
 - [ ] **Solve windows button press bug**
-- [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
-- [ ] **Git Submodules:** Detect, list, initialize, and update submodules.
-- [ ] **Cherry-pick & Revert:** Apply a specific commit (`cherry-pick`) or create a reverting commit (`revert`) from the log view.
-- [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
 - [ ] **Stash Pop:** Perform a single-action "Pop Stash" (apply and delete).
 - [ ] **Commit Signatures:** Display GPG/SSH commit verification status in the history log list.
+- [ ] **Cherry-pick & Revert:** Apply a specific commit (`cherry-pick`) or create a reverting commit (`revert`) from the log view.
+- [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
+- [ ] **Git Submodules:** Detect, list, initialize, and update submodules.
+- [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
 - [ ] **Add fzf as dependency**
 
 ## Phase 8: Intelligent AI Integrations (Optional/Configurable)
