@@ -49,6 +49,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::ImportDestInput
             | Mode::ImportNameInput
             | Mode::BulkAddInput
+            | Mode::RemoteAddNameInput
+            | Mode::RemoteAddUrlInput
     ) || (matches!(app.mode, Mode::CommitInput) && app.commit_editing)
         || (matches!(app.mode, Mode::Settings) && app.settings_editing);
     if !is_text_input && code == KeyCode::Char('.') {
@@ -391,6 +393,32 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Enter => app.commit_stash_create(),
             KeyCode::Backspace => app.input_backspace(),
             KeyCode::Char(c) => app.input_char(c),
+            _ => {}
+        },
+        Mode::RemoteAddNameInput => match code {
+            KeyCode::Esc => {
+                app.mode = Mode::Detail;
+            }
+            KeyCode::Enter => app.commit_remote_add_name(),
+            KeyCode::Backspace => app.input_backspace(),
+            KeyCode::Char(c) => app.input_char(c),
+            _ => {}
+        },
+        Mode::RemoteAddUrlInput => match code {
+            KeyCode::Esc => {
+                app.mode = Mode::Detail;
+            }
+            KeyCode::Enter => app.commit_remote_add_url(),
+            KeyCode::Backspace => app.input_backspace(),
+            KeyCode::Char(c) => app.input_char(c),
+            _ => {}
+        },
+        Mode::RemoteDeleteConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_remote_delete(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                app.remote_action_target = None;
+                app.mode = Mode::Detail;
+            }
             _ => {}
         },
         Mode::BranchDeleteConfirm => match code {
@@ -1053,6 +1081,12 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         }
                         None => {}
                     }
+                }
+                KeyCode::Char('a') | KeyCode::Char('A') => {
+                    app.start_remote_add();
+                }
+                KeyCode::Char('d') | KeyCode::Char('D') => {
+                    app.request_remote_delete();
                 }
                 _ => {}
             },

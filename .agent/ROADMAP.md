@@ -73,7 +73,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Git clone
 - [x] Bulk add repo option
 - [x] Optional usage of fzf
-- [ ] **Git Remote add/delete option**
+- [x] Git Remote add/delete option
 - [ ] **Per Repository rule**
 - [ ] **For large repo load time is high**
 - [ ] **Solve windows button press bug**

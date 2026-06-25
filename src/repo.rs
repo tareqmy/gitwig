@@ -794,6 +794,20 @@ pub fn expand_tilde(s: &str) -> PathBuf {
     PathBuf::from(s)
 }
 
+/// Add a new git remote.
+pub fn remote_add(repo_path: &std::path::Path, name: &str, url: &str) -> Result<(), git2::Error> {
+    let repo = Repository::open(repo_path)?;
+    repo.remote(name, url)?;
+    Ok(())
+}
+
+/// Delete an existing git remote.
+pub fn remote_delete(repo_path: &std::path::Path, name: &str) -> Result<(), git2::Error> {
+    let repo = Repository::open(repo_path)?;
+    repo.remote_delete(name)?;
+    Ok(())
+}
+
 /// Classify `item` and produce a card-level summary. Used by the list view.
 pub fn inspect_summary(item: &str) -> ItemStatus {
     let path = expand_tilde(item);

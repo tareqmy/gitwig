@@ -643,6 +643,22 @@ pub fn draw(
             if matches!(mode, Mode::BranchCreateInput) {
                 draw_branch_create_popup(f, input_buffer, branch.as_deref(), body_area);
             }
+            // Draw remote add name popup on top when requested.
+            if matches!(mode, Mode::RemoteAddNameInput) {
+                draw_remote_add_name_popup(f, input_buffer, body_area);
+            }
+            // Draw remote add url popup on top when requested.
+            if matches!(mode, Mode::RemoteAddUrlInput) {
+                draw_remote_add_url_popup(f, &app.remote_add_name, input_buffer, body_area);
+            }
+            // Draw remote delete popup on top when requested.
+            if matches!(mode, Mode::RemoteDeleteConfirm) {
+                draw_remote_delete_popup(
+                    f,
+                    app.remote_action_target.as_deref().unwrap_or(""),
+                    body_area,
+                );
+            }
             // Draw tag create popup on top when requested.
             if matches!(mode, Mode::TagCreateInput) {
                 draw_tag_create_popup(f, input_buffer, tag_action_target_oid.as_deref(), body_area);
@@ -4672,4 +4688,150 @@ fn draw_logs_view(
     let table = Table::new(rows, widths).header(header).column_spacing(2);
 
     f.render_stateful_widget(table, inner, &mut state);
+}
+
+fn draw_remote_add_name_popup(f: &mut Frame, input_buffer: &str, area: Rect) {
+    let popup_area = centred_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Add Remote (Step 1/2)", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let content = vec![
+        Line::from(vec![Span::styled("Remote Name: ", muted_style())]),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            input_buffer,
+            primary_style().add_modifier(Modifier::BOLD),
+        )]),
+    ];
+
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let paragraph = Paragraph::new(content);
+    f.render_widget(paragraph, inner_area);
+
+    let cursor_y = inner_area.y.saturating_add(2).min(
+        inner_area
+            .y
+            .saturating_add(inner_area.height.saturating_sub(1)),
+    );
+    let cursor_offset = input_buffer.chars().count() as u16;
+    let cursor_x = inner_area.x.saturating_add(cursor_offset).min(
+        inner_area
+            .x
+            .saturating_add(inner_area.width.saturating_sub(1)),
+    );
+    f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
+}
+
+fn draw_remote_add_url_popup(f: &mut Frame, remote_name: &str, input_buffer: &str, area: Rect) {
+    let popup_area = centred_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Add Remote (Step 2/2)", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let content = vec![
+        Line::from(vec![
+            Span::styled("Remote Name: ", muted_style()),
+            Span::styled(remote_name, primary_style().add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(""),
+        Line::from(vec![Span::styled("Remote URL: ", muted_style())]),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            input_buffer,
+            primary_style().add_modifier(Modifier::BOLD),
+        )]),
+    ];
+
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let paragraph = Paragraph::new(content);
+    f.render_widget(paragraph, inner_area);
+
+    let cursor_y = inner_area.y.saturating_add(4).min(
+        inner_area
+            .y
+            .saturating_add(inner_area.height.saturating_sub(1)),
+    );
+    let cursor_offset = input_buffer.chars().count() as u16;
+    let cursor_x = inner_area.x.saturating_add(cursor_offset).min(
+        inner_area
+            .x
+            .saturating_add(inner_area.width.saturating_sub(1)),
+    );
+    f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
+}
+
+fn draw_remote_delete_popup(f: &mut Frame, remote_name: &str, area: Rect) {
+    let popup_area = centred_rect(50, 15, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(DANGER());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Remove Remote", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let content = vec![
+        Line::from(vec![
+            Span::raw("Are you sure you want to remove remote "),
+            Span::styled(
+                remote_name,
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("?"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("All remote-tracking branches for ", muted_style()),
+            Span::styled(remote_name, primary_style()),
+            Span::styled(" will be deleted.", muted_style()),
+        ]),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Confirm: [y]  Cancel: [n/Esc]",
+            muted_style(),
+        )]),
+    ];
+
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let paragraph = Paragraph::new(content);
+    f.render_widget(paragraph, inner_area);
 }

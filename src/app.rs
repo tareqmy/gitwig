@@ -103,6 +103,12 @@ pub enum Mode {
     BulkAddInput,
     /// Choosing which columns to filter on.
     SearchColumnPicker,
+    /// Typing a remote name to add.
+    RemoteAddNameInput,
+    /// Typing a remote URL to add.
+    RemoteAddUrlInput,
+    /// Confirming deletion of a remote.
+    RemoteDeleteConfirm,
     /// logs UI with commits only.
     Logs,
     /// Search input in the logs UI.
@@ -371,6 +377,9 @@ pub struct App {
     pub import_url: String,
     pub import_dest: String,
     pub import_name: String,
+    pub remote_add_name: String,
+    pub remote_add_url: String,
+    pub remote_action_target: Option<String>,
     pub last_staging_focus: DetailSection,
     pub force_fzf_missing: Option<bool>,
 }
@@ -508,6 +517,9 @@ impl App {
             import_url: String::new(),
             import_dest: String::new(),
             import_name: String::new(),
+            remote_add_name: String::new(),
+            remote_add_url: String::new(),
+            remote_action_target: None,
             last_staging_focus: DetailSection::Staged,
             force_fzf_missing: None,
         };
@@ -1714,6 +1726,78 @@ impl App {
                 }
                 Err(e) => {
                     self.error_message = Some(format!("Failed to stash changes: {}", e));
+                }
+            }
+        }
+        self.mode = Mode::Detail;
+    }
+
+    pub fn start_remote_add(&mut self) {
+        self.mode = Mode::RemoteAddNameInput;
+        self.input_buffer.clear();
+        self.remote_add_name.clear();
+        self.remote_add_url.clear();
+    }
+
+    pub fn commit_remote_add_name(&mut self) {
+        let trimmed = self.input_buffer.trim().to_string();
+        self.input_buffer.clear();
+        if trimmed.is_empty() {
+            self.mode = Mode::Detail;
+            return;
+        }
+        self.remote_add_name = trimmed;
+        self.mode = Mode::RemoteAddUrlInput;
+    }
+
+    pub fn commit_remote_add_url(&mut self) {
+        let trimmed = self.input_buffer.trim().to_string();
+        self.input_buffer.clear();
+        self.mode = Mode::Detail;
+        if trimmed.is_empty() {
+            return;
+        }
+        self.remote_add_url = trimmed;
+
+        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+            match repo::remote_add(resolved, &self.remote_add_name, &self.remote_add_url) {
+                Ok(_) => {
+                    self.status_message = Some(format!(
+                        "Remote '{}' added successfully",
+                        self.remote_add_name
+                    ));
+                    let item = self.get_selected_item().unwrap().clone();
+                    self.current_detail = Some(self.inspect_repo_detail(&item));
+                }
+                Err(e) => {
+                    self.error_message = Some(format!("Failed to add remote: {}", e));
+                }
+            }
+        }
+    }
+
+    pub fn request_remote_delete(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if let Some(remote_info) = info.remotes.get(self.remote_selection) {
+                self.remote_action_target = Some(remote_info.name.clone());
+                self.mode = Mode::RemoteDeleteConfirm;
+            }
+        }
+    }
+
+    pub fn confirm_remote_delete(&mut self) {
+        if let Some(remote_name) = self.remote_action_target.take() {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                match repo::remote_delete(resolved, &remote_name) {
+                    Ok(_) => {
+                        self.status_message = Some(format!("Remote '{}' removed", remote_name));
+                        let item = self.get_selected_item().unwrap().clone();
+                        self.current_detail = Some(self.inspect_repo_detail(&item));
+                        self.remote_selection = 0;
+                    }
+                    Err(e) => {
+                        self.error_message = Some(format!("Failed to remove remote: {}", e));
+                    }
                 }
             }
         }
@@ -7070,6 +7154,78 @@ mod tests {
         // Press Esc to exit settings
         crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
         assert_eq!(app.mode, Mode::Normal);
+    }
+
+    #[test]
+    fn test_remote_add_delete_flow() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec!["a_repo".to_string()],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+        };
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_remotes.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Put app in Detail Mode on tab 5 (Remotes)
+        app.mode = Mode::Detail;
+        app.detail_tab = 5;
+        app.detail_focus = DetailSection::Remotes;
+        app.current_detail = Some(repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from("."),
+            info: Box::new(repo::RepoInfo {
+                remotes: vec![repo::RemoteInfo {
+                    name: "origin".to_string(),
+                    url: "https://github.com/example/repo.git".to_string(),
+                    push_url: None,
+                    refspecs: vec![],
+                }],
+                ..Default::default()
+            }),
+        });
+
+        // Trigger remote add (a/A)
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::RemoteAddNameInput);
+
+        // Type remote name: "upstream"
+        app.input_buffer = "upstream".to_string();
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::RemoteAddUrlInput);
+        assert_eq!(app.remote_add_name, "upstream");
+
+        // Escape URL input back to Detail Mode
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::Detail);
+
+        // Trigger remote delete (d/D) on the selected remote ("origin")
+        app.remote_selection = 0;
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('d')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::RemoteDeleteConfirm);
+        assert_eq!(app.remote_action_target.as_deref(), Some("origin"));
+
+        // Press 'n' to cancel deletion
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('n')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::Detail);
+        assert!(app.remote_action_target.is_none());
     }
 
     #[test]

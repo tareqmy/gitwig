@@ -229,6 +229,9 @@ pub fn draw(
             | Mode::SearchColumnPicker
             | Mode::Logs
             | Mode::LogsSearchInput
+            | Mode::RemoteAddNameInput
+            | Mode::RemoteAddUrlInput
+            | Mode::RemoteDeleteConfirm
     ) {
         if let Some(detail) = &app.current_detail {
             let item_name = app.get_selected_item().map(String::as_str).unwrap_or("");
@@ -775,7 +778,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = help_dismiss_entries();
             draw_status_layout(f, area, msg_spans, entries, app);
         }
-        Mode::Detail => {
+        Mode::Detail | Mode::RemoteAddNameInput | Mode::RemoteAddUrlInput => {
             let (msg_spans, entries) = detail_dismiss_entries(app);
             draw_status_layout(f, area, msg_spans, entries, app);
         }
@@ -1060,6 +1063,11 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             }
             draw_status_layout(f, area, Some(msg_spans), entries, app);
         }
+        Mode::RemoteDeleteConfirm => {
+            let target = app.remote_action_target.as_deref().unwrap_or("");
+            let (msg_spans, entries) = confirm_remote_delete_entries(target);
+            draw_status_layout(f, area, msg_spans, entries, app);
+        }
     }
 }
 
@@ -1217,6 +1225,8 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
             ("Fetch", "f/F"),
+            ("Add", "a/A"),
+            ("Delete", "d/D"),
             ("Resync", "R"),
             ("Help", "?"),
         ],
@@ -1714,6 +1724,38 @@ fn confirm_branch_delete_entries(
         Span::raw("Delete "),
         Span::raw(type_label),
         Span::raw(" "),
+        Span::styled(
+            format!("\"{}\"", target),
+            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("? "),
+    ]);
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Confirm"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled(
+                "y",
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Cancel"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("n/⎋", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (message_spans, entries)
+}
+
+fn confirm_remote_delete_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let message_spans = Some(vec![
+        Span::raw("Remove remote "),
         Span::styled(
             format!("\"{}\"", target),
             Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
