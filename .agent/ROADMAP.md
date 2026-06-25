@@ -81,4 +81,5 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Diff Summarizer:** Highlight a large diff/hunk and get a brief explanation of what the change does.
 - [ ] **Smart Conflict Explainer:** Provide a natural-language description of merge conflicts, highlighting the logical differences between "Ours" and "Theirs".
 - [ ] **Local LLM Support:** Integration with local Ollama instances for offline code analysis.
-- [ ] **Git Remote add/delete option
+- [ ] **Git Remote add/delete option**
+- [ ] **Add fzf as dependency**
