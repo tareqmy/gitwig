@@ -38,22 +38,4 @@ max_depth = 6
 start_dir = "~/"
 
 # Directory paths to prune/exclude from fzf scans to keep search fast.
-excludes = [
-    "System",
-    "Library",
-    "Applications",
-    "private",
-    "var",
-    "usr",
-    "bin",
-    "sbin",
-    "dev",
-    "Volumes",
-    "cores",
-    "opt",
-    ".git",
-    "node_modules",
-    ".Trash",
-    ".cargo",
-    ".npm"
-]
+excludes = []

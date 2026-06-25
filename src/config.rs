@@ -109,25 +109,7 @@ fn default_fzf_max_depth() -> usize {
     6
 }
 fn default_fzf_excludes() -> Vec<String> {
-    vec![
-        "System".to_string(),
-        "Library".to_string(),
-        "Applications".to_string(),
-        "private".to_string(),
-        "var".to_string(),
-        "usr".to_string(),
-        "bin".to_string(),
-        "sbin".to_string(),
-        "dev".to_string(),
-        "Volumes".to_string(),
-        "cores".to_string(),
-        "opt".to_string(),
-        ".git".to_string(),
-        "node_modules".to_string(),
-        ".Trash".to_string(),
-        ".cargo".to_string(),
-        ".npm".to_string(),
-    ]
+    vec![]
 }
 
 fn default_fzf_start_dir() -> String {
