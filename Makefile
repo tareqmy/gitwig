@@ -35,5 +35,8 @@ check:
 release:
 	cargo build --release
 
+publish:
+	cargo publish
+
 clean:
 	cargo clean
