@@ -69,6 +69,14 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Conflict resolution UI.
 
 ## Phase 7: Advanced Git Workflows & Power-User Tools
+- [ ] **Git Remote add/delete option**
+- [ ] **Add fzf as dependency**
+- [ ] **Git clone**
+- [ ] **Per Repository rule**
+- [ ] **For large repo load time is high**
+- [ ] **Add all folders as separate git repo from given folder**
+- [ ] **Add debug panel**
+- [ ] **Solve windows button press bug**
 - [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
 - [ ] **Git Submodules:** Detect, list, initialize, and update submodules.
 - [ ] **Cherry-pick & Revert:** Apply a specific commit (`cherry-pick`) or create a reverting commit (`revert`) from the log view.
@@ -81,9 +89,3 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Diff Summarizer:** Highlight a large diff/hunk and get a brief explanation of what the change does.
 - [ ] **Smart Conflict Explainer:** Provide a natural-language description of merge conflicts, highlighting the logical differences between "Ours" and "Theirs".
 - [ ] **Local LLM Support:** Integration with local Ollama instances for offline code analysis.
-- [ ] **Git Remote add/delete option**
-- [ ] **Add fzf as dependency**
-- [ ] **Git clone**
-- [ ] **Per Repository rule**
-- [ ] **For large repo load time is high**
-- [ ] **Add all folders as separate git repo from given folder**
