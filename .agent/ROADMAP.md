@@ -83,3 +83,5 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Local LLM Support:** Integration with local Ollama instances for offline code analysis.
 - [ ] **Git Remote add/delete option**
 - [ ] **Add fzf as dependency**
+- [ ] **Git clone**
+- [ ] **Per Repository rule**

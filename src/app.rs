@@ -356,6 +356,7 @@ pub struct App {
     pub settings_theme_list: Vec<String>,
     pub settings_theme_index: usize,
     pub last_staging_focus: DetailSection,
+    pub force_fzf_missing: Option<bool>,
 }
 
 #[derive(Clone, Debug)]
@@ -486,6 +487,7 @@ impl App {
             settings_theme_list: Vec::new(),
             settings_theme_index: 0,
             last_staging_focus: DetailSection::Staged,
+            force_fzf_missing: None,
         };
 
         if app.config.sort_by != SortOrder::Custom {
@@ -632,8 +634,25 @@ impl App {
         }
     }
 
+    pub fn is_fzf_installed(&self) -> bool {
+        if let Some(forced) = self.force_fzf_missing {
+            return !forced;
+        }
+        std::process::Command::new("fzf")
+            .arg("--version")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok()
+    }
+
     pub fn start_add(&mut self) {
-        self.pending_fzf = true;
+        if !self.is_fzf_installed() {
+            self.error_message =
+                Some("fzf is not installed. Please install fzf to add repositories.".to_string());
+        } else {
+            self.pending_fzf = true;
+        }
     }
 
     pub fn start_edit(&mut self) {
@@ -5162,15 +5181,16 @@ where
                                 app.add_repo_path(selected);
                             }
                         } else if out.status.code() == Some(127) {
-                            app.status_message =
+                            app.error_message =
                                 Some("fzf is not installed. Please install fzf.".to_string());
                         }
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                        app.status_message = Some("fzf is not installed".to_string());
+                        app.error_message =
+                            Some("fzf is not installed. Please install fzf.".to_string());
                     }
                     Err(e) => {
-                        app.status_message = Some(format!("Could not run fzf: {}", e));
+                        app.error_message = Some(format!("Could not run fzf: {}", e));
                     }
                 }
             }
@@ -7877,5 +7897,57 @@ mod tests {
         assert!(handled);
         assert!(!app.inspect_full_diff);
         assert_eq!(app.mode, Mode::Detail); // Still in Detail mode!
+    }
+
+    #[test]
+    fn test_fzf_missing_flow() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+        };
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_fzf_missing.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Case 1: fzf is missing
+        app.force_fzf_missing = Some(true);
+        app.mode = Mode::Normal;
+
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
+        assert!(handled);
+        assert!(!app.pending_fzf);
+        assert!(app.error_message.is_some());
+        assert!(
+            app.error_message
+                .as_ref()
+                .unwrap()
+                .contains("fzf is not installed")
+        );
+
+        // Pressing Enter should dismiss the error message
+        let handled_dismiss = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(handled_dismiss);
+        assert!(app.error_message.is_none());
+
+        // Case 2: fzf is installed
+        app.force_fzf_missing = Some(false);
+        let handled_add = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
+        assert!(handled_add);
+        assert!(app.pending_fzf);
+        assert!(app.error_message.is_none());
     }
 }
