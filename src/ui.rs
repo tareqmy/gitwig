@@ -484,8 +484,11 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         f.render_widget(Paragraph::new(name_line), name_cols[0]);
 
         if is_pinned {
-            let pin_line = Line::from(Span::styled(app.sym("pinned").trim(), Style::default().fg(WARNING())))
-                .alignment(Alignment::Right);
+            let pin_line = Line::from(Span::styled(
+                app.sym("pinned").trim(),
+                Style::default().fg(WARNING()),
+            ))
+            .alignment(Alignment::Right);
             f.render_widget(Paragraph::new(pin_line), name_cols[1]);
         }
 
@@ -630,7 +633,10 @@ fn repo_indicator_line(app: &App, summary: &RepoSummary) -> Line<'static> {
     } else {
         SUCCESS()
     };
-    let mut spans = vec![Span::styled(app.sym("bullet_filled"), Style::default().fg(dot_color))];
+    let mut spans = vec![Span::styled(
+        app.sym("bullet_filled"),
+        Style::default().fg(dot_color),
+    )];
     if summary.unchanged() {
         spans.push(Span::raw(" "));
         spans.push(Span::styled("clean", muted_style()));
@@ -642,9 +648,17 @@ fn repo_indicator_line(app: &App, summary: &RepoSummary) -> Line<'static> {
         (summary.staged, "+", Style::default().fg(ACCENT())),
         (summary.modified, "!", Style::default().fg(WARNING())),
         (summary.untracked, "?", muted_style()),
-        (summary.conflicted, app.sym("action").trim(), Style::default().fg(DANGER())),
+        (
+            summary.conflicted,
+            app.sym("action").trim(),
+            Style::default().fg(DANGER()),
+        ),
         (summary.ahead, app.sym("up"), primary_style()),
-        (summary.behind, app.sym("down"), Style::default().fg(WARNING())),
+        (
+            summary.behind,
+            app.sym("down"),
+            Style::default().fg(WARNING()),
+        ),
     ];
     for (count, symbol, style) in parts {
         if count > 0 {
@@ -2335,7 +2349,9 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             11 => {
                 "Whether to use FZF for repository discovery. If disabled, manual text input is used."
             }
-            12 => "Use simple ASCII symbols instead of complex Unicode emojis/icons to avoid layout breakage in some terminals.",
+            12 => {
+                "Use simple ASCII symbols instead of complex Unicode emojis/icons to avoid layout breakage in some terminals."
+            }
             _ => "",
         };
 
@@ -3268,7 +3284,8 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(), compatibility_mode: false,
+            git_app: "gitui".to_string(),
+            compatibility_mode: false,
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 
@@ -3585,7 +3602,8 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(), compatibility_mode: false,
+            git_app: "gitui".to_string(),
+            compatibility_mode: false,
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 

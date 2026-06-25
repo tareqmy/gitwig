@@ -4180,7 +4180,10 @@ fn draw_inspect_window(
                     Span::raw("")
                 },
                 if right_focused {
-                    Span::styled(format!("  {} scroll  (Full Screen)", app.sym("up_down")), muted_style())
+                    Span::styled(
+                        format!("  {} scroll  (Full Screen)", app.sym("up_down")),
+                        muted_style(),
+                    )
                 } else {
                     Span::raw("")
                 },

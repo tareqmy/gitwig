@@ -148,7 +148,7 @@ fn default_fzf() -> FzfConfig {
 }
 
 /// Represents the structure of the configuration file.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
     /// Repository/directory paths shown in the main list.
     pub items: Vec<String>,
