@@ -25,6 +25,36 @@ use crate::app::{App, run};
 use crate::config::load_config;
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // Install a panic hook to clean up the terminal state on crash
+    let default_panic = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let _ = disable_raw_mode();
+        let mut stdout = std::io::stdout();
+        let _ = execute!(stdout, LeaveAlternateScreen, DisableMouseCapture);
+        let _ = execute!(std::io::stdout(), crossterm::cursor::Show);
+
+        // Also log the panic!
+        let msg = if let Some(s) = info.payload().downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "Unknown panic".to_string()
+        };
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "unknown".to_string());
+
+        let backtrace = std::backtrace::Backtrace::capture();
+        let panic_msg = format!("Panic at {}: {}\nBacktrace:\n{}", location, msg, backtrace);
+        for line in panic_msg.lines() {
+            crate::debug_log::log("PANIC_FATAL", line);
+        }
+
+        default_panic(info);
+    }));
+
     // Enable raw mode to capture input without line buffering
     enable_raw_mode()?;
     let mut stdout = io::stdout();

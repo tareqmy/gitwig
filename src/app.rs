@@ -531,6 +531,11 @@ impl App {
         app
     }
 
+    pub fn set_error(&mut self, msg: String) {
+        crate::debug_log::error(&msg);
+        self.error_message = Some(msg);
+    }
+
     pub fn inspect_repo_detail(&self, item: &str) -> repo::ItemDetail {
         repo::inspect_detail(item, self.config.max_commits)
     }
@@ -1725,7 +1730,7 @@ impl App {
                     self.stash_file_selection = 0;
                 }
                 Err(e) => {
-                    self.error_message = Some(format!("Failed to stash changes: {}", e));
+                    self.set_error(format!("Failed to stash changes: {}", e));
                 }
             }
         }
@@ -1770,7 +1775,7 @@ impl App {
                     self.current_detail = Some(self.inspect_repo_detail(&item));
                 }
                 Err(e) => {
-                    self.error_message = Some(format!("Failed to add remote: {}", e));
+                    self.set_error(format!("Failed to add remote: {}", e));
                 }
             }
         }
@@ -1796,7 +1801,7 @@ impl App {
                         self.remote_selection = 0;
                     }
                     Err(e) => {
-                        self.error_message = Some(format!("Failed to remove remote: {}", e));
+                        self.set_error(format!("Failed to remove remote: {}", e));
                     }
                 }
             }
@@ -4196,18 +4201,18 @@ impl App {
 
         let base_path = repo::expand_tilde(&trimmed);
         if !base_path.exists() {
-            self.error_message = Some(format!("Directory does not exist: {}", trimmed));
+            self.set_error(format!("Directory does not exist: {}", trimmed));
             return;
         }
         if !base_path.is_dir() {
-            self.error_message = Some(format!("Path is not a directory: {}", trimmed));
+            self.set_error(format!("Path is not a directory: {}", trimmed));
             return;
         }
 
         let entries = match std::fs::read_dir(&base_path) {
             Ok(read) => read,
             Err(e) => {
-                self.error_message = Some(format!("Failed to read directory: {}", e));
+                self.set_error(format!("Failed to read directory: {}", e));
                 return;
             }
         };
@@ -4326,8 +4331,7 @@ impl App {
         let name = self.import_name.trim().to_string();
 
         if url.is_empty() || dest.is_empty() {
-            self.error_message =
-                Some("Source URL and Destination path cannot be empty".to_string());
+            self.set_error("Source URL and Destination path cannot be empty".to_string());
             self.mode = Mode::Normal;
             return;
         }
@@ -5277,7 +5281,7 @@ where
                 }
                 app.fetching = false;
             } else if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
-                app.error_message = Some(err_msg.to_string());
+                app.set_error(err_msg.to_string());
                 app.fetching = false;
             } else {
                 let success_fetch = msg.starts_with("Fetched remote ");
@@ -5289,7 +5293,7 @@ where
 
                 if is_err {
                     let has_conflict = msg.contains("conflict") || msg.contains("CONFLICT");
-                    app.error_message = Some(msg);
+                    app.set_error(msg);
                     if has_conflict {
                         app.detail_focus = DetailSection::Conflicts;
                     }
@@ -5489,16 +5493,14 @@ where
                                 app.add_repo_path(selected);
                             }
                         } else if out.status.code() == Some(127) {
-                            app.error_message =
-                                Some("fzf is not installed. Please install fzf.".to_string());
+                            app.set_error("fzf is not installed. Please install fzf.".to_string());
                         }
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                        app.error_message =
-                            Some("fzf is not installed. Please install fzf.".to_string());
+                        app.set_error("fzf is not installed. Please install fzf.".to_string());
                     }
                     Err(e) => {
-                        app.error_message = Some(format!("Could not run fzf: {}", e));
+                        app.set_error(format!("Could not run fzf: {}", e));
                     }
                 }
             }
@@ -5574,16 +5576,14 @@ where
                                 app.bulk_add_path(selected);
                             }
                         } else if out.status.code() == Some(127) {
-                            app.error_message =
-                                Some("fzf is not installed. Please install fzf.".to_string());
+                            app.set_error("fzf is not installed. Please install fzf.".to_string());
                         }
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                        app.error_message =
-                            Some("fzf is not installed. Please install fzf.".to_string());
+                        app.set_error("fzf is not installed. Please install fzf.".to_string());
                     }
                     Err(e) => {
-                        app.error_message = Some(format!("Could not run fzf: {}", e));
+                        app.set_error(format!("Could not run fzf: {}", e));
                     }
                 }
             }
@@ -5905,6 +5905,41 @@ mod tests {
         let consumed = crate::input::handle_key(&mut app, esc_key, 0);
         assert!(consumed);
         assert!(app.error_message.is_none());
+    }
+
+    #[test]
+    fn test_set_error_logging() {
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+        };
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_set_error.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        let test_error_msg = "Test error message for debugging".to_string();
+        app.set_error(test_error_msg.clone());
+
+        assert_eq!(app.error_message.as_ref(), Some(&test_error_msg));
+
+        // Check if debug log contains the message
+        let logs = crate::debug_log::get_logs();
+        assert!(
+            logs.iter()
+                .any(|log| log.contains("ERROR") && log.contains(&test_error_msg))
+        );
     }
 
     #[test]

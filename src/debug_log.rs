@@ -2,8 +2,26 @@ use std::sync::{Mutex, OnceLock};
 
 static LOGS: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 
+fn init_logs() -> Mutex<Vec<String>> {
+    let mut initial_logs = Vec::new();
+    if let Some(home) = dirs::home_dir() {
+        let log_path = home.join(".gitwig").join("gitwig.log");
+        if let Ok(file_content) = std::fs::read_to_string(&log_path) {
+            for line in file_content.lines() {
+                if !line.trim().is_empty() {
+                    initial_logs.push(line.to_string());
+                }
+            }
+            if initial_logs.len() > 1000 {
+                initial_logs.drain(0..initial_logs.len() - 1000);
+            }
+        }
+    }
+    Mutex::new(initial_logs)
+}
+
 pub fn log(level: &str, msg: &str) {
-    let mutex = LOGS.get_or_init(|| Mutex::new(Vec::new()));
+    let mutex = LOGS.get_or_init(init_logs);
     if let Ok(mut guard) = mutex.lock() {
         if guard.len() >= 1000 {
             guard.remove(0);
@@ -61,8 +79,10 @@ pub fn debug(msg: impl AsRef<str>) {
 }
 
 pub fn get_logs() -> Vec<String> {
-    LOGS.get()
-        .and_then(|m| m.lock().ok())
-        .map(|guard| guard.clone())
-        .unwrap_or_default()
+    let mutex = LOGS.get_or_init(init_logs);
+    if let Ok(guard) = mutex.lock() {
+        guard.clone()
+    } else {
+        Vec::new()
+    }
 }
