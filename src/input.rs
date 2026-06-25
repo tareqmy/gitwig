@@ -48,6 +48,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::ImportUrlInput
             | Mode::ImportDestInput
             | Mode::ImportNameInput
+            | Mode::BulkAddInput
     ) || (matches!(app.mode, Mode::CommitInput) && app.commit_editing)
         || (matches!(app.mode, Mode::Settings) && app.settings_editing);
     if !is_text_input && code == KeyCode::Char('.') {
@@ -71,6 +72,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Home => app.move_to_top(),
             KeyCode::End => app.move_to_bottom(visible_count),
             KeyCode::Char('a') => app.start_add(),
+            KeyCode::Char('A') => {
+                app.start_bulk_add();
+            }
             KeyCode::Char('e') => app.start_edit(),
             KeyCode::Char('d') => app.request_delete(),
             KeyCode::Char('?') => app.open_help(),
@@ -325,6 +329,19 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Esc => app.cancel_input(),
             KeyCode::Enter => app.commit_add(),
             KeyCode::Backspace => app.input_backspace(),
+            KeyCode::Char(c) => app.input_char(c),
+            _ => {}
+        },
+        Mode::BulkAddInput => match code {
+            KeyCode::Esc => app.cancel_input(),
+            KeyCode::Enter => app.commit_bulk_add(),
+            KeyCode::Backspace => app.input_backspace(),
+            KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.start_bulk_add();
+            }
+            KeyCode::Tab => {
+                app.start_bulk_add();
+            }
             KeyCode::Char(c) => app.input_char(c),
             _ => {}
         },

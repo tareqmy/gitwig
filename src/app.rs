@@ -99,6 +99,8 @@ pub enum Mode {
     ImportDestInput,
     /// Typing an import name.
     ImportNameInput,
+    /// Typing a directory to bulk add its subdirectories.
+    BulkAddInput,
     /// Choosing which columns to filter on.
     SearchColumnPicker,
     /// logs UI with commits only.
@@ -302,6 +304,8 @@ pub struct App {
     pub pending_git_app: bool,
     /// Whether fzf search launch is pending.
     pub pending_fzf: bool,
+    /// Whether bulk fzf search launch is pending.
+    pub pending_bulk_fzf: bool,
     /// Whether fzf files search launch is pending.
     pub pending_files_fzf: bool,
     /// Whether interactive rebase is pending.
@@ -466,6 +470,7 @@ impl App {
             fetching: false,
             pending_git_app: false,
             pending_fzf: false,
+            pending_bulk_fzf: false,
             pending_files_fzf: false,
             pending_interactive_rebase: None,
             in_logs_ui: false,
@@ -4066,6 +4071,125 @@ impl App {
         self.mode = Mode::Normal;
     }
 
+    pub fn start_bulk_add(&mut self) {
+        crate::debug_log::info("Initiating bulk repository add");
+        if !self.is_fzf_installed() {
+            crate::debug_log::info("FZF not installed, falling back to manual bulk repository add");
+            self.mode = Mode::BulkAddInput;
+            self.input_buffer.clear();
+        } else {
+            self.pending_bulk_fzf = true;
+        }
+    }
+
+    pub fn commit_bulk_add(&mut self) {
+        let trimmed = self.input_buffer.trim().to_string();
+        self.input_buffer.clear();
+        self.mode = Mode::Normal;
+        if !trimmed.is_empty() {
+            self.bulk_add_path(trimmed);
+        }
+    }
+
+    pub fn bulk_add_path(&mut self, path: String) {
+        let trimmed = path.trim().to_string();
+        if trimmed.is_empty() {
+            return;
+        }
+
+        let base_path = repo::expand_tilde(&trimmed);
+        if !base_path.exists() {
+            self.error_message = Some(format!("Directory does not exist: {}", trimmed));
+            return;
+        }
+        if !base_path.is_dir() {
+            self.error_message = Some(format!("Path is not a directory: {}", trimmed));
+            return;
+        }
+
+        let entries = match std::fs::read_dir(&base_path) {
+            Ok(read) => read,
+            Err(e) => {
+                self.error_message = Some(format!("Failed to read directory: {}", e));
+                return;
+            }
+        };
+
+        let mut added_paths = Vec::new();
+        let git_only = self.config.fzf.git_only;
+
+        for entry_opt in entries {
+            let entry = match entry_opt {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            let path = entry.path();
+            if path.is_dir() {
+                let show_dir = if git_only {
+                    path.join(".git").exists()
+                } else {
+                    true
+                };
+                if show_dir {
+                    if let Some(sub_name) = path.file_name().and_then(|n| n.to_str()) {
+                        let mut base_str = trimmed.clone();
+                        if !base_str.ends_with(std::path::MAIN_SEPARATOR) {
+                            base_str.push(std::path::MAIN_SEPARATOR);
+                        }
+                        let path_to_add = format!("{}{}", base_str, sub_name);
+                        added_paths.push(path_to_add);
+                    }
+                }
+            }
+        }
+
+        added_paths.sort();
+
+        if added_paths.is_empty() {
+            self.status_message = Some("No matching directories found to add".to_string());
+            return;
+        }
+
+        let mut newly_added_count = 0;
+        let mut first_new_path = None;
+        for path_str in added_paths {
+            let trimmed_path = path_str.trim().to_string();
+            let new_expanded = repo::expand_tilde(&trimmed_path);
+            let new_canonical = Self::canonical_path(&new_expanded);
+
+            let already_exists = self.config.items.iter().any(|item| {
+                let item_expanded = repo::expand_tilde(item);
+                item.trim() == trimmed_path
+                    || item_expanded == new_expanded
+                    || Self::canonical_path(&item_expanded) == new_canonical
+            });
+
+            if !already_exists {
+                let status = repo::inspect_summary(&trimmed_path);
+                self.statuses.push(status);
+                self.config.items.push(trimmed_path.clone());
+                self.original_items.push(trimmed_path.clone());
+                if first_new_path.is_none() {
+                    first_new_path = Some(trimmed_path);
+                }
+                newly_added_count += 1;
+            }
+        }
+
+        if newly_added_count > 0 {
+            self.sort_items_in_place();
+            self.repo_search_query = None;
+            if let Some(ref target) = first_new_path {
+                if let Some(pos) = self.config.items.iter().position(|x| x == target) {
+                    self.selected_index = pos;
+                }
+            }
+            self.persist(&format!("Added {} directories", newly_added_count));
+        } else {
+            self.status_message = Some("All discovered directories were already added".to_string());
+        }
+    }
+
     pub fn add_repo_path(&mut self, path: String) {
         let trimmed = path.trim().to_string();
         if !trimmed.is_empty() {
@@ -5283,6 +5407,91 @@ where
             }
         }
 
+        if app.pending_bulk_fzf {
+            app.pending_bulk_fzf = false;
+            app.input_buffer.clear();
+            app.mode = Mode::Normal;
+
+            let raw_res = crossterm::terminal::disable_raw_mode();
+            let exec_res = crossterm::execute!(
+                std::io::stdout(),
+                crossterm::terminal::LeaveAlternateScreen,
+                crossterm::event::DisableMouseCapture
+            );
+            let cursor_res = terminal.show_cursor();
+
+            if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+                let max_depth = app.config.fzf.max_depth;
+                let fd_excludes = app
+                    .config
+                    .fzf
+                    .excludes
+                    .iter()
+                    .map(|x| format!("--exclude '{}'", x))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                let find_prunes = app
+                    .config
+                    .fzf
+                    .excludes
+                    .iter()
+                    .map(|x| format!("-path '*/{}'", x))
+                    .collect::<Vec<String>>()
+                    .join(" -o ");
+                let find_prune_clause = if find_prunes.is_empty() {
+                    "".to_string()
+                } else {
+                    format!("\\( {} \\) -prune -o ", find_prunes)
+                };
+
+                let expanded_start_dir = crate::repo::expand_tilde(&app.config.fzf.start_dir);
+                let start_dir_str = expanded_start_dir.to_string_lossy().into_owned();
+                let start_dir = start_dir_str.replace('\'', "'\\''");
+
+                let cmd = format!(
+                    "if ! command -v fzf >/dev/null 2>&1; then exit 127; fi; (command -v fd >/dev/null 2>&1 && fd . '{}' --type d --max-depth {} {} 2>/dev/null || find '{}' -maxdepth {} {} -type d -print 2>/dev/null) | fzf",
+                    start_dir, max_depth, fd_excludes, start_dir, max_depth, find_prune_clause
+                );
+
+                let output = std::process::Command::new("sh")
+                    .arg("-c")
+                    .arg(&cmd)
+                    .stdin(std::process::Stdio::inherit())
+                    .stderr(std::process::Stdio::inherit())
+                    .stdout(std::process::Stdio::piped())
+                    .output();
+
+                let _ = crossterm::terminal::enable_raw_mode();
+                let _ = crossterm::execute!(
+                    std::io::stdout(),
+                    crossterm::terminal::EnterAlternateScreen,
+                    crossterm::event::EnableMouseCapture
+                );
+                let _ = terminal.clear();
+
+                match output {
+                    Ok(out) => {
+                        if out.status.success() {
+                            let selected = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                            if !selected.is_empty() {
+                                app.bulk_add_path(selected);
+                            }
+                        } else if out.status.code() == Some(127) {
+                            app.error_message =
+                                Some("fzf is not installed. Please install fzf.".to_string());
+                        }
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                        app.error_message =
+                            Some("fzf is not installed. Please install fzf.".to_string());
+                    }
+                    Err(e) => {
+                        app.error_message = Some(format!("Could not run fzf: {}", e));
+                    }
+                }
+            }
+        }
+
         if app.pending_files_fzf {
             app.pending_files_fzf = false;
             if let Some(repo::ItemDetail::Repo { resolved, info }) = &app.current_detail {
@@ -5767,6 +5976,70 @@ mod tests {
             app.status_message,
             Some("Repository already added".to_string())
         );
+    }
+
+    #[test]
+    fn test_bulk_add_folders() {
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+        };
+        let temp_dir = std::env::temp_dir().join("gitwig_test_bulk_add_dir");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let repo_a = temp_dir.join("repo_a");
+        let repo_b = temp_dir.join("repo_b");
+        let repo_c = temp_dir.join("repo_c");
+        std::fs::create_dir_all(repo_a.join(".git")).unwrap();
+        std::fs::create_dir_all(&repo_b).unwrap();
+        std::fs::create_dir_all(repo_c.join(".git")).unwrap();
+
+        let config_path = temp_dir.join("config_bulk.toml");
+        let _ = std::fs::remove_file(&config_path);
+        let _guard = TestFileGuard {
+            path: config_path.clone(),
+        };
+        let mut app = App::new(config, config_path);
+
+        // Case 1: git_only is enabled (default)
+        app.config.fzf.git_only = true;
+        app.input_buffer = temp_dir.to_string_lossy().to_string();
+        app.commit_bulk_add();
+
+        // Should include repo_a and repo_c, but NOT repo_b
+        assert_eq!(app.config.items.len(), 2);
+        assert!(app.config.items.iter().any(|item| item.ends_with("repo_a")));
+        assert!(app.config.items.iter().any(|item| item.ends_with("repo_c")));
+        assert!(!app.config.items.iter().any(|item| item.ends_with("repo_b")));
+
+        // Clear items and try again with git_only = false
+        app.config.items.clear();
+        app.original_items.clear();
+        app.statuses.clear();
+
+        app.config.fzf.git_only = false;
+        app.input_buffer = temp_dir.to_string_lossy().to_string();
+        app.commit_bulk_add();
+
+        // Should include repo_a, repo_b, and repo_c
+        assert_eq!(app.config.items.len(), 3);
+        assert!(app.config.items.iter().any(|item| item.ends_with("repo_a")));
+        assert!(app.config.items.iter().any(|item| item.ends_with("repo_b")));
+        assert!(app.config.items.iter().any(|item| item.ends_with("repo_c")));
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
@@ -8041,11 +8314,26 @@ mod tests {
         assert!(handled_dismiss);
         assert!(app.error_message.is_none());
 
+        // A -> should fallback to BulkAddInput (manual typing)
+        let handled_bulk = crate::input::handle_key(&mut app, key_event(KeyCode::Char('A')), 10);
+        assert!(handled_bulk);
+        assert!(!app.pending_bulk_fzf);
+        assert_eq!(app.mode, Mode::BulkAddInput);
+        assert!(app.error_message.is_none());
+
         // Case 2: fzf is installed
         app.force_fzf_missing = Some(false);
+        app.mode = Mode::Normal;
         let handled_add = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
         assert!(handled_add);
         assert!(app.pending_fzf);
+        assert!(app.error_message.is_none());
+
+        app.mode = Mode::Normal;
+        let handled_bulk_add =
+            crate::input::handle_key(&mut app, key_event(KeyCode::Char('A')), 10);
+        assert!(handled_bulk_add);
+        assert!(app.pending_bulk_fzf);
         assert!(app.error_message.is_none());
     }
 }

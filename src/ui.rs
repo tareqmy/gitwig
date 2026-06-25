@@ -149,6 +149,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
         "Open detail view for selected item / stage file",
     ),
     ("a", "Add a new item"),
+    ("A", "Bulk add folders in a directory"),
     ("i", "Import remote repository"),
     ("e", "Edit selected item"),
     ("d", "Delete selected item / branch (Branches) / tag (Tags)"),
@@ -322,7 +323,12 @@ pub fn draw(
 fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
     let show_sort = matches!(
         app.mode,
-        Mode::Normal | Mode::Adding | Mode::Editing | Mode::ConfirmDelete | Mode::Help
+        Mode::Normal
+            | Mode::Adding
+            | Mode::Editing
+            | Mode::ConfirmDelete
+            | Mode::Help
+            | Mode::BulkAddInput
     );
 
     let mut block = Block::default()
@@ -729,6 +735,9 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         }
         Mode::Adding => {
             draw_input_status(f, area, "Add", &app.input_buffer);
+        }
+        Mode::BulkAddInput => {
+            draw_input_status(f, area, "Bulk Add (Tab for FZF)", &app.input_buffer);
         }
         Mode::Editing => {
             draw_input_status(f, area, "Edit", &app.input_buffer);
@@ -1634,6 +1643,7 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
         (&sort_key_label, "o/O"),
         ("Find", "f"),
         ("Add", "a"),
+        ("Bulk Add", "A"),
         ("Import", "i"),
         ("Edit", "e"),
         ("Delete", "d"),

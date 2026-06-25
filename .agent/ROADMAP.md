@@ -71,7 +71,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 ## Phase 7: Advanced Git Workflows & Power-User Tools
 - [x] Add debug panel
 - [x] Git clone
-- [ ] **Add all folders as separate git repo from given folder**
+- [x] Bulk add repo option
 - [ ] **Git Remote add/delete option**
 - [ ] **Add fzf as dependency**
 - [ ] **Per Repository rule**
