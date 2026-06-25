@@ -86,3 +86,4 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Git clone**
 - [ ] **Per Repository rule**
 - [ ] **For large repo load time is high**
+- [ ] **Add all folders as separate git repo from given folder**

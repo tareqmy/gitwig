@@ -2123,6 +2123,45 @@ fn wrap_str(s: &str, max_width: usize) -> Vec<String> {
     chunks
 }
 
+/// Pack comma-separated `val_str` items onto lines of at most `max_width` chars.
+/// Items that are individually wider than `max_width` are hard-wrapped by
+/// `wrap_str`. The function always returns at least one (possibly empty) entry.
+fn wrap_excludes(val_str: &str, max_width: usize) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
+    let mut current_line = String::new();
+    let parts: Vec<&str> = val_str.split(',').collect();
+    for (idx, part) in parts.iter().enumerate() {
+        let suffix = if idx + 1 < parts.len() { "," } else { "" };
+        let item = format!("{}{}", part, suffix);
+
+        if current_line.chars().count() + item.chars().count() > max_width {
+            if !current_line.is_empty() {
+                lines.push(current_line);
+                current_line = String::new();
+            }
+            if item.chars().count() > max_width {
+                let mut sub_chunks = wrap_str(&item, max_width);
+                if let Some(last) = sub_chunks.pop() {
+                    current_line = last;
+                }
+                lines.extend(sub_chunks);
+            } else {
+                current_line = item;
+            }
+        } else {
+            current_line.push_str(&item);
+        }
+    }
+    if !current_line.is_empty() {
+        lines.push(current_line);
+    }
+    if lines.is_empty() {
+        vec![String::new()]
+    } else {
+        lines
+    }
+}
+
 #[allow(clippy::needless_range_loop)]
 fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     let popup_area = centered_rect(65, 75, area);
@@ -2268,39 +2307,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         };
         let val_width = available_text_width.saturating_sub(val_offset).max(10);
         let val_chunks = if i == 8 {
-            let mut lines = Vec::new();
-            let mut current_line = String::new();
-            let parts: Vec<&str> = val_str.split(',').collect();
-            for (idx, part) in parts.iter().enumerate() {
-                let suffix = if idx + 1 < parts.len() { "," } else { "" };
-                let item = format!("{}{}", part, suffix);
-                
-                if current_line.chars().count() + item.chars().count() > val_width {
-                    if !current_line.is_empty() {
-                        lines.push(current_line);
-                        current_line = String::new();
-                    }
-                    if item.chars().count() > val_width {
-                        let mut sub_chunks = wrap_str(&item, val_width);
-                        if let Some(last) = sub_chunks.pop() {
-                            current_line = last;
-                        }
-                        lines.extend(sub_chunks);
-                    } else {
-                        current_line = item;
-                    }
-                } else {
-                    current_line.push_str(&item);
-                }
-            }
-            if !current_line.is_empty() {
-                lines.push(current_line);
-            }
-            if lines.is_empty() {
-                vec![String::new()]
-            } else {
-                lines
-            }
+            wrap_excludes(&val_str, val_width)
         } else {
             wrap_str(&val_str, val_width)
         };
@@ -2348,7 +2355,9 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         if cursor_line < scroll_y {
             scroll_y = cursor_line;
         } else if cursor_line >= scroll_y + viewport_height {
-            scroll_y = cursor_line.saturating_sub(viewport_height).saturating_add(1);
+            scroll_y = cursor_line
+                .saturating_sub(viewport_height)
+                .saturating_add(1);
         }
     }
 
@@ -2493,7 +2502,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     if app.settings_editing && app.settings_selected_index != 3 {
         let sel_idx = app.settings_selected_index;
         let cursor_line = item_starts[sel_idx] + 1 + (selected_val_chunks_len - 1);
-        
+
         if cursor_line >= scroll_y && cursor_line < scroll_y + viewport_height {
             let cursor_y = (inner_rect.y + cursor_line as u16).saturating_sub(scroll_y as u16);
             let cursor_x = inner_rect.x
@@ -3556,5 +3565,26 @@ mod tests {
 
         let wrapped_empty = wrap_str("", 10);
         assert_eq!(wrapped_empty, vec!["".to_string()]);
+    }
+
+    #[test]
+    fn test_wrap_excludes() {
+        // Items that fit together on one line stay together
+        let w = wrap_excludes("node_modules,target", 30);
+        assert_eq!(w, vec!["node_modules,target"]);
+
+        // Items that overflow wrap to the next line
+        let w = wrap_excludes("node_modules,target,build,dist", 20);
+        // "node_modules," = 13, "target," = 7 → 20 fits on line 1
+        // "build," = 6, "dist" = 4 → fits on line 2
+        assert_eq!(w, vec!["node_modules,target,", "build,dist"]);
+
+        // Single very long item gets hard-wrapped
+        let w = wrap_excludes("averylongnamehere", 10);
+        assert_eq!(w, vec!["averylongn", "amehere"]);
+
+        // Empty string returns a single empty line
+        let w = wrap_excludes("", 20);
+        assert_eq!(w, vec![""]);
     }
 }

@@ -10,10 +10,10 @@ pinned = [
 
 # Event-loop poll interval in milliseconds.
 # Lower → more responsive, higher → less CPU. Default: 100. Sane range: 16–500.
-poll_interval_ms = 100
+poll_interval_ms = 500
 
 # Maximum commits to load in workspace view. Set to 0 for unlimited.
-max_commits = 0
+max_commits = 100
 
 # Number of lines/items to scroll when PageUp or PageDown is pressed.
 page_size = 10
