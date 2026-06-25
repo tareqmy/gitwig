@@ -45,6 +45,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::TagCreateInput
             | Mode::StashCreateInput
             | Mode::RepoSearchInput
+            | Mode::ImportUrlInput
+            | Mode::ImportDestInput
+            | Mode::ImportNameInput
     ) || (matches!(app.mode, Mode::CommitInput) && app.commit_editing)
         || (matches!(app.mode, Mode::Settings) && app.settings_editing);
     if !is_text_input && code == KeyCode::Char('.') {
@@ -84,6 +87,14 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 crate::debug_log::info("Opening debug logs");
                 app.mode = Mode::DebugLogs;
                 app.debug_log_scroll = 0;
+            }
+            KeyCode::Char('i') => {
+                crate::debug_log::info("Starting repository import");
+                app.mode = Mode::ImportUrlInput;
+                app.input_buffer.clear();
+                app.import_url.clear();
+                app.import_dest.clear();
+                app.import_name.clear();
             }
             KeyCode::Char('g') => {
                 app.pending_git_app = true;
@@ -195,7 +206,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::PageDown => {
                 let log_count = crate::debug_log::get_logs().len();
                 let max_scroll = log_count.saturating_sub(1);
-                app.debug_log_scroll = (app.debug_log_scroll + app.config.page_size).min(max_scroll);
+                app.debug_log_scroll =
+                    (app.debug_log_scroll + app.config.page_size).min(max_scroll);
             }
             KeyCode::Home => {
                 app.debug_log_scroll = 0;
@@ -204,6 +216,79 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 let log_count = crate::debug_log::get_logs().len();
                 app.debug_log_scroll = log_count.saturating_sub(1);
             }
+            _ => {}
+        },
+        Mode::ImportUrlInput => match code {
+            KeyCode::Esc => {
+                crate::debug_log::info("Cancelled repository import");
+                app.mode = Mode::Normal;
+                app.input_buffer.clear();
+            }
+            KeyCode::Enter => {
+                app.import_url = app.input_buffer.clone();
+                app.input_buffer.clear();
+
+                let repo_name = if let Some(last) = app.import_url.split('/').next_back() {
+                    let name = last.trim_end_matches(".git");
+                    if name.is_empty() {
+                        "repo".to_string()
+                    } else {
+                        name.to_string()
+                    }
+                } else {
+                    "repo".to_string()
+                };
+
+                if let Some(home) = dirs::home_dir() {
+                    app.input_buffer = home.join(&repo_name).to_string_lossy().to_string();
+                } else {
+                    app.input_buffer = format!("./{}", repo_name);
+                }
+
+                app.mode = Mode::ImportDestInput;
+            }
+            KeyCode::Backspace => app.input_backspace(),
+            KeyCode::Char(c) => app.input_char(c),
+            _ => {}
+        },
+        Mode::ImportDestInput => match code {
+            KeyCode::Esc => {
+                app.mode = Mode::ImportUrlInput;
+                app.input_buffer = app.import_url.clone();
+            }
+            KeyCode::Enter => {
+                app.import_dest = app.input_buffer.clone();
+                app.input_buffer.clear();
+
+                let repo_name = if let Some(last) = app.import_url.split('/').next_back() {
+                    let name = last.trim_end_matches(".git");
+                    if name.is_empty() {
+                        "repo".to_string()
+                    } else {
+                        name.to_string()
+                    }
+                } else {
+                    "repo".to_string()
+                };
+                app.input_buffer = repo_name;
+                app.mode = Mode::ImportNameInput;
+            }
+            KeyCode::Backspace => app.input_backspace(),
+            KeyCode::Char(c) => app.input_char(c),
+            _ => {}
+        },
+        Mode::ImportNameInput => match code {
+            KeyCode::Esc => {
+                app.mode = Mode::ImportDestInput;
+                app.input_buffer = app.import_dest.clone();
+            }
+            KeyCode::Enter => {
+                app.import_name = app.input_buffer.clone();
+                app.input_buffer.clear();
+                app.start_import_clone();
+            }
+            KeyCode::Backspace => app.input_backspace(),
+            KeyCode::Char(c) => app.input_char(c),
             _ => {}
         },
         Mode::RepoSearchInput => match code {

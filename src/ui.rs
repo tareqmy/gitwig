@@ -149,6 +149,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
         "Open detail view for selected item / stage file",
     ),
     ("a", "Add a new item"),
+    ("i", "Import remote repository"),
     ("e", "Edit selected item"),
     ("d", "Delete selected item / branch (Branches) / tag (Tags)"),
     ("f", "Enter repository search mode"),
@@ -302,6 +303,13 @@ pub fn draw(
 
     if matches!(app.mode, Mode::Help) {
         draw_help_overlay(f, area, app.help_scroll);
+    }
+
+    if matches!(
+        app.mode,
+        Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput
+    ) {
+        draw_import_popup(f, area, app);
     }
 
     if let Some(ref err) = app.error_message {
@@ -727,6 +735,27 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         }
         Mode::RepoSearchInput => {
             draw_input_status(f, area, "Find", &app.input_buffer);
+        }
+        Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput => {
+            let msg_spans = vec![Span::styled(
+                "Importing Remote Repository  ",
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+            )];
+            let entries_data = [("Cancel", "Esc")];
+            let mut entries = Vec::new();
+            for (i, (label, key)) in entries_data.iter().enumerate() {
+                let mut spans = Vec::new();
+                if i > 0 {
+                    spans.push(Span::styled(" ", muted_style()));
+                }
+                spans.push(Span::raw((*label).to_string()));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("[", muted_style()));
+                spans.push(Span::styled((*key).to_string(), accent_style()));
+                spans.push(Span::styled("]", muted_style()));
+                entries.push(StatusEntry::new(spans));
+            }
+            draw_status_layout(f, area, Some(msg_spans), entries, app);
         }
         Mode::ConfirmDelete => {
             let target = app.get_selected_item().map(|s| s.as_str()).unwrap_or("");
@@ -1605,6 +1634,7 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
         (&sort_key_label, "o/O"),
         ("Find", "f"),
         ("Add", "a"),
+        ("Import", "i"),
         ("Edit", "e"),
         ("Delete", "d"),
         ("Refresh", "R"),
@@ -2919,9 +2949,135 @@ fn draw_error_popup(f: &mut Frame, area: Rect, err: &str) {
         Span::styled(" or ", muted_style()),
         Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(" to dismiss", muted_style()),
+        Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" or ", muted_style()),
+        Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" to dismiss", muted_style()),
     ]))
     .alignment(ratatui::layout::Alignment::Center);
     f.render_widget(hint, chunks[2]);
+}
+
+fn draw_import_popup(f: &mut Frame, area: Rect, app: &App) {
+    let popup_area = centered_rect_fixed(65, 12, area);
+    f.render_widget(Clear, popup_area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(accent_style())
+        .title(
+            Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Import Remote Repository", primary_style()),
+                Span::raw(" "),
+            ])
+            .alignment(Alignment::Center),
+        );
+
+    f.render_widget(block.clone(), popup_area);
+    let inner = block.inner(popup_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![
+            Constraint::Length(2), // URL field
+            Constraint::Length(2), // Destination Path field
+            Constraint::Length(2), // Optional Name field
+            Constraint::Min(1),    // Help hint
+        ])
+        .split(inner);
+
+    // Render URL
+    let url_style = if matches!(app.mode, Mode::ImportUrlInput) {
+        Style::default().fg(ACCENT())
+    } else {
+        Style::default()
+    };
+    let url_val = if matches!(app.mode, Mode::ImportUrlInput) {
+        &app.input_buffer
+    } else {
+        &app.import_url
+    };
+    let url_para = Paragraph::new(Line::from(vec![
+        Span::styled(
+            "Source URL: ",
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(url_val, url_style),
+    ]));
+    f.render_widget(url_para, chunks[0]);
+
+    // Render Dest
+    let dest_style = if matches!(app.mode, Mode::ImportDestInput) {
+        Style::default().fg(ACCENT())
+    } else {
+        Style::default()
+    };
+    let dest_val = if matches!(app.mode, Mode::ImportDestInput) {
+        &app.input_buffer
+    } else {
+        &app.import_dest
+    };
+    let dest_para = Paragraph::new(Line::from(vec![
+        Span::styled(
+            "Dest Path:  ",
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(dest_val, dest_style),
+    ]));
+    f.render_widget(dest_para, chunks[1]);
+
+    // Render Name
+    let name_style = if matches!(app.mode, Mode::ImportNameInput) {
+        Style::default().fg(ACCENT())
+    } else {
+        Style::default()
+    };
+    let name_val = if matches!(app.mode, Mode::ImportNameInput) {
+        &app.input_buffer
+    } else {
+        &app.import_name
+    };
+    let name_para = Paragraph::new(Line::from(vec![
+        Span::styled(
+            "Repo Name:  ",
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(name_val, name_style),
+    ]));
+    f.render_widget(name_para, chunks[2]);
+
+    // Hint
+    let current_step = match app.mode {
+        Mode::ImportUrlInput => "Step 1: Enter Remote Git URL (Press Enter)",
+        Mode::ImportDestInput => "Step 2: Enter Local Destination Path (Press Enter)",
+        Mode::ImportNameInput => "Step 3: Enter Optional Folder Name (Press Enter to Clone)",
+        _ => "",
+    };
+    let hint_para = Paragraph::new(Line::from(vec![
+        Span::styled(current_step, muted_style()),
+        Span::raw(" | "),
+        Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" to go back/cancel", muted_style()),
+    ]))
+    .alignment(Alignment::Center);
+    f.render_widget(hint_para, chunks[3]);
+
+    let cursor_y = match app.mode {
+        Mode::ImportUrlInput => chunks[0].y,
+        Mode::ImportDestInput => chunks[1].y,
+        Mode::ImportNameInput => chunks[2].y,
+        _ => 0,
+    };
+    if cursor_y > 0 {
+        let prefix_len = 12;
+        let cursor_offset = (prefix_len + app.input_buffer.chars().count()) as u16;
+        let cursor_x = chunks[0]
+            .x
+            .saturating_add(cursor_offset.min(inner.width.saturating_sub(1)));
+        f.set_cursor_position(Position::new(cursor_x, cursor_y));
+    }
 }
 
 fn draw_debug_logs(f: &mut Frame, app: &App, area: Rect) {

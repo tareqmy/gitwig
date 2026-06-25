@@ -93,6 +93,12 @@ pub enum Mode {
     Settings,
     /// Debug logs view.
     DebugLogs,
+    /// Typing an import URL.
+    ImportUrlInput,
+    /// Typing an import destination path.
+    ImportDestInput,
+    /// Typing an import name.
+    ImportNameInput,
     /// Choosing which columns to filter on.
     SearchColumnPicker,
     /// logs UI with commits only.
@@ -358,6 +364,9 @@ pub struct App {
     pub settings_theme_list: Vec<String>,
     pub settings_theme_index: usize,
     pub debug_log_scroll: usize,
+    pub import_url: String,
+    pub import_dest: String,
+    pub import_name: String,
     pub last_staging_focus: DetailSection,
     pub force_fzf_missing: Option<bool>,
 }
@@ -491,6 +500,9 @@ impl App {
             settings_theme_list: Vec::new(),
             settings_theme_index: 0,
             debug_log_scroll: 0,
+            import_url: String::new(),
+            import_dest: String::new(),
+            import_name: String::new(),
             last_staging_focus: DetailSection::Staged,
             force_fzf_missing: None,
         };
@@ -4083,6 +4095,57 @@ impl App {
         }
     }
 
+    pub fn start_import_clone(&mut self) {
+        let url = self.import_url.trim().to_string();
+        let dest = self.import_dest.trim().to_string();
+        let name = self.import_name.trim().to_string();
+
+        if url.is_empty() || dest.is_empty() {
+            self.error_message =
+                Some("Source URL and Destination path cannot be empty".to_string());
+            self.mode = Mode::Normal;
+            return;
+        }
+
+        let mut dest_path = repo::expand_tilde(&dest);
+        if !name.is_empty() {
+            dest_path.push(&name);
+        }
+        let dest_str = dest_path.to_string_lossy().to_string();
+
+        self.fetching = true;
+        self.status_message = Some(format!("Cloning {}...", url));
+        self.mode = Mode::Normal;
+
+        let tx = self.tx.clone();
+        std::thread::spawn(move || {
+            let res = (|| -> Result<String, String> {
+                let dest_expanded = repo::expand_tilde(&dest_str);
+                let _ = std::fs::create_dir_all(&dest_expanded);
+
+                let mut cmd = std::process::Command::new("git");
+                cmd.arg("clone").arg(&url).arg(&dest_expanded);
+
+                let output = cmd.output().map_err(|e| e.to_string())?;
+                if output.status.success() {
+                    Ok(format!("CLONE_SUCCESS:{}", dest_str))
+                } else {
+                    let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                    Err(format!("Clone failed: {}", err))
+                }
+            })();
+
+            match res {
+                Ok(msg) => {
+                    let _ = tx.send(msg);
+                }
+                Err(e) => {
+                    let _ = tx.send(format!("Failed to clone: {}", e));
+                }
+            }
+        });
+    }
+
     pub fn commit_edit(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
         if !trimmed.is_empty() {
@@ -4977,7 +5040,11 @@ where
 {
     loop {
         while let Ok(msg) = app.rx.try_recv() {
-            if let Some(tags_data) = msg.strip_prefix("REMOTE_TAGS:") {
+            if let Some(dest_path) = msg.strip_prefix("CLONE_SUCCESS:") {
+                app.fetching = false;
+                app.status_message = Some("Cloning completed successfully".to_string());
+                app.add_repo_path(dest_path.to_string());
+            } else if let Some(tags_data) = msg.strip_prefix("REMOTE_TAGS:") {
                 let tags = repo::deserialize_tags(tags_data);
                 if let Some(repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
                     info.remote_tags = tags;
