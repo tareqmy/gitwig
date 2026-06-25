@@ -85,3 +85,4 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Add fzf as dependency**
 - [ ] **Git clone**
 - [ ] **Per Repository rule**
+- [ ] **For large repo load time is high**

@@ -2108,6 +2108,22 @@ fn draw_input_status(f: &mut Frame, area: Rect, verb: &str, buffer: &str) {
     f.set_cursor_position(Position::new(cursor_x, area.y));
 }
 
+fn wrap_str(s: &str, max_width: usize) -> Vec<String> {
+    if s.is_empty() {
+        return vec![String::new()];
+    }
+    let mut chunks = Vec::new();
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let end = (i + max_width).min(chars.len());
+        chunks.push(chars[i..end].iter().collect());
+        i = end;
+    }
+    chunks
+}
+
+#[allow(clippy::needless_range_loop)]
 fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     let popup_area = centered_rect(65, 75, area);
 
@@ -2130,24 +2146,19 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     let inner_rect = block.inner(popup_area);
 
-    // Calculate scroll offset based on the selected setting to keep it visible
-    let total_height = 10 * 3; // 10 items, 3 lines each
-    let viewport_height = inner_rect.height as usize;
-    let scroll_y = if viewport_height >= total_height {
-        0
-    } else {
-        let item_center = app.settings_selected_index * 3 + 1;
-        let half_viewport = viewport_height / 2;
-        let target_scroll = item_center.saturating_sub(half_viewport);
-        let max_scroll = total_height.saturating_sub(viewport_height);
-        target_scroll.min(max_scroll)
-    };
+    let available_text_width = (inner_rect.width as usize).saturating_sub(2);
 
-    let mut items = Vec::new();
+    // First pass: compute chunks and item layout
+    let mut items_data = Vec::new();
+    let mut current_line = 0;
+    let mut item_starts = [0; 10];
+
+    let mut selected_val_chunks_len = 1;
+    let mut selected_last_chunk_char_count = 0;
+    let mut selected_val_offset = 11;
 
     for i in 0..10 {
         let is_selected = app.settings_selected_index == i;
-
         let label = match i {
             0 => "Poll Interval (ms)",
             1 => "Sort By",
@@ -2250,9 +2261,105 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             _ => String::new(),
         };
 
+        let val_offset = if is_selected && app.settings_editing {
+            11
+        } else {
+            5
+        };
+        let val_width = available_text_width.saturating_sub(val_offset).max(10);
+        let val_chunks = if i == 8 {
+            let mut lines = Vec::new();
+            let mut current_line = String::new();
+            let parts: Vec<&str> = val_str.split(',').collect();
+            for (idx, part) in parts.iter().enumerate() {
+                let suffix = if idx + 1 < parts.len() { "," } else { "" };
+                let item = format!("{}{}", part, suffix);
+                
+                if current_line.chars().count() + item.chars().count() > val_width {
+                    if !current_line.is_empty() {
+                        lines.push(current_line);
+                        current_line = String::new();
+                    }
+                    if item.chars().count() > val_width {
+                        let mut sub_chunks = wrap_str(&item, val_width);
+                        if let Some(last) = sub_chunks.pop() {
+                            current_line = last;
+                        }
+                        lines.extend(sub_chunks);
+                    } else {
+                        current_line = item;
+                    }
+                } else {
+                    current_line.push_str(&item);
+                }
+            }
+            if !current_line.is_empty() {
+                lines.push(current_line);
+            }
+            if lines.is_empty() {
+                vec![String::new()]
+            } else {
+                lines
+            }
+        } else {
+            wrap_str(&val_str, val_width)
+        };
+
+        let desc_offset = 5;
+        let desc_width = available_text_width.saturating_sub(desc_offset).max(10);
+        let desc_chunks = wrap_str(desc, desc_width);
+
+        item_starts[i] = current_line;
+        let item_height = 1 + val_chunks.len() + desc_chunks.len() + 1; // label + value + desc + spacer
+        current_line += item_height;
+
+        if is_selected {
+            selected_val_chunks_len = val_chunks.len();
+            selected_last_chunk_char_count =
+                val_chunks.last().map(|c| c.chars().count()).unwrap_or(0);
+            selected_val_offset = val_offset;
+        }
+
+        items_data.push((label, is_selected, val_chunks, desc_chunks, val_offset));
+    }
+
+    let total_height = current_line;
+    let viewport_height = inner_rect.height as usize;
+    let mut scroll_y = if viewport_height >= total_height {
+        0
+    } else {
+        let sel_idx = app.settings_selected_index;
+        let sel_start = item_starts[sel_idx];
+        let sel_height = if sel_idx < 9 {
+            item_starts[sel_idx + 1] - sel_start
+        } else {
+            total_height - sel_start
+        };
+        let item_center = sel_start + sel_height / 2;
+        let half_viewport = viewport_height / 2;
+        let target_scroll = item_center.saturating_sub(half_viewport);
+        let max_scroll = total_height.saturating_sub(viewport_height);
+        target_scroll.min(max_scroll)
+    };
+
+    if app.settings_editing && app.settings_selected_index != 3 {
+        let sel_idx = app.settings_selected_index;
+        let cursor_line = item_starts[sel_idx] + 1 + (selected_val_chunks_len - 1);
+        if cursor_line < scroll_y {
+            scroll_y = cursor_line;
+        } else if cursor_line >= scroll_y + viewport_height {
+            scroll_y = cursor_line.saturating_sub(viewport_height).saturating_add(1);
+        }
+    }
+
+    let mut items = Vec::new();
+    for (i, (label, is_selected, val_chunks, desc_chunks, val_offset)) in
+        items_data.into_iter().enumerate()
+    {
         let prefix = if is_selected { " > " } else { "   " };
 
-        let mut line_spans = vec![
+        // Line 1: Label line
+        items.push(Line::from(vec![
             Span::styled(
                 prefix,
                 if is_selected {
@@ -2262,28 +2369,34 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
                 },
             ),
             Span::styled(
-                format!("{:<20}", label),
+                label,
                 if is_selected {
-                    accent_style()
+                    accent_style().add_modifier(Modifier::BOLD)
                 } else {
                     primary_style()
                 },
             ),
-        ];
+        ]));
 
+        // Line 2: First line of value (indented by val_offset)
+        let mut val_line_spans = Vec::new();
         if is_selected && app.settings_editing {
-            let label = if i == 3 { " [Select]: " } else { " [Edit]: " };
-            line_spans.push(Span::styled(label, muted_style()));
-            line_spans.push(Span::styled(
-                val_str,
+            let label_edit = if i == 3 {
+                "   [Select]: "
+            } else {
+                "   [Edit]: "
+            };
+            val_line_spans.push(Span::styled(label_edit, muted_style()));
+            val_line_spans.push(Span::styled(
+                val_chunks[0].clone(),
                 Style::default()
                     .fg(ACCENT())
                     .add_modifier(Modifier::UNDERLINED),
             ));
         } else {
-            line_spans.push(Span::styled(" : ", muted_style()));
-            line_spans.push(Span::styled(
-                val_str,
+            val_line_spans.push(Span::styled("   : ", muted_style()));
+            val_line_spans.push(Span::styled(
+                val_chunks[0].clone(),
                 if is_selected {
                     accent_style()
                 } else {
@@ -2291,13 +2404,36 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
                 },
             ));
         }
+        items.push(Line::from(val_line_spans));
 
-        items.push(Line::from(line_spans));
-        items.push(Line::from(vec![
-            Span::raw("     "),
-            Span::styled(desc, muted_style()),
-        ]));
-        items.push(Line::from("")); // spacer
+        // Subsequent lines of the value (indented by val_offset spaces)
+        for chunk in val_chunks.iter().skip(1) {
+            let spaces = " ".repeat(val_offset);
+            let span = Span::styled(
+                chunk.clone(),
+                if is_selected && app.settings_editing {
+                    Style::default()
+                        .fg(ACCENT())
+                        .add_modifier(Modifier::UNDERLINED)
+                } else if is_selected {
+                    accent_style()
+                } else {
+                    Style::default()
+                },
+            );
+            items.push(Line::from(vec![Span::raw(spaces), span]));
+        }
+
+        // Description lines (indented by 5 spaces)
+        for chunk in desc_chunks {
+            items.push(Line::from(vec![
+                Span::raw("     "),
+                Span::styled(chunk, muted_style()),
+            ]));
+        }
+
+        // Spacer
+        items.push(Line::from(""));
     }
 
     let paragraph = Paragraph::new(items)
@@ -2313,10 +2449,9 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         let dropdown_height = (app.settings_theme_list.len() + 2) as u16;
 
         // Position it near the theme name row
-        // Theme name row index is 3, so its relative y coordinate starts at 9
-        // Adjusted by scroll_y
+        let theme_row_y = item_starts[3] as u16;
         let dropdown_x = inner_rect.x + 25;
-        let dropdown_y = (inner_rect.y + 10).saturating_sub(scroll_y as u16);
+        let dropdown_y = (inner_rect.y + theme_row_y + 2).saturating_sub(scroll_y as u16);
 
         let dropdown_area = Rect::new(
             dropdown_x.min(area.right().saturating_sub(dropdown_width)),
@@ -2356,10 +2491,17 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     }
 
     if app.settings_editing && app.settings_selected_index != 3 {
-        let cursor_y = inner_rect.y
-            + ((app.settings_selected_index * 3) as u16).saturating_sub(scroll_y as u16);
-        let cursor_x = inner_rect.x + 1 + 32 + app.input_buffer.chars().count() as u16;
-        f.set_cursor_position(Position::new(cursor_x, cursor_y));
+        let sel_idx = app.settings_selected_index;
+        let cursor_line = item_starts[sel_idx] + 1 + (selected_val_chunks_len - 1);
+        
+        if cursor_line >= scroll_y && cursor_line < scroll_y + viewport_height {
+            let cursor_y = (inner_rect.y + cursor_line as u16).saturating_sub(scroll_y as u16);
+            let cursor_x = inner_rect.x
+                + 1
+                + selected_val_offset as u16
+                + selected_last_chunk_char_count.saturating_sub(1) as u16;
+            f.set_cursor_position(Position::new(cursor_x, cursor_y));
+        }
     }
 }
 
@@ -3398,5 +3540,21 @@ mod tests {
                 .iter()
                 .any(|label| label.contains("Delete [d]"))
         );
+    }
+
+    #[test]
+    fn test_wrap_str() {
+        let wrapped = wrap_str("node_modules,target,build,dist", 10);
+        assert_eq!(
+            wrapped,
+            vec![
+                "node_modul".to_string(),
+                "es,target,".to_string(),
+                "build,dist".to_string(),
+            ]
+        );
+
+        let wrapped_empty = wrap_str("", 10);
+        assert_eq!(wrapped_empty, vec!["".to_string()]);
     }
 }
