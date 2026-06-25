@@ -5797,7 +5797,9 @@ where
         ))? {
             match event::read()? {
                 Event::Key(key) => {
-                    if !input::handle_key(&mut app, key, visible_count) {
+                    if key.kind == crossterm::event::KeyEventKind::Press
+                        && !input::handle_key(&mut app, key, visible_count)
+                    {
                         return Ok(());
                     }
                 }
