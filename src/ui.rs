@@ -200,7 +200,9 @@ pub fn draw(
     // Always reserve the bottom row for the status bar, regardless of mode.
     let (content_area, status_chunk) = content_and_status_chunks(inner_area, app.status_height());
 
-    if matches!(
+    if app.loading_repo_path.is_some() {
+        draw_loading_screen(f, content_area, app);
+    } else if matches!(
         app.mode,
         Mode::Detail
             | Mode::DetailHelp
@@ -684,6 +686,29 @@ impl StatusEntry {
 }
 
 fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
+    if app.loading_repo_path.is_some() {
+        let msg_spans = vec![Span::styled(
+            "Loading Repository...  ",
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+        )];
+        let entries_data = [("Cancel", "Esc")];
+        let mut entries = Vec::new();
+        for (i, (label, key)) in entries_data.iter().enumerate() {
+            let mut spans = Vec::new();
+            if i > 0 {
+                spans.push(Span::styled(" ", muted_style()));
+            }
+            spans.push(Span::raw((*label).to_string()));
+            spans.push(Span::raw(" "));
+            spans.push(Span::styled("[", muted_style()));
+            spans.push(Span::styled((*key).to_string(), accent_style()));
+            spans.push(Span::styled("]", muted_style()));
+            entries.push(StatusEntry::new(spans));
+        }
+        draw_status_layout(f, area, Some(msg_spans), entries, app);
+        return;
+    }
+
     match &app.mode {
         Mode::Settings => {
             let msg_spans = if let Some(msg) = &app.status_message {
@@ -3259,6 +3284,82 @@ fn draw_debug_logs(f: &mut Frame, app: &App, area: Rect) {
     let paragraph = Paragraph::new(visible_lines).style(Style::default());
 
     f.render_widget(paragraph, inner_rect);
+}
+
+fn draw_loading_screen(f: &mut Frame, area: Rect, app: &App) {
+    let popup_area = centered_rect_fixed(60, 7, area);
+
+    let border_style = Style::default().fg(ACCENT());
+
+    let loading_msg = if let Some(path) = &app.loading_repo_path {
+        let repo_name = std::path::Path::new(path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(path);
+        format!("Loading repository '{}'...", repo_name)
+    } else {
+        "Loading repository...".to_string()
+    };
+
+    let spinner_chars = if app.config.compatibility_mode {
+        vec!["|", "/", "-", "\\"]
+    } else {
+        vec!["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+    };
+
+    let millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let spinner = spinner_chars[(millis / 100) as usize % spinner_chars.len()];
+
+    let title = Line::from(vec![
+        Span::raw(" ⌛ "),
+        Span::styled(
+            "Please Wait",
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(2));
+
+    let inner = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // spacer
+            Constraint::Length(1), // message + spinner
+            Constraint::Length(1), // spacer
+            Constraint::Length(1), // cancel hint
+        ])
+        .split(inner);
+
+    let text_line = Line::from(vec![
+        Span::raw(format!("{}  ", loading_msg)),
+        Span::styled(
+            spinner,
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+        ),
+    ])
+    .alignment(Alignment::Center);
+
+    let cancel_line = Line::from(vec![
+        Span::styled("Press ", muted_style()),
+        Span::styled("Esc", Style::default().fg(WARNING())),
+        Span::styled(" to cancel", muted_style()),
+    ])
+    .alignment(Alignment::Center);
+
+    f.render_widget(Paragraph::new(text_line), chunks[1]);
+    f.render_widget(Paragraph::new(cancel_line), chunks[3]);
 }
 
 #[cfg(test)]

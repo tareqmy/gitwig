@@ -36,6 +36,14 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         return true;
     }
 
+    if app.loading_repo_path.is_some() {
+        // Allow Esc / q / Q to cancel repository loading and go back.
+        if matches!(code, KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q')) {
+            app.close_detail();
+        }
+        return true;
+    }
+
     // Toggle status bar expanded mode with '.' (except in text input fields)
     let is_text_input = matches!(
         app.mode,

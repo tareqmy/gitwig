@@ -382,6 +382,9 @@ pub struct App {
     pub remote_action_target: Option<String>,
     pub last_staging_focus: DetailSection,
     pub force_fzf_missing: Option<bool>,
+    pub loading_repo_path: Option<String>,
+    pub detail_tx: std::sync::mpsc::Sender<(String, repo::ItemDetail)>,
+    pub detail_rx: std::sync::mpsc::Receiver<(String, repo::ItemDetail)>,
 }
 
 #[derive(Clone, Debug)]
@@ -422,6 +425,7 @@ impl App {
             .map(|s| repo::inspect_summary(s))
             .collect();
         let (tx, rx) = std::sync::mpsc::channel();
+        let (detail_tx, detail_rx) = std::sync::mpsc::channel();
         let mut app = Self {
             original_items,
             config,
@@ -526,6 +530,9 @@ impl App {
             remote_action_target: None,
             last_staging_focus: DetailSection::Staged,
             force_fzf_missing: None,
+            loading_repo_path: None,
+            detail_tx,
+            detail_rx,
         };
 
         if app.config.sort_by != SortOrder::Custom {
@@ -974,7 +981,15 @@ impl App {
                 }
             }
 
-            self.current_detail = Some(self.inspect_repo_detail(&item));
+            self.loading_repo_path = Some(item.clone());
+            let tx = self.detail_tx.clone();
+            let item_clone = item.clone();
+            let max_commits = self.config.max_commits;
+            std::thread::spawn(move || {
+                let detail = repo::inspect_detail(&item_clone, max_commits);
+                let _ = tx.send((item_clone, detail));
+            });
+
             self.detail_focus = DetailSection::Commits;
             self.commit_selection = 0;
             self.file_selection = 0;
@@ -993,12 +1008,10 @@ impl App {
             self.file_list_selection = 0;
             self.file_content_scroll = 0;
             self.expanded_folders.clear();
-            self.rebuild_visible_files();
             self.detail_tab = 0;
             self.graph_scroll = 0;
             self.inspect_full_diff = false;
             self.mode = Mode::Detail;
-            self.refresh_file_diff();
         }
     }
 
@@ -3743,6 +3756,7 @@ impl App {
     pub fn close_detail(&mut self) {
         self.current_detail = None;
         self.commit_search_query = None;
+        self.loading_repo_path = None;
         self.mode = Mode::Normal;
     }
 
@@ -5381,6 +5395,15 @@ where
                         app.fetch_remote_tags(false);
                     }
                 }
+            }
+        }
+
+        while let Ok((path, detail)) = app.detail_rx.try_recv() {
+            if Some(&path) == app.loading_repo_path.as_ref() {
+                app.current_detail = Some(detail);
+                app.loading_repo_path = None;
+                app.rebuild_visible_files();
+                app.refresh_file_diff();
             }
         }
 
@@ -8502,8 +8525,20 @@ mod tests {
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
         assert!(handled);
 
-        // Verify we opened detail view
+        // Verify we opened detail view in loading state
         assert_eq!(app.mode, Mode::Detail);
+        assert_eq!(app.loading_repo_path.as_deref(), Some("a_repo"));
+
+        // Wait for background thread message
+        let (path, detail) = app.detail_rx.recv().unwrap();
+        assert_eq!(path, "a_repo");
+
+        // Manually apply to verify state transition
+        app.current_detail = Some(detail);
+        app.loading_repo_path = None;
+
+        assert_eq!(app.loading_repo_path, None);
+        assert!(app.current_detail.is_some());
     }
 
     #[test]
