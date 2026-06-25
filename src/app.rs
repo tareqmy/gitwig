@@ -3858,6 +3858,10 @@ impl App {
                 self.settings_editing = true;
                 self.input_buffer = self.config.git_app.clone();
             }
+            10 => {
+                self.config.fzf.git_only = !self.config.fzf.git_only;
+                self.persist("FZF Git Only updated");
+            }
             _ => {}
         }
     }
@@ -5223,10 +5227,22 @@ where
                 let start_dir_str = expanded_start_dir.to_string_lossy().into_owned();
                 let start_dir = start_dir_str.replace('\'', "'\\''");
 
-                let cmd = format!(
-                    "if ! command -v fzf >/dev/null 2>&1; then exit 127; fi; (command -v fd >/dev/null 2>&1 && fd . '{}' --type d --max-depth {} {} 2>/dev/null || find '{}' -maxdepth {} {} -type d -print 2>/dev/null) | fzf",
-                    start_dir, max_depth, fd_excludes, start_dir, max_depth, find_prune_clause
-                );
+                let cmd = if app.config.fzf.git_only {
+                    format!(
+                        "if ! command -v fzf >/dev/null 2>&1; then exit 127; fi; (command -v fd >/dev/null 2>&1 && fd -H '^\\.git$' '{}' --max-depth {} {} 2>/dev/null | xargs -I {{}} dirname {{}} || find '{}' -maxdepth {} {} -name .git -type d 2>/dev/null | xargs -I {{}} dirname {{}}) | fzf",
+                        start_dir,
+                        max_depth + 1,
+                        fd_excludes,
+                        start_dir,
+                        max_depth + 1,
+                        find_prune_clause
+                    )
+                } else {
+                    format!(
+                        "if ! command -v fzf >/dev/null 2>&1; then exit 127; fi; (command -v fd >/dev/null 2>&1 && fd . '{}' --type d --max-depth {} {} 2>/dev/null || find '{}' -maxdepth {} {} -type d -print 2>/dev/null) | fzf",
+                        start_dir, max_depth, fd_excludes, start_dir, max_depth, find_prune_clause
+                    )
+                };
 
                 let output = std::process::Command::new("sh")
                     .arg("-c")
@@ -6720,24 +6736,35 @@ mod tests {
         assert!(!app.settings_editing);
         assert_eq!(app.config.git_app, "lazygit");
 
+        // Go down to FZF Git Only (index 10)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.settings_selected_index, 10);
+        assert!(app.config.fzf.git_only);
+
+        // Toggle FZF Git Only
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(!app.config.fzf.git_only);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(app.config.fzf.git_only);
+
         // Test PageUp, PageDown, Home, and End key navigation in Settings Mode
         app.config.page_size = 3;
 
-        // At index 9: PageUp should go to 9 - 3 = 6
+        // At index 10: PageUp should go to 10 - 3 = 7
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.settings_selected_index, 6);
+        assert_eq!(app.settings_selected_index, 7);
 
-        // PageUp should go to 6 - 3 = 3
+        // PageUp should go to 7 - 3 = 4
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.settings_selected_index, 3);
+        assert_eq!(app.settings_selected_index, 4);
 
-        // PageDown should go to 3 + 3 = 6
+        // PageDown should go to 4 + 3 = 7
         crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
-        assert_eq!(app.settings_selected_index, 6);
+        assert_eq!(app.settings_selected_index, 7);
 
-        // End should go to 9
+        // End should go to 10
         crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
-        assert_eq!(app.settings_selected_index, 9);
+        assert_eq!(app.settings_selected_index, 10);
 
         // Home should go to 0
         crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);

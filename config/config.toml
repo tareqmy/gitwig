@@ -39,3 +39,7 @@ start_dir = "~/"
 
 # Directory paths to prune/exclude from fzf scans to keep search fast.
 excludes = []
+
+# If true, fzf repository discovery will filter and show only folders that contain a .git directory.
+git_only = true
+

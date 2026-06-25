@@ -61,6 +61,8 @@ pub struct FzfConfig {
     pub excludes: Vec<String>,
     #[serde(default = "default_fzf_start_dir")]
     pub start_dir: String,
+    #[serde(default = "default_fzf_git_only")]
+    pub git_only: bool,
 }
 
 impl Default for ThemeConfig {
@@ -123,12 +125,16 @@ fn default_fzf_start_dir() -> String {
         })
         .unwrap_or_else(|| "/".to_string())
 }
+fn default_fzf_git_only() -> bool {
+    true
+}
 
 fn default_fzf() -> FzfConfig {
     FzfConfig {
         max_depth: default_fzf_max_depth(),
         excludes: default_fzf_excludes(),
         start_dir: default_fzf_start_dir(),
+        git_only: default_fzf_git_only(),
     }
 }
 
