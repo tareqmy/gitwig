@@ -669,10 +669,10 @@ impl App {
     }
 
     pub fn start_add(&mut self) {
-        crate::debug_log::info("Initiating FZF repository discovery");
-        if !self.is_fzf_installed() {
-            self.error_message =
-                Some("fzf is not installed. Please install fzf to add repositories.".to_string());
+        crate::debug_log::info("Initiating repository add");
+        if !self.config.fzf.enabled || !self.is_fzf_installed() {
+            self.mode = Mode::Adding;
+            self.input_buffer.clear();
         } else {
             self.pending_fzf = true;
         }
@@ -3867,6 +3867,10 @@ impl App {
                 self.config.fzf.git_only = !self.config.fzf.git_only;
                 self.persist("FZF Git Only updated");
             }
+            11 => {
+                self.config.fzf.enabled = !self.config.fzf.enabled;
+                self.persist("Use FZF updated");
+            }
             _ => {}
         }
     }
@@ -4073,8 +4077,10 @@ impl App {
 
     pub fn start_bulk_add(&mut self) {
         crate::debug_log::info("Initiating bulk repository add");
-        if !self.is_fzf_installed() {
-            crate::debug_log::info("FZF not installed, falling back to manual bulk repository add");
+        if !self.config.fzf.enabled || !self.is_fzf_installed() {
+            crate::debug_log::info(
+                "FZF disabled or not installed, falling back to manual bulk repository add",
+            );
             self.mode = Mode::BulkAddInput;
             self.input_buffer.clear();
         } else {
@@ -7020,24 +7026,35 @@ mod tests {
         crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
         assert!(app.config.fzf.git_only);
 
+        // Go down to Use FZF (index 11)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.settings_selected_index, 11);
+        assert!(app.config.fzf.enabled);
+
+        // Toggle Use FZF
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(!app.config.fzf.enabled);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(app.config.fzf.enabled);
+
         // Test PageUp, PageDown, Home, and End key navigation in Settings Mode
         app.config.page_size = 3;
 
-        // At index 10: PageUp should go to 10 - 3 = 7
+        // At index 11: PageUp should go to 11 - 3 = 8
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.settings_selected_index, 7);
+        assert_eq!(app.settings_selected_index, 8);
 
-        // PageUp should go to 7 - 3 = 4
+        // PageUp should go to 8 - 3 = 5
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.settings_selected_index, 4);
+        assert_eq!(app.settings_selected_index, 5);
 
-        // PageDown should go to 4 + 3 = 7
+        // PageDown should go to 5 + 3 = 8
         crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
-        assert_eq!(app.settings_selected_index, 7);
+        assert_eq!(app.settings_selected_index, 8);
 
-        // End should go to 10
+        // End should go to 11
         crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
-        assert_eq!(app.settings_selected_index, 10);
+        assert_eq!(app.settings_selected_index, 11);
 
         // Home should go to 0
         crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
@@ -8301,18 +8318,13 @@ mod tests {
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
         assert!(handled);
         assert!(!app.pending_fzf);
-        assert!(app.error_message.is_some());
-        assert!(
-            app.error_message
-                .as_ref()
-                .unwrap()
-                .contains("fzf is not installed")
-        );
-
-        // Pressing Enter should dismiss the error message
-        let handled_dismiss = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-        assert!(handled_dismiss);
+        assert_eq!(app.mode, Mode::Adding);
         assert!(app.error_message.is_none());
+
+        // Esc should cancel Adding mode
+        let handled_dismiss = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+        assert!(handled_dismiss);
+        assert_eq!(app.mode, Mode::Normal);
 
         // A -> should fallback to BulkAddInput (manual typing)
         let handled_bulk = crate::input::handle_key(&mut app, key_event(KeyCode::Char('A')), 10);

@@ -2255,13 +2255,13 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     // First pass: compute chunks and item layout
     let mut items_data = Vec::new();
     let mut current_line = 0;
-    let mut item_starts = [0; 11];
+    let mut item_starts = [0; 12];
 
     let mut selected_val_chunks_len = 1;
     let mut selected_last_chunk_char_count = 0;
     let mut selected_val_offset = 11;
 
-    for i in 0..11 {
+    for i in 0..12 {
         let is_selected = app.settings_selected_index == i;
         let label = match i {
             0 => "Poll Interval (ms)",
@@ -2275,6 +2275,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             8 => "FZF Exclude Folders",
             9 => "Preferred Git Client",
             10 => "FZF Git Only",
+            11 => "Use FZF",
             _ => "",
         };
 
@@ -2290,6 +2291,9 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             8 => "Comma-separated list of folders/patterns to exclude from FZF search.",
             9 => "External Git application triggered by 'g' key (e.g. gitui or lazygit).",
             10 => "Only scan folders that contain a .git directory.",
+            11 => {
+                "Whether to use FZF for repository discovery. If disabled, manual text input is used."
+            }
             _ => "",
         };
 
@@ -2365,6 +2369,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
                 }
             }
             10 => app.config.fzf.git_only.to_string(),
+            11 => app.config.fzf.enabled.to_string(),
             _ => String::new(),
         };
 
@@ -2405,7 +2410,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     } else {
         let sel_idx = app.settings_selected_index;
         let sel_start = item_starts[sel_idx];
-        let sel_height = if sel_idx < 10 {
+        let sel_height = if sel_idx < 11 {
             item_starts[sel_idx + 1] - sel_start
         } else {
             total_height - sel_start

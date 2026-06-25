@@ -63,6 +63,8 @@ pub struct FzfConfig {
     pub start_dir: String,
     #[serde(default = "default_fzf_git_only")]
     pub git_only: bool,
+    #[serde(default = "default_fzf_enabled")]
+    pub enabled: bool,
 }
 
 impl Default for ThemeConfig {
@@ -128,6 +130,9 @@ fn default_fzf_start_dir() -> String {
 fn default_fzf_git_only() -> bool {
     true
 }
+fn default_fzf_enabled() -> bool {
+    true
+}
 
 fn default_fzf() -> FzfConfig {
     FzfConfig {
@@ -135,6 +140,7 @@ fn default_fzf() -> FzfConfig {
         excludes: default_fzf_excludes(),
         start_dir: default_fzf_start_dir(),
         git_only: default_fzf_git_only(),
+        enabled: default_fzf_enabled(),
     }
 }
 

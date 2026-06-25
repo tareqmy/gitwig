@@ -152,7 +152,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     KeyCode::Esc => app.mode = Mode::Normal,
                     KeyCode::Char('q') if !app.settings_editing => app.mode = Mode::Normal,
                     KeyCode::Down if !app.settings_editing => {
-                        if app.settings_selected_index + 1 < 11 {
+                        if app.settings_selected_index + 1 < 12 {
                             app.settings_selected_index += 1;
                         }
                     }
@@ -168,13 +168,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     }
                     KeyCode::PageDown if !app.settings_editing => {
                         app.settings_selected_index =
-                            (app.settings_selected_index + app.config.page_size).min(10);
+                            (app.settings_selected_index + app.config.page_size).min(11);
                     }
                     KeyCode::Home if !app.settings_editing => {
                         app.settings_selected_index = 0;
                     }
                     KeyCode::End if !app.settings_editing => {
-                        app.settings_selected_index = 10;
+                        app.settings_selected_index = 11;
                     }
                     KeyCode::Enter if app.settings_editing => app.commit_settings_edit(),
                     KeyCode::Enter => app.toggle_or_edit_setting(),
@@ -337,10 +337,20 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Enter => app.commit_bulk_add(),
             KeyCode::Backspace => app.input_backspace(),
             KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                app.start_bulk_add();
+                if app.config.fzf.enabled {
+                    app.start_bulk_add();
+                } else {
+                    app.error_message =
+                        Some("FZF is disabled in settings. Enable it first.".to_string());
+                }
             }
             KeyCode::Tab => {
-                app.start_bulk_add();
+                if app.config.fzf.enabled {
+                    app.start_bulk_add();
+                } else {
+                    app.error_message =
+                        Some("FZF is disabled in settings. Enable it first.".to_string());
+                }
             }
             KeyCode::Char(c) => app.input_char(c),
             _ => {}

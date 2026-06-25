@@ -43,3 +43,6 @@ excludes = []
 # If true, fzf repository discovery will filter and show only folders that contain a .git directory.
 git_only = true
 
+# If true, fzf is used for repository addition and bulk addition. If false, manual text input is used.
+enabled = true
+
