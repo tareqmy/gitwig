@@ -5352,11 +5352,10 @@ where
                             app.refresh_selected_status();
                         }
                         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                            app.status_message = Some(format!("{} is not installed", git_app_name));
+                            app.set_error(format!("{} is not found in the system", git_app_name));
                         }
                         Err(e) => {
-                            app.status_message =
-                                Some(format!("Could not run {}: {}", git_app_name, e));
+                            app.set_error(format!("Could not run {}: {}", git_app_name, e));
                         }
                     }
                 }
