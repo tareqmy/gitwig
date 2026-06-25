@@ -133,6 +133,9 @@ fn default_fzf_git_only() -> bool {
 fn default_fzf_enabled() -> bool {
     true
 }
+fn default_compatibility_mode() -> bool {
+    true
+}
 
 fn default_fzf() -> FzfConfig {
     FzfConfig {
@@ -183,6 +186,83 @@ pub struct Config {
     /// Preferred Git application (e.g. gitui or lazygit).
     #[serde(default = "default_git_app")]
     pub git_app: String,
+    /// Enable compatibility mode to use ASCII/simple symbols instead of complex Unicode.
+    #[serde(default = "default_compatibility_mode")]
+    pub compatibility_mode: bool,
+}
+
+impl Config {
+    pub fn sym(&self, key: &str) -> &'static str {
+        if self.compatibility_mode {
+            match key {
+                "branch" => "* ",
+                "git_repo" => "G  ",
+                "arrow_down" => "v",
+                "arrow_right" => ">",
+                "folder_tree_expanded" => "v ",
+                "folder_tree_collapsed" => "> ",
+                "file_tree" => "  -  ",
+                "folder" => "[D]",
+                "file" => "[F]",
+                "pinned" => "[P]",
+                "action" => "[!]",
+                "warning" => "! ",
+                "close" => "x",
+                "bullet_empty" => "o",
+                "bullet_filled" => "*",
+                "star" => "*",
+                "block" => "#",
+                "bar" => "|",
+                "esc" => "ESC",
+                "backspace" => "Backspace",
+                "tab" => "Tab",
+                "shift" => "Shift",
+                "enter" => "Enter",
+                "up" => "^",
+                "down" => "v",
+                "page_up" => "PgUp",
+                "page_down" => "PgDn",
+                "transfer" => "<->",
+                "up_down" => "^/v",
+                "selection_mark" => "> ",
+                _ => "",
+            }
+        } else {
+            match key {
+                "branch" => " ",
+                "git_repo" => "⎇  ",
+                "arrow_down" => "▼",
+                "arrow_right" => "▶",
+                "folder_tree_expanded" => "▼ ",
+                "folder_tree_collapsed" => "> ",
+                "file_tree" => "  📄 ",
+                "folder" => "📁 ",
+                "file" => "📄 ",
+                "pinned" => "📌 ",
+                "action" => "⚡ ",
+                "warning" => "⚠ ",
+                "close" => "✕",
+                "bullet_empty" => "○",
+                "bullet_filled" => "●",
+                "star" => "★",
+                "block" => "█",
+                "bar" => "▍",
+                "esc" => "⎋",
+                "backspace" => "⌫",
+                "tab" => "⇥",
+                "shift" => "⇧",
+                "enter" => "↵",
+                "up" => "↑",
+                "down" => "↓",
+                "page_up" => "⇞",
+                "page_down" => "⇟",
+                "transfer" => "⇆",
+                "up_down" => "↑↓",
+                "selection_mark" => "▌ ",
+                _ => "",
+            }
+        }
+    }
 }
 
 /// Returns `~/.gitwig/`, the canonical Gitwig data directory.
@@ -263,6 +343,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 theme: fallback_theme,
                 fzf: default_fzf(),
                 git_app: default_git_app(),
+                compatibility_mode: true,
             },
             path,
         ));
@@ -342,6 +423,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         theme: default_theme(),
         fzf: default_fzf(),
         git_app: default_git_app(),
+        compatibility_mode: true,
     };
     save_config(&fallback, &canonical)?;
 

@@ -159,7 +159,7 @@ For a **git repository**, the **Workspace** tab is split into multiple rounded p
 
 The **Files** tab displays all tracked files in the repository as an interactive directory tree on the left, and a preview panel on the right.
 - Directory nodes are prefixed with `>` when collapsed and `▼` when expanded.
-- File nodes are prefixed with `🗎`.
+- File nodes are prefixed with `📄`.
 - **Expand Folder:** Select a collapsed directory and press `>` or `.` or `Right-Arrow`.
 - **Collapse Folder:** Select an expanded directory and press `<` or `,` or `Left-Arrow`.
 - **Preview Panel:** Selecting a file displays its content (up to 100 KB) on the right; selecting a directory displays a list of files and folders directly inside it.
@@ -280,6 +280,9 @@ poll_interval_ms = 100
 # Sorting preferences for the main page list
 sort_by = "custom"
 sort_reverse = false
+
+# Enable compatibility mode to use simple ASCII symbols
+compatibility_mode = false
 ```
 
 ### Config keys
@@ -293,6 +296,7 @@ sort_reverse = false
 | `sort_by` | `String` | `"custom"` | Main list sorting preference (`"custom"`, `"alphabetical"`, `"recent_visit"`, `"latest_changes"`). Managed by `o`. |
 | `sort_reverse` | `Boolean` | `false` | Inverts the main list sorting direction (ascending vs. descending). Managed by `O`. |
 | `theme` | `String` | `"default"` | Active theme configuration name. Managed in Settings `s`. |
+| `compatibility_mode` | `Boolean` | `false` | Enable to use simple ASCII symbols instead of rich Unicode icons/emojis (prevents layout alignment issues in restricted terminals like RustRover's built-in terminal). |
 | `fzf.max_depth` | `Integer` | `3` | Maximum directory depth to search for git repositories during discovery. |
 | `fzf.start_dir` | `String` | `"$HOME"` | Starting directory for interactive repository discovery via FZF. |
 | `fzf.excludes` | `[String]` | `[".git", "node_modules", "target"]` | Directory names excluded from FZF discovery. |

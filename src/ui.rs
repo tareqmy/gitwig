@@ -113,8 +113,6 @@ pub fn update_theme(theme: &crate::config::ThemeConfig) {
 /// for the unusual case of 3-digit counts on every indicator.
 const STATUS_ZONE_WIDTH: u16 = 22;
 
-/// Marker shown on the left edge of the selected card.
-const SELECTION_MARK: &str = "▌ ";
 const UNSELECTED_INDENT: &str = "  ";
 
 /// "Muted" / secondary text. Uses the terminal's own foreground so it stays
@@ -306,7 +304,7 @@ pub fn draw(
     draw_status_bar(f, app, status_chunk);
 
     if matches!(app.mode, Mode::Help) {
-        draw_help_overlay(f, area, app.help_scroll);
+        draw_help_overlay(f, app, area, app.help_scroll);
     }
 
     if matches!(
@@ -317,7 +315,7 @@ pub fn draw(
     }
 
     if let Some(ref err) = app.error_message {
-        draw_error_popup(f, area, err);
+        draw_error_popup(f, app, area, err);
     } else if app.fetching {
         draw_progress_popup(f, area, app);
     }
@@ -432,7 +430,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         };
 
         let (mark, mark_style, text_style) = if is_selected {
-            (SELECTION_MARK, border_style, primary_style())
+            (app.sym("selection_mark"), border_style, primary_style())
         } else {
             (UNSELECTED_INDENT, Style::default(), Style::default())
         };
@@ -477,7 +475,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         let mut spans = vec![Span::styled(mark, mark_style)];
         if is_git {
             spans.push(Span::styled(
-                "⎇  ",
+                app.sym("git_repo"),
                 muted_style().add_modifier(Modifier::BOLD),
             ));
         }
@@ -486,7 +484,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         f.render_widget(Paragraph::new(name_line), name_cols[0]);
 
         if is_pinned {
-            let pin_line = Line::from(Span::styled("📌", Style::default().fg(WARNING())))
+            let pin_line = Line::from(Span::styled(app.sym("pinned").trim(), Style::default().fg(WARNING())))
                 .alignment(Alignment::Right);
             f.render_widget(Paragraph::new(pin_line), name_cols[1]);
         }
@@ -504,14 +502,14 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         let branch_line = match branch {
             Some(b) => Line::from(vec![
                 Span::raw(UNSELECTED_INDENT), // align with item text
-                Span::styled("  ", muted_style()),
+                Span::styled(format!("{} ", app.sym("branch")), muted_style()),
                 Span::styled(b, Style::default().fg(ACCENT())),
             ]),
             None => Line::from(""),
         };
         f.render_widget(Paragraph::new(branch_line), row1_cols[0]);
 
-        let status_line = status_indicator_line(status).alignment(Alignment::Right);
+        let status_line = status_indicator_line(app, status).alignment(Alignment::Right);
         f.render_widget(Paragraph::new(status_line), row1_cols[1]);
     }
 }
@@ -605,34 +603,34 @@ fn draw_search_empty_state(f: &mut Frame, area: Rect, query: &str) {
 /// compact set of `N+` (staged), `N!` (modified), `N?` (untracked),
 /// `N↑` (commits ahead), `N↓` (commits behind) suffixes. Only non-zero
 /// counts are shown so the indicator stays compact for the common case.
-fn status_indicator_line(status: &ItemStatus) -> Line<'static> {
+fn status_indicator_line(app: &App, status: &ItemStatus) -> Line<'static> {
     match status {
         ItemStatus::Missing => Line::from(vec![
-            Span::styled("✕", Style::default().fg(DANGER())),
+            Span::styled(app.sym("close"), Style::default().fg(DANGER())),
             Span::raw(" "),
             Span::styled("missing", muted_style()),
         ]),
         ItemStatus::Directory => Line::from(vec![
-            Span::styled("○", Style::default().fg(WARNING())),
+            Span::styled(app.sym("bullet_empty"), Style::default().fg(WARNING())),
             Span::raw(" "),
             Span::styled("dir", muted_style()),
         ]),
         ItemStatus::GitRepo(None) => Line::from(vec![
-            Span::styled("●", Style::default().fg(SUCCESS())),
+            Span::styled(app.sym("bullet_filled"), Style::default().fg(SUCCESS())),
             Span::raw(" "),
             Span::styled("?", muted_style()),
         ]),
-        ItemStatus::GitRepo(Some(summary)) => repo_indicator_line(summary),
+        ItemStatus::GitRepo(Some(summary)) => repo_indicator_line(app, summary),
     }
 }
 
-fn repo_indicator_line(summary: &RepoSummary) -> Line<'static> {
+fn repo_indicator_line(app: &App, summary: &RepoSummary) -> Line<'static> {
     let dot_color = if summary.conflicted > 0 {
         DANGER()
     } else {
         SUCCESS()
     };
-    let mut spans = vec![Span::styled("●", Style::default().fg(dot_color))];
+    let mut spans = vec![Span::styled(app.sym("bullet_filled"), Style::default().fg(dot_color))];
     if summary.unchanged() {
         spans.push(Span::raw(" "));
         spans.push(Span::styled("clean", muted_style()));
@@ -644,9 +642,9 @@ fn repo_indicator_line(summary: &RepoSummary) -> Line<'static> {
         (summary.staged, "+", Style::default().fg(ACCENT())),
         (summary.modified, "!", Style::default().fg(WARNING())),
         (summary.untracked, "?", muted_style()),
-        (summary.conflicted, "⚡", Style::default().fg(DANGER())),
-        (summary.ahead, "↑", primary_style()),
-        (summary.behind, "↓", Style::default().fg(WARNING())),
+        (summary.conflicted, app.sym("action").trim(), Style::default().fg(DANGER())),
+        (summary.ahead, app.sym("up"), primary_style()),
+        (summary.behind, app.sym("down"), Style::default().fg(WARNING())),
     ];
     for (count, symbol, style) in parts {
         if count > 0 {
@@ -2297,13 +2295,13 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     // First pass: compute chunks and item layout
     let mut items_data = Vec::new();
     let mut current_line = 0;
-    let mut item_starts = [0; 12];
+    let mut item_starts = [0; 13];
 
     let mut selected_val_chunks_len = 1;
     let mut selected_last_chunk_char_count = 0;
     let mut selected_val_offset = 11;
 
-    for i in 0..12 {
+    for i in 0..13 {
         let is_selected = app.settings_selected_index == i;
         let label = match i {
             0 => "Poll Interval (ms)",
@@ -2318,6 +2316,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             9 => "Preferred Git Client",
             10 => "FZF Git Only",
             11 => "Use FZF",
+            12 => "Compatibility Mode",
             _ => "",
         };
 
@@ -2336,6 +2335,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             11 => {
                 "Whether to use FZF for repository discovery. If disabled, manual text input is used."
             }
+            12 => "Use simple ASCII symbols instead of complex Unicode emojis/icons to avoid layout breakage in some terminals.",
             _ => "",
         };
 
@@ -2412,6 +2412,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             }
             10 => app.config.fzf.git_only.to_string(),
             11 => app.config.fzf.enabled.to_string(),
+            12 => app.config.compatibility_mode.to_string(),
             _ => String::new(),
         };
 
@@ -2629,19 +2630,51 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     }
 }
 
-fn draw_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
+fn draw_help_overlay(f: &mut Frame, app: &App, area: Rect, scroll: usize) {
     let popup_area = centered_rect(60, 70, area);
 
     let key_width = HELP_LINES
         .iter()
-        .map(|(k, _)| k.chars().count())
+        .map(|(k, _)| {
+            let mut display_key = k.to_string();
+            if app.config.compatibility_mode {
+                display_key = display_key
+                    .replace("↑", "^")
+                    .replace("↓", "v")
+                    .replace("⇟", "PgDn")
+                    .replace("⇞", "PgUp")
+                    .replace("↵", "Enter")
+                    .replace("→", ">")
+                    .replace("⎋", "Esc")
+                    .replace("⌫", "Backspace")
+                    .replace("⇥", "Tab")
+                    .replace("⇧⇥", "Shift+Tab")
+                    .replace("⇧", "Shift+");
+            }
+            display_key.chars().count()
+        })
         .max()
         .unwrap_or(0);
 
     let mut lines: Vec<Line> = Vec::with_capacity(HELP_LINES.len() + 8);
     lines.push(Line::from(""));
     for (key, desc) in HELP_LINES {
-        let padded_key = format!("{:>width$}", key, width = key_width);
+        let mut display_key = key.to_string();
+        if app.config.compatibility_mode {
+            display_key = display_key
+                .replace("↑", "^")
+                .replace("↓", "v")
+                .replace("⇟", "PgDn")
+                .replace("⇞", "PgUp")
+                .replace("↵", "Enter")
+                .replace("→", ">")
+                .replace("⎋", "Esc")
+                .replace("⌫", "Backspace")
+                .replace("⇥", "Tab")
+                .replace("⇧⇥", "Shift+Tab")
+                .replace("⇧", "Shift+");
+        }
+        let padded_key = format!("{:>width$}", display_key, width = key_width);
         lines.push(Line::from(vec![
             Span::raw("  "),
             Span::styled(padded_key, accent_style()),
@@ -2654,29 +2687,29 @@ fn draw_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
         Span::raw("  "),
         Span::styled("Status indicators", primary_style()),
     ]));
-    let pad_symbol = |sym: &'static str, color: Color, label: &'static str, desc: &'static str| {
+    let pad_symbol = |sym: &str, color: Color, label: &'static str, desc: &'static str| {
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(sym, Style::default().fg(color)),
+            Span::styled(sym.to_string(), Style::default().fg(color)),
             Span::raw(" "),
             Span::styled(format!("{:<8}", label), muted_style()),
             Span::raw(desc),
         ])
     };
     lines.push(pad_symbol(
-        "●",
+        app.sym("bullet_filled"),
         SUCCESS(),
         "git",
         "Directory is a git repository",
     ));
     lines.push(pad_symbol(
-        "○",
+        app.sym("bullet_empty"),
         WARNING(),
         "dir",
         "Directory exists but is not a git repo",
     ));
     lines.push(pad_symbol(
-        "✕",
+        app.sym("close"),
         DANGER(),
         "missing",
         "Path does not exist or is not a directory",
@@ -2686,7 +2719,7 @@ fn draw_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
         Span::raw("  "),
         Span::styled("Repo state suffixes", primary_style()),
     ]));
-    let pad_suffix = |sym: &'static str, style: Style, desc: &'static str| {
+    let pad_suffix = |sym: &str, style: Style, desc: &'static str| {
         Line::from(vec![
             Span::raw("  "),
             Span::styled(format!("N{}", sym), style),
@@ -2706,12 +2739,12 @@ fn draw_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
     ));
     lines.push(pad_suffix("?", muted_style(), "untracked files"));
     lines.push(pad_suffix(
-        "↑",
+        app.sym("up"),
         primary_style(),
         "commits ahead of upstream (need push)",
     ));
     lines.push(pad_suffix(
-        "↓",
+        app.sym("down"),
         Style::default().fg(WARNING()),
         "commits behind upstream",
     ));
@@ -2928,8 +2961,12 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
         ])
         .split(inner);
 
-    let spinner_idx = ((app.fetch_progress / 5) % 10) as usize;
-    let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][spinner_idx];
+    let spinner = if app.config.compatibility_mode {
+        ["-", "\\", "|", "/"][((app.fetch_progress / 5) % 4) as usize]
+    } else {
+        let spinner_idx = ((app.fetch_progress / 5) % 10) as usize;
+        ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][spinner_idx]
+    };
 
     let status_text = app
         .status_message
@@ -2965,13 +3002,13 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(hint, chunks[4]);
 }
 
-fn draw_error_popup(f: &mut Frame, area: Rect, err: &str) {
+fn draw_error_popup(f: &mut Frame, app: &App, area: Rect, err: &str) {
     let popup_area = centered_rect_fixed(60, 10, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(DANGER());
     let title = Line::from(vec![
-        Span::raw(" ⚠ "),
+        Span::raw(format!(" {} ", app.sym("warning").trim())),
         Span::styled(
             "Error",
             Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
@@ -3231,7 +3268,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 
@@ -3548,7 +3585,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 

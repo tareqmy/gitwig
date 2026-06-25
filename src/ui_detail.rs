@@ -498,7 +498,7 @@ pub fn draw(
                                 areas,
                                 inspect_horizontal_split_pct,
                                 inspect_vertical_split_pct,
-                                &app.changed_files_list_state,
+                                app,
                                 detail_chunks[1],
                             );
                         }
@@ -533,7 +533,7 @@ pub fn draw(
                     file_content_scroll,
                     areas,
                     files_horizontal_split_pct,
-                    app.inspect_full_diff,
+                    app,
                     body_area,
                 );
             } else if detail_tab == 2 {
@@ -754,7 +754,7 @@ pub fn draw(
             }
         }
         _ => {
-            let body_lines = build_body(detail);
+            let body_lines = build_body(app, detail);
             let body = Paragraph::new(body_lines)
                 .block(Block::default().padding(Padding::ZERO))
                 .wrap(Wrap { trim: false });
@@ -779,7 +779,7 @@ fn draw_commit_files_panel(
     areas: &mut DetailAreas,
     inspect_horizontal_split_pct: u16,
     inspect_vertical_split_pct: u16,
-    changed_files_list_state: &std::cell::RefCell<ListState>,
+    app: &crate::app::App,
     area: Rect,
 ) {
     let panels = Layout::default()
@@ -870,7 +870,7 @@ fn draw_commit_files_panel(
             .collect();
         let list =
             List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-        let mut state = changed_files_list_state.borrow_mut();
+        let mut state = app.changed_files_list_state.borrow_mut();
         if left_focused {
             state.select(Some(file_selection));
         } else {
@@ -908,7 +908,7 @@ fn draw_commit_files_panel(
                 Span::raw("")
             },
             if right_focused {
-                Span::styled("  ↑↓ scroll", muted_style())
+                Span::styled(format!("  {} scroll", app.sym("up_down")), muted_style())
             } else {
                 Span::raw("")
             },
@@ -1868,13 +1868,13 @@ fn draw_detail_commits(
 
 // ── Body builder ───────────────────────────────────────────────────────────
 
-fn build_body(detail: &ItemDetail) -> Vec<Line<'static>> {
+fn build_body(app: &crate::app::App, detail: &ItemDetail) -> Vec<Line<'static>> {
     match detail {
         ItemDetail::Missing { resolved } => {
             let mut lines = vec![];
             push_section_header(&mut lines, "Overview");
             lines.push(kind_line(
-                "✕",
+                app.sym("close"),
                 DANGER(),
                 "Not a directory",
                 "(path does not exist or isn't accessible)",
@@ -1889,7 +1889,7 @@ fn build_body(detail: &ItemDetail) -> Vec<Line<'static>> {
             let mut lines = vec![];
             push_section_header(&mut lines, "Overview");
             lines.push(kind_line(
-                "○",
+                app.sym("bullet_empty"),
                 WARNING(),
                 "Plain directory",
                 "(exists, but no .git entry was found)",
@@ -1904,7 +1904,7 @@ fn build_body(detail: &ItemDetail) -> Vec<Line<'static>> {
             let mut lines = vec![];
             push_section_header(&mut lines, "Overview");
             lines.push(kind_line(
-                "⚠",
+                app.sym("warning").trim(),
                 WARNING(),
                 "Could not read repository",
                 "(libgit2 reported an error — see below)",
@@ -2337,7 +2337,7 @@ fn draw_branches_view(
             } else {
                 Style::default()
             };
-            let prefix = if b.is_head { " " } else { "  " };
+            let prefix = if b.is_head { app.sym("branch") } else { "  " };
             let mut spans = vec![
                 Span::styled(prefix, Style::default().fg(SUCCESS())),
                 Span::styled(b.name.clone(), style),
@@ -2438,9 +2438,10 @@ fn draw_files_view(
     file_content_scroll: usize,
     areas: &mut DetailAreas,
     files_horizontal_split_pct: u16,
-    files_full_screen: bool,
+    app: &crate::app::App,
     area: Rect,
 ) {
+    let files_full_screen = app.inspect_full_diff;
     let chunks = if files_full_screen {
         let left_rect = Rect::new(area.x, area.y, 0, area.height);
         vec![left_rect, area]
@@ -2496,12 +2497,12 @@ fn draw_files_view(
                 let indent = "  ".repeat(item.depth);
                 let (prefix, style) = if item.is_dir {
                     if item.is_expanded {
-                        ("▼ ", primary_style())
+                        (app.sym("folder_tree_expanded"), primary_style())
                     } else {
-                        ("> ", primary_style())
+                        (app.sym("folder_tree_collapsed"), primary_style())
                     }
                 } else {
-                    ("  🗎 ", muted_style())
+                    (app.sym("file_tree"), muted_style())
                 };
 
                 ListItem::new(Line::from(vec![
@@ -2594,13 +2595,13 @@ fn draw_files_view(
                     if is_dir {
                         lines.push(Line::from(vec![
                             Span::raw("  "),
-                            Span::styled("📁 ", Style::default().fg(ACCENT())),
+                            Span::styled(app.sym("folder"), Style::default().fg(ACCENT())),
                             Span::styled(name, primary_style()),
                         ]));
                     } else {
                         lines.push(Line::from(vec![
                             Span::raw("  "),
-                            Span::styled("🗎 ", muted_style()),
+                            Span::styled(app.sym("file"), muted_style()),
                             Span::raw(name),
                         ]));
                     }
@@ -4179,7 +4180,7 @@ fn draw_inspect_window(
                     Span::raw("")
                 },
                 if right_focused {
-                    Span::styled("  ↑↓ scroll  (Full Screen)", muted_style())
+                    Span::styled(format!("  {} scroll  (Full Screen)", app.sym("up_down")), muted_style())
                 } else {
                     Span::raw("")
                 },
@@ -4312,7 +4313,7 @@ fn draw_inspect_window(
                     Span::raw("")
                 },
                 if right_focused {
-                    Span::styled("  ↑↓ scroll", muted_style())
+                    Span::styled(format!("  {} scroll", app.sym("up_down")), muted_style())
                 } else {
                     Span::raw("")
                 },
@@ -4605,7 +4606,7 @@ fn draw_logs_view(
         let mut spans: Vec<Span<'static>> = Vec::new();
         if is_match {
             spans.push(Span::styled(
-                "★ ",
+                format!("{} ", app.sym("star")),
                 Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
             ));
         }

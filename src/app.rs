@@ -408,6 +408,10 @@ enum LogsNavDirection {
 }
 
 impl App {
+    pub fn sym(&self, key: &str) -> &'static str {
+        self.config.sym(key)
+    }
+
     pub fn new(config: Config, config_path: PathBuf) -> Self {
         crate::debug_log::info("Initializing Gitwig application state");
         crate::ui::update_theme(&config.theme);
@@ -3965,6 +3969,10 @@ impl App {
                 self.config.fzf.enabled = !self.config.fzf.enabled;
                 self.persist("Use FZF updated");
             }
+            12 => {
+                self.config.compatibility_mode = !self.config.compatibility_mode;
+                self.persist("Compatibility Mode updated");
+            }
             _ => {}
         }
     }
@@ -5772,7 +5780,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_stash.toml");
         let _guard = TestFileGuard {
@@ -5855,7 +5863,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_network.toml");
         let _guard = TestFileGuard {
@@ -5920,7 +5928,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_set_error.toml");
         let _guard = TestFileGuard {
@@ -5959,7 +5967,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_sort.toml");
         let _guard = TestFileGuard {
@@ -6017,7 +6025,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_duplicate.toml");
         // Ensure starting with a clean state and clean up upon drop
@@ -6123,7 +6131,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_dir = std::env::temp_dir().join("gitwig_test_bulk_add_dir");
         let _ = std::fs::remove_dir_all(&temp_dir);
@@ -6191,7 +6199,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_pin.toml");
         let _guard = TestFileGuard {
@@ -6271,7 +6279,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_scroll.toml");
         let _guard = TestFileGuard {
@@ -6309,7 +6317,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_amend.toml");
         let _guard = TestFileGuard {
@@ -6368,7 +6376,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_splitter.toml");
         let _guard = TestFileGuard {
@@ -6636,7 +6644,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_mouse_select.toml");
         let _guard = TestFileGuard {
@@ -6992,7 +7000,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_settings.toml");
         let _guard = TestFileGuard {
@@ -7162,24 +7170,35 @@ mod tests {
         crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
         assert!(app.config.fzf.enabled);
 
+        // Go down to Compatibility Mode (index 12)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.settings_selected_index, 12);
+        assert!(!app.config.compatibility_mode);
+
+        // Toggle Compatibility Mode
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(app.config.compatibility_mode);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(!app.config.compatibility_mode);
+
         // Test PageUp, PageDown, Home, and End key navigation in Settings Mode
         app.config.page_size = 3;
 
-        // At index 11: PageUp should go to 11 - 3 = 8
+        // At index 12: PageUp should go to 12 - 3 = 9
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.settings_selected_index, 8);
+        assert_eq!(app.settings_selected_index, 9);
 
-        // PageUp should go to 8 - 3 = 5
+        // PageUp should go to 9 - 3 = 6
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.settings_selected_index, 5);
+        assert_eq!(app.settings_selected_index, 6);
 
-        // PageDown should go to 5 + 3 = 8
+        // PageDown should go to 6 + 3 = 9
         crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
-        assert_eq!(app.settings_selected_index, 8);
+        assert_eq!(app.settings_selected_index, 9);
 
-        // End should go to 11
+        // End should go to 12
         crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
-        assert_eq!(app.settings_selected_index, 11);
+        assert_eq!(app.settings_selected_index, 12);
 
         // Home should go to 0
         crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
@@ -7206,7 +7225,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_remotes.toml");
         let _guard = TestFileGuard {
@@ -7278,7 +7297,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect.toml");
         let _guard = TestFileGuard {
@@ -7357,7 +7376,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_enter.toml");
         let _guard = TestFileGuard {
@@ -7428,7 +7447,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_commit.toml");
         let _guard = TestFileGuard {
@@ -7501,7 +7520,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_workspace_all.toml");
         let _guard = TestFileGuard {
@@ -7576,7 +7595,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_workspace_all.toml");
         let _guard = TestFileGuard {
@@ -7681,7 +7700,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let mut app = App::new(config, temp_path.join("config.toml"));
 
@@ -7717,7 +7736,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_cycle.toml");
         let _guard = TestFileGuard {
@@ -7846,7 +7865,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_git_app.toml");
         let _guard = TestFileGuard {
@@ -7878,7 +7897,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_files_fzf.toml");
         let _guard = TestFileGuard {
@@ -7913,7 +7932,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_logs_search.toml");
         let _guard = TestFileGuard {
@@ -8124,7 +8143,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_sync.toml");
         let _guard = TestFileGuard {
@@ -8186,7 +8205,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_checkout.toml");
         let _guard = TestFileGuard {
@@ -8310,7 +8329,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_search.toml");
         let _guard = TestFileGuard {
@@ -8363,7 +8382,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_right_arrow.toml");
         let _guard = TestFileGuard {
@@ -8397,7 +8416,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_full_diff.toml");
         let _guard = TestFileGuard {
@@ -8448,7 +8467,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_files_full.toml");
         let _guard = TestFileGuard {
@@ -8500,7 +8519,7 @@ mod tests {
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
             fzf: FzfConfig::default(),
-            git_app: "gitui".to_string(),
+            git_app: "gitui".to_string(), compatibility_mode: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_fzf_missing.toml");
         let _guard = TestFileGuard {

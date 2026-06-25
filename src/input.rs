@@ -154,7 +154,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     KeyCode::Esc => app.mode = Mode::Normal,
                     KeyCode::Char('q') if !app.settings_editing => app.mode = Mode::Normal,
                     KeyCode::Down if !app.settings_editing => {
-                        if app.settings_selected_index + 1 < 12 {
+                        if app.settings_selected_index + 1 < 13 {
                             app.settings_selected_index += 1;
                         }
                     }
@@ -170,13 +170,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     }
                     KeyCode::PageDown if !app.settings_editing => {
                         app.settings_selected_index =
-                            (app.settings_selected_index + app.config.page_size).min(11);
+                            (app.settings_selected_index + app.config.page_size).min(12);
                     }
                     KeyCode::Home if !app.settings_editing => {
                         app.settings_selected_index = 0;
                     }
                     KeyCode::End if !app.settings_editing => {
-                        app.settings_selected_index = 11;
+                        app.settings_selected_index = 12;
                     }
                     KeyCode::Enter if app.settings_editing => app.commit_settings_edit(),
                     KeyCode::Enter => app.toggle_or_edit_setting(),
