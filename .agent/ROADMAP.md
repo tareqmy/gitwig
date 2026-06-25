@@ -69,13 +69,13 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Conflict resolution UI.
 
 ## Phase 7: Advanced Git Workflows & Power-User Tools
+- [x] Add debug panel
 - [ ] **Git Remote add/delete option**
 - [ ] **Add fzf as dependency**
 - [ ] **Git clone**
 - [ ] **Per Repository rule**
 - [ ] **For large repo load time is high**
 - [ ] **Add all folders as separate git repo from given folder**
-- [ ] **Add debug panel**
 - [ ] **Solve windows button press bug**
 - [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
 - [ ] **Git Submodules:** Detect, list, initialize, and update submodules.

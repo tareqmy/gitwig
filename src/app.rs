@@ -91,6 +91,8 @@ pub enum Mode {
     Inspect,
     /// Settings page.
     Settings,
+    /// Debug logs view.
+    DebugLogs,
     /// Choosing which columns to filter on.
     SearchColumnPicker,
     /// logs UI with commits only.
@@ -355,6 +357,7 @@ pub struct App {
     pub settings_editing: bool,
     pub settings_theme_list: Vec<String>,
     pub settings_theme_index: usize,
+    pub debug_log_scroll: usize,
     pub last_staging_focus: DetailSection,
     pub force_fzf_missing: Option<bool>,
 }
@@ -384,6 +387,7 @@ enum LogsNavDirection {
 
 impl App {
     pub fn new(config: Config, config_path: PathBuf) -> Self {
+        crate::debug_log::info("Initializing Gitwig application state");
         crate::ui::update_theme(&config.theme);
         let original_items = config.items.clone();
         let statuses = config
@@ -486,6 +490,7 @@ impl App {
             settings_editing: false,
             settings_theme_list: Vec::new(),
             settings_theme_index: 0,
+            debug_log_scroll: 0,
             last_staging_focus: DetailSection::Staged,
             force_fzf_missing: None,
         };
@@ -647,6 +652,7 @@ impl App {
     }
 
     pub fn start_add(&mut self) {
+        crate::debug_log::info("Initiating FZF repository discovery");
         if !self.is_fzf_installed() {
             self.error_message =
                 Some("fzf is not installed. Please install fzf to add repositories.".to_string());
@@ -657,6 +663,7 @@ impl App {
 
     pub fn start_edit(&mut self) {
         if let Some(current) = self.get_selected_item() {
+            crate::debug_log::info(format!("Editing repository entry: {}", current));
             self.input_buffer = current.clone();
             self.mode = Mode::Editing;
         }
@@ -678,6 +685,7 @@ impl App {
     /// "Refresh failed" message in the status bar so the user knows the
     /// keystroke landed (the indicator alone may not visibly change).
     pub fn refresh_selected_status(&mut self) {
+        crate::debug_log::info("Refreshing selected repository status");
         let Some(orig_idx) = self.get_selected_item_index() else {
             return;
         };
@@ -844,6 +852,7 @@ impl App {
     /// as the view is open; closing clears it.
     pub fn open_detail(&mut self) {
         if let Some(item) = self.get_selected_item().cloned() {
+            crate::debug_log::info(format!("Opening detail view for repository: {}", item));
             // Update visit time
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -892,6 +901,7 @@ impl App {
     /// clamping selection indices to their new totals.
     pub fn resync_detail(&mut self) {
         if let Some(item) = self.get_selected_item().cloned() {
+            crate::debug_log::info("Resyncing repository details");
             self.current_detail = Some(self.inspect_repo_detail(&item));
             self.rebuild_visible_files();
 

@@ -15,6 +15,7 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 
 mod app;
 mod config;
+mod debug_log;
 mod input;
 mod repo;
 mod ui;

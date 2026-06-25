@@ -157,6 +157,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("o / O", "Cycle sorting mode / Toggle reverse sorting"),
     ("g", "Launch preferred Git client for selected repository"),
     ("s", "Open options/settings page"),
+    ("l", "Open debug logs panel"),
     (
         "⎋ [Esc]",
         "Cancel input, close dialog, leave detail view, or quit",
@@ -281,6 +282,8 @@ pub fn draw(
         }
     } else if app.mode == Mode::Settings {
         draw_settings_page(f, app, content_area);
+    } else if app.mode == Mode::DebugLogs {
+        draw_debug_logs(f, app, content_area);
     } else if app.config.items.is_empty() {
         draw_empty_state(f, content_area);
     } else if app.get_items_len() == 0 {
@@ -998,6 +1001,27 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = inspect_dismiss_entries(app);
             draw_status_layout(f, area, msg_spans, entries, app);
         }
+        Mode::DebugLogs => {
+            let msg_spans = vec![Span::styled(
+                "Debug Logs  ",
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+            )];
+            let entries_data = [("Back", "Esc/q/l")];
+            let mut entries = Vec::new();
+            for (i, (label, key)) in entries_data.iter().enumerate() {
+                let mut spans = Vec::new();
+                if i > 0 {
+                    spans.push(Span::styled(" ", muted_style()));
+                }
+                spans.push(Span::raw((*label).to_string()));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("[", muted_style()));
+                spans.push(Span::styled((*key).to_string(), accent_style()));
+                spans.push(Span::styled("]", muted_style()));
+                entries.push(StatusEntry::new(spans));
+            }
+            draw_status_layout(f, area, Some(msg_spans), entries, app);
+        }
     }
 }
 
@@ -1585,6 +1609,7 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
         ("Delete", "d"),
         ("Refresh", "R"),
         ("Pin", "p"),
+        ("Debug Logs", "l"),
         ("Help", "?"),
         ("Quit", "⎋/q"),
     ];
@@ -2897,6 +2922,74 @@ fn draw_error_popup(f: &mut Frame, area: Rect, err: &str) {
     ]))
     .alignment(ratatui::layout::Alignment::Center);
     f.render_widget(hint, chunks[2]);
+}
+
+fn draw_debug_logs(f: &mut Frame, app: &App, area: Rect) {
+    let popup_area = centered_rect(90, 90, area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(accent_style())
+        .title(
+            Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Debug Logs", primary_style()),
+                Span::raw(" "),
+            ])
+            .alignment(Alignment::Center),
+        );
+
+    f.render_widget(Clear, popup_area);
+    f.render_widget(block.clone(), popup_area);
+
+    let inner_rect = block.inner(popup_area);
+
+    let logs = crate::debug_log::get_logs();
+    let height = inner_rect.height as usize;
+    let total_logs = logs.len();
+
+    let start_idx = app.debug_log_scroll;
+    let end_idx = (start_idx + height).min(total_logs);
+
+    let visible_lines: Vec<Line> = logs[start_idx..end_idx]
+        .iter()
+        .map(|log_str| {
+            let mut spans = Vec::new();
+            if log_str.len() > 21 {
+                let time_part = &log_str[0..10];
+                let level_part = &log_str[10..18];
+                let rest = &log_str[18..];
+
+                spans.push(Span::styled(time_part, muted_style()));
+                if level_part.contains("ERROR") {
+                    spans.push(Span::styled(
+                        level_part,
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    ));
+                } else if level_part.contains("WARN") {
+                    spans.push(Span::styled(
+                        level_part,
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ));
+                } else if level_part.contains("INFO") {
+                    spans.push(Span::styled(level_part, Style::default().fg(Color::Green)));
+                } else {
+                    spans.push(Span::styled(level_part, Style::default().fg(Color::Blue)));
+                }
+                spans.push(Span::raw(rest));
+            } else {
+                spans.push(Span::raw(log_str));
+            }
+            Line::from(spans)
+        })
+        .collect();
+
+    let paragraph = Paragraph::new(visible_lines).style(Style::default());
+
+    f.render_widget(paragraph, inner_rect);
 }
 
 #[cfg(test)]

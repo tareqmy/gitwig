@@ -11,6 +11,7 @@ use crate::app::{App, DetailSection, Mode, RemotePickerAction, Splitter};
 
 /// Dispatch a key press. Returns `false` if the user requested quit.
 pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
+    crate::debug_log::info(format!("Key pressed: {:?}", key.code));
     let code = key.code;
 
     if app.error_message.is_some() {
@@ -78,6 +79,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.mode = Mode::Settings;
                 app.settings_selected_index = 0;
                 app.settings_editing = false;
+            }
+            KeyCode::Char('D') | KeyCode::Char('l') | KeyCode::Char('L') => {
+                crate::debug_log::info("Opening debug logs");
+                app.mode = Mode::DebugLogs;
+                app.debug_log_scroll = 0;
             }
             KeyCode::Char('g') => {
                 app.pending_git_app = true;
@@ -164,6 +170,42 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
             }
         }
+        Mode::DebugLogs => match code {
+            KeyCode::Esc
+            | KeyCode::Char('q')
+            | KeyCode::Char('D')
+            | KeyCode::Char('l')
+            | KeyCode::Char('L') => {
+                crate::debug_log::info("Exiting debug logs");
+                app.mode = Mode::Normal;
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                let log_count = crate::debug_log::get_logs().len();
+                let max_scroll = log_count.saturating_sub(1);
+                if app.debug_log_scroll < max_scroll {
+                    app.debug_log_scroll += 1;
+                }
+            }
+            KeyCode::Up | KeyCode::Char('k') if app.debug_log_scroll > 0 => {
+                app.debug_log_scroll -= 1;
+            }
+            KeyCode::PageUp => {
+                app.debug_log_scroll = app.debug_log_scroll.saturating_sub(app.config.page_size);
+            }
+            KeyCode::PageDown => {
+                let log_count = crate::debug_log::get_logs().len();
+                let max_scroll = log_count.saturating_sub(1);
+                app.debug_log_scroll = (app.debug_log_scroll + app.config.page_size).min(max_scroll);
+            }
+            KeyCode::Home => {
+                app.debug_log_scroll = 0;
+            }
+            KeyCode::End => {
+                let log_count = crate::debug_log::get_logs().len();
+                app.debug_log_scroll = log_count.saturating_sub(1);
+            }
+            _ => {}
+        },
         Mode::RepoSearchInput => match code {
             KeyCode::Esc => {
                 app.repo_search_query = None;
