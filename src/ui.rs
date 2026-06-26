@@ -2356,13 +2356,13 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     // First pass: compute chunks and item layout
     let mut items_data = Vec::new();
     let mut current_line = 0;
-    let mut item_starts = [0; 13];
+    let mut item_starts = [0; 14];
 
     let mut selected_val_chunks_len = 1;
     let mut selected_last_chunk_char_count = 0;
     let mut selected_val_offset = 11;
 
-    for i in 0..13 {
+    for i in 0..14 {
         let is_selected = app.settings_selected_index == i;
         let label = match i {
             0 => "Poll Interval (ms)",
@@ -2378,6 +2378,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             10 => "FZF Git Only",
             11 => "Use FZF",
             12 => "Compatibility Mode",
+            13 => "Resync on Tab Change",
             _ => "",
         };
 
@@ -2398,6 +2399,9 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             }
             12 => {
                 "Use simple ASCII symbols instead of complex Unicode emojis/icons to avoid layout breakage in some terminals."
+            }
+            13 => {
+                "Whether to automatically refresh repository details from disk when switching tabs inside a repository."
             }
             _ => "",
         };
@@ -2476,6 +2480,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             10 => app.config.fzf.git_only.to_string(),
             11 => app.config.fzf.enabled.to_string(),
             12 => app.config.compatibility_mode.to_string(),
+            13 => app.config.resync_on_tab_change.to_string(),
             _ => String::new(),
         };
 
@@ -2516,7 +2521,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     } else {
         let sel_idx = app.settings_selected_index;
         let sel_start = item_starts[sel_idx];
-        let sel_height = if sel_idx < 11 {
+        let sel_height = if sel_idx < 13 {
             item_starts[sel_idx + 1] - sel_start
         } else {
             total_height - sel_start
@@ -3508,6 +3513,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 
@@ -3826,6 +3832,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 

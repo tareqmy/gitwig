@@ -136,6 +136,9 @@ fn default_fzf_enabled() -> bool {
 fn default_compatibility_mode() -> bool {
     true
 }
+fn default_resync_on_tab_change() -> bool {
+    false
+}
 
 fn default_fzf() -> FzfConfig {
     FzfConfig {
@@ -189,6 +192,9 @@ pub struct Config {
     /// Enable compatibility mode to use ASCII/simple symbols instead of complex Unicode.
     #[serde(default = "default_compatibility_mode")]
     pub compatibility_mode: bool,
+    /// Whether to resync the repository details from disk on tab change.
+    #[serde(default = "default_resync_on_tab_change")]
+    pub resync_on_tab_change: bool,
 }
 
 impl Config {
@@ -344,6 +350,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 fzf: default_fzf(),
                 git_app: default_git_app(),
                 compatibility_mode: true,
+                resync_on_tab_change: false,
             },
             path,
         ));
@@ -424,6 +431,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         fzf: default_fzf(),
         git_app: default_git_app(),
         compatibility_mode: true,
+        resync_on_tab_change: false,
     };
     save_config(&fallback, &canonical)?;
 

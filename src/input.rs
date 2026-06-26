@@ -163,7 +163,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     KeyCode::Esc => app.mode = Mode::Normal,
                     KeyCode::Char('q') if !app.settings_editing => app.mode = Mode::Normal,
                     KeyCode::Down if !app.settings_editing => {
-                        if app.settings_selected_index + 1 < 13 {
+                        if app.settings_selected_index + 1 < 14 {
                             app.settings_selected_index += 1;
                         }
                     }
@@ -179,13 +179,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     }
                     KeyCode::PageDown if !app.settings_editing => {
                         app.settings_selected_index =
-                            (app.settings_selected_index + app.config.page_size).min(12);
+                            (app.settings_selected_index + app.config.page_size).min(13);
                     }
                     KeyCode::Home if !app.settings_editing => {
                         app.settings_selected_index = 0;
                     }
                     KeyCode::End if !app.settings_editing => {
-                        app.settings_selected_index = 12;
+                        app.settings_selected_index = 13;
                     }
                     KeyCode::Enter if app.settings_editing => app.commit_settings_edit(),
                     KeyCode::Enter => app.toggle_or_edit_setting(),
@@ -568,7 +568,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.inspect_full_diff = false;
                 app.detail_tab = (app.detail_tab + 1) % 8;
                 app.set_default_focus_for_tab();
-                app.resync_detail();
+                if app.config.resync_on_tab_change {
+                    app.resync_detail();
+                }
             }
             KeyCode::BackTab => {
                 app.inspect_full_diff = false;
@@ -578,55 +580,73 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.detail_tab - 1
                 };
                 app.set_default_focus_for_tab();
-                app.resync_detail();
+                if app.config.resync_on_tab_change {
+                    app.resync_detail();
+                }
             }
             KeyCode::Char('1') => {
                 app.inspect_full_diff = false;
                 app.detail_tab = 0;
                 app.detail_focus = DetailSection::Commits;
-                app.resync_detail();
+                if app.config.resync_on_tab_change {
+                    app.resync_detail();
+                }
             }
             KeyCode::Char('2') => {
                 app.inspect_full_diff = false;
                 app.detail_tab = 1;
                 app.detail_focus = DetailSection::Files;
-                app.resync_detail();
+                if app.config.resync_on_tab_change {
+                    app.resync_detail();
+                }
             }
             KeyCode::Char('3') => {
                 app.inspect_full_diff = false;
                 app.detail_tab = 2;
-                app.resync_detail();
+                if app.config.resync_on_tab_change {
+                    app.resync_detail();
+                }
             }
             KeyCode::Char('4') => {
                 app.inspect_full_diff = false;
                 app.detail_tab = 3;
                 app.detail_focus = DetailSection::LocalBranches;
-                app.resync_detail();
+                if app.config.resync_on_tab_change {
+                    app.resync_detail();
+                }
             }
             KeyCode::Char('5') => {
                 app.inspect_full_diff = false;
                 app.detail_tab = 4;
                 app.detail_focus = DetailSection::LocalTags;
                 app.fetch_remote_tags(false);
-                app.resync_detail();
+                if app.config.resync_on_tab_change {
+                    app.resync_detail();
+                }
             }
             KeyCode::Char('6') => {
                 app.inspect_full_diff = false;
                 app.detail_tab = 5;
                 app.detail_focus = DetailSection::Remotes;
-                app.resync_detail();
+                if app.config.resync_on_tab_change {
+                    app.resync_detail();
+                }
             }
             KeyCode::Char('7') => {
                 app.inspect_full_diff = false;
                 app.detail_tab = 6;
                 app.detail_focus = DetailSection::Stashes;
-                app.resync_detail();
+                if app.config.resync_on_tab_change {
+                    app.resync_detail();
+                }
             }
             KeyCode::Char('8') => {
                 app.inspect_full_diff = false;
                 app.detail_tab = 7;
                 app.detail_focus = DetailSection::Commits;
-                app.resync_detail();
+                if app.config.resync_on_tab_change {
+                    app.resync_detail();
+                }
             }
             _ if app.detail_tab == 0 => match code {
                 KeyCode::Char('f') if detail_focus == DetailSection::Commits => {
@@ -2115,7 +2135,9 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                 7 => app.detail_focus = DetailSection::Commits,
                                 _ => {}
                             }
-                            app.resync_detail();
+                            if app.config.resync_on_tab_change {
+                                app.resync_detail();
+                            }
                             break;
                         }
                         current_offset += tab_width as u16 + 1;

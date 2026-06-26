@@ -4055,6 +4055,10 @@ impl App {
                 self.config.compatibility_mode = !self.config.compatibility_mode;
                 self.persist("Compatibility Mode updated");
             }
+            13 => {
+                self.config.resync_on_tab_change = !self.config.resync_on_tab_change;
+                self.persist("Resync on Tab Change updated");
+            }
             _ => {}
         }
     }
@@ -5890,6 +5894,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_stash.toml");
         let _guard = TestFileGuard {
@@ -5974,6 +5979,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_network.toml");
         let _guard = TestFileGuard {
@@ -6040,6 +6046,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_set_error.toml");
         let _guard = TestFileGuard {
@@ -6080,6 +6087,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_sort.toml");
         let _guard = TestFileGuard {
@@ -6139,6 +6147,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_duplicate.toml");
         // Ensure starting with a clean state and clean up upon drop
@@ -6246,6 +6255,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_dir = std::env::temp_dir().join("gitwig_test_bulk_add_dir");
         let _ = std::fs::remove_dir_all(&temp_dir);
@@ -6315,6 +6325,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_pin.toml");
         let _guard = TestFileGuard {
@@ -6396,6 +6407,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_scroll.toml");
         let _guard = TestFileGuard {
@@ -6435,6 +6447,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_amend.toml");
         let _guard = TestFileGuard {
@@ -6495,6 +6508,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_splitter.toml");
         let _guard = TestFileGuard {
@@ -6764,6 +6778,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_mouse_select.toml");
         let _guard = TestFileGuard {
@@ -7121,6 +7136,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_settings.toml");
         let _guard = TestFileGuard {
@@ -7301,24 +7317,35 @@ mod tests {
         crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
         assert!(!app.config.compatibility_mode);
 
+        // Go down to Resync on Tab Change (index 13)
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+        assert_eq!(app.settings_selected_index, 13);
+        assert!(!app.config.resync_on_tab_change);
+
+        // Toggle Resync on Tab Change
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(app.config.resync_on_tab_change);
+        crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+        assert!(!app.config.resync_on_tab_change);
+
         // Test PageUp, PageDown, Home, and End key navigation in Settings Mode
         app.config.page_size = 3;
 
-        // At index 12: PageUp should go to 12 - 3 = 9
+        // At index 13: PageUp should go to 13 - 3 = 10
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.settings_selected_index, 9);
+        assert_eq!(app.settings_selected_index, 10);
 
-        // PageUp should go to 9 - 3 = 6
+        // PageUp should go to 10 - 3 = 7
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.settings_selected_index, 6);
+        assert_eq!(app.settings_selected_index, 7);
 
-        // PageDown should go to 6 + 3 = 9
+        // PageDown should go to 7 + 3 = 10
         crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
-        assert_eq!(app.settings_selected_index, 9);
+        assert_eq!(app.settings_selected_index, 10);
 
-        // End should go to 12
+        // End should go to 13
         crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
-        assert_eq!(app.settings_selected_index, 12);
+        assert_eq!(app.settings_selected_index, 13);
 
         // Home should go to 0
         crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
@@ -7347,6 +7374,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_remotes.toml");
         let _guard = TestFileGuard {
@@ -7420,6 +7448,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect.toml");
         let _guard = TestFileGuard {
@@ -7500,6 +7529,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_enter.toml");
         let _guard = TestFileGuard {
@@ -7572,6 +7602,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_commit.toml");
         let _guard = TestFileGuard {
@@ -7646,6 +7677,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_workspace_all.toml");
         let _guard = TestFileGuard {
@@ -7722,6 +7754,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_workspace_all.toml");
         let _guard = TestFileGuard {
@@ -7828,6 +7861,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let mut app = App::new(config, temp_path.join("config.toml"));
 
@@ -7865,6 +7899,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_cycle.toml");
         let _guard = TestFileGuard {
@@ -7995,6 +8030,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_git_app.toml");
         let _guard = TestFileGuard {
@@ -8028,6 +8064,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_files_fzf.toml");
         let _guard = TestFileGuard {
@@ -8064,6 +8101,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_logs_search.toml");
         let _guard = TestFileGuard {
@@ -8276,6 +8314,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_sync.toml");
         let _guard = TestFileGuard {
@@ -8286,7 +8325,7 @@ mod tests {
         app.detail_tab = 0;
 
         let mock_info = crate::repo::RepoInfo {
-            branch: Some("main".to_string()),
+            branch: Some("mock_branch_name_test_xyz".to_string()),
             head: None,
             upstream: None,
             summary: crate::repo::RepoSummary::default(),
@@ -8309,16 +8348,64 @@ mod tests {
             info: Box::new(mock_info),
         });
 
-        // 1. Simulate tab switch (e.g. key '2')
+        // 1. Simulate tab switch (e.g. key '2') with resync_on_tab_change = false
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('2')), 10);
         assert!(handled);
         assert_eq!(app.detail_tab, 1);
         assert!(app.current_detail.is_some());
+        if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+            assert_eq!(info.branch.as_deref(), Some("mock_branch_name_test_xyz"));
+        } else {
+            panic!("Expected Repo detail");
+        }
 
-        // 2. Press 'R' to refresh/resync manually
+        // 2. Simulate tab switch (e.g. key '3') with resync_on_tab_change = true
+        app.config.resync_on_tab_change = true;
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('3')), 10);
+        assert!(handled);
+        assert_eq!(app.detail_tab, 2);
+        assert!(app.current_detail.is_some());
+        if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+            assert_ne!(info.branch.as_deref(), Some("mock_branch_name_test_xyz"));
+        } else {
+            panic!("Expected Repo detail");
+        }
+
+        // Reset to mock info for manual refresh test
+        let mock_info_2 = crate::repo::RepoInfo {
+            branch: Some("mock_branch_name_test_xyz".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary::default(),
+            changes: crate::repo::WorktreeChanges::default(),
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from("."),
+            info: Box::new(mock_info_2),
+        });
+
+        // 3. Press 'R' to refresh/resync manually (should resync even if resync_on_tab_change is false)
+        app.config.resync_on_tab_change = false;
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('R')), 10);
         assert!(handled);
         assert_eq!(app.status_message.as_deref(), Some("Refreshed"));
+        if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+            assert_ne!(info.branch.as_deref(), Some("mock_branch_name_test_xyz"));
+        } else {
+            panic!("Expected Repo detail");
+        }
     }
 
     #[test]
@@ -8339,6 +8426,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_checkout.toml");
         let _guard = TestFileGuard {
@@ -8464,6 +8552,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_search.toml");
         let _guard = TestFileGuard {
@@ -8518,6 +8607,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_right_arrow.toml");
         let _guard = TestFileGuard {
@@ -8565,6 +8655,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_full_diff.toml");
         let _guard = TestFileGuard {
@@ -8617,6 +8708,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_files_full.toml");
         let _guard = TestFileGuard {
@@ -8670,6 +8762,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_fzf_missing.toml");
         let _guard = TestFileGuard {
@@ -8731,6 +8824,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let unique_id = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -8807,6 +8901,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            resync_on_tab_change: false,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_about.toml");
         let _guard = TestFileGuard {
