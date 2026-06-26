@@ -6021,6 +6021,7 @@ where
         }
         if tab_updated {
             app.update_cache_from_current_detail();
+            app.rebuild_visible_files();
         }
 
         if app.pending_git_app {
