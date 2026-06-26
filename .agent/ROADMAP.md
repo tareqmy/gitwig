@@ -75,6 +75,11 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Optional usage of fzf
 - [x] Git Remote add/delete option
 - [x] Ensure single character input to avoid multiple same command being applied.
+- [x] About
+- [ ] **Per repository settings, theme, font**
+- [ ] **Show UI first, Load data later per tab**
+- [ ] **Keybindings**
+- [ ] **Commit window resize**
 - [ ] **Git logs pagination**
 - [ ] **Per Repository rule**
 - [ ] **For large repo load time is high**

@@ -177,6 +177,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("⇧P", "Push branch (Branches) / Push all tags (Tags)"),
     ("s", "Stash changes (Workspace changes or Stashes tab)"),
     ("?", "Toggle this help overlay"),
+    ("v", "Show about popup / creator profile"),
     ("q", "Quit (also closes detail view)"),
     (
         "Left-Click",
@@ -309,6 +310,10 @@ pub fn draw(
         draw_help_overlay(f, app, area, app.help_scroll);
     }
 
+    if matches!(app.mode, Mode::About) {
+        draw_about_popup(f, area, app);
+    }
+
     if matches!(
         app.mode,
         Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput
@@ -331,6 +336,7 @@ fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
             | Mode::Editing
             | Mode::ConfirmDelete
             | Mode::Help
+            | Mode::About
             | Mode::BulkAddInput
     );
 
@@ -813,6 +819,10 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         }
         Mode::Help => {
             let (msg_spans, entries) = help_dismiss_entries();
+            draw_status_layout(f, area, msg_spans, entries, app);
+        }
+        Mode::About => {
+            let (msg_spans, entries) = about_dismiss_entries();
             draw_status_layout(f, area, msg_spans, entries, app);
         }
         Mode::Detail | Mode::RemoteAddNameInput | Mode::RemoteAddUrlInput => {
@@ -1697,6 +1707,7 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
         ("Refresh", "R"),
         ("Pin", "p"),
         ("Debug Logs", "l"),
+        ("About", "v"),
         ("Help", "?"),
         ("Quit", "⎋/q"),
     ];
@@ -2211,6 +2222,17 @@ fn help_dismiss_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
         Span::raw(" "),
         Span::styled("[", muted_style()),
         Span::styled("?/⎋/q", accent_style()),
+        Span::styled("]", muted_style()),
+    ])];
+    (None, entries)
+}
+
+fn about_dismiss_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let entries = vec![StatusEntry::new(vec![
+        Span::raw("Close About"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
+        Span::styled("v/⎋/q", accent_style()),
         Span::styled("]", muted_style()),
     ])];
     (None, entries)
@@ -2830,6 +2852,105 @@ fn draw_help_overlay(f: &mut Frame, app: &App, area: Rect, scroll: usize) {
                 .thumb_style(Style::default().fg(ACCENT()));
         f.render_stateful_widget(scrollbar, popup_area, &mut scrollbar_state);
     }
+}
+
+fn draw_about_popup(f: &mut Frame, area: Rect, _app: &App) {
+    let popup_area = centered_rect_fixed(60, 15, area);
+    f.render_widget(Clear, popup_area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(accent_style())
+        .title(
+            Line::from(vec![
+                Span::raw(" "),
+                Span::styled("About Gitwig", primary_style()),
+                Span::raw(" "),
+            ])
+            .alignment(Alignment::Center),
+        );
+
+    f.render_widget(block.clone(), popup_area);
+    let inner = block.inner(popup_area);
+
+    let info_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // Title/version
+            Constraint::Length(1), // Spacer
+            Constraint::Length(1), // Creator
+            Constraint::Length(1), // Website
+            Constraint::Length(1), // GitHub
+            Constraint::Length(1), // Email
+            Constraint::Length(1), // Spacer
+            Constraint::Length(2), // Description
+            Constraint::Length(1), // Spacer
+            Constraint::Length(1), // Close instructions
+            Constraint::Min(0),
+        ])
+        .split(inner);
+
+    // Title / Version
+    let title_line = Line::from(vec![
+        Span::styled("Gitwig v", primary_style().add_modifier(Modifier::BOLD)),
+        Span::styled(
+            env!("CARGO_PKG_VERSION"),
+            primary_style().add_modifier(Modifier::BOLD),
+        ),
+    ])
+    .alignment(Alignment::Center);
+    f.render_widget(Paragraph::new(title_line), info_chunks[0]);
+
+    // Creator profile details
+    let creator_line = Line::from(vec![
+        Span::styled("  Creator:  ", primary_style().add_modifier(Modifier::BOLD)),
+        Span::raw("Tareq Mohammad Yousuf "),
+        Span::styled("(@tareqmy)", muted_style()),
+    ]);
+    f.render_widget(Paragraph::new(creator_line), info_chunks[2]);
+
+    let website_line = Line::from(vec![
+        Span::styled("  Website:  ", primary_style().add_modifier(Modifier::BOLD)),
+        Span::styled("https://tareqmy.com/", accent_style()),
+    ]);
+    f.render_widget(Paragraph::new(website_line), info_chunks[3]);
+
+    let github_line = Line::from(vec![
+        Span::styled("  GitHub:   ", primary_style().add_modifier(Modifier::BOLD)),
+        Span::styled("https://github.com/tareqmy", accent_style()),
+    ]);
+    f.render_widget(Paragraph::new(github_line), info_chunks[4]);
+
+    let email_line = Line::from(vec![
+        Span::styled("  Email:    ", primary_style().add_modifier(Modifier::BOLD)),
+        Span::styled("tareq.y@gmail.com", accent_style()),
+    ]);
+    f.render_widget(Paragraph::new(email_line), info_chunks[5]);
+
+    // Description
+    let desc_para = Paragraph::new(vec![
+        Line::from(Span::styled(
+            "A Rust-based Git TUI, alternative to SourceTree and gitui.",
+            muted_style(),
+        ))
+        .alignment(Alignment::Center),
+    ])
+    .wrap(Wrap { trim: true });
+    f.render_widget(desc_para, info_chunks[7]);
+
+    // Close instruction
+    let close_line = Line::from(vec![
+        Span::styled("Press ", muted_style()),
+        Span::styled("Esc", accent_style()),
+        Span::styled(" / ", muted_style()),
+        Span::styled("q", accent_style()),
+        Span::styled(" / ", muted_style()),
+        Span::styled("v", accent_style()),
+        Span::styled(" to close", muted_style()),
+    ])
+    .alignment(Alignment::Center);
+    f.render_widget(Paragraph::new(close_line), info_chunks[9]);
 }
 
 /// Returns a `Rect` of `(percent_x, percent_y)` dimensions, centered inside `area`.

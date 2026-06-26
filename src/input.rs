@@ -88,6 +88,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('e') => app.start_edit(),
             KeyCode::Char('d') => app.request_delete(),
             KeyCode::Char('?') => app.open_help(),
+            KeyCode::Char('v') | KeyCode::Char('V') => app.open_about(),
             KeyCode::Char('R') => app.refresh_selected_status(),
             KeyCode::Char('o') => app.cycle_sort_order(),
             KeyCode::Char('O') => app.toggle_sort_reverse(),
@@ -534,6 +535,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             KeyCode::End => {
                 app.help_scroll_to_bottom();
+            }
+            _ => {}
+        },
+        Mode::About => match code {
+            KeyCode::Char('v')
+            | KeyCode::Char('V')
+            | KeyCode::Esc
+            | KeyCode::Char('q')
+            | KeyCode::Char('Q') => {
+                app.close_dialog();
             }
             _ => {}
         },
@@ -1994,6 +2005,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     }
 
     if app.mode == Mode::Settings {
+        return;
+    }
+
+    if app.mode == Mode::About {
         return;
     }
 

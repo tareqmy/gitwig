@@ -123,6 +123,8 @@ pub enum Mode {
     MergeAbortConfirm,
     /// Confirming continuation of a merge.
     MergeContinueConfirm,
+    /// Showing the about popup / creator profile.
+    About,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -790,6 +792,10 @@ impl App {
     pub fn open_help(&mut self) {
         self.help_scroll = 0;
         self.mode = Mode::Help;
+    }
+
+    pub fn open_about(&mut self) {
+        self.mode = Mode::About;
     }
 
     /// Re-runs the cheap filesystem inspection for the selected item and
@@ -8781,5 +8787,73 @@ mod tests {
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_about_popup_flow() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+            compatibility_mode: false,
+        };
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_about.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+        // Assert initial mode is Normal
+        assert_eq!(app.mode, Mode::Normal);
+
+        // Open about popup
+        app.open_about();
+        assert_eq!(app.mode, Mode::About);
+
+        // Close about popup
+        app.close_dialog();
+        assert_eq!(app.mode, Mode::Normal);
+
+        // Test key inputs via handle_key
+        // 1. In Normal mode, pressing 'v' should open about popup
+        app.mode = Mode::Normal;
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('v')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::About);
+
+        // 2. In About mode, pressing 'v' should close it
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('v')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::Normal);
+
+        // 3. In Normal mode, pressing 'V' should open about popup
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('V')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::About);
+
+        // 4. In About mode, pressing 'Esc' should close it
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::Normal);
+
+        // 5. In Normal mode, pressing 'v' then closing with 'q'
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('v')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::About);
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('q')), 10);
+        assert!(handled);
+        assert_eq!(app.mode, Mode::Normal);
     }
 }
