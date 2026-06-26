@@ -4652,9 +4652,23 @@ impl App {
             3 => self.detail_focus = DetailSection::LocalBranches,
             4 => {
                 self.detail_focus = DetailSection::LocalTags;
-                self.fetch_remote_tags(false);
+                self.fetch_remote_tags(true);
             }
-            5 => self.detail_focus = DetailSection::Remotes,
+            5 => {
+                self.detail_focus = DetailSection::Remotes;
+                let remote_name =
+                    if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+                        info.remotes
+                            .get(self.remote_selection)
+                            .or_else(|| info.remotes.first())
+                            .map(|r| r.name.clone())
+                    } else {
+                        None
+                    };
+                if let Some(name) = remote_name {
+                    self.fetch_remote(&name);
+                }
+            }
             6 => {
                 self.detail_focus = DetailSection::Stashes;
                 self.stash_file_selection = 0;
@@ -6028,6 +6042,174 @@ mod tests {
         let consumed = crate::input::handle_key(&mut app, esc_key, 0);
         assert!(consumed);
         assert!(app.error_message.is_none());
+    }
+
+    #[test]
+    fn test_remote_tags_progress_and_error_handling() {
+        let config = Config {
+            items: vec![".".to_string()],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+            compatibility_mode: false,
+            resync_on_tab_change: false,
+        };
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_remote_tags_progress.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        let mock_info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary::default(),
+            changes: crate::repo::WorktreeChanges::default(),
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![crate::repo::RemoteInfo {
+                name: "origin".to_string(),
+                url: "git@github.com:tareqmy/gitwig.git".to_string(),
+                push_url: None,
+                refspecs: vec![],
+            }],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from("."),
+            info: Box::new(mock_info),
+        });
+
+        // Trigger fetch with show_progress = true
+        app.fetch_remote_tags(true);
+        assert!(app.fetching);
+        assert_eq!(
+            app.status_message.as_deref(),
+            Some("Fetching tags from 'origin'...")
+        );
+
+        // Simulate background thread sending REMOTE_TAGS_ERR
+        app.tx
+            .send("REMOTE_TAGS_ERR:Failed to get remote tags: custom error".to_string())
+            .unwrap();
+
+        // Run rx loop (same as inside app::run)
+        if let Ok(msg) = app.rx.try_recv() {
+            if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
+                app.set_error(err_msg.to_string());
+                app.fetching = false;
+            }
+        }
+
+        assert!(!app.fetching);
+        assert_eq!(
+            app.error_message.as_deref(),
+            Some("Failed to get remote tags: custom error")
+        );
+    }
+
+    #[test]
+    fn test_remote_fetch_progress_and_error_handling() {
+        let config = Config {
+            items: vec![".".to_string()],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+            compatibility_mode: false,
+            resync_on_tab_change: false,
+        };
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_remote_fetch_progress.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        let mock_info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary::default(),
+            changes: crate::repo::WorktreeChanges::default(),
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![crate::repo::RemoteInfo {
+                name: "origin".to_string(),
+                url: "git@github.com:tareqmy/gitwig.git".to_string(),
+                push_url: None,
+                refspecs: vec![],
+            }],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from("."),
+            info: Box::new(mock_info),
+        });
+
+        // Trigger fetch from remote tab (fetch_remote)
+        app.fetch_remote("origin");
+        assert!(app.fetching);
+        assert_eq!(
+            app.status_message.as_deref(),
+            Some("Fetching remote 'origin'...")
+        );
+
+        // Simulate background thread sending Fetch failed message
+        app.tx
+            .send("Fetch failed: custom fetch error".to_string())
+            .unwrap();
+
+        // Run rx loop (same as inside app::run)
+        if let Ok(msg) = app.rx.try_recv() {
+            let is_err = msg.starts_with("Fetch failed:")
+                || msg.starts_with("Pull failed:")
+                || msg.starts_with("Push failed:")
+                || msg.starts_with("Failed to")
+                || msg.contains("failed");
+
+            if is_err {
+                app.set_error(msg);
+            }
+            app.fetching = false;
+        }
+
+        assert!(!app.fetching);
+        assert_eq!(
+            app.error_message.as_deref(),
+            Some("Fetch failed: custom fetch error")
+        );
     }
 
     #[test]

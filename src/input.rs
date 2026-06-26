@@ -619,7 +619,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.inspect_full_diff = false;
                 app.detail_tab = 4;
                 app.detail_focus = DetailSection::LocalTags;
-                app.fetch_remote_tags(false);
+                app.fetch_remote_tags(true);
                 if app.config.resync_on_tab_change {
                     app.resync_detail();
                 }
@@ -628,6 +628,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.inspect_full_diff = false;
                 app.detail_tab = 5;
                 app.detail_focus = DetailSection::Remotes;
+                let remote_name =
+                    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+                        info.remotes
+                            .get(app.remote_selection)
+                            .or_else(|| info.remotes.first())
+                            .map(|r| r.name.clone())
+                    } else {
+                        None
+                    };
+                if let Some(name) = remote_name {
+                    app.fetch_remote(&name);
+                }
                 if app.config.resync_on_tab_change {
                     app.resync_detail();
                 }
@@ -2128,9 +2140,26 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                 3 => app.detail_focus = DetailSection::LocalBranches,
                                 4 => {
                                     app.detail_focus = DetailSection::LocalTags;
-                                    app.fetch_remote_tags(false);
+                                    app.fetch_remote_tags(true);
                                 }
-                                5 => app.detail_focus = DetailSection::Remotes,
+                                5 => {
+                                    app.detail_focus = DetailSection::Remotes;
+                                    let remote_name = if let Some(crate::repo::ItemDetail::Repo {
+                                        info,
+                                        ..
+                                    }) = &app.current_detail
+                                    {
+                                        info.remotes
+                                            .get(app.remote_selection)
+                                            .or_else(|| info.remotes.first())
+                                            .map(|r| r.name.clone())
+                                    } else {
+                                        None
+                                    };
+                                    if let Some(name) = remote_name {
+                                        app.fetch_remote(&name);
+                                    }
+                                }
                                 6 => app.detail_focus = DetailSection::Stashes,
                                 7 => app.detail_focus = DetailSection::Commits,
                                 _ => {}
