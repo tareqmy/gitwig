@@ -1078,6 +1078,8 @@ impl App {
     pub fn resync_detail(&mut self) {
         if let Some(item) = self.get_selected_item().cloned() {
             crate::debug_log::info("Resyncing repository details");
+            let path = std::path::PathBuf::from(&item);
+            repo::invalidate_ref_map_cache(&path);
             self.loading_repo_path = Some(item.clone());
             let tx = self.detail_tx.clone();
             let max_commits = self.commit_limit;

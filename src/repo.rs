@@ -971,7 +971,6 @@ fn collect_signatures(repo_path: &Path, limit: usize) -> std::collections::HashM
 fn collect_commits(
     repo: &Repository,
     limit: usize,
-    ref_map: &std::collections::HashMap<git2::Oid, Vec<String>>,
     repo_path: &Path,
 ) -> Result<Vec<CommitEntry>, git2::Error> {
     let mut walk = repo.revwalk()?;
@@ -988,6 +987,7 @@ fn collect_commits(
     };
 
     let sig_map = collect_signatures(repo_path, limit);
+    let ref_map = get_cached_ref_map(repo, repo_path);
 
     for id in oids {
         let oid = id?;
@@ -1162,7 +1162,7 @@ fn collect_info(
         }
     }
 
-    if let Ok(commits) = collect_commits(&repo, commit_limit, &build_ref_map(&repo), path) {
+    if let Ok(commits) = collect_commits(&repo, commit_limit, path) {
         info.commits = commits;
     }
 
@@ -1455,6 +1455,47 @@ fn build_ref_map(repo: &Repository) -> std::collections::HashMap<git2::Oid, Vec<
         }
     }
     map
+}
+
+#[allow(clippy::type_complexity)]
+static REF_MAP_CACHE: std::sync::OnceLock<
+    std::sync::Mutex<
+        std::collections::HashMap<
+            String,
+            (
+                std::collections::HashMap<git2::Oid, Vec<String>>,
+                std::time::Instant,
+            ),
+        >,
+    >,
+> = std::sync::OnceLock::new();
+
+fn get_cached_ref_map(
+    repo: &Repository,
+    repo_path: &Path,
+) -> std::collections::HashMap<git2::Oid, Vec<String>> {
+    let cache_lock =
+        REF_MAP_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    let mut cache = cache_lock.lock().unwrap();
+    let path_key = repo_path.to_string_lossy().to_string();
+
+    if let Some((map, loaded_at)) = cache.get(&path_key) {
+        if loaded_at.elapsed() < std::time::Duration::from_secs(10) {
+            return map.clone();
+        }
+    }
+
+    let map = build_ref_map(repo);
+    cache.insert(path_key, (map.clone(), std::time::Instant::now()));
+    map
+}
+
+pub fn invalidate_ref_map_cache(repo_path: &Path) {
+    if let Some(cache_lock) = REF_MAP_CACHE.get() {
+        if let Ok(mut cache) = cache_lock.lock() {
+            cache.remove(&repo_path.to_string_lossy().to_string());
+        }
+    }
 }
 
 /// Maximum file entries collected per bucket. Prevents pathologically large
@@ -2558,7 +2599,7 @@ mod tests {
         assert_eq!(sig_status, "N");
 
         // 2. Test collect_commits
-        let commits = collect_commits(&repo, 0, &build_ref_map(&repo), &temp_path).unwrap();
+        let commits = collect_commits(&repo, 0, &temp_path).unwrap();
         assert_eq!(commits.len(), 1);
         assert_eq!(commits[0].signature_status, "N");
 
@@ -2570,6 +2611,29 @@ mod tests {
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_ref_map_cache_behavior() {
+        let temp_dir = std::env::temp_dir();
+        let repo_path = temp_dir.join("test_ref_map_repo");
+        let _ = std::fs::remove_dir_all(&repo_path);
+        std::fs::create_dir_all(&repo_path).unwrap();
+
+        let repo = Repository::init(&repo_path).unwrap();
+
+        // 1. First fetch (rebuilds and caches)
+        let map1 = get_cached_ref_map(&repo, &repo_path);
+
+        // 2. Second fetch (returns cached map)
+        let map2 = get_cached_ref_map(&repo, &repo_path);
+        assert_eq!(map1.len(), map2.len());
+
+        // 3. Invalidate cache
+        invalidate_ref_map_cache(&repo_path);
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&repo_path);
     }
 
     #[test]
