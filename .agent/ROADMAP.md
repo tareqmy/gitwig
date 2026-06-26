@@ -80,10 +80,11 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Commit Signatures: Display GPG/SSH commit verification status in the history log list.
 - [x] Stash Pop: Perform a single-action "Pop Stash" (apply and delete).
 - [x] Cherry-pick & Revert: Apply a specific commit (`cherry-pick`) or create a reverting commit (`revert`) from the log view.
+- [x] Commit window resize
+- [ ] **Show memory and cpu usage from with the app**
 - [ ] **Per repository settings, theme, font**
 - [ ] **Show UI first, Load data later per tab**
 - [ ] **Keybindings**
-- [ ] **Commit window resize**
 - [ ] **Git logs pagination**
 - [ ] **Per Repository rule**
 - [ ] **Apply label for repositories**

@@ -151,6 +151,9 @@ fn default_compatibility_mode() -> bool {
 fn default_resync_on_tab_change() -> bool {
     false
 }
+fn default_enable_commit_signatures() -> bool {
+    false
+}
 
 fn default_fzf() -> FzfConfig {
     FzfConfig {
@@ -216,6 +219,9 @@ pub struct Config {
     /// Whether to resync the repository details from disk on tab change.
     #[serde(default = "default_resync_on_tab_change")]
     pub resync_on_tab_change: bool,
+    /// Whether to enable commit GPG/SSH signatures collection (spawns a git shell process).
+    #[serde(default = "default_enable_commit_signatures")]
+    pub enable_commit_signatures: bool,
 }
 
 impl Config {
@@ -375,6 +381,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 git_app: default_git_app(),
                 compatibility_mode: true,
                 resync_on_tab_change: false,
+                enable_commit_signatures: false,
             },
             path,
         ));
@@ -459,6 +466,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         git_app: default_git_app(),
         compatibility_mode: true,
         resync_on_tab_change: false,
+        enable_commit_signatures: false,
     };
     save_config(&fallback, &canonical)?;
 

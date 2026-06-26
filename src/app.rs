@@ -1019,6 +1019,7 @@ impl App {
             let tx = self.detail_tx.clone();
             let item_clone = item.clone();
             let graph_max_commits = self.config.graph_max_commits;
+            let enable_commit_signatures = self.config.enable_commit_signatures;
 
             if cached_valid {
                 let cached = self.detail_cache.get(&item).unwrap().clone();
@@ -1033,7 +1034,12 @@ impl App {
                 let max_commits = self.commit_limit;
                 // Silent background refresh
                 std::thread::spawn(move || {
-                    let detail = repo::inspect_detail(&item_clone, max_commits, graph_max_commits);
+                    let detail = repo::inspect_detail(
+                        &item_clone,
+                        max_commits,
+                        graph_max_commits,
+                        enable_commit_signatures,
+                    );
                     let _ = tx.send((item_clone, detail));
                 });
             } else {
@@ -1041,7 +1047,12 @@ impl App {
                 self.loading_repo_path = Some(item.clone());
                 let max_commits = self.commit_limit;
                 std::thread::spawn(move || {
-                    let detail = repo::inspect_detail(&item_clone, max_commits, graph_max_commits);
+                    let detail = repo::inspect_detail(
+                        &item_clone,
+                        max_commits,
+                        graph_max_commits,
+                        enable_commit_signatures,
+                    );
                     let _ = tx.send((item_clone, detail));
                 });
             }
@@ -1084,8 +1095,14 @@ impl App {
             let tx = self.detail_tx.clone();
             let max_commits = self.commit_limit;
             let graph_max_commits = self.config.graph_max_commits;
+            let enable_commit_signatures = self.config.enable_commit_signatures;
             std::thread::spawn(move || {
-                let detail = repo::inspect_detail(&item, max_commits, graph_max_commits);
+                let detail = repo::inspect_detail(
+                    &item,
+                    max_commits,
+                    graph_max_commits,
+                    enable_commit_signatures,
+                );
                 let _ = tx.send((item, detail));
             });
         }
@@ -1163,6 +1180,7 @@ impl App {
         }
 
         self.current_detail = Some(merged_detail);
+        self.ensure_selected_commit_files_loaded();
         self.update_cache_from_current_detail();
         self.rebuild_visible_files();
 
@@ -3793,7 +3811,23 @@ impl App {
         }
     }
 
+    pub fn ensure_selected_commit_files_loaded(&mut self) {
+        let target_oid = self.get_selected_commit().map(|c| c.oid.clone());
+        if let Some(oid) = target_oid {
+            if let Some(repo::ItemDetail::Repo { resolved, info }) = &mut self.current_detail {
+                if let Some(c) = info.commits.iter_mut().find(|c| c.oid == oid) {
+                    if c.files.is_empty() {
+                        if let Ok(files) = repo::get_commit_files(resolved, &oid) {
+                            c.files = files;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn refresh_file_diff(&mut self) {
+        self.ensure_selected_commit_files_loaded();
         if self.detail_tab == 6 {
             let params = match &self.current_detail {
                 Some(ItemDetail::Repo { resolved, info }) => {
@@ -6471,6 +6505,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -6559,6 +6594,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -6629,6 +6665,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -6699,6 +6736,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -6775,6 +6813,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -6819,6 +6858,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -6882,6 +6922,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -6993,6 +7034,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -7066,6 +7108,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -7151,6 +7194,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -7194,6 +7238,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -7237,6 +7282,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -7315,6 +7361,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -7379,6 +7426,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -7652,6 +7700,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -8002,6 +8051,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -8243,6 +8293,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -8320,6 +8371,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -8390,6 +8442,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -8452,6 +8505,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -8517,6 +8571,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -8584,6 +8639,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -8681,6 +8737,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -8722,6 +8779,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -8827,6 +8885,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -8864,6 +8923,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -8904,6 +8964,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -9113,6 +9174,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -9212,6 +9274,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -9329,6 +9392,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -9387,6 +9451,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -9438,6 +9503,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -9494,6 +9560,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -9551,6 +9618,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -9616,6 +9684,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -9696,6 +9765,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -9767,6 +9837,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
@@ -9885,6 +9956,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: true,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
         };
@@ -9940,6 +10012,7 @@ mod tests {
             max_commits: 200,
             graph_max_commits: 1000,
             detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
             tab_ttl_secs: 1, // 1s TTL
             page_size: 10,
             sort_by: SortOrder::Custom,

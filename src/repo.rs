@@ -922,7 +922,12 @@ pub fn inspect_summary(item: &str) -> ItemStatus {
 }
 
 /// Inspect `item` and produce the rich detail report shown on Enter.
-pub fn inspect_detail(item: &str, commit_limit: usize, graph_max_commits: usize) -> ItemDetail {
+pub fn inspect_detail(
+    item: &str,
+    commit_limit: usize,
+    graph_max_commits: usize,
+    enable_commit_signatures: bool,
+) -> ItemDetail {
     let resolved = expand_tilde(item);
     if !resolved.is_dir() {
         return ItemDetail::Missing { resolved };
@@ -930,7 +935,12 @@ pub fn inspect_detail(item: &str, commit_limit: usize, graph_max_commits: usize)
     if !resolved.join(".git").exists() {
         return ItemDetail::Directory { resolved };
     }
-    match collect_info(&resolved, commit_limit, graph_max_commits) {
+    match collect_info(
+        &resolved,
+        commit_limit,
+        graph_max_commits,
+        enable_commit_signatures,
+    ) {
         Ok(info) => ItemDetail::Repo {
             resolved,
             info: Box::new(info),
@@ -976,6 +986,7 @@ fn collect_commits(
     repo: &Repository,
     limit: usize,
     repo_path: &Path,
+    enable_commit_signatures: bool,
 ) -> Result<Vec<CommitEntry>, git2::Error> {
     let mut walk = repo.revwalk()?;
     if walk.push_head().is_err() {
@@ -990,7 +1001,11 @@ fn collect_commits(
         walk.collect()
     };
 
-    let sig_map = collect_signatures(repo_path, limit);
+    let sig_map = if enable_commit_signatures {
+        collect_signatures(repo_path, limit)
+    } else {
+        std::collections::HashMap::new()
+    };
     let ref_map = get_cached_ref_map(repo, repo_path);
 
     for id in oids {
@@ -1011,7 +1026,7 @@ fn collect_commits(
             let when = format_relative_time(commit.time().seconds());
             let date = format_utc_date(commit.time().seconds());
             let refs = ref_map.get(&oid).cloned().unwrap_or_default();
-            let files = commit_changed_files(repo, &commit);
+            let files = Vec::new();
             let message = commit
                 .message()
                 .unwrap_or("(no commit message)")
@@ -1116,12 +1131,20 @@ fn commit_changed_files(repo: &Repository, commit: &git2::Commit) -> Vec<FileEnt
     files
 }
 
+pub fn get_commit_files(repo_path: &Path, oid: &str) -> Result<Vec<FileEntry>, String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let oid = git2::Oid::from_str(oid).map_err(|e| e.to_string())?;
+    let commit = repo.find_commit(oid).map_err(|e| e.to_string())?;
+    Ok(commit_changed_files(&repo, &commit))
+}
+
 // ── Internal collection ────────────────────────────────────────────────────
 
 fn collect_info(
     path: &Path,
     commit_limit: usize,
     _graph_max_commits: usize,
+    enable_commit_signatures: bool,
 ) -> Result<RepoInfo, git2::Error> {
     let repo = Repository::open(path)?;
     let mut summary = RepoSummary::default();
@@ -1166,7 +1189,7 @@ fn collect_info(
         }
     }
 
-    if let Ok(commits) = collect_commits(&repo, commit_limit, path) {
+    if let Ok(commits) = collect_commits(&repo, commit_limit, path, enable_commit_signatures) {
         info.commits = commits;
     }
 
@@ -2602,10 +2625,17 @@ mod tests {
         let sig_status = sigs.get(&head_oid).unwrap();
         assert_eq!(sig_status, "N");
 
-        // 2. Test collect_commits
-        let commits = collect_commits(&repo, 0, &temp_path).unwrap();
+        // 2. Test collect_commits (files should be empty by default)
+        let commits = collect_commits(&repo, 0, &temp_path, true).unwrap();
         assert_eq!(commits.len(), 1);
         assert_eq!(commits[0].signature_status, "N");
+        assert!(commits[0].files.is_empty());
+
+        // Test get_commit_files (lazy loading)
+        let files = get_commit_files(&temp_path, &commits[0].oid).unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "test.txt");
+        assert_eq!(files[0].label, "N");
 
         // 3. Test collect_graph_lines
         let graph = collect_graph_lines(&temp_path, 1000);
@@ -2726,7 +2756,7 @@ mod tests {
         std::fs::write(&nested_file_path, "nested untracked file").unwrap();
 
         // Inspect detail
-        let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000);
+        let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000, false);
         match detail {
             ItemDetail::Repo { info, .. } => {
                 // Verify no folders are in the unstaged/untracked list
@@ -2802,7 +2832,7 @@ mod tests {
         stage_file(&temp_path, "init.txt").unwrap();
 
         // Check status of repo
-        let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000);
+        let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000, false);
         match detail {
             ItemDetail::Repo { info, .. } => {
                 // Both should be in staged changes
@@ -2864,7 +2894,7 @@ mod tests {
         std::fs::write(&file_tracked, "staged modifications\n").unwrap();
         stage_file(&temp_path, "tracked.txt").unwrap();
         // verify it's staged
-        let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000);
+        let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000, false);
         match detail {
             ItemDetail::Repo { info, .. } => {
                 assert!(!info.changes.staged.is_empty());
@@ -2877,7 +2907,7 @@ mod tests {
             "original content\n"
         );
         // verify it's no longer staged/unstaged (it's clean)
-        let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000);
+        let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000, false);
         match detail {
             ItemDetail::Repo { info, .. } => {
                 assert!(info.changes.staged.is_empty());
