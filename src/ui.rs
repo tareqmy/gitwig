@@ -1518,6 +1518,14 @@ fn commit_input_editing_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntr
         ]),
         StatusEntry::new(vec![
             Span::styled(" ", muted_style()),
+            Span::raw("Max Size"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("⌃D", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
             Span::raw("Scroll"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
@@ -1566,6 +1574,14 @@ fn commit_input_confirm_entries(
             Span::raw(" "),
             Span::styled("[", muted_style()),
             Span::styled("⎋/q", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Max Size"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("d", accent_style()),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -3181,7 +3197,9 @@ fn draw_error_popup(f: &mut Frame, app: &App, area: Rect, err: &str) {
             let mut current_line_width = 0;
             for word in line.split_whitespace() {
                 let word_len = word.chars().count();
-                if current_line_width + word_len + (if current_line_width > 0 { 1 } else { 0 }) > inner_width {
+                if current_line_width + word_len + (if current_line_width > 0 { 1 } else { 0 })
+                    > inner_width
+                {
                     msg_height += 1;
                     current_line_width = word_len;
                     while current_line_width > inner_width {

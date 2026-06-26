@@ -1838,6 +1838,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     {
                         app.toggle_commit_amend()
                     }
+                    KeyCode::Char('d') | KeyCode::Char('D')
+                        if key.modifiers.contains(KeyModifiers::CONTROL) =>
+                    {
+                        app.toggle_commit_popup_maximized()
+                    }
                     KeyCode::Backspace => app.input_backspace(),
                     KeyCode::Up => app.commit_input_scroll_up(),
                     KeyCode::Down => app.commit_input_scroll_down(),
@@ -1852,6 +1857,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Char(' ') => {
                         app.toggle_commit_amend()
                     }
+                    KeyCode::Char('d') | KeyCode::Char('D') => app.toggle_commit_popup_maximized(),
                     KeyCode::Up => app.commit_input_scroll_up(),
                     KeyCode::Down => app.commit_input_scroll_down(),
                     _ => {}

@@ -633,6 +633,7 @@ pub fn draw(
                     commit_amend,
                     commit_input_scroll,
                     body_area,
+                    app.commit_popup_maximized,
                 );
             }
             // Draw search column picker popup on top when requested.
@@ -2111,8 +2112,17 @@ fn draw_commit_popup(
     commit_amend: bool,
     scroll: usize,
     area: Rect,
+    maximized: bool,
 ) {
-    let popup_area = centred_rect(60, 25, area);
+    let popup_area = if maximized {
+        let width = area.width.saturating_sub(20).max(area.width.min(40));
+        let height = area.height.saturating_sub(20).max(area.height.min(15));
+        let x = area.x + (area.width.saturating_sub(width)) / 2;
+        let y = area.y + (area.height.saturating_sub(height)) / 2;
+        Rect::new(x, y, width, height)
+    } else {
+        centred_rect(80, 45, area)
+    };
     f.render_widget(Clear, popup_area);
 
     let border_color = if editing { ACCENT() } else { WARNING() };

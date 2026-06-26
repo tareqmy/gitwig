@@ -322,6 +322,8 @@ pub struct App {
     pub in_logs_ui: bool,
     /// Whether we are in full-screen diff mode under inspect view.
     pub inspect_full_diff: bool,
+    /// Whether the commit popup is maximized to leave 20 characters on all sides.
+    pub commit_popup_maximized: bool,
     /// Selection in search column picker.
     pub search_column_selection: usize,
     /// Columns to include in search.
@@ -494,6 +496,7 @@ impl App {
             pending_interactive_rebase: None,
             in_logs_ui: false,
             inspect_full_diff: false,
+            commit_popup_maximized: false,
             search_column_selection: 0,
             search_columns_sha: true,
             search_columns_message: true,
@@ -1017,6 +1020,7 @@ impl App {
             self.detail_tab = 0;
             self.graph_scroll = 0;
             self.inspect_full_diff = false;
+            self.commit_popup_maximized = false;
             self.mode = Mode::Detail;
         }
     }
@@ -1449,7 +1453,9 @@ impl App {
                         let remote_buf = repo.branch_upstream_remote(upstream_ref)?;
                         let remote_name = remote_buf.as_str()?;
 
-                        let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                        let output = std::process::Command::new("git")
+                            .env("GIT_TERMINAL_PROMPT", "0")
+                            .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                             .arg("fetch")
                             .arg(remote_name)
                             .current_dir(&repo_path)
@@ -1512,7 +1518,9 @@ impl App {
                             }
                         };
 
-                        let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                        let output = std::process::Command::new("git")
+                            .env("GIT_TERMINAL_PROMPT", "0")
+                            .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                             .arg("pull")
                             .current_dir(&repo_path)
                             .output()?;
@@ -1649,7 +1657,8 @@ impl App {
             std::thread::spawn(move || {
                 let res = (|| -> Result<String, Box<dyn std::error::Error>> {
                     let mut cmd = std::process::Command::new("git");
-cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+                    cmd.env("GIT_TERMINAL_PROMPT", "0")
+                        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                     cmd.arg("push");
                     if set_upstream {
                         cmd.arg("-u");
@@ -2002,7 +2011,8 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
                 let tx = self.tx.clone();
                 std::thread::spawn(move || {
                     let mut cmd = std::process::Command::new("git");
-cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+                    cmd.env("GIT_TERMINAL_PROMPT", "0")
+                        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                     cmd.arg("push")
                         .arg(&remote_name)
                         .arg(&tag_name)
@@ -2070,7 +2080,8 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
             let tx = self.tx.clone();
             std::thread::spawn(move || {
                 let mut cmd = std::process::Command::new("git");
-cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+                cmd.env("GIT_TERMINAL_PROMPT", "0")
+                    .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                 cmd.arg("push")
                     .arg(&remote_name)
                     .arg("--tags")
@@ -2266,7 +2277,9 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                        let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                        let output = std::process::Command::new("git")
+                            .env("GIT_TERMINAL_PROMPT", "0")
+                            .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                             .arg("merge")
                             .arg(&target_name)
                             .current_dir(&repo_path)
@@ -2357,7 +2370,9 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                        let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                        let output = std::process::Command::new("git")
+                            .env("GIT_TERMINAL_PROMPT", "0")
+                            .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                             .arg("rebase")
                             .arg(&target_name)
                             .current_dir(&repo_path)
@@ -3877,6 +3892,7 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
             self.commit_editing = true;
             self.commit_amend = false;
             self.commit_input_scroll = 0;
+            self.commit_popup_maximized = false;
             self.mode = Mode::CommitInput;
         } else {
             self.status_message = Some("No staged changes to commit".to_string());
@@ -3899,6 +3915,7 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
             self.commit_editing = true;
             self.commit_amend = true;
             self.commit_input_scroll = 0;
+            self.commit_popup_maximized = false;
             self.mode = Mode::CommitInput;
         } else {
             self.status_message = Some("No commit to amend".to_string());
@@ -3909,6 +3926,7 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
     pub fn cancel_commit(&mut self) {
         self.input_buffer.clear();
         self.commit_input_scroll = 0;
+        self.commit_popup_maximized = false;
         self.mode = Mode::Detail;
     }
 
@@ -3966,6 +3984,7 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
 
         self.input_buffer.clear();
         self.commit_input_scroll = 0;
+        self.commit_popup_maximized = false;
         self.mode = Mode::Detail;
     }
 
@@ -3978,6 +3997,10 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
                 }
             }
         }
+    }
+
+    pub fn toggle_commit_popup_maximized(&mut self) {
+        self.commit_popup_maximized = !self.commit_popup_maximized;
     }
 
     pub fn commit_input_scroll_up(&mut self) {
@@ -4450,7 +4473,8 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
                 let _ = std::fs::create_dir_all(&dest_expanded);
 
                 let mut cmd = std::process::Command::new("git");
-cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+                cmd.env("GIT_TERMINAL_PROMPT", "0")
+                    .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                 cmd.arg("clone").arg(&url).arg(&dest_expanded);
 
                 let output = cmd.output().map_err(|e| e.to_string())?;
@@ -4741,7 +4765,9 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
 
             std::thread::spawn(move || {
                 let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                    let output = std::process::Command::new("git")
+                        .env("GIT_TERMINAL_PROMPT", "0")
+                        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                         .arg("fetch")
                         .arg(&remote_name)
                         .current_dir(&repo_path)
@@ -4869,7 +4895,8 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
             let tx = self.tx.clone();
             std::thread::spawn(move || {
                 let mut cmd = std::process::Command::new("git");
-cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+                cmd.env("GIT_TERMINAL_PROMPT", "0")
+                    .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                 cmd.arg("push")
                     .arg("-u")
                     .arg(&remote_name)
@@ -4911,7 +4938,8 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
             let tx = self.tx.clone();
             std::thread::spawn(move || {
                 let mut cmd = std::process::Command::new("git");
-cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+                cmd.env("GIT_TERMINAL_PROMPT", "0")
+                    .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                 cmd.arg("push")
                     .arg(&remote_name)
                     .arg(&tag_name)
@@ -4948,7 +4976,8 @@ cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKey
             let tx = self.tx.clone();
             std::thread::spawn(move || {
                 let mut cmd = std::process::Command::new("git");
-cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+                cmd.env("GIT_TERMINAL_PROMPT", "0")
+                    .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                 cmd.arg("push")
                     .arg(&remote_name)
                     .arg("--tags")
@@ -5508,7 +5537,9 @@ where
             let cursor_res = terminal.show_cursor();
 
             if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
-                let status = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                let status = std::process::Command::new("git")
+                    .env("GIT_TERMINAL_PROMPT", "0")
+                    .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                     .arg("rebase")
                     .arg("-i")
                     .arg(&target)
@@ -6632,6 +6663,46 @@ mod tests {
         // Cancel resets it
         app.cancel_commit();
         assert_eq!(app.commit_input_scroll, 0);
+    }
+
+    #[test]
+    fn test_commit_popup_maximized_toggle() {
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+            compatibility_mode: false,
+            resync_on_tab_change: false,
+        };
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_maximize.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        assert!(!app.commit_popup_maximized);
+
+        app.toggle_commit_popup_maximized();
+        assert!(app.commit_popup_maximized);
+
+        app.toggle_commit_popup_maximized();
+        assert!(!app.commit_popup_maximized);
+
+        app.toggle_commit_popup_maximized();
+        assert!(app.commit_popup_maximized);
+
+        // Cancel resets it
+        app.cancel_commit();
+        assert!(!app.commit_popup_maximized);
     }
 
     #[test]
