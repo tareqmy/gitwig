@@ -77,6 +77,8 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Ensure single character input to avoid multiple same command being applied.
 - [x] About
 - [x] Solve windows button press bug
+- [x] Commit Signatures: Display GPG/SSH commit verification status in the history log list.
+- [x] Stash Pop: Perform a single-action "Pop Stash" (apply and delete).
 - [ ] **Per repository settings, theme, font**
 - [ ] **Show UI first, Load data later per tab**
 - [ ] **Keybindings**
@@ -98,8 +100,6 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
     - [ ] C1: In-memory `DetailCache` with TTL (stale-while-revalidate on re-visit)
     - [ ] C2: Make `build_ref_map` conditional / lazy
     - [ ] C3: Per-tab TTL — silent background refresh when tab data is stale
-- [ ] **Stash Pop:** Perform a single-action "Pop Stash" (apply and delete).
-- [ ] **Commit Signatures:** Display GPG/SSH commit verification status in the history log list.
 - [ ] **Cherry-pick & Revert:** Apply a specific commit (`cherry-pick`) or create a reverting commit (`revert`) from the log view.
 - [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
 - [ ] **Git Submodules:** Detect, list, initialize, and update submodules.

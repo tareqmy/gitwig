@@ -1834,11 +1834,26 @@ fn draw_detail_commits(
         }
         spans.push(Span::styled(commit.summary.clone(), Style::default()));
 
+        let id_span = if !commit.signature_status.is_empty() && commit.signature_status != "N" {
+            let (sig_char, sig_style) = match commit.signature_status.as_str() {
+                "G" => ("✓", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
+                "B" => ("✗", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
+                "U" | "X" | "Y" | "R" => ("✓", Style::default().fg(WARNING())),
+                _ => ("?", muted_style()),
+            };
+            Line::from(vec![
+                Span::styled(sig_char, sig_style),
+                Span::raw(" "),
+                Span::styled(commit.id.clone(), Style::default().fg(WARNING())),
+            ])
+        } else {
+            Line::from(vec![
+                Span::styled(commit.id.clone(), Style::default().fg(WARNING())),
+            ])
+        };
+
         Row::new(vec![
-            Cell::from(Span::styled(
-                commit.id.clone(),
-                Style::default().fg(WARNING()),
-            )),
+            Cell::from(id_span),
             Cell::from(Span::styled(commit.author.clone(), Style::default())),
             Cell::from(Span::styled(commit.when.clone(), muted_style())),
             Cell::from(Line::from(spans)),
@@ -1846,7 +1861,7 @@ fn draw_detail_commits(
     }));
 
     let widths = [
-        Constraint::Length(9),  // "c7a45e2" + 2 padding
+        Constraint::Length(11), // signature icon + "c7a45e2" + 2 padding
         Constraint::Length(18), // Author name
         Constraint::Length(16), // Date
         Constraint::Min(20),    // Summary
@@ -2228,6 +2243,17 @@ fn graph_line_spans(line: &crate::repo::GraphLine) -> Line<'static> {
             &c.oid
         };
         spans.push(Span::styled(format!("{} ", short_hash), accent_style()));
+
+        // Verification signature status badge
+        if !c.signature_status.is_empty() && c.signature_status != "N" {
+            let (sig_char, sig_style) = match c.signature_status.as_str() {
+                "G" => ("✓ ", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
+                "B" => ("✗ ", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
+                "U" | "X" | "Y" | "R" => ("✓ ", Style::default().fg(WARNING())),
+                _ => ("? ", muted_style()),
+            };
+            spans.push(Span::styled(sig_char, sig_style));
+        }
 
         // 3. Decorations (refs)
         if !c.decoration.is_empty() {

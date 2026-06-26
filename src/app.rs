@@ -7082,6 +7082,7 @@ mod tests {
                     refs: vec![],
                     message: "msg".to_string(),
                     files: vec![],
+                    signature_status: "N".to_string(),
                 },
                 repo::CommitEntry {
                     id: "2".to_string(),
@@ -7093,6 +7094,7 @@ mod tests {
                     refs: vec![],
                     message: "msg".to_string(),
                     files: vec![],
+                    signature_status: "N".to_string(),
                 },
                 repo::CommitEntry {
                     id: "3".to_string(),
@@ -7104,6 +7106,7 @@ mod tests {
                     refs: vec![],
                     message: "msg".to_string(),
                     files: vec![],
+                    signature_status: "N".to_string(),
                 },
             ],
             graph_lines: vec![],
@@ -8431,6 +8434,7 @@ mod tests {
                     refs: vec![],
                     message: "msg".to_string(),
                     files: vec![],
+                    signature_status: "N".to_string(),
                 },
                 crate::repo::CommitEntry {
                     id: "2234567".to_string(),
@@ -8442,6 +8446,7 @@ mod tests {
                     refs: vec![],
                     message: "msg".to_string(),
                     files: vec![],
+                    signature_status: "N".to_string(),
                 },
                 crate::repo::CommitEntry {
                     id: "2345678".to_string(),
@@ -8453,6 +8458,7 @@ mod tests {
                     refs: vec![],
                     message: "msg".to_string(),
                     files: vec![],
+                    signature_status: "N".to_string(),
                 },
                 crate::repo::CommitEntry {
                     id: "3234567".to_string(),
@@ -8464,6 +8470,7 @@ mod tests {
                     refs: vec![],
                     message: "msg".to_string(),
                     files: vec![],
+                    signature_status: "N".to_string(),
                 },
                 crate::repo::CommitEntry {
                     id: "4234567".to_string(),
@@ -8475,6 +8482,7 @@ mod tests {
                     refs: vec![],
                     message: "msg".to_string(),
                     files: vec![],
+                    signature_status: "N".to_string(),
                 },
             ],
             graph_lines: vec![],
@@ -8536,6 +8544,7 @@ mod tests {
             refs: vec![],
             message: "message body".to_string(),
             files: vec![],
+            signature_status: "N".to_string(),
         };
         assert!(app.commit_matches_query(&matching_commit));
 
@@ -8549,6 +8558,7 @@ mod tests {
             refs: vec![],
             message: "message body".to_string(),
             files: vec![],
+            signature_status: "N".to_string(),
         };
         assert!(!app.commit_matches_query(&non_matching_commit));
 

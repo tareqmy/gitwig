@@ -164,6 +164,8 @@ pub struct CommitEntry {
     pub refs: Vec<String>,
     /// Files changed in this commit (diff against first parent, or empty tree).
     pub files: Vec<FileEntry>,
+    /// GPG/SSH signature status.
+    pub signature_status: String,
 }
 
 #[derive(Debug, Clone)]
@@ -179,6 +181,8 @@ pub struct GraphCommit {
     pub summary: String,
     pub author: String,
     pub date: String,
+    /// GPG/SSH signature status.
+    pub signature_status: String,
 }
 
 /// One changed file in the working tree or index.
@@ -862,10 +866,42 @@ pub fn inspect_detail(item: &str, commit_limit: usize) -> ItemDetail {
     }
 }
 
+fn collect_signatures(repo_path: &Path, limit: usize) -> std::collections::HashMap<String, String> {
+    let mut sigs = std::collections::HashMap::new();
+    let mut cmd = std::process::Command::new("git");
+    cmd.env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+        .arg("log")
+        .arg("--all");
+
+    if limit > 0 {
+        cmd.arg(format!("-n{}", limit));
+    }
+
+    cmd.arg("--pretty=format:%H %G?")
+        .current_dir(repo_path);
+
+    if let Ok(out) = cmd.output() {
+        if out.status.success() {
+            let stdout_str = String::from_utf8_lossy(&out.stdout);
+            for line in stdout_str.lines() {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() == 2 {
+                    sigs.insert(parts[0].to_string(), parts[1].to_string());
+                } else if parts.len() == 1 {
+                    sigs.insert(parts[0].to_string(), "N".to_string());
+                }
+            }
+        }
+    }
+    sigs
+}
+
 fn collect_commits(
     repo: &Repository,
     limit: usize,
     ref_map: &std::collections::HashMap<git2::Oid, Vec<String>>,
+    repo_path: &Path,
 ) -> Result<Vec<CommitEntry>, git2::Error> {
     let mut walk = repo.revwalk()?;
     if walk.push_head().is_err() {
@@ -879,6 +915,8 @@ fn collect_commits(
     } else {
         walk.collect()
     };
+
+    let sig_map = collect_signatures(repo_path, limit);
 
     for id in oids {
         let oid = id?;
@@ -903,6 +941,7 @@ fn collect_commits(
                 .message()
                 .unwrap_or("(no commit message)")
                 .to_string();
+            let sig_status = sig_map.get(&oid_str).cloned().unwrap_or_else(|| "N".to_string());
             commits.push(CommitEntry {
                 id: short_id,
                 oid: oid_str,
@@ -913,6 +952,7 @@ fn collect_commits(
                 message,
                 refs,
                 files,
+                signature_status: sig_status,
             });
         }
     }
@@ -1064,7 +1104,7 @@ fn collect_info(path: &Path, commit_limit: usize) -> Result<RepoInfo, git2::Erro
         }
     }
 
-    if let Ok(commits) = collect_commits(&repo, commit_limit, &build_ref_map(&repo)) {
+    if let Ok(commits) = collect_commits(&repo, commit_limit, &build_ref_map(&repo), path) {
         info.commits = commits;
     }
 
@@ -1561,7 +1601,7 @@ fn collect_diff_lines(diff: &git2::Diff<'_>) -> Option<Vec<DiffLine>> {
 
 fn collect_graph_lines(repo_path: &Path) -> Vec<GraphLine> {
     let mut graph_lines = Vec::new();
-    let format_str = "%H__TWIG_SEP__%d__TWIG_SEP__%s__TWIG_SEP__%an__TWIG_SEP__%ad";
+    let format_str = "%H__TWIG_SEP__%d__TWIG_SEP__%s__TWIG_SEP__%an__TWIG_SEP__%ad__TWIG_SEP__%G?";
 
     let output = std::process::Command::new("git")
         .env("GIT_TERMINAL_PROMPT", "0")
@@ -1589,6 +1629,11 @@ fn collect_graph_lines(repo_path: &Path) -> Vec<GraphLine> {
                         let summary = parts[2].trim().to_string();
                         let author = parts[3].trim().to_string();
                         let date = parts[4].trim().to_string();
+                        let signature_status = if parts.len() >= 6 {
+                            parts[5].trim().to_string()
+                        } else {
+                            "N".to_string()
+                        };
 
                         let char_count = graph_and_hash.chars().count();
                         if char_count >= 40 {
@@ -1604,6 +1649,7 @@ fn collect_graph_lines(repo_path: &Path) -> Vec<GraphLine> {
                                     summary,
                                     author,
                                     date,
+                                    signature_status,
                                 }),
                             });
                         } else {
@@ -2252,6 +2298,57 @@ mod tests {
         // Verify amended message
         let amended_msg = get_last_commit_message(&temp_path).unwrap();
         assert_eq!(amended_msg, "amended commit");
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_commit_signatures_collection() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_sig_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // Init repo
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // Create initial file
+        let file_path = temp_path.join("test.txt");
+        let mut file = File::create(&file_path).unwrap();
+        writeln!(file, "initial content").unwrap();
+
+        // Stage and commit initial
+        stage_file(&temp_path, "test.txt").unwrap();
+        commit_changes(&temp_path, "initial commit").unwrap();
+
+        // 1. Test collect_signatures
+        let sigs = collect_signatures(&temp_path, 0);
+        assert_eq!(sigs.len(), 1);
+        let head_oid = repo.head().unwrap().target().unwrap().to_string();
+        let sig_status = sigs.get(&head_oid).unwrap();
+        assert_eq!(sig_status, "N");
+
+        // 2. Test collect_commits
+        let commits = collect_commits(&repo, 0, &build_ref_map(&repo), &temp_path).unwrap();
+        assert_eq!(commits.len(), 1);
+        assert_eq!(commits[0].signature_status, "N");
+
+        // 3. Test collect_graph_lines
+        let graph = collect_graph_lines(&temp_path);
+        assert_eq!(graph.len(), 1);
+        assert!(graph[0].commit.is_some());
+        assert_eq!(graph[0].commit.as_ref().unwrap().signature_status, "N");
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);
