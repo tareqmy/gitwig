@@ -1,6 +1,6 @@
 [package]
 name = "gitwig"
-version = "1.2.7"
+version = "1.3.1"
 edition = "2024"
 authors = ["tareqmy <tareq.y@gmail.com>"]
 description = "a rust based tui, an alternative to sourcetree and gitui"
