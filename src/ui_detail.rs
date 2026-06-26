@@ -20,7 +20,7 @@ use ratatui::widgets::{
 
 use crate::app::{DetailSection, Mode};
 use crate::repo::{
-    CommitEntry, DiffLine, DiffLineKind, FileEntry, ItemDetail, RemoteInfo, RepoInfo,
+    self, CommitEntry, DiffLine, DiffLineKind, FileEntry, ItemDetail, RemoteInfo, RepoInfo,
     WorktreeChanges,
 };
 use crate::ui::{
@@ -34,6 +34,10 @@ const FIELD_LABEL_WIDTH: usize = 9;
 const FILE_INDENT: &str = "      ";
 /// Column width for the file-status label ("T" = 1 char).
 const FILE_LABEL_WIDTH: usize = 2;
+
+fn error_style() -> Style {
+    Style::default().fg(DANGER())
+}
 
 // ── Hit-test areas ─────────────────────────────────────────────────────────
 
@@ -464,6 +468,7 @@ pub fn draw(
                     detail_chunks[0],
                     &app.commits_table_state,
                     areas,
+                    app.commit_limit,
                 );
                 areas.commits = Some(detail_chunks[0]);
 
@@ -538,33 +543,79 @@ pub fn draw(
                 );
             } else if detail_tab == 2 {
                 // Render Graph view (tab 3, index 2)
-                let block = Block::default()
-                    .borders(Borders::ALL)
-                    .border_type(CARD_BORDER())
-                    .border_style(muted_style())
-                    .title(Line::from(vec![
-                        Span::raw(" "),
-                        Span::styled("Branch History Graph", primary_style()),
-                        Span::raw("  "),
-                        Span::styled(format!("({})", info.graph_lines.len()), muted_style()),
-                        Span::raw(" "),
-                    ]))
-                    .padding(Padding::uniform(1));
+                match &info.graph_lines {
+                    repo::TabData::NotLoaded | repo::TabData::Loading => {
+                        let block = Block::default()
+                            .borders(Borders::ALL)
+                            .border_type(CARD_BORDER())
+                            .border_style(muted_style())
+                            .title(Line::from(vec![
+                                Span::raw(" "),
+                                Span::styled("Branch History Graph", primary_style()),
+                                Span::raw(" "),
+                            ]))
+                            .padding(Padding::uniform(1));
+                        let inner = block.inner(body_area);
+                        f.render_widget(block, body_area);
 
-                let inner = block.inner(body_area);
-                f.render_widget(block, body_area);
+                        let loading_text = Paragraph::new("⟳ Loading graph...")
+                            .style(muted_style())
+                            .alignment(ratatui::layout::Alignment::Center);
+                        let area = Rect::new(inner.x, inner.y + inner.height / 2, inner.width, 1);
+                        f.render_widget(loading_text, area);
+                    }
+                    repo::TabData::Error(err) => {
+                        let block = Block::default()
+                            .borders(Borders::ALL)
+                            .border_type(CARD_BORDER())
+                            .border_style(error_style())
+                            .title(Line::from(vec![
+                                Span::raw(" "),
+                                Span::styled("Branch History Graph - Error", error_style()),
+                                Span::raw(" "),
+                            ]))
+                            .padding(Padding::uniform(1));
+                        let inner = block.inner(body_area);
+                        f.render_widget(block, body_area);
 
-                let visible_height = inner.height as usize;
-                let upper = (graph_scroll + visible_height).min(info.graph_lines.len());
-                let visible_lines = &info.graph_lines[graph_scroll..upper];
+                        let error_text = Paragraph::new(format!("Error loading graph: {}", err))
+                            .style(error_style())
+                            .wrap(Wrap { trim: false });
+                        f.render_widget(error_text, inner);
+                    }
+                    repo::TabData::Loaded(_) => {
+                        let block = Block::default()
+                            .borders(Borders::ALL)
+                            .border_type(CARD_BORDER())
+                            .border_style(muted_style())
+                            .title(Line::from(vec![
+                                Span::raw(" "),
+                                Span::styled("Branch History Graph", primary_style()),
+                                Span::raw("  "),
+                                Span::styled(
+                                    format!("({})", info.graph_lines.len()),
+                                    muted_style(),
+                                ),
+                                Span::raw(" "),
+                            ]))
+                            .padding(Padding::uniform(1));
 
-                let mut list_lines = Vec::new();
-                for g_line in visible_lines {
-                    list_lines.push(graph_line_spans(g_line));
+                        let inner = block.inner(body_area);
+                        f.render_widget(block, body_area);
+
+                        let visible_height = inner.height as usize;
+                        let upper = (graph_scroll + visible_height).min(info.graph_lines.len());
+                        let visible_lines = &info.graph_lines.as_slice()[graph_scroll..upper];
+
+                        let mut list_lines = Vec::new();
+                        for g_line in visible_lines {
+                            list_lines.push(graph_line_spans(g_line));
+                        }
+
+                        let paragraph = Paragraph::new(list_lines).wrap(Wrap { trim: false });
+                        f.render_widget(paragraph, inner);
+                    }
                 }
-
-                let paragraph = Paragraph::new(list_lines).wrap(Wrap { trim: false });
-                f.render_widget(paragraph, inner);
             } else if detail_tab == 3 {
                 // Render Branches view (tab 4, index 3)
                 draw_branches_view(
@@ -746,7 +797,12 @@ pub fn draw(
             // Draw remote picker popup on top when requested.
             if matches!(mode, Mode::RemotePicker) {
                 if let ItemDetail::Repo { info, .. } = detail {
-                    draw_remote_picker_popup(f, &info.remotes, remote_picker_selection, body_area);
+                    draw_remote_picker_popup(
+                        f,
+                        info.remotes.as_slice(),
+                        remote_picker_selection,
+                        body_area,
+                    );
                 }
             }
             // Draw discard changes popup on top when requested.
@@ -1451,11 +1507,33 @@ fn draw_overview_tab(
         ]))
         .padding(Padding::horizontal(1));
 
-    let stats_lines = build_committer_stats_lines(info);
-    let stats_body = Paragraph::new(stats_lines)
-        .block(right_block)
-        .wrap(Wrap { trim: false });
-    f.render_widget(stats_body, chunks[1]);
+    match &info.committer_stats {
+        repo::TabData::NotLoaded | repo::TabData::Loading => {
+            let inner = right_block.inner(chunks[1]);
+            f.render_widget(right_block, chunks[1]);
+            let loading_text = Paragraph::new("⟳ Loading stats...")
+                .style(muted_style())
+                .alignment(ratatui::layout::Alignment::Center);
+            let center_area = Rect::new(inner.x, inner.y + inner.height / 2, inner.width, 1);
+            f.render_widget(loading_text, center_area);
+        }
+        repo::TabData::Error(err) => {
+            let right_block = right_block.border_style(error_style());
+            let inner = right_block.inner(chunks[1]);
+            f.render_widget(right_block, chunks[1]);
+            let error_text = Paragraph::new(format!("Error loading stats: {}", err))
+                .style(error_style())
+                .wrap(Wrap { trim: false });
+            f.render_widget(error_text, inner);
+        }
+        repo::TabData::Loaded(_) => {
+            let stats_lines = build_committer_stats_lines(info);
+            let stats_body = Paragraph::new(stats_lines)
+                .block(right_block)
+                .wrap(Wrap { trim: false });
+            f.render_widget(stats_body, chunks[1]);
+        }
+    }
 }
 
 fn build_committer_stats_lines(info: &RepoInfo) -> Vec<Line<'static>> {
@@ -1469,7 +1547,7 @@ fn build_committer_stats_lines(info: &RepoInfo) -> Vec<Line<'static>> {
             Span::styled("(no commits / unborn branch)", muted_style()),
         ]));
     } else {
-        for stat in &info.committer_stats {
+        for stat in info.committer_stats.iter() {
             let mut stat_spans = vec![
                 Span::raw(FIELD_INDENT),
                 Span::styled("● ", Style::default().fg(ACCENT())),
@@ -1689,6 +1767,7 @@ fn draw_detail_commits(
     area: Rect,
     commits_table_state: &std::cell::RefCell<TableState>,
     areas: &mut DetailAreas,
+    commit_limit: usize,
 ) {
     let focused = focus == DetailSection::Commits;
     let border_style = if focused {
@@ -1763,11 +1842,22 @@ fn draw_detail_commits(
         ]
     };
 
-    let block = Block::default()
+    let mut block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(border_style)
         .title(Line::from(title_spans));
+
+    if info.commits.len() >= commit_limit {
+        let footer_text = format!(
+            " Showing first {} commits — press G to load more ",
+            info.commits.len()
+        );
+        block = block.title_bottom(
+            Line::from(vec![Span::styled(footer_text, muted_style())])
+                .alignment(ratatui::layout::Alignment::Center),
+        );
+    }
 
     // Show empty placeholder only when truly empty (no commits AND clean).
     if filtered_commits.is_empty() && !show_dirty {
@@ -2068,7 +2158,7 @@ fn append_sync(lines: &mut Vec<Line<'static>>, info: &RepoInfo) {
         lines.push(field_line("Remotes", Span::styled("(none)", muted_style())));
     } else {
         lines.push(Line::from(""));
-        for r in &info.remotes {
+        for r in info.remotes.iter() {
             lines.push(remote_line(r));
         }
     }
@@ -2347,6 +2437,46 @@ fn draw_branches_view(
     app: &crate::app::App,
     area: Rect,
 ) {
+    if info.local_branches.is_loading() || info.local_branches.is_not_loaded() {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER())
+            .border_style(muted_style())
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Branches", primary_style()),
+                Span::raw(" "),
+            ]))
+            .padding(Padding::uniform(1));
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        let loading_text = Paragraph::new("⟳ Loading branches...")
+            .style(muted_style())
+            .alignment(ratatui::layout::Alignment::Center);
+        let center_area = Rect::new(inner.x, inner.y + inner.height / 2, inner.width, 1);
+        f.render_widget(loading_text, center_area);
+        return;
+    }
+    if let repo::TabData::Error(err) = &info.local_branches {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER())
+            .border_style(error_style())
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Branches - Error", error_style()),
+                Span::raw(" "),
+            ]))
+            .padding(Padding::uniform(1));
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        let error_text = Paragraph::new(format!("Error loading branches: {}", err))
+            .style(error_style())
+            .wrap(Wrap { trim: false });
+        f.render_widget(error_text, inner);
+        return;
+    }
+
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
@@ -2501,6 +2631,46 @@ fn draw_files_view(
     app: &crate::app::App,
     area: Rect,
 ) {
+    if info.files.is_loading() || info.files.is_not_loaded() {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER())
+            .border_style(muted_style())
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Files", primary_style()),
+                Span::raw(" "),
+            ]))
+            .padding(Padding::uniform(1));
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        let loading_text = Paragraph::new("⟳ Loading files...")
+            .style(muted_style())
+            .alignment(ratatui::layout::Alignment::Center);
+        let center_area = Rect::new(inner.x, inner.y + inner.height / 2, inner.width, 1);
+        f.render_widget(loading_text, center_area);
+        return;
+    }
+    if let repo::TabData::Error(err) = &info.files {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER())
+            .border_style(error_style())
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Files - Error", error_style()),
+                Span::raw(" "),
+            ]))
+            .padding(Padding::uniform(1));
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        let error_text = Paragraph::new(format!("Error loading files: {}", err))
+            .style(error_style())
+            .wrap(Wrap { trim: false });
+        f.render_widget(error_text, inner);
+        return;
+    }
+
     let files_full_screen = app.inspect_full_diff;
     let chunks = if files_full_screen {
         let left_rect = Rect::new(area.x, area.y, 0, area.height);
@@ -2625,7 +2795,7 @@ fn draw_files_view(
             };
 
             let mut direct_children = std::collections::BTreeSet::new();
-            for f_path in &info.files {
+            for f_path in info.files.iter() {
                 if f_path.starts_with(&prefix) {
                     let relative = &f_path[prefix.len()..];
                     if let Some(idx) = relative.find('/') {
@@ -3535,6 +3705,46 @@ fn draw_tags_view(
     app: &crate::app::App,
     area: Rect,
 ) {
+    if info.local_tags.is_loading() || info.local_tags.is_not_loaded() {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER())
+            .border_style(muted_style())
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Tags", primary_style()),
+                Span::raw(" "),
+            ]))
+            .padding(Padding::uniform(1));
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        let loading_text = Paragraph::new("⟳ Loading tags...")
+            .style(muted_style())
+            .alignment(ratatui::layout::Alignment::Center);
+        let center_area = Rect::new(inner.x, inner.y + inner.height / 2, inner.width, 1);
+        f.render_widget(loading_text, center_area);
+        return;
+    }
+    if let repo::TabData::Error(err) = &info.local_tags {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER())
+            .border_style(error_style())
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Tags - Error", error_style()),
+                Span::raw(" "),
+            ]))
+            .padding(Padding::uniform(1));
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        let error_text = Paragraph::new(format!("Error loading tags: {}", err))
+            .style(error_style())
+            .wrap(Wrap { trim: false });
+        f.render_widget(error_text, inner);
+        return;
+    }
+
     areas.local_tags = Some(area);
     areas.remote_tags = None;
 
@@ -3615,6 +3825,46 @@ fn draw_remotes_view(
     app: &crate::app::App,
     area: Rect,
 ) {
+    if info.remotes.is_loading() || info.remotes.is_not_loaded() {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER())
+            .border_style(muted_style())
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Remotes", primary_style()),
+                Span::raw(" "),
+            ]))
+            .padding(Padding::uniform(1));
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        let loading_text = Paragraph::new("⟳ Loading remotes...")
+            .style(muted_style())
+            .alignment(ratatui::layout::Alignment::Center);
+        let center_area = Rect::new(inner.x, inner.y + inner.height / 2, inner.width, 1);
+        f.render_widget(loading_text, center_area);
+        return;
+    }
+    if let repo::TabData::Error(err) = &info.remotes {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER())
+            .border_style(error_style())
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Remotes - Error", error_style()),
+                Span::raw(" "),
+            ]))
+            .padding(Padding::uniform(1));
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        let error_text = Paragraph::new(format!("Error loading remotes: {}", err))
+            .style(error_style())
+            .wrap(Wrap { trim: false });
+        f.render_widget(error_text, inner);
+        return;
+    }
+
     areas.remotes = Some(area);
 
     let chunks = Layout::default()
@@ -4143,6 +4393,46 @@ fn draw_stashes_view(
     app: &crate::app::App,
     area: Rect,
 ) {
+    if info.stashes.is_loading() || info.stashes.is_not_loaded() {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER())
+            .border_style(muted_style())
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Stashes", primary_style()),
+                Span::raw(" "),
+            ]))
+            .padding(Padding::uniform(1));
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        let loading_text = Paragraph::new("⟳ Loading stashes...")
+            .style(muted_style())
+            .alignment(ratatui::layout::Alignment::Center);
+        let center_area = Rect::new(inner.x, inner.y + inner.height / 2, inner.width, 1);
+        f.render_widget(loading_text, center_area);
+        return;
+    }
+    if let repo::TabData::Error(err) = &info.stashes {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(CARD_BORDER())
+            .border_style(error_style())
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Stashes - Error", error_style()),
+                Span::raw(" "),
+            ]))
+            .padding(Padding::uniform(1));
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+        let error_text = Paragraph::new(format!("Error loading stashes: {}", err))
+            .style(error_style())
+            .wrap(Wrap { trim: false });
+        f.render_widget(error_text, inner);
+        return;
+    }
+
     areas.bottom_left = None;
     areas.bottom_right = None;
     areas.commits = None;

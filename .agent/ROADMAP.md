@@ -95,8 +95,8 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
     - [x] A4: Gate `collect_committer_stats` limit by `max_commits` (not hard-coded 10 000)
     - [x] A5: Make `resync_detail` and all post-action refreshes (`app.rs:1029`, `5395`, etc.) async via worker thread
   - **Phase B — Tab-lazy loading:**
-    - [ ] B1: Introduce `TabData<T>` enum; split `RepoInfo` into `CoreInfo` + lazy per-tab structs; add `tab_tx`/`tab_rx` channels; dispatch tab load on first visit
-    - [ ] B2: Paginate Commits panel — load first N on open, expose "load more" keybind
+    - [x] B1: Introduce `TabData<T>` enum; split `RepoInfo` into `CoreInfo` + lazy per-tab structs; add `tab_tx`/`tab_rx` channels; dispatch tab load on first visit
+    - [x] B2: Paginate Commits panel — load first N on open, expose "load more" keybind
     - [ ] B3: Stream `collect_graph_lines` — parse line-by-line and send partial results to UI progressively
   - **Phase C — Caching:**
     - [ ] C1: In-memory `DetailCache` with TTL (stale-while-revalidate on re-visit)

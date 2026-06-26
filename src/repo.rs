@@ -96,11 +96,87 @@ pub struct CommitterStat {
     pub count: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TabData<T> {
+    NotLoaded,
+    Loading,
+    Loaded(T),
+    Error(String),
+}
+
+impl<T> Default for TabData<T> {
+    fn default() -> Self {
+        TabData::NotLoaded
+    }
+}
+
+impl<T> TabData<T> {
+    pub fn is_not_loaded(&self) -> bool {
+        matches!(self, TabData::NotLoaded)
+    }
+    pub fn is_loading(&self) -> bool {
+        matches!(self, TabData::Loading)
+    }
+    pub fn is_loaded(&self) -> bool {
+        matches!(self, TabData::Loaded(_))
+    }
+    pub fn as_ref(&self) -> Option<&T> {
+        match self {
+            TabData::Loaded(val) => Some(val),
+            _ => None,
+        }
+    }
+}
+
+impl<T> TabData<Vec<T>> {
+    pub fn len(&self) -> usize {
+        self.as_ref().map(|v| v.len()).unwrap_or(0)
+    }
+    pub fn is_empty(&self) -> bool {
+        self.as_ref().map(|v| v.is_empty()).unwrap_or(true)
+    }
+    pub fn first(&self) -> Option<&T> {
+        self.as_ref().and_then(|v| v.first())
+    }
+    pub fn get(&self, index: usize) -> Option<&T> {
+        self.as_ref().and_then(|v| v.get(index))
+    }
+    pub fn iter(&self) -> std::slice::Iter<'_, T> {
+        match self {
+            TabData::Loaded(v) => v.iter(),
+            _ => [].iter(),
+        }
+    }
+    pub fn as_slice(&self) -> &[T] {
+        match self {
+            TabData::Loaded(v) => v.as_slice(),
+            _ => &[],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum TabPayload {
+    Files(Result<Vec<String>, String>),
+    Graph(Result<Vec<GraphLine>, String>),
+    Branches {
+        local: Result<Vec<BranchInfo>, String>,
+        remote: Result<Vec<BranchInfo>, String>,
+    },
+    Tags {
+        local: Result<Vec<BranchInfo>, String>,
+        remote: Result<Vec<BranchInfo>, String>,
+    },
+    Remotes(Result<Vec<RemoteInfo>, String>),
+    Stashes(Result<Vec<StashInfo>, String>),
+    Overview(Result<(Vec<CommitterStat>, bool), String>),
+}
+
 #[derive(Debug, Default)]
 pub struct RepoInfo {
     pub branch: Option<String>,
     pub head: Option<HeadInfo>,
-    pub remotes: Vec<RemoteInfo>,
+    pub remotes: TabData<Vec<RemoteInfo>>,
     /// Configured upstream branch (e.g. "origin/main") if HEAD tracks one.
     pub upstream: Option<String>,
     pub summary: RepoSummary,
@@ -109,25 +185,25 @@ pub struct RepoInfo {
     /// Recent commits in this repository.
     pub commits: Vec<CommitEntry>,
     /// Graph view lines for the repository.
-    pub graph_lines: Vec<GraphLine>,
+    pub graph_lines: TabData<Vec<GraphLine>>,
     /// Local branches in the repository.
-    pub local_branches: Vec<BranchInfo>,
+    pub local_branches: TabData<Vec<BranchInfo>>,
     /// Remote branches in the repository.
-    pub remote_branches: Vec<BranchInfo>,
+    pub remote_branches: TabData<Vec<BranchInfo>>,
     /// Local tags in the repository.
-    pub local_tags: Vec<BranchInfo>,
+    pub local_tags: TabData<Vec<BranchInfo>>,
     /// Remote tags in the repository.
-    pub remote_tags: Vec<BranchInfo>,
+    pub remote_tags: TabData<Vec<BranchInfo>>,
     /// Whether remote tags have been loaded from the remote repository.
     pub remote_tags_loaded: bool,
     /// Whether a remote tag fetch has been attempted in this session.
     pub remote_tags_attempted: bool,
     /// Tracked files in the repository.
-    pub files: Vec<String>,
+    pub files: TabData<Vec<String>>,
     /// Available stashes in the repository.
-    pub stashes: Vec<StashInfo>,
+    pub stashes: TabData<Vec<StashInfo>>,
     /// Committer statistics.
-    pub committer_stats: Vec<CommitterStat>,
+    pub committer_stats: TabData<Vec<CommitterStat>>,
     /// Whether the committer statistics walk was capped by the limit.
     pub committer_stats_limit_reached: bool,
 }
@@ -1045,9 +1121,9 @@ fn commit_changed_files(repo: &Repository, commit: &git2::Commit) -> Vec<FileEnt
 fn collect_info(
     path: &Path,
     commit_limit: usize,
-    graph_max_commits: usize,
+    _graph_max_commits: usize,
 ) -> Result<RepoInfo, git2::Error> {
-    let mut repo = Repository::open(path)?;
+    let repo = Repository::open(path)?;
     let mut summary = RepoSummary::default();
     if let Ok(head) = repo.head() {
         summary.branch = head.shorthand().ok().map(String::from);
@@ -1060,12 +1136,10 @@ fn collect_info(
     };
 
     if let Ok(head) = repo.head() {
-        // git2 0.21: shorthand() returns Result<&str, Error>.
         info.branch = head.shorthand().ok().map(String::from);
 
         if let Ok(commit) = head.peel_to_commit() {
             let short_id = format!("{:.7}", commit.id());
-            // summary() returns Result<Option<&str>, Error>.
             let summary_text = commit
                 .summary()
                 .ok()
@@ -1087,31 +1161,8 @@ fn collect_info(
             });
         }
 
-        // Upstream branch (short form, "origin/main"). git2 0.21:
-        // Reference::name returns Result<&str, Error>.
         if let Ok(head_name) = head.name() {
             info.upstream = upstream_short_name(&repo, head_name);
-        }
-    }
-
-    if let Ok(remotes) = repo.remotes() {
-        for name in remotes.iter() {
-            let Ok(Some(name)) = name else { continue };
-            if let Ok(remote) = repo.find_remote(name) {
-                let push_url = remote.pushurl().ok().flatten().map(String::from);
-                let mut refspecs = Vec::new();
-                for r in remote.refspecs() {
-                    if let Ok(s) = r.str() {
-                        refspecs.push(s.to_string());
-                    }
-                }
-                info.remotes.push(RemoteInfo {
-                    name: name.to_string(),
-                    url: remote.url().unwrap_or("(no url)").to_string(),
-                    push_url,
-                    refspecs,
-                });
-            }
         }
     }
 
@@ -1119,19 +1170,41 @@ fn collect_info(
         info.commits = commits;
     }
 
-    info.graph_lines = collect_graph_lines(path, graph_max_commits);
-
     populate_summary_and_file_changes(&repo, &mut info);
 
-    let stats_limit = if commit_limit > 0 {
-        commit_limit.min(10000)
-    } else {
-        10000
-    };
-    if let Ok((stats, limit_reached)) = collect_committer_stats(&repo, stats_limit) {
-        info.committer_stats = stats;
-        info.committer_stats_limit_reached = limit_reached;
+    Ok(info)
+}
+
+pub fn load_tab_files(repo_path: &Path) -> Result<Vec<String>, String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let mut files = Vec::new();
+    if let Ok(index) = repo.index() {
+        for entry in index.iter() {
+            if let Ok(path_str) = std::str::from_utf8(&entry.path) {
+                files.push(path_str.to_string());
+            }
+        }
     }
+    Ok(files)
+}
+
+pub fn load_tab_graph(
+    repo_path: &Path,
+    graph_max_commits: usize,
+) -> Result<Vec<GraphLine>, String> {
+    Ok(collect_graph_lines(repo_path, graph_max_commits))
+}
+
+pub fn load_tab_branches(
+    repo_path: &Path,
+) -> (
+    Result<Vec<BranchInfo>, String>,
+    Result<Vec<BranchInfo>, String>,
+) {
+    let repo = match Repository::open(repo_path) {
+        Ok(r) => r,
+        Err(e) => return (Err(e.to_string()), Err(e.to_string())),
+    };
 
     let mut local_branches = Vec::new();
     if let Ok(branches) = repo.branches(Some(git2::BranchType::Local)) {
@@ -1157,7 +1230,6 @@ fn collect_info(
         }
     }
     local_branches.sort_by(|a, b| b.is_head.cmp(&a.is_head).then_with(|| a.name.cmp(&b.name)));
-    info.local_branches = local_branches;
 
     let mut remote_branches = Vec::new();
     if let Ok(branches) = repo.branches(Some(git2::BranchType::Remote)) {
@@ -1185,7 +1257,20 @@ fn collect_info(
         }
     }
     remote_branches.sort_by(|a, b| a.name.cmp(&b.name));
-    info.remote_branches = remote_branches;
+
+    (Ok(local_branches), Ok(remote_branches))
+}
+
+pub fn load_tab_tags(
+    repo_path: &Path,
+) -> (
+    Result<Vec<BranchInfo>, String>,
+    Result<Vec<BranchInfo>, String>,
+) {
+    let repo = match Repository::open(repo_path) {
+        Ok(r) => r,
+        Err(e) => return (Err(e.to_string()), Err(e.to_string())),
+    };
 
     let mut local_tags = Vec::new();
     if let Ok(tags) = repo.tag_names(None) {
@@ -1212,21 +1297,38 @@ fn collect_info(
         }
     }
     local_tags.sort_by(|a, b| a.name.cmp(&b.name));
-    info.local_tags = local_tags;
-    info.remote_tags = Vec::new();
-    info.remote_tags_loaded = false;
-    info.remote_tags_attempted = false;
 
-    let mut files = Vec::new();
-    if let Ok(index) = repo.index() {
-        for entry in index.iter() {
-            if let Ok(path_str) = std::str::from_utf8(&entry.path) {
-                files.push(path_str.to_string());
+    (Ok(local_tags), Ok(Vec::new()))
+}
+
+pub fn load_tab_remotes(repo_path: &Path) -> Result<Vec<RemoteInfo>, String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let mut remotes_list = Vec::new();
+    if let Ok(remotes) = repo.remotes() {
+        for name in remotes.iter() {
+            let Ok(Some(name)) = name else { continue };
+            if let Ok(remote) = repo.find_remote(name) {
+                let push_url = remote.pushurl().ok().flatten().map(String::from);
+                let mut refspecs = Vec::new();
+                for r in remote.refspecs() {
+                    if let Ok(s) = r.str() {
+                        refspecs.push(s.to_string());
+                    }
+                }
+                remotes_list.push(RemoteInfo {
+                    name: name.to_string(),
+                    url: remote.url().unwrap_or("(no url)").to_string(),
+                    push_url,
+                    refspecs,
+                });
             }
         }
     }
-    info.files = files;
+    Ok(remotes_list)
+}
 
+pub fn load_tab_stashes(repo_path: &Path) -> Result<Vec<StashInfo>, String> {
+    let mut repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
     let mut temp_stashes = Vec::new();
     let _ = repo.stash_foreach(|index, message, oid| {
         temp_stashes.push((index, message.to_string(), *oid));
@@ -1246,9 +1348,22 @@ fn collect_info(
             files,
         });
     }
-    info.stashes = stashes;
+    Ok(stashes)
+}
 
-    Ok(info)
+pub fn load_tab_overview(
+    repo_path: &Path,
+    commit_limit: usize,
+) -> Result<(Vec<CommitterStat>, bool), String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let stats_limit = if commit_limit > 0 {
+        commit_limit.min(10000)
+    } else {
+        10000
+    };
+    let (stats, limit_reached) =
+        collect_committer_stats(&repo, stats_limit).map_err(|e| e.to_string())?;
+    Ok((stats, limit_reached))
 }
 
 /// Build a map from commit `Oid` → list of ref names that point to it.

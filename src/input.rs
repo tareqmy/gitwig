@@ -765,6 +765,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::End if detail_focus == DetailSection::Commits => {
                     app.detail_commit_to_bottom()
                 }
+                KeyCode::Char('G') if detail_focus == DetailSection::Commits => {
+                    app.commit_limit = app.commit_limit.saturating_add(200);
+                    app.resync_detail();
+                    app.status_message = Some("Loading more commits...".to_string());
+                }
                 KeyCode::Up
                     if detail_focus == DetailSection::Staged
                         || detail_focus == DetailSection::Unstaged

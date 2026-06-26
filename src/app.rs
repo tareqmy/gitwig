@@ -233,6 +233,8 @@ pub struct App {
     pub detail_focus: DetailSection,
     /// Selected row index inside the Commits panel (0 = top row).
     pub commit_selection: usize,
+    /// Dynamic commit limit for pagination
+    pub commit_limit: usize,
     /// Active query for filtering commits in the commits panel
     pub commit_search_query: Option<String>,
     /// Active query for filtering repositories in the home page list
@@ -397,6 +399,8 @@ pub struct App {
     pub loading_repo_path: Option<String>,
     pub detail_tx: std::sync::mpsc::Sender<(String, repo::ItemDetail)>,
     pub detail_rx: std::sync::mpsc::Receiver<(String, repo::ItemDetail)>,
+    pub tab_tx: std::sync::mpsc::Sender<(String, usize, repo::TabPayload)>,
+    pub tab_rx: std::sync::mpsc::Receiver<(String, usize, repo::TabPayload)>,
 }
 
 #[derive(Clone, Debug)]
@@ -438,6 +442,7 @@ impl App {
             .collect();
         let (tx, rx) = std::sync::mpsc::channel();
         let (detail_tx, detail_rx) = std::sync::mpsc::channel();
+        let (tab_tx, tab_rx) = std::sync::mpsc::channel();
         let mut app = Self {
             original_items,
             config,
@@ -452,6 +457,7 @@ impl App {
             current_detail: None,
             detail_focus: DetailSection::Commits,
             commit_selection: 0,
+            commit_limit: 200,
             commit_search_query: None,
             repo_search_query: None,
             file_selection: 0,
@@ -548,6 +554,8 @@ impl App {
             loading_repo_path: None,
             detail_tx,
             detail_rx,
+            tab_tx,
+            tab_rx,
         };
 
         if app.config.sort_by != SortOrder::Custom {
@@ -996,10 +1004,11 @@ impl App {
                 }
             }
 
+            self.commit_limit = 200;
             self.loading_repo_path = Some(item.clone());
             let tx = self.detail_tx.clone();
             let item_clone = item.clone();
-            let max_commits = self.config.max_commits;
+            let max_commits = self.commit_limit;
             let graph_max_commits = self.config.graph_max_commits;
             std::thread::spawn(move || {
                 let detail = repo::inspect_detail(&item_clone, max_commits, graph_max_commits);
@@ -1040,7 +1049,7 @@ impl App {
             crate::debug_log::info("Resyncing repository details");
             self.loading_repo_path = Some(item.clone());
             let tx = self.detail_tx.clone();
-            let max_commits = self.config.max_commits;
+            let max_commits = self.commit_limit;
             let graph_max_commits = self.config.graph_max_commits;
             std::thread::spawn(move || {
                 let detail = repo::inspect_detail(&item, max_commits, graph_max_commits);
@@ -1188,6 +1197,120 @@ impl App {
             self.refresh_staging_diff();
         } else {
             self.refresh_file_diff();
+        }
+    }
+
+    /// Trigger asynchronous loading of a tab's lazy data if it is not yet loaded.
+    pub fn trigger_tab_load_if_needed(&mut self, tab_idx: usize) {
+        let Some(repo::ItemDetail::Repo { resolved, info }) = &mut self.current_detail else {
+            return;
+        };
+        let path = resolved.clone();
+        let tx = self.tab_tx.clone();
+        let commit_limit = self.config.max_commits;
+        let graph_max_commits = self.config.graph_max_commits;
+
+        match tab_idx {
+            1 => {
+                if info.files.is_not_loaded() {
+                    info.files = repo::TabData::Loading;
+                    std::thread::spawn(move || {
+                        let res = repo::load_tab_files(&path);
+                        let _ = tx.send((
+                            path.to_string_lossy().to_string(),
+                            tab_idx,
+                            repo::TabPayload::Files(res),
+                        ));
+                    });
+                }
+            }
+            2 => {
+                if info.graph_lines.is_not_loaded() {
+                    info.graph_lines = repo::TabData::Loading;
+                    std::thread::spawn(move || {
+                        let res = repo::load_tab_graph(&path, graph_max_commits);
+                        let _ = tx.send((
+                            path.to_string_lossy().to_string(),
+                            tab_idx,
+                            repo::TabPayload::Graph(res),
+                        ));
+                    });
+                }
+            }
+            3 => {
+                if info.local_branches.is_not_loaded() {
+                    info.local_branches = repo::TabData::Loading;
+                    info.remote_branches = repo::TabData::Loading;
+                    std::thread::spawn(move || {
+                        let (local_res, remote_res) = repo::load_tab_branches(&path);
+                        let _ = tx.send((
+                            path.to_string_lossy().to_string(),
+                            tab_idx,
+                            repo::TabPayload::Branches {
+                                local: local_res,
+                                remote: remote_res,
+                            },
+                        ));
+                    });
+                }
+            }
+            4 => {
+                if info.local_tags.is_not_loaded() {
+                    info.local_tags = repo::TabData::Loading;
+                    info.remote_tags = repo::TabData::Loading;
+                    std::thread::spawn(move || {
+                        let (local_res, remote_res) = repo::load_tab_tags(&path);
+                        let _ = tx.send((
+                            path.to_string_lossy().to_string(),
+                            tab_idx,
+                            repo::TabPayload::Tags {
+                                local: local_res,
+                                remote: remote_res,
+                            },
+                        ));
+                    });
+                }
+            }
+            5 => {
+                if info.remotes.is_not_loaded() {
+                    info.remotes = repo::TabData::Loading;
+                    std::thread::spawn(move || {
+                        let res = repo::load_tab_remotes(&path);
+                        let _ = tx.send((
+                            path.to_string_lossy().to_string(),
+                            tab_idx,
+                            repo::TabPayload::Remotes(res),
+                        ));
+                    });
+                }
+            }
+            6 => {
+                if info.stashes.is_not_loaded() {
+                    info.stashes = repo::TabData::Loading;
+                    std::thread::spawn(move || {
+                        let res = repo::load_tab_stashes(&path);
+                        let _ = tx.send((
+                            path.to_string_lossy().to_string(),
+                            tab_idx,
+                            repo::TabPayload::Stashes(res),
+                        ));
+                    });
+                }
+            }
+            7 => {
+                if info.committer_stats.is_not_loaded() {
+                    info.committer_stats = repo::TabData::Loading;
+                    std::thread::spawn(move || {
+                        let res = repo::load_tab_overview(&path, commit_limit);
+                        let _ = tx.send((
+                            path.to_string_lossy().to_string(),
+                            tab_idx,
+                            repo::TabPayload::Overview(res),
+                        ));
+                    });
+                }
+            }
+            _ => {}
         }
     }
 
@@ -3278,7 +3401,7 @@ impl App {
                         format!("{}/", selected_item.full_path)
                     };
                     let mut direct_children = std::collections::BTreeSet::new();
-                    for f_path in &info.files {
+                    for f_path in info.files.iter() {
                         if f_path.starts_with(&prefix) {
                             let relative = &f_path[prefix.len()..];
                             if let Some(idx) = relative.find('/') {
@@ -4735,7 +4858,7 @@ impl App {
                 children: std::collections::BTreeMap::new(),
             };
 
-            for file_path in &info.files {
+            for file_path in info.files.iter() {
                 let parts: Vec<&str> = file_path.split('/').collect();
                 let mut current = &mut root;
                 let mut accumulated = String::new();
@@ -5581,7 +5704,7 @@ where
             } else if let Some(tags_data) = msg.strip_prefix("REMOTE_TAGS:") {
                 let tags = repo::deserialize_tags(tags_data);
                 if let Some(repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
-                    info.remote_tags = tags;
+                    info.remote_tags = repo::TabData::Loaded(tags);
                     info.remote_tags_loaded = true;
                 }
                 app.fetching = false;
@@ -5617,6 +5740,68 @@ where
             if Some(&path) == app.loading_repo_path.as_ref() {
                 app.apply_detail_snapshot(detail);
                 app.loading_repo_path = None;
+            }
+        }
+
+        while let Ok((path, _tab_idx, payload)) = app.tab_rx.try_recv() {
+            if let Some(repo::ItemDetail::Repo { resolved, info }) = &mut app.current_detail {
+                if resolved == &path {
+                    match payload {
+                        repo::TabPayload::Files(res) => {
+                            info.files = match res {
+                                Ok(files) => repo::TabData::Loaded(files),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Graph(res) => {
+                            info.graph_lines = match res {
+                                Ok(lines) => repo::TabData::Loaded(lines),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Branches { local, remote } => {
+                            info.local_branches = match local {
+                                Ok(b) => repo::TabData::Loaded(b),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                            info.remote_branches = match remote {
+                                Ok(b) => repo::TabData::Loaded(b),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Tags { local, remote } => {
+                            info.local_tags = match local {
+                                Ok(t) => repo::TabData::Loaded(t),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                            info.remote_tags = match remote {
+                                Ok(t) => repo::TabData::Loaded(t),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Remotes(res) => {
+                            info.remotes = match res {
+                                Ok(r) => repo::TabData::Loaded(r),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Stashes(res) => {
+                            info.stashes = match res {
+                                Ok(s) => repo::TabData::Loaded(s),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Overview(res) => match res {
+                            Ok((stats, capped)) => {
+                                info.committer_stats = repo::TabData::Loaded(stats);
+                                info.committer_stats_limit_reached = capped;
+                            }
+                            Err(e) => {
+                                info.committer_stats = repo::TabData::Error(e);
+                            }
+                        },
+                    }
+                }
             }
         }
 
@@ -5924,7 +6109,7 @@ where
                         Ok(mut c) => {
                             if let Some(mut stdin) = c.stdin.take() {
                                 use std::io::Write;
-                                for file in files {
+                                for file in files.iter() {
                                     let _ = writeln!(stdin, "{}", file);
                                 }
                             }
@@ -6001,6 +6186,8 @@ where
             (available_height / ITEM_HEIGHT).min(app.get_items_len() as u16) as usize;
         app.clamp_scroll(visible_count);
         app.clamp_help_scroll(area.height as usize);
+
+        app.trigger_tab_load_if_needed(app.detail_tab);
 
         // Capture panel rects from the draw pass for mouse hit-testing.
         let mut detail_areas = DetailAreas::default();
@@ -6264,28 +6451,13 @@ mod tests {
 
         let mock_info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
-            summary: crate::repo::RepoSummary::default(),
-            changes: crate::repo::WorktreeChanges::default(),
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![crate::repo::RemoteInfo {
+            remotes: crate::repo::TabData::Loaded(vec![crate::repo::RemoteInfo {
                 name: "origin".to_string(),
                 url: "git@github.com:tareqmy/gitwig.git".to_string(),
                 push_url: None,
                 refspecs: vec![],
-            }],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            }]),
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: std::path::PathBuf::from("."),
@@ -6347,28 +6519,13 @@ mod tests {
 
         let mock_info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
-            summary: crate::repo::RepoSummary::default(),
-            changes: crate::repo::WorktreeChanges::default(),
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![crate::repo::RemoteInfo {
+            remotes: crate::repo::TabData::Loaded(vec![crate::repo::RemoteInfo {
                 name: "origin".to_string(),
                 url: "git@github.com:tareqmy/gitwig.git".to_string(),
                 push_url: None,
                 refspecs: vec![],
-            }],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            }]),
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: std::path::PathBuf::from("."),
@@ -7298,10 +7455,6 @@ mod tests {
         app.detail_areas.commits_inner = Some(Rect::new(1, 1, 98, 18));
         let mock_info = repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
-            summary: repo::RepoSummary::default(),
-            changes: repo::WorktreeChanges::default(),
             commits: vec![
                 repo::CommitEntry {
                     id: "1".to_string(),
@@ -7340,18 +7493,7 @@ mod tests {
                     signature_status: "N".to_string(),
                 },
             ],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
-            remotes: vec![],
+            ..repo::RepoInfo::default()
         };
         app.current_detail = Some(repo::ItemDetail::Repo {
             resolved: PathBuf::from("a_repo"),
@@ -7428,7 +7570,7 @@ mod tests {
         // 4. Local branches click test
         app.detail_areas = crate::ui_detail::DetailAreas::default();
         let mock_info_3 = repo::RepoInfo {
-            local_branches: vec![
+            local_branches: repo::TabData::Loaded(vec![
                 repo::BranchInfo {
                     name: "b1".to_string(),
                     is_head: true,
@@ -7441,13 +7583,13 @@ mod tests {
                     short_sha: "456".to_string(),
                     short_message: "msg".to_string(),
                 },
-            ],
-            remote_branches: vec![repo::BranchInfo {
+            ]),
+            remote_branches: repo::TabData::Loaded(vec![repo::BranchInfo {
                 name: "origin/b1".to_string(),
                 is_head: false,
                 short_sha: "123".to_string(),
                 short_message: "msg".to_string(),
-            }],
+            }]),
             ..Default::default()
         };
         app.current_detail = Some(repo::ItemDetail::Repo {
@@ -7470,12 +7612,12 @@ mod tests {
         // 5. Remote branches click test
         app.detail_areas = crate::ui_detail::DetailAreas::default();
         let mock_info_3_remote = repo::RepoInfo {
-            remote_branches: vec![repo::BranchInfo {
+            remote_branches: repo::TabData::Loaded(vec![repo::BranchInfo {
                 name: "origin/b1".to_string(),
                 is_head: false,
                 short_sha: "123".to_string(),
                 short_message: "msg".to_string(),
-            }],
+            }]),
             ..Default::default()
         };
         app.current_detail = Some(repo::ItemDetail::Repo {
@@ -7497,7 +7639,7 @@ mod tests {
         // 6. Local tags click test
         app.detail_areas = crate::ui_detail::DetailAreas::default();
         let mock_info_4 = repo::RepoInfo {
-            local_tags: vec![
+            local_tags: repo::TabData::Loaded(vec![
                 repo::BranchInfo {
                     name: "t1".to_string(),
                     is_head: false,
@@ -7510,7 +7652,7 @@ mod tests {
                     short_sha: "456".to_string(),
                     short_message: "msg".to_string(),
                 },
-            ],
+            ]),
             ..Default::default()
         };
         app.current_detail = Some(repo::ItemDetail::Repo {
@@ -7533,7 +7675,7 @@ mod tests {
         // 7. Remotes click test
         app.detail_areas = crate::ui_detail::DetailAreas::default();
         let mock_info_5 = repo::RepoInfo {
-            remotes: vec![
+            remotes: repo::TabData::Loaded(vec![
                 repo::RemoteInfo {
                     name: "r1".to_string(),
                     url: "url1".to_string(),
@@ -7546,7 +7688,7 @@ mod tests {
                     push_url: None,
                     refspecs: vec![],
                 },
-            ],
+            ]),
             ..Default::default()
         };
         app.current_detail = Some(repo::ItemDetail::Repo {
@@ -7569,7 +7711,7 @@ mod tests {
         // 8. Stashes and Stashed Files click test
         app.detail_areas = crate::ui_detail::DetailAreas::default();
         let mock_info_6 = repo::RepoInfo {
-            stashes: vec![
+            stashes: repo::TabData::Loaded(vec![
                 repo::StashInfo {
                     index: 0,
                     commit_id: "123".to_string(),
@@ -7591,7 +7733,7 @@ mod tests {
                     message: "s2".to_string(),
                     files: vec![],
                 },
-            ],
+            ]),
             ..Default::default()
         };
         app.current_detail = Some(repo::ItemDetail::Repo {
@@ -7900,12 +8042,12 @@ mod tests {
         app.current_detail = Some(repo::ItemDetail::Repo {
             resolved: std::path::PathBuf::from("."),
             info: Box::new(repo::RepoInfo {
-                remotes: vec![repo::RemoteInfo {
+                remotes: repo::TabData::Loaded(vec![repo::RemoteInfo {
                     name: "origin".to_string(),
                     url: "https://github.com/example/repo.git".to_string(),
                     push_url: None,
                     refspecs: vec![],
-                }],
+                }]),
                 ..Default::default()
             }),
         });
@@ -7980,23 +8122,8 @@ mod tests {
         });
         let info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
-            summary: crate::repo::RepoSummary::default(),
             changes,
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: PathBuf::from("."),
@@ -8063,23 +8190,8 @@ mod tests {
         });
         let info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
-            summary: crate::repo::RepoSummary::default(),
             changes,
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: PathBuf::from("."),
@@ -8138,26 +8250,12 @@ mod tests {
         });
         let info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
             summary: crate::repo::RepoSummary {
                 staged: 1,
                 ..Default::default()
             },
             changes,
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: PathBuf::from("."),
@@ -8215,26 +8313,12 @@ mod tests {
         });
         let info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
             summary: crate::repo::RepoSummary {
                 modified: 1,
                 ..Default::default()
             },
             changes,
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: PathBuf::from("."),
@@ -8294,26 +8378,12 @@ mod tests {
         });
         let info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
             summary: crate::repo::RepoSummary {
                 modified: 1,
                 ..Default::default()
             },
             changes,
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: PathBuf::from("."),
@@ -8443,23 +8513,8 @@ mod tests {
         // Unstaged is empty
         let info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
-            summary: crate::repo::RepoSummary::default(),
             changes,
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: PathBuf::from("."),
@@ -8497,23 +8552,7 @@ mod tests {
 
         let empty_info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
-            summary: crate::repo::RepoSummary::default(),
-            changes: crate::repo::WorktreeChanges::default(),
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: PathBuf::from("."),
@@ -8662,10 +8701,6 @@ mod tests {
 
         let mock_info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
-            summary: crate::repo::RepoSummary::default(),
-            changes: crate::repo::WorktreeChanges::default(),
             commits: vec![
                 crate::repo::CommitEntry {
                     id: "1234567".to_string(),
@@ -8728,18 +8763,7 @@ mod tests {
                     signature_status: "N".to_string(),
                 },
             ],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: std::path::PathBuf::from("."),
@@ -8863,23 +8887,7 @@ mod tests {
 
         let mock_info = crate::repo::RepoInfo {
             branch: Some("mock_branch_name_test_xyz".to_string()),
-            head: None,
-            upstream: None,
-            summary: crate::repo::RepoSummary::default(),
-            changes: crate::repo::WorktreeChanges::default(),
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: std::path::PathBuf::from("."),
@@ -8919,23 +8927,7 @@ mod tests {
         // Reset to mock info for manual refresh test
         let mock_info_2 = crate::repo::RepoInfo {
             branch: Some("mock_branch_name_test_xyz".to_string()),
-            head: None,
-            upstream: None,
-            summary: crate::repo::RepoSummary::default(),
-            changes: crate::repo::WorktreeChanges::default(),
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: std::path::PathBuf::from("."),
@@ -8993,13 +8985,7 @@ mod tests {
 
         let mock_info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
-            summary: crate::repo::RepoSummary::default(),
-            changes: crate::repo::WorktreeChanges::default(),
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![
+            local_branches: crate::repo::TabData::Loaded(vec![
                 crate::repo::BranchInfo {
                     name: "main".to_string(),
                     is_head: true,
@@ -9012,27 +8998,20 @@ mod tests {
                     short_sha: "".to_string(),
                     short_message: "".to_string(),
                 },
-            ],
-            remote_branches: vec![crate::repo::BranchInfo {
+            ]),
+            remote_branches: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
                 name: "origin/feature-branch".to_string(),
                 is_head: false,
                 short_sha: "".to_string(),
                 short_message: "".to_string(),
-            }],
-            remotes: vec![],
-            local_tags: vec![crate::repo::BranchInfo {
+            }]),
+            local_tags: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
                 name: "v1.0.0".to_string(),
                 is_head: false,
                 short_sha: "".to_string(),
                 short_message: "".to_string(),
-            }],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            }]),
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: std::path::PathBuf::from("."),
@@ -9542,8 +9521,6 @@ mod tests {
 
         let mock_info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            head: None,
-            upstream: None,
             summary: crate::repo::RepoSummary {
                 branch: Some("main".to_string()),
                 staged: 0,
@@ -9559,24 +9536,13 @@ mod tests {
                 conflicted: vec![],
                 untracked: vec![],
             },
-            commits: vec![],
-            graph_lines: vec![],
-            local_branches: vec![],
-            remote_branches: vec![],
-            remotes: vec![crate::repo::RemoteInfo {
+            remotes: crate::repo::TabData::Loaded(vec![crate::repo::RemoteInfo {
                 name: "origin".to_string(),
                 url: "git@github.com:tareqmy/gitwig.git".to_string(),
                 push_url: None,
                 refspecs: vec![],
-            }],
-            local_tags: vec![],
-            remote_tags: vec![],
-            remote_tags_loaded: false,
-            remote_tags_attempted: false,
-            files: vec![],
-            stashes: vec![],
-            committer_stats: vec![],
-            committer_stats_limit_reached: false,
+            }]),
+            ..crate::repo::RepoInfo::default()
         };
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: std::path::PathBuf::from("."),
