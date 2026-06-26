@@ -97,7 +97,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
   - **Phase B — Tab-lazy loading:**
     - [x] B1: Introduce `TabData<T>` enum; split `RepoInfo` into `CoreInfo` + lazy per-tab structs; add `tab_tx`/`tab_rx` channels; dispatch tab load on first visit
     - [x] B2: Paginate Commits panel — load first N on open, expose "load more" keybind
-    - [ ] B3: Stream `collect_graph_lines` — parse line-by-line and send partial results to UI progressively
+    - [x] B3: Stream `collect_graph_lines` — parse line-by-line and send partial results to UI progressively
   - **Phase C — Caching:**
     - [ ] C1: In-memory `DetailCache` with TTL (stale-while-revalidate on re-visit)
     - [ ] C2: Make `build_ref_map` conditional / lazy

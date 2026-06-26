@@ -1201,6 +1201,7 @@ impl App {
     }
 
     /// Trigger asynchronous loading of a tab's lazy data if it is not yet loaded.
+    #[allow(clippy::collapsible_match)]
     pub fn trigger_tab_load_if_needed(&mut self, tab_idx: usize) {
         let Some(repo::ItemDetail::Repo { resolved, info }) = &mut self.current_detail else {
             return;
@@ -1227,13 +1228,17 @@ impl App {
             2 => {
                 if info.graph_lines.is_not_loaded() {
                     info.graph_lines = repo::TabData::Loading;
+                    let tx_clone = tx.clone();
+                    let path_str = path.to_string_lossy().to_string();
                     std::thread::spawn(move || {
-                        let res = repo::load_tab_graph(&path, graph_max_commits);
-                        let _ = tx.send((
-                            path.to_string_lossy().to_string(),
+                        let res = repo::load_tab_graph_stream(
+                            &path,
+                            graph_max_commits,
+                            path_str.clone(),
                             tab_idx,
-                            repo::TabPayload::Graph(res),
-                        ));
+                            tx_clone,
+                        );
+                        let _ = tx.send((path_str, tab_idx, repo::TabPayload::Graph(res)));
                     });
                 }
             }

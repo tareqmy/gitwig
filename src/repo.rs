@@ -96,18 +96,13 @@ pub struct CommitterStat {
     pub count: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum TabData<T> {
+    #[default]
     NotLoaded,
     Loading,
     Loaded(T),
     Error(String),
-}
-
-impl<T> Default for TabData<T> {
-    fn default() -> Self {
-        TabData::NotLoaded
-    }
 }
 
 impl<T> TabData<T> {
@@ -117,6 +112,7 @@ impl<T> TabData<T> {
     pub fn is_loading(&self) -> bool {
         matches!(self, TabData::Loading)
     }
+    #[allow(dead_code)]
     pub fn is_loaded(&self) -> bool {
         matches!(self, TabData::Loaded(_))
     }
@@ -1188,11 +1184,66 @@ pub fn load_tab_files(repo_path: &Path) -> Result<Vec<String>, String> {
     Ok(files)
 }
 
-pub fn load_tab_graph(
+pub fn load_tab_graph_stream(
     repo_path: &Path,
     graph_max_commits: usize,
+    repo_resolved_path: String,
+    tab_idx: usize,
+    tx: std::sync::mpsc::Sender<(String, usize, TabPayload)>,
 ) -> Result<Vec<GraphLine>, String> {
-    Ok(collect_graph_lines(repo_path, graph_max_commits))
+    let mut graph_lines = Vec::new();
+    let format_str = "%H__TWIG_SEP__%d__TWIG_SEP__%s__TWIG_SEP__%an__TWIG_SEP__%ad__TWIG_SEP__%G?";
+
+    let mut args = vec![
+        "log".to_string(),
+        "--graph".to_string(),
+        "--all".to_string(),
+        "--date=relative".to_string(),
+    ];
+    if graph_max_commits > 0 {
+        args.push(format!("--max-count={}", graph_max_commits));
+    }
+    args.push(format!("--pretty=format:{}", format_str));
+    args.push("--color=never".to_string());
+
+    let mut child = std::process::Command::new("git")
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+        .args(&args)
+        .current_dir(repo_path)
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Failed to open stdout".to_string())?;
+    let reader = std::io::BufReader::new(stdout);
+    use std::io::BufRead;
+
+    for (idx, line_res) in reader.lines().enumerate() {
+        let line = line_res.map_err(|e| e.to_string())?;
+        let parsed = parse_graph_line(&line);
+        graph_lines.push(parsed);
+
+        // Every 200 lines, send a cloned batch to UI
+        if (idx + 1) % 200 == 0 {
+            let _ = tx.send((
+                repo_resolved_path.clone(),
+                tab_idx,
+                TabPayload::Graph(Ok(graph_lines.clone())),
+            ));
+        }
+    }
+
+    // Wait for the child process to exit
+    let status = child.wait().map_err(|e| e.to_string())?;
+    if !status.success() && graph_lines.is_empty() {
+        return Err("git log failed".to_string());
+    }
+
+    Ok(graph_lines)
 }
 
 pub fn load_tab_branches(
@@ -1753,6 +1804,57 @@ fn collect_diff_lines(diff: &git2::Diff<'_>) -> Option<Vec<DiffLine>> {
     Some(lines)
 }
 
+fn parse_graph_line(line: &str) -> GraphLine {
+    if line.contains("__TWIG_SEP__") {
+        let parts: Vec<&str> = line.split("__TWIG_SEP__").collect();
+        if parts.len() >= 5 {
+            let graph_and_hash = parts[0];
+            let decoration = parts[1].trim().to_string();
+            let summary = parts[2].trim().to_string();
+            let author = parts[3].trim().to_string();
+            let date = parts[4].trim().to_string();
+            let signature_status = if parts.len() >= 6 {
+                parts[5].trim().to_string()
+            } else {
+                "N".to_string()
+            };
+
+            let char_count = graph_and_hash.chars().count();
+            if char_count >= 40 {
+                let graph: String = graph_and_hash.chars().take(char_count - 40).collect();
+                let oid: String = graph_and_hash.chars().skip(char_count - 40).collect();
+                GraphLine {
+                    graph,
+                    commit: Some(GraphCommit {
+                        oid,
+                        decoration,
+                        summary,
+                        author,
+                        date,
+                        signature_status,
+                    }),
+                }
+            } else {
+                GraphLine {
+                    graph: graph_and_hash.to_string(),
+                    commit: None,
+                }
+            }
+        } else {
+            GraphLine {
+                graph: line.to_string(),
+                commit: None,
+            }
+        }
+    } else {
+        GraphLine {
+            graph: line.to_string(),
+            commit: None,
+        }
+    }
+}
+
+#[allow(dead_code)]
 fn collect_graph_lines(repo_path: &Path, graph_max_commits: usize) -> Vec<GraphLine> {
     let mut graph_lines = Vec::new();
     let format_str = "%H__TWIG_SEP__%d__TWIG_SEP__%s__TWIG_SEP__%an__TWIG_SEP__%ad__TWIG_SEP__%G?";
@@ -1780,50 +1882,7 @@ fn collect_graph_lines(repo_path: &Path, graph_max_commits: usize) -> Vec<GraphL
         if out.status.success() {
             let stdout_str = String::from_utf8_lossy(&out.stdout);
             for line in stdout_str.lines() {
-                if line.contains("__TWIG_SEP__") {
-                    let parts: Vec<&str> = line.split("__TWIG_SEP__").collect();
-                    if parts.len() >= 5 {
-                        let graph_and_hash = parts[0];
-                        let decoration = parts[1].trim().to_string();
-                        let summary = parts[2].trim().to_string();
-                        let author = parts[3].trim().to_string();
-                        let date = parts[4].trim().to_string();
-                        let signature_status = if parts.len() >= 6 {
-                            parts[5].trim().to_string()
-                        } else {
-                            "N".to_string()
-                        };
-
-                        let char_count = graph_and_hash.chars().count();
-                        if char_count >= 40 {
-                            let graph: String =
-                                graph_and_hash.chars().take(char_count - 40).collect();
-                            let oid: String =
-                                graph_and_hash.chars().skip(char_count - 40).collect();
-                            graph_lines.push(GraphLine {
-                                graph,
-                                commit: Some(GraphCommit {
-                                    oid,
-                                    decoration,
-                                    summary,
-                                    author,
-                                    date,
-                                    signature_status,
-                                }),
-                            });
-                        } else {
-                            graph_lines.push(GraphLine {
-                                graph: graph_and_hash.to_string(),
-                                commit: None,
-                            });
-                        }
-                    }
-                } else {
-                    graph_lines.push(GraphLine {
-                        graph: line.to_string(),
-                        commit: None,
-                    });
-                }
+                graph_lines.push(parse_graph_line(line));
             }
         }
     }
