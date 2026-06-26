@@ -55,7 +55,7 @@ impl RepoSummary {
 
 // ── Detail view ────────────────────────────────────────────────────────────
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ItemDetail {
     Missing {
         resolved: PathBuf,
@@ -168,7 +168,7 @@ pub enum TabPayload {
     Overview(Result<(Vec<CommitterStat>, bool), String>),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct RepoInfo {
     pub branch: Option<String>,
     pub head: Option<HeadInfo>,
@@ -204,7 +204,7 @@ pub struct RepoInfo {
     pub committer_stats_limit_reached: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HeadInfo {
     pub short_id: String,
     pub summary: String,

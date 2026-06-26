@@ -212,6 +212,12 @@ impl DetailSection {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct DetailCache {
+    pub detail: repo::ItemDetail,
+    pub loaded_at: std::time::Instant,
+}
+
 /// All mutable session state.
 pub struct App {
     pub config: Config,
@@ -225,10 +231,9 @@ pub struct App {
     pub input_buffer: String,
     pub status_message: Option<String>,
     pub error_message: Option<String>,
-    /// Populated when entering `Mode::Detail`, cleared when leaving. The
-    /// detail snapshot is taken once on open (not re-fetched per frame)
-    /// so opening a slow repo only costs one git2 call.
     pub current_detail: Option<ItemDetail>,
+    /// Cache of repository detail views mapped by their path.
+    pub detail_cache: std::collections::HashMap<String, DetailCache>,
     /// Which panel is focused inside the detail view.
     pub detail_focus: DetailSection,
     /// Selected row index inside the Commits panel (0 = top row).
@@ -455,6 +460,7 @@ impl App {
             status_message: None,
             error_message: None,
             current_detail: None,
+            detail_cache: std::collections::HashMap::new(),
             detail_focus: DetailSection::Commits,
             commit_selection: 0,
             commit_limit: 200,
@@ -1004,16 +1010,41 @@ impl App {
                 }
             }
 
-            self.commit_limit = 200;
-            self.loading_repo_path = Some(item.clone());
+            let cached_valid = if let Some(cached) = self.detail_cache.get(&item) {
+                cached.loaded_at.elapsed().as_secs() < self.config.detail_cache_ttl_secs
+            } else {
+                false
+            };
+
             let tx = self.detail_tx.clone();
             let item_clone = item.clone();
-            let max_commits = self.commit_limit;
             let graph_max_commits = self.config.graph_max_commits;
-            std::thread::spawn(move || {
-                let detail = repo::inspect_detail(&item_clone, max_commits, graph_max_commits);
-                let _ = tx.send((item_clone, detail));
-            });
+
+            if cached_valid {
+                let cached = self.detail_cache.get(&item).unwrap().clone();
+                let cached_commits_count = match &cached.detail {
+                    repo::ItemDetail::Repo { info, .. } => info.commits.len(),
+                    _ => 200,
+                };
+                self.commit_limit = cached_commits_count.max(200);
+                self.current_detail = Some(cached.detail);
+                self.rebuild_visible_files();
+
+                let max_commits = self.commit_limit;
+                // Silent background refresh
+                std::thread::spawn(move || {
+                    let detail = repo::inspect_detail(&item_clone, max_commits, graph_max_commits);
+                    let _ = tx.send((item_clone, detail));
+                });
+            } else {
+                self.commit_limit = 200;
+                self.loading_repo_path = Some(item.clone());
+                let max_commits = self.commit_limit;
+                std::thread::spawn(move || {
+                    let detail = repo::inspect_detail(&item_clone, max_commits, graph_max_commits);
+                    let _ = tx.send((item_clone, detail));
+                });
+            }
 
             self.detail_focus = DetailSection::Commits;
             self.commit_selection = 0;
@@ -1058,9 +1089,77 @@ impl App {
         }
     }
 
+    pub fn update_cache_from_current_detail(&mut self) {
+        if let Some(detail) = &self.current_detail {
+            let path_str = match detail {
+                repo::ItemDetail::Repo { resolved, .. }
+                | repo::ItemDetail::Missing { resolved, .. }
+                | repo::ItemDetail::Directory { resolved, .. }
+                | repo::ItemDetail::Error { resolved, .. } => {
+                    resolved.to_string_lossy().to_string()
+                }
+            };
+            self.detail_cache.insert(
+                path_str,
+                DetailCache {
+                    detail: detail.clone(),
+                    loaded_at: std::time::Instant::now(),
+                },
+            );
+        }
+    }
+
     /// Apply a loaded detail snapshot, clamping selection indices to their new totals.
     pub fn apply_detail_snapshot(&mut self, detail: repo::ItemDetail) {
-        self.current_detail = Some(detail);
+        let mut merged_detail = detail;
+        if let Some(repo::ItemDetail::Repo {
+            resolved: old_resolved,
+            info: old_info,
+        }) = &self.current_detail
+        {
+            if let repo::ItemDetail::Repo {
+                resolved: new_resolved,
+                info: new_info,
+            } = &mut merged_detail
+            {
+                if old_resolved == new_resolved {
+                    if new_info.remotes.is_not_loaded() {
+                        new_info.remotes = old_info.remotes.clone();
+                    }
+                    if new_info.graph_lines.is_not_loaded() {
+                        new_info.graph_lines = old_info.graph_lines.clone();
+                    }
+                    if new_info.local_branches.is_not_loaded() {
+                        new_info.local_branches = old_info.local_branches.clone();
+                    }
+                    if new_info.remote_branches.is_not_loaded() {
+                        new_info.remote_branches = old_info.remote_branches.clone();
+                    }
+                    if new_info.local_tags.is_not_loaded() {
+                        new_info.local_tags = old_info.local_tags.clone();
+                    }
+                    if new_info.remote_tags.is_not_loaded() {
+                        new_info.remote_tags = old_info.remote_tags.clone();
+                    }
+                    new_info.remote_tags_loaded = old_info.remote_tags_loaded;
+                    new_info.remote_tags_attempted = old_info.remote_tags_attempted;
+                    if new_info.files.is_not_loaded() {
+                        new_info.files = old_info.files.clone();
+                    }
+                    if new_info.stashes.is_not_loaded() {
+                        new_info.stashes = old_info.stashes.clone();
+                    }
+                    if new_info.committer_stats.is_not_loaded() {
+                        new_info.committer_stats = old_info.committer_stats.clone();
+                        new_info.committer_stats_limit_reached =
+                            old_info.committer_stats_limit_reached;
+                    }
+                }
+            }
+        }
+
+        self.current_detail = Some(merged_detail);
+        self.update_cache_from_current_detail();
         self.rebuild_visible_files();
 
         // Extract all lengths first to avoid borrow-checker conflicts
@@ -5742,15 +5841,41 @@ where
         }
 
         while let Ok((path, detail)) = app.detail_rx.try_recv() {
-            if Some(&path) == app.loading_repo_path.as_ref() {
+            app.detail_cache.insert(
+                path.clone(),
+                DetailCache {
+                    detail: detail.clone(),
+                    loaded_at: std::time::Instant::now(),
+                },
+            );
+
+            let is_currently_loading = Some(&path) == app.loading_repo_path.as_ref();
+            let is_currently_open = if let Some(current) = &app.current_detail {
+                match current {
+                    repo::ItemDetail::Repo { resolved, .. }
+                    | repo::ItemDetail::Missing { resolved, .. }
+                    | repo::ItemDetail::Directory { resolved, .. }
+                    | repo::ItemDetail::Error { resolved, .. } => {
+                        resolved.to_string_lossy() == path
+                    }
+                }
+            } else {
+                false
+            };
+
+            if is_currently_loading || is_currently_open {
                 app.apply_detail_snapshot(detail);
-                app.loading_repo_path = None;
+                if is_currently_loading {
+                    app.loading_repo_path = None;
+                }
             }
         }
 
+        let mut tab_updated = false;
         while let Ok((path, _tab_idx, payload)) = app.tab_rx.try_recv() {
             if let Some(repo::ItemDetail::Repo { resolved, info }) = &mut app.current_detail {
                 if resolved == &path {
+                    tab_updated = true;
                     match payload {
                         repo::TabPayload::Files(res) => {
                             info.files = match res {
@@ -5808,6 +5933,9 @@ where
                     }
                 }
             }
+        }
+        if tab_updated {
+            app.update_cache_from_current_detail();
         }
 
         if app.pending_git_app {
@@ -6291,6 +6419,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6377,6 +6506,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6445,6 +6575,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6513,6 +6644,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6587,6 +6719,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6629,6 +6762,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6690,6 +6824,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6799,6 +6934,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6870,6 +7006,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6953,6 +7090,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6994,6 +7132,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7035,6 +7174,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7111,6 +7251,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7173,6 +7314,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7444,6 +7586,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7792,6 +7935,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8031,6 +8175,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8106,6 +8251,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8174,6 +8320,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8234,6 +8381,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8297,6 +8445,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8362,6 +8511,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8457,6 +8607,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8496,6 +8647,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8599,6 +8751,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8634,6 +8787,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8672,6 +8826,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8879,6 +9034,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8976,6 +9132,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9091,6 +9248,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9147,6 +9305,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9196,6 +9355,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9250,6 +9410,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9305,6 +9466,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9368,6 +9530,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9446,6 +9609,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9515,6 +9679,7 @@ mod tests {
             fzf: FzfConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9605,5 +9770,70 @@ mod tests {
 
         // Error message should be dismissed (None)
         assert_eq!(app.error_message, None);
+    }
+
+    #[test]
+    fn test_detail_cache_ttl_behavior() {
+        let temp_dir = std::env::temp_dir();
+        let repo_path = temp_dir.join("test_cache_repo");
+        let _ = std::fs::remove_dir_all(&repo_path);
+        std::fs::create_dir_all(&repo_path).unwrap();
+
+        // Initialize App
+        let config = Config {
+            items: vec![repo_path.to_string_lossy().to_string()],
+            poll_interval_ms: 100,
+            max_commits: 200,
+            graph_max_commits: 1000,
+
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme_name: "default".to_string(),
+            theme: ThemeConfig::default(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+            compatibility_mode: true,
+            detail_cache_ttl_secs: 30,
+            resync_on_tab_change: false,
+        };
+
+        let mut app = App::new(config, PathBuf::from(""));
+
+        // Create a mock detail snapshot
+        let mock_detail = crate::repo::ItemDetail::Repo {
+            resolved: repo_path.clone(),
+            info: Box::new(crate::repo::RepoInfo {
+                commits: vec![],
+                files: crate::repo::TabData::Loaded(vec!["file1.txt".to_string()]),
+                ..crate::repo::RepoInfo::default()
+            }),
+        };
+
+        // 1. Manually add to cache
+        app.detail_cache.insert(
+            repo_path.to_string_lossy().to_string(),
+            DetailCache {
+                detail: mock_detail.clone(),
+                loaded_at: std::time::Instant::now(),
+            },
+        );
+
+        // 2. Trigger open_detail on this repository (it will load from cache immediately)
+        app.open_detail();
+
+        // loading_repo_path should be None because it loaded from cache silently!
+        assert!(app.loading_repo_path.is_none());
+        assert!(app.current_detail.is_some());
+
+        // Verify loaded files tab data is preserved
+        if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+            assert_eq!(info.files.as_slice(), &["file1.txt".to_string()]);
+        }
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&repo_path);
     }
 }

@@ -35,6 +35,10 @@ fn default_graph_max_commits() -> usize {
     1000
 }
 
+fn default_detail_cache_ttl_secs() -> u64 {
+    30
+}
+
 fn default_page_size() -> usize {
     10
 }
@@ -169,6 +173,9 @@ pub struct Config {
     /// Maximum commits visualised in the Graph tab (0 = unlimited; default 1000)
     #[serde(default = "default_graph_max_commits")]
     pub graph_max_commits: usize,
+    /// TTL in seconds for the detail view cache (default: 30)
+    #[serde(default = "default_detail_cache_ttl_secs")]
+    pub detail_cache_ttl_secs: u64,
     /// Number of lines/items to scroll when PageUp or PageDown is pressed. Default is 10.
     #[serde(default = "default_page_size")]
     pub page_size: usize,
@@ -348,6 +355,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 poll_interval_ms: default_poll_interval_ms(),
                 max_commits: default_max_commits(),
                 graph_max_commits: default_graph_max_commits(),
+                detail_cache_ttl_secs: default_detail_cache_ttl_secs(),
                 page_size: default_page_size(),
                 sort_by: default_sort_by(),
                 visits: default_visits(),
@@ -430,6 +438,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         poll_interval_ms: default_poll_interval_ms(),
         max_commits: default_max_commits(),
         graph_max_commits: default_graph_max_commits(),
+        detail_cache_ttl_secs: default_detail_cache_ttl_secs(),
         page_size: default_page_size(),
         sort_by: default_sort_by(),
         visits: default_visits(),

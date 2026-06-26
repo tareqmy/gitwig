@@ -99,7 +99,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
     - [x] B2: Paginate Commits panel — load first N on open, expose "load more" keybind
     - [x] B3: Stream `collect_graph_lines` — parse line-by-line and send partial results to UI progressively
   - **Phase C — Caching:**
-    - [ ] C1: In-memory `DetailCache` with TTL (stale-while-revalidate on re-visit)
+    - [x] C1: In-memory `DetailCache` with TTL (stale-while-revalidate on re-visit)
     - [ ] C2: Make `build_ref_map` conditional / lazy
     - [ ] C3: Per-tab TTL — silent background refresh when tab data is stale
 - [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
