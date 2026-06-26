@@ -39,6 +39,10 @@ fn default_detail_cache_ttl_secs() -> u64 {
     30
 }
 
+fn default_tab_ttl_secs() -> u64 {
+    60
+}
+
 fn default_page_size() -> usize {
     10
 }
@@ -176,6 +180,9 @@ pub struct Config {
     /// TTL in seconds for the detail view cache (default: 30)
     #[serde(default = "default_detail_cache_ttl_secs")]
     pub detail_cache_ttl_secs: u64,
+    /// TTL in seconds for the lazy-loaded tabs (default: 60)
+    #[serde(default = "default_tab_ttl_secs")]
+    pub tab_ttl_secs: u64,
     /// Number of lines/items to scroll when PageUp or PageDown is pressed. Default is 10.
     #[serde(default = "default_page_size")]
     pub page_size: usize,
@@ -356,6 +363,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 max_commits: default_max_commits(),
                 graph_max_commits: default_graph_max_commits(),
                 detail_cache_ttl_secs: default_detail_cache_ttl_secs(),
+                tab_ttl_secs: default_tab_ttl_secs(),
                 page_size: default_page_size(),
                 sort_by: default_sort_by(),
                 visits: default_visits(),
@@ -439,6 +447,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         max_commits: default_max_commits(),
         graph_max_commits: default_graph_max_commits(),
         detail_cache_ttl_secs: default_detail_cache_ttl_secs(),
+        tab_ttl_secs: default_tab_ttl_secs(),
         page_size: default_page_size(),
         sort_by: default_sort_by(),
         visits: default_visits(),

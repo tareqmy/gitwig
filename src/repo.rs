@@ -202,6 +202,10 @@ pub struct RepoInfo {
     pub committer_stats: TabData<Vec<CommitterStat>>,
     /// Whether the committer statistics walk was capped by the limit.
     pub committer_stats_limit_reached: bool,
+    /// Timestamps when each tab was loaded (index matches tab_idx)
+    pub tab_loaded_at: [Option<std::time::Instant>; 8],
+    /// Whether each tab is currently loading in the background (index matches tab_idx)
+    pub tab_loading: [bool; 8],
 }
 
 #[derive(Debug, Clone)]

@@ -3634,6 +3634,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -3955,6 +3956,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };

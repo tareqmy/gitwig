@@ -1156,6 +1156,8 @@ impl App {
                         new_info.committer_stats_limit_reached =
                             old_info.committer_stats_limit_reached;
                     }
+                    new_info.tab_loaded_at = old_info.tab_loaded_at;
+                    new_info.tab_loading = old_info.tab_loading;
                 }
             }
         }
@@ -1301,7 +1303,7 @@ impl App {
         }
     }
 
-    /// Trigger asynchronous loading of a tab's lazy data if it is not yet loaded.
+    /// Trigger asynchronous loading of a tab's lazy data if it is not yet loaded or stale.
     #[allow(clippy::collapsible_match)]
     pub fn trigger_tab_load_if_needed(&mut self, tab_idx: usize) {
         let Some(repo::ItemDetail::Repo { resolved, info }) = &mut self.current_detail else {
@@ -1311,11 +1313,30 @@ impl App {
         let tx = self.tab_tx.clone();
         let commit_limit = self.config.max_commits;
         let graph_max_commits = self.config.graph_max_commits;
+        let tab_ttl = self.config.tab_ttl_secs;
+
+        let should_trigger = |info: &repo::RepoInfo, tab_idx: usize, is_not_loaded: bool| -> bool {
+            if info.tab_loading[tab_idx] {
+                return false;
+            }
+            if is_not_loaded {
+                return true;
+            }
+            if let Some(loaded_at) = info.tab_loaded_at[tab_idx] {
+                loaded_at.elapsed().as_secs() >= tab_ttl
+            } else {
+                true
+            }
+        };
 
         match tab_idx {
             1 => {
-                if info.files.is_not_loaded() {
-                    info.files = repo::TabData::Loading;
+                let is_not_loaded = info.files.is_not_loaded();
+                if should_trigger(info, tab_idx, is_not_loaded) {
+                    info.tab_loading[tab_idx] = true;
+                    if is_not_loaded {
+                        info.files = repo::TabData::Loading;
+                    }
                     std::thread::spawn(move || {
                         let res = repo::load_tab_files(&path);
                         let _ = tx.send((
@@ -1327,8 +1348,12 @@ impl App {
                 }
             }
             2 => {
-                if info.graph_lines.is_not_loaded() {
-                    info.graph_lines = repo::TabData::Loading;
+                let is_not_loaded = info.graph_lines.is_not_loaded();
+                if should_trigger(info, tab_idx, is_not_loaded) {
+                    info.tab_loading[tab_idx] = true;
+                    if is_not_loaded {
+                        info.graph_lines = repo::TabData::Loading;
+                    }
                     let tx_clone = tx.clone();
                     let path_str = path.to_string_lossy().to_string();
                     std::thread::spawn(move || {
@@ -1344,9 +1369,13 @@ impl App {
                 }
             }
             3 => {
-                if info.local_branches.is_not_loaded() {
-                    info.local_branches = repo::TabData::Loading;
-                    info.remote_branches = repo::TabData::Loading;
+                let is_not_loaded = info.local_branches.is_not_loaded();
+                if should_trigger(info, tab_idx, is_not_loaded) {
+                    info.tab_loading[tab_idx] = true;
+                    if is_not_loaded {
+                        info.local_branches = repo::TabData::Loading;
+                        info.remote_branches = repo::TabData::Loading;
+                    }
                     std::thread::spawn(move || {
                         let (local_res, remote_res) = repo::load_tab_branches(&path);
                         let _ = tx.send((
@@ -1361,9 +1390,13 @@ impl App {
                 }
             }
             4 => {
-                if info.local_tags.is_not_loaded() {
-                    info.local_tags = repo::TabData::Loading;
-                    info.remote_tags = repo::TabData::Loading;
+                let is_not_loaded = info.local_tags.is_not_loaded();
+                if should_trigger(info, tab_idx, is_not_loaded) {
+                    info.tab_loading[tab_idx] = true;
+                    if is_not_loaded {
+                        info.local_tags = repo::TabData::Loading;
+                        info.remote_tags = repo::TabData::Loading;
+                    }
                     std::thread::spawn(move || {
                         let (local_res, remote_res) = repo::load_tab_tags(&path);
                         let _ = tx.send((
@@ -1378,8 +1411,12 @@ impl App {
                 }
             }
             5 => {
-                if info.remotes.is_not_loaded() {
-                    info.remotes = repo::TabData::Loading;
+                let is_not_loaded = info.remotes.is_not_loaded();
+                if should_trigger(info, tab_idx, is_not_loaded) {
+                    info.tab_loading[tab_idx] = true;
+                    if is_not_loaded {
+                        info.remotes = repo::TabData::Loading;
+                    }
                     std::thread::spawn(move || {
                         let res = repo::load_tab_remotes(&path);
                         let _ = tx.send((
@@ -1391,8 +1428,12 @@ impl App {
                 }
             }
             6 => {
-                if info.stashes.is_not_loaded() {
-                    info.stashes = repo::TabData::Loading;
+                let is_not_loaded = info.stashes.is_not_loaded();
+                if should_trigger(info, tab_idx, is_not_loaded) {
+                    info.tab_loading[tab_idx] = true;
+                    if is_not_loaded {
+                        info.stashes = repo::TabData::Loading;
+                    }
                     std::thread::spawn(move || {
                         let res = repo::load_tab_stashes(&path);
                         let _ = tx.send((
@@ -1404,8 +1445,12 @@ impl App {
                 }
             }
             7 => {
-                if info.committer_stats.is_not_loaded() {
-                    info.committer_stats = repo::TabData::Loading;
+                let is_not_loaded = info.committer_stats.is_not_loaded();
+                if should_trigger(info, tab_idx, is_not_loaded) {
+                    info.tab_loading[tab_idx] = true;
+                    if is_not_loaded {
+                        info.committer_stats = repo::TabData::Loading;
+                    }
                     std::thread::spawn(move || {
                         let res = repo::load_tab_overview(&path, commit_limit);
                         let _ = tx.send((
@@ -5874,10 +5919,14 @@ where
         }
 
         let mut tab_updated = false;
-        while let Ok((path, _tab_idx, payload)) = app.tab_rx.try_recv() {
+        while let Ok((path, tab_idx, payload)) = app.tab_rx.try_recv() {
             if let Some(repo::ItemDetail::Repo { resolved, info }) = &mut app.current_detail {
                 if resolved == &path {
                     tab_updated = true;
+                    if tab_idx < 8 {
+                        info.tab_loading[tab_idx] = false;
+                        info.tab_loaded_at[tab_idx] = Some(std::time::Instant::now());
+                    }
                     match payload {
                         repo::TabPayload::Files(res) => {
                             info.files = match res {
@@ -6422,6 +6471,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6509,6 +6559,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6578,6 +6629,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6647,6 +6699,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6722,6 +6775,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6765,6 +6819,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6827,6 +6882,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -6937,6 +6993,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7009,6 +7066,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7093,6 +7151,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7135,6 +7194,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7177,6 +7237,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7254,6 +7315,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7317,6 +7379,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7589,6 +7652,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -7938,6 +8002,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8178,6 +8243,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8254,6 +8320,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8323,6 +8390,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8384,6 +8452,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8448,6 +8517,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8514,6 +8584,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8610,6 +8681,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8650,6 +8722,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8754,6 +8827,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8790,6 +8864,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -8829,6 +8904,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9037,6 +9113,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9135,6 +9212,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9251,6 +9329,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9308,6 +9387,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9358,6 +9438,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9413,6 +9494,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9469,6 +9551,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9533,6 +9616,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9612,6 +9696,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9682,6 +9767,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
@@ -9799,6 +9885,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: true,
             detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 60,
             resync_on_tab_change: false,
         };
 
@@ -9833,6 +9920,82 @@ mod tests {
         // Verify loaded files tab data is preserved
         if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
             assert_eq!(info.files.as_slice(), &["file1.txt".to_string()]);
+        }
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&repo_path);
+    }
+
+    #[test]
+    fn test_tab_ttl_behavior() {
+        let temp_dir = std::env::temp_dir();
+        let repo_path = temp_dir.join("test_tab_ttl_repo");
+        let _ = std::fs::remove_dir_all(&repo_path);
+        std::fs::create_dir_all(&repo_path).unwrap();
+
+        // Initialize App with a short Tab TTL (e.g. 1s)
+        let config = Config {
+            items: vec![repo_path.to_string_lossy().to_string()],
+            poll_interval_ms: 100,
+            max_commits: 200,
+            graph_max_commits: 1000,
+            detail_cache_ttl_secs: 30,
+            tab_ttl_secs: 1, // 1s TTL
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme_name: "default".to_string(),
+            theme: ThemeConfig::default(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+            compatibility_mode: true,
+            resync_on_tab_change: false,
+        };
+
+        let mut app = App::new(config, PathBuf::from(""));
+
+        // Set up mock current detail
+        let mock_info = crate::repo::RepoInfo {
+            commits: vec![],
+            files: crate::repo::TabData::Loaded(vec!["file1.txt".to_string()]),
+            tab_loaded_at: [None; 8],
+            tab_loading: [false; 8],
+            ..crate::repo::RepoInfo::default()
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: repo_path.clone(),
+            info: Box::new(mock_info),
+        });
+
+        // 1. Initial trigger when NotLoaded
+        // Reset state to NotLoaded
+        if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
+            info.files = crate::repo::TabData::NotLoaded;
+        }
+        app.trigger_tab_load_if_needed(1);
+        if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+            assert!(info.tab_loading[1]);
+            assert!(info.files.is_loading());
+        }
+
+        // 2. Receive loaded payload simulation
+        if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
+            info.tab_loading[1] = false;
+            info.tab_loaded_at[1] =
+                Some(std::time::Instant::now() - std::time::Duration::from_secs(5)); // Mark loaded 5s ago (stale)
+            info.files = crate::repo::TabData::Loaded(vec!["file_refreshed.txt".to_string()]);
+        }
+
+        // 3. Trigger tab load when it is stale (stale-while-revalidate)
+        app.trigger_tab_load_if_needed(1);
+        if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+            // Should be loading in the background (tab_loading is true)
+            assert!(info.tab_loading[1]);
+            // But info.files state should still be TabData::Loaded! (no spinner)
+            assert!(matches!(info.files, crate::repo::TabData::Loaded(_)));
+            assert_eq!(info.files.as_slice(), &["file_refreshed.txt".to_string()]);
         }
 
         // Clean up
