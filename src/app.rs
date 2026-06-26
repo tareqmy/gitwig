@@ -624,10 +624,6 @@ impl App {
         self.error_message = Some(msg);
     }
 
-    pub fn inspect_repo_detail(&self, item: &str) -> repo::ItemDetail {
-        repo::inspect_detail(item, self.config.max_commits)
-    }
-
     pub fn status_height(&self) -> u16 {
         if self.status_expanded { 3 } else { 1 }
     }
@@ -1004,8 +1000,9 @@ impl App {
             let tx = self.detail_tx.clone();
             let item_clone = item.clone();
             let max_commits = self.config.max_commits;
+            let graph_max_commits = self.config.graph_max_commits;
             std::thread::spawn(move || {
-                let detail = repo::inspect_detail(&item_clone, max_commits);
+                let detail = repo::inspect_detail(&item_clone, max_commits, graph_max_commits);
                 let _ = tx.send((item_clone, detail));
             });
 
@@ -1037,46 +1034,46 @@ impl App {
 
     /// Resync the selected item's filesystem/git state inside the Detail view,
     /// clamping selection indices to their new totals.
+    /// Resync the selected item's filesystem/git state inside the Detail view asynchronously.
     pub fn resync_detail(&mut self) {
         if let Some(item) = self.get_selected_item().cloned() {
             crate::debug_log::info("Resyncing repository details");
-            self.current_detail = Some(self.inspect_repo_detail(&item));
-            self.rebuild_visible_files();
+            self.loading_repo_path = Some(item.clone());
+            let tx = self.detail_tx.clone();
+            let max_commits = self.config.max_commits;
+            let graph_max_commits = self.config.graph_max_commits;
+            std::thread::spawn(move || {
+                let detail = repo::inspect_detail(&item, max_commits, graph_max_commits);
+                let _ = tx.send((item, detail));
+            });
+        }
+    }
 
-            // Extract all lengths first to avoid borrow-checker conflicts
-            let mut info_lengths = None;
-            if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-                let commits_len = info.commits.len();
-                let local_branches_len = info.local_branches.len();
-                let remote_branches_len = info.remote_branches.len();
-                let local_tags_len = info.local_tags.len();
-                let remote_tags_len = info.remote_tags.len();
-                let remotes_len = info.remotes.len();
-                let stashes_len = info.stashes.len();
-                let staged_len = info.changes.staged.len();
-                let unstaged_len = info.changes.unstaged.len();
+    /// Apply a loaded detail snapshot, clamping selection indices to their new totals.
+    pub fn apply_detail_snapshot(&mut self, detail: repo::ItemDetail) {
+        self.current_detail = Some(detail);
+        self.rebuild_visible_files();
 
-                let commit_files_len = info
-                    .commits
-                    .get(self.commit_selection)
-                    .map(|c| c.files.len())
-                    .unwrap_or(0);
+        // Extract all lengths first to avoid borrow-checker conflicts
+        let mut info_lengths = None;
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let commits_len = info.commits.len();
+            let local_branches_len = info.local_branches.len();
+            let remote_branches_len = info.remote_branches.len();
+            let local_tags_len = info.local_tags.len();
+            let remote_tags_len = info.remote_tags.len();
+            let remotes_len = info.remotes.len();
+            let stashes_len = info.stashes.len();
+            let staged_len = info.changes.staged.len();
+            let unstaged_len = info.changes.unstaged.len();
 
-                info_lengths = Some((
-                    commits_len,
-                    local_branches_len,
-                    remote_branches_len,
-                    local_tags_len,
-                    remote_tags_len,
-                    remotes_len,
-                    stashes_len,
-                    staged_len,
-                    unstaged_len,
-                    commit_files_len,
-                ));
-            }
+            let commit_files_len = info
+                .commits
+                .get(self.commit_selection)
+                .map(|c| c.files.len())
+                .unwrap_or(0);
 
-            if let Some((
+            info_lengths = Some((
                 commits_len,
                 local_branches_len,
                 remote_branches_len,
@@ -1087,91 +1084,109 @@ impl App {
                 staged_len,
                 unstaged_len,
                 commit_files_len,
-            )) = info_lengths
-            {
-                // 1. Commit selection
-                if commits_len == 0 {
-                    self.commit_selection = 0;
-                } else if self.commit_selection >= commits_len {
-                    self.commit_selection = commits_len - 1;
-                }
+            ));
+        }
 
-                // 2. File list selection (Files tab)
-                let visible_files_len = self.visible_files.len();
-                if visible_files_len == 0 {
-                    self.file_list_selection = 0;
-                } else if self.file_list_selection >= visible_files_len {
-                    self.file_list_selection = visible_files_len - 1;
-                }
-
-                // 3. Local branches selection
-                if local_branches_len == 0 {
-                    self.local_branch_selection = 0;
-                } else if self.local_branch_selection >= local_branches_len {
-                    self.local_branch_selection = local_branches_len - 1;
-                }
-
-                // 4. Remote branches selection
-                if remote_branches_len == 0 {
-                    self.remote_branch_selection = 0;
-                } else if self.remote_branch_selection >= remote_branches_len {
-                    self.remote_branch_selection = remote_branches_len - 1;
-                }
-
-                // 5. Local tags selection
-                if local_tags_len == 0 {
-                    self.local_tag_selection = 0;
-                } else if self.local_tag_selection >= local_tags_len {
-                    self.local_tag_selection = local_tags_len - 1;
-                }
-
-                // 6. Remote tags selection
-                if remote_tags_len == 0 {
-                    self.remote_tag_selection = 0;
-                } else if self.remote_tag_selection >= remote_tags_len {
-                    self.remote_tag_selection = remote_tags_len - 1;
-                }
-
-                // 7. Remotes selection
-                if remotes_len == 0 {
-                    self.remote_selection = 0;
-                } else if self.remote_selection >= remotes_len {
-                    self.remote_selection = remotes_len - 1;
-                }
-
-                // 8. Stashes selection
-                if stashes_len == 0 {
-                    self.stash_selection = 0;
-                } else if self.stash_selection >= stashes_len {
-                    self.stash_selection = stashes_len - 1;
-                }
-
-                // 9. Files/Diff selection in Workspace/Commits details
-                // Workspace stage/unstage file lists
-                if self.is_uncommitted_selected() {
-                    // Staged files vs Unstaged files selection
-                    let active_len = if self.detail_focus == DetailSection::Staged {
-                        staged_len
-                    } else if self.detail_focus == DetailSection::Unstaged {
-                        unstaged_len
-                    } else {
-                        0
-                    };
-                    if active_len == 0 {
-                        self.staging_file_selection = 0;
-                    } else if self.staging_file_selection >= active_len {
-                        self.staging_file_selection = active_len - 1;
-                    }
-                } else {
-                    // Commits file selection
-                    if commit_files_len == 0 {
-                        self.file_selection = 0;
-                    } else if self.file_selection >= commit_files_len {
-                        self.file_selection = commit_files_len - 1;
-                    }
-                }
+        if let Some((
+            commits_len,
+            local_branches_len,
+            remote_branches_len,
+            local_tags_len,
+            remote_tags_len,
+            remotes_len,
+            stashes_len,
+            staged_len,
+            unstaged_len,
+            commit_files_len,
+        )) = info_lengths
+        {
+            // 1. Commit selection
+            if commits_len == 0 {
+                self.commit_selection = 0;
+            } else if self.commit_selection >= commits_len {
+                self.commit_selection = commits_len - 1;
             }
 
+            // 2. File list selection (Files tab)
+            let visible_files_len = self.visible_files.len();
+            if visible_files_len == 0 {
+                self.file_list_selection = 0;
+            } else if self.file_list_selection >= visible_files_len {
+                self.file_list_selection = visible_files_len - 1;
+            }
+
+            // 3. Local branches selection
+            if local_branches_len == 0 {
+                self.local_branch_selection = 0;
+            } else if self.local_branch_selection >= local_branches_len {
+                self.local_branch_selection = local_branches_len - 1;
+            }
+
+            // 4. Remote branches selection
+            if remote_branches_len == 0 {
+                self.remote_branch_selection = 0;
+            } else if self.remote_branch_selection >= remote_branches_len {
+                self.remote_branch_selection = remote_branches_len - 1;
+            }
+
+            // 5. Local tags selection
+            if local_tags_len == 0 {
+                self.local_tag_selection = 0;
+            } else if self.local_tag_selection >= local_tags_len {
+                self.local_tag_selection = local_tags_len - 1;
+            }
+
+            // 6. Remote tags selection
+            if remote_tags_len == 0 {
+                self.remote_tag_selection = 0;
+            } else if self.remote_tag_selection >= remote_tags_len {
+                self.remote_tag_selection = remote_tags_len - 1;
+            }
+
+            // 7. Remotes selection
+            if remotes_len == 0 {
+                self.remote_selection = 0;
+            } else if self.remote_selection >= remotes_len {
+                self.remote_selection = remotes_len - 1;
+            }
+
+            // 8. Stashes selection
+            if stashes_len == 0 {
+                self.stash_selection = 0;
+            } else if self.stash_selection >= stashes_len {
+                self.stash_selection = stashes_len - 1;
+            }
+
+            // 9. Files/Diff selection in Workspace/Commits details
+            // Workspace stage/unstage file lists
+            if self.is_uncommitted_selected() {
+                // Staged files vs Unstaged files selection
+                let active_len = if self.detail_focus == DetailSection::Staged {
+                    staged_len
+                } else if self.detail_focus == DetailSection::Unstaged {
+                    unstaged_len
+                } else {
+                    0
+                };
+                if active_len == 0 {
+                    self.staging_file_selection = 0;
+                } else if self.staging_file_selection >= active_len {
+                    self.staging_file_selection = active_len - 1;
+                }
+            } else {
+                // Commits file selection
+                if commit_files_len == 0 {
+                    self.file_selection = 0;
+                } else if self.file_selection >= commit_files_len {
+                    self.file_selection = commit_files_len - 1;
+                }
+            }
+        }
+
+        self.diff_scroll = 0;
+        if self.is_uncommitted_selected() {
+            self.refresh_staging_diff();
+        } else {
             self.refresh_file_diff();
         }
     }
@@ -1737,11 +1752,8 @@ impl App {
                 match res {
                     Ok(msg) => {
                         self.status_message = Some(msg);
-                        // Refresh detail snapshot
-                        let item = self.get_selected_item().unwrap();
-                        self.current_detail = Some(self.inspect_repo_detail(item));
-                        self.rebuild_visible_files();
                         self.local_branch_selection = 0;
+                        self.resync_detail();
                     }
                     Err(e) => {
                         self.status_message = Some(format!("Checkout failed: {}", e));
@@ -1798,9 +1810,7 @@ impl App {
                 match repo::create_tag(resolved, &tag_name, &oid) {
                     Ok(()) => {
                         self.status_message = Some(format!("Created tag '{}'", tag_name));
-                        // Refresh detail view to display the new tag refs
-                        let item = self.get_selected_item().unwrap();
-                        self.current_detail = Some(self.inspect_repo_detail(item));
+                        self.resync_detail();
                     }
                     Err(e) => {
                         self.status_message = Some(format!("Failed to create tag: {}", e));
@@ -1827,12 +1837,9 @@ impl App {
             match repo::save_stash(resolved, &stash_name) {
                 Ok(()) => {
                     self.status_message = Some(format!("Created stash '{}'", stash_name));
-                    // Refresh detail view to display the new stash
-                    if let Some(item) = self.get_selected_item().cloned() {
-                        self.current_detail = Some(self.inspect_repo_detail(&item));
-                    }
                     self.stash_selection = 0;
                     self.stash_file_selection = 0;
+                    self.resync_detail();
                 }
                 Err(e) => {
                     self.set_error(format!("Failed to stash changes: {}", e));
@@ -1876,8 +1883,7 @@ impl App {
                         "Remote '{}' added successfully",
                         self.remote_add_name
                     ));
-                    let item = self.get_selected_item().unwrap().clone();
-                    self.current_detail = Some(self.inspect_repo_detail(&item));
+                    self.resync_detail();
                 }
                 Err(e) => {
                     self.set_error(format!("Failed to add remote: {}", e));
@@ -1901,9 +1907,8 @@ impl App {
                 match repo::remote_delete(resolved, &remote_name) {
                     Ok(_) => {
                         self.status_message = Some(format!("Remote '{}' removed", remote_name));
-                        let item = self.get_selected_item().unwrap().clone();
-                        self.current_detail = Some(self.inspect_repo_detail(&item));
                         self.remote_selection = 0;
+                        self.resync_detail();
                     }
                     Err(e) => {
                         self.set_error(format!("Failed to remove remote: {}", e));
@@ -1940,10 +1945,8 @@ impl App {
             match repo::delete_tag(&repo_path, &tag_name) {
                 Ok(()) => {
                     self.status_message = Some(format!("Deleted local tag '{}'", tag_name));
-                    let item = self.get_selected_item().unwrap();
-                    self.current_detail = Some(self.inspect_repo_detail(item));
-                    self.rebuild_visible_files();
                     self.local_tag_selection = 0;
+                    self.resync_detail();
 
                     if is_on_remote {
                         if remotes_len > 1 {
@@ -2150,10 +2153,8 @@ impl App {
                             ));
                         }
                     }
-                    let item = self.get_selected_item().unwrap();
-                    self.current_detail = Some(self.inspect_repo_detail(item));
-                    self.rebuild_visible_files();
                     self.local_branch_selection = 0;
+                    self.resync_detail();
                 }
                 Err(e) => {
                     self.status_message = Some(format!("Failed to create branch: {}", e));
@@ -2209,11 +2210,9 @@ impl App {
                 match res {
                     Ok(()) => {
                         self.status_message = Some(format!("Deleted branch '{}'", branch_name));
-                        let item = self.get_selected_item().unwrap();
-                        self.current_detail = Some(self.inspect_repo_detail(item));
-                        self.rebuild_visible_files();
                         self.local_branch_selection = 0;
                         self.remote_branch_selection = 0;
+                        self.resync_detail();
                     }
                     Err(e) => {
                         self.status_message = Some(format!("Failed to delete branch: {}", e));
@@ -3642,22 +3641,8 @@ impl App {
         self.diff_hunk_selection = 0;
     }
 
-    /// Re-snapshot the repo for the selected item, preserving focus and clamping selection.
-    /// Call this after any index-mutating operation (stage / unstage).
     pub fn refresh_detail(&mut self) {
-        if let Some(item) = self.get_selected_item() {
-            self.current_detail = Some(self.inspect_repo_detail(item));
-            self.rebuild_visible_files();
-            // Clamp staging_file_selection to the new list length.
-            let new_total = self.staging_file_total();
-            if new_total == 0 {
-                self.staging_file_selection = 0;
-            } else if self.staging_file_selection >= new_total {
-                self.staging_file_selection = new_total - 1;
-            }
-            self.diff_scroll = 0;
-            self.refresh_staging_diff();
-        }
+        self.resync_detail();
     }
 
     /// Stage the currently-selected file in the Unstaged panel (`git add`).
@@ -5456,12 +5441,9 @@ impl App {
                     Ok(()) => {
                         self.status_message =
                             Some(format!("Deleted stash@{{{}}}", index_to_delete));
-                        let item = &self.config.items[self.selected_index];
-                        self.current_detail = Some(self.inspect_repo_detail(item));
-                        self.rebuild_visible_files();
                         self.stash_selection = 0;
                         self.stash_file_selection = 0;
-                        self.refresh_file_diff();
+                        self.resync_detail();
                     }
                     Err(e) => {
                         self.status_message = Some(format!("Failed to delete stash: {}", e));
@@ -5504,12 +5486,9 @@ impl App {
                             }
                         }
                         self.status_message = Some(success_msg);
-                        let item = &self.config.items[self.selected_index];
-                        self.current_detail = Some(self.inspect_repo_detail(item));
-                        self.rebuild_visible_files();
                         self.stash_selection = 0;
                         self.stash_file_selection = 0;
-                        self.refresh_file_diff();
+                        self.resync_detail();
                     }
                     Err(e) => {
                         self.status_message = Some(format!("Failed to apply stash: {}", e));
@@ -5544,9 +5523,7 @@ impl App {
                     Ok(()) => {
                         self.status_message =
                             Some(format!("Checked out tag '{}' (detached HEAD)", tag_name));
-                        let item = &self.config.items[self.selected_index];
-                        self.current_detail = Some(self.inspect_repo_detail(item));
-                        self.rebuild_visible_files();
+                        self.resync_detail();
                     }
                     Err(e) => {
                         self.status_message = Some(format!("Failed to checkout tag: {}", e));
@@ -5629,25 +5606,17 @@ where
                     app.status_message = Some(msg);
                 }
                 app.fetching = false;
-                if let Some(item) = app.config.items.get(app.selected_index) {
-                    app.current_detail = Some(app.inspect_repo_detail(item));
-                    app.rebuild_visible_files();
-                    if app.detail_focus == DetailSection::Conflicts {
-                        app.refresh_staging_diff();
-                    }
-                    if success_fetch {
-                        app.fetch_remote_tags(false);
-                    }
+                app.resync_detail();
+                if success_fetch {
+                    app.fetch_remote_tags(false);
                 }
             }
         }
 
         while let Ok((path, detail)) = app.detail_rx.try_recv() {
             if Some(&path) == app.loading_repo_path.as_ref() {
-                app.current_detail = Some(detail);
+                app.apply_detail_snapshot(detail);
                 app.loading_repo_path = None;
-                app.rebuild_visible_files();
-                app.refresh_file_diff();
             }
         }
 
@@ -6131,6 +6100,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_stash.toml");
         let _guard = TestFileGuard {
@@ -6216,6 +6186,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_network.toml");
         let _guard = TestFileGuard {
@@ -6283,6 +6254,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_remote_tags_progress.toml");
         let _guard = TestFileGuard {
@@ -6365,6 +6337,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_remote_fetch_progress.toml");
         let _guard = TestFileGuard {
@@ -6453,6 +6426,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_set_error.toml");
         let _guard = TestFileGuard {
@@ -6494,6 +6468,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_sort.toml");
         let _guard = TestFileGuard {
@@ -6554,6 +6529,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_duplicate.toml");
         // Ensure starting with a clean state and clean up upon drop
@@ -6662,6 +6638,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_dir = std::env::temp_dir().join("gitwig_test_bulk_add_dir");
         let _ = std::fs::remove_dir_all(&temp_dir);
@@ -6732,6 +6709,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_pin.toml");
         let _guard = TestFileGuard {
@@ -6814,6 +6792,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_scroll.toml");
         let _guard = TestFileGuard {
@@ -6854,6 +6833,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_maximize.toml");
         let _guard = TestFileGuard {
@@ -6894,6 +6874,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_cherry_pick.toml");
         let _guard = TestFileGuard {
@@ -6969,6 +6950,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_amend.toml");
         let _guard = TestFileGuard {
@@ -7030,6 +7012,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_splitter.toml");
         let _guard = TestFileGuard {
@@ -7300,6 +7283,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_mouse_select.toml");
         let _guard = TestFileGuard {
@@ -7662,6 +7646,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_settings.toml");
         let _guard = TestFileGuard {
@@ -7900,6 +7885,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_remotes.toml");
         let _guard = TestFileGuard {
@@ -7974,6 +7960,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect.toml");
         let _guard = TestFileGuard {
@@ -8056,6 +8043,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_enter.toml");
         let _guard = TestFileGuard {
@@ -8130,6 +8118,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_commit.toml");
         let _guard = TestFileGuard {
@@ -8206,6 +8195,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_workspace_all.toml");
         let _guard = TestFileGuard {
@@ -8284,6 +8274,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_workspace_all.toml");
         let _guard = TestFileGuard {
@@ -8392,6 +8383,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let mut app = App::new(config, temp_path.join("config.toml"));
 
@@ -8430,6 +8422,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_cycle.toml");
         let _guard = TestFileGuard {
@@ -8563,6 +8556,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_git_app.toml");
         let _guard = TestFileGuard {
@@ -8597,6 +8591,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_files_fzf.toml");
         let _guard = TestFileGuard {
@@ -8634,6 +8629,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_logs_search.toml");
         let _guard = TestFileGuard {
@@ -8855,6 +8851,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_sync.toml");
         let _guard = TestFileGuard {
@@ -8906,6 +8903,13 @@ mod tests {
         assert!(handled);
         assert_eq!(app.detail_tab, 2);
         assert!(app.current_detail.is_some());
+
+        // Wait and process the async message
+        let (path, detail) = app.detail_rx.recv().unwrap();
+        assert_eq!(Some(&path), app.loading_repo_path.as_ref());
+        app.apply_detail_snapshot(detail);
+        app.loading_repo_path = None;
+
         if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
             assert_ne!(info.branch.as_deref(), Some("mock_branch_name_test_xyz"));
         } else {
@@ -8943,6 +8947,13 @@ mod tests {
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('R')), 10);
         assert!(handled);
         assert_eq!(app.status_message.as_deref(), Some("Refreshed"));
+
+        // Wait and process the async message
+        let (path, detail) = app.detail_rx.recv().unwrap();
+        assert_eq!(Some(&path), app.loading_repo_path.as_ref());
+        app.apply_detail_snapshot(detail);
+        app.loading_repo_path = None;
+
         if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
             assert_ne!(info.branch.as_deref(), Some("mock_branch_name_test_xyz"));
         } else {
@@ -8969,6 +8980,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_checkout.toml");
         let _guard = TestFileGuard {
@@ -9096,6 +9108,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_search.toml");
         let _guard = TestFileGuard {
@@ -9151,6 +9164,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_right_arrow.toml");
         let _guard = TestFileGuard {
@@ -9199,6 +9213,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_full_diff.toml");
         let _guard = TestFileGuard {
@@ -9252,6 +9267,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_files_full.toml");
         let _guard = TestFileGuard {
@@ -9306,6 +9322,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_fzf_missing.toml");
         let _guard = TestFileGuard {
@@ -9368,6 +9385,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let unique_id = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -9445,6 +9463,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_about.toml");
         let _guard = TestFileGuard {
@@ -9513,6 +9532,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_tag_fetch.toml");
         let _guard = TestFileGuard {

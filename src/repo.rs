@@ -846,7 +846,7 @@ pub fn inspect_summary(item: &str) -> ItemStatus {
 }
 
 /// Inspect `item` and produce the rich detail report shown on Enter.
-pub fn inspect_detail(item: &str, commit_limit: usize) -> ItemDetail {
+pub fn inspect_detail(item: &str, commit_limit: usize, graph_max_commits: usize) -> ItemDetail {
     let resolved = expand_tilde(item);
     if !resolved.is_dir() {
         return ItemDetail::Missing { resolved };
@@ -854,7 +854,7 @@ pub fn inspect_detail(item: &str, commit_limit: usize) -> ItemDetail {
     if !resolved.join(".git").exists() {
         return ItemDetail::Directory { resolved };
     }
-    match collect_info(&resolved, commit_limit) {
+    match collect_info(&resolved, commit_limit, graph_max_commits) {
         Ok(info) => ItemDetail::Repo {
             resolved,
             info: Box::new(info),
@@ -1042,9 +1042,18 @@ fn commit_changed_files(repo: &Repository, commit: &git2::Commit) -> Vec<FileEnt
 
 // ── Internal collection ────────────────────────────────────────────────────
 
-fn collect_info(path: &Path, commit_limit: usize) -> Result<RepoInfo, git2::Error> {
+fn collect_info(
+    path: &Path,
+    commit_limit: usize,
+    graph_max_commits: usize,
+) -> Result<RepoInfo, git2::Error> {
     let mut repo = Repository::open(path)?;
-    let summary = collect_summary(&repo);
+    let mut summary = RepoSummary::default();
+    if let Ok(head) = repo.head() {
+        summary.branch = head.shorthand().ok().map(String::from);
+    }
+    populate_ahead_behind(&repo, &mut summary);
+
     let mut info = RepoInfo {
         summary,
         ..RepoInfo::default()
@@ -1110,11 +1119,16 @@ fn collect_info(path: &Path, commit_limit: usize) -> Result<RepoInfo, git2::Erro
         info.commits = commits;
     }
 
-    info.graph_lines = collect_graph_lines(path);
+    info.graph_lines = collect_graph_lines(path, graph_max_commits);
 
-    populate_file_changes(&repo, &mut info);
+    populate_summary_and_file_changes(&repo, &mut info);
 
-    if let Ok((stats, limit_reached)) = collect_committer_stats(&repo, 10000) {
+    let stats_limit = if commit_limit > 0 {
+        commit_limit.min(10000)
+    } else {
+        10000
+    };
+    if let Ok((stats, limit_reached)) = collect_committer_stats(&repo, stats_limit) {
         info.committer_stats = stats;
         info.committer_stats_limit_reached = limit_reached;
     }
@@ -1281,10 +1295,8 @@ fn build_ref_map(repo: &Repository) -> std::collections::HashMap<git2::Oid, Vec<
 /// working trees from overwhelming the detail view.
 const MAX_FILES_PER_SECTION: usize = 100;
 
-/// Walk the working-tree status once more and collect per-file info for
-/// the Detail view. Called only from `collect_info` (i.e. once per Enter
-/// press), never per frame.
-fn populate_file_changes(repo: &Repository, info: &mut RepoInfo) {
+/// Walk the working-tree status once and collect both summary counts and per-file info.
+fn populate_summary_and_file_changes(repo: &Repository, info: &mut RepoInfo) {
     let mut opts = StatusOptions::new();
     opts.include_untracked(true)
         .renames_head_to_index(true)
@@ -1297,6 +1309,31 @@ fn populate_file_changes(repo: &Repository, info: &mut RepoInfo) {
         let path = entry.path().unwrap_or("(unknown)").to_string();
         let flags = entry.status();
 
+        // 1. Populate summary counters
+        if flags.is_conflicted() {
+            info.summary.conflicted += 1;
+        } else {
+            if flags.is_wt_new() {
+                info.summary.untracked += 1;
+            }
+            if flags.is_wt_modified()
+                || flags.is_wt_deleted()
+                || flags.is_wt_renamed()
+                || flags.is_wt_typechange()
+            {
+                info.summary.modified += 1;
+            }
+            if flags.is_index_new()
+                || flags.is_index_modified()
+                || flags.is_index_deleted()
+                || flags.is_index_renamed()
+                || flags.is_index_typechange()
+            {
+                info.summary.staged += 1;
+            }
+        }
+
+        // 2. Populate file entries
         // Skip directories to avoid showing folders in staging panels
         let path_buf = repo.workdir().unwrap_or(Path::new("")).join(&path);
         if path_buf.is_dir() {
@@ -1601,21 +1638,26 @@ fn collect_diff_lines(diff: &git2::Diff<'_>) -> Option<Vec<DiffLine>> {
     Some(lines)
 }
 
-fn collect_graph_lines(repo_path: &Path) -> Vec<GraphLine> {
+fn collect_graph_lines(repo_path: &Path, graph_max_commits: usize) -> Vec<GraphLine> {
     let mut graph_lines = Vec::new();
     let format_str = "%H__TWIG_SEP__%d__TWIG_SEP__%s__TWIG_SEP__%an__TWIG_SEP__%ad__TWIG_SEP__%G?";
+
+    let mut args = vec![
+        "log".to_string(),
+        "--graph".to_string(),
+        "--all".to_string(),
+        "--date=relative".to_string(),
+    ];
+    if graph_max_commits > 0 {
+        args.push(format!("--max-count={}", graph_max_commits));
+    }
+    args.push(format!("--pretty=format:{}", format_str));
+    args.push("--color=never".to_string());
 
     let output = std::process::Command::new("git")
         .env("GIT_TERMINAL_PROMPT", "0")
         .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
-        .args([
-            "log",
-            "--graph",
-            "--all",
-            "--date=relative",
-            &format!("--pretty=format:{}", format_str),
-            "--color=never",
-        ])
+        .args(&args)
         .current_dir(repo_path)
         .output();
 
@@ -2347,7 +2389,7 @@ mod tests {
         assert_eq!(commits[0].signature_status, "N");
 
         // 3. Test collect_graph_lines
-        let graph = collect_graph_lines(&temp_path);
+        let graph = collect_graph_lines(&temp_path, 1000);
         assert_eq!(graph.len(), 1);
         assert!(graph[0].commit.is_some());
         assert_eq!(graph[0].commit.as_ref().unwrap().signature_status, "N");
@@ -2442,7 +2484,7 @@ mod tests {
         std::fs::write(&nested_file_path, "nested untracked file").unwrap();
 
         // Inspect detail
-        let detail = inspect_detail(temp_path.to_str().unwrap(), 0);
+        let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000);
         match detail {
             ItemDetail::Repo { info, .. } => {
                 // Verify no folders are in the unstaged/untracked list
@@ -2518,7 +2560,7 @@ mod tests {
         stage_file(&temp_path, "init.txt").unwrap();
 
         // Check status of repo
-        let detail = inspect_detail(temp_path.to_str().unwrap(), 0);
+        let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000);
         match detail {
             ItemDetail::Repo { info, .. } => {
                 // Both should be in staged changes
@@ -2580,7 +2622,7 @@ mod tests {
         std::fs::write(&file_tracked, "staged modifications\n").unwrap();
         stage_file(&temp_path, "tracked.txt").unwrap();
         // verify it's staged
-        let detail = inspect_detail(temp_path.to_str().unwrap(), 0);
+        let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000);
         match detail {
             ItemDetail::Repo { info, .. } => {
                 assert!(!info.changes.staged.is_empty());
@@ -2593,7 +2635,7 @@ mod tests {
             "original content\n"
         );
         // verify it's no longer staged/unstaged (it's clean)
-        let detail = inspect_detail(temp_path.to_str().unwrap(), 0);
+        let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000);
         match detail {
             ItemDetail::Repo { info, .. } => {
                 assert!(info.changes.staged.is_empty());

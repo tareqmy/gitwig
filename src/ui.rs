@@ -3634,6 +3634,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 
@@ -3953,6 +3954,7 @@ mod tests {
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             resync_on_tab_change: false,
+            graph_max_commits: 1000,
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 

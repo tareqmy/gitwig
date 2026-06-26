@@ -28,7 +28,11 @@ fn default_poll_interval_ms() -> u64 {
 }
 
 fn default_max_commits() -> usize {
-    0
+    500
+}
+
+fn default_graph_max_commits() -> usize {
+    1000
 }
 
 fn default_page_size() -> usize {
@@ -162,6 +166,9 @@ pub struct Config {
     /// Maximum commits to load in workspace view. Default is 0 (unlimited).
     #[serde(default = "default_max_commits")]
     pub max_commits: usize,
+    /// Maximum commits visualised in the Graph tab (0 = unlimited; default 1000)
+    #[serde(default = "default_graph_max_commits")]
+    pub graph_max_commits: usize,
     /// Number of lines/items to scroll when PageUp or PageDown is pressed. Default is 10.
     #[serde(default = "default_page_size")]
     pub page_size: usize,
@@ -340,6 +347,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 items: vec![],
                 poll_interval_ms: default_poll_interval_ms(),
                 max_commits: default_max_commits(),
+                graph_max_commits: default_graph_max_commits(),
                 page_size: default_page_size(),
                 sort_by: default_sort_by(),
                 visits: default_visits(),
@@ -421,6 +429,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         ],
         poll_interval_ms: default_poll_interval_ms(),
         max_commits: default_max_commits(),
+        graph_max_commits: default_graph_max_commits(),
         page_size: default_page_size(),
         sort_by: default_sort_by(),
         visits: default_visits(),
