@@ -79,12 +79,14 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Solve windows button press bug
 - [x] Commit Signatures: Display GPG/SSH commit verification status in the history log list.
 - [x] Stash Pop: Perform a single-action "Pop Stash" (apply and delete).
+- [x] Cherry-pick & Revert: Apply a specific commit (`cherry-pick`) or create a reverting commit (`revert`) from the log view.
 - [ ] **Per repository settings, theme, font**
 - [ ] **Show UI first, Load data later per tab**
 - [ ] **Keybindings**
 - [ ] **Commit window resize**
 - [ ] **Git logs pagination**
 - [ ] **Per Repository rule**
+- [ ] **Apply label for repositories**
 - [ ] **For large repo load time is high** — see `.agent/LARGE_REPO_PERFORMANCE_PLAN.md` for full analysis
   - **Phase A — Quick wins (no architecture change):**
     - [ ] A1: Change `max_commits` default from 0 (unlimited) to 500
@@ -100,7 +102,6 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
     - [ ] C1: In-memory `DetailCache` with TTL (stale-while-revalidate on re-visit)
     - [ ] C2: Make `build_ref_map` conditional / lazy
     - [ ] C3: Per-tab TTL — silent background refresh when tab data is stale
-- [ ] **Cherry-pick & Revert:** Apply a specific commit (`cherry-pick`) or create a reverting commit (`revert`) from the log view.
 - [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
 - [ ] **Git Submodules:** Detect, list, initialize, and update submodules.
 - [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.

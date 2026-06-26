@@ -713,6 +713,14 @@ pub fn draw(
             if matches!(mode, Mode::TagPushAllConfirm) {
                 draw_tag_push_all_popup(f, body_area);
             }
+            // Draw cherry-pick popup on top when requested.
+            if matches!(mode, Mode::CherryPickConfirm) {
+                draw_cherry_pick_popup(f, &app.cherry_pick_target, branch.as_deref(), body_area);
+            }
+            // Draw revert popup on top when requested.
+            if matches!(mode, Mode::RevertConfirm) {
+                draw_revert_popup(f, &app.revert_target, branch.as_deref(), body_area);
+            }
             // Draw stash delete popup on top when requested.
             if matches!(mode, Mode::StashDeleteConfirm) {
                 let stash_name = match detail {
@@ -1836,8 +1844,14 @@ fn draw_detail_commits(
 
         let id_span = if !commit.signature_status.is_empty() && commit.signature_status != "N" {
             let (sig_char, sig_style) = match commit.signature_status.as_str() {
-                "G" => ("✓", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
-                "B" => ("✗", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
+                "G" => (
+                    "✓",
+                    Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+                ),
+                "B" => (
+                    "✗",
+                    Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+                ),
                 "U" | "X" | "Y" | "R" => ("✓", Style::default().fg(WARNING())),
                 _ => ("?", muted_style()),
             };
@@ -1847,9 +1861,10 @@ fn draw_detail_commits(
                 Span::styled(commit.id.clone(), Style::default().fg(WARNING())),
             ])
         } else {
-            Line::from(vec![
-                Span::styled(commit.id.clone(), Style::default().fg(WARNING())),
-            ])
+            Line::from(vec![Span::styled(
+                commit.id.clone(),
+                Style::default().fg(WARNING()),
+            )])
         };
 
         Row::new(vec![
@@ -2247,8 +2262,14 @@ fn graph_line_spans(line: &crate::repo::GraphLine) -> Line<'static> {
         // Verification signature status badge
         if !c.signature_status.is_empty() && c.signature_status != "N" {
             let (sig_char, sig_style) = match c.signature_status.as_str() {
-                "G" => ("✓ ", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
-                "B" => ("✗ ", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
+                "G" => (
+                    "✓ ",
+                    Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+                ),
+                "B" => (
+                    "✗ ",
+                    Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+                ),
                 "U" | "X" | "Y" | "R" => ("✓ ", Style::default().fg(WARNING())),
                 _ => ("? ", muted_style()),
             };
@@ -3876,6 +3897,147 @@ fn draw_stash_apply_popup(f: &mut Frame, target: &Option<String>, delete_after: 
         Span::styled(" / Cancel: ", muted_style()),
         Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
     ]));
+
+    let paragraph = Paragraph::new(content)
+        .block(block)
+        .wrap(Wrap { trim: false });
+    f.render_widget(paragraph, popup_area);
+}
+
+fn draw_cherry_pick_popup(
+    f: &mut Frame,
+    target: &Option<(String, String)>,
+    current_branch: Option<&str>,
+    area: Rect,
+) {
+    let popup_area = centred_rect(55, 25, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Cherry-pick Commit", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let (commit_oid, summary) = match target {
+        Some((oid, sum)) => (oid.as_str(), sum.as_str()),
+        None => ("", ""),
+    };
+
+    let current = current_branch.unwrap_or("HEAD");
+
+    let content = vec![
+        Line::from(vec![
+            Span::styled(
+                "Are you sure you want to cherry-pick commit ",
+                primary_style(),
+            ),
+            Span::styled(
+                format!("{:.7}", commit_oid),
+                accent_style().add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("onto branch ", primary_style()),
+            Span::styled(
+                format!("'{}'", current),
+                accent_style().add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("?"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(summary, primary_style()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled(
+                "y",
+                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content)
+        .block(block)
+        .wrap(Wrap { trim: false });
+    f.render_widget(paragraph, popup_area);
+}
+
+fn draw_revert_popup(
+    f: &mut Frame,
+    target: &Option<(String, String)>,
+    current_branch: Option<&str>,
+    area: Rect,
+) {
+    let popup_area = centred_rect(55, 25, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Revert Commit", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let (commit_oid, summary) = match target {
+        Some((oid, sum)) => (oid.as_str(), sum.as_str()),
+        None => ("", ""),
+    };
+
+    let current = current_branch.unwrap_or("HEAD");
+
+    let content = vec![
+        Line::from(vec![
+            Span::styled("Are you sure you want to revert commit ", primary_style()),
+            Span::styled(
+                format!("{:.7}", commit_oid),
+                accent_style().add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("on branch ", primary_style()),
+            Span::styled(
+                format!("'{}'", current),
+                accent_style().add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("?"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(summary, primary_style()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled(
+                "y",
+                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
 
     let paragraph = Paragraph::new(content)
         .block(block)

@@ -125,6 +125,10 @@ pub enum Mode {
     MergeContinueConfirm,
     /// Showing the about popup / creator profile.
     About,
+    /// Confirming cherry-pick of a commit.
+    CherryPickConfirm,
+    /// Confirming revert of a commit.
+    RevertConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -343,6 +347,10 @@ pub struct App {
     pub tag_push_target: Option<String>,
     /// Target file path and staged flag for discard/revert action.
     pub discard_target: Option<(String, bool)>,
+    /// Target commit (hash, summary) for cherry-pick.
+    pub cherry_pick_target: Option<(String, String)>,
+    /// Target commit (hash, summary) for revert.
+    pub revert_target: Option<(String, String)>,
     /// Simulated fetch progress percentage.
     pub fetch_progress: u16,
     /// Option to delete the stash after applying.
@@ -508,6 +516,8 @@ impl App {
             tag_checkout_target: None,
             tag_push_target: None,
             discard_target: None,
+            cherry_pick_target: None,
+            revert_target: None,
             fetch_progress: 0,
             stash_apply_delete_after: true,
             commit_amend: false,
@@ -2490,6 +2500,168 @@ impl App {
             };
             self.pending_interactive_rebase = Some((repo_path, target));
         }
+    }
+
+    pub fn request_cherry_pick(&mut self) {
+        if self.is_uncommitted_selected() {
+            self.status_message = Some("Cannot cherry-pick uncommitted changes.".to_string());
+            return;
+        }
+        let commit_data = match &self.current_detail {
+            Some(repo::ItemDetail::Repo { info, .. }) => {
+                let dirty = !info.changes.staged.is_empty()
+                    || !info.changes.unstaged.is_empty()
+                    || !info.changes.untracked.is_empty()
+                    || !info.changes.conflicted.is_empty();
+                let commit_idx = if dirty {
+                    self.commit_selection.saturating_sub(1)
+                } else {
+                    self.commit_selection
+                };
+                info.commits
+                    .get(commit_idx)
+                    .map(|c| (c.oid.clone(), c.summary.clone()))
+            }
+            _ => None,
+        };
+
+        if let Some((oid, summary)) = commit_data {
+            self.cherry_pick_target = Some((oid, summary));
+            self.mode = Mode::CherryPickConfirm;
+        }
+    }
+
+    pub fn confirm_cherry_pick(&mut self) {
+        let target = self.cherry_pick_target.take();
+        self.mode = Mode::Detail;
+
+        if let Some((commit_oid, _summary)) = target {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                self.fetching = true;
+                self.status_message = Some(format!("Cherry-picking commit {:.7}...", commit_oid));
+
+                let repo_path = resolved.clone();
+                let tx = self.tx.clone();
+
+                std::thread::spawn(move || {
+                    let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                        let output = std::process::Command::new("git")
+                            .env("GIT_TERMINAL_PROMPT", "0")
+                            .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                            .arg("cherry-pick")
+                            .arg(&commit_oid)
+                            .current_dir(&repo_path)
+                            .output()?;
+
+                        if output.status.success() {
+                            Ok(format!(
+                                "Cherry-picked commit {:.7} successfully",
+                                commit_oid
+                            ))
+                        } else {
+                            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                            let mut err_msg = if !stderr.is_empty() { stderr } else { stdout };
+                            if err_msg.contains("CONFLICT") || err_msg.contains("conflict") {
+                                err_msg = "Conflicts detected. Please resolve in terminal or abort (git cherry-pick --abort).".to_string();
+                            }
+                            Err(format!("git cherry-pick failed: {}", err_msg).into())
+                        }
+                    })();
+
+                    let msg = match res {
+                        Ok(success) => success,
+                        Err(e) => format!("Cherry-pick failed: {}", e),
+                    };
+                    let _ = tx.send(msg);
+                });
+            }
+        }
+    }
+
+    pub fn cancel_cherry_pick(&mut self) {
+        self.cherry_pick_target = None;
+        self.mode = Mode::Detail;
+    }
+
+    pub fn request_revert(&mut self) {
+        if self.is_uncommitted_selected() {
+            self.status_message = Some("Cannot revert uncommitted changes.".to_string());
+            return;
+        }
+        let commit_data = match &self.current_detail {
+            Some(repo::ItemDetail::Repo { info, .. }) => {
+                let dirty = !info.changes.staged.is_empty()
+                    || !info.changes.unstaged.is_empty()
+                    || !info.changes.untracked.is_empty()
+                    || !info.changes.conflicted.is_empty();
+                let commit_idx = if dirty {
+                    self.commit_selection.saturating_sub(1)
+                } else {
+                    self.commit_selection
+                };
+                info.commits
+                    .get(commit_idx)
+                    .map(|c| (c.oid.clone(), c.summary.clone()))
+            }
+            _ => None,
+        };
+
+        if let Some((oid, summary)) = commit_data {
+            self.revert_target = Some((oid, summary));
+            self.mode = Mode::RevertConfirm;
+        }
+    }
+
+    pub fn confirm_revert(&mut self) {
+        let target = self.revert_target.take();
+        self.mode = Mode::Detail;
+
+        if let Some((commit_oid, _summary)) = target {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                self.fetching = true;
+                self.status_message = Some(format!("Reverting commit {:.7}...", commit_oid));
+
+                let repo_path = resolved.clone();
+                let tx = self.tx.clone();
+
+                std::thread::spawn(move || {
+                    let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                        let output = std::process::Command::new("git")
+                            .env("GIT_TERMINAL_PROMPT", "0")
+                            .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                            .arg("revert")
+                            .arg("--no-edit")
+                            .arg(&commit_oid)
+                            .current_dir(&repo_path)
+                            .output()?;
+
+                        if output.status.success() {
+                            Ok(format!("Reverted commit {:.7} successfully", commit_oid))
+                        } else {
+                            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                            let mut err_msg = if !stderr.is_empty() { stderr } else { stdout };
+                            if err_msg.contains("CONFLICT") || err_msg.contains("conflict") {
+                                err_msg = "Conflicts detected. Please resolve in terminal or abort (git revert --abort).".to_string();
+                            }
+                            Err(format!("git revert failed: {}", err_msg).into())
+                        }
+                    })();
+
+                    let msg = match res {
+                        Ok(success) => success,
+                        Err(e) => format!("Revert failed: {}", e),
+                    };
+                    let _ = tx.send(msg);
+                });
+            }
+        }
+    }
+
+    pub fn cancel_revert(&mut self) {
+        self.revert_target = None;
+        self.mode = Mode::Detail;
     }
 
     fn get_logs_matching_indices(&self) -> Vec<usize> {
@@ -6703,6 +6875,81 @@ mod tests {
         // Cancel resets it
         app.cancel_commit();
         assert!(!app.commit_popup_maximized);
+    }
+
+    #[test]
+    fn test_cherry_pick_and_revert_flow() {
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+            compatibility_mode: false,
+            resync_on_tab_change: false,
+        };
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_cherry_pick.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // Set up a mock repo detail with commits
+        let mock_info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            commits: vec![crate::repo::CommitEntry {
+                id: "1234567".to_string(),
+                oid: "1234567890abcdef1234567890abcdef12345678".to_string(),
+                summary: "test commit".to_string(),
+                author: "author".to_string(),
+                when: "today".to_string(),
+                date: "today".to_string(),
+                refs: vec![],
+                message: "msg".to_string(),
+                files: vec![],
+                signature_status: "N".to_string(),
+            }],
+            ..Default::default()
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from("/mock/repo"),
+            info: Box::new(mock_info),
+        });
+
+        // 1. Cherry-pick flow
+        app.commit_selection = 0;
+        app.request_cherry_pick();
+        assert_eq!(app.mode, Mode::CherryPickConfirm);
+        assert!(app.cherry_pick_target.is_some());
+        assert_eq!(
+            app.cherry_pick_target.as_ref().unwrap().0,
+            "1234567890abcdef1234567890abcdef12345678"
+        );
+
+        app.cancel_cherry_pick();
+        assert_eq!(app.mode, Mode::Detail);
+        assert!(app.cherry_pick_target.is_none());
+
+        // 2. Revert flow
+        app.commit_selection = 0;
+        app.request_revert();
+        assert_eq!(app.mode, Mode::RevertConfirm);
+        assert!(app.revert_target.is_some());
+        assert_eq!(
+            app.revert_target.as_ref().unwrap().0,
+            "1234567890abcdef1234567890abcdef12345678"
+        );
+
+        app.cancel_revert();
+        assert_eq!(app.mode, Mode::Detail);
+        assert!(app.revert_target.is_none());
     }
 
     #[test]

@@ -472,6 +472,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_discard_changes(),
             _ => {}
         },
+        Mode::CherryPickConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_cherry_pick(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_cherry_pick(),
+            _ => {}
+        },
+        Mode::RevertConfirm => match code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_revert(),
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_revert(),
+            _ => {}
+        },
         Mode::TagDeleteConfirm => match code {
             KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_tag_delete(),
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_tag_delete(),
@@ -694,6 +704,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     if detail_focus == DetailSection::Commits =>
                 {
                     app.run_interactive_rebase();
+                }
+                KeyCode::Char('p') | KeyCode::Char('P')
+                    if detail_focus == DetailSection::Commits =>
+                {
+                    app.request_cherry_pick();
+                }
+                KeyCode::Char('v') | KeyCode::Char('V')
+                    if detail_focus == DetailSection::Commits =>
+                {
+                    app.request_revert();
                 }
                 KeyCode::Char('w') => app.cycle_detail_focus(false),
                 KeyCode::Char('W') => app.cycle_detail_focus(true),

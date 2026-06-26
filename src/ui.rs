@@ -222,6 +222,8 @@ pub fn draw(
             | Mode::TagPushAllConfirm
             | Mode::StashDeleteConfirm
             | Mode::StashApplyConfirm
+            | Mode::CherryPickConfirm
+            | Mode::RevertConfirm
             | Mode::StashCreateInput
             | Mode::RemotePicker
             | Mode::CommitSearchInput
@@ -953,6 +955,76 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 confirm_stash_apply_entries(&target, app.stash_apply_delete_after);
             draw_status_layout(f, area, msg_spans, entries, app);
         }
+        Mode::CherryPickConfirm => {
+            let (target, summary) = app
+                .cherry_pick_target
+                .as_ref()
+                .map(|(oid, sum)| (oid.clone(), sum.clone()))
+                .unwrap_or_default();
+            let msg_spans = vec![
+                Span::raw("Cherry-pick commit "),
+                Span::styled(
+                    format!("{:.7}", target),
+                    accent_style().add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" ("),
+                Span::styled(summary, primary_style()),
+                Span::raw(")?"),
+            ];
+            let entries = vec![
+                StatusEntry::new(vec![
+                    Span::raw("Confirm Cherry-pick"),
+                    Span::raw(" "),
+                    Span::styled("[", muted_style()),
+                    Span::styled("y", accent_style()),
+                    Span::styled("]", muted_style()),
+                ]),
+                StatusEntry::new(vec![
+                    Span::styled(" ", muted_style()),
+                    Span::raw("Cancel"),
+                    Span::raw(" "),
+                    Span::styled("[", muted_style()),
+                    Span::styled("n/⎋", accent_style()),
+                    Span::styled("]", muted_style()),
+                ]),
+            ];
+            draw_status_layout(f, area, Some(msg_spans), entries, app);
+        }
+        Mode::RevertConfirm => {
+            let (target, summary) = app
+                .revert_target
+                .as_ref()
+                .map(|(oid, sum)| (oid.clone(), sum.clone()))
+                .unwrap_or_default();
+            let msg_spans = vec![
+                Span::raw("Revert commit "),
+                Span::styled(
+                    format!("{:.7}", target),
+                    accent_style().add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" ("),
+                Span::styled(summary, primary_style()),
+                Span::raw(")?"),
+            ];
+            let entries = vec![
+                StatusEntry::new(vec![
+                    Span::raw("Confirm Revert"),
+                    Span::raw(" "),
+                    Span::styled("[", muted_style()),
+                    Span::styled("y", accent_style()),
+                    Span::styled("]", muted_style()),
+                ]),
+                StatusEntry::new(vec![
+                    Span::styled(" ", muted_style()),
+                    Span::raw("Cancel"),
+                    Span::raw(" "),
+                    Span::styled("[", muted_style()),
+                    Span::styled("n/⎋", accent_style()),
+                    Span::styled("]", muted_style()),
+                ]),
+            ];
+            draw_status_layout(f, area, Some(msg_spans), entries, app);
+        }
         Mode::RemotePicker => {
             let (msg_spans, entries) = remote_picker_status_entries();
             draw_status_layout(f, area, msg_spans, entries, app);
@@ -1179,6 +1251,8 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
                 v.push(("Inspect", "↵/→"));
                 v.push(("Tag", "t"));
                 v.push(("Interactive Rebase", "i"));
+                v.push(("Cherry-pick", "p"));
+                v.push(("Revert", "v"));
                 v.push(("Search/Columns", "f"));
                 if app.has_uncommitted_changes() {
                     v.push(("Stash", "s"));

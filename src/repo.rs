@@ -878,8 +878,7 @@ fn collect_signatures(repo_path: &Path, limit: usize) -> std::collections::HashM
         cmd.arg(format!("-n{}", limit));
     }
 
-    cmd.arg("--pretty=format:%H %G?")
-        .current_dir(repo_path);
+    cmd.arg("--pretty=format:%H %G?").current_dir(repo_path);
 
     if let Ok(out) = cmd.output() {
         if out.status.success() {
@@ -941,7 +940,10 @@ fn collect_commits(
                 .message()
                 .unwrap_or("(no commit message)")
                 .to_string();
-            let sig_status = sig_map.get(&oid_str).cloned().unwrap_or_else(|| "N".to_string());
+            let sig_status = sig_map
+                .get(&oid_str)
+                .cloned()
+                .unwrap_or_else(|| "N".to_string());
             commits.push(CommitEntry {
                 id: short_id,
                 oid: oid_str,
