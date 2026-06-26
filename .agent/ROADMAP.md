@@ -82,7 +82,21 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Commit window resize**
 - [ ] **Git logs pagination**
 - [ ] **Per Repository rule**
-- [ ] **For large repo load time is high**
+- [ ] **For large repo load time is high** — see `.agent/LARGE_REPO_PERFORMANCE_PLAN.md` for full analysis
+  - **Phase A — Quick wins (no architecture change):**
+    - [ ] A1: Change `max_commits` default from 0 (unlimited) to 500
+    - [ ] A2: Add `--max-count=1000` flag to `collect_graph_lines` subprocess; expose `graph_max_commits` config
+    - [ ] A3: Merge the two `repo.statuses()` calls into one combined walk in `collect_info`
+    - [ ] A4: Gate `collect_committer_stats` limit by `max_commits` (not hard-coded 10 000)
+    - [ ] A5: Make `resync_detail` and all post-action refreshes (`app.rs:1029`, `5395`, etc.) async via worker thread
+  - **Phase B — Tab-lazy loading:**
+    - [ ] B1: Introduce `TabData<T>` enum; split `RepoInfo` into `CoreInfo` + lazy per-tab structs; add `tab_tx`/`tab_rx` channels; dispatch tab load on first visit
+    - [ ] B2: Paginate Commits panel — load first N on open, expose "load more" keybind
+    - [ ] B3: Stream `collect_graph_lines` — parse line-by-line and send partial results to UI progressively
+  - **Phase C — Caching:**
+    - [ ] C1: In-memory `DetailCache` with TTL (stale-while-revalidate on re-visit)
+    - [ ] C2: Make `build_ref_map` conditional / lazy
+    - [ ] C3: Per-tab TTL — silent background refresh when tab data is stale
 - [ ] **Solve windows button press bug**
 - [ ] **Stash Pop:** Perform a single-action "Pop Stash" (apply and delete).
 - [ ] **Commit Signatures:** Display GPG/SSH commit verification status in the history log list.
