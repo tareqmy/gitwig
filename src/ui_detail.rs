@@ -1571,7 +1571,10 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("6", "Go to Remotes tab"),
     ("7", "Go to Stashes tab"),
     ("8", "Go to Overview tab"),
-    ("f / F", "Fetch selected remote (Remotes tab)"),
+    (
+        "f / F",
+        "Fetch remote tags (Tags tab) / Fetch selected remote (Remotes tab)",
+    ),
     ("⇧F [Shift+F]", "Fetch selected local branch's upstream"),
     ("p", "Pull branch (Branches) / Push tag (Tags)"),
     (

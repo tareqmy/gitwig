@@ -120,6 +120,8 @@ pub struct RepoInfo {
     pub remote_tags: Vec<BranchInfo>,
     /// Whether remote tags have been loaded from the remote repository.
     pub remote_tags_loaded: bool,
+    /// Whether a remote tag fetch has been attempted in this session.
+    pub remote_tags_attempted: bool,
     /// Tracked files in the repository.
     pub files: Vec<String>,
     /// Available stashes in the repository.
@@ -286,7 +288,7 @@ pub fn unstage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
 
 /// Stage all unstaged/untracked changes (equivalent to `git add -A`).
 pub fn stage_all_changes(repo_path: &Path) -> Result<(), String> {
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("add")
         .arg("-A")
         .current_dir(repo_path)
@@ -302,7 +304,7 @@ pub fn stage_all_changes(repo_path: &Path) -> Result<(), String> {
 
 /// Unstage all staged changes (equivalent to `git reset`).
 pub fn unstage_all_changes(repo_path: &Path) -> Result<(), String> {
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("reset")
         .current_dir(repo_path)
         .output()
@@ -318,13 +320,13 @@ pub fn unstage_all_changes(repo_path: &Path) -> Result<(), String> {
 /// Discard all staged, unstaged, and untracked changes in the repository.
 pub fn discard_all_changes(repo_path: &Path) -> Result<(), String> {
     // 1. Unstage all first so everything is in the working tree
-    let _ = std::process::Command::new("git")
+    let _ = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("reset")
         .current_dir(repo_path)
         .output();
 
     // 2. Discard all tracked modifications
-    let checkout_out = std::process::Command::new("git")
+    let checkout_out = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("checkout")
         .arg("--")
         .arg(".")
@@ -339,7 +341,7 @@ pub fn discard_all_changes(repo_path: &Path) -> Result<(), String> {
     }
 
     // 3. Clean all untracked files/folders
-    let clean_out = std::process::Command::new("git")
+    let clean_out = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("clean")
         .arg("-fd")
         .current_dir(repo_path)
@@ -598,7 +600,8 @@ fn apply_line_patch_inner(
     }
     args.push("-");
 
-    let mut child = Command::new("git")
+    let mut cmd = Command::new("git");
+    let mut child = cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .args(&args)
         .current_dir(repo_path)
         .stdin(Stdio::piped())
@@ -661,7 +664,8 @@ fn apply_hunk_patch(
     }
     args.push("-");
 
-    let mut child = Command::new("git")
+    let mut cmd = Command::new("git");
+    let mut child = cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .args(&args)
         .current_dir(repo_path)
         .stdin(Stdio::piped())
@@ -1141,6 +1145,7 @@ fn collect_info(path: &Path, commit_limit: usize) -> Result<RepoInfo, git2::Erro
     info.local_tags = local_tags;
     info.remote_tags = Vec::new();
     info.remote_tags_loaded = false;
+    info.remote_tags_attempted = false;
 
     let mut files = Vec::new();
     if let Ok(index) = repo.index() {
@@ -1544,7 +1549,7 @@ fn collect_graph_lines(repo_path: &Path) -> Vec<GraphLine> {
     let mut graph_lines = Vec::new();
     let format_str = "%H__TWIG_SEP__%d__TWIG_SEP__%s__TWIG_SEP__%an__TWIG_SEP__%ad";
 
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .args([
             "log",
             "--graph",
@@ -1605,7 +1610,7 @@ fn collect_graph_lines(repo_path: &Path) -> Vec<GraphLine> {
 }
 
 pub fn checkout_local_branch(repo_path: &Path, branch_name: &str) -> Result<(), git2::Error> {
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("checkout")
         .arg(branch_name)
         .current_dir(repo_path)
@@ -1629,7 +1634,7 @@ pub fn checkout_remote_branch(
     }
     let local_name = parts[1];
 
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("checkout")
         .arg(local_name)
         .current_dir(repo_path)
@@ -1640,7 +1645,7 @@ pub fn checkout_remote_branch(
         return Ok(format!("Switched to existing branch '{}'", local_name));
     }
 
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("checkout")
         .arg("--track")
         .arg(remote_branch_name)
@@ -1710,7 +1715,7 @@ pub fn delete_remote_tag(
     remote_name: &str,
     tag_name: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("push")
         .arg(remote_name)
         .arg("--delete")
@@ -1725,7 +1730,7 @@ pub fn delete_remote_tag(
 }
 
 pub fn checkout_tag(repo_path: &Path, tag_name: &str) -> Result<(), git2::Error> {
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("checkout")
         .arg(tag_name)
         .current_dir(repo_path)
@@ -1744,7 +1749,7 @@ pub fn get_remote_tags(
     repo_path: &Path,
     remote_name: &str,
 ) -> Result<Vec<BranchInfo>, Box<dyn std::error::Error>> {
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("ls-remote")
         .arg("--tags")
         .arg(remote_name)
@@ -1847,7 +1852,7 @@ pub fn delete_stash(repo_path: &Path, index: usize) -> Result<(), git2::Error> {
 
 pub fn apply_stash(repo_path: &Path, index: usize) -> Result<(), String> {
     let stash_ref = format!("stash@{{{}}}", index);
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("stash")
         .arg("apply")
         .arg(&stash_ref)
@@ -1863,7 +1868,7 @@ pub fn apply_stash(repo_path: &Path, index: usize) -> Result<(), String> {
 }
 
 pub fn save_stash(repo_path: &Path, message: &str) -> Result<(), String> {
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("stash")
         .arg("push")
         .arg("-m")
@@ -2016,7 +2021,7 @@ pub fn get_conflict_markers_diff(repo_path: &Path, file_path: &str) -> Vec<DiffL
 /// Accept the OURS (HEAD) version of a conflicted file.
 /// Equivalent to: git checkout --ours <file> && git add <file>
 pub fn resolve_ours(repo_path: &Path, file_path: &str) -> Result<(), String> {
-    let output1 = std::process::Command::new("git")
+    let output1 = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .args(["checkout", "--ours", file_path])
         .current_dir(repo_path)
         .output()
@@ -2031,7 +2036,7 @@ pub fn resolve_ours(repo_path: &Path, file_path: &str) -> Result<(), String> {
 /// Accept the THEIRS (incoming) version of a conflicted file.
 /// Equivalent to: git checkout --theirs <file> && git add <file>
 pub fn resolve_theirs(repo_path: &Path, file_path: &str) -> Result<(), String> {
-    let output1 = std::process::Command::new("git")
+    let output1 = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .args(["checkout", "--theirs", file_path])
         .current_dir(repo_path)
         .output()
@@ -2137,7 +2142,7 @@ pub fn resolve_conflict_hunk(
 
 /// Abort the in-progress merge.
 pub fn abort_merge(repo_path: &Path) -> Result<(), String> {
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .args(["merge", "--abort"])
         .current_dir(repo_path)
         .output()
@@ -2150,7 +2155,7 @@ pub fn abort_merge(repo_path: &Path) -> Result<(), String> {
 
 /// Continue the merge after conflicts are resolved.
 pub fn continue_merge(repo_path: &Path) -> Result<(), String> {
-    let output = std::process::Command::new("git")
+    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .args(["merge", "--continue"])
         .env("GIT_EDITOR", "true")
         .current_dir(repo_path)
@@ -2884,7 +2889,7 @@ mod tests {
         commit_changes(&temp_path, "initial commit").unwrap();
 
         // Get the main branch name first
-        let output = std::process::Command::new("git")
+        let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
             .args(["symbolic-ref", "--short", "HEAD"])
             .current_dir(&temp_path)
             .output()
@@ -2892,7 +2897,7 @@ mod tests {
         let main_branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
         // 2. Create feature branch and edit
-        std::process::Command::new("git")
+        std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
             .args(["checkout", "-b", "feature"])
             .current_dir(&temp_path)
             .output()
@@ -2903,7 +2908,7 @@ mod tests {
         commit_changes(&temp_path, "feature commit").unwrap();
 
         // 3. Checkout main/master and edit differently
-        std::process::Command::new("git")
+        std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
             .args(["checkout", &main_branch])
             .current_dir(&temp_path)
             .output()
@@ -2915,7 +2920,7 @@ mod tests {
 
         // 4. Merge feature into main -> conflict
         assert!(!is_merging(&temp_path));
-        let merge_output = std::process::Command::new("git")
+        let merge_output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
             .args(["merge", "feature"])
             .current_dir(&temp_path)
             .output()
@@ -2945,7 +2950,7 @@ mod tests {
         assert!(!is_merging(&temp_path));
 
         // 7. Conflict again to test resolve_ours/resolve_theirs
-        std::process::Command::new("git")
+        std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
             .args(["merge", "feature"])
             .current_dir(&temp_path)
             .output()
@@ -2963,13 +2968,13 @@ mod tests {
         assert!(!is_merging(&temp_path));
 
         // 8. Test resolve_theirs by resetting main to before the merge
-        std::process::Command::new("git")
+        std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
             .args(["reset", "--hard", "HEAD~1"])
             .current_dir(&temp_path)
             .output()
             .unwrap();
 
-        std::process::Command::new("git")
+        std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
             .args(["merge", "feature"])
             .current_dir(&temp_path)
             .output()
@@ -3016,7 +3021,7 @@ mod tests {
         commit_changes(&temp_path, "initial commit").unwrap();
 
         // Get the main branch name first
-        let output = std::process::Command::new("git")
+        let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
             .args(["symbolic-ref", "--short", "HEAD"])
             .current_dir(&temp_path)
             .output()
@@ -3024,7 +3029,7 @@ mod tests {
         let main_branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
         // 2. Create feature branch and edit line 2 and line 11
-        std::process::Command::new("git")
+        std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
             .args(["checkout", "-b", "feature"])
             .current_dir(&temp_path)
             .output()
@@ -3035,7 +3040,7 @@ mod tests {
         commit_changes(&temp_path, "feature commit").unwrap();
 
         // 3. Checkout main/master and edit line 2 and line 11 differently
-        std::process::Command::new("git")
+        std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
             .args(["checkout", &main_branch])
             .current_dir(&temp_path)
             .output()
@@ -3046,7 +3051,7 @@ mod tests {
         commit_changes(&temp_path, "main commit").unwrap();
 
         // 4. Merge feature into main -> conflict
-        let merge_output = std::process::Command::new("git")
+        let merge_output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
             .args(["merge", "feature"])
             .current_dir(&temp_path)
             .output()

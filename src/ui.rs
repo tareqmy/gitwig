@@ -3170,7 +3170,39 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
 }
 
 fn draw_error_popup(f: &mut Frame, app: &App, area: Rect, err: &str) {
-    let popup_area = centered_rect_fixed(60, 10, area);
+    let popup_width = (area.width * 80 / 100).clamp(60, 80).min(area.width);
+    let inner_width = (popup_width as usize).saturating_sub(6).max(20);
+
+    let mut msg_height = 0;
+    if err.is_empty() {
+        msg_height = 1;
+    } else {
+        for line in err.lines() {
+            let mut current_line_width = 0;
+            for word in line.split_whitespace() {
+                let word_len = word.chars().count();
+                if current_line_width + word_len + (if current_line_width > 0 { 1 } else { 0 }) > inner_width {
+                    msg_height += 1;
+                    current_line_width = word_len;
+                    while current_line_width > inner_width {
+                        msg_height += 1;
+                        current_line_width -= inner_width;
+                    }
+                } else {
+                    if current_line_width > 0 {
+                        current_line_width += 1;
+                    }
+                    current_line_width += word_len;
+                }
+            }
+            msg_height += 1;
+        }
+    }
+
+    let max_height = (area.height * 80 / 100).clamp(10, 30).min(area.height);
+    let popup_height = ((msg_height + 4) as u16).min(max_height);
+
+    let popup_area = centered_rect_fixed(popup_width, popup_height, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(DANGER());
@@ -3209,10 +3241,6 @@ fn draw_error_popup(f: &mut Frame, app: &App, area: Rect, err: &str) {
 
     let hint = Paragraph::new(Line::from(vec![
         Span::styled("Press ", muted_style()),
-        Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
-        Span::styled(" or ", muted_style()),
-        Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
-        Span::styled(" to dismiss", muted_style()),
         Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(" or ", muted_style()),
         Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),

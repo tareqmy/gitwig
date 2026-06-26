@@ -619,7 +619,15 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 app.inspect_full_diff = false;
                 app.detail_tab = 4;
                 app.detail_focus = DetailSection::LocalTags;
-                app.fetch_remote_tags(true);
+                let attempted =
+                    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+                        info.remote_tags_attempted
+                    } else {
+                        false
+                    };
+                if !attempted {
+                    app.fetch_remote_tags(true);
+                }
                 if app.config.resync_on_tab_change {
                     app.resync_detail();
                 }
@@ -1084,6 +1092,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 KeyCode::Char('P') => {
                     app.request_tag_push_all();
+                }
+                KeyCode::Char('f') | KeyCode::Char('F') => {
+                    app.fetch_remote_tags(true);
                 }
                 _ => {}
             },
@@ -1863,6 +1874,17 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         return;
     }
 
+    if app.error_message.is_some() {
+        if is_click {
+            app.error_message = None;
+        }
+        return;
+    }
+
+    if app.fetching || app.loading_repo_path.is_some() {
+        return;
+    }
+
     let pos = Position {
         x: mouse.column,
         y: mouse.row,
@@ -2140,7 +2162,18 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                 3 => app.detail_focus = DetailSection::LocalBranches,
                                 4 => {
                                     app.detail_focus = DetailSection::LocalTags;
-                                    app.fetch_remote_tags(true);
+                                    let attempted = if let Some(crate::repo::ItemDetail::Repo {
+                                        info,
+                                        ..
+                                    }) = &app.current_detail
+                                    {
+                                        info.remote_tags_attempted
+                                    } else {
+                                        false
+                                    };
+                                    if !attempted {
+                                        app.fetch_remote_tags(true);
+                                    }
                                 }
                                 5 => {
                                     app.detail_focus = DetailSection::Remotes;

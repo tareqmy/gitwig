@@ -1449,7 +1449,7 @@ impl App {
                         let remote_buf = repo.branch_upstream_remote(upstream_ref)?;
                         let remote_name = remote_buf.as_str()?;
 
-                        let output = std::process::Command::new("git")
+                        let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                             .arg("fetch")
                             .arg(remote_name)
                             .current_dir(&repo_path)
@@ -1512,7 +1512,7 @@ impl App {
                             }
                         };
 
-                        let output = std::process::Command::new("git")
+                        let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                             .arg("pull")
                             .current_dir(&repo_path)
                             .output()?;
@@ -1649,6 +1649,7 @@ impl App {
             std::thread::spawn(move || {
                 let res = (|| -> Result<String, Box<dyn std::error::Error>> {
                     let mut cmd = std::process::Command::new("git");
+cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                     cmd.arg("push");
                     if set_upstream {
                         cmd.arg("-u");
@@ -2001,6 +2002,7 @@ impl App {
                 let tx = self.tx.clone();
                 std::thread::spawn(move || {
                     let mut cmd = std::process::Command::new("git");
+cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                     cmd.arg("push")
                         .arg(&remote_name)
                         .arg(&tag_name)
@@ -2068,6 +2070,7 @@ impl App {
             let tx = self.tx.clone();
             std::thread::spawn(move || {
                 let mut cmd = std::process::Command::new("git");
+cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                 cmd.arg("push")
                     .arg(&remote_name)
                     .arg("--tags")
@@ -2263,7 +2266,7 @@ impl App {
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                        let output = std::process::Command::new("git")
+                        let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                             .arg("merge")
                             .arg(&target_name)
                             .current_dir(&repo_path)
@@ -2354,7 +2357,7 @@ impl App {
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                        let output = std::process::Command::new("git")
+                        let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                             .arg("rebase")
                             .arg(&target_name)
                             .current_dir(&repo_path)
@@ -4447,6 +4450,7 @@ impl App {
                 let _ = std::fs::create_dir_all(&dest_expanded);
 
                 let mut cmd = std::process::Command::new("git");
+cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                 cmd.arg("clone").arg(&url).arg(&dest_expanded);
 
                 let output = cmd.output().map_err(|e| e.to_string())?;
@@ -4652,7 +4656,15 @@ impl App {
             3 => self.detail_focus = DetailSection::LocalBranches,
             4 => {
                 self.detail_focus = DetailSection::LocalTags;
-                self.fetch_remote_tags(true);
+                let attempted =
+                    if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+                        info.remote_tags_attempted
+                    } else {
+                        false
+                    };
+                if !attempted {
+                    self.fetch_remote_tags(true);
+                }
             }
             5 => {
                 self.detail_focus = DetailSection::Remotes;
@@ -4679,7 +4691,11 @@ impl App {
     }
 
     pub fn fetch_remote_tags(&mut self, show_progress: bool) {
-        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+        if self.fetching {
+            return;
+        }
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &mut self.current_detail {
+            info.remote_tags_attempted = true;
             // Use the currently selected remote in the Remotes tab if available,
             // otherwise fall back to the first remote.
             let remote = info
@@ -4725,7 +4741,7 @@ impl App {
 
             std::thread::spawn(move || {
                 let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                    let output = std::process::Command::new("git")
+                    let output = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                         .arg("fetch")
                         .arg(&remote_name)
                         .current_dir(&repo_path)
@@ -4853,6 +4869,7 @@ impl App {
             let tx = self.tx.clone();
             std::thread::spawn(move || {
                 let mut cmd = std::process::Command::new("git");
+cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                 cmd.arg("push")
                     .arg("-u")
                     .arg(&remote_name)
@@ -4894,6 +4911,7 @@ impl App {
             let tx = self.tx.clone();
             std::thread::spawn(move || {
                 let mut cmd = std::process::Command::new("git");
+cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                 cmd.arg("push")
                     .arg(&remote_name)
                     .arg(&tag_name)
@@ -4930,6 +4948,7 @@ impl App {
             let tx = self.tx.clone();
             std::thread::spawn(move || {
                 let mut cmd = std::process::Command::new("git");
+cmd.env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
                 cmd.arg("push")
                     .arg(&remote_name)
                     .arg("--tags")
@@ -5489,7 +5508,7 @@ where
             let cursor_res = terminal.show_cursor();
 
             if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
-                let status = std::process::Command::new("git")
+                let status = std::process::Command::new("git").env("GIT_TERMINAL_PROMPT", "0").env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                     .arg("rebase")
                     .arg("-i")
                     .arg(&target)
@@ -6087,6 +6106,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -6168,6 +6188,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -7020,6 +7041,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -7662,6 +7684,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -7743,6 +7766,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -7819,6 +7843,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -7894,6 +7919,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -7971,6 +7997,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -8114,6 +8141,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -8167,6 +8195,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -8384,6 +8413,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -8520,6 +8550,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -8568,6 +8599,7 @@ mod tests {
             local_tags: vec![],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -8656,6 +8688,7 @@ mod tests {
             }],
             remote_tags: vec![],
             remote_tags_loaded: false,
+            remote_tags_attempted: false,
             files: vec![],
             stashes: vec![],
             committer_stats: vec![],
@@ -9132,5 +9165,126 @@ mod tests {
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('q')), 10);
         assert!(handled);
         assert_eq!(app.mode, Mode::Normal);
+    }
+
+    #[test]
+    fn test_tag_fetch_attempt_and_dismiss_flow() {
+        use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+            compatibility_mode: false,
+            resync_on_tab_change: false,
+        };
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_tag_fetch.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        let mock_info = crate::repo::RepoInfo {
+            branch: Some("main".to_string()),
+            head: None,
+            upstream: None,
+            summary: crate::repo::RepoSummary {
+                branch: Some("main".to_string()),
+                staged: 0,
+                modified: 0,
+                untracked: 0,
+                conflicted: 0,
+                ahead: 0,
+                behind: 0,
+            },
+            changes: crate::repo::WorktreeChanges {
+                staged: vec![],
+                unstaged: vec![],
+                conflicted: vec![],
+                untracked: vec![],
+            },
+            commits: vec![],
+            graph_lines: vec![],
+            local_branches: vec![],
+            remote_branches: vec![],
+            remotes: vec![crate::repo::RemoteInfo {
+                name: "origin".to_string(),
+                url: "git@github.com:tareqmy/gitwig.git".to_string(),
+                push_url: None,
+                refspecs: vec![],
+            }],
+            local_tags: vec![],
+            remote_tags: vec![],
+            remote_tags_loaded: false,
+            remote_tags_attempted: false,
+            files: vec![],
+            stashes: vec![],
+            committer_stats: vec![],
+            committer_stats_limit_reached: false,
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from("."),
+            info: Box::new(mock_info),
+        });
+
+        // Initially remote_tags_attempted is false
+        if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+            assert!(!info.remote_tags_attempted);
+        }
+
+        // 1. Switch to tab 4 (Tags tab) and trigger set_default_focus_for_tab
+        app.detail_tab = 4;
+        app.set_default_focus_for_tab();
+
+        // Should start fetching and set attempted flag to true
+        assert!(app.fetching);
+        if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+            assert!(info.remote_tags_attempted);
+        }
+
+        // 2. Receive error from the background thread
+        app.tx
+            .send("REMOTE_TAGS_ERR:Failed to get remote tags: network timeout".to_string())
+            .unwrap();
+
+        // Process message in receiver
+        if let Ok(msg) = app.rx.try_recv() {
+            if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
+                app.set_error(err_msg.to_string());
+                app.fetching = false;
+            }
+        }
+
+        // Verify fetching is false and error popup is shown
+        assert!(!app.fetching);
+        assert_eq!(
+            app.error_message.as_deref(),
+            Some("Failed to get remote tags: network timeout")
+        );
+
+        // 3. Trigger set_default_focus_for_tab again.
+        // It should NOT call fetch_remote_tags again since attempted is true.
+        app.set_default_focus_for_tab();
+        assert!(!app.fetching);
+
+        // 4. Test mouse click to dismiss error popup
+        let mouse_event = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 10,
+            row: 10,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, mouse_event);
+
+        // Error message should be dismissed (None)
+        assert_eq!(app.error_message, None);
     }
 }
