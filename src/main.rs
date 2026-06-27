@@ -25,7 +25,8 @@ mod input;
 pub use gitwig_core as repo;
 mod queue;
 mod keys;
-mod components;
+pub mod components;
+pub mod popups;
 mod ui;
 mod ui_detail;
 
