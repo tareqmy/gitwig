@@ -767,7 +767,7 @@ pub fn draw(
             }
             // Draw tag push all popup on top when requested.
             if matches!(mode, Mode::TagPushAllConfirm) {
-                draw_tag_push_all_popup(f, body_area);
+                draw_tag_push_all_popup(f, app.remote_action_target.as_deref(), body_area);
             }
             // Draw cherry-pick popup on top when requested.
             if matches!(mode, Mode::CherryPickConfirm) {
@@ -4397,7 +4397,7 @@ fn draw_tag_push_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
     f.render_widget(paragraph, popup_area);
 }
 
-fn draw_tag_push_all_popup(f: &mut Frame, area: Rect) {
+fn draw_tag_push_all_popup(f: &mut Frame, remote: Option<&str>, area: Rect) {
     let popup_area = centred_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
@@ -4415,6 +4415,8 @@ fn draw_tag_push_all_popup(f: &mut Frame, area: Rect) {
         .title(title)
         .padding(Padding::horizontal(1));
 
+    let remote_str = remote.unwrap_or("remote");
+
     let content = vec![
         Line::from(vec![
             Span::styled("Are you sure you want to push ", primary_style()),
@@ -4422,8 +4424,11 @@ fn draw_tag_push_all_popup(f: &mut Frame, area: Rect) {
                 "ALL local tags",
                 Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
             ),
-            Span::styled(" to remote?", primary_style()),
         ]),
+        Line::from(vec![Span::styled(
+            format!("to remote '{}'?", remote_str),
+            primary_style(),
+        )]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Confirm: ", muted_style()),

@@ -26,7 +26,7 @@ use crate::ui_detail::DetailAreas;
 pub const ITEM_HEIGHT: u16 = 4;
 
 /// What operation the remote picker was opened for.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RemotePickerAction {
     PushBranch,
     PushTag,
@@ -2399,15 +2399,24 @@ impl App {
                 self.remote_picker_selection = 0;
                 self.mode = Mode::RemotePicker;
             } else {
+                let remote_name = info
+                    .remotes
+                    .first()
+                    .map(|r| r.name.clone())
+                    .unwrap_or_else(|| "origin".to_string());
+                self.remote_action_target = Some(remote_name);
                 self.mode = Mode::TagPushAllConfirm;
             }
         }
     }
 
     pub fn confirm_tag_push_all(&mut self) {
-        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            let repo_path = resolved.clone();
-            let remote_name = match info.remotes.first().map(|r| r.name.clone()) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let remote_name = match self
+                .remote_action_target
+                .take()
+                .or_else(|| info.remotes.first().map(|r| r.name.clone()))
+            {
                 Some(name) => name,
                 None => {
                     self.status_message =
@@ -2416,39 +2425,13 @@ impl App {
                     return;
                 }
             };
-
-            self.fetching = true;
-            self.status_message = Some(format!("Pushing all tags to '{}'...", remote_name));
-            let tx = self.tx.clone();
-            std::thread::spawn(move || {
-                let mut cmd = std::process::Command::new("git");
-                cmd.env("GIT_TERMINAL_PROMPT", "0")
-                    .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
-                cmd.arg("push")
-                    .arg(&remote_name)
-                    .arg("--tags")
-                    .current_dir(&repo_path);
-
-                let output = match cmd.output() {
-                    Ok(o) => o,
-                    Err(e) => {
-                        let _ = tx.send(format!("Failed to run git push: {}", e));
-                        return;
-                    }
-                };
-
-                if output.status.success() {
-                    let _ = tx.send(format!("Pushed all tags to '{}' successfully", remote_name));
-                } else {
-                    let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
-                    let _ = tx.send(format!("Failed to push tags: {}", err_msg));
-                }
-            });
+            self.execute_tag_push_all_to(&remote_name);
         }
         self.mode = Mode::Detail;
     }
 
     pub fn cancel_tag_push_all(&mut self) {
+        self.remote_action_target = None;
         self.mode = Mode::Detail;
     }
 
@@ -5390,8 +5373,8 @@ impl App {
                 self.mode = Mode::Detail;
             }
             RemotePickerAction::PushAllTags => {
-                self.execute_tag_push_all_to(&remote_name);
-                self.mode = Mode::Detail;
+                self.remote_action_target = Some(remote_name);
+                self.mode = Mode::TagPushAllConfirm;
             }
             RemotePickerAction::DeleteRemoteTag => {
                 if let Some((tag_name, _)) = self.tag_delete_target.take() {
@@ -10126,6 +10109,107 @@ mod tests {
 
         // Error message should be dismissed (None)
         assert_eq!(app.error_message, None);
+    }
+
+    #[test]
+    fn test_tag_push_all_confirmation_flow() {
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+            compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
+            tab_ttl_secs: 60,
+            resync_on_tab_change: false,
+            graph_max_commits: 1000,
+        };
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_tag_push_all.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        // 1. Single Remote Scenario
+        let mock_info_single = crate::repo::RepoInfo {
+            remotes: crate::repo::TabData::Loaded(vec![crate::repo::RemoteInfo {
+                name: "origin".to_string(),
+                url: "git@github.com:tareqmy/gitwig.git".to_string(),
+                push_url: None,
+                refspecs: vec![],
+            }]),
+            ..crate::repo::RepoInfo::default()
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from("."),
+            info: Box::new(mock_info_single),
+        });
+
+        // Request tag push all
+        app.request_tag_push_all();
+        // Should go directly to TagPushAllConfirm
+        assert_eq!(app.mode, Mode::TagPushAllConfirm);
+        assert_eq!(app.remote_action_target.as_deref(), Some("origin"));
+
+        // Cancel
+        app.cancel_tag_push_all();
+        assert_eq!(app.mode, Mode::Detail);
+        assert_eq!(app.remote_action_target, None);
+
+        // 2. Multi-Remote Scenario
+        let mock_info_multi = crate::repo::RepoInfo {
+            remotes: crate::repo::TabData::Loaded(vec![
+                crate::repo::RemoteInfo {
+                    name: "origin".to_string(),
+                    url: "git@github.com:tareqmy/gitwig.git".to_string(),
+                    push_url: None,
+                    refspecs: vec![],
+                },
+                crate::repo::RemoteInfo {
+                    name: "upstream".to_string(),
+                    url: "git@github.com:parent/gitwig.git".to_string(),
+                    push_url: None,
+                    refspecs: vec![],
+                },
+            ]),
+            ..crate::repo::RepoInfo::default()
+        };
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from("."),
+            info: Box::new(mock_info_multi),
+        });
+
+        // Request tag push all
+        app.request_tag_push_all();
+        // Should open remote picker
+        assert_eq!(app.mode, Mode::RemotePicker);
+        assert_eq!(
+            app.remote_picker_action,
+            Some(RemotePickerAction::PushAllTags)
+        );
+
+        // Confirm selection in remote picker (index 1 is upstream)
+        app.remote_picker_selection = 1;
+        app.confirm_remote_picker();
+
+        // Should transition to TagPushAllConfirm and set target to upstream
+        assert_eq!(app.mode, Mode::TagPushAllConfirm);
+        assert_eq!(app.remote_action_target.as_deref(), Some("upstream"));
+
+        // Confirm push
+        app.confirm_tag_push_all();
+        // Should trigger pushing, transition to Detail mode and clear target
+        assert_eq!(app.mode, Mode::Detail);
+        assert_eq!(app.remote_action_target, None);
     }
 
     #[test]
