@@ -12,6 +12,7 @@ pub mod help;
 pub mod import;
 pub mod inspect;
 pub mod loading;
+pub mod log_search;
 pub mod remote_picker;
 pub mod search_columns;
 pub mod settings;

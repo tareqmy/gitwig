@@ -955,7 +955,7 @@ pub fn draw_remote_delete_popup(f: &mut Frame, remote_name: &str, area: Rect) {
 
 use crate::components::{Component, DrawableComponent, EventState};
 use crate::queue::{InternalEvent, Queue};
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{Event, KeyCode, KeyEvent};
 
 pub struct ConfirmPopup {
     pub queue: Queue,
@@ -964,6 +964,43 @@ pub struct ConfirmPopup {
 impl ConfirmPopup {
     pub fn new(queue: Queue) -> Self {
         Self { queue }
+    }
+
+    pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
+        let code = key.code;
+        match app.mode {
+            crate::app::Mode::CherryPickConfirm => match code {
+                KeyCode::Up | KeyCode::Char('k') => {
+                    app.cherry_pick_dest_selection =
+                        app.cherry_pick_dest_selection.saturating_sub(1);
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    if !app.cherry_pick_dest_branches.is_empty() {
+                        app.cherry_pick_dest_selection = (app.cherry_pick_dest_selection + 1)
+                            .min(app.cherry_pick_dest_branches.len().saturating_sub(1));
+                    }
+                }
+                KeyCode::Enter => app.confirm_cherry_pick(),
+                KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.cancel_cherry_pick(),
+                _ => {}
+            },
+            crate::app::Mode::StashApplyConfirm => match code {
+                KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
+                    app.confirm_stash_apply()
+                }
+                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_stash_apply(),
+                KeyCode::Char('d')
+                | KeyCode::Char('D')
+                | KeyCode::Char(' ')
+                | KeyCode::Char('a')
+                | KeyCode::Char('A') => {
+                    app.toggle_stash_apply_delete();
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+        true
     }
 }
 

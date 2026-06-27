@@ -99,32 +99,11 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
-        Mode::CherryPickConfirm => match code {
-            KeyCode::Up | KeyCode::Char('k') => {
-                app.cherry_pick_dest_selection = app.cherry_pick_dest_selection.saturating_sub(1);
+        Mode::CherryPickConfirm | Mode::StashApplyConfirm => {
+            if crate::popups::confirm::ConfirmPopup::handle_event(app, key) {
+                return true;
             }
-            KeyCode::Down | KeyCode::Char('j') => {
-                if !app.cherry_pick_dest_branches.is_empty() {
-                    app.cherry_pick_dest_selection = (app.cherry_pick_dest_selection + 1)
-                        .min(app.cherry_pick_dest_branches.len().saturating_sub(1));
-                }
-            }
-            KeyCode::Enter => app.confirm_cherry_pick(),
-            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.cancel_cherry_pick(),
-            _ => {}
-        },
-        Mode::StashApplyConfirm => match code {
-            KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => app.confirm_stash_apply(),
-            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_stash_apply(),
-            KeyCode::Char('d')
-            | KeyCode::Char('D')
-            | KeyCode::Char(' ')
-            | KeyCode::Char('a')
-            | KeyCode::Char('A') => {
-                app.toggle_stash_apply_delete();
-            }
-            _ => {}
-        },
+        }
         Mode::Help => {
             if crate::popups::help::HelpPopup::handle_event(app, key) {
                 return true;
@@ -152,58 +131,16 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
-        Mode::SearchColumnPicker => match code {
-            KeyCode::Up => {
-                app.search_column_selection = app.search_column_selection.saturating_sub(1);
+        Mode::SearchColumnPicker => {
+            if crate::popups::search_columns::SearchColumnsPopup::handle_event(app, key) {
+                return true;
             }
-            KeyCode::Down => {
-                if app.search_column_selection < 3 {
-                    app.search_column_selection += 1;
-                }
+        }
+        Mode::LogsSearchInput | Mode::CommitSearchInput => {
+            if crate::popups::log_search::LogSearchPopup::handle_event(app, key) {
+                return true;
             }
-            KeyCode::Char(' ') => match app.search_column_selection {
-                0 => app.search_columns_sha = !app.search_columns_sha,
-                1 => app.search_columns_message = !app.search_columns_message,
-                2 => app.search_columns_author = !app.search_columns_author,
-                3 => app.search_columns_date = !app.search_columns_date,
-                _ => {}
-            },
-            KeyCode::Enter => {
-                app.input_buffer = app.commit_list.search_query.clone().unwrap_or_default();
-                app.in_logs_ui = true;
-                app.mode = Mode::LogsSearchInput;
-            }
-            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
-                if app.in_logs_ui {
-                    app.mode = Mode::Logs;
-                } else {
-                    app.mode = Mode::Detail;
-                }
-            }
-            _ => {}
-        },
-        Mode::LogsSearchInput => match code {
-            KeyCode::Esc => {
-                app.commit_list.search_query = None;
-                app.mode = Mode::Logs;
-            }
-            KeyCode::Enter => {
-                let query = app.input_buffer.clone();
-                if query.trim().is_empty() {
-                    app.commit_list.search_query = None;
-                } else {
-                    app.commit_list.search_query = Some(query);
-                }
-                app.mode = Mode::Logs;
-            }
-            KeyCode::Backspace => {
-                app.input_backspace();
-            }
-            KeyCode::Char(c) => {
-                app.input_char(c);
-            }
-            _ => {}
-        },
+        }
         Mode::Logs => {
             if crate::tabs::logs::LogsTab::handle_event(app, key) {
                 return true;
@@ -214,19 +151,6 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
-        Mode::CommitSearchInput => match code {
-            KeyCode::Esc => app.cancel_commit_search(),
-            KeyCode::Enter => app.mode = Mode::Detail,
-            KeyCode::Backspace => {
-                app.input_backspace();
-                app.commit_search_input_change();
-            }
-            KeyCode::Char(c) => {
-                app.input_char(c);
-                app.commit_search_input_change();
-            }
-            _ => {}
-        },
 
         Mode::BranchDeleteConfirm
         | Mode::BranchPushConfirm

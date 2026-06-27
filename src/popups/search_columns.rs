@@ -86,3 +86,42 @@ pub fn draw_search_column_picker(f: &mut Frame, app: &crate::app::App, area: Rec
     ]);
     f.render_widget(Paragraph::new(instructions).alignment(Alignment::Center), vertical_chunks[2]);
 }
+
+use crossterm::event::{KeyCode, KeyEvent};
+pub struct SearchColumnsPopup;
+impl SearchColumnsPopup {
+    pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
+        let code = key.code;
+        match code {
+            KeyCode::Up => {
+                app.search_column_selection = app.search_column_selection.saturating_sub(1);
+            }
+            KeyCode::Down => {
+                if app.search_column_selection < 3 {
+                    app.search_column_selection += 1;
+                }
+            }
+            KeyCode::Char(' ') => match app.search_column_selection {
+                0 => app.search_columns_sha = !app.search_columns_sha,
+                1 => app.search_columns_message = !app.search_columns_message,
+                2 => app.search_columns_author = !app.search_columns_author,
+                3 => app.search_columns_date = !app.search_columns_date,
+                _ => {}
+            },
+            KeyCode::Enter => {
+                app.input_buffer = app.commit_list.search_query.clone().unwrap_or_default();
+                app.in_logs_ui = true;
+                app.mode = Mode::LogsSearchInput;
+            }
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                if app.in_logs_ui {
+                    app.mode = Mode::Logs;
+                } else {
+                    app.mode = Mode::Detail;
+                }
+            }
+            _ => {}
+        }
+        true
+    }
+}
