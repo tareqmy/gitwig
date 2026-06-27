@@ -7,10 +7,12 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Position;
 
-use crate::app::{App, DetailSection, Mode, RemotePickerAction, Splitter};
+use crate::app::{App, DetailSection, Mode, Splitter};
+use crate::components::Component;
 
 /// Dispatch a key press. Returns `false` if the user requested quit.
 pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
+    app.drain_queue();
     crate::debug_log::info(format!("Key pressed: {:?}", key.code));
     let code = key.code;
 
@@ -59,7 +61,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::BulkAddInput
             | Mode::RemoteAddNameInput
             | Mode::RemoteAddUrlInput
-    ) || (matches!(app.mode, Mode::CommitInput) && app.commit_editing)
+    ) || (matches!(app.mode, Mode::CommitInput) && app.commit_popup.editing)
         || (matches!(app.mode, Mode::Settings) && app.settings_editing);
     if !is_text_input && code == KeyCode::Char('.') {
         app.toggle_status_expanded();
@@ -673,509 +675,104 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.resync_detail();
                 }
             }
-            _ if app.detail_tab == 0 => match code {
-                KeyCode::Char('f') if detail_focus == DetailSection::Commits => {
-                    app.search_column_selection = 0;
-                    app.mode = Mode::SearchColumnPicker;
-                }
-                KeyCode::Char('c')
-                    if detail_focus != DetailSection::Conflicts
-                        && detail_focus != DetailSection::ConflictDiff =>
-                {
-                    app.start_commit()
-                }
-                KeyCode::Char('C')
-                    if detail_focus != DetailSection::Conflicts
-                        && detail_focus != DetailSection::ConflictDiff =>
-                {
-                    app.start_commit_amend()
-                }
-                KeyCode::Char('t') | KeyCode::Char('T')
-                    if detail_focus == DetailSection::Commits =>
-                {
-                    app.start_tag_create();
-                }
-                KeyCode::Char('i') | KeyCode::Char('I')
-                    if detail_focus == DetailSection::Commits =>
-                {
-                    app.run_interactive_rebase();
-                }
-                KeyCode::Char('p') | KeyCode::Char('P')
-                    if detail_focus == DetailSection::Commits =>
-                {
-                    app.request_cherry_pick();
-                }
-                KeyCode::Char('y') | KeyCode::Char('Y')
-                    if detail_focus == DetailSection::Commits =>
-                {
-                    app.yank_selected_commit_hash();
-                }
-                KeyCode::Char('v') | KeyCode::Char('V')
-                    if detail_focus == DetailSection::Commits =>
-                {
-                    app.request_revert();
-                }
-                KeyCode::Char('w') => app.cycle_detail_focus(false),
-                KeyCode::Char('W') => app.cycle_detail_focus(true),
-                KeyCode::Right | KeyCode::Enter if detail_focus == DetailSection::Commits => {
-                    app.mode = Mode::Inspect;
-                    if app.is_uncommitted_selected() {
-                        app.detail_focus = DetailSection::Staged;
-                        app.last_staging_focus = DetailSection::Staged;
-                        app.status_list.staging_file_selection = 0;
-                    } else {
-                        app.detail_focus = DetailSection::Staged;
-                        app.last_staging_focus = DetailSection::Staged;
-                        app.status_list.file_selection = 0;
-                    }
-                    app.diff.diff_scroll = 0;
-                    app.refresh_file_diff();
-                }
-                KeyCode::Right
-                    if detail_focus == DetailSection::Staged
-                        || detail_focus == DetailSection::Unstaged
-                        || detail_focus == DetailSection::CommitDetails
-                        || detail_focus == DetailSection::StagingDetails =>
-                {
-                    app.mode = Mode::Inspect;
-                    if detail_focus == DetailSection::Staged
-                        || detail_focus == DetailSection::Unstaged
-                    {
-                        app.last_staging_focus = detail_focus;
-                    }
-                    app.detail_focus = DetailSection::StagingDetails;
-                    app.diff.diff_scroll = 0;
-                    if app.is_uncommitted_selected() {
-                        app.refresh_staging_diff();
-                    } else {
-                        app.refresh_file_diff();
-                    }
-                }
-                KeyCode::Up if detail_focus == DetailSection::Commits => app.detail_commit_up(),
-                KeyCode::Down if detail_focus == DetailSection::Commits => app.detail_commit_down(),
-                KeyCode::PageUp if detail_focus == DetailSection::Commits => {
-                    app.detail_commit_page_up(app.config.page_size)
-                }
-                KeyCode::PageDown if detail_focus == DetailSection::Commits => {
-                    app.detail_commit_page_down(app.config.page_size)
-                }
-                KeyCode::Home if detail_focus == DetailSection::Commits => {
-                    app.detail_commit_to_top()
-                }
-                KeyCode::End if detail_focus == DetailSection::Commits => {
-                    app.detail_commit_to_bottom()
-                }
-                KeyCode::Char('G') if detail_focus == DetailSection::Commits => {
-                    app.commit_list.limit = app.commit_list.limit.saturating_add(200);
-                    app.resync_detail();
-                    app.status_message = Some("Loading more commits...".to_string());
-                }
-                KeyCode::Up
-                    if detail_focus == DetailSection::Staged
-                        || detail_focus == DetailSection::Unstaged
-                        || detail_focus == DetailSection::Conflicts =>
-                {
-                    if detail_focus == DetailSection::Conflicts {
-                        app.conflict_file_up();
-                    } else if app.is_uncommitted_selected() {
-                        app.staging_file_up();
-                    } else {
-                        app.detail_file_up();
-                    }
-                }
-                KeyCode::Down
-                    if detail_focus == DetailSection::Staged
-                        || detail_focus == DetailSection::Unstaged
-                        || detail_focus == DetailSection::Conflicts =>
-                {
-                    if detail_focus == DetailSection::Conflicts {
-                        app.conflict_file_down();
-                    } else if app.is_uncommitted_selected() {
-                        app.staging_file_down();
-                    } else {
-                        app.detail_file_down();
-                    }
-                }
-                KeyCode::Enter
-                    if detail_focus == DetailSection::Staged && app.is_uncommitted_selected() =>
-                {
-                    app.unstage_selected_file()
-                }
-                KeyCode::Enter
-                    if detail_focus == DetailSection::Unstaged && app.is_uncommitted_selected() =>
-                {
-                    app.stage_selected_file()
-                }
-                KeyCode::Enter | KeyCode::Right if detail_focus == DetailSection::Conflicts => {
-                    app.mode = Mode::Inspect;
-                    app.last_staging_focus = DetailSection::Conflicts;
-                    app.detail_focus = DetailSection::ConflictDiff;
-                    app.diff.diff_scroll = 0;
-                    app.refresh_staging_diff();
-                }
-                KeyCode::Char('o')
-                    if (detail_focus == DetailSection::Conflicts
-                        || detail_focus == DetailSection::ConflictDiff)
-                        && app.is_uncommitted_selected() =>
-                {
-                    app.resolve_conflict_ours()
-                }
-                KeyCode::Char('t')
-                    if (detail_focus == DetailSection::Conflicts
-                        || detail_focus == DetailSection::ConflictDiff)
-                        && app.is_uncommitted_selected() =>
-                {
-                    app.resolve_conflict_theirs()
-                }
-                KeyCode::Char('r')
-                    if (detail_focus == DetailSection::Conflicts
-                        || detail_focus == DetailSection::ConflictDiff)
-                        && app.is_uncommitted_selected() =>
-                {
-                    app.mark_conflict_resolved()
-                }
-                KeyCode::Char('A')
-                    if (detail_focus == DetailSection::Conflicts
-                        || detail_focus == DetailSection::ConflictDiff)
-                        && app.is_uncommitted_selected() =>
-                {
-                    app.mode = Mode::MergeAbortConfirm;
-                }
-                KeyCode::Char('C')
-                    if (detail_focus == DetailSection::Conflicts
-                        || detail_focus == DetailSection::ConflictDiff)
-                        && app.is_uncommitted_selected() =>
-                {
-                    app.mode = Mode::MergeContinueConfirm;
-                }
-                KeyCode::Enter
-                    if detail_focus == DetailSection::StagingDetails
-                        && app.is_uncommitted_selected() =>
-                {
-                    if app.last_staging_focus == DetailSection::Staged {
-                        app.unstage_selected_hunk();
-                    } else if app.last_staging_focus == DetailSection::Unstaged {
-                        app.stage_selected_hunk();
-                    }
-                }
-                KeyCode::Char('a') | KeyCode::Char('A')
-                    if detail_focus == DetailSection::Unstaged && app.is_uncommitted_selected() =>
-                {
-                    app.stage_all_changes()
-                }
-                KeyCode::Char('a') | KeyCode::Char('A')
-                    if detail_focus == DetailSection::Staged && app.is_uncommitted_selected() =>
-                {
-                    app.unstage_all_changes()
-                }
-                KeyCode::Char('x')
-                    if (detail_focus == DetailSection::Staged
-                        || detail_focus == DetailSection::Unstaged)
-                        && app.is_uncommitted_selected() =>
-                {
-                    app.request_discard_changes()
-                }
-                KeyCode::Char('X')
-                    if (detail_focus == DetailSection::Staged
-                        || detail_focus == DetailSection::Unstaged
-                        || detail_focus == DetailSection::StagingDetails)
-                        && app.is_uncommitted_selected() =>
-                {
-                    app.request_discard_all_changes()
-                }
-                KeyCode::Char('s') | KeyCode::Char('S') => {
-                    let can_stash = ((detail_focus == DetailSection::Staged
-                        || detail_focus == DetailSection::Unstaged
-                        || detail_focus == DetailSection::StagingDetails)
-                        && app.is_uncommitted_selected())
-                        || (detail_focus == DetailSection::Commits
-                            && app.has_uncommitted_changes());
-                    if can_stash {
-                        app.start_stash_create();
-                    }
-                }
-                KeyCode::Up
-                    if detail_focus == DetailSection::StagingDetails
-                        || detail_focus == DetailSection::ConflictDiff =>
-                {
-                    app.diff.diff_scroll_up()
-                }
-                KeyCode::Down
-                    if detail_focus == DetailSection::StagingDetails
-                        || detail_focus == DetailSection::ConflictDiff =>
-                {
-                    app.diff.diff_scroll_down()
-                }
-                KeyCode::PageUp
-                    if detail_focus == DetailSection::StagingDetails
-                        || detail_focus == DetailSection::ConflictDiff =>
-                {
-                    app.diff.diff_scroll_page_up(app.config.page_size)
-                }
-                KeyCode::PageDown
-                    if detail_focus == DetailSection::StagingDetails
-                        || detail_focus == DetailSection::ConflictDiff =>
-                {
-                    app.diff.diff_scroll_page_down(app.config.page_size)
-                }
-                KeyCode::Home
-                    if detail_focus == DetailSection::StagingDetails
-                        || detail_focus == DetailSection::ConflictDiff =>
-                {
-                    app.diff.diff_scroll_to_top()
-                }
-                KeyCode::End
-                    if detail_focus == DetailSection::StagingDetails
-                        || detail_focus == DetailSection::ConflictDiff =>
-                {
-                    app.diff.diff_scroll_to_bottom()
-                }
-                KeyCode::Up if detail_focus == DetailSection::CommitDetails => {
-                    app.commit_list.details_scroll_up()
-                }
-                KeyCode::Down if detail_focus == DetailSection::CommitDetails => {
-                    app.commit_list.details_scroll_down()
-                }
-                _ => {}
-            },
-            _ if app.detail_tab == 1 => match code {
-                KeyCode::Char('w') => app.cycle_detail_focus(false),
-                KeyCode::Char('W') => app.cycle_detail_focus(true),
-                KeyCode::Char('f') if app.detail_focus == DetailSection::Files => {
-                    app.pending_files_fzf = true;
-                }
-                KeyCode::Up => {
-                    if app.detail_focus == DetailSection::FileContent {
-                        app.file_tree.file_content_scroll_up();
-                    } else {
-                        app.file_list_up();
-                    }
-                }
-                KeyCode::Down => {
-                    if app.detail_focus == DetailSection::FileContent {
-                        app.file_tree.file_content_scroll_down();
-                    } else {
-                        app.file_list_down();
-                    }
-                }
-                KeyCode::PageUp => {
-                    if app.detail_focus == DetailSection::FileContent {
-                        app.file_tree.file_content_scroll_page_up(app.config.page_size);
-                    } else {
-                        app.file_list_page_up(app.config.page_size);
-                    }
-                }
-                KeyCode::PageDown => {
-                    if app.detail_focus == DetailSection::FileContent {
-                        app.file_tree.file_content_scroll_page_down(app.config.page_size);
-                    } else {
-                        app.file_list_page_down(app.config.page_size);
-                    }
-                }
-                KeyCode::Home => {
-                    if app.detail_focus == DetailSection::FileContent {
-                        app.file_tree.file_content_scroll_to_top();
-                    } else {
-                        app.file_list_to_top();
-                    }
-                }
-                KeyCode::End => {
-                    if app.detail_focus == DetailSection::FileContent {
-                        app.file_tree.file_content_scroll_to_bottom();
-                    } else {
-                        app.file_list_to_bottom();
-                    }
-                }
-                KeyCode::Char('>') | KeyCode::Char('.') | KeyCode::Right
-                    if app.detail_focus == DetailSection::Files =>
-                {
-                    app.expand_selected_folder();
-                }
-                KeyCode::Char('<') | KeyCode::Char(',') | KeyCode::Left
-                    if app.detail_focus == DetailSection::Files =>
-                {
-                    app.collapse_selected_folder();
-                }
-                KeyCode::Right if app.detail_focus == DetailSection::FileContent => {
-                    app.inspect_full_diff = true;
-                }
-                KeyCode::Left
-                    if app.detail_focus == DetailSection::FileContent && app.inspect_full_diff =>
-                {
-                    app.inspect_full_diff = false;
-                }
-                _ => {}
-            },
-            _ if app.detail_tab == 2 => match code {
-                KeyCode::Up => app.graph_scroll_up(),
-                KeyCode::Down => app.graph_scroll_down(),
-                KeyCode::PageUp => app.graph_scroll_page_up(app.config.page_size),
-                KeyCode::PageDown => app.graph_scroll_page_down(app.config.page_size),
-                KeyCode::Home => app.graph_scroll_to_top(),
-                KeyCode::End => app.graph_scroll_to_bottom(),
-                _ => {}
-            },
-            _ if app.detail_tab == 3 => match code {
-                KeyCode::Char('w') => app.cycle_detail_focus(false),
-                KeyCode::Char('W') => app.cycle_detail_focus(true),
-                KeyCode::Char('c') | KeyCode::Char('C') => app.start_branch_create(),
-                KeyCode::Char('d') | KeyCode::Char('D') => app.request_branch_delete(),
-                KeyCode::Char('m') | KeyCode::Char('M') => app.request_branch_merge(),
-                KeyCode::Char('r') | KeyCode::Char('R') => app.request_branch_rebase(),
-                KeyCode::Char('i') | KeyCode::Char('I') => app.request_branch_interactive_rebase(),
-                KeyCode::Char('F') => {
-                    if app.detail_focus == DetailSection::LocalBranches {
-                        app.fetch_selected_branch();
-                    }
-                }
-                KeyCode::Char('P') => {
-                    if app.detail_focus == DetailSection::LocalBranches {
-                        app.request_branch_push();
-                    }
-                }
-                KeyCode::Char('p') => {
-                    if app.detail_focus == DetailSection::LocalBranches {
-                        app.pull_selected_branch();
-                    }
-                }
-                KeyCode::Enter => {
-                    app.request_branch_checkout();
-                }
-                KeyCode::Up => {
-                    if app.detail_focus == DetailSection::LocalBranches {
-                        app.local_branch_up();
-                    } else {
-                        app.remote_branch_up();
-                    }
-                }
-                KeyCode::Down => {
-                    if app.detail_focus == DetailSection::LocalBranches {
-                        app.local_branch_down();
-                    } else {
-                        app.remote_branch_down();
-                    }
-                }
-                KeyCode::PageUp => {
-                    if app.detail_focus == DetailSection::LocalBranches {
-                        app.local_branch_page_up(app.config.page_size);
-                    } else {
-                        app.remote_branch_page_up(app.config.page_size);
-                    }
-                }
-                KeyCode::PageDown => {
-                    if app.detail_focus == DetailSection::LocalBranches {
-                        app.local_branch_page_down(app.config.page_size);
-                    } else {
-                        app.remote_branch_page_down(app.config.page_size);
-                    }
-                }
-                KeyCode::Home => {
-                    if app.detail_focus == DetailSection::LocalBranches {
-                        app.local_branch_to_top();
-                    } else {
-                        app.remote_branch_to_top();
-                    }
-                }
-                KeyCode::End => {
-                    if app.detail_focus == DetailSection::LocalBranches {
-                        app.local_branch_to_bottom();
-                    } else {
-                        app.remote_branch_to_bottom();
-                    }
-                }
-                KeyCode::Left => app.move_focus_left(),
-                KeyCode::Right => app.move_focus_right(),
-                _ => {}
-            },
-            _ if app.detail_tab == 4 => match code {
-                KeyCode::Enter => {
-                    app.request_tag_checkout();
-                }
-                KeyCode::Up => {
-                    app.local_tag_up();
-                }
-                KeyCode::Down => {
-                    app.local_tag_down();
-                }
-                KeyCode::PageUp => {
-                    app.local_tag_page_up(app.config.page_size);
-                }
-                KeyCode::PageDown => {
-                    app.local_tag_page_down(app.config.page_size);
-                }
-                KeyCode::Home => {
-                    app.local_tag_to_top();
-                }
-                KeyCode::End => {
-                    app.local_tag_to_bottom();
-                }
-                KeyCode::Char('d') | KeyCode::Char('D') => {
-                    app.request_tag_delete();
-                }
-                KeyCode::Char('p') => {
-                    app.request_tag_push();
-                }
-                KeyCode::Char('P') => {
-                    app.request_tag_push_all();
-                }
-                KeyCode::Char('f') | KeyCode::Char('F') => {
-                    app.fetch_remote_tags(true);
-                }
-                _ => {}
-            },
-            _ if app.detail_tab == 5 => match code {
-                KeyCode::Up => {
-                    app.remote_up();
-                }
-                KeyCode::Down => {
-                    app.remote_down();
-                }
-                KeyCode::PageUp => {
-                    app.remote_page_up(app.config.page_size);
-                }
-                KeyCode::PageDown => {
-                    app.remote_page_down(app.config.page_size);
-                }
-                KeyCode::Home => {
-                    app.remote_to_top();
-                }
-                KeyCode::End => {
-                    app.remote_to_bottom();
-                }
-                // f / F — fetch remote tags from the selected remote
-                KeyCode::Char('f') | KeyCode::Char('F') => {
-                    let remote_action =
-                        if let Some(crate::repo::ItemDetail::Repo { info, .. }) =
-                            &app.current_detail
-                        {
-                            if info.remotes.len() > 1 {
-                                Some(None) // Open picker
-                            } else {
-                                info.remotes.first().map(|r| Some(r.name.clone()))
+            _ if app.detail_tab == 0 => {
+                let ev = crossterm::event::Event::Key(key);
+                if detail_focus == DetailSection::Commits || detail_focus == DetailSection::CommitDetails {
+                    if app.commit_list.event(&ev).unwrap_or(crate::components::EventState::NotConsumed).is_consumed() { return true; }
+                } else if detail_focus == DetailSection::StagingDetails || detail_focus == DetailSection::ConflictDiff {
+                    if app.diff.event(&ev).unwrap_or(crate::components::EventState::NotConsumed).is_consumed() { return true; }
+                    
+                    // Staging details specific actions
+                    match code {
+                        KeyCode::Enter => {
+                            if app.is_uncommitted_selected() {
+                                if app.last_staging_focus == DetailSection::Staged {
+                                    app.unstage_selected_hunk();
+                                } else if app.last_staging_focus == DetailSection::Unstaged {
+                                    app.stage_selected_hunk();
+                                }
                             }
-                        } else {
-                            None
-                        };
-
-                    match remote_action {
-                        Some(Some(remote_name)) => {
-                            app.fetch_remote(&remote_name);
                         }
-                        Some(None) => {
-                            app.remote_picker_action = Some(RemotePickerAction::FetchRemote);
-                            app.remote_picker_selection = app.branch_list.remote_selection;
-                            app.mode = Mode::RemotePicker;
+                        KeyCode::Char('X') if app.is_uncommitted_selected() => app.request_discard_all_changes(),
+                        KeyCode::Char('s') | KeyCode::Char('S') if app.is_uncommitted_selected() => app.start_stash_create(),
+                        _ => {}
+                    }
+                } else if detail_focus == DetailSection::Staged || detail_focus == DetailSection::Unstaged || detail_focus == DetailSection::Conflicts {
+                    if app.status_list.event(&ev).unwrap_or(crate::components::EventState::NotConsumed).is_consumed() { return true; }
+                    
+                    // Status list specific enter/conflicts logic
+                    match code {
+                        KeyCode::Enter if detail_focus == DetailSection::Staged && app.is_uncommitted_selected() => app.unstage_selected_file(),
+                        KeyCode::Enter if detail_focus == DetailSection::Unstaged && app.is_uncommitted_selected() => app.stage_selected_file(),
+                        KeyCode::Enter | KeyCode::Right if detail_focus == DetailSection::Conflicts => {
+                            app.mode = Mode::Inspect;
+                            app.last_staging_focus = DetailSection::Conflicts;
+                            app.detail_focus = DetailSection::ConflictDiff;
+                            app.diff.diff_scroll = 0;
+                            app.refresh_staging_diff();
                         }
-                        None => {}
+                        KeyCode::Char('o') if detail_focus == DetailSection::Conflicts && app.is_uncommitted_selected() => app.resolve_conflict_ours(),
+                        KeyCode::Char('t') if detail_focus == DetailSection::Conflicts && app.is_uncommitted_selected() => app.resolve_conflict_theirs(),
+                        KeyCode::Char('r') if detail_focus == DetailSection::Conflicts && app.is_uncommitted_selected() => app.mark_conflict_resolved(),
+                        KeyCode::Char('A') if detail_focus == DetailSection::Conflicts && app.is_uncommitted_selected() => app.mode = Mode::MergeAbortConfirm,
+                        KeyCode::Char('C') if detail_focus == DetailSection::Conflicts && app.is_uncommitted_selected() => app.mode = Mode::MergeContinueConfirm,
+                        _ => {}
                     }
                 }
-                KeyCode::Char('a') | KeyCode::Char('A') => {
-                    app.start_remote_add();
+            },
+            _ if app.detail_tab == 1 => {
+                let ev = crossterm::event::Event::Key(key);
+                if detail_focus == DetailSection::Files {
+                    if app.file_tree.event(&ev).unwrap_or(crate::components::EventState::NotConsumed).is_consumed() { return true; }
+                } else if detail_focus == DetailSection::FileContent {
+                    // map file content scrolling to the tree's internal event handler
+                    match code {
+                        KeyCode::Up => app.file_tree.queue.push(crate::queue::InternalEvent::FileContentUp),
+                        KeyCode::Down => app.file_tree.queue.push(crate::queue::InternalEvent::FileContentDown),
+                        KeyCode::PageUp => app.file_tree.queue.push(crate::queue::InternalEvent::FileContentPageUp),
+                        KeyCode::PageDown => app.file_tree.queue.push(crate::queue::InternalEvent::FileContentPageDown),
+                        KeyCode::Home => app.file_tree.queue.push(crate::queue::InternalEvent::FileContentTop),
+                        KeyCode::End => app.file_tree.queue.push(crate::queue::InternalEvent::FileContentBottom),
+                        _ => {}
+                    }
                 }
-                KeyCode::Char('d') | KeyCode::Char('D') => {
-                    app.request_remote_delete();
+            },
+            _ if app.detail_tab == 3 => {
+                let ev = crossterm::event::Event::Key(key);
+                if detail_focus == DetailSection::LocalBranches {
+                    if app.branch_list.event(&ev).unwrap_or(crate::components::EventState::NotConsumed).is_consumed() { return true; }
+                } else if detail_focus == DetailSection::Remotes {
+                    // Also routed through branch list for now, we map remote keys explicitly here since branch list event() is mapped to local currently.
+                    match code {
+                        KeyCode::Up => app.branch_list.queue.push(crate::queue::InternalEvent::RemoteBranchUp),
+                        KeyCode::Down => app.branch_list.queue.push(crate::queue::InternalEvent::RemoteBranchDown),
+                        KeyCode::PageUp => app.branch_list.queue.push(crate::queue::InternalEvent::RemoteBranchPageUp),
+                        KeyCode::PageDown => app.branch_list.queue.push(crate::queue::InternalEvent::RemoteBranchPageDown),
+                        KeyCode::Home => app.branch_list.queue.push(crate::queue::InternalEvent::RemoteBranchTop),
+                        KeyCode::End => app.branch_list.queue.push(crate::queue::InternalEvent::RemoteBranchBottom),
+                        KeyCode::Char('f') | KeyCode::Char('F') => app.branch_list.queue.push(crate::queue::InternalEvent::FetchRemote),
+                        KeyCode::Char('d') | KeyCode::Char('D') => app.branch_list.queue.push(crate::queue::InternalEvent::RequestDeleteRemote),
+                        _ => {}
+                    }
                 }
-                _ => {}
+            },
+            _ if app.detail_tab == 4 => {
+                let ev = crossterm::event::Event::Key(key);
+                if app.tag_list.event(&ev).unwrap_or(crate::components::EventState::NotConsumed).is_consumed() { return true; }
+            },
+            _ if app.detail_tab == 5 => {
+                match code {
+                    KeyCode::Up => app.branch_list.queue.push(crate::queue::InternalEvent::RemoteBranchUp),
+                    KeyCode::Down => app.branch_list.queue.push(crate::queue::InternalEvent::RemoteBranchDown),
+                    KeyCode::PageUp => app.branch_list.queue.push(crate::queue::InternalEvent::RemoteBranchPageUp),
+                    KeyCode::PageDown => app.branch_list.queue.push(crate::queue::InternalEvent::RemoteBranchPageDown),
+                    KeyCode::Home => app.branch_list.queue.push(crate::queue::InternalEvent::RemoteBranchTop),
+                    KeyCode::End => app.branch_list.queue.push(crate::queue::InternalEvent::RemoteBranchBottom),
+                    KeyCode::Char('f') | KeyCode::Char('F') => app.branch_list.queue.push(crate::queue::InternalEvent::FetchRemote),
+                    KeyCode::Char('a') | KeyCode::Char('A') => app.branch_list.queue.push(crate::queue::InternalEvent::StartRemoteAdd),
+                    KeyCode::Char('d') | KeyCode::Char('D') => app.branch_list.queue.push(crate::queue::InternalEvent::RequestDeleteRemote),
+                    _ => {}
+                }
             },
             _ if app.detail_tab == 6 => match code {
                 KeyCode::Char('w') => app.cycle_detail_focus(false),
@@ -1849,45 +1446,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             _ => {}
         },
         Mode::CommitInput => {
-            if app.commit_editing {
-                match code {
-                    KeyCode::Esc => app.cancel_commit(),
-                    KeyCode::Enter => app.input_char('\n'),
-                    KeyCode::Char('c') | KeyCode::Char('C')
-                        if key.modifiers.contains(KeyModifiers::CONTROL) =>
-                    {
-                        app.commit_done_editing()
-                    }
-                    KeyCode::Char('a') | KeyCode::Char('A')
-                        if key.modifiers.contains(KeyModifiers::CONTROL) =>
-                    {
-                        app.toggle_commit_amend()
-                    }
-                    KeyCode::Char('d') | KeyCode::Char('D')
-                        if key.modifiers.contains(KeyModifiers::CONTROL) =>
-                    {
-                        app.toggle_commit_popup_maximized()
-                    }
-                    KeyCode::Backspace => app.input_backspace(),
-                    KeyCode::Up => app.commit_input_scroll_up(),
-                    KeyCode::Down => app.commit_input_scroll_down(),
-                    KeyCode::Char(c) => app.input_char(c),
-                    _ => {}
-                }
-            } else {
-                match code {
-                    KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.cancel_commit(),
-                    KeyCode::Enter => app.commit_git_changes(),
-                    KeyCode::Char('e') | KeyCode::Char('E') => app.commit_start_editing(),
-                    KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Char(' ') => {
-                        app.toggle_commit_amend()
-                    }
-                    KeyCode::Char('d') | KeyCode::Char('D') => app.toggle_commit_popup_maximized(),
-                    KeyCode::Up => app.commit_input_scroll_up(),
-                    KeyCode::Down => app.commit_input_scroll_down(),
-                    _ => {}
-                }
-            }
+            let ev = crossterm::event::Event::Key(key);
+            if app.commit_popup.event(&ev).unwrap_or(crate::components::EventState::NotConsumed).is_consumed() { return true; }
         }
     }
     true

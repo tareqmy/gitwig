@@ -1,6 +1,7 @@
 
 #[derive(Default)]
 pub struct DiffComponent {
+    pub queue: crate::queue::Queue,
     pub file_diff: Vec<crate::repo::DiffLine>,
     pub diff_scroll: usize,
     pub diff_hunk_selection: usize,
@@ -315,5 +316,40 @@ impl DiffComponent {
     pub fn diff_scroll_to_bottom(&mut self) {
         let max = self.file_diff.len().saturating_sub(1);
         self.diff_scroll = max;
+    }
+}
+
+impl DiffComponent {
+    pub fn new(queue: crate::queue::Queue) -> Self {
+        Self {
+            queue,
+            ..Default::default()
+        }
+    }
+}
+
+
+use crossterm::event::{Event, KeyCode};
+use crate::components::{Component, EventState, DrawableComponent};
+use crate::queue::InternalEvent;
+
+impl DrawableComponent for DiffComponent {
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+}
+
+impl Component for DiffComponent {
+    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+        if let Event::Key(key) = ev {
+            match key.code {
+                KeyCode::Up => { self.queue.push(InternalEvent::DiffScrollUp); return Ok(EventState::Consumed); }
+                KeyCode::Down => { self.queue.push(InternalEvent::DiffScrollDown); return Ok(EventState::Consumed); }
+                KeyCode::PageUp => { self.queue.push(InternalEvent::DiffScrollPageUp); return Ok(EventState::Consumed); }
+                KeyCode::PageDown => { self.queue.push(InternalEvent::DiffScrollPageDown); return Ok(EventState::Consumed); }
+                KeyCode::Home => { self.queue.push(InternalEvent::DiffScrollTop); return Ok(EventState::Consumed); }
+                KeyCode::End => { self.queue.push(InternalEvent::DiffScrollBottom); return Ok(EventState::Consumed); }
+                _ => {}
+            }
+        }
+        Ok(EventState::NotConsumed)
     }
 }

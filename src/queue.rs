@@ -35,6 +35,74 @@ pub enum InternalEvent {
     Update(NeedsUpdate),
     OpenCommitPopup,
     OpenCreateBranch,
+    ClosePopup,
+    Commit,
+
+    SearchColumnPicker,
+    StartCommit,
+    StartCommitAmend,
+    StartTagCreate,
+    RunInteractiveRebase,
+    RequestCherryPick,
+    YankSelectedCommitHash,
+    RequestRevert,
+    InspectCommit,
+    CommitSelectionUp,
+    CommitSelectionDown,
+    CommitSelectionPageUp,
+    CommitSelectionPageDown,
+
+    CommitSelectionTop,
+    CommitSelectionBottom,
+    LoadMoreCommits,
+    CommitDetailsUp,
+    CommitDetailsDown,
+    StagingFileUp,
+    StagingFileDown,
+    ConflictFileUp,
+    ConflictFileDown,
+    StageSelectedFile,
+    UnstageSelectedFile,
+    ResolveConflictOurs,
+    ResolveConflictTheirs,
+    MarkConflictResolved,
+    MergeAbortConfirm,
+    MergeContinueConfirm,
+    StageSelectedHunk,
+    UnstageSelectedHunk,
+    StageAllChanges,
+    UnstageAllChanges,
+    RequestDiscardChanges,
+    RequestDiscardAllChanges,
+    StartStashCreate,
+    DiffScrollUp,
+    DiffScrollDown,
+    DiffScrollPageUp,
+    DiffScrollPageDown,
+    DiffScrollTop,
+    DiffScrollBottom,
+
+    // FileTree
+    FileTreeUp, FileTreeDown, FileTreePageUp, FileTreePageDown, FileTreeTop, FileTreeBottom,
+    FileContentUp, FileContentDown, FileContentPageUp, FileContentPageDown, FileContentTop, FileContentBottom,
+    ToggleFolderExpanded, CollapseAllFolders, RequestDiscardFile,
+
+    // BranchList
+    LocalBranchUp, LocalBranchDown, LocalBranchPageUp, LocalBranchPageDown, LocalBranchTop, LocalBranchBottom,
+    RemoteBranchUp, RemoteBranchDown, RemoteBranchPageUp, RemoteBranchPageDown, RemoteBranchTop, RemoteBranchBottom,
+    CheckoutBranch, RequestDeleteBranch, StartBranchCreate, StartBranchMerge, StartBranchRebase, RequestBranchPush, FetchRemote, StartRemoteAdd, RequestDeleteRemote,
+
+    // TagList
+    TagUp, TagDown, TagPageUp, TagPageDown, TagTop, TagBottom,
+    CheckoutTag, RequestDeleteTag, RequestPushTag, RequestPushAllTags, FetchRemoteTags,
+
+    // StashList
+    StashUp, StashDown, StashPageUp, StashPageDown, StashTop, StashBottom,
+    StashFileUp, StashFileDown, StashFilePageUp, StashFilePageDown, StashFileTop, StashFileBottom,
+    RequestDeleteStash, RequestApplyStash,
+
+
+
     // SwitchTab(Tab), // Will be added when Tabs are defined
 }
 

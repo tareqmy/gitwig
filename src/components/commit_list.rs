@@ -1,6 +1,7 @@
 
 #[derive(Default)]
 pub struct CommitListComponent {
+    pub queue: crate::queue::Queue,
     pub selection: usize,
     pub search_query: Option<String>,
     pub table_state: std::cell::RefCell<ratatui::widgets::TableState>,
@@ -427,5 +428,104 @@ impl CommitListComponent {
     }
     pub fn details_scroll_down(&mut self) {
         self.details_scroll = self.details_scroll.saturating_add(1);
+    }
+}
+
+
+impl CommitListComponent {
+    pub fn new(queue: crate::queue::Queue) -> Self {
+        Self {
+            queue,
+            ..Default::default()
+        }
+    }
+}
+
+
+use crossterm::event::{Event, KeyCode, KeyEvent};
+use crate::components::{Component, EventState};
+use crate::queue::InternalEvent;
+
+impl Component for CommitListComponent {
+    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+        if let Event::Key(key) = ev {
+            match key.code {
+                KeyCode::Char('f') => {
+                    self.queue.push(InternalEvent::SearchColumnPicker);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('c') => {
+                    self.queue.push(InternalEvent::StartCommit);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('C') => {
+                    self.queue.push(InternalEvent::StartCommitAmend);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('t') | KeyCode::Char('T') => {
+                    self.queue.push(InternalEvent::StartTagCreate);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('i') | KeyCode::Char('I') => {
+                    self.queue.push(InternalEvent::RunInteractiveRebase);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('p') | KeyCode::Char('P') => {
+                    self.queue.push(InternalEvent::RequestCherryPick);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    self.queue.push(InternalEvent::YankSelectedCommitHash);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('v') | KeyCode::Char('V') => {
+                    self.queue.push(InternalEvent::RequestRevert);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Right | KeyCode::Enter => {
+                    self.queue.push(InternalEvent::InspectCommit);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Home => {
+                    self.queue.push(InternalEvent::CommitSelectionTop);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::End => {
+                    self.queue.push(InternalEvent::CommitSelectionBottom);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('G') => {
+                    self.queue.push(InternalEvent::LoadMoreCommits);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Up => {
+                    self.queue.push(InternalEvent::CommitSelectionUp);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Down => {
+                    self.queue.push(InternalEvent::CommitSelectionDown);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::PageUp => {
+                    self.queue.push(InternalEvent::CommitSelectionPageUp);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::PageDown => {
+                    self.queue.push(InternalEvent::CommitSelectionPageDown);
+                    return Ok(EventState::Consumed);
+                }
+                _ => {}
+            }
+        }
+        Ok(EventState::NotConsumed)
+    }
+}
+
+
+impl crate::components::DrawableComponent for CommitListComponent {
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> {
+        // Drawing logic is currently in ui.rs / ui_detail.rs
+        // Will be moved here soon.
+        Ok(())
     }
 }

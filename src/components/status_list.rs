@@ -1,6 +1,7 @@
 
 #[derive(Default)]
 pub struct StatusListComponent {
+    pub queue: crate::queue::Queue,
     pub staged_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
     pub unstaged_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
     pub conflicts_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
@@ -313,3 +314,39 @@ pub fn draw_staging_panels(
     }
 }
 
+
+
+impl StatusListComponent {
+    pub fn new(queue: crate::queue::Queue) -> Self {
+        Self {
+            queue,
+            ..Default::default()
+        }
+    }
+}
+
+
+use crossterm::event::{Event, KeyCode};
+use crate::components::{Component, EventState, DrawableComponent};
+use crate::queue::InternalEvent;
+
+impl DrawableComponent for StatusListComponent {
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+}
+
+impl Component for StatusListComponent {
+    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+        if let Event::Key(key) = ev {
+            match key.code {
+                KeyCode::Up => { self.queue.push(InternalEvent::StagingFileUp); return Ok(EventState::Consumed); }
+                KeyCode::Down => { self.queue.push(InternalEvent::StagingFileDown); return Ok(EventState::Consumed); }
+                KeyCode::Char('a') | KeyCode::Char('A') => { self.queue.push(InternalEvent::StageAllChanges); return Ok(EventState::Consumed); }
+                KeyCode::Char('x') => { self.queue.push(InternalEvent::RequestDiscardChanges); return Ok(EventState::Consumed); }
+                KeyCode::Char('X') => { self.queue.push(InternalEvent::RequestDiscardAllChanges); return Ok(EventState::Consumed); }
+                KeyCode::Char('s') | KeyCode::Char('S') => { self.queue.push(InternalEvent::StartStashCreate); return Ok(EventState::Consumed); }
+                _ => {}
+            }
+        }
+        Ok(EventState::NotConsumed)
+    }
+}

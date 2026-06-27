@@ -1,5 +1,6 @@
 #[derive(Default)]
 pub struct TagListComponent {
+    pub queue: crate::queue::Queue,
     pub local_tag_selection: usize,
     pub remote_tag_selection: usize,
     pub local_tag_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
@@ -137,3 +138,44 @@ pub fn draw_tags_view(
     f.render_stateful_widget(local_list, area, &mut *local_state);
 }
 
+
+
+impl TagListComponent {
+    pub fn new(queue: crate::queue::Queue) -> Self {
+        Self {
+            queue,
+            ..Default::default()
+        }
+    }
+}
+
+
+use crossterm::event::{Event, KeyCode};
+use crate::components::{Component, EventState, DrawableComponent};
+use crate::queue::InternalEvent;
+
+impl DrawableComponent for TagListComponent {
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+}
+
+impl Component for TagListComponent {
+    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+        if let Event::Key(key) = ev {
+            match key.code {
+                KeyCode::Up => { self.queue.push(InternalEvent::TagUp); return Ok(EventState::Consumed); }
+                KeyCode::Down => { self.queue.push(InternalEvent::TagDown); return Ok(EventState::Consumed); }
+                KeyCode::PageUp => { self.queue.push(InternalEvent::TagPageUp); return Ok(EventState::Consumed); }
+                KeyCode::PageDown => { self.queue.push(InternalEvent::TagPageDown); return Ok(EventState::Consumed); }
+                KeyCode::Home => { self.queue.push(InternalEvent::TagTop); return Ok(EventState::Consumed); }
+                KeyCode::End => { self.queue.push(InternalEvent::TagBottom); return Ok(EventState::Consumed); }
+                KeyCode::Enter => { self.queue.push(InternalEvent::CheckoutTag); return Ok(EventState::Consumed); }
+                KeyCode::Char('d') | KeyCode::Char('D') => { self.queue.push(InternalEvent::RequestDeleteTag); return Ok(EventState::Consumed); }
+                KeyCode::Char('p') => { self.queue.push(InternalEvent::RequestPushTag); return Ok(EventState::Consumed); }
+                KeyCode::Char('P') => { self.queue.push(InternalEvent::RequestPushAllTags); return Ok(EventState::Consumed); }
+                KeyCode::Char('f') | KeyCode::Char('F') => { self.queue.push(InternalEvent::FetchRemoteTags); return Ok(EventState::Consumed); }
+                _ => {}
+            }
+        }
+        Ok(EventState::NotConsumed)
+}
+}

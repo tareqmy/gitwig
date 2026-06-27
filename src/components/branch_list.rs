@@ -1,5 +1,6 @@
 #[derive(Default)]
 pub struct BranchListComponent {
+    pub queue: crate::queue::Queue,
     pub local_branch_selection: usize,
     pub remote_branch_selection: usize,
     pub local_branch_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
@@ -352,3 +353,47 @@ pub fn draw_remotes_view(
     f.render_widget(details_paragraph, right_area);
 }
 
+
+
+impl BranchListComponent {
+    pub fn new(queue: crate::queue::Queue) -> Self {
+        Self {
+            queue,
+            ..Default::default()
+        }
+    }
+}
+
+
+use crossterm::event::{Event, KeyCode};
+use crate::components::{Component, EventState, DrawableComponent};
+use crate::queue::InternalEvent;
+
+impl DrawableComponent for BranchListComponent {
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+}
+
+impl Component for BranchListComponent {
+    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+        if let Event::Key(key) = ev {
+            match key.code {
+                KeyCode::Up => { self.queue.push(InternalEvent::LocalBranchUp); return Ok(EventState::Consumed); }
+                KeyCode::Down => { self.queue.push(InternalEvent::LocalBranchDown); return Ok(EventState::Consumed); }
+                KeyCode::PageUp => { self.queue.push(InternalEvent::LocalBranchPageUp); return Ok(EventState::Consumed); }
+                KeyCode::PageDown => { self.queue.push(InternalEvent::LocalBranchPageDown); return Ok(EventState::Consumed); }
+                KeyCode::Home => { self.queue.push(InternalEvent::LocalBranchTop); return Ok(EventState::Consumed); }
+                KeyCode::End => { self.queue.push(InternalEvent::LocalBranchBottom); return Ok(EventState::Consumed); }
+                KeyCode::Enter => { self.queue.push(InternalEvent::CheckoutBranch); return Ok(EventState::Consumed); }
+                KeyCode::Char('d') | KeyCode::Char('D') => { self.queue.push(InternalEvent::RequestDeleteBranch); return Ok(EventState::Consumed); }
+                KeyCode::Char('c') | KeyCode::Char('C') => { self.queue.push(InternalEvent::StartBranchCreate); return Ok(EventState::Consumed); }
+                KeyCode::Char('m') | KeyCode::Char('M') => { self.queue.push(InternalEvent::StartBranchMerge); return Ok(EventState::Consumed); }
+                KeyCode::Char('r') | KeyCode::Char('R') => { self.queue.push(InternalEvent::StartBranchRebase); return Ok(EventState::Consumed); }
+                KeyCode::Char('p') | KeyCode::Char('P') => { self.queue.push(InternalEvent::RequestBranchPush); return Ok(EventState::Consumed); }
+                KeyCode::Char('f') | KeyCode::Char('F') => { self.queue.push(InternalEvent::FetchRemote); return Ok(EventState::Consumed); }
+                KeyCode::Char('a') | KeyCode::Char('A') => { self.queue.push(InternalEvent::StartRemoteAdd); return Ok(EventState::Consumed); }
+                _ => {}
+            }
+        }
+        Ok(EventState::NotConsumed)
+}
+}

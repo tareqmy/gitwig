@@ -1,5 +1,6 @@
 #[derive(Default)]
 pub struct StashListComponent {
+    pub queue: crate::queue::Queue,
     pub stash_selection: usize,
     pub stash_file_selection: usize,
     pub stash_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
@@ -248,3 +249,43 @@ pub fn draw_stashes_view(
     }
 }
 
+
+
+impl StashListComponent {
+    pub fn new(queue: crate::queue::Queue) -> Self {
+        Self {
+            queue,
+            ..Default::default()
+        }
+    }
+}
+
+
+use crossterm::event::{Event, KeyCode};
+use crate::components::{Component, EventState, DrawableComponent};
+use crate::queue::InternalEvent;
+
+impl DrawableComponent for StashListComponent {
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+}
+
+impl Component for StashListComponent {
+    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+        if let Event::Key(key) = ev {
+            match key.code {
+                KeyCode::Up => { self.queue.push(InternalEvent::StashUp); return Ok(EventState::Consumed); }
+                KeyCode::Down => { self.queue.push(InternalEvent::StashDown); return Ok(EventState::Consumed); }
+                KeyCode::PageUp => { self.queue.push(InternalEvent::StashPageUp); return Ok(EventState::Consumed); }
+                KeyCode::PageDown => { self.queue.push(InternalEvent::StashPageDown); return Ok(EventState::Consumed); }
+                KeyCode::Home => { self.queue.push(InternalEvent::StashTop); return Ok(EventState::Consumed); }
+                KeyCode::End => { self.queue.push(InternalEvent::StashBottom); return Ok(EventState::Consumed); }
+                KeyCode::Enter => { self.queue.push(InternalEvent::RequestApplyStash); return Ok(EventState::Consumed); }
+                KeyCode::Char('a') | KeyCode::Char('A') => { self.queue.push(InternalEvent::RequestApplyStash); return Ok(EventState::Consumed); }
+                KeyCode::Char('d') | KeyCode::Char('D') => { self.queue.push(InternalEvent::RequestDeleteStash); return Ok(EventState::Consumed); }
+                KeyCode::Char('s') | KeyCode::Char('S') => { self.queue.push(InternalEvent::StartStashCreate); return Ok(EventState::Consumed); }
+                _ => {}
+            }
+        }
+        Ok(EventState::NotConsumed)
+}
+}

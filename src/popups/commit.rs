@@ -1,3 +1,121 @@
+
+use crossterm::event::{Event, KeyCode, KeyModifiers};
+use crate::components::{Component, EventState, DrawableComponent};
+use crate::queue::{Queue, InternalEvent};
+
+pub struct CommitPopup {
+    pub queue: Queue,
+    pub input_buffer: String,
+    pub editing: bool,
+    pub amend: bool,
+    pub scroll: usize,
+    pub maximized: bool,
+    pub width_pct: u16,
+    pub height_pct: u16,
+}
+
+impl CommitPopup {
+    pub fn new(queue: Queue) -> Self {
+        Self {
+            queue,
+            input_buffer: String::new(),
+            editing: true,
+            amend: false,
+            scroll: 0,
+            maximized: false,
+            width_pct: 60,
+            height_pct: 60,
+        }
+    }
+}
+
+impl DrawableComponent for CommitPopup {
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Component for CommitPopup {
+    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+        if let Event::Key(key) = ev {
+            if self.editing {
+                match key.code {
+                    KeyCode::Esc => {
+                        self.editing = false;
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.queue.push(InternalEvent::Commit);
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.amend = !self.amend;
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.queue.push(InternalEvent::ClosePopup);
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char(c) => {
+                        self.input_buffer.push(c);
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Backspace => {
+                        self.input_buffer.pop();
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Enter => {
+                        self.input_buffer.push('\n');
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Up => {
+                        self.scroll = self.scroll.saturating_sub(1);
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Down => {
+                        self.scroll = self.scroll.saturating_add(1);
+                        return Ok(EventState::Consumed);
+                    }
+                    _ => {}
+                }
+            } else {
+                match key.code {
+                    KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                        self.queue.push(InternalEvent::ClosePopup);
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('e') | KeyCode::Char('E') => {
+                        self.editing = true;
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('a') | KeyCode::Char(' ') => {
+                        self.amend = !self.amend;
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('m') | KeyCode::Char('M') => {
+                        self.maximized = !self.maximized;
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Enter => {
+                        self.queue.push(InternalEvent::Commit);
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Up => {
+                        self.scroll = self.scroll.saturating_sub(1);
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Down => {
+                        self.scroll = self.scroll.saturating_add(1);
+                        return Ok(EventState::Consumed);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(EventState::NotConsumed)
+    }
+}
+
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
 use ratatui::style::{Color, Modifier, Style};

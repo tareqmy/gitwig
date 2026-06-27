@@ -1,5 +1,6 @@
 #[derive(Default)]
 pub struct FileTreeComponent {
+    pub queue: crate::queue::Queue,
     pub expanded_folders: std::collections::HashSet<String>,
     pub visible_files: Vec<crate::app::FileTreeItem>,
     pub file_list_selection: usize,
@@ -470,4 +471,43 @@ impl FileTreeComponent {
     pub fn file_content_scroll_to_bottom(&mut self) {
         self.file_content_scroll = usize::MAX;
     }
+}
+
+
+impl FileTreeComponent {
+    pub fn new(queue: crate::queue::Queue) -> Self {
+        Self {
+            queue,
+            ..Default::default()
+        }
+    }
+}
+
+
+use crossterm::event::{Event, KeyCode};
+use crate::components::{Component, EventState, DrawableComponent};
+use crate::queue::InternalEvent;
+
+impl DrawableComponent for FileTreeComponent {
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+}
+
+impl Component for FileTreeComponent {
+    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+        if let Event::Key(key) = ev {
+            match key.code {
+                KeyCode::Up => { self.queue.push(InternalEvent::FileTreeUp); return Ok(EventState::Consumed); }
+                KeyCode::Down => { self.queue.push(InternalEvent::FileTreeDown); return Ok(EventState::Consumed); }
+                KeyCode::PageUp => { self.queue.push(InternalEvent::FileTreePageUp); return Ok(EventState::Consumed); }
+                KeyCode::PageDown => { self.queue.push(InternalEvent::FileTreePageDown); return Ok(EventState::Consumed); }
+                KeyCode::Home => { self.queue.push(InternalEvent::FileTreeTop); return Ok(EventState::Consumed); }
+                KeyCode::End => { self.queue.push(InternalEvent::FileTreeBottom); return Ok(EventState::Consumed); }
+                KeyCode::Enter | KeyCode::Right => { self.queue.push(InternalEvent::ToggleFolderExpanded); return Ok(EventState::Consumed); }
+                KeyCode::Left => { self.queue.push(InternalEvent::CollapseAllFolders); return Ok(EventState::Consumed); }
+                KeyCode::Char('x') | KeyCode::Char('X') => { self.queue.push(InternalEvent::RequestDiscardFile); return Ok(EventState::Consumed); }
+                _ => {}
+            }
+        }
+        Ok(EventState::NotConsumed)
+}
 }

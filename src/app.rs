@@ -239,12 +239,14 @@ pub struct App {
     pub detail_cache: std::collections::HashMap<String, DetailCache>,
     /// Which panel is focused inside the detail view.
     pub detail_focus: DetailSection,
+    pub queue: crate::queue::Queue,
     pub file_tree: crate::components::file_tree::FileTreeComponent,
     pub branch_list: crate::components::branch_list::BranchListComponent,
     pub tag_list: crate::components::tag_list::TagListComponent,
     pub stash_list: crate::components::stash_list::StashListComponent,
     /// Selected row index inside the Commits panel (0 = top row).
     pub commit_list: crate::components::commit_list::CommitListComponent,
+    pub commit_popup: crate::popups::commit::CommitPopup,
     /// Dynamic commit limit for pagination
 
     /// Active query for filtering commits in the commits panel
@@ -431,6 +433,165 @@ enum LogsNavDirection {
 }
 
 impl App {
+
+    pub fn drain_queue(&mut self) {
+        while let Some(ev) = self.queue.pop() {
+            match ev {
+                
+                crate::queue::InternalEvent::ClosePopup => self.mode = Mode::Detail, // simplified
+                crate::queue::InternalEvent::Commit => {
+                    self.commit_git_changes();
+                }
+                crate::queue::InternalEvent::SearchColumnPicker => {
+                    self.search_column_selection = 0;
+                    self.mode = Mode::SearchColumnPicker;
+                }
+                crate::queue::InternalEvent::StartCommit => self.start_commit(),
+                crate::queue::InternalEvent::StartCommitAmend => self.start_commit_amend(),
+                crate::queue::InternalEvent::StartTagCreate => self.start_tag_create(),
+                crate::queue::InternalEvent::RunInteractiveRebase => self.run_interactive_rebase(),
+                crate::queue::InternalEvent::RequestCherryPick => self.request_cherry_pick(),
+                crate::queue::InternalEvent::YankSelectedCommitHash => self.yank_selected_commit_hash(),
+                crate::queue::InternalEvent::RequestRevert => self.request_revert(),
+                crate::queue::InternalEvent::InspectCommit => {
+                    self.mode = Mode::Inspect;
+                    if self.is_uncommitted_selected() {
+                        self.detail_focus = DetailSection::Staged;
+                        self.last_staging_focus = DetailSection::Staged;
+                        self.status_list.staging_file_selection = 0;
+                    } else {
+                        self.detail_focus = DetailSection::Staged;
+                        self.last_staging_focus = DetailSection::Staged;
+                        self.status_list.file_selection = 0;
+                    }
+                    self.diff.diff_scroll = 0;
+                    self.refresh_file_diff();
+                }
+                crate::queue::InternalEvent::CommitSelectionUp => self.detail_commit_up(),
+                crate::queue::InternalEvent::CommitSelectionDown => self.detail_commit_down(),
+                crate::queue::InternalEvent::CommitSelectionPageUp => {
+                    let page = self.config.page_size;
+                    self.detail_commit_page_up(page);
+                }
+                
+                crate::queue::InternalEvent::CommitSelectionTop => self.detail_commit_to_top(),
+                crate::queue::InternalEvent::CommitSelectionBottom => self.detail_commit_to_bottom(),
+                crate::queue::InternalEvent::LoadMoreCommits => {
+                    self.commit_list.limit = self.commit_list.limit.saturating_add(200);
+                    self.resync_detail();
+                    self.status_message = Some("Loading more commits...".to_string());
+                }
+                crate::queue::InternalEvent::CommitDetailsUp => self.commit_list.details_scroll_up(),
+                crate::queue::InternalEvent::CommitDetailsDown => self.commit_list.details_scroll_down(),
+                crate::queue::InternalEvent::StagingFileUp => if self.is_uncommitted_selected() { self.staging_file_up() } else { self.detail_file_up() },
+                crate::queue::InternalEvent::StagingFileDown => if self.is_uncommitted_selected() { self.staging_file_down() } else { self.detail_file_down() },
+                crate::queue::InternalEvent::ConflictFileUp => self.conflict_file_up(),
+                crate::queue::InternalEvent::ConflictFileDown => self.conflict_file_down(),
+                crate::queue::InternalEvent::StageSelectedFile => self.stage_selected_file(),
+                crate::queue::InternalEvent::UnstageSelectedFile => self.unstage_selected_file(),
+                crate::queue::InternalEvent::ResolveConflictOurs => self.resolve_conflict_ours(),
+                crate::queue::InternalEvent::ResolveConflictTheirs => self.resolve_conflict_theirs(),
+                crate::queue::InternalEvent::MarkConflictResolved => self.mark_conflict_resolved(),
+                crate::queue::InternalEvent::MergeAbortConfirm => self.mode = Mode::MergeAbortConfirm,
+                crate::queue::InternalEvent::MergeContinueConfirm => self.mode = Mode::MergeContinueConfirm,
+                crate::queue::InternalEvent::StageSelectedHunk => self.stage_selected_hunk(),
+                crate::queue::InternalEvent::UnstageSelectedHunk => self.unstage_selected_hunk(),
+                crate::queue::InternalEvent::StageAllChanges => self.stage_all_changes(),
+                crate::queue::InternalEvent::UnstageAllChanges => self.unstage_all_changes(),
+                crate::queue::InternalEvent::RequestDiscardChanges => self.request_discard_changes(),
+                crate::queue::InternalEvent::RequestDiscardAllChanges => self.request_discard_all_changes(),
+                crate::queue::InternalEvent::StartStashCreate => self.start_stash_create(),
+                crate::queue::InternalEvent::DiffScrollUp => self.diff.diff_scroll_up(),
+                crate::queue::InternalEvent::DiffScrollDown => self.diff.diff_scroll_down(),
+                crate::queue::InternalEvent::DiffScrollPageUp => { let page = self.config.page_size; self.diff.diff_scroll_page_up(page); },
+                crate::queue::InternalEvent::DiffScrollPageDown => { let page = self.config.page_size; self.diff.diff_scroll_page_down(page); },
+                crate::queue::InternalEvent::DiffScrollTop => self.diff.diff_scroll_to_top(),
+                crate::queue::InternalEvent::DiffScrollBottom => self.diff.diff_scroll_to_bottom(),
+
+                // FileTree
+                crate::queue::InternalEvent::FileTreeUp => self.file_list_up(),
+                crate::queue::InternalEvent::FileTreeDown => self.file_list_down(),
+                crate::queue::InternalEvent::FileTreePageUp => { let p = self.config.page_size; self.file_list_page_up(p) },
+                crate::queue::InternalEvent::FileTreePageDown => { let p = self.config.page_size; self.file_list_page_down(p) },
+                crate::queue::InternalEvent::FileTreeTop => self.file_list_to_top(),
+                crate::queue::InternalEvent::FileTreeBottom => self.file_list_to_bottom(),
+                crate::queue::InternalEvent::FileContentUp => self.file_tree.file_content_scroll_up(),
+                crate::queue::InternalEvent::FileContentDown => self.file_tree.file_content_scroll_down(),
+                crate::queue::InternalEvent::FileContentPageUp => { let p = self.config.page_size; self.file_tree.file_content_scroll_page_up(p) },
+                crate::queue::InternalEvent::FileContentPageDown => { let p = self.config.page_size; self.file_tree.file_content_scroll_page_down(p) },
+                crate::queue::InternalEvent::FileContentTop => self.file_tree.file_content_scroll_to_top(),
+                crate::queue::InternalEvent::FileContentBottom => self.file_tree.file_content_scroll_to_bottom(),
+                crate::queue::InternalEvent::ToggleFolderExpanded => self.toggle_folder_expanded(),
+                crate::queue::InternalEvent::CollapseAllFolders => self.collapse_all_folders(),
+                crate::queue::InternalEvent::RequestDiscardFile => self.request_discard_changes(),
+
+                // BranchList
+                crate::queue::InternalEvent::LocalBranchUp => self.local_branch_up(),
+                crate::queue::InternalEvent::LocalBranchDown => self.local_branch_down(),
+                crate::queue::InternalEvent::LocalBranchPageUp => { let p = self.config.page_size; self.local_branch_page_up(p) },
+                crate::queue::InternalEvent::LocalBranchPageDown => { let p = self.config.page_size; self.local_branch_page_down(p) },
+                crate::queue::InternalEvent::LocalBranchTop => self.local_branch_to_top(),
+                crate::queue::InternalEvent::LocalBranchBottom => self.local_branch_to_bottom(),
+                crate::queue::InternalEvent::RemoteBranchUp => self.remote_branch_up(),
+                crate::queue::InternalEvent::RemoteBranchDown => self.remote_branch_down(),
+                crate::queue::InternalEvent::RemoteBranchPageUp => { let p = self.config.page_size; self.remote_branch_page_up(p) },
+                crate::queue::InternalEvent::RemoteBranchPageDown => { let p = self.config.page_size; self.remote_branch_page_down(p) },
+                crate::queue::InternalEvent::RemoteBranchTop => self.remote_branch_to_top(),
+                crate::queue::InternalEvent::RemoteBranchBottom => self.remote_branch_to_bottom(),
+                crate::queue::InternalEvent::CheckoutBranch => self.request_branch_checkout(),
+                crate::queue::InternalEvent::RequestDeleteBranch => self.request_branch_delete(),
+                crate::queue::InternalEvent::StartBranchCreate => self.start_branch_create(),
+                crate::queue::InternalEvent::StartBranchMerge => self.request_branch_merge(),
+                crate::queue::InternalEvent::StartBranchRebase => self.request_branch_rebase(),
+                crate::queue::InternalEvent::RequestBranchPush => self.request_branch_push(),
+                crate::queue::InternalEvent::FetchRemote => {
+                    let remote_name = if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+                        info.remotes.get(self.branch_list.remote_selection).or_else(|| info.remotes.first()).map(|r| r.name.clone())
+                    } else { None };
+                    if let Some(name) = remote_name { self.fetch_remote(&name); }
+                },
+                crate::queue::InternalEvent::StartRemoteAdd => self.start_remote_add(),
+                crate::queue::InternalEvent::RequestDeleteRemote => self.request_remote_delete(),
+
+                // TagList
+                crate::queue::InternalEvent::TagUp => self.local_tag_up(),
+                crate::queue::InternalEvent::TagDown => self.local_tag_down(),
+                crate::queue::InternalEvent::TagPageUp => { let p = self.config.page_size; self.local_tag_page_up(p) },
+                crate::queue::InternalEvent::TagPageDown => { let p = self.config.page_size; self.local_tag_page_down(p) },
+                crate::queue::InternalEvent::TagTop => self.local_tag_to_top(),
+                crate::queue::InternalEvent::TagBottom => self.local_tag_to_bottom(),
+                crate::queue::InternalEvent::CheckoutTag => self.request_tag_checkout(),
+                crate::queue::InternalEvent::RequestDeleteTag => self.request_tag_delete(),
+                crate::queue::InternalEvent::RequestPushTag => self.request_tag_push(),
+                crate::queue::InternalEvent::RequestPushAllTags => self.request_tag_push_all(),
+                crate::queue::InternalEvent::FetchRemoteTags => self.fetch_remote_tags(true),
+
+                // StashList
+                crate::queue::InternalEvent::StashUp => self.stash_up(),
+                crate::queue::InternalEvent::StashDown => self.stash_down(),
+                crate::queue::InternalEvent::StashPageUp => { let p = self.config.page_size; self.stash_page_up(p) },
+                crate::queue::InternalEvent::StashPageDown => { let p = self.config.page_size; self.stash_page_down(p) },
+                crate::queue::InternalEvent::StashTop => self.stash_to_top(),
+                crate::queue::InternalEvent::StashBottom => self.stash_to_bottom(),
+                crate::queue::InternalEvent::StashFileUp => self.stash_file_up(),
+                crate::queue::InternalEvent::StashFileDown => self.stash_file_down(),
+                crate::queue::InternalEvent::StashFilePageUp => { let p = self.config.page_size; self.stash_file_page_up(p) },
+                crate::queue::InternalEvent::StashFilePageDown => { let p = self.config.page_size; self.stash_file_page_down(p) },
+                crate::queue::InternalEvent::StashFileTop => self.stash_file_to_top(),
+                crate::queue::InternalEvent::StashFileBottom => self.stash_file_to_bottom(),
+                crate::queue::InternalEvent::RequestDeleteStash => self.request_stash_delete(),
+                crate::queue::InternalEvent::RequestApplyStash => self.request_stash_apply(),
+
+
+                crate::queue::InternalEvent::CommitSelectionPageDown => {
+                    let page = self.config.page_size;
+                    self.detail_commit_page_down(page);
+                }
+                _ => {}
+            }
+        }
+    }
+
     pub fn sym(&self, key: &str) -> &'static str {
         self.config.sym(key)
     }
@@ -443,7 +604,9 @@ impl App {
         let (tx, rx) = std::sync::mpsc::channel();
         let (detail_tx, detail_rx) = std::sync::mpsc::channel();
         let (tab_tx, tab_rx) = std::sync::mpsc::channel();
+        let queue = crate::queue::Queue::default();
         let mut app = Self {
+            queue: queue.clone(),
             original_items,
             config,
             config_path,
@@ -457,17 +620,18 @@ impl App {
             current_detail: None,
             detail_cache: std::collections::HashMap::new(),
             detail_focus: DetailSection::Commits,
-            file_tree: Default::default(),
-            branch_list: Default::default(),
-            tag_list: Default::default(),
-            stash_list: Default::default(),
-            commit_list: crate::components::commit_list::CommitListComponent { limit: 100, ..Default::default() },
+            file_tree: crate::components::file_tree::FileTreeComponent::new(queue.clone()),
+            branch_list: crate::components::branch_list::BranchListComponent::new(queue.clone()),
+            tag_list: crate::components::tag_list::TagListComponent::new(queue.clone()),
+            stash_list: crate::components::stash_list::StashListComponent::new(queue.clone()),
+            commit_list: crate::components::commit_list::CommitListComponent { limit: 100, queue: queue.clone(), ..Default::default() },
+            commit_popup: crate::popups::commit::CommitPopup::new(queue.clone()),
             
             
             repo_search_query: None,
             
             
-            diff: crate::components::diff::DiffComponent::default(),
+            diff: crate::components::diff::DiffComponent::new(queue.clone()),
             
             
             
@@ -479,7 +643,7 @@ impl App {
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
             
-            status_list: crate::components::status_list::StatusListComponent::default(),
+            status_list: crate::components::status_list::StatusListComponent::new(queue.clone()),
             
             
             last_click: None,
@@ -765,10 +929,10 @@ impl App {
         crate::debug_log::info("Initiating repository add");
         if !self.config.fzf.enabled {
             self.mode = Mode::Adding;
-            self.input_buffer.clear();
+            self.commit_popup.input_buffer.clear();
         } else if !self.is_fzf_installed() {
             self.mode = Mode::Adding;
-            self.input_buffer.clear();
+            self.commit_popup.input_buffer.clear();
             self.status_message =
                 Some("fzf is not installed. Falling back to manual add.".to_string());
         } else {
@@ -1035,7 +1199,7 @@ impl App {
             self.detail_tab = 0;
             self.graph_scroll = 0;
             self.inspect_full_diff = false;
-            self.commit_popup_maximized = false;
+            self.commit_popup.maximized = false;
             self.mode = Mode::Detail;
         }
     }
@@ -2025,7 +2189,7 @@ impl App {
                 if dirty { self.commit_list.selection.saturating_sub(1) } else { self.commit_list.selection };
             if let Some(commit) = info.commits.get(commit_idx) {
                 self.tag_action_target_oid = Some(commit.oid.clone());
-                self.input_buffer.clear();
+                self.commit_popup.input_buffer.clear();
                 self.mode = Mode::TagCreateInput;
             }
         }
@@ -2055,7 +2219,7 @@ impl App {
     }
 
     pub fn start_stash_create(&mut self) {
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
         self.mode = Mode::StashCreateInput;
     }
 
@@ -2084,14 +2248,14 @@ impl App {
 
     pub fn start_remote_add(&mut self) {
         self.mode = Mode::RemoteAddNameInput;
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
         self.remote_add_name.clear();
         self.remote_add_url.clear();
     }
 
     pub fn commit_remote_add_name(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
         if trimmed.is_empty() {
             self.mode = Mode::Detail;
             return;
@@ -2102,7 +2266,7 @@ impl App {
 
     pub fn commit_remote_add_url(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
         self.mode = Mode::Detail;
         if trimmed.is_empty() {
             return;
@@ -2333,7 +2497,7 @@ impl App {
 
     pub fn start_branch_create(&mut self) {
         if let Some(repo::ItemDetail::Repo { .. }) = &self.current_detail {
-            self.input_buffer.clear();
+            self.commit_popup.input_buffer.clear();
             self.mode = Mode::BranchCreateInput;
         }
     }
@@ -2369,12 +2533,12 @@ impl App {
                 }
             }
         }
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
         self.mode = Mode::Detail;
     }
 
     pub fn cancel_branch_create(&mut self) {
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
         self.mode = Mode::Detail;
     }
 
@@ -4279,11 +4443,11 @@ impl App {
             _ => false,
         };
         if has_staged || has_head {
-            self.input_buffer.clear();
-            self.commit_editing = true;
-            self.commit_amend = false;
+            self.commit_popup.input_buffer.clear();
+            self.commit_popup.editing = true;
+            self.commit_popup.amend = false;
             self.commit_input_scroll = 0;
-            self.commit_popup_maximized = false;
+            self.commit_popup.maximized = false;
             self.mode = Mode::CommitInput;
         } else {
             self.status_message = Some("No staged changes to commit".to_string());
@@ -4297,16 +4461,16 @@ impl App {
             _ => false,
         };
         if has_head {
-            self.input_buffer.clear();
+            self.commit_popup.input_buffer.clear();
             if let Some(ItemDetail::Repo { resolved, .. }) = &self.current_detail {
                 if let Some(last_msg) = repo::get_last_commit_message(resolved) {
                     self.input_buffer = last_msg;
                 }
             }
-            self.commit_editing = true;
-            self.commit_amend = true;
+            self.commit_popup.editing = true;
+            self.commit_popup.amend = true;
             self.commit_input_scroll = 0;
-            self.commit_popup_maximized = false;
+            self.commit_popup.maximized = false;
             self.mode = Mode::CommitInput;
         } else {
             self.status_message = Some("No commit to amend".to_string());
@@ -4315,20 +4479,20 @@ impl App {
 
     /// Cancels commit input and returns to the detail view.
     pub fn cancel_commit(&mut self) {
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
         self.commit_input_scroll = 0;
-        self.commit_popup_maximized = false;
+        self.commit_popup.maximized = false;
         self.mode = Mode::Detail;
     }
 
     /// Transitions from editing the message to confirming the commit.
     pub fn commit_done_editing(&mut self) {
-        self.commit_editing = false;
+        self.commit_popup.editing = false;
     }
 
     /// Transitions back to editing the message from confirm state.
     pub fn commit_start_editing(&mut self) {
-        self.commit_editing = true;
+        self.commit_popup.editing = true;
     }
 
     /// Performs the git commit with the message in `input_buffer`.
@@ -4346,14 +4510,14 @@ impl App {
         };
 
         if let Some(path) = repo_path {
-            let res = if self.commit_amend {
+            let res = if self.commit_popup.amend {
                 repo::commit_amend(&path, &msg)
             } else {
                 repo::commit_changes(&path, &msg)
             };
             match res {
                 Ok(()) => {
-                    let success_msg = if self.commit_amend {
+                    let success_msg = if self.commit_popup.amend {
                         "Amended commit successfully"
                     } else {
                         "Committed successfully"
@@ -4363,7 +4527,7 @@ impl App {
                     self.refresh_selected_status();
                 }
                 Err(e) => {
-                    let fail_msg = if self.commit_amend {
+                    let fail_msg = if self.commit_popup.amend {
                         format!("Amend failed: {}", e)
                     } else {
                         format!("Commit failed: {}", e)
@@ -4373,15 +4537,15 @@ impl App {
             }
         }
 
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
         self.commit_input_scroll = 0;
-        self.commit_popup_maximized = false;
+        self.commit_popup.maximized = false;
         self.mode = Mode::Detail;
     }
 
     pub fn toggle_commit_amend(&mut self) {
-        self.commit_amend = !self.commit_amend;
-        if self.commit_amend && self.input_buffer.trim().is_empty() {
+        self.commit_popup.amend = !self.commit_popup.amend;
+        if self.commit_popup.amend && self.commit_popup.input_buffer.trim().is_empty() {
             if let Some(ItemDetail::Repo { resolved, .. }) = &self.current_detail {
                 if let Some(last_msg) = repo::get_last_commit_message(resolved) {
                     self.input_buffer = last_msg;
@@ -4391,7 +4555,7 @@ impl App {
     }
 
     pub fn toggle_commit_popup_maximized(&mut self) {
-        self.commit_popup_maximized = !self.commit_popup_maximized;
+        self.commit_popup.maximized = !self.commit_popup.maximized;
     }
 
     pub fn commit_input_scroll_up(&mut self) {
@@ -4489,7 +4653,7 @@ impl App {
                         self.config.poll_interval_ms = val;
                         self.persist("Poll interval updated");
                         self.settings_editing = false;
-                        self.input_buffer.clear();
+                        self.commit_popup.input_buffer.clear();
                     } else {
                         self.status_message =
                             Some("Poll interval must be at least 10ms".to_string());
@@ -4529,7 +4693,7 @@ impl App {
                     self.config.fzf.max_depth = val;
                     self.persist("FZF max depth updated");
                     self.settings_editing = false;
-                    self.input_buffer.clear();
+                    self.commit_popup.input_buffer.clear();
                 } else {
                     self.status_message = Some("Invalid integer".to_string());
                 }
@@ -4538,14 +4702,14 @@ impl App {
                 self.config.fzf.start_dir = trimmed.to_string();
                 self.persist("FZF start directory updated");
                 self.settings_editing = false;
-                self.input_buffer.clear();
+                self.commit_popup.input_buffer.clear();
             }
             6 => {
                 if let Ok(val) = trimmed.parse::<usize>() {
                     self.config.max_commits = val;
                     self.persist("Max commits updated");
                     self.settings_editing = false;
-                    self.input_buffer.clear();
+                    self.commit_popup.input_buffer.clear();
                 } else {
                     self.status_message = Some("Invalid integer".to_string());
                 }
@@ -4556,7 +4720,7 @@ impl App {
                         self.config.page_size = val;
                         self.persist("Page size updated");
                         self.settings_editing = false;
-                        self.input_buffer.clear();
+                        self.commit_popup.input_buffer.clear();
                     } else {
                         self.status_message = Some("Page size must be at least 1".to_string());
                     }
@@ -4572,7 +4736,7 @@ impl App {
                     .collect();
                 self.persist("FZF exclude folders updated");
                 self.settings_editing = false;
-                self.input_buffer.clear();
+                self.commit_popup.input_buffer.clear();
             }
             9 => {
                 let trimmed_app = trimmed.to_string();
@@ -4580,7 +4744,7 @@ impl App {
                     self.config.git_app = trimmed_app;
                     self.persist("Preferred Git Client updated");
                     self.settings_editing = false;
-                    self.input_buffer.clear();
+                    self.commit_popup.input_buffer.clear();
                 } else {
                     self.status_message = Some("Preferred Git Client cannot be empty".to_string());
                 }
@@ -4591,7 +4755,7 @@ impl App {
 
     pub fn cancel_settings_edit(&mut self) {
         self.settings_editing = false;
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
     }
 
     pub fn get_available_themes(&self) -> Vec<String> {
@@ -4617,7 +4781,7 @@ impl App {
     }
 
     pub fn cancel_input(&mut self) {
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
         self.mode = Mode::Normal;
     }
 
@@ -4649,7 +4813,7 @@ impl App {
             });
             if already_exists {
                 self.status_message = Some("Repository already added".to_string());
-                self.input_buffer.clear();
+                self.commit_popup.input_buffer.clear();
                 self.mode = Mode::Normal;
                 return;
             }
@@ -4669,7 +4833,7 @@ impl App {
             }
             self.persist("Saved");
         }
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
         self.mode = Mode::Normal;
     }
 
@@ -4677,10 +4841,10 @@ impl App {
         crate::debug_log::info("Initiating bulk repository add");
         if !self.config.fzf.enabled {
             self.mode = Mode::BulkAddInput;
-            self.input_buffer.clear();
+            self.commit_popup.input_buffer.clear();
         } else if !self.is_fzf_installed() {
             self.mode = Mode::BulkAddInput;
-            self.input_buffer.clear();
+            self.commit_popup.input_buffer.clear();
             self.status_message =
                 Some("fzf is not installed. Falling back to manual bulk add.".to_string());
         } else {
@@ -4690,7 +4854,7 @@ impl App {
 
     pub fn commit_bulk_add(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
         self.mode = Mode::Normal;
         if !trimmed.is_empty() {
             self.bulk_add_path(trimmed);
@@ -4910,7 +5074,7 @@ impl App {
                 }
             }
         }
-        self.input_buffer.clear();
+        self.commit_popup.input_buffer.clear();
         self.mode = Mode::Normal;
     }
 
@@ -5014,6 +5178,26 @@ impl App {
     }
 
     /// Expand the selected folder in the Files tab.
+
+    pub fn toggle_folder_expanded(&mut self) {
+        if let Some(item) = self.file_tree.visible_files.get(self.file_tree.file_list_selection).cloned() {
+            if item.is_dir {
+                if self.file_tree.expanded_folders.contains(&item.full_path) {
+                    self.collapse_selected_folder();
+                } else {
+                    self.expand_selected_folder();
+                }
+            } else {
+                self.detail_focus = DetailSection::FileContent;
+            }
+        }
+    }
+
+    pub fn collapse_all_folders(&mut self) {
+        self.file_tree.expanded_folders.clear();
+        self.rebuild_visible_files();
+    }
+
     pub fn expand_selected_folder(&mut self) {
         if let Some(item) = self.file_tree.visible_files.get(self.file_tree.file_list_selection) {
             if item.is_dir {
