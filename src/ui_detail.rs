@@ -9,6 +9,7 @@
 //! `▍ Title` header line. Within "Working Tree", changed files are listed
 //! under Staged / Unstaged / Untracked / Conflicts sub-headers.
 
+use crate::ui::centered_rect;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -1464,24 +1465,7 @@ fn build_committer_stats_lines(info: &RepoInfo) -> Vec<Line<'static>> {
 }
 
 /// Returns a [`Rect`] that is `percent_x` wide and `percent_y` tall, centred in `r`.
-fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
-}
+
 
 // ── Detail help overlay ────────────────────────────────────────────────────
 
@@ -1538,7 +1522,7 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
 
 /// Renders a floating shortcut reference overlay centred over `area`.
 fn draw_detail_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
-    let popup_area = centred_rect(60, 55, area);
+    let popup_area = centered_rect(60, 55, area);
     f.render_widget(Clear, popup_area);
 
     let key_width = DETAIL_HELP_LINES.iter().map(|(k, _)| k.chars().count()).max().unwrap_or(0);
@@ -2006,7 +1990,7 @@ fn draw_commit_popup(
         let y = area.y + (area.height.saturating_sub(height)) / 2;
         Rect::new(x, y, width, height)
     } else {
-        centred_rect(app.commit_popup_width_pct, app.commit_popup_height_pct, area)
+        centered_rect(app.commit_popup_width_pct, app.commit_popup_height_pct, area)
     };
     areas.commit_popup = Some(popup_area);
     areas.commit_popup_parent = Some(area);
@@ -2615,7 +2599,7 @@ fn draw_branch_create_popup(
     base_branch: Option<&str>,
     area: Rect,
 ) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -2665,7 +2649,7 @@ fn draw_branch_create_popup(
 }
 
 fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(DANGER());
@@ -2713,7 +2697,7 @@ fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area
 }
 
 fn draw_branch_checkout_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -2761,7 +2745,7 @@ fn draw_branch_checkout_popup(f: &mut Frame, target: &Option<(String, bool)>, ar
 }
 
 fn draw_tag_checkout_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -2804,7 +2788,7 @@ fn draw_tag_checkout_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
 }
 
 fn draw_discard_changes_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
-    let popup_area = centred_rect(60, 20, area);
+    let popup_area = centered_rect(60, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(DANGER());
@@ -2862,7 +2846,7 @@ fn draw_branch_merge_popup(
     current_branch: Option<&str>,
     area: Rect,
 ) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -2919,7 +2903,7 @@ fn draw_branch_merge_popup(
 }
 
 fn draw_merge_abort_confirm_popup(f: &mut Frame, area: Rect) {
-    let popup_area = centred_rect(45, 12, area);
+    let popup_area = centered_rect(45, 12, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(DANGER());
@@ -2954,7 +2938,7 @@ fn draw_merge_abort_confirm_popup(f: &mut Frame, area: Rect) {
 }
 
 fn draw_merge_continue_confirm_popup(f: &mut Frame, area: Rect) {
-    let popup_area = centred_rect(45, 12, area);
+    let popup_area = centered_rect(45, 12, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(SUCCESS());
@@ -2994,7 +2978,7 @@ fn draw_branch_rebase_popup(
     current_branch: Option<&str>,
     area: Rect,
 ) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -3057,7 +3041,7 @@ fn draw_branch_interactive_rebase_popup(
     current_branch: Option<&str>,
     area: Rect,
 ) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -3115,7 +3099,7 @@ fn draw_branch_interactive_rebase_popup(
 }
 
 fn draw_remote_picker_popup(f: &mut Frame, remotes: &[RemoteInfo], selection: usize, area: Rect) {
-    let popup_area = centred_rect(50, 60, area);
+    let popup_area = centered_rect(50, 60, area);
 
     f.render_widget(Clear, popup_area);
 
@@ -3173,7 +3157,7 @@ fn draw_remote_picker_popup(f: &mut Frame, remotes: &[RemoteInfo], selection: us
 }
 
 fn draw_branch_push_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -3220,7 +3204,7 @@ fn draw_tag_create_popup(
     target_commit_oid: Option<&str>,
     area: Rect,
 ) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -3272,7 +3256,7 @@ fn draw_tag_create_popup(
 }
 
 fn draw_stash_create_popup(f: &mut Frame, input_buffer: &str, area: Rect) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -3585,7 +3569,7 @@ fn draw_remotes_view(
 }
 
 fn draw_tag_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
-    let popup_area = centred_rect(55, 25, area);
+    let popup_area = centered_rect(55, 25, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(DANGER());
@@ -3638,7 +3622,7 @@ fn draw_tag_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: R
 }
 
 fn draw_stash_delete_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(DANGER());
@@ -3684,7 +3668,7 @@ fn draw_stash_delete_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
 }
 
 fn draw_stash_apply_popup(f: &mut Frame, target: &Option<String>, delete_after: bool, area: Rect) {
-    let popup_area = centred_rect(55, 25, area);
+    let popup_area = centered_rect(55, 25, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -3753,7 +3737,7 @@ fn draw_cherry_pick_popup(
     app: &crate::app::App,
     area: Rect,
 ) {
-    let popup_area = centred_rect(60, 75, area);
+    let popup_area = centered_rect(60, 75, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -3858,7 +3842,7 @@ fn draw_revert_popup(
     current_branch: Option<&str>,
     area: Rect,
 ) {
-    let popup_area = centred_rect(55, 25, area);
+    let popup_area = centered_rect(55, 25, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -3908,7 +3892,7 @@ fn draw_revert_popup(
 }
 
 fn draw_tag_push_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(SUCCESS());
@@ -3944,7 +3928,7 @@ fn draw_tag_push_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
 }
 
 fn draw_tag_push_all_popup(f: &mut Frame, remote: Option<&str>, area: Rect) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(SUCCESS());
@@ -4493,25 +4477,7 @@ fn draw_commit_details_widget(
     f.render_widget(paragraph, inner);
 }
 
-fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
-    let vertical = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(area);
 
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(vertical[1])[1]
-}
 
 fn draw_search_column_picker(f: &mut Frame, app: &crate::app::App, area: Rect) {
     let popup_area = centered_rect(50, 30, area);
@@ -4712,7 +4678,7 @@ fn draw_logs_view(
 }
 
 fn draw_remote_add_name_popup(f: &mut Frame, input_buffer: &str, area: Rect) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -4754,7 +4720,7 @@ fn draw_remote_add_name_popup(f: &mut Frame, input_buffer: &str, area: Rect) {
 }
 
 fn draw_remote_add_url_popup(f: &mut Frame, remote_name: &str, input_buffer: &str, area: Rect) {
-    let popup_area = centred_rect(50, 20, area);
+    let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -4801,7 +4767,7 @@ fn draw_remote_add_url_popup(f: &mut Frame, remote_name: &str, input_buffer: &st
 }
 
 fn draw_remote_delete_popup(f: &mut Frame, remote_name: &str, area: Rect) {
-    let popup_area = centred_rect(50, 15, area);
+    let popup_area = centered_rect(50, 15, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(DANGER());
