@@ -1091,6 +1091,19 @@ impl App {
             crate::debug_log::info("Resyncing repository details");
             let path = std::path::PathBuf::from(&item);
             repo::invalidate_ref_map_cache(&path);
+
+            if let Some(repo::ItemDetail::Repo { info, .. }) = &mut self.current_detail {
+                info.local_branches = repo::TabData::NotLoaded;
+                info.remote_branches = repo::TabData::NotLoaded;
+                info.local_tags = repo::TabData::NotLoaded;
+                info.remote_tags = repo::TabData::NotLoaded;
+                info.files = repo::TabData::NotLoaded;
+                info.stashes = repo::TabData::NotLoaded;
+                info.graph_lines = repo::TabData::NotLoaded;
+                info.committer_stats = repo::TabData::NotLoaded;
+                info.tab_loaded_at = [None; 8];
+            }
+
             self.loading_repo_path = Some(item.clone());
             let tx = self.detail_tx.clone();
             let max_commits = self.commit_limit;
@@ -1350,7 +1363,14 @@ impl App {
         match tab_idx {
             1 => {
                 let is_not_loaded = info.files.is_not_loaded();
+                crate::debug_log::info(format!(
+                    "trigger_tab_load_if_needed(1): is_not_loaded={}, tab_loading={}",
+                    is_not_loaded, info.tab_loading[tab_idx]
+                ));
                 if should_trigger(info, tab_idx, is_not_loaded) {
+                    crate::debug_log::info(
+                        "trigger_tab_load_if_needed(1): spawning load_tab_files thread",
+                    );
                     info.tab_loading[tab_idx] = true;
                     if is_not_loaded {
                         info.files = repo::TabData::Loading;
@@ -5954,8 +5974,14 @@ where
 
         let mut tab_updated = false;
         while let Ok((path, tab_idx, payload)) = app.tab_rx.try_recv() {
+            crate::debug_log::info(format!(
+                "Received tab payload: tab_idx={}, path={}",
+                tab_idx, path
+            ));
             if let Some(repo::ItemDetail::Repo { resolved, info }) = &mut app.current_detail {
-                if resolved == &path {
+                let resolved_str = resolved.to_string_lossy().to_string();
+                if resolved_str == path {
+                    crate::debug_log::info(format!("Paths match! Updating tab_idx={}", tab_idx));
                     tab_updated = true;
                     if tab_idx < 8 {
                         info.tab_loading[tab_idx] = false;
