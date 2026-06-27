@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+pub mod cmd_bar;
 use crossterm::event::Event;
 use ratatui::layout::Rect;
 use ratatui::Frame;
