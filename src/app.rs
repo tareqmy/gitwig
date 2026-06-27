@@ -5844,6 +5844,40 @@ impl App {
         self.mode = Mode::Detail;
     }
 
+    pub fn yank_selected_commit_hash(&mut self) {
+        if self.is_uncommitted_selected() {
+            self.status_message = Some("Cannot yank uncommitted changes".to_string());
+            return;
+        }
+        let hash_to_copy = if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let dirty = !info.changes.staged.is_empty()
+                || !info.changes.unstaged.is_empty()
+                || !info.changes.untracked.is_empty()
+                || !info.changes.conflicted.is_empty();
+            let commit_idx = if dirty {
+                self.commit_selection.saturating_sub(1)
+            } else {
+                self.commit_selection
+            };
+            info.commits
+                .get(commit_idx)
+                .map(|commit| commit.oid.clone())
+        } else {
+            None
+        };
+
+        if let Some(hash) = hash_to_copy {
+            match copy_to_clipboard(&hash) {
+                Ok(()) => {
+                    self.status_message = Some(format!("Copied hash {:.7} to clipboard", hash));
+                }
+                Err(e) => {
+                    self.status_message = Some(format!("Failed to copy to clipboard: {}", e));
+                }
+            }
+        }
+    }
+
     pub fn request_tag_checkout(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if let Some(tag_info) = info.local_tags.get(self.local_tag_selection) {
@@ -6504,6 +6538,69 @@ fn is_tool_installed(name: &str) -> bool {
         .status()
         .map(|s| s.success())
         .unwrap_or(false)
+}
+
+fn copy_to_clipboard(text: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        use std::io::Write;
+        let mut child = std::process::Command::new("pbcopy")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(text.as_bytes())
+                .map_err(|e| e.to_string())?;
+        }
+        child.wait().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::io::Write;
+        let mut child = std::process::Command::new("clip")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(text.as_bytes())
+                .map_err(|e| e.to_string())?;
+        }
+        child.wait().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        use std::io::Write;
+        if let Ok(mut child) = std::process::Command::new("xclip")
+            .arg("-selection")
+            .arg("clipboard")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+        {
+            if let Some(mut stdin) = child.stdin.take() {
+                if stdin.write_all(text.as_bytes()).is_ok() {
+                    let _ = child.wait();
+                    return Ok(());
+                }
+            }
+        }
+        if let Ok(mut child) = std::process::Command::new("xsel")
+            .arg("-ib")
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+        {
+            if let Some(mut stdin) = child.stdin.take() {
+                if stdin.write_all(text.as_bytes()).is_ok() {
+                    let _ = child.wait();
+                    return Ok(());
+                }
+            }
+        }
+        Err("Could not find xclip or xsel on Linux system".to_string())
+    }
 }
 
 #[cfg(test)]
@@ -10182,5 +10279,60 @@ mod tests {
         };
         crate::input::handle_mouse(&mut app, up_event);
         assert_eq!(app.active_drag_splitter, None);
+    }
+
+    #[test]
+    fn test_yank_selected_commit_hash() {
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+            compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
+            tab_ttl_secs: 60,
+            resync_on_tab_change: false,
+            graph_max_commits: 1000,
+        };
+        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+
+        // Setup mock repo commits
+        let mut info = repo::RepoInfo::default();
+        info.commits.push(repo::CommitEntry {
+            id: "abc1234".to_string(),
+            oid: "abc123456789".to_string(),
+            author: "Tester".to_string(),
+            when: "".to_string(),
+            date: "".to_string(),
+            summary: "Initial commit".to_string(),
+            message: "Initial commit".to_string(),
+            refs: vec![],
+            files: vec![],
+            signature_status: "".to_string(),
+        });
+        app.current_detail = Some(repo::ItemDetail::Repo {
+            resolved: PathBuf::from("/dummy"),
+            info: Box::new(info),
+        });
+
+        // Select the committed item
+        app.commit_selection = 0;
+        app.detail_tab = 0;
+
+        // Try yanking. Note: since standard clipboards might fail in some test/headless envs,
+        // we can test the behavior and see if it sets self.status_message to either success or error.
+        app.yank_selected_commit_hash();
+        assert!(app.status_message.is_some());
+        let msg = app.status_message.as_ref().unwrap();
+        assert!(msg.contains("Copied hash abc1234") || msg.contains("Failed to copy"));
     }
 }

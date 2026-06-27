@@ -1674,6 +1674,7 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
         "Push branch (Branches) / Push all tags (Tags)",
     ),
     ("R", "Resync current tab state"),
+    ("y", "Yank selected commit hash (Workspace commits list)"),
     ("s", "Stash changes (Workspace changes or Stashes tab)"),
     (
         "o",

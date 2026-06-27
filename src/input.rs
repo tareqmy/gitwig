@@ -710,6 +710,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 {
                     app.request_cherry_pick();
                 }
+                KeyCode::Char('y') | KeyCode::Char('Y')
+                    if detail_focus == DetailSection::Commits =>
+                {
+                    app.yank_selected_commit_hash();
+                }
                 KeyCode::Char('v') | KeyCode::Char('V')
                     if detail_focus == DetailSection::Commits =>
                 {

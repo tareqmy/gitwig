@@ -1255,6 +1255,7 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
                 v.push(("Revert", "v"));
                 v.push(("Search/Columns", "f"));
                 v.push(("Load More", "G"));
+                v.push(("Yank Hash", "y"));
                 if app.has_uncommitted_changes() {
                     v.push(("Stash", "s"));
                 }
@@ -3991,6 +3992,11 @@ mod tests {
             entry_labels_w
                 .iter()
                 .any(|label| label.contains("Load More [G]"))
+        );
+        assert!(
+            entry_labels_w
+                .iter()
+                .any(|label| label.contains("Yank Hash [y]"))
         );
 
         // Setup uncommitted changes mock for Tab 0 uncommitted shortcuts
