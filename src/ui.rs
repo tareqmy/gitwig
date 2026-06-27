@@ -1254,6 +1254,7 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
                 v.push(("Cherry-pick", "p"));
                 v.push(("Revert", "v"));
                 v.push(("Search/Columns", "f"));
+                v.push(("Load More", "G"));
                 if app.has_uncommitted_changes() {
                     v.push(("Stash", "s"));
                 }
@@ -1333,6 +1334,7 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
+            ("Fetch", "f"),
             ("Push", "p"),
             ("Push All", "⇧P"),
             ("Delete", "d"),
@@ -3985,6 +3987,11 @@ mod tests {
                 .any(|label| label.contains("Inspect [↵/→]"))
         );
         assert!(entry_labels_w.iter().any(|label| label.contains("Tag [t]")));
+        assert!(
+            entry_labels_w
+                .iter()
+                .any(|label| label.contains("Load More [G]"))
+        );
 
         // Setup uncommitted changes mock for Tab 0 uncommitted shortcuts
         let mut info = RepoInfo::default();
@@ -4269,6 +4276,26 @@ mod tests {
             !entry_labels_s2
                 .iter()
                 .any(|label| label.contains("Delete [d]"))
+        );
+
+        // Tab 4: Tags
+        app.detail_tab = 4;
+        let (_, entries_tags) = detail_dismiss_entries(&app);
+        let entry_labels_tags: Vec<String> = entries_tags
+            .iter()
+            .map(|entry| {
+                entry
+                    .spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<Vec<&str>>()
+                    .join("")
+            })
+            .collect();
+        assert!(
+            entry_labels_tags
+                .iter()
+                .any(|label| label.contains("Fetch [f]"))
         );
     }
 
