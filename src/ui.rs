@@ -140,13 +140,13 @@ pub fn draw(
                 &app.mode,
                 &app.detail_focus,
                 app.last_staging_focus,
-                app.commit_selection,
-                &app.commit_search_query,
-                app.file_selection,
-                &app.file_diff,
-                app.diff_scroll,
-                app.staging_file_selection,
-                app.commit_details_scroll,
+                app.commit_list.selection,
+                &app.commit_list.search_query,
+                app.status_list.file_selection,
+                &app.diff.file_diff,
+                app.diff.diff_scroll,
+                app.status_list.staging_file_selection,
+                app.commit_list.details_scroll,
                 app.local_branch_selection,
                 app.remote_branch_selection,
                 app.local_tag_selection,
@@ -824,7 +824,7 @@ mod tests {
 
         app.current_detail =
             Some(ItemDetail::Repo { resolved: PathBuf::from("/dummy"), info: Box::new(info) });
-        app.commit_selection = 0; // selection = uncommitted
+        app.commit_list.selection = 0; // selection = uncommitted
         app.in_logs_ui = false;
 
         // A) Staged focus -> Unstage File [↵]
@@ -882,7 +882,7 @@ mod tests {
         assert!(entry_labels.iter().any(|label| label.contains("Discard Hunk [x/Del]")));
 
         // D2) StagingDetails with last_staging_focus == Unstaged and diff_line_mode == true -> Stage Line [↵] & Discard Line [x/Del] & Hunk Mode [l]
-        app.diff_line_mode = true;
+        app.diff.diff_line_mode = true;
         let (_, entries) = inspect_dismiss_entries(&app);
         let entry_labels: Vec<String> = entries
             .iter()
@@ -998,7 +998,7 @@ mod tests {
         info.changes.unstaged.push(FileEntry { path: "other.txt".to_string(), label: "M" });
         app.current_detail =
             Some(ItemDetail::Repo { resolved: PathBuf::from("/dummy"), info: Box::new(info) });
-        app.commit_selection = 0; // selection = uncommitted
+        app.commit_list.selection = 0; // selection = uncommitted
 
         // Tab 0: Workspace, Staged focus
         app.detail_focus = DetailSection::Staged;

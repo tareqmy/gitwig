@@ -359,7 +359,7 @@ pub fn draw_commit_files_panel(
             commit.files.iter().map(|f| ListItem::new(file_entry_line(f))).collect();
         let list =
             List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-        let mut state = app.changed_files_list_state.borrow_mut();
+        let mut state = app.status_list.changed_files_list_state.borrow_mut();
         if left_focused {
             state.select(Some(file_selection));
         } else {

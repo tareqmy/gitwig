@@ -1,3 +1,13 @@
+
+#[derive(Default)]
+pub struct CommitListComponent {
+    pub selection: usize,
+    pub search_query: Option<String>,
+    pub table_state: std::cell::RefCell<ratatui::widgets::TableState>,
+    pub limit: usize,
+    pub details_scroll: usize,
+}
+
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
 use ratatui::style::{Color, Modifier, Style};
@@ -409,3 +419,13 @@ pub fn draw_logs_view(
     f.render_stateful_widget(table, inner, &mut state);
 }
 
+
+
+impl CommitListComponent {
+    pub fn details_scroll_up(&mut self) {
+        self.details_scroll = self.details_scroll.saturating_sub(1);
+    }
+    pub fn details_scroll_down(&mut self) {
+        self.details_scroll = self.details_scroll.saturating_add(1);
+    }
+}

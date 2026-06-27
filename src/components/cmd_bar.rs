@@ -750,7 +750,7 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
         entries_data.push(("Exit Full Screen", "←/⎋/q"));
 
         if app.is_uncommitted_selected() {
-            if app.diff_line_mode {
+            if app.diff.diff_line_mode {
                 entries_data.push(("Hunk Mode", "l"));
                 if app.last_staging_focus == DetailSection::Staged {
                     entries_data.push(("Unstage Line", "↵"));
@@ -791,7 +791,7 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
                     entries_data.push(("Discard All", "X"));
                 }
                 DetailSection::StagingDetails => {
-                    if app.diff_line_mode {
+                    if app.diff.diff_line_mode {
                         entries_data.push(("Hunk Mode", "l"));
                         if app.last_staging_focus == DetailSection::Staged {
                             entries_data.push(("Unstage Line", "↵"));

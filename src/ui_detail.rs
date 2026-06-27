@@ -452,9 +452,9 @@ pub fn draw(
                     commit_selection,
                     commit_search_query,
                     detail_chunks[0],
-                    &app.commits_table_state,
+                    &app.commit_list.table_state,
                     areas,
-                    app.commit_limit,
+                    app.commit_list.limit,
                 );
                 areas.commits = Some(detail_chunks[0]);
 

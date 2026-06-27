@@ -1,3 +1,15 @@
+
+#[derive(Default)]
+pub struct StatusListComponent {
+    pub staged_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
+    pub unstaged_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
+    pub conflicts_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
+    pub changed_files_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
+    pub staging_file_selection: usize,
+    pub conflict_file_selection: usize,
+    pub file_selection: usize,
+}
+
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
 use ratatui::style::{Color, Modifier, Style};
@@ -33,16 +45,16 @@ pub fn draw_staging_panels(
         let (files, idx) = match focus {
             DetailSection::Staged => (Some(&changes.staged), staging_file_selection),
             DetailSection::Unstaged => (Some(&changes.unstaged), staging_file_selection),
-            DetailSection::Conflicts => (Some(&changes.conflicted), app.conflict_file_selection),
+            DetailSection::Conflicts => (Some(&changes.conflicted), app.status_list.conflict_file_selection),
             _ => match last_staging_focus {
                 DetailSection::Staged => (Some(&changes.staged), staging_file_selection),
                 DetailSection::Unstaged => (Some(&changes.unstaged), staging_file_selection),
                 DetailSection::Conflicts => {
-                    (Some(&changes.conflicted), app.conflict_file_selection)
+                    (Some(&changes.conflicted), app.status_list.conflict_file_selection)
                 }
                 _ => {
                     if !changes.conflicted.is_empty() {
-                        (Some(&changes.conflicted), app.conflict_file_selection)
+                        (Some(&changes.conflicted), app.status_list.conflict_file_selection)
                     } else if !changes.staged.is_empty() {
                         (Some(&changes.staged), staging_file_selection)
                     } else if !changes.unstaged.is_empty() {
@@ -163,7 +175,7 @@ pub fn draw_staging_panels(
             Borders::BOTTOM,
             focus == DetailSection::Staged,
             if focus == DetailSection::Staged { Some(staging_file_selection) } else { None },
-            &app.staged_list_state,
+            &app.status_list.staged_list_state,
             left_split[0],
         );
         areas.staged_sub_inner = Some(staged_inner);
@@ -177,7 +189,7 @@ pub fn draw_staging_panels(
             if has_conflicts { Borders::BOTTOM } else { Borders::empty() },
             focus == DetailSection::Unstaged,
             if focus == DetailSection::Unstaged { Some(staging_file_selection) } else { None },
-            &app.unstaged_list_state,
+            &app.status_list.unstaged_list_state,
             left_split[1],
         );
         areas.unstaged_sub_inner = Some(unstaged_inner);
@@ -192,11 +204,11 @@ pub fn draw_staging_panels(
                 Borders::empty(),
                 focus == DetailSection::Conflicts,
                 if focus == DetailSection::Conflicts {
-                    Some(app.conflict_file_selection)
+                    Some(app.status_list.conflict_file_selection)
                 } else {
                     None
                 },
-                &app.conflicts_list_state,
+                &app.status_list.conflicts_list_state,
                 left_split[2],
             );
             areas.conflicts_sub_inner = Some(conflicts_inner);
@@ -245,15 +257,15 @@ pub fn draw_staging_panels(
         );
     } else {
         let hunk_ranges = app.get_diff_hunk_ranges();
-        let selected_hunk_range = hunk_ranges.get(app.diff_hunk_selection);
+        let selected_hunk_range = hunk_ranges.get(app.diff.diff_hunk_selection);
         let diff_spans: Vec<Line> = file_diff
             .iter()
             .enumerate()
             .map(|(i, line)| {
                 let is_selected_hunk = selected_hunk_range.map(|r| r.contains(&i)).unwrap_or(false);
                 let (prefix, bg_style) = if right_focused {
-                    if app.diff_line_mode {
-                        if i == app.diff_line_selection {
+                    if app.diff.diff_line_mode {
+                        if i == app.diff.diff_line_selection {
                             ("▎", Style::default().bg(ratatui::style::Color::Rgb(70, 70, 70)))
                         } else if is_selected_hunk {
                             (" ", Style::default().bg(ratatui::style::Color::Rgb(40, 40, 40)))

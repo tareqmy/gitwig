@@ -561,7 +561,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             KeyCode::Esc => {
                 if app.inspect_full_diff {
                     app.inspect_full_diff = false;
-                } else if app.commit_search_query.is_some() {
+                } else if app.commit_list.search_query.is_some() {
                     app.cancel_commit_search();
                 } else {
                     app.close_detail();
@@ -722,13 +722,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     if app.is_uncommitted_selected() {
                         app.detail_focus = DetailSection::Staged;
                         app.last_staging_focus = DetailSection::Staged;
-                        app.staging_file_selection = 0;
+                        app.status_list.staging_file_selection = 0;
                     } else {
                         app.detail_focus = DetailSection::Staged;
                         app.last_staging_focus = DetailSection::Staged;
-                        app.file_selection = 0;
+                        app.status_list.file_selection = 0;
                     }
-                    app.diff_scroll = 0;
+                    app.diff.diff_scroll = 0;
                     app.refresh_file_diff();
                 }
                 KeyCode::Right
@@ -744,7 +744,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.last_staging_focus = detail_focus;
                     }
                     app.detail_focus = DetailSection::StagingDetails;
-                    app.diff_scroll = 0;
+                    app.diff.diff_scroll = 0;
                     if app.is_uncommitted_selected() {
                         app.refresh_staging_diff();
                     } else {
@@ -766,7 +766,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.detail_commit_to_bottom()
                 }
                 KeyCode::Char('G') if detail_focus == DetailSection::Commits => {
-                    app.commit_limit = app.commit_limit.saturating_add(200);
+                    app.commit_list.limit = app.commit_list.limit.saturating_add(200);
                     app.resync_detail();
                     app.status_message = Some("Loading more commits...".to_string());
                 }
@@ -810,7 +810,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.mode = Mode::Inspect;
                     app.last_staging_focus = DetailSection::Conflicts;
                     app.detail_focus = DetailSection::ConflictDiff;
-                    app.diff_scroll = 0;
+                    app.diff.diff_scroll = 0;
                     app.refresh_staging_diff();
                 }
                 KeyCode::Char('o')
@@ -898,43 +898,43 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     if detail_focus == DetailSection::StagingDetails
                         || detail_focus == DetailSection::ConflictDiff =>
                 {
-                    app.diff_scroll_up()
+                    app.diff.diff_scroll_up()
                 }
                 KeyCode::Down
                     if detail_focus == DetailSection::StagingDetails
                         || detail_focus == DetailSection::ConflictDiff =>
                 {
-                    app.diff_scroll_down()
+                    app.diff.diff_scroll_down()
                 }
                 KeyCode::PageUp
                     if detail_focus == DetailSection::StagingDetails
                         || detail_focus == DetailSection::ConflictDiff =>
                 {
-                    app.diff_scroll_page_up(app.config.page_size)
+                    app.diff.diff_scroll_page_up(app.config.page_size)
                 }
                 KeyCode::PageDown
                     if detail_focus == DetailSection::StagingDetails
                         || detail_focus == DetailSection::ConflictDiff =>
                 {
-                    app.diff_scroll_page_down(app.config.page_size)
+                    app.diff.diff_scroll_page_down(app.config.page_size)
                 }
                 KeyCode::Home
                     if detail_focus == DetailSection::StagingDetails
                         || detail_focus == DetailSection::ConflictDiff =>
                 {
-                    app.diff_scroll_to_top()
+                    app.diff.diff_scroll_to_top()
                 }
                 KeyCode::End
                     if detail_focus == DetailSection::StagingDetails
                         || detail_focus == DetailSection::ConflictDiff =>
                 {
-                    app.diff_scroll_to_bottom()
+                    app.diff.diff_scroll_to_bottom()
                 }
                 KeyCode::Up if detail_focus == DetailSection::CommitDetails => {
-                    app.commit_details_scroll_up()
+                    app.commit_list.details_scroll_up()
                 }
                 KeyCode::Down if detail_focus == DetailSection::CommitDetails => {
-                    app.commit_details_scroll_down()
+                    app.commit_list.details_scroll_down()
                 }
                 _ => {}
             },
@@ -1198,39 +1198,39 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Up => match detail_focus {
                     DetailSection::Stashes => app.stash_up(),
                     DetailSection::StashedFiles => app.stash_file_up(),
-                    DetailSection::StagingDetails => app.diff_scroll_up(),
+                    DetailSection::StagingDetails => app.diff.diff_scroll_up(),
                     _ => {}
                 },
                 KeyCode::Down => match detail_focus {
                     DetailSection::Stashes => app.stash_down(),
                     DetailSection::StashedFiles => app.stash_file_down(),
-                    DetailSection::StagingDetails => app.diff_scroll_down(),
+                    DetailSection::StagingDetails => app.diff.diff_scroll_down(),
                     _ => {}
                 },
                 KeyCode::PageUp => match detail_focus {
                     DetailSection::Stashes => app.stash_page_up(app.config.page_size),
                     DetailSection::StashedFiles => app.stash_file_page_up(app.config.page_size),
-                    DetailSection::StagingDetails => app.diff_scroll_page_up(app.config.page_size),
+                    DetailSection::StagingDetails => app.diff.diff_scroll_page_up(app.config.page_size),
                     _ => {}
                 },
                 KeyCode::PageDown => match detail_focus {
                     DetailSection::Stashes => app.stash_page_down(app.config.page_size),
                     DetailSection::StashedFiles => app.stash_file_page_down(app.config.page_size),
                     DetailSection::StagingDetails => {
-                        app.diff_scroll_page_down(app.config.page_size)
+                        app.diff.diff_scroll_page_down(app.config.page_size)
                     }
                     _ => {}
                 },
                 KeyCode::Home => match detail_focus {
                     DetailSection::Stashes => app.stash_to_top(),
                     DetailSection::StashedFiles => app.stash_file_to_top(),
-                    DetailSection::StagingDetails => app.diff_scroll_to_top(),
+                    DetailSection::StagingDetails => app.diff.diff_scroll_to_top(),
                     _ => {}
                 },
                 KeyCode::End => match detail_focus {
                     DetailSection::Stashes => app.stash_to_bottom(),
                     DetailSection::StashedFiles => app.stash_file_to_bottom(),
-                    DetailSection::StagingDetails => app.diff_scroll_to_bottom(),
+                    DetailSection::StagingDetails => app.diff.diff_scroll_to_bottom(),
                     _ => {}
                 },
                 _ => {}
@@ -1291,7 +1291,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.last_staging_focus = app.detail_focus;
                     }
                     app.detail_focus = next_focus;
-                    app.diff_scroll = 0;
+                    app.diff.diff_scroll = 0;
                     app.refresh_staging_diff();
                 } else {
                     let mut next_focus = match app.detail_focus {
@@ -1358,7 +1358,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.last_staging_focus = app.detail_focus;
                     }
                     app.detail_focus = next_focus;
-                    app.diff_scroll = 0;
+                    app.diff.diff_scroll = 0;
                     app.refresh_staging_diff();
                 } else {
                     let mut next_focus = match app.detail_focus {
@@ -1437,16 +1437,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.detail_file_up();
                     }
                 } else if app.detail_focus == DetailSection::CommitDetails {
-                    app.commit_details_scroll_up();
+                    app.commit_list.details_scroll_up();
                 } else {
                     if app.is_uncommitted_selected() {
-                        if app.diff_line_mode {
+                        if app.diff.diff_line_mode {
                             app.diff_line_up();
                         } else {
                             app.diff_hunk_up();
                         }
                     } else {
-                        app.diff_scroll_up();
+                        app.diff.diff_scroll_up();
                     }
                 }
             }
@@ -1463,16 +1463,16 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.detail_file_down();
                     }
                 } else if app.detail_focus == DetailSection::CommitDetails {
-                    app.commit_details_scroll_down();
+                    app.commit_list.details_scroll_down();
                 } else {
                     if app.is_uncommitted_selected() {
-                        if app.diff_line_mode {
+                        if app.diff.diff_line_mode {
                             app.diff_line_down();
                         } else {
                             app.diff_hunk_down();
                         }
                     } else {
-                        app.diff_scroll_down();
+                        app.diff.diff_scroll_down();
                     }
                 }
             }
@@ -1496,10 +1496,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     }
                 } else if app.detail_focus == DetailSection::CommitDetails {
                     for _ in 0..app.config.page_size {
-                        app.commit_details_scroll_up();
+                        app.commit_list.details_scroll_up();
                     }
                 } else {
-                    app.diff_scroll_page_up(app.config.page_size);
+                    app.diff.diff_scroll_page_up(app.config.page_size);
                 }
             }
             KeyCode::PageDown => {
@@ -1522,10 +1522,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     }
                 } else if app.detail_focus == DetailSection::CommitDetails {
                     for _ in 0..app.config.page_size {
-                        app.commit_details_scroll_down();
+                        app.commit_list.details_scroll_down();
                     }
                 } else {
-                    app.diff_scroll_page_down(app.config.page_size);
+                    app.diff.diff_scroll_page_down(app.config.page_size);
                 }
             }
             KeyCode::Home => {
@@ -1534,28 +1534,28 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     || app.detail_focus == DetailSection::Conflicts
                 {
                     if app.detail_focus == DetailSection::Conflicts {
-                        app.conflict_file_selection = 0;
+                        app.status_list.conflict_file_selection = 0;
                         app.refresh_staging_diff();
                     } else if app.is_uncommitted_selected() {
-                        app.staging_file_selection = 0;
+                        app.status_list.staging_file_selection = 0;
                         app.refresh_staging_diff();
                     } else {
-                        app.file_selection = 0;
+                        app.status_list.file_selection = 0;
                         app.refresh_file_diff();
                     }
                 } else if app.detail_focus == DetailSection::CommitDetails {
-                    app.commit_details_scroll = 0;
+                    app.commit_list.details_scroll = 0;
                 } else {
                     if app.is_uncommitted_selected() {
-                        if app.diff_line_mode {
-                            app.diff_line_selection = 0;
-                            app.diff_scroll = 0;
+                        if app.diff.diff_line_mode {
+                            app.diff.diff_line_selection = 0;
+                            app.diff.diff_scroll = 0;
                         } else {
-                            app.diff_hunk_selection = 0;
+                            app.diff.diff_hunk_selection = 0;
                             app.scroll_to_selected_hunk();
                         }
                     } else {
-                        app.diff_scroll_to_top();
+                        app.diff.diff_scroll_to_top();
                     }
                 }
             }
@@ -1571,29 +1571,29 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                             }
                             _ => 0,
                         };
-                        app.conflict_file_selection = len.saturating_sub(1);
+                        app.status_list.conflict_file_selection = len.saturating_sub(1);
                         app.refresh_staging_diff();
                     } else if app.is_uncommitted_selected() {
-                        app.staging_file_selection = app.staging_file_total().saturating_sub(1);
+                        app.status_list.staging_file_selection = app.staging_file_total().saturating_sub(1);
                         app.refresh_staging_diff();
                     } else {
-                        app.file_selection = app.file_total().saturating_sub(1);
+                        app.status_list.file_selection = app.file_total().saturating_sub(1);
                         app.refresh_file_diff();
                     }
                 } else if app.detail_focus == DetailSection::CommitDetails {
-                    app.commit_details_scroll = usize::MAX;
+                    app.commit_list.details_scroll = usize::MAX;
                 } else {
                     if app.is_uncommitted_selected() {
-                        if app.diff_line_mode {
-                            app.diff_line_selection = app.file_diff.len().saturating_sub(1);
-                            app.diff_scroll = app.diff_line_selection.saturating_sub(17);
+                        if app.diff.diff_line_mode {
+                            app.diff.diff_line_selection = app.diff.file_diff.len().saturating_sub(1);
+                            app.diff.diff_scroll = app.diff.diff_line_selection.saturating_sub(17);
                         } else {
                             let hunk_count = app.get_diff_hunk_ranges().len();
-                            app.diff_hunk_selection = hunk_count.saturating_sub(1);
+                            app.diff.diff_hunk_selection = hunk_count.saturating_sub(1);
                             app.scroll_to_selected_hunk();
                         }
                     } else {
-                        app.diff_scroll_to_bottom();
+                        app.diff.diff_scroll_to_bottom();
                     }
                 }
             }
@@ -1604,10 +1604,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.stage_selected_file();
                 } else if app.detail_focus == DetailSection::Conflicts {
                     app.detail_focus = DetailSection::ConflictDiff;
-                    app.diff_scroll = 0;
+                    app.diff.diff_scroll = 0;
                     app.refresh_staging_diff();
                 } else if app.detail_focus == DetailSection::StagingDetails {
-                    if app.diff_line_mode {
+                    if app.diff.diff_line_mode {
                         if app.last_staging_focus == DetailSection::Staged {
                             app.unstage_selected_line();
                         } else if app.last_staging_focus == DetailSection::Unstaged {
@@ -1627,7 +1627,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     && app.detail_focus == DetailSection::StagingDetails
                     && app.last_staging_focus == DetailSection::Unstaged =>
             {
-                if app.diff_line_mode {
+                if app.diff.diff_line_mode {
                     app.discard_selected_line();
                 } else {
                     app.discard_selected_hunk();
@@ -1641,7 +1641,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 } else if app.detail_focus == DetailSection::StagingDetails
                     && app.last_staging_focus == DetailSection::Unstaged
                 {
-                    if app.diff_line_mode {
+                    if app.diff.diff_line_mode {
                         app.discard_selected_line();
                     } else {
                         app.discard_selected_hunk();
@@ -1656,7 +1656,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 } else if app.detail_focus == DetailSection::StagingDetails
                     && app.last_staging_focus == DetailSection::Unstaged
                 {
-                    if app.diff_line_mode {
+                    if app.diff.diff_line_mode {
                         app.discard_selected_line();
                     } else {
                         app.discard_selected_hunk();
@@ -1761,7 +1761,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 _ => {}
             },
             KeyCode::Enter => {
-                app.input_buffer = app.commit_search_query.clone().unwrap_or_default();
+                app.input_buffer = app.commit_list.search_query.clone().unwrap_or_default();
                 app.in_logs_ui = true;
                 app.mode = Mode::LogsSearchInput;
             }
@@ -1776,15 +1776,15 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         },
         Mode::LogsSearchInput => match code {
             KeyCode::Esc => {
-                app.commit_search_query = None;
+                app.commit_list.search_query = None;
                 app.mode = Mode::Logs;
             }
             KeyCode::Enter => {
                 let query = app.input_buffer.clone();
                 if query.trim().is_empty() {
-                    app.commit_search_query = None;
+                    app.commit_list.search_query = None;
                 } else {
-                    app.commit_search_query = Some(query);
+                    app.commit_list.search_query = Some(query);
                 }
                 app.mode = Mode::Logs;
             }
@@ -1812,18 +1812,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 if app.is_uncommitted_selected() {
                     app.detail_focus = DetailSection::Staged;
                     app.last_staging_focus = DetailSection::Staged;
-                    app.staging_file_selection = 0;
+                    app.status_list.staging_file_selection = 0;
                 } else {
                     app.detail_focus = DetailSection::Staged;
                     app.last_staging_focus = DetailSection::Staged;
-                    app.file_selection = 0;
+                    app.status_list.file_selection = 0;
                 }
-                app.diff_scroll = 0;
+                app.diff.diff_scroll = 0;
                 app.refresh_file_diff();
             }
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.in_logs_ui = false;
-                app.commit_search_query = None;
+                app.commit_list.search_query = None;
                 app.mode = Mode::Detail;
             }
             _ => {}
@@ -2354,7 +2354,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     if inner.contains(pos) {
                         let clicked_row = (pos.y - inner.y) as usize;
                         let offset = if app.detail_focus == DetailSection::Staged {
-                            app.staged_list_state.borrow().offset()
+                            app.status_list.staged_list_state.borrow().offset()
                         } else {
                             0
                         };
@@ -2366,7 +2366,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                             _ => 0,
                         };
                         if actual_idx < total {
-                            app.staging_file_selection = actual_idx;
+                            app.status_list.staging_file_selection = actual_idx;
                             clicked_file = true;
                         }
                     }
@@ -2380,12 +2380,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         _ => 0,
                     };
                     if total > 0 {
-                        app.staging_file_selection = app.staging_file_selection.min(total - 1);
+                        app.status_list.staging_file_selection = app.status_list.staging_file_selection.min(total - 1);
                     } else {
-                        app.staging_file_selection = 0;
+                        app.status_list.staging_file_selection = 0;
                     }
                 }
-                app.diff_scroll = 0;
+                app.diff.diff_scroll = 0;
                 app.refresh_staging_diff();
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::Staged;
@@ -2419,7 +2419,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     if inner.contains(pos) {
                         let clicked_row = (pos.y - inner.y) as usize;
                         let offset = if app.detail_focus == DetailSection::Unstaged {
-                            app.unstaged_list_state.borrow().offset()
+                            app.status_list.unstaged_list_state.borrow().offset()
                         } else {
                             0
                         };
@@ -2431,7 +2431,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                             _ => 0,
                         };
                         if actual_idx < total {
-                            app.staging_file_selection = actual_idx;
+                            app.status_list.staging_file_selection = actual_idx;
                             clicked_file = true;
                         }
                     }
@@ -2445,12 +2445,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         _ => 0,
                     };
                     if total > 0 {
-                        app.staging_file_selection = app.staging_file_selection.min(total - 1);
+                        app.status_list.staging_file_selection = app.status_list.staging_file_selection.min(total - 1);
                     } else {
-                        app.staging_file_selection = 0;
+                        app.status_list.staging_file_selection = 0;
                     }
                 }
-                app.diff_scroll = 0;
+                app.diff.diff_scroll = 0;
                 app.refresh_staging_diff();
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::Unstaged;
@@ -2484,7 +2484,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     if inner.contains(pos) {
                         let clicked_row = (pos.y - inner.y) as usize;
                         let offset = if app.detail_focus == DetailSection::Conflicts {
-                            app.conflicts_list_state.borrow().offset()
+                            app.status_list.conflicts_list_state.borrow().offset()
                         } else {
                             0
                         };
@@ -2496,7 +2496,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                             _ => 0,
                         };
                         if actual_idx < total {
-                            app.conflict_file_selection = actual_idx;
+                            app.status_list.conflict_file_selection = actual_idx;
                             clicked_file = true;
                         }
                     }
@@ -2510,12 +2510,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         _ => 0,
                     };
                     if total > 0 {
-                        app.conflict_file_selection = app.conflict_file_selection.min(total - 1);
+                        app.status_list.conflict_file_selection = app.status_list.conflict_file_selection.min(total - 1);
                     } else {
-                        app.conflict_file_selection = 0;
+                        app.status_list.conflict_file_selection = 0;
                     }
                 }
-                app.diff_scroll = 0;
+                app.diff.diff_scroll = 0;
                 app.refresh_staging_diff();
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::Conflicts;
@@ -2527,7 +2527,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     _ => 0,
                 };
                 if total > 0 {
-                    app.conflict_file_selection = app.conflict_file_selection.saturating_sub(1);
+                    app.status_list.conflict_file_selection = app.status_list.conflict_file_selection.saturating_sub(1);
                     app.refresh_staging_diff();
                 }
             } else if is_scroll_down {
@@ -2540,7 +2540,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     _ => 0,
                 };
                 if total > 0 {
-                    app.conflict_file_selection = (app.conflict_file_selection + 1).min(total - 1);
+                    app.status_list.conflict_file_selection = (app.status_list.conflict_file_selection + 1).min(total - 1);
                     app.refresh_staging_diff();
                 }
             }
@@ -2556,10 +2556,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::CommitDetails;
-                app.commit_details_scroll_up();
+                app.commit_list.details_scroll_up();
             } else if is_scroll_down {
                 app.detail_focus = DetailSection::CommitDetails;
-                app.commit_details_scroll_down();
+                app.commit_list.details_scroll_down();
             }
             return;
         }
@@ -2573,22 +2573,22 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 if app.is_uncommitted_selected() {
                     let total = app.staging_file_total();
                     if total > 0 {
-                        app.staging_file_selection = app.staging_file_selection.min(total - 1);
+                        app.status_list.staging_file_selection = app.status_list.staging_file_selection.min(total - 1);
                     } else {
-                        app.staging_file_selection = 0;
+                        app.status_list.staging_file_selection = 0;
                     }
-                    app.diff_scroll = 0;
+                    app.diff.diff_scroll = 0;
                     app.refresh_staging_diff();
                 } else {
                     let mut clicked_file = false;
                     if let Some(inner) = areas.changed_files_inner {
                         if inner.contains(pos) {
                             let clicked_row = (pos.y - inner.y) as usize;
-                            let offset = app.changed_files_list_state.borrow().offset();
+                            let offset = app.status_list.changed_files_list_state.borrow().offset();
                             let actual_idx = offset + clicked_row;
                             let total = app.file_total();
                             if actual_idx < total {
-                                app.file_selection = actual_idx;
+                                app.status_list.file_selection = actual_idx;
                                 clicked_file = true;
                             }
                         }
@@ -2596,12 +2596,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     if !clicked_file {
                         let total = app.file_total();
                         if total > 0 {
-                            app.file_selection = app.file_selection.min(total - 1);
+                            app.status_list.file_selection = app.status_list.file_selection.min(total - 1);
                         } else {
-                            app.file_selection = 0;
+                            app.status_list.file_selection = 0;
                         }
                     }
-                    app.diff_scroll = 0;
+                    app.diff.diff_scroll = 0;
                     app.refresh_file_diff();
                 }
             } else if is_scroll_up {
@@ -2641,7 +2641,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         app.last_staging_focus = app.detail_focus;
                     }
                     app.detail_focus = DetailSection::StagingDetails;
-                    app.diff_scroll = 0;
+                    app.diff.diff_scroll = 0;
                 }
             } else if is_scroll_up {
                 if app.detail_focus == DetailSection::Conflicts
@@ -2649,10 +2649,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     || app.last_staging_focus == DetailSection::Conflicts
                 {
                     app.detail_focus = DetailSection::ConflictDiff;
-                    app.diff_scroll_up();
+                    app.diff.diff_scroll_up();
                 } else {
                     app.detail_focus = DetailSection::StagingDetails;
-                    app.diff_scroll_up();
+                    app.diff.diff_scroll_up();
                 }
             } else if is_scroll_down {
                 if app.detail_focus == DetailSection::Conflicts
@@ -2660,10 +2660,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     || app.last_staging_focus == DetailSection::Conflicts
                 {
                     app.detail_focus = DetailSection::ConflictDiff;
-                    app.diff_scroll_down();
+                    app.diff.diff_scroll_down();
                 } else {
                     app.detail_focus = DetailSection::StagingDetails;
-                    app.diff_scroll_down();
+                    app.diff.diff_scroll_down();
                 }
             }
             return;
@@ -2677,14 +2677,14 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 if let Some(inner) = areas.commits_inner {
                     if pos.y > inner.y {
                         let row_clicked = (pos.y - inner.y - 1) as usize;
-                        let offset = app.commits_table_state.borrow().offset();
+                        let offset = app.commit_list.table_state.borrow().offset();
                         let actual_idx = offset + row_clicked;
                         let total = app.commit_total();
                         if actual_idx < total {
-                            app.commit_selection = actual_idx;
-                            app.file_selection = 0;
-                            app.staging_file_selection = 0;
-                            app.diff_scroll = 0;
+                            app.commit_list.selection = actual_idx;
+                            app.status_list.file_selection = 0;
+                            app.status_list.staging_file_selection = 0;
+                            app.diff.diff_scroll = 0;
                             app.refresh_file_diff();
                         }
                     }
@@ -2865,7 +2865,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         if actual_idx < total {
                             app.stash_selection = actual_idx;
                             app.stash_file_selection = 0;
-                            app.diff_scroll = 0;
+                            app.diff.diff_scroll = 0;
                             app.refresh_file_diff();
                         }
                     }
@@ -2899,7 +2899,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         };
                         if actual_idx < total {
                             app.stash_file_selection = actual_idx;
-                            app.diff_scroll = 0;
+                            app.diff.diff_scroll = 0;
                             app.refresh_file_diff();
                         }
                     }

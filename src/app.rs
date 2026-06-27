@@ -12,11 +12,11 @@ use std::path::PathBuf;
 use crossterm::event::{self, Event};
 use ratatui::Terminal;
 use ratatui::layout::{Margin, Rect};
-use ratatui::widgets::{ListState, TableState};
+use ratatui::widgets::ListState;
 
 use crate::config::{Config, SortOrder, save_config};
 use crate::input;
-use crate::repo::{self, DiffLine, ItemDetail, ItemStatus};
+use crate::repo::{self, ItemDetail, ItemStatus};
 use crate::ui;
 use crate::ui_detail::DetailAreas;
 
@@ -240,31 +240,31 @@ pub struct App {
     /// Which panel is focused inside the detail view.
     pub detail_focus: DetailSection,
     /// Selected row index inside the Commits panel (0 = top row).
-    pub commit_selection: usize,
+    pub commit_list: crate::components::commit_list::CommitListComponent,
     /// Dynamic commit limit for pagination
-    pub commit_limit: usize,
+
     /// Active query for filtering commits in the commits panel
-    pub commit_search_query: Option<String>,
+
     /// Active query for filtering repositories in the home page list
     pub repo_search_query: Option<String>,
     /// Selected file index inside the Changed Files panel (real commits).
-    pub file_selection: usize,
+
     /// Selected file index inside the Staged/Unstaged sub-panels (uncommitted view).
-    pub staging_file_selection: usize,
+
     /// Cached unified-diff lines for the currently selected file.
-    pub file_diff: Vec<DiffLine>,
+    pub diff: crate::components::diff::DiffComponent,
     /// Vertical scroll offset for the diff panel (StagingDetails focus).
-    pub diff_scroll: usize,
+
     /// Selected hunk index for stage/unstage by hunk (StagingDetails focus).
-    pub diff_hunk_selection: usize,
+
     /// Whether we are selecting lines (true) or hunks (false) in StagingDetails.
-    pub diff_line_mode: bool,
+
     /// Selected line index in the file_diff.
-    pub diff_line_selection: usize,
+
     /// Selected conflict file index in Conflicts panel.
-    pub conflict_file_selection: usize,
+
     /// Vertical scroll offset for the commit details panel (CommitDetails focus).
-    pub commit_details_scroll: usize,
+
     /// Vertical scroll offset for the commit input popup.
     pub commit_input_scroll: usize,
     /// Selected local branch index in Branches tab.
@@ -287,11 +287,11 @@ pub struct App {
     pub detail_areas: DetailAreas,
     /// Main panel item bounding boxes recorded after each draw, used for mouse hit-testing.
     pub main_areas: Vec<Rect>,
-    pub commits_table_state: std::cell::RefCell<TableState>,
-    pub staged_list_state: std::cell::RefCell<ListState>,
-    pub unstaged_list_state: std::cell::RefCell<ListState>,
-    pub conflicts_list_state: std::cell::RefCell<ListState>,
-    pub changed_files_list_state: std::cell::RefCell<ListState>,
+
+    pub status_list: crate::components::status_list::StatusListComponent,
+
+
+
     pub local_branch_list_state: std::cell::RefCell<ListState>,
     pub remote_branch_list_state: std::cell::RefCell<ListState>,
     pub local_tag_list_state: std::cell::RefCell<ListState>,
@@ -470,19 +470,19 @@ impl App {
             current_detail: None,
             detail_cache: std::collections::HashMap::new(),
             detail_focus: DetailSection::Commits,
-            commit_selection: 0,
-            commit_limit: 200,
-            commit_search_query: None,
+            commit_list: crate::components::commit_list::CommitListComponent { limit: 100, ..Default::default() },
+            
+            
             repo_search_query: None,
-            file_selection: 0,
-            staging_file_selection: 0,
-            file_diff: Vec::new(),
-            diff_scroll: 0,
-            diff_hunk_selection: 0,
-            diff_line_mode: false,
-            diff_line_selection: 0,
-            conflict_file_selection: 0,
-            commit_details_scroll: 0,
+            
+            
+            diff: crate::components::diff::DiffComponent::default(),
+            
+            
+            
+            
+            
+            
             commit_input_scroll: 0,
             local_branch_selection: 0,
             remote_branch_selection: 0,
@@ -494,11 +494,10 @@ impl App {
             help_scroll: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
-            commits_table_state: std::cell::RefCell::new(TableState::default()),
-            staged_list_state: std::cell::RefCell::new(ListState::default()),
-            unstaged_list_state: std::cell::RefCell::new(ListState::default()),
-            conflicts_list_state: std::cell::RefCell::new(ListState::default()),
-            changed_files_list_state: std::cell::RefCell::new(ListState::default()),
+            
+            status_list: crate::components::status_list::StatusListComponent::default(),
+            
+            
             local_branch_list_state: std::cell::RefCell::new(ListState::default()),
             remote_branch_list_state: std::cell::RefCell::new(ListState::default()),
             local_tag_list_state: std::cell::RefCell::new(ListState::default()),
@@ -1011,11 +1010,11 @@ impl App {
                     repo::ItemDetail::Repo { info, .. } => info.commits.len(),
                     _ => 200,
                 };
-                self.commit_limit = cached_commits_count.max(200);
+                self.commit_list.limit = cached_commits_count.max(200);
                 self.current_detail = Some(cached.detail);
                 self.rebuild_visible_files();
 
-                let max_commits = self.commit_limit;
+                let max_commits = self.commit_list.limit;
                 // Silent background refresh
                 std::thread::spawn(move || {
                     let detail = repo::inspect_detail(
@@ -1027,9 +1026,9 @@ impl App {
                     let _ = tx.send((item_clone, detail));
                 });
             } else {
-                self.commit_limit = 200;
+                self.commit_list.limit = 200;
                 self.loading_repo_path = Some(item.clone());
-                let max_commits = self.commit_limit;
+                let max_commits = self.commit_list.limit;
                 std::thread::spawn(move || {
                     let detail = repo::inspect_detail(
                         &item_clone,
@@ -1042,12 +1041,12 @@ impl App {
             }
 
             self.detail_focus = DetailSection::Commits;
-            self.commit_selection = 0;
-            self.file_selection = 0;
-            self.staging_file_selection = 0;
-            self.file_diff.clear();
-            self.diff_scroll = 0;
-            self.commit_details_scroll = 0;
+            self.commit_list.selection = 0;
+            self.status_list.file_selection = 0;
+            self.status_list.staging_file_selection = 0;
+            self.diff.file_diff.clear();
+            self.diff.diff_scroll = 0;
+            self.commit_list.details_scroll = 0;
             self.commit_input_scroll = 0;
             self.local_branch_selection = 0;
             self.remote_branch_selection = 0;
@@ -1090,7 +1089,7 @@ impl App {
 
             self.loading_repo_path = Some(item.clone());
             let tx = self.detail_tx.clone();
-            let max_commits = self.commit_limit;
+            let max_commits = self.commit_list.limit;
             let graph_max_commits = self.config.graph_max_commits;
             let enable_commit_signatures = self.config.enable_commit_signatures;
             std::thread::spawn(move || {
@@ -1188,7 +1187,7 @@ impl App {
             let unstaged_len = info.changes.unstaged.len();
 
             let commit_files_len =
-                info.commits.get(self.commit_selection).map(|c| c.files.len()).unwrap_or(0);
+                info.commits.get(self.commit_list.selection).map(|c| c.files.len()).unwrap_or(0);
 
             info_lengths = Some((
                 commits_len,
@@ -1219,9 +1218,9 @@ impl App {
         {
             // 1. Commit selection
             if commits_len == 0 {
-                self.commit_selection = 0;
-            } else if self.commit_selection >= commits_len {
-                self.commit_selection = commits_len - 1;
+                self.commit_list.selection = 0;
+            } else if self.commit_list.selection >= commits_len {
+                self.commit_list.selection = commits_len - 1;
             }
 
             // 2. File list selection (Files tab)
@@ -1286,21 +1285,21 @@ impl App {
                     0
                 };
                 if active_len == 0 {
-                    self.staging_file_selection = 0;
-                } else if self.staging_file_selection >= active_len {
-                    self.staging_file_selection = active_len - 1;
+                    self.status_list.staging_file_selection = 0;
+                } else if self.status_list.staging_file_selection >= active_len {
+                    self.status_list.staging_file_selection = active_len - 1;
                 }
             } else {
                 // Commits file selection
                 if commit_files_len == 0 {
-                    self.file_selection = 0;
-                } else if self.file_selection >= commit_files_len {
-                    self.file_selection = commit_files_len - 1;
+                    self.status_list.file_selection = 0;
+                } else if self.status_list.file_selection >= commit_files_len {
+                    self.status_list.file_selection = commit_files_len - 1;
                 }
             }
         }
 
-        self.diff_scroll = 0;
+        self.diff.diff_scroll = 0;
         if self.is_uncommitted_selected() {
             self.refresh_staging_diff();
         } else {
@@ -1561,24 +1560,24 @@ impl App {
         // Reset staging selection and pre-load diff when landing on Staged/Unstaged/Conflicts.
         match self.detail_focus {
             DetailSection::Staged | DetailSection::Unstaged | DetailSection::Conflicts => {
-                self.diff_scroll = 0;
+                self.diff.diff_scroll = 0;
                 if self.is_uncommitted_selected() {
                     if self.detail_focus == DetailSection::Conflicts {
-                        self.conflict_file_selection = 0;
+                        self.status_list.conflict_file_selection = 0;
                     } else {
-                        self.staging_file_selection = 0;
+                        self.status_list.staging_file_selection = 0;
                     }
                     self.refresh_staging_diff();
                 } else {
-                    self.file_selection = 0;
+                    self.status_list.file_selection = 0;
                     self.refresh_file_diff();
                 }
             }
             DetailSection::CommitDetails => {
-                self.commit_details_scroll = 0;
+                self.commit_list.details_scroll = 0;
             }
             DetailSection::StagingDetails | DetailSection::ConflictDiff => {
-                self.diff_scroll = 0;
+                self.diff.diff_scroll = 0;
             }
             _ => {}
         }
@@ -2049,7 +2048,7 @@ impl App {
                 || !info.changes.untracked.is_empty()
                 || !info.changes.conflicted.is_empty();
             let commit_idx =
-                if dirty { self.commit_selection.saturating_sub(1) } else { self.commit_selection };
+                if dirty { self.commit_list.selection.saturating_sub(1) } else { self.commit_list.selection };
             if let Some(commit) = info.commits.get(commit_idx) {
                 self.tag_action_target_oid = Some(commit.oid.clone());
                 self.input_buffer.clear();
@@ -2696,9 +2695,9 @@ impl App {
                     || !info.changes.untracked.is_empty()
                     || !info.changes.conflicted.is_empty();
                 let commit_idx = if dirty {
-                    self.commit_selection.saturating_sub(1)
+                    self.commit_list.selection.saturating_sub(1)
                 } else {
-                    self.commit_selection
+                    self.commit_list.selection
                 };
                 info.commits.get(commit_idx).map(|c| (resolved.clone(), c.oid.clone()))
             }
@@ -2738,9 +2737,9 @@ impl App {
                     || !info.changes.untracked.is_empty()
                     || !info.changes.conflicted.is_empty();
                 let commit_idx = if dirty {
-                    self.commit_selection.saturating_sub(1)
+                    self.commit_list.selection.saturating_sub(1)
                 } else {
-                    self.commit_selection
+                    self.commit_list.selection
                 };
                 info.commits.get(commit_idx).map(|c| (c.oid.clone(), c.summary.clone()))
             }
@@ -2869,9 +2868,9 @@ impl App {
                     || !info.changes.untracked.is_empty()
                     || !info.changes.conflicted.is_empty();
                 let commit_idx = if dirty {
-                    self.commit_selection.saturating_sub(1)
+                    self.commit_list.selection.saturating_sub(1)
                 } else {
-                    self.commit_selection
+                    self.commit_list.selection
                 };
                 info.commits.get(commit_idx).map(|c| (c.oid.clone(), c.summary.clone()))
             }
@@ -2936,7 +2935,7 @@ impl App {
     }
 
     fn get_logs_matching_indices(&self) -> Vec<usize> {
-        if !self.in_logs_ui || self.commit_search_query.is_none() {
+        if !self.in_logs_ui || self.commit_list.search_query.is_none() {
             return Vec::new();
         }
         match &self.current_detail {
@@ -2957,12 +2956,12 @@ impl App {
             return None;
         }
 
-        let pos_opt = matching_indices.iter().position(|&idx| idx >= self.commit_selection);
+        let pos_opt = matching_indices.iter().position(|&idx| idx >= self.commit_list.selection);
 
         match direction {
             LogsNavDirection::Down => {
                 if let Some(pos) = pos_opt {
-                    if matching_indices[pos] == self.commit_selection {
+                    if matching_indices[pos] == self.commit_list.selection {
                         if pos + 1 < matching_indices.len() {
                             Some(matching_indices[pos + 1])
                         } else {
@@ -2988,7 +2987,7 @@ impl App {
             }
             LogsNavDirection::PageDown(page) => {
                 if let Some(pos) = pos_opt {
-                    let target_pos = if matching_indices[pos] == self.commit_selection {
+                    let target_pos = if matching_indices[pos] == self.commit_list.selection {
                         pos + page
                     } else {
                         pos + page - 1
@@ -3015,95 +3014,95 @@ impl App {
     /// Move commit selection up one row.
     pub fn detail_commit_up(&mut self) {
         if let Some(next_idx) = self.get_logs_nav_index(LogsNavDirection::Up) {
-            self.commit_selection = next_idx;
+            self.commit_list.selection = next_idx;
         } else {
-            self.commit_selection = self.commit_selection.saturating_sub(1);
+            self.commit_list.selection = self.commit_list.selection.saturating_sub(1);
         }
-        self.file_selection = 0;
-        self.diff_scroll = 0;
+        self.status_list.file_selection = 0;
+        self.diff.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
     /// Move commit selection down one row, clamped to the last visible row.
     pub fn detail_commit_down(&mut self) {
         if let Some(next_idx) = self.get_logs_nav_index(LogsNavDirection::Down) {
-            self.commit_selection = next_idx;
+            self.commit_list.selection = next_idx;
         } else {
             let total = self.commit_total();
-            if total > 0 && self.commit_selection + 1 < total {
-                self.commit_selection += 1;
+            if total > 0 && self.commit_list.selection + 1 < total {
+                self.commit_list.selection += 1;
             }
         }
-        self.file_selection = 0;
-        self.diff_scroll = 0;
+        self.status_list.file_selection = 0;
+        self.diff.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
     /// Jump commit selection up by `page` rows.
     pub fn detail_commit_page_up(&mut self, page: usize) {
         if let Some(next_idx) = self.get_logs_nav_index(LogsNavDirection::PageUp(page)) {
-            self.commit_selection = next_idx;
+            self.commit_list.selection = next_idx;
         } else {
-            self.commit_selection = self.commit_selection.saturating_sub(page);
+            self.commit_list.selection = self.commit_list.selection.saturating_sub(page);
         }
-        self.file_selection = 0;
-        self.diff_scroll = 0;
+        self.status_list.file_selection = 0;
+        self.diff.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
     /// Jump commit selection down by `page` rows, clamped to the last row.
     pub fn detail_commit_page_down(&mut self, page: usize) {
         if let Some(next_idx) = self.get_logs_nav_index(LogsNavDirection::PageDown(page)) {
-            self.commit_selection = next_idx;
+            self.commit_list.selection = next_idx;
         } else {
             let total = self.commit_total();
             if total > 0 {
-                self.commit_selection = (self.commit_selection + page).min(total - 1);
+                self.commit_list.selection = (self.commit_list.selection + page).min(total - 1);
             }
         }
-        self.file_selection = 0;
-        self.diff_scroll = 0;
+        self.status_list.file_selection = 0;
+        self.diff.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
     /// Move file selection up one row in the Changed Files panel.
     pub fn detail_file_up(&mut self) {
-        self.file_selection = self.file_selection.saturating_sub(1);
-        self.diff_scroll = 0;
+        self.status_list.file_selection = self.status_list.file_selection.saturating_sub(1);
+        self.diff.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
     /// Move file selection down one row in the Changed Files panel.
     pub fn detail_file_down(&mut self) {
         let total = self.file_total();
-        if total > 0 && self.file_selection + 1 < total {
-            self.file_selection += 1;
+        if total > 0 && self.status_list.file_selection + 1 < total {
+            self.status_list.file_selection += 1;
         }
-        self.diff_scroll = 0;
+        self.diff.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
     /// Move staging-area file selection up one row (Staged or Unstaged panel).
     pub fn staging_file_up(&mut self) {
-        self.staging_file_selection = self.staging_file_selection.saturating_sub(1);
-        self.diff_scroll = 0;
+        self.status_list.staging_file_selection = self.status_list.staging_file_selection.saturating_sub(1);
+        self.diff.diff_scroll = 0;
         self.refresh_staging_diff();
     }
 
     /// Move staging-area file selection down one row (Staged or Unstaged panel).
     pub fn staging_file_down(&mut self) {
         let total = self.staging_file_total();
-        if total > 0 && self.staging_file_selection + 1 < total {
-            self.staging_file_selection += 1;
+        if total > 0 && self.status_list.staging_file_selection + 1 < total {
+            self.status_list.staging_file_selection += 1;
         }
-        self.diff_scroll = 0;
+        self.diff.diff_scroll = 0;
         self.refresh_staging_diff();
     }
 
     /// Move conflict-area file selection up one row.
     pub fn conflict_file_up(&mut self) {
-        self.conflict_file_selection = self.conflict_file_selection.saturating_sub(1);
-        self.diff_scroll = 0;
+        self.status_list.conflict_file_selection = self.status_list.conflict_file_selection.saturating_sub(1);
+        self.diff.diff_scroll = 0;
         self.refresh_staging_diff();
     }
 
@@ -3113,41 +3112,27 @@ impl App {
             Some(ItemDetail::Repo { info, .. }) => info.changes.conflicted.len(),
             _ => 0,
         };
-        if total > 0 && self.conflict_file_selection + 1 < total {
-            self.conflict_file_selection += 1;
+        if total > 0 && self.status_list.conflict_file_selection + 1 < total {
+            self.status_list.conflict_file_selection += 1;
         }
-        self.diff_scroll = 0;
+        self.diff.diff_scroll = 0;
         self.refresh_staging_diff();
     }
 
     /// Scroll the diff panel up by one line.
-    pub fn diff_scroll_up(&mut self) {
-        self.diff_scroll = self.diff_scroll.saturating_sub(1);
-    }
 
-    /// Scroll the diff panel down by one line, clamped so the last line stays visible.
-    pub fn diff_scroll_down(&mut self) {
-        let max = self.file_diff.len().saturating_sub(1);
-        if self.diff_scroll < max {
-            self.diff_scroll += 1;
-        }
-    }
+
+
 
     /// Scroll the diff panel up by `page` lines.
-    pub fn diff_scroll_page_up(&mut self, page: usize) {
-        self.diff_scroll = self.diff_scroll.saturating_sub(page);
-    }
 
-    /// Scroll the diff panel down by `page` lines.
-    pub fn diff_scroll_page_down(&mut self, page: usize) {
-        let max = self.file_diff.len().saturating_sub(1);
-        self.diff_scroll = (self.diff_scroll + page).min(max);
-    }
+
+
 
     pub fn get_conflict_hunk_ranges(&self) -> Vec<std::ops::Range<usize>> {
         let mut ranges = Vec::new();
         let mut start = None;
-        for (i, line) in self.file_diff.iter().enumerate() {
+        for (i, line) in self.diff.file_diff.iter().enumerate() {
             if line.kind == repo::DiffLineKind::ConflictSeparator {
                 if line.content.starts_with("<<<<<<<") {
                     start = Some(i);
@@ -3171,7 +3156,7 @@ impl App {
         }
         let mut ranges = Vec::new();
         let mut current_start = None;
-        for (i, line) in self.file_diff.iter().enumerate() {
+        for (i, line) in self.diff.file_diff.iter().enumerate() {
             if line.kind == repo::DiffLineKind::Header {
                 if let Some(start) = current_start {
                     ranges.push(start..i);
@@ -3180,50 +3165,50 @@ impl App {
             }
         }
         if let Some(start) = current_start {
-            ranges.push(start..self.file_diff.len());
+            ranges.push(start..self.diff.file_diff.len());
         }
         ranges
     }
 
     pub fn diff_hunk_up(&mut self) {
-        if self.diff_hunk_selection > 0 {
-            self.diff_hunk_selection -= 1;
+        if self.diff.diff_hunk_selection > 0 {
+            self.diff.diff_hunk_selection -= 1;
             self.scroll_to_selected_hunk();
         }
     }
 
     pub fn diff_hunk_down(&mut self) {
         let hunk_count = self.get_diff_hunk_ranges().len();
-        if self.diff_hunk_selection + 1 < hunk_count {
-            self.diff_hunk_selection += 1;
+        if self.diff.diff_hunk_selection + 1 < hunk_count {
+            self.diff.diff_hunk_selection += 1;
             self.scroll_to_selected_hunk();
         }
     }
 
     pub fn scroll_to_selected_hunk(&mut self) {
         let ranges = self.get_diff_hunk_ranges();
-        if let Some(range) = ranges.get(self.diff_hunk_selection) {
-            self.diff_scroll = range.start;
+        if let Some(range) = ranges.get(self.diff.diff_hunk_selection) {
+            self.diff.diff_scroll = range.start;
         }
     }
 
     pub fn toggle_diff_line_mode(&mut self) {
-        if self.file_diff.is_empty() {
+        if self.diff.file_diff.is_empty() {
             return;
         }
-        self.diff_line_mode = !self.diff_line_mode;
-        if self.diff_line_mode {
+        self.diff.diff_line_mode = !self.diff.diff_line_mode;
+        if self.diff.diff_line_mode {
             let ranges = self.get_diff_hunk_ranges();
-            if let Some(range) = ranges.get(self.diff_hunk_selection) {
-                self.diff_line_selection = range.start;
+            if let Some(range) = ranges.get(self.diff.diff_hunk_selection) {
+                self.diff.diff_line_selection = range.start;
             } else {
-                self.diff_line_selection = 0;
+                self.diff.diff_line_selection = 0;
             }
         } else {
             let ranges = self.get_diff_hunk_ranges();
             for (idx, range) in ranges.iter().enumerate() {
-                if range.contains(&self.diff_line_selection) {
-                    self.diff_hunk_selection = idx;
+                if range.contains(&self.diff.diff_line_selection) {
+                    self.diff.diff_hunk_selection = idx;
                     break;
                 }
             }
@@ -3232,33 +3217,33 @@ impl App {
     }
 
     pub fn diff_line_up(&mut self) {
-        if self.diff_line_selection > 0 {
-            self.diff_line_selection -= 1;
+        if self.diff.diff_line_selection > 0 {
+            self.diff.diff_line_selection -= 1;
             let ranges = self.get_diff_hunk_ranges();
             for (idx, range) in ranges.iter().enumerate() {
-                if range.contains(&self.diff_line_selection) {
-                    self.diff_hunk_selection = idx;
+                if range.contains(&self.diff.diff_line_selection) {
+                    self.diff.diff_hunk_selection = idx;
                     break;
                 }
             }
-            if self.diff_line_selection < self.diff_scroll {
-                self.diff_scroll = self.diff_line_selection;
+            if self.diff.diff_line_selection < self.diff.diff_scroll {
+                self.diff.diff_scroll = self.diff.diff_line_selection;
             }
         }
     }
 
     pub fn diff_line_down(&mut self) {
-        if self.diff_line_selection + 1 < self.file_diff.len() {
-            self.diff_line_selection += 1;
+        if self.diff.diff_line_selection + 1 < self.diff.file_diff.len() {
+            self.diff.diff_line_selection += 1;
             let ranges = self.get_diff_hunk_ranges();
             for (idx, range) in ranges.iter().enumerate() {
-                if range.contains(&self.diff_line_selection) {
-                    self.diff_hunk_selection = idx;
+                if range.contains(&self.diff.diff_line_selection) {
+                    self.diff.diff_hunk_selection = idx;
                     break;
                 }
             }
-            if self.diff_line_selection >= self.diff_scroll + 18 {
-                self.diff_scroll = self.diff_line_selection.saturating_sub(17);
+            if self.diff.diff_line_selection >= self.diff.diff_scroll + 18 {
+                self.diff.diff_scroll = self.diff.diff_line_selection.saturating_sub(17);
             }
         }
     }
@@ -3278,22 +3263,22 @@ impl App {
                 }
                 info.changes
                     .unstaged
-                    .get(self.staging_file_selection)
+                    .get(self.status_list.staging_file_selection)
                     .map(|f| (resolved.clone(), f.path.clone()))
             }
             _ => None,
         };
         if let Some((repo_path, file_path)) = params {
             let ranges = self.get_diff_hunk_ranges();
-            if let Some(range) = ranges.get(self.diff_hunk_selection) {
-                let hunk = &self.file_diff[range.clone()];
+            if let Some(range) = ranges.get(self.diff.diff_hunk_selection) {
+                let hunk = &self.diff.file_diff[range.clone()];
                 match repo::stage_hunk(&repo_path, &file_path, hunk) {
                     Ok(()) => {
                         self.status_message = Some(format!("Staged hunk from: {}", file_path));
-                        let prev_hunk_idx = self.diff_hunk_selection;
+                        let prev_hunk_idx = self.diff.diff_hunk_selection;
                         self.refresh_detail();
                         let new_hunk_count = self.get_diff_hunk_ranges().len();
-                        self.diff_hunk_selection =
+                        self.diff.diff_hunk_selection =
                             prev_hunk_idx.min(new_hunk_count.saturating_sub(1));
                         self.scroll_to_selected_hunk();
                     }
@@ -3318,22 +3303,22 @@ impl App {
                 }
                 info.changes
                     .staged
-                    .get(self.staging_file_selection)
+                    .get(self.status_list.staging_file_selection)
                     .map(|f| (resolved.clone(), f.path.clone()))
             }
             _ => None,
         };
         if let Some((repo_path, file_path)) = params {
             let ranges = self.get_diff_hunk_ranges();
-            if let Some(range) = ranges.get(self.diff_hunk_selection) {
-                let hunk = &self.file_diff[range.clone()];
+            if let Some(range) = ranges.get(self.diff.diff_hunk_selection) {
+                let hunk = &self.diff.file_diff[range.clone()];
                 match repo::unstage_hunk(&repo_path, &file_path, hunk) {
                     Ok(()) => {
                         self.status_message = Some(format!("Unstaged hunk from: {}", file_path));
-                        let prev_hunk_idx = self.diff_hunk_selection;
+                        let prev_hunk_idx = self.diff.diff_hunk_selection;
                         self.refresh_detail();
                         let new_hunk_count = self.get_diff_hunk_ranges().len();
-                        self.diff_hunk_selection =
+                        self.diff.diff_hunk_selection =
                             prev_hunk_idx.min(new_hunk_count.saturating_sub(1));
                         self.scroll_to_selected_hunk();
                     }
@@ -3358,22 +3343,22 @@ impl App {
                 }
                 info.changes
                     .unstaged
-                    .get(self.staging_file_selection)
+                    .get(self.status_list.staging_file_selection)
                     .map(|f| (resolved.clone(), f.path.clone()))
             }
             _ => None,
         };
         if let Some((repo_path, file_path)) = params {
             let ranges = self.get_diff_hunk_ranges();
-            if let Some(range) = ranges.get(self.diff_hunk_selection) {
-                let hunk = &self.file_diff[range.clone()];
+            if let Some(range) = ranges.get(self.diff.diff_hunk_selection) {
+                let hunk = &self.diff.file_diff[range.clone()];
                 match repo::discard_hunk(&repo_path, &file_path, hunk) {
                     Ok(()) => {
                         self.status_message = Some(format!("Discarded hunk from: {}", file_path));
-                        let prev_hunk_idx = self.diff_hunk_selection;
+                        let prev_hunk_idx = self.diff.diff_hunk_selection;
                         self.refresh_detail();
                         let new_hunk_count = self.get_diff_hunk_ranges().len();
-                        self.diff_hunk_selection =
+                        self.diff.diff_hunk_selection =
                             prev_hunk_idx.min(new_hunk_count.saturating_sub(1));
                         self.scroll_to_selected_hunk();
                     }
@@ -3398,17 +3383,17 @@ impl App {
                 }
                 info.changes
                     .unstaged
-                    .get(self.staging_file_selection)
+                    .get(self.status_list.staging_file_selection)
                     .map(|f| (resolved.clone(), f.path.clone()))
             }
             _ => None,
         };
         if let Some((repo_path, file_path)) = params {
             let ranges = self.get_diff_hunk_ranges();
-            if let Some(range) = ranges.get(self.diff_hunk_selection) {
-                if range.contains(&self.diff_line_selection) {
-                    let hunk = &self.file_diff[range.clone()];
-                    let selected_line_idx_in_hunk = self.diff_line_selection - range.start;
+            if let Some(range) = ranges.get(self.diff.diff_hunk_selection) {
+                if range.contains(&self.diff.diff_line_selection) {
+                    let hunk = &self.diff.file_diff[range.clone()];
+                    let selected_line_idx_in_hunk = self.diff.diff_line_selection - range.start;
                     match repo::stage_line(&repo_path, &file_path, hunk, selected_line_idx_in_hunk)
                     {
                         Ok(()) => {
@@ -3437,17 +3422,17 @@ impl App {
                 }
                 info.changes
                     .staged
-                    .get(self.staging_file_selection)
+                    .get(self.status_list.staging_file_selection)
                     .map(|f| (resolved.clone(), f.path.clone()))
             }
             _ => None,
         };
         if let Some((repo_path, file_path)) = params {
             let ranges = self.get_diff_hunk_ranges();
-            if let Some(range) = ranges.get(self.diff_hunk_selection) {
-                if range.contains(&self.diff_line_selection) {
-                    let hunk = &self.file_diff[range.clone()];
-                    let selected_line_idx_in_hunk = self.diff_line_selection - range.start;
+            if let Some(range) = ranges.get(self.diff.diff_hunk_selection) {
+                if range.contains(&self.diff.diff_line_selection) {
+                    let hunk = &self.diff.file_diff[range.clone()];
+                    let selected_line_idx_in_hunk = self.diff.diff_line_selection - range.start;
                     match repo::unstage_line(
                         &repo_path,
                         &file_path,
@@ -3481,17 +3466,17 @@ impl App {
                 }
                 info.changes
                     .unstaged
-                    .get(self.staging_file_selection)
+                    .get(self.status_list.staging_file_selection)
                     .map(|f| (resolved.clone(), f.path.clone()))
             }
             _ => None,
         };
         if let Some((repo_path, file_path)) = params {
             let ranges = self.get_diff_hunk_ranges();
-            if let Some(range) = ranges.get(self.diff_hunk_selection) {
-                if range.contains(&self.diff_line_selection) {
-                    let hunk = &self.file_diff[range.clone()];
-                    let selected_line_idx_in_hunk = self.diff_line_selection - range.start;
+            if let Some(range) = ranges.get(self.diff.diff_hunk_selection) {
+                if range.contains(&self.diff.diff_line_selection) {
+                    let hunk = &self.diff.file_diff[range.clone()];
+                    let selected_line_idx_in_hunk = self.diff.diff_line_selection - range.start;
                     match repo::discard_line(
                         &repo_path,
                         &file_path,
@@ -3511,30 +3496,30 @@ impl App {
     }
 
     pub fn refresh_detail_for_line_action(&mut self) {
-        let prev_line_idx = self.diff_line_selection;
+        let prev_line_idx = self.diff.diff_line_selection;
         self.refresh_detail();
 
-        let new_len = self.file_diff.len();
+        let new_len = self.diff.file_diff.len();
         if new_len == 0 {
-            self.diff_line_selection = 0;
-            self.diff_hunk_selection = 0;
-            self.diff_scroll = 0;
+            self.diff.diff_line_selection = 0;
+            self.diff.diff_hunk_selection = 0;
+            self.diff.diff_scroll = 0;
             return;
         }
 
-        self.diff_line_selection = prev_line_idx.min(new_len - 1);
+        self.diff.diff_line_selection = prev_line_idx.min(new_len - 1);
         let ranges = self.get_diff_hunk_ranges();
         for (idx, range) in ranges.iter().enumerate() {
-            if range.contains(&self.diff_line_selection) {
-                self.diff_hunk_selection = idx;
+            if range.contains(&self.diff.diff_line_selection) {
+                self.diff.diff_hunk_selection = idx;
                 break;
             }
         }
 
-        if self.diff_line_selection < self.diff_scroll {
-            self.diff_scroll = self.diff_line_selection;
-        } else if self.diff_line_selection >= self.diff_scroll + 18 {
-            self.diff_scroll = self.diff_line_selection.saturating_sub(17);
+        if self.diff.diff_line_selection < self.diff.diff_scroll {
+            self.diff.diff_scroll = self.diff.diff_line_selection;
+        } else if self.diff.diff_line_selection >= self.diff.diff_scroll + 18 {
+            self.diff.diff_scroll = self.diff.diff_line_selection.saturating_sub(17);
         }
     }
 
@@ -3641,12 +3626,12 @@ impl App {
 
     /// Scroll the commit details panel up by one line.
     pub fn commit_details_scroll_up(&mut self) {
-        self.commit_details_scroll = self.commit_details_scroll.saturating_sub(1);
+        self.commit_list.details_scroll = self.commit_list.details_scroll.saturating_sub(1);
     }
 
     /// Scroll the commit details panel down by one line.
     pub fn commit_details_scroll_down(&mut self) {
-        self.commit_details_scroll = self.commit_details_scroll.saturating_add(1);
+        self.commit_list.details_scroll = self.commit_list.details_scroll.saturating_add(1);
     }
 
     /// Total number of rows in the Commits panel (dirty row + real commits).
@@ -3662,7 +3647,7 @@ impl App {
                     || !info.changes.untracked.is_empty()
                     || !info.changes.conflicted.is_empty();
                 let show_dirty = if dirty {
-                    if let Some(ref query) = self.commit_search_query {
+                    if let Some(ref query) = self.commit_list.search_query {
                         "<uncommitted>".contains(&query.to_lowercase())
                     } else {
                         true
@@ -3685,7 +3670,7 @@ impl App {
                     || !info.changes.untracked.is_empty()
                     || !info.changes.conflicted.is_empty();
                 let show_dirty = if dirty {
-                    if let Some(ref query) = self.commit_search_query {
+                    if let Some(ref query) = self.commit_list.search_query {
                         "<uncommitted>".contains(&query.to_lowercase())
                     } else {
                         true
@@ -3693,13 +3678,13 @@ impl App {
                 } else {
                     false
                 };
-                if show_dirty && self.commit_selection == 0 {
+                if show_dirty && self.commit_list.selection == 0 {
                     return None;
                 }
                 let idx = if show_dirty {
-                    self.commit_selection.saturating_sub(1)
+                    self.commit_list.selection.saturating_sub(1)
                 } else {
-                    self.commit_selection
+                    self.commit_list.selection
                 };
                 if self.in_logs_ui {
                     info.commits.get(idx)
@@ -3727,7 +3712,7 @@ impl App {
                     || !info.changes.untracked.is_empty()
                     || !info.changes.conflicted.is_empty();
                 let show_dirty = if dirty {
-                    if let Some(ref query) = self.commit_search_query {
+                    if let Some(ref query) = self.commit_list.search_query {
                         "<uncommitted>".contains(&query.to_lowercase())
                     } else {
                         true
@@ -3735,7 +3720,7 @@ impl App {
                 } else {
                     false
                 };
-                show_dirty && self.commit_selection == 0
+                show_dirty && self.commit_list.selection == 0
             }
             _ => false,
         }
@@ -3774,7 +3759,7 @@ impl App {
         match &self.current_detail {
             Some(ItemDetail::Repo { resolved, .. }) => {
                 let commit = self.get_selected_commit()?;
-                let file = commit.files.get(self.file_selection)?;
+                let file = commit.files.get(self.status_list.file_selection)?;
                 Some((resolved.clone(), commit.oid.clone(), file.path.clone()))
             }
             _ => None,
@@ -3810,9 +3795,9 @@ impl App {
                 _ => None,
             };
             if let Some((repo_path, commit_oid, file_path)) = params {
-                self.file_diff = repo::get_commit_file_diff(&repo_path, &commit_oid, &file_path);
+                self.diff.file_diff = repo::get_commit_file_diff(&repo_path, &commit_oid, &file_path);
             } else {
-                self.file_diff.clear();
+                self.diff.file_diff.clear();
             }
             return;
         }
@@ -3842,17 +3827,17 @@ impl App {
             };
             if let Some((repo_path, file_path, staged_opt)) = params {
                 if let Some(staged) = staged_opt {
-                    self.file_diff = repo::get_worktree_file_diff(&repo_path, &file_path, staged);
+                    self.diff.file_diff = repo::get_worktree_file_diff(&repo_path, &file_path, staged);
                 } else {
-                    self.file_diff = repo::get_conflict_markers_diff(&repo_path, &file_path);
+                    self.diff.file_diff = repo::get_conflict_markers_diff(&repo_path, &file_path);
                 }
             } else {
-                self.file_diff.clear();
+                self.diff.file_diff.clear();
             }
         } else if let Some((repo_path, commit_oid, file_path)) = self.current_diff_params() {
-            self.file_diff = repo::get_commit_file_diff(&repo_path, &commit_oid, &file_path);
+            self.diff.file_diff = repo::get_commit_file_diff(&repo_path, &commit_oid, &file_path);
         } else {
-            self.file_diff.clear();
+            self.diff.file_diff.clear();
         }
     }
 
@@ -3879,7 +3864,7 @@ impl App {
                     DetailSection::Conflicts => DetailSection::Conflicts,
                     DetailSection::StagingDetails => self.last_staging_focus,
                     _ => {
-                        self.file_diff.clear();
+                        self.diff.file_diff.clear();
                         return;
                     }
                 };
@@ -3887,20 +3872,20 @@ impl App {
                     DetailSection::Staged => info
                         .changes
                         .staged
-                        .get(self.staging_file_selection)
+                        .get(self.status_list.staging_file_selection)
                         .map(|f| (resolved.clone(), f.path.clone(), Some(true))),
                     DetailSection::Unstaged => info
                         .changes
                         .unstaged
-                        .get(self.staging_file_selection)
+                        .get(self.status_list.staging_file_selection)
                         .map(|f| (resolved.clone(), f.path.clone(), Some(false))),
                     DetailSection::Conflicts => info
                         .changes
                         .conflicted
-                        .get(self.conflict_file_selection)
+                        .get(self.status_list.conflict_file_selection)
                         .map(|f| (resolved.clone(), f.path.clone(), None)),
                     _ => {
-                        self.file_diff.clear();
+                        self.diff.file_diff.clear();
                         return;
                     }
                 }
@@ -3909,14 +3894,14 @@ impl App {
         };
         if let Some((repo_path, file_path, staged_opt)) = params {
             if let Some(staged) = staged_opt {
-                self.file_diff = repo::get_worktree_file_diff(&repo_path, &file_path, staged);
+                self.diff.file_diff = repo::get_worktree_file_diff(&repo_path, &file_path, staged);
             } else {
-                self.file_diff = repo::get_conflict_markers_diff(&repo_path, &file_path);
+                self.diff.file_diff = repo::get_conflict_markers_diff(&repo_path, &file_path);
             }
         } else {
-            self.file_diff.clear();
+            self.diff.file_diff.clear();
         }
-        self.diff_hunk_selection = 0;
+        self.diff.diff_hunk_selection = 0;
     }
 
     pub fn refresh_detail(&mut self) {
@@ -3929,7 +3914,7 @@ impl App {
             Some(ItemDetail::Repo { resolved, info }) => info
                 .changes
                 .unstaged
-                .get(self.staging_file_selection)
+                .get(self.status_list.staging_file_selection)
                 .map(|f| (resolved.clone(), f.path.clone())),
             _ => None,
         };
@@ -3950,7 +3935,7 @@ impl App {
             Some(ItemDetail::Repo { resolved, info }) => info
                 .changes
                 .staged
-                .get(self.staging_file_selection)
+                .get(self.status_list.staging_file_selection)
                 .map(|f| (resolved.clone(), f.path.clone())),
             _ => None,
         };
@@ -3971,20 +3956,20 @@ impl App {
             Some(ItemDetail::Repo { resolved, info }) => info
                 .changes
                 .conflicted
-                .get(self.conflict_file_selection)
+                .get(self.status_list.conflict_file_selection)
                 .map(|f| (resolved.clone(), f.path.clone())),
             _ => None,
         };
         if let Some((repo_path, file_path)) = params {
             let result = if self.detail_focus == DetailSection::ConflictDiff {
-                repo::resolve_conflict_hunk(&repo_path, &file_path, self.diff_hunk_selection, true)
+                repo::resolve_conflict_hunk(&repo_path, &file_path, self.diff.diff_hunk_selection, true)
             } else {
                 repo::resolve_ours(&repo_path, &file_path)
             };
             match result {
                 Ok(()) => {
                     let scope = if self.detail_focus == DetailSection::ConflictDiff {
-                        format!("hunk {}", self.diff_hunk_selection + 1)
+                        format!("hunk {}", self.diff.diff_hunk_selection + 1)
                     } else {
                         "whole file".to_string()
                     };
@@ -4005,20 +3990,20 @@ impl App {
             Some(ItemDetail::Repo { resolved, info }) => info
                 .changes
                 .conflicted
-                .get(self.conflict_file_selection)
+                .get(self.status_list.conflict_file_selection)
                 .map(|f| (resolved.clone(), f.path.clone())),
             _ => None,
         };
         if let Some((repo_path, file_path)) = params {
             let result = if self.detail_focus == DetailSection::ConflictDiff {
-                repo::resolve_conflict_hunk(&repo_path, &file_path, self.diff_hunk_selection, false)
+                repo::resolve_conflict_hunk(&repo_path, &file_path, self.diff.diff_hunk_selection, false)
             } else {
                 repo::resolve_theirs(&repo_path, &file_path)
             };
             match result {
                 Ok(()) => {
                     let scope = if self.detail_focus == DetailSection::ConflictDiff {
-                        format!("hunk {}", self.diff_hunk_selection + 1)
+                        format!("hunk {}", self.diff.diff_hunk_selection + 1)
                     } else {
                         "whole file".to_string()
                     };
@@ -4039,7 +4024,7 @@ impl App {
             Some(ItemDetail::Repo { resolved, info }) => info
                 .changes
                 .conflicted
-                .get(self.conflict_file_selection)
+                .get(self.status_list.conflict_file_selection)
                 .map(|f| (resolved.clone(), f.path.clone())),
             _ => None,
         };
@@ -4108,14 +4093,14 @@ impl App {
         if let Some(ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.changes.conflicted.len();
             if total == 0 {
-                self.conflict_file_selection = 0;
+                self.status_list.conflict_file_selection = 0;
                 if self.detail_focus == DetailSection::Conflicts
                     || self.detail_focus == DetailSection::ConflictDiff
                 {
                     self.detail_focus = DetailSection::Unstaged;
                 }
-            } else if self.conflict_file_selection >= total {
-                self.conflict_file_selection = total.saturating_sub(1);
+            } else if self.status_list.conflict_file_selection >= total {
+                self.status_list.conflict_file_selection = total.saturating_sub(1);
             }
         }
     }
@@ -4166,12 +4151,12 @@ impl App {
                 DetailSection::Staged => info
                     .changes
                     .staged
-                    .get(self.staging_file_selection)
+                    .get(self.status_list.staging_file_selection)
                     .map(|f| (resolved.clone(), f.path.clone(), true)),
                 DetailSection::Unstaged => info
                     .changes
                     .unstaged
-                    .get(self.staging_file_selection)
+                    .get(self.status_list.staging_file_selection)
                     .map(|f| (resolved.clone(), f.path.clone(), false)),
                 _ => None,
             },
@@ -4214,14 +4199,14 @@ impl App {
 
     pub fn close_detail(&mut self) {
         self.current_detail = None;
-        self.commit_search_query = None;
+        self.commit_list.search_query = None;
         self.loading_repo_path = None;
         self.mode = Mode::Normal;
     }
 
     pub fn get_filtered_commits(&self) -> Vec<&crate::repo::CommitEntry> {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if let Some(ref query) = self.commit_search_query {
+            if let Some(ref query) = self.commit_list.search_query {
                 let q = query.to_lowercase();
                 info.commits
                     .iter()
@@ -4241,7 +4226,7 @@ impl App {
     }
 
     pub fn commit_matches_query(&self, commit: &crate::repo::CommitEntry) -> bool {
-        if let Some(ref query) = self.commit_search_query {
+        if let Some(ref query) = self.commit_list.search_query {
             if query.is_empty() {
                 return false;
             }
@@ -4268,33 +4253,33 @@ impl App {
     pub fn clamp_commit_selection(&mut self) {
         let total = self.commit_total();
         if total == 0 {
-            self.commit_selection = 0;
-        } else if self.commit_selection >= total {
-            self.commit_selection = total - 1;
+            self.commit_list.selection = 0;
+        } else if self.commit_list.selection >= total {
+            self.commit_list.selection = total - 1;
         }
     }
 
     #[allow(dead_code)]
     pub fn start_commit_search(&mut self) {
-        self.input_buffer = self.commit_search_query.clone().unwrap_or_default();
+        self.input_buffer = self.commit_list.search_query.clone().unwrap_or_default();
         self.mode = Mode::CommitSearchInput;
     }
 
     pub fn cancel_commit_search(&mut self) {
-        self.commit_search_query = None;
+        self.commit_list.search_query = None;
         self.clamp_commit_selection();
-        self.file_selection = 0;
-        self.diff_scroll = 0;
+        self.status_list.file_selection = 0;
+        self.diff.diff_scroll = 0;
         self.refresh_file_diff();
         self.mode = Mode::Detail;
     }
 
     pub fn commit_search_input_change(&mut self) {
-        self.commit_search_query =
+        self.commit_list.search_query =
             if self.input_buffer.is_empty() { None } else { Some(self.input_buffer.clone()) };
         self.clamp_commit_selection();
-        self.file_selection = 0;
-        self.diff_scroll = 0;
+        self.status_list.file_selection = 0;
+        self.diff.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
@@ -5632,43 +5617,38 @@ impl App {
         self.file_content_scroll = max;
     }
 
-    pub fn diff_scroll_to_top(&mut self) {
-        self.diff_scroll = 0;
-    }
 
-    pub fn diff_scroll_to_bottom(&mut self) {
-        let max = self.file_diff.len().saturating_sub(1);
-        self.diff_scroll = max;
-    }
+
+
 
     pub fn detail_commit_to_top(&mut self) {
-        if self.in_logs_ui && self.commit_search_query.is_some() {
+        if self.in_logs_ui && self.commit_list.search_query.is_some() {
             let matching_indices = self.get_logs_matching_indices();
             if let Some(&first) = matching_indices.first() {
-                self.commit_selection = first;
+                self.commit_list.selection = first;
             }
         } else {
-            self.commit_selection = 0;
+            self.commit_list.selection = 0;
         }
-        self.file_selection = 0;
-        self.diff_scroll = 0;
+        self.status_list.file_selection = 0;
+        self.diff.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
     pub fn detail_commit_to_bottom(&mut self) {
-        if self.in_logs_ui && self.commit_search_query.is_some() {
+        if self.in_logs_ui && self.commit_list.search_query.is_some() {
             let matching_indices = self.get_logs_matching_indices();
             if let Some(&last) = matching_indices.last() {
-                self.commit_selection = last;
+                self.commit_list.selection = last;
             }
         } else {
             let total = self.commit_total();
             if total > 0 {
-                self.commit_selection = total - 1;
+                self.commit_list.selection = total - 1;
             }
         }
-        self.file_selection = 0;
-        self.diff_scroll = 0;
+        self.status_list.file_selection = 0;
+        self.diff.diff_scroll = 0;
         self.refresh_file_diff();
     }
 
@@ -5765,7 +5745,7 @@ impl App {
                 || !info.changes.untracked.is_empty()
                 || !info.changes.conflicted.is_empty();
             let commit_idx =
-                if dirty { self.commit_selection.saturating_sub(1) } else { self.commit_selection };
+                if dirty { self.commit_list.selection.saturating_sub(1) } else { self.commit_list.selection };
             info.commits.get(commit_idx).map(|commit| commit.oid.clone())
         } else {
             None
@@ -7260,7 +7240,7 @@ mod tests {
         });
 
         // 1. Cherry-pick flow
-        app.commit_selection = 0;
+        app.commit_list.selection = 0;
         app.request_cherry_pick();
         assert_eq!(app.mode, Mode::CherryPickConfirm);
         assert!(app.cherry_pick_target.is_some());
@@ -7274,7 +7254,7 @@ mod tests {
         assert!(app.cherry_pick_target.is_none());
 
         // 2. Revert flow
-        app.commit_selection = 0;
+        app.commit_list.selection = 0;
         app.request_revert();
         assert_eq!(app.mode, Mode::RevertConfirm);
         assert!(app.revert_target.is_some());
@@ -7708,7 +7688,7 @@ mod tests {
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
         crate::input::handle_mouse(&mut app, commit_click);
-        assert_eq!(app.commit_selection, 1);
+        assert_eq!(app.commit_list.selection, 1);
         assert_eq!(app.detail_focus, DetailSection::Commits);
 
         // 2. Staged subpanel click test
@@ -7734,7 +7714,7 @@ mod tests {
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
         crate::input::handle_mouse(&mut app, staged_click);
-        assert_eq!(app.staging_file_selection, 1);
+        assert_eq!(app.status_list.staging_file_selection, 1);
         assert_eq!(app.detail_focus, DetailSection::Staged);
 
         // 3. Unstaged subpanel click test
@@ -7755,7 +7735,7 @@ mod tests {
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
         crate::input::handle_mouse(&mut app, unstaged_click);
-        assert_eq!(app.staging_file_selection, 0);
+        assert_eq!(app.status_list.staging_file_selection, 0);
         assert_eq!(app.detail_focus, DetailSection::Unstaged);
 
         // 4. Local branches click test
@@ -8310,7 +8290,7 @@ mod tests {
             resolved: PathBuf::from("."),
             info: Box::new(info),
         });
-        app.commit_selection = 0;
+        app.commit_list.selection = 0;
 
         // Verify we are not in Inspect mode
         assert_ne!(app.mode, Mode::Inspect);
@@ -8376,7 +8356,7 @@ mod tests {
             resolved: PathBuf::from("."),
             info: Box::new(info),
         });
-        app.commit_selection = 0;
+        app.commit_list.selection = 0;
 
         // Verify we are not in Inspect mode
         assert_ne!(app.mode, Mode::Inspect);
@@ -8435,7 +8415,7 @@ mod tests {
             resolved: PathBuf::from("."),
             info: Box::new(info),
         });
-        app.commit_selection = 0;
+        app.commit_list.selection = 0;
 
         assert_eq!(app.mode, Mode::Inspect);
         assert!(app.is_uncommitted_selected());
@@ -8493,7 +8473,7 @@ mod tests {
             resolved: PathBuf::from("."),
             info: Box::new(info),
         });
-        app.commit_selection = 0;
+        app.commit_list.selection = 0;
 
         assert!(app.is_uncommitted_selected());
 
@@ -8553,7 +8533,7 @@ mod tests {
             resolved: PathBuf::from("."),
             info: Box::new(info),
         });
-        app.commit_selection = 0;
+        app.commit_list.selection = 0;
 
         assert!(app.is_uncommitted_selected());
 
@@ -8682,7 +8662,7 @@ mod tests {
             resolved: PathBuf::from("."),
             info: Box::new(info),
         });
-        app.commit_selection = 0; // index 0 is "<uncommitted>"
+        app.commit_list.selection = 0; // index 0 is "<uncommitted>"
 
         // We cycle from Commits -> Staged (since Staged is not empty)
         app.cycle_detail_focus(false);
@@ -8710,7 +8690,7 @@ mod tests {
 
         // 2. Regular commit selected (is_uncommitted_selected is false)
         // With a regular commit, staged & unstaged are empty.
-        app.commit_selection = 1; // Not uncommitted
+        app.commit_list.selection = 1; // Not uncommitted
 
         let empty_info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
@@ -8943,27 +8923,27 @@ mod tests {
         crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
 
         assert_eq!(app.mode, Mode::Logs);
-        assert_eq!(app.commit_search_query.as_deref(), Some("test"));
+        assert_eq!(app.commit_list.search_query.as_deref(), Some("test"));
         assert_eq!(app.commit_total(), 5);
 
         // Test scrolling/navigation (should only jump between matches: 0, 2, 4)
-        assert_eq!(app.commit_selection, 0); // starts at 0 (which is a match)
+        assert_eq!(app.commit_list.selection, 0); // starts at 0 (which is a match)
         crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
-        assert_eq!(app.commit_selection, 2); // skips non-match at index 1
+        assert_eq!(app.commit_list.selection, 2); // skips non-match at index 1
         crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
-        assert_eq!(app.commit_selection, 4); // skips non-match at index 3
+        assert_eq!(app.commit_list.selection, 4); // skips non-match at index 3
         crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
-        assert_eq!(app.commit_selection, 4); // remains at last match
+        assert_eq!(app.commit_list.selection, 4); // remains at last match
 
         crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-        assert_eq!(app.commit_selection, 0); // jumps back to first match
+        assert_eq!(app.commit_list.selection, 0); // jumps back to first match
         crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
-        assert_eq!(app.commit_selection, 4); // jumps back to last match
+        assert_eq!(app.commit_list.selection, 4); // jumps back to last match
 
         crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
-        assert_eq!(app.commit_selection, 2);
+        assert_eq!(app.commit_list.selection, 2);
         crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
-        assert_eq!(app.commit_selection, 0);
+        assert_eq!(app.commit_list.selection, 0);
 
         // 6. Test match helper
         let matching_commit = crate::repo::CommitEntry {
@@ -9018,7 +8998,7 @@ mod tests {
         crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
         assert_eq!(app.mode, Mode::Detail);
         assert!(!app.in_logs_ui);
-        assert!(app.commit_search_query.is_none());
+        assert!(app.commit_list.search_query.is_none());
     }
 
     #[test]
@@ -10122,7 +10102,7 @@ mod tests {
         });
 
         // Select the committed item
-        app.commit_selection = 0;
+        app.commit_list.selection = 0;
         app.detail_tab = 0;
 
         // Try yanking. Note: since standard clipboards might fail in some test/headless envs,
@@ -10197,7 +10177,7 @@ mod tests {
         });
 
         // Trigger cherry pick
-        app.commit_selection = 0;
+        app.commit_list.selection = 0;
         app.request_cherry_pick();
 
         assert_eq!(app.mode, Mode::CherryPickConfirm);

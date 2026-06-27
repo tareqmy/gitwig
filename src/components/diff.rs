@@ -1,3 +1,13 @@
+
+#[derive(Default)]
+pub struct DiffComponent {
+    pub file_diff: Vec<crate::repo::DiffLine>,
+    pub diff_scroll: usize,
+    pub diff_hunk_selection: usize,
+    pub diff_line_mode: bool,
+    pub diff_line_selection: usize,
+}
+
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
 use ratatui::style::{Color, Modifier, Style};
@@ -279,3 +289,31 @@ pub fn draw_inspect_window(
     }
 }
 
+
+impl DiffComponent {
+    pub fn diff_scroll_up(&mut self) {
+        self.diff_scroll = self.diff_scroll.saturating_sub(1);
+    }
+    /// Scroll the diff panel down by one line, clamped so the last line stays visible.
+    pub fn diff_scroll_down(&mut self) {
+        let max = self.file_diff.len().saturating_sub(1);
+        if self.diff_scroll < max {
+            self.diff_scroll += 1;
+        }
+    }
+    pub fn diff_scroll_page_up(&mut self, page: usize) {
+        self.diff_scroll = self.diff_scroll.saturating_sub(page);
+    }
+    /// Scroll the diff panel down by  lines.
+    pub fn diff_scroll_page_down(&mut self, page: usize) {
+        let max = self.file_diff.len().saturating_sub(1);
+        self.diff_scroll = (self.diff_scroll + page).min(max);
+    }
+    pub fn diff_scroll_to_top(&mut self) {
+        self.diff_scroll = 0;
+    }
+    pub fn diff_scroll_to_bottom(&mut self) {
+        let max = self.file_diff.len().saturating_sub(1);
+        self.diff_scroll = max;
+    }
+}
