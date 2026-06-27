@@ -222,3 +222,44 @@ pub fn draw_commit_popup(
     }
 }
 
+
+pub struct GenericInputPopup {
+    pub queue: Queue,
+}
+
+impl GenericInputPopup {
+    pub fn new(queue: Queue) -> Self {
+        Self { queue }
+    }
+}
+
+impl DrawableComponent for GenericInputPopup {
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+}
+
+impl Component for GenericInputPopup {
+    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+        if let Event::Key(key) = ev {
+            match key.code {
+                KeyCode::Esc => {
+                    self.queue.push(InternalEvent::InputEsc);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Enter => {
+                    self.queue.push(InternalEvent::InputEnter);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Backspace => {
+                    self.queue.push(InternalEvent::InputBackspace);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char(c) => {
+                    self.queue.push(InternalEvent::InputChar(c));
+                    return Ok(EventState::Consumed);
+                }
+                _ => {}
+            }
+        }
+        Ok(EventState::NotConsumed)
+    }
+}

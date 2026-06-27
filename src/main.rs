@@ -97,3 +97,4 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+pub mod mouse;

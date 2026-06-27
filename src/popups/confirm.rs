@@ -943,3 +943,40 @@ pub fn draw_remote_delete_popup(f: &mut Frame, remote_name: &str, area: Rect) {
     f.render_widget(paragraph, inner_area);
 }
 
+
+use crossterm::event::{Event, KeyCode};
+use crate::components::{Component, EventState, DrawableComponent};
+use crate::queue::{Queue, InternalEvent};
+
+pub struct ConfirmPopup {
+    pub queue: Queue,
+}
+
+impl ConfirmPopup {
+    pub fn new(queue: Queue) -> Self {
+        Self { queue }
+    }
+}
+
+impl DrawableComponent for ConfirmPopup {
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+}
+
+impl Component for ConfirmPopup {
+    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+        if let Event::Key(key) = ev {
+            match key.code {
+                KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
+                    self.queue.push(InternalEvent::ConfirmYes);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                    self.queue.push(InternalEvent::ConfirmNo);
+                    return Ok(EventState::Consumed);
+                }
+                _ => {}
+            }
+        }
+        Ok(EventState::NotConsumed)
+    }
+}

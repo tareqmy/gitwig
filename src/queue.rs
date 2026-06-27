@@ -30,6 +30,12 @@ pub enum NeedsUpdate {
 pub enum InternalEvent {
     ConfirmAction(Action),
     ConfirmedAction(Action),
+    ConfirmYes,
+    ConfirmNo,
+    InputChar(char),
+    InputBackspace,
+    InputEnter,
+    InputEsc,
     ShowError(String),
     ShowStatus(String),
     Update(NeedsUpdate),

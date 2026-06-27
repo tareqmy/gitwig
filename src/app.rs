@@ -247,6 +247,8 @@ pub struct App {
     /// Selected row index inside the Commits panel (0 = top row).
     pub commit_list: crate::components::commit_list::CommitListComponent,
     pub commit_popup: crate::popups::commit::CommitPopup,
+    pub confirm_popup: crate::popups::confirm::ConfirmPopup,
+    pub generic_input_popup: crate::popups::commit::GenericInputPopup,
     /// Dynamic commit limit for pagination
 
     /// Active query for filtering commits in the commits panel
@@ -438,7 +440,75 @@ impl App {
         while let Some(ev) = self.queue.pop() {
             match ev {
                 
-                crate::queue::InternalEvent::ClosePopup => self.mode = Mode::Detail, // simplified
+                crate::queue::InternalEvent::ClosePopup => self.mode = Mode::Detail,
+
+                crate::queue::InternalEvent::ConfirmYes => {
+                    match self.mode {
+                        Mode::BranchDeleteConfirm => { self.confirm_branch_delete() }
+                        Mode::BranchPushConfirm => { self.confirm_branch_push() }
+                        Mode::BranchMergeConfirm => { self.confirm_branch_merge() }
+                        Mode::MergeAbortConfirm => { self.confirm_abort_merge() }
+                        Mode::MergeContinueConfirm => { self.confirm_continue_merge() }
+                        Mode::BranchRebaseConfirm => { self.confirm_branch_rebase() }
+                        Mode::BranchInteractiveRebaseConfirm => { self.confirm_branch_interactive_rebase() }
+                        Mode::DiscardChangesConfirm => { self.confirm_discard_changes() }
+                        Mode::RevertConfirm => { self.confirm_revert() }
+                        Mode::TagDeleteConfirm => { self.confirm_tag_delete() }
+                        Mode::TagPushConfirm => { self.confirm_tag_push() }
+                        Mode::TagPushAllConfirm => { self.confirm_tag_push_all() }
+                        Mode::StashDeleteConfirm => { self.confirm_stash_delete() }
+                        Mode::BranchCheckoutConfirm => { self.confirm_branch_checkout() }
+                        Mode::TagCheckoutConfirm => { self.confirm_tag_checkout() }
+                        Mode::RemoteDeleteConfirm => { self.confirm_remote_delete() }
+                        _ => {}
+                    }
+                }
+                crate::queue::InternalEvent::ConfirmNo => {
+                    match self.mode {
+                        Mode::BranchDeleteConfirm => { self.cancel_branch_delete() }
+                        Mode::BranchPushConfirm => { self.cancel_branch_push() }
+                        Mode::BranchMergeConfirm => { self.cancel_branch_merge() }
+                        Mode::MergeAbortConfirm => { self.mode = Mode::Detail; }
+                        Mode::MergeContinueConfirm => { self.mode = Mode::Detail; }
+                        Mode::BranchRebaseConfirm => { self.cancel_branch_rebase() }
+                        Mode::BranchInteractiveRebaseConfirm => { self.cancel_branch_interactive_rebase() }
+                        Mode::DiscardChangesConfirm => { self.cancel_discard_changes() }
+                        Mode::RevertConfirm => { self.cancel_revert() }
+                        Mode::TagDeleteConfirm => { self.cancel_tag_delete() }
+                        Mode::TagPushConfirm => { self.cancel_tag_push() }
+                        Mode::TagPushAllConfirm => { self.cancel_tag_push_all() }
+                        Mode::StashDeleteConfirm => { self.cancel_stash_delete() }
+                        Mode::BranchCheckoutConfirm => { self.cancel_branch_checkout() }
+                        Mode::TagCheckoutConfirm => { self.cancel_tag_checkout() }
+                        Mode::RemoteDeleteConfirm => { self.remote_action_target = None;
+                        self.mode = Mode::Detail; }
+                        _ => { self.mode = Mode::Detail; }
+                    }
+                }
+                crate::queue::InternalEvent::InputChar(c) => self.input_char(c),
+                crate::queue::InternalEvent::InputBackspace => self.input_backspace(),
+                crate::queue::InternalEvent::InputEnter => {
+                    match self.mode {
+                        Mode::BranchCreateInput => { self.commit_branch_create() }
+                        Mode::TagCreateInput => { self.commit_tag_create() }
+                        Mode::StashCreateInput => { self.commit_stash_create() }
+                        Mode::RemoteAddNameInput => { self.commit_remote_add_name() }
+                        Mode::RemoteAddUrlInput => { self.commit_remote_add_url() }
+                        _ => {}
+                    }
+                }
+                crate::queue::InternalEvent::InputEsc => {
+                    match self.mode {
+                        Mode::BranchCreateInput => { self.cancel_branch_create() }
+                        Mode::TagCreateInput => { self.tag_action_target_oid = None;
+                        self.mode = Mode::Detail; }
+                        Mode::StashCreateInput => { self.mode = Mode::Detail; }
+                        Mode::RemoteAddNameInput => { self.mode = Mode::Detail; }
+                        Mode::RemoteAddUrlInput => { self.mode = Mode::Detail; }
+                        _ => { self.mode = Mode::Detail; }
+                    }
+                }
+ // simplified
                 crate::queue::InternalEvent::Commit => {
                     self.commit_git_changes();
                 }
@@ -626,6 +696,8 @@ impl App {
             stash_list: crate::components::stash_list::StashListComponent::new(queue.clone()),
             commit_list: crate::components::commit_list::CommitListComponent { limit: 100, queue: queue.clone(), ..Default::default() },
             commit_popup: crate::popups::commit::CommitPopup::new(queue.clone()),
+            confirm_popup: crate::popups::confirm::ConfirmPopup::new(queue.clone()),
+            generic_input_popup: crate::popups::commit::GenericInputPopup::new(queue.clone()),
             
             
             repo_search_query: None,
@@ -6542,7 +6614,7 @@ where
                     }
                 }
                 Event::Mouse(mouse) => {
-                    input::handle_mouse(&mut app, mouse);
+                    crate::mouse::handle_mouse(&mut app, mouse);
                 }
                 _ => {}
             }
@@ -7529,7 +7601,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, down_event);
+        crate::mouse::handle_mouse(&mut app, down_event);
         assert_eq!(app.active_drag_splitter, Some(Splitter::InspectHorizontal));
 
         // Drag to column 30 (which means 30% of total width 100)
@@ -7539,7 +7611,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, drag_event);
+        crate::mouse::handle_mouse(&mut app, drag_event);
         assert_eq!(app.inspect_horizontal_split_pct, 30);
 
         // Release mouse
@@ -7549,7 +7621,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, up_event);
+        crate::mouse::handle_mouse(&mut app, up_event);
         assert_eq!(app.active_drag_splitter, None);
 
         // Test WorkspaceMain splitter dragging
@@ -7564,7 +7636,7 @@ mod tests {
             row: 19,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, down_event_main);
+        crate::mouse::handle_mouse(&mut app, down_event_main);
         assert_eq!(app.active_drag_splitter, Some(Splitter::WorkspaceMain));
 
         // Drag to row 25 (which is 50% height since total height is 50)
@@ -7574,7 +7646,7 @@ mod tests {
             row: 25,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, drag_event_main);
+        crate::mouse::handle_mouse(&mut app, drag_event_main);
         assert_eq!(app.workspace_main_split_pct, 50);
 
         // Drag to row 15 (which is 30% height)
@@ -7584,7 +7656,7 @@ mod tests {
             row: 15,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, drag_event_main_2);
+        crate::mouse::handle_mouse(&mut app, drag_event_main_2);
         assert_eq!(app.workspace_main_split_pct, 30);
 
         // Release mouse
@@ -7594,7 +7666,7 @@ mod tests {
             row: 15,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, up_event_main);
+        crate::mouse::handle_mouse(&mut app, up_event_main);
         assert_eq!(app.active_drag_splitter, None);
 
         // Test Files splitter dragging
@@ -7608,7 +7680,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, down_event_files);
+        crate::mouse::handle_mouse(&mut app, down_event_files);
         assert_eq!(app.active_drag_splitter, Some(Splitter::FilesHorizontal));
 
         let drag_event_files = MouseEvent {
@@ -7617,7 +7689,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, drag_event_files);
+        crate::mouse::handle_mouse(&mut app, drag_event_files);
         assert_eq!(app.files_horizontal_split_pct, 60);
 
         let up_event_files = MouseEvent {
@@ -7626,7 +7698,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, up_event_files);
+        crate::mouse::handle_mouse(&mut app, up_event_files);
         assert_eq!(app.active_drag_splitter, None);
 
         // Test Branches splitter dragging
@@ -7641,7 +7713,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, down_event_branches);
+        crate::mouse::handle_mouse(&mut app, down_event_branches);
         assert_eq!(app.active_drag_splitter, Some(Splitter::BranchesHorizontal));
 
         let drag_event_branches = MouseEvent {
@@ -7650,7 +7722,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, drag_event_branches);
+        crate::mouse::handle_mouse(&mut app, drag_event_branches);
         assert_eq!(app.branches_horizontal_split_pct, 35);
 
         let up_event_branches = MouseEvent {
@@ -7659,7 +7731,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, up_event_branches);
+        crate::mouse::handle_mouse(&mut app, up_event_branches);
         assert_eq!(app.active_drag_splitter, None);
 
         // Test Stashes splitter dragging (horizontal & vertical)
@@ -7677,7 +7749,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, down_stashes_h);
+        crate::mouse::handle_mouse(&mut app, down_stashes_h);
         assert_eq!(app.active_drag_splitter, Some(Splitter::StashesHorizontal));
 
         let drag_stashes_h = MouseEvent {
@@ -7686,7 +7758,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, drag_stashes_h);
+        crate::mouse::handle_mouse(&mut app, drag_stashes_h);
         assert_eq!(app.stashes_horizontal_split_pct, 40);
 
         let up_stashes_h = MouseEvent {
@@ -7695,7 +7767,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, up_stashes_h);
+        crate::mouse::handle_mouse(&mut app, up_stashes_h);
 
         // Click stashes vertical splitter
         let down_stashes_v = MouseEvent {
@@ -7704,7 +7776,7 @@ mod tests {
             row: 24,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, down_stashes_v);
+        crate::mouse::handle_mouse(&mut app, down_stashes_v);
         assert_eq!(app.active_drag_splitter, Some(Splitter::StashesVertical));
 
         let drag_stashes_v = MouseEvent {
@@ -7713,7 +7785,7 @@ mod tests {
             row: 30,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, drag_stashes_v);
+        crate::mouse::handle_mouse(&mut app, drag_stashes_v);
         assert_eq!(app.stashes_vertical_split_pct, 60);
 
         let up_stashes_v = MouseEvent {
@@ -7722,7 +7794,7 @@ mod tests {
             row: 30,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, up_stashes_v);
+        crate::mouse::handle_mouse(&mut app, up_stashes_v);
 
         // Test Overview splitter dragging
         app.detail_areas = DetailAreas::default();
@@ -7735,7 +7807,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, down_overview);
+        crate::mouse::handle_mouse(&mut app, down_overview);
         assert_eq!(app.active_drag_splitter, Some(Splitter::OverviewHorizontal));
 
         let drag_overview = MouseEvent {
@@ -7744,7 +7816,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, drag_overview);
+        crate::mouse::handle_mouse(&mut app, drag_overview);
         assert_eq!(app.overview_horizontal_split_pct, 30);
 
         let up_overview = MouseEvent {
@@ -7753,7 +7825,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, up_overview);
+        crate::mouse::handle_mouse(&mut app, up_overview);
         assert_eq!(app.active_drag_splitter, None);
     }
 
@@ -7844,7 +7916,7 @@ mod tests {
             row: 3,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, commit_click);
+        crate::mouse::handle_mouse(&mut app, commit_click);
         assert_eq!(app.commit_list.selection, 1);
         assert_eq!(app.detail_focus, DetailSection::Commits);
 
@@ -7870,7 +7942,7 @@ mod tests {
             row: 22,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, staged_click);
+        crate::mouse::handle_mouse(&mut app, staged_click);
         assert_eq!(app.status_list.staging_file_selection, 1);
         assert_eq!(app.detail_focus, DetailSection::Staged);
 
@@ -7891,7 +7963,7 @@ mod tests {
             row: 31,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, unstaged_click);
+        crate::mouse::handle_mouse(&mut app, unstaged_click);
         assert_eq!(app.status_list.staging_file_selection, 0);
         assert_eq!(app.detail_focus, DetailSection::Unstaged);
 
@@ -7933,7 +8005,7 @@ mod tests {
             row: 2, // inner.y = 1, so row 2 is index 1
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, local_branch_click);
+        crate::mouse::handle_mouse(&mut app, local_branch_click);
         assert_eq!(app.branch_list.local_branch_selection, 1);
         assert_eq!(app.detail_focus, DetailSection::LocalBranches);
 
@@ -7960,7 +8032,7 @@ mod tests {
             row: 1, // index 0
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, remote_branch_click);
+        crate::mouse::handle_mouse(&mut app, remote_branch_click);
         assert_eq!(app.branch_list.remote_branch_selection, 0);
         assert_eq!(app.detail_focus, DetailSection::RemoteBranches);
 
@@ -7996,7 +8068,7 @@ mod tests {
             row: 2, // index 1
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, tag_click);
+        crate::mouse::handle_mouse(&mut app, tag_click);
         assert_eq!(app.tag_list.local_tag_selection, 1);
         assert_eq!(app.detail_focus, DetailSection::LocalTags);
 
@@ -8032,7 +8104,7 @@ mod tests {
             row: 2, // index 1
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, remote_click);
+        crate::mouse::handle_mouse(&mut app, remote_click);
         assert_eq!(app.branch_list.remote_selection, 1);
         assert_eq!(app.detail_focus, DetailSection::Remotes);
 
@@ -8071,7 +8143,7 @@ mod tests {
             row: 2, // index 1
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, stash_click);
+        crate::mouse::handle_mouse(&mut app, stash_click);
         assert_eq!(app.stash_list.stash_selection, 1);
         assert_eq!(app.detail_focus, DetailSection::Stashes);
 
@@ -8086,7 +8158,7 @@ mod tests {
             row: 22, // index 1 (relative to 21)
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, stash_file_click);
+        crate::mouse::handle_mouse(&mut app, stash_file_click);
         assert_eq!(app.stash_list.stash_file_selection, 1);
         assert_eq!(app.detail_focus, DetailSection::StashedFiles);
     }
@@ -9901,7 +9973,7 @@ mod tests {
             row: 10,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, mouse_event);
+        crate::mouse::handle_mouse(&mut app, mouse_event);
 
         // Error message should be dismissed (None)
         assert_eq!(app.error_message, None);
@@ -10191,7 +10263,7 @@ mod tests {
             row: 50,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, down_event);
+        crate::mouse::handle_mouse(&mut app, down_event);
         assert_eq!(app.active_drag_splitter, Some(Splitter::CommitPopupWidth));
 
         // Drag right border to column 95 -> new half_width = |95 - 50| = 45 -> new_width = 90 -> 90%
@@ -10201,7 +10273,7 @@ mod tests {
             row: 50,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, drag_event);
+        crate::mouse::handle_mouse(&mut app, drag_event);
         assert_eq!(app.commit_popup_width_pct, 90);
 
         // Release mouse
@@ -10211,7 +10283,7 @@ mod tests {
             row: 50,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        crate::input::handle_mouse(&mut app, up_event);
+        crate::mouse::handle_mouse(&mut app, up_event);
         assert_eq!(app.active_drag_splitter, None);
     }
 
