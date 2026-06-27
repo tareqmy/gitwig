@@ -1697,6 +1697,14 @@ fn draw_status_layout(
             false
         };
 
+    let status_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Min(1), Constraint::Length(25)])
+        .split(area);
+
+    let left_area = status_chunks[0];
+    let right_area = status_chunks[1];
+
     let mut spans = Vec::new();
     if is_merging {
         spans.push(Span::styled(
@@ -1715,7 +1723,7 @@ fn draw_status_layout(
         initial_width += msg.iter().map(|s| s.content.chars().count()).sum::<usize>();
     }
 
-    let max_width = area.width as usize;
+    let max_width = left_area.width as usize;
 
     if app.status_expanded {
         for entry in entries {
@@ -1729,7 +1737,7 @@ fn draw_status_layout(
         spans.push(Span::styled("]", muted_style()));
 
         let para = Paragraph::new(Line::from(spans)).wrap(Wrap { trim: true });
-        f.render_widget(para, area);
+        f.render_widget(para, left_area);
     } else {
         // Need to truncate whole entries. Leave space for " More [.]" which is 9 chars plus 2 safe buffer.
         let limit = max_width.saturating_sub(11);
@@ -1763,7 +1771,20 @@ fn draw_status_layout(
         }
 
         let para = Paragraph::new(Line::from(spans));
-        f.render_widget(para, area);
+        f.render_widget(para, left_area);
+    }
+
+    // Render CPU & Memory Stats on the right
+    let (rss_mb, cpu_pct) = get_process_stats(app);
+    let stats_text = if rss_mb > 0.0 {
+        format!(" MEM: {:.1}MB | CPU: {:.1}% ", rss_mb, cpu_pct)
+    } else {
+        "".to_string()
+    };
+    if !stats_text.is_empty() {
+        let stats_line =
+            Line::from(vec![Span::styled(stats_text, muted_style())]).alignment(Alignment::Right);
+        f.render_widget(Paragraph::new(stats_line), right_area);
     }
 }
 
@@ -3616,6 +3637,59 @@ fn draw_loading_screen(f: &mut Frame, area: Rect, app: &App) {
 
     f.render_widget(Paragraph::new(text_line), chunks[1]);
     f.render_widget(Paragraph::new(cancel_line), chunks[3]);
+}
+
+#[cfg(unix)]
+fn get_process_stats(app: &App) -> (f64, f64) {
+    if let Ok(mut guard) = app.cpu_tracker.lock() {
+        let now = std::time::Instant::now();
+
+        // If 2000 ms has not elapsed, return the cached values
+        if let Some((_, prev_time, cached_cpu, cached_rss)) = *guard {
+            if now.duration_since(prev_time) < std::time::Duration::from_millis(2000) {
+                return (cached_rss, cached_cpu);
+            }
+        }
+
+        let mut usage = std::mem::MaybeUninit::<libc::rusage>::uninit();
+        let res = unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) };
+        if res != 0 {
+            if let Some((_, _, cached_cpu, cached_rss)) = *guard {
+                return (cached_rss, cached_cpu);
+            }
+            return (0.0, 0.0);
+        }
+        let usage = unsafe { usage.assume_init() };
+
+        #[cfg(target_os = "macos")]
+        let rss_bytes = usage.ru_maxrss as f64;
+        #[cfg(not(target_os = "macos"))]
+        let rss_bytes = (usage.ru_maxrss * 1024) as f64;
+        let rss_mb = rss_bytes / (1024.0 * 1024.0);
+
+        let user_sec = usage.ru_utime.tv_sec as f64 + (usage.ru_utime.tv_usec as f64 / 1_000_000.0);
+        let sys_sec = usage.ru_stime.tv_sec as f64 + (usage.ru_stime.tv_usec as f64 / 1_000_000.0);
+        let total_cpu_sec = user_sec + sys_sec;
+
+        let mut cpu_pct = 0.0;
+        if let Some((prev_cpu, prev_time, _, _)) = *guard {
+            let delta_cpu = total_cpu_sec - prev_cpu;
+            let delta_time = now.duration_since(prev_time).as_secs_f64();
+            if delta_time > 0.0 {
+                cpu_pct = (delta_cpu / delta_time) * 100.0;
+            }
+        }
+        *guard = Some((total_cpu_sec, now, cpu_pct, rss_mb));
+
+        (rss_mb, cpu_pct)
+    } else {
+        (0.0, 0.0)
+    }
+}
+
+#[cfg(not(unix))]
+fn get_process_stats(_app: &App) -> (f64, f64) {
+    (0.0, 0.0)
 }
 
 #[cfg(test)]

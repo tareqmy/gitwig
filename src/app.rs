@@ -417,6 +417,7 @@ pub struct App {
     pub detail_rx: std::sync::mpsc::Receiver<(String, repo::ItemDetail)>,
     pub tab_tx: std::sync::mpsc::Sender<(String, usize, repo::TabPayload)>,
     pub tab_rx: std::sync::mpsc::Receiver<(String, usize, repo::TabPayload)>,
+    pub cpu_tracker: std::sync::Mutex<Option<(f64, std::time::Instant, f64, f64)>>,
 }
 
 #[derive(Clone, Debug)]
@@ -577,6 +578,7 @@ impl App {
             detail_rx,
             tab_tx,
             tab_rx,
+            cpu_tracker: std::sync::Mutex::new(None),
         };
 
         if app.config.sort_by != SortOrder::Custom {

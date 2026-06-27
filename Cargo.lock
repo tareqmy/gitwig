@@ -492,6 +492,7 @@ dependencies = [
  "crossterm",
  "dirs",
  "git2",
+ "libc",
  "ratatui",
  "serde",
  "toml",
