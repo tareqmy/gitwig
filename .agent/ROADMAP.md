@@ -81,7 +81,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Stash Pop: Perform a single-action "Pop Stash" (apply and delete).
 - [x] Cherry-pick & Revert: Apply a specific commit (`cherry-pick`) or create a reverting commit (`revert`) from the log view.
 - [x] Commit window resize
-- [ ] **Show memory and cpu usage from with the app**
+- [x] Show memory and cpu usage from within the app
 - [ ] **Per repository settings, theme, font**
 - [ ] **Show UI first, Load data later per tab**
 - [ ] **Keybindings**
