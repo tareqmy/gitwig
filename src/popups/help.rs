@@ -158,3 +158,69 @@ pub fn draw_help_overlay(f: &mut Frame, app: &App, area: Rect, scroll: usize) {
     }
 }
 
+
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+pub struct HelpPopup;
+impl HelpPopup {
+    pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
+        let code = key.code;
+        match code {
+KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                app.close_dialog();
+            }
+            KeyCode::Up => {
+                app.help_scroll_up();
+            }
+            KeyCode::Down => {
+                app.help_scroll_down();
+            }
+            KeyCode::PageUp => {
+                app.help_scroll_page_up(app.config.page_size);
+            }
+            KeyCode::PageDown => {
+                app.help_scroll_page_down(app.config.page_size);
+            }
+            KeyCode::Home => {
+                app.help_scroll_to_top();
+            }
+            KeyCode::End => {
+                app.help_scroll_to_bottom();
+            }
+            _ => {}
+        }
+        false
+    }
+}
+
+pub struct DetailHelpPopup;
+impl DetailHelpPopup {
+    pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
+        let code = key.code;
+        match code {
+KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                app.close_detail_help();
+            }
+            KeyCode::Up => {
+                app.help_scroll_up();
+            }
+            KeyCode::Down => {
+                app.help_scroll_down();
+            }
+            KeyCode::PageUp => {
+                app.help_scroll_page_up(app.config.page_size);
+            }
+            KeyCode::PageDown => {
+                app.help_scroll_page_down(app.config.page_size);
+            }
+            KeyCode::Home => {
+                app.help_scroll_to_top();
+            }
+            KeyCode::End => {
+                app.help_scroll_to_bottom();
+            }
+            _ => {}
+        }
+        false
+    }
+}

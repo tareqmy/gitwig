@@ -104,3 +104,23 @@ pub fn draw_about_popup(f: &mut Frame, area: Rect, _app: &App) {
     f.render_widget(Paragraph::new(close_line), info_chunks[9]);
 }
 
+
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+pub struct AboutPopup;
+impl AboutPopup {
+    pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
+        let code = key.code;
+        match code {
+KeyCode::Char('v')
+            | KeyCode::Char('V')
+            | KeyCode::Esc
+            | KeyCode::Char('q')
+            | KeyCode::Char('Q') => {
+                app.close_dialog();
+            }
+            _ => {}
+        }
+        false
+    }
+}

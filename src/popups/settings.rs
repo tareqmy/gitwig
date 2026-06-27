@@ -345,3 +345,16 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     }
 }
 
+
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+pub struct SettingsPopup;
+impl SettingsPopup {
+    pub fn handle_event(_app: &mut crate::app::App, key: KeyEvent) -> bool {
+        let code = key.code;
+        match code {
+_ => {}
+        }
+        false
+    }
+}

@@ -27,6 +27,7 @@ mod queue;
 mod keys;
 pub mod components;
 pub mod popups;
+pub mod tabs;
 mod ui;
 mod ui_detail;
 
