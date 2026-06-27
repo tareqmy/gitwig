@@ -40,3 +40,11 @@ publish:
 
 clean:
 	cargo clean
+
+lint:
+	cargo clippy -p gitwig --all-targets
+
+fmt-check:
+	cargo fmt -- --check
+
+ci: fmt-check lint test
