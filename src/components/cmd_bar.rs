@@ -260,7 +260,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let target = match &app.current_detail {
                 Some(crate::repo::ItemDetail::Repo { info, .. }) => info
                     .stashes
-                    .get(app.stash_selection)
+                    .get(app.stash_list.stash_selection)
                     .map(|s| format!("stash@{{{}}}", s.index))
                     .unwrap_or_else(|| "".to_string()),
                 _ => "".to_string(),
@@ -272,7 +272,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let target = match &app.current_detail {
                 Some(crate::repo::ItemDetail::Repo { info, .. }) => info
                     .stashes
-                    .get(app.stash_selection)
+                    .get(app.stash_list.stash_selection)
                     .map(|s| format!("stash@{{{}}}", s.index))
                     .unwrap_or_else(|| "".to_string()),
                 _ => "".to_string(),

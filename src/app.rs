@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use crossterm::event::{self, Event};
 use ratatui::Terminal;
 use ratatui::layout::{Margin, Rect};
-use ratatui::widgets::ListState;
+
 
 use crate::config::{Config, SortOrder, save_config};
 use crate::input;
@@ -239,6 +239,10 @@ pub struct App {
     pub detail_cache: std::collections::HashMap<String, DetailCache>,
     /// Which panel is focused inside the detail view.
     pub detail_focus: DetailSection,
+    pub file_tree: crate::components::file_tree::FileTreeComponent,
+    pub branch_list: crate::components::branch_list::BranchListComponent,
+    pub tag_list: crate::components::tag_list::TagListComponent,
+    pub stash_list: crate::components::stash_list::StashListComponent,
     /// Selected row index inside the Commits panel (0 = top row).
     pub commit_list: crate::components::commit_list::CommitListComponent,
     /// Dynamic commit limit for pagination
@@ -268,19 +272,12 @@ pub struct App {
     /// Vertical scroll offset for the commit input popup.
     pub commit_input_scroll: usize,
     /// Selected local branch index in Branches tab.
-    pub local_branch_selection: usize,
     /// Selected remote branch index in Branches tab.
-    pub remote_branch_selection: usize,
     /// Selected local tag index in Tags/Branches tabs.
-    pub local_tag_selection: usize,
     /// Selected remote tag index in Tags/Branches tabs.
-    pub remote_tag_selection: usize,
     /// Selected remote index in Remotes tab.
-    pub remote_selection: usize,
     /// Selected stash index in Stashes tab.
-    pub stash_selection: usize,
     /// Selected file index in the Stashes tab stashed files list.
-    pub stash_file_selection: usize,
     /// Scroll offset for the help overlays.
     pub help_scroll: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
@@ -292,24 +289,14 @@ pub struct App {
 
 
 
-    pub local_branch_list_state: std::cell::RefCell<ListState>,
-    pub remote_branch_list_state: std::cell::RefCell<ListState>,
-    pub local_tag_list_state: std::cell::RefCell<ListState>,
-    pub remote_list_state: std::cell::RefCell<ListState>,
-    pub stash_list_state: std::cell::RefCell<ListState>,
-    pub stash_file_list_state: std::cell::RefCell<ListState>,
     /// Timestamp and selected index of the last mouse click for double-click detection.
     pub last_click: Option<(std::time::Instant, usize)>,
     /// Active tab in the detail view (0 = Details, 1 = Graph, 2 = Branches, 3 = Files).
     pub detail_tab: usize,
     /// Selected file index in the Files tab.
-    pub file_list_selection: usize,
     /// Vertical scroll offset for the file content preview in Files tab.
-    pub file_content_scroll: usize,
     /// Set of expanded folder paths.
-    pub expanded_folders: std::collections::HashSet<String>,
     /// Flattened visible files inside the Files tab.
-    pub visible_files: Vec<FileTreeItem>,
     /// Vertical scroll offset for the git history graph view (Graph tab).
     pub graph_scroll: usize,
     /// Whether we are currently editing the commit message in the popup.
@@ -470,6 +457,10 @@ impl App {
             current_detail: None,
             detail_cache: std::collections::HashMap::new(),
             detail_focus: DetailSection::Commits,
+            file_tree: Default::default(),
+            branch_list: Default::default(),
+            tag_list: Default::default(),
+            stash_list: Default::default(),
             commit_list: crate::components::commit_list::CommitListComponent { limit: 100, ..Default::default() },
             
             
@@ -484,13 +475,6 @@ impl App {
             
             
             commit_input_scroll: 0,
-            local_branch_selection: 0,
-            remote_branch_selection: 0,
-            local_tag_selection: 0,
-            remote_tag_selection: 0,
-            remote_selection: 0,
-            stash_selection: 0,
-            stash_file_selection: 0,
             help_scroll: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
@@ -498,18 +482,8 @@ impl App {
             status_list: crate::components::status_list::StatusListComponent::default(),
             
             
-            local_branch_list_state: std::cell::RefCell::new(ListState::default()),
-            remote_branch_list_state: std::cell::RefCell::new(ListState::default()),
-            local_tag_list_state: std::cell::RefCell::new(ListState::default()),
-            remote_list_state: std::cell::RefCell::new(ListState::default()),
-            stash_list_state: std::cell::RefCell::new(ListState::default()),
-            stash_file_list_state: std::cell::RefCell::new(ListState::default()),
             last_click: None,
             detail_tab: 0,
-            file_list_selection: 0,
-            file_content_scroll: 0,
-            expanded_folders: std::collections::HashSet::new(),
-            visible_files: Vec::new(),
             graph_scroll: 0,
             commit_editing: false,
             status_expanded: false,
@@ -1048,16 +1022,16 @@ impl App {
             self.diff.diff_scroll = 0;
             self.commit_list.details_scroll = 0;
             self.commit_input_scroll = 0;
-            self.local_branch_selection = 0;
-            self.remote_branch_selection = 0;
-            self.local_tag_selection = 0;
-            self.remote_tag_selection = 0;
-            self.remote_selection = 0;
-            self.stash_selection = 0;
-            self.stash_file_selection = 0;
-            self.file_list_selection = 0;
-            self.file_content_scroll = 0;
-            self.expanded_folders.clear();
+            self.branch_list.local_branch_selection = 0;
+            self.branch_list.remote_branch_selection = 0;
+            self.tag_list.local_tag_selection = 0;
+            self.tag_list.remote_tag_selection = 0;
+            self.branch_list.remote_selection = 0;
+            self.stash_list.stash_selection = 0;
+            self.stash_list.stash_file_selection = 0;
+            self.file_tree.file_list_selection = 0;
+            self.file_tree.file_content_scroll = 0;
+            self.file_tree.expanded_folders.clear();
             self.detail_tab = 0;
             self.graph_scroll = 0;
             self.inspect_full_diff = false;
@@ -1224,53 +1198,53 @@ impl App {
             }
 
             // 2. File list selection (Files tab)
-            let visible_files_len = self.visible_files.len();
+            let visible_files_len = self.file_tree.visible_files.len();
             if visible_files_len == 0 {
-                self.file_list_selection = 0;
-            } else if self.file_list_selection >= visible_files_len {
-                self.file_list_selection = visible_files_len - 1;
+                self.file_tree.file_list_selection = 0;
+            } else if self.file_tree.file_list_selection >= visible_files_len {
+                self.file_tree.file_list_selection = visible_files_len - 1;
             }
 
             // 3. Local branches selection
             if local_branches_len == 0 {
-                self.local_branch_selection = 0;
-            } else if self.local_branch_selection >= local_branches_len {
-                self.local_branch_selection = local_branches_len - 1;
+                self.branch_list.local_branch_selection = 0;
+            } else if self.branch_list.local_branch_selection >= local_branches_len {
+                self.branch_list.local_branch_selection = local_branches_len - 1;
             }
 
             // 4. Remote branches selection
             if remote_branches_len == 0 {
-                self.remote_branch_selection = 0;
-            } else if self.remote_branch_selection >= remote_branches_len {
-                self.remote_branch_selection = remote_branches_len - 1;
+                self.branch_list.remote_branch_selection = 0;
+            } else if self.branch_list.remote_branch_selection >= remote_branches_len {
+                self.branch_list.remote_branch_selection = remote_branches_len - 1;
             }
 
             // 5. Local tags selection
             if local_tags_len == 0 {
-                self.local_tag_selection = 0;
-            } else if self.local_tag_selection >= local_tags_len {
-                self.local_tag_selection = local_tags_len - 1;
+                self.tag_list.local_tag_selection = 0;
+            } else if self.tag_list.local_tag_selection >= local_tags_len {
+                self.tag_list.local_tag_selection = local_tags_len - 1;
             }
 
             // 6. Remote tags selection
             if remote_tags_len == 0 {
-                self.remote_tag_selection = 0;
-            } else if self.remote_tag_selection >= remote_tags_len {
-                self.remote_tag_selection = remote_tags_len - 1;
+                self.tag_list.remote_tag_selection = 0;
+            } else if self.tag_list.remote_tag_selection >= remote_tags_len {
+                self.tag_list.remote_tag_selection = remote_tags_len - 1;
             }
 
             // 7. Remotes selection
             if remotes_len == 0 {
-                self.remote_selection = 0;
-            } else if self.remote_selection >= remotes_len {
-                self.remote_selection = remotes_len - 1;
+                self.branch_list.remote_selection = 0;
+            } else if self.branch_list.remote_selection >= remotes_len {
+                self.branch_list.remote_selection = remotes_len - 1;
             }
 
             // 8. Stashes selection
             if stashes_len == 0 {
-                self.stash_selection = 0;
-            } else if self.stash_selection >= stashes_len {
-                self.stash_selection = stashes_len - 1;
+                self.stash_list.stash_selection = 0;
+            } else if self.stash_list.stash_selection >= stashes_len {
+                self.stash_list.stash_selection = stashes_len - 1;
             }
 
             // 9. Files/Diff selection in Workspace/Commits details
@@ -1585,22 +1559,22 @@ impl App {
 
     /// Move local branch selection up.
     pub fn local_branch_up(&mut self) {
-        self.local_branch_selection = self.local_branch_selection.saturating_sub(1);
+        self.branch_list.local_branch_selection = self.branch_list.local_branch_selection.saturating_sub(1);
     }
 
     /// Move local branch selection down.
     pub fn local_branch_down(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.local_branches.len();
-            if total > 0 && self.local_branch_selection + 1 < total {
-                self.local_branch_selection += 1;
+            if total > 0 && self.branch_list.local_branch_selection + 1 < total {
+                self.branch_list.local_branch_selection += 1;
             }
         }
     }
 
     /// Scroll local branch selection up by page.
     pub fn local_branch_page_up(&mut self, page: usize) {
-        self.local_branch_selection = self.local_branch_selection.saturating_sub(page);
+        self.branch_list.local_branch_selection = self.branch_list.local_branch_selection.saturating_sub(page);
     }
 
     /// Scroll local branch selection down by page.
@@ -1608,30 +1582,30 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.local_branches.len();
             if total > 0 {
-                self.local_branch_selection =
-                    (self.local_branch_selection + page).min(total.saturating_sub(1));
+                self.branch_list.local_branch_selection =
+                    (self.branch_list.local_branch_selection + page).min(total.saturating_sub(1));
             }
         }
     }
 
     /// Move remote branch selection up.
     pub fn remote_branch_up(&mut self) {
-        self.remote_branch_selection = self.remote_branch_selection.saturating_sub(1);
+        self.branch_list.remote_branch_selection = self.branch_list.remote_branch_selection.saturating_sub(1);
     }
 
     /// Move remote branch selection down.
     pub fn remote_branch_down(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.remote_branches.len();
-            if total > 0 && self.remote_branch_selection + 1 < total {
-                self.remote_branch_selection += 1;
+            if total > 0 && self.branch_list.remote_branch_selection + 1 < total {
+                self.branch_list.remote_branch_selection += 1;
             }
         }
     }
 
     /// Scroll remote branch selection up by page.
     pub fn remote_branch_page_up(&mut self, page: usize) {
-        self.remote_branch_selection = self.remote_branch_selection.saturating_sub(page);
+        self.branch_list.remote_branch_selection = self.branch_list.remote_branch_selection.saturating_sub(page);
     }
 
     /// Scroll remote branch selection down by page.
@@ -1639,79 +1613,79 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.remote_branches.len();
             if total > 0 {
-                self.remote_branch_selection =
-                    (self.remote_branch_selection + page).min(total.saturating_sub(1));
+                self.branch_list.remote_branch_selection =
+                    (self.branch_list.remote_branch_selection + page).min(total.saturating_sub(1));
             }
         }
     }
 
     /// Move file selection up in the Files tab.
     pub fn file_list_up(&mut self) {
-        self.file_list_selection = self.file_list_selection.saturating_sub(1);
-        self.file_content_scroll = 0;
+        self.file_tree.file_list_selection = self.file_tree.file_list_selection.saturating_sub(1);
+        self.file_tree.file_content_scroll = 0;
     }
 
     /// Move file selection down in the Files tab.
     pub fn file_list_down(&mut self) {
-        let total = self.visible_files.len();
-        if total > 0 && self.file_list_selection + 1 < total {
-            self.file_list_selection += 1;
-            self.file_content_scroll = 0;
+        let total = self.file_tree.visible_files.len();
+        if total > 0 && self.file_tree.file_list_selection + 1 < total {
+            self.file_tree.file_list_selection += 1;
+            self.file_tree.file_content_scroll = 0;
         }
     }
 
     /// Scroll file selection up by page.
     pub fn file_list_page_up(&mut self, page: usize) {
-        self.file_list_selection = self.file_list_selection.saturating_sub(page);
-        self.file_content_scroll = 0;
+        self.file_tree.file_list_selection = self.file_tree.file_list_selection.saturating_sub(page);
+        self.file_tree.file_content_scroll = 0;
     }
 
     /// Scroll file selection down by page.
     pub fn file_list_page_down(&mut self, page: usize) {
-        let total = self.visible_files.len();
+        let total = self.file_tree.visible_files.len();
         if total > 0 {
-            self.file_list_selection =
-                (self.file_list_selection + page).min(total.saturating_sub(1));
-            self.file_content_scroll = 0;
+            self.file_tree.file_list_selection =
+                (self.file_tree.file_list_selection + page).min(total.saturating_sub(1));
+            self.file_tree.file_content_scroll = 0;
         }
     }
 
     pub fn local_branch_to_top(&mut self) {
-        self.local_branch_selection = 0;
+        self.branch_list.local_branch_selection = 0;
     }
 
     pub fn local_branch_to_bottom(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.local_branches.len();
             if total > 0 {
-                self.local_branch_selection = total - 1;
+                self.branch_list.local_branch_selection = total - 1;
             }
         }
     }
 
     pub fn remote_branch_to_top(&mut self) {
-        self.remote_branch_selection = 0;
+        self.branch_list.remote_branch_selection = 0;
     }
 
     pub fn remote_branch_to_bottom(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.remote_branches.len();
             if total > 0 {
-                self.remote_branch_selection = total - 1;
+                self.branch_list.remote_branch_selection = total - 1;
             }
         }
     }
 
     pub fn file_list_to_top(&mut self) {
-        self.file_list_selection = 0;
-        self.file_content_scroll = 0;
+        self.file_tree.file_list_selection = 0;
+        self.file_tree.file_content_scroll = 0;
     }
 
     pub fn file_list_to_bottom(&mut self) {
-        let total = self.visible_files.len();
+        let total = self.file_tree.visible_files.len();
         if total > 0 {
-            self.file_list_selection = total - 1;
-            self.file_content_scroll = 0;
+            self.file_tree.file_list_selection = total - 1;
+            self.file_tree.file_content_scroll = 0;
         }
     }
 
@@ -1721,7 +1695,7 @@ impl App {
             return;
         }
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
+            if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection) {
                 self.fetching = true;
                 self.status_message = Some("Fetching...".to_string());
 
@@ -1781,7 +1755,7 @@ impl App {
             return;
         }
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
+            if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection) {
                 if !branch_info.is_head {
                     self.status_message = Some(format!(
                         "Can only pull into the currently checked-out branch. Checkout '{}' first.",
@@ -1848,7 +1822,7 @@ impl App {
             return;
         }
         if let Some(repo::ItemDetail::Repo { info, resolved }) = &self.current_detail {
-            if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
+            if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection) {
                 let branch_name = branch_info.name.clone();
                 // Check if this branch already has a configured upstream remote.
                 let has_upstream = git2::Repository::open(resolved)
@@ -1980,7 +1954,7 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             match self.detail_focus {
                 DetailSection::LocalBranches => {
-                    if let Some(branch_info) = info.local_branches.get(self.local_branch_selection)
+                    if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection)
                     {
                         if !branch_info.is_head {
                             self.branch_action_target = Some((branch_info.name.clone(), false));
@@ -1990,7 +1964,7 @@ impl App {
                 }
                 DetailSection::RemoteBranches => {
                     if let Some(branch_info) =
-                        info.remote_branches.get(self.remote_branch_selection)
+                        info.remote_branches.get(self.branch_list.remote_branch_selection)
                     {
                         self.branch_action_target = Some((branch_info.name.clone(), true));
                         self.mode = Mode::BranchCheckoutConfirm;
@@ -2014,7 +1988,7 @@ impl App {
                 match res {
                     Ok(msg) => {
                         self.status_message = Some(msg);
-                        self.local_branch_selection = 0;
+                        self.branch_list.local_branch_selection = 0;
                         self.resync_detail();
                     }
                     Err(e) => {
@@ -2096,8 +2070,8 @@ impl App {
             match repo::save_stash(resolved, &stash_name) {
                 Ok(()) => {
                     self.status_message = Some(format!("Created stash '{}'", stash_name));
-                    self.stash_selection = 0;
-                    self.stash_file_selection = 0;
+                    self.stash_list.stash_selection = 0;
+                    self.stash_list.stash_file_selection = 0;
                     self.resync_detail();
                 }
                 Err(e) => {
@@ -2151,7 +2125,7 @@ impl App {
 
     pub fn request_remote_delete(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if let Some(remote_info) = info.remotes.get(self.remote_selection) {
+            if let Some(remote_info) = info.remotes.get(self.branch_list.remote_selection) {
                 self.remote_action_target = Some(remote_info.name.clone());
                 self.mode = Mode::RemoteDeleteConfirm;
             }
@@ -2164,7 +2138,7 @@ impl App {
                 match repo::remote_delete(resolved, &remote_name) {
                     Ok(_) => {
                         self.status_message = Some(format!("Remote '{}' removed", remote_name));
-                        self.remote_selection = 0;
+                        self.branch_list.remote_selection = 0;
                         self.resync_detail();
                     }
                     Err(e) => {
@@ -2178,7 +2152,7 @@ impl App {
 
     pub fn request_tag_delete(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if let Some(tag_info) = info.local_tags.get(self.local_tag_selection) {
+            if let Some(tag_info) = info.local_tags.get(self.tag_list.local_tag_selection) {
                 let is_on_remote = !info.remotes.is_empty();
                 self.tag_delete_target = Some((tag_info.name.clone(), is_on_remote));
                 self.mode = Mode::TagDeleteConfirm;
@@ -2201,7 +2175,7 @@ impl App {
             match repo::delete_tag(&repo_path, &tag_name) {
                 Ok(()) => {
                     self.status_message = Some(format!("Deleted local tag '{}'", tag_name));
-                    self.local_tag_selection = 0;
+                    self.tag_list.local_tag_selection = 0;
                     self.resync_detail();
 
                     if is_on_remote {
@@ -2232,7 +2206,7 @@ impl App {
 
     pub fn request_tag_push(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if let Some(tag_info) = info.local_tags.get(self.local_tag_selection) {
+            if let Some(tag_info) = info.local_tags.get(self.tag_list.local_tag_selection) {
                 let is_on_remote = if info.remotes.is_empty() {
                     false
                 } else if info.remote_tags_loaded {
@@ -2387,7 +2361,7 @@ impl App {
                             ));
                         }
                     }
-                    self.local_branch_selection = 0;
+                    self.branch_list.local_branch_selection = 0;
                     self.resync_detail();
                 }
                 Err(e) => {
@@ -2408,7 +2382,7 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             match self.detail_focus {
                 DetailSection::LocalBranches => {
-                    if let Some(branch_info) = info.local_branches.get(self.local_branch_selection)
+                    if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection)
                     {
                         if branch_info.is_head {
                             self.status_message =
@@ -2421,7 +2395,7 @@ impl App {
                 }
                 DetailSection::RemoteBranches => {
                     if let Some(branch_info) =
-                        info.remote_branches.get(self.remote_branch_selection)
+                        info.remote_branches.get(self.branch_list.remote_branch_selection)
                     {
                         self.branch_action_target = Some((branch_info.name.clone(), true));
                         self.mode = Mode::BranchDeleteConfirm;
@@ -2444,8 +2418,8 @@ impl App {
                 match res {
                     Ok(()) => {
                         self.status_message = Some(format!("Deleted branch '{}'", branch_name));
-                        self.local_branch_selection = 0;
-                        self.remote_branch_selection = 0;
+                        self.branch_list.local_branch_selection = 0;
+                        self.branch_list.remote_branch_selection = 0;
                         self.resync_detail();
                     }
                     Err(e) => {
@@ -2466,7 +2440,7 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             match self.detail_focus {
                 DetailSection::LocalBranches => {
-                    if let Some(branch_info) = info.local_branches.get(self.local_branch_selection)
+                    if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection)
                     {
                         self.branch_action_target = Some((branch_info.name.clone(), false));
                         self.mode = Mode::BranchMergeConfirm;
@@ -2474,7 +2448,7 @@ impl App {
                 }
                 DetailSection::RemoteBranches => {
                     if let Some(branch_info) =
-                        info.remote_branches.get(self.remote_branch_selection)
+                        info.remote_branches.get(self.branch_list.remote_branch_selection)
                     {
                         self.branch_action_target = Some((branch_info.name.clone(), true));
                         self.mode = Mode::BranchMergeConfirm;
@@ -2561,14 +2535,14 @@ impl App {
     pub fn request_branch_rebase(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if self.detail_focus == DetailSection::LocalBranches {
-                if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
+                if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection) {
                     if !branch_info.is_head {
                         self.branch_action_target = Some((branch_info.name.clone(), false));
                         self.mode = Mode::BranchRebaseConfirm;
                     }
                 }
             } else if self.detail_focus == DetailSection::RemoteBranches {
-                if let Some(branch_info) = info.remote_branches.get(self.remote_branch_selection) {
+                if let Some(branch_info) = info.remote_branches.get(self.branch_list.remote_branch_selection) {
                     self.branch_action_target = Some((branch_info.name.clone(), true));
                     self.mode = Mode::BranchRebaseConfirm;
                 }
@@ -2651,14 +2625,14 @@ impl App {
     pub fn request_branch_interactive_rebase(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if self.detail_focus == DetailSection::LocalBranches {
-                if let Some(branch_info) = info.local_branches.get(self.local_branch_selection) {
+                if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection) {
                     if !branch_info.is_head {
                         self.branch_action_target = Some((branch_info.name.clone(), false));
                         self.mode = Mode::BranchInteractiveRebaseConfirm;
                     }
                 }
             } else if self.detail_focus == DetailSection::RemoteBranches {
-                if let Some(branch_info) = info.remote_branches.get(self.remote_branch_selection) {
+                if let Some(branch_info) = info.remote_branches.get(self.branch_list.remote_branch_selection) {
                     self.branch_action_target = Some((branch_info.name.clone(), true));
                     self.mode = Mode::BranchInteractiveRebaseConfirm;
                 }
@@ -3525,7 +3499,7 @@ impl App {
 
     pub fn get_file_content_line_count(&self) -> usize {
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(selected_item) = self.visible_files.get(self.file_list_selection) {
+            if let Some(selected_item) = self.file_tree.visible_files.get(self.file_tree.file_list_selection) {
                 if selected_item.is_dir {
                     let prefix = if selected_item.full_path.is_empty() {
                         "".to_string()
@@ -3574,26 +3548,26 @@ impl App {
 
     /// Scroll the file content panel up by one line.
     pub fn file_content_scroll_up(&mut self) {
-        self.file_content_scroll = self.file_content_scroll.saturating_sub(1);
+        self.file_tree.file_content_scroll = self.file_tree.file_content_scroll.saturating_sub(1);
     }
 
     /// Scroll the file content panel down by one line.
     pub fn file_content_scroll_down(&mut self) {
         let max = self.get_file_content_line_count().saturating_sub(1);
-        if self.file_content_scroll < max {
-            self.file_content_scroll += 1;
+        if self.file_tree.file_content_scroll < max {
+            self.file_tree.file_content_scroll += 1;
         }
     }
 
     /// Scroll the file content panel up by `page` lines.
     pub fn file_content_scroll_page_up(&mut self, page: usize) {
-        self.file_content_scroll = self.file_content_scroll.saturating_sub(page);
+        self.file_tree.file_content_scroll = self.file_tree.file_content_scroll.saturating_sub(page);
     }
 
     /// Scroll the file content panel down by `page` lines.
     pub fn file_content_scroll_page_down(&mut self, page: usize) {
         let max = self.get_file_content_line_count().saturating_sub(1);
-        self.file_content_scroll = (self.file_content_scroll + page).min(max);
+        self.file_tree.file_content_scroll = (self.file_tree.file_content_scroll + page).min(max);
     }
 
     /// Scroll the graph view up by one line.
@@ -3786,8 +3760,8 @@ impl App {
         if self.detail_tab == 6 {
             let params = match &self.current_detail {
                 Some(ItemDetail::Repo { resolved, info }) => {
-                    info.stashes.get(self.stash_selection).and_then(|stash| {
-                        stash.files.get(self.stash_file_selection).map(|file| {
+                    info.stashes.get(self.stash_list.stash_selection).and_then(|stash| {
+                        stash.files.get(self.stash_list.stash_file_selection).map(|file| {
                             (resolved.clone(), stash.commit_id.clone(), file.path.clone())
                         })
                     })
@@ -5034,16 +5008,16 @@ impl App {
                 }
             }
 
-            flatten_tree(&root, 0, &self.expanded_folders, &mut visible_files);
+            flatten_tree(&root, 0, &self.file_tree.expanded_folders, &mut visible_files);
         }
-        self.visible_files = visible_files;
+        self.file_tree.visible_files = visible_files;
     }
 
     /// Expand the selected folder in the Files tab.
     pub fn expand_selected_folder(&mut self) {
-        if let Some(item) = self.visible_files.get(self.file_list_selection) {
+        if let Some(item) = self.file_tree.visible_files.get(self.file_tree.file_list_selection) {
             if item.is_dir {
-                self.expanded_folders.insert(item.full_path.clone());
+                self.file_tree.expanded_folders.insert(item.full_path.clone());
                 self.rebuild_visible_files();
             }
         }
@@ -5051,9 +5025,9 @@ impl App {
 
     /// Collapse the selected folder in the Files tab.
     pub fn collapse_selected_folder(&mut self) {
-        if let Some(item) = self.visible_files.get(self.file_list_selection) {
+        if let Some(item) = self.file_tree.visible_files.get(self.file_tree.file_list_selection) {
             if item.is_dir {
-                self.expanded_folders.remove(&item.full_path);
+                self.file_tree.expanded_folders.remove(&item.full_path);
                 self.rebuild_visible_files();
             }
         }
@@ -5079,7 +5053,7 @@ impl App {
             0 => self.detail_focus = DetailSection::Commits,
             1 => {
                 self.detail_focus = DetailSection::Files;
-                self.file_content_scroll = 0;
+                self.file_tree.file_content_scroll = 0;
             }
             3 => self.detail_focus = DetailSection::LocalBranches,
             4 => {
@@ -5099,7 +5073,7 @@ impl App {
                 let remote_name =
                     if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
                         info.remotes
-                            .get(self.remote_selection)
+                            .get(self.branch_list.remote_selection)
                             .or_else(|| info.remotes.first())
                             .map(|r| r.name.clone())
                     } else {
@@ -5111,7 +5085,7 @@ impl App {
             }
             6 => {
                 self.detail_focus = DetailSection::Stashes;
-                self.stash_file_selection = 0;
+                self.stash_list.stash_file_selection = 0;
                 self.refresh_file_diff();
             }
             _ => {}
@@ -5126,7 +5100,7 @@ impl App {
             info.remote_tags_attempted = true;
             // Use the currently selected remote in the Remotes tab if available,
             // otherwise fall back to the first remote.
-            let remote = info.remotes.get(self.remote_selection).or_else(|| info.remotes.first());
+            let remote = info.remotes.get(self.branch_list.remote_selection).or_else(|| info.remotes.first());
             if let Some(remote) = remote {
                 let repo_path = resolved.clone();
                 let remote_name = remote.name.clone();
@@ -5239,7 +5213,7 @@ impl App {
                 self.mode = Mode::Detail;
             }
             RemotePickerAction::FetchRemote => {
-                self.remote_selection = self.remote_picker_selection;
+                self.branch_list.remote_selection = self.remote_picker_selection;
                 self.fetch_remote(&remote_name);
                 self.mode = Mode::Detail;
             }
@@ -5416,78 +5390,78 @@ impl App {
     }
 
     pub fn local_tag_up(&mut self) {
-        self.local_tag_selection = self.local_tag_selection.saturating_sub(1);
+        self.tag_list.local_tag_selection = self.tag_list.local_tag_selection.saturating_sub(1);
     }
 
     pub fn local_tag_down(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.local_tags.len();
-            if total > 0 && self.local_tag_selection + 1 < total {
-                self.local_tag_selection += 1;
+            if total > 0 && self.tag_list.local_tag_selection + 1 < total {
+                self.tag_list.local_tag_selection += 1;
             }
         }
     }
 
     pub fn local_tag_page_up(&mut self, page: usize) {
-        self.local_tag_selection = self.local_tag_selection.saturating_sub(page);
+        self.tag_list.local_tag_selection = self.tag_list.local_tag_selection.saturating_sub(page);
     }
 
     pub fn local_tag_page_down(&mut self, page: usize) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.local_tags.len();
             if total > 0 {
-                self.local_tag_selection =
-                    (self.local_tag_selection + page).min(total.saturating_sub(1));
+                self.tag_list.local_tag_selection =
+                    (self.tag_list.local_tag_selection + page).min(total.saturating_sub(1));
             }
         }
     }
 
     pub fn remote_up(&mut self) {
-        self.remote_selection = self.remote_selection.saturating_sub(1);
+        self.branch_list.remote_selection = self.branch_list.remote_selection.saturating_sub(1);
     }
 
     pub fn remote_down(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.remotes.len();
-            if total > 0 && self.remote_selection + 1 < total {
-                self.remote_selection += 1;
+            if total > 0 && self.branch_list.remote_selection + 1 < total {
+                self.branch_list.remote_selection += 1;
             }
         }
     }
 
     pub fn remote_page_up(&mut self, page: usize) {
-        self.remote_selection = self.remote_selection.saturating_sub(page);
+        self.branch_list.remote_selection = self.branch_list.remote_selection.saturating_sub(page);
     }
 
     pub fn remote_page_down(&mut self, page: usize) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.remotes.len();
             if total > 0 {
-                self.remote_selection = (self.remote_selection + page).min(total.saturating_sub(1));
+                self.branch_list.remote_selection = (self.branch_list.remote_selection + page).min(total.saturating_sub(1));
             }
         }
     }
 
     pub fn stash_up(&mut self) {
-        self.stash_selection = self.stash_selection.saturating_sub(1);
-        self.stash_file_selection = 0;
+        self.stash_list.stash_selection = self.stash_list.stash_selection.saturating_sub(1);
+        self.stash_list.stash_file_selection = 0;
         self.refresh_file_diff();
     }
 
     pub fn stash_down(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.stashes.len();
-            if total > 0 && self.stash_selection + 1 < total {
-                self.stash_selection += 1;
-                self.stash_file_selection = 0;
+            if total > 0 && self.stash_list.stash_selection + 1 < total {
+                self.stash_list.stash_selection += 1;
+                self.stash_list.stash_file_selection = 0;
                 self.refresh_file_diff();
             }
         }
     }
 
     pub fn stash_page_up(&mut self, page: usize) {
-        self.stash_selection = self.stash_selection.saturating_sub(page);
-        self.stash_file_selection = 0;
+        self.stash_list.stash_selection = self.stash_list.stash_selection.saturating_sub(page);
+        self.stash_list.stash_file_selection = 0;
         self.refresh_file_diff();
     }
 
@@ -5495,24 +5469,24 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.stashes.len();
             if total > 0 {
-                self.stash_selection = (self.stash_selection + page).min(total.saturating_sub(1));
-                self.stash_file_selection = 0;
+                self.stash_list.stash_selection = (self.stash_list.stash_selection + page).min(total.saturating_sub(1));
+                self.stash_list.stash_file_selection = 0;
                 self.refresh_file_diff();
             }
         }
     }
 
     pub fn stash_file_up(&mut self) {
-        self.stash_file_selection = self.stash_file_selection.saturating_sub(1);
+        self.stash_list.stash_file_selection = self.stash_list.stash_file_selection.saturating_sub(1);
         self.refresh_file_diff();
     }
 
     pub fn stash_file_down(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if let Some(stash) = info.stashes.get(self.stash_selection) {
+            if let Some(stash) = info.stashes.get(self.stash_list.stash_selection) {
                 let total = stash.files.len();
-                if total > 0 && self.stash_file_selection + 1 < total {
-                    self.stash_file_selection += 1;
+                if total > 0 && self.stash_list.stash_file_selection + 1 < total {
+                    self.stash_list.stash_file_selection += 1;
                     self.refresh_file_diff();
                 }
             }
@@ -5520,17 +5494,17 @@ impl App {
     }
 
     pub fn stash_file_page_up(&mut self, page: usize) {
-        self.stash_file_selection = self.stash_file_selection.saturating_sub(page);
+        self.stash_list.stash_file_selection = self.stash_list.stash_file_selection.saturating_sub(page);
         self.refresh_file_diff();
     }
 
     pub fn stash_file_page_down(&mut self, page: usize) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if let Some(stash) = info.stashes.get(self.stash_selection) {
+            if let Some(stash) = info.stashes.get(self.stash_list.stash_selection) {
                 let total = stash.files.len();
                 if total > 0 {
-                    self.stash_file_selection =
-                        (self.stash_file_selection + page).min(total.saturating_sub(1));
+                    self.stash_list.stash_file_selection =
+                        (self.stash_list.stash_file_selection + page).min(total.saturating_sub(1));
                     self.refresh_file_diff();
                 }
             }
@@ -5538,34 +5512,34 @@ impl App {
     }
 
     pub fn local_tag_to_top(&mut self) {
-        self.local_tag_selection = 0;
+        self.tag_list.local_tag_selection = 0;
     }
 
     pub fn local_tag_to_bottom(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.local_tags.len();
             if total > 0 {
-                self.local_tag_selection = total - 1;
+                self.tag_list.local_tag_selection = total - 1;
             }
         }
     }
 
     pub fn remote_to_top(&mut self) {
-        self.remote_selection = 0;
+        self.branch_list.remote_selection = 0;
     }
 
     pub fn remote_to_bottom(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.remotes.len();
             if total > 0 {
-                self.remote_selection = total - 1;
+                self.branch_list.remote_selection = total - 1;
             }
         }
     }
 
     pub fn stash_to_top(&mut self) {
-        self.stash_selection = 0;
-        self.stash_file_selection = 0;
+        self.stash_list.stash_selection = 0;
+        self.stash_list.stash_file_selection = 0;
         self.refresh_file_diff();
     }
 
@@ -5573,24 +5547,24 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.stashes.len();
             if total > 0 {
-                self.stash_selection = total - 1;
-                self.stash_file_selection = 0;
+                self.stash_list.stash_selection = total - 1;
+                self.stash_list.stash_file_selection = 0;
                 self.refresh_file_diff();
             }
         }
     }
 
     pub fn stash_file_to_top(&mut self) {
-        self.stash_file_selection = 0;
+        self.stash_list.stash_file_selection = 0;
         self.refresh_file_diff();
     }
 
     pub fn stash_file_to_bottom(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if let Some(stash) = info.stashes.get(self.stash_selection) {
+            if let Some(stash) = info.stashes.get(self.stash_list.stash_selection) {
                 let total = stash.files.len();
                 if total > 0 {
-                    self.stash_file_selection = total - 1;
+                    self.stash_list.stash_file_selection = total - 1;
                     self.refresh_file_diff();
                 }
             }
@@ -5609,12 +5583,12 @@ impl App {
     }
 
     pub fn file_content_scroll_to_top(&mut self) {
-        self.file_content_scroll = 0;
+        self.file_tree.file_content_scroll = 0;
     }
 
     pub fn file_content_scroll_to_bottom(&mut self) {
         let max = self.get_file_content_line_count().saturating_sub(1);
-        self.file_content_scroll = max;
+        self.file_tree.file_content_scroll = max;
     }
 
 
@@ -5654,7 +5628,7 @@ impl App {
 
     pub fn request_stash_delete(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if info.stashes.get(self.stash_selection).is_some() {
+            if info.stashes.get(self.stash_list.stash_selection).is_some() {
                 self.mode = Mode::StashDeleteConfirm;
             }
         }
@@ -5662,14 +5636,14 @@ impl App {
 
     pub fn confirm_stash_delete(&mut self) {
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(stash) = info.stashes.get(self.stash_selection) {
+            if let Some(stash) = info.stashes.get(self.stash_list.stash_selection) {
                 let index_to_delete = stash.index;
                 match repo::delete_stash(resolved, index_to_delete) {
                     Ok(()) => {
                         self.status_message =
                             Some(format!("Deleted stash@{{{}}}", index_to_delete));
-                        self.stash_selection = 0;
-                        self.stash_file_selection = 0;
+                        self.stash_list.stash_selection = 0;
+                        self.stash_list.stash_file_selection = 0;
                         self.resync_detail();
                     }
                     Err(e) => {
@@ -5687,7 +5661,7 @@ impl App {
 
     pub fn request_stash_apply(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if info.stashes.get(self.stash_selection).is_some() {
+            if info.stashes.get(self.stash_list.stash_selection).is_some() {
                 self.stash_apply_delete_after = true;
                 self.mode = Mode::StashApplyConfirm;
             }
@@ -5696,7 +5670,7 @@ impl App {
 
     pub fn confirm_stash_apply(&mut self) {
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(stash) = info.stashes.get(self.stash_selection) {
+            if let Some(stash) = info.stashes.get(self.stash_list.stash_selection) {
                 let index_to_apply = stash.index;
                 match repo::apply_stash(resolved, index_to_apply) {
                     Ok(()) => {
@@ -5713,8 +5687,8 @@ impl App {
                             }
                         }
                         self.status_message = Some(success_msg);
-                        self.stash_selection = 0;
-                        self.stash_file_selection = 0;
+                        self.stash_list.stash_selection = 0;
+                        self.stash_list.stash_file_selection = 0;
                         self.resync_detail();
                     }
                     Err(e) => {
@@ -5765,7 +5739,7 @@ impl App {
 
     pub fn request_tag_checkout(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if let Some(tag_info) = info.local_tags.get(self.local_tag_selection) {
+            if let Some(tag_info) = info.local_tags.get(self.tag_list.local_tag_selection) {
                 self.tag_checkout_target = Some(tag_info.name.clone());
                 self.mode = Mode::TagCheckoutConfirm;
             }
@@ -6309,16 +6283,15 @@ where
                                             accumulated.push('/');
                                         }
                                         accumulated.push_str(part);
-                                        app.expanded_folders.insert(accumulated.clone());
+                                        app.file_tree.expanded_folders.insert(accumulated.clone());
                                     }
                                     app.rebuild_visible_files();
-                                    if let Some(pos) = app
-                                        .visible_files
+                                    if let Some(pos) = app.file_tree.visible_files
                                         .iter()
                                         .position(|item| item.full_path == selected)
                                     {
-                                        app.file_list_selection = pos;
-                                        app.file_content_scroll = 0;
+                                        app.file_tree.file_list_selection = pos;
+                                        app.file_tree.file_content_scroll = 0;
                                         app.detail_focus = DetailSection::Files;
                                     }
                                     app.status_message = Some(format!("Selected {}", selected));
@@ -7777,7 +7750,7 @@ mod tests {
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
         crate::input::handle_mouse(&mut app, local_branch_click);
-        assert_eq!(app.local_branch_selection, 1);
+        assert_eq!(app.branch_list.local_branch_selection, 1);
         assert_eq!(app.detail_focus, DetailSection::LocalBranches);
 
         // 5. Remote branches click test
@@ -7804,7 +7777,7 @@ mod tests {
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
         crate::input::handle_mouse(&mut app, remote_branch_click);
-        assert_eq!(app.remote_branch_selection, 0);
+        assert_eq!(app.branch_list.remote_branch_selection, 0);
         assert_eq!(app.detail_focus, DetailSection::RemoteBranches);
 
         // 6. Local tags click test
@@ -7840,7 +7813,7 @@ mod tests {
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
         crate::input::handle_mouse(&mut app, tag_click);
-        assert_eq!(app.local_tag_selection, 1);
+        assert_eq!(app.tag_list.local_tag_selection, 1);
         assert_eq!(app.detail_focus, DetailSection::LocalTags);
 
         // 7. Remotes click test
@@ -7876,7 +7849,7 @@ mod tests {
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
         crate::input::handle_mouse(&mut app, remote_click);
-        assert_eq!(app.remote_selection, 1);
+        assert_eq!(app.branch_list.remote_selection, 1);
         assert_eq!(app.detail_focus, DetailSection::Remotes);
 
         // 8. Stashes and Stashed Files click test
@@ -7915,12 +7888,12 @@ mod tests {
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
         crate::input::handle_mouse(&mut app, stash_click);
-        assert_eq!(app.stash_selection, 1);
+        assert_eq!(app.stash_list.stash_selection, 1);
         assert_eq!(app.detail_focus, DetailSection::Stashes);
 
         app.detail_areas = crate::ui_detail::DetailAreas::default();
         // re-apply mock info if needed (already in app.current_detail)
-        app.stash_selection = 0;
+        app.stash_list.stash_selection = 0;
         app.detail_areas.stashed_files = Some(Rect::new(0, 20, 100, 20));
         app.detail_areas.stashed_files_inner = Some(Rect::new(1, 21, 98, 18));
         let stash_file_click = MouseEvent {
@@ -7930,7 +7903,7 @@ mod tests {
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
         crate::input::handle_mouse(&mut app, stash_file_click);
-        assert_eq!(app.stash_file_selection, 1);
+        assert_eq!(app.stash_list.stash_file_selection, 1);
         assert_eq!(app.detail_focus, DetailSection::StashedFiles);
     }
 
@@ -8233,7 +8206,7 @@ mod tests {
         assert_eq!(app.mode, Mode::Detail);
 
         // Trigger remote delete (d/D) on the selected remote ("origin")
-        app.remote_selection = 0;
+        app.branch_list.remote_selection = 0;
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('d')), 10);
         assert!(handled);
         assert_eq!(app.mode, Mode::RemoteDeleteConfirm);
@@ -9166,7 +9139,7 @@ mod tests {
         });
 
         // Select the non-head local branch "feature-branch" (index 1)
-        app.local_branch_selection = 1;
+        app.branch_list.local_branch_selection = 1;
 
         // Pressing Enter should request confirmation
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
@@ -9193,7 +9166,7 @@ mod tests {
 
         // Switch to Tags tab (detail_tab = 4)
         app.detail_tab = 4;
-        app.local_tag_selection = 0;
+        app.tag_list.local_tag_selection = 0;
 
         // Pressing Enter should request tag checkout confirmation
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);

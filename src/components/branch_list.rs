@@ -1,3 +1,12 @@
+#[derive(Default)]
+pub struct BranchListComponent {
+    pub local_branch_selection: usize,
+    pub remote_branch_selection: usize,
+    pub local_branch_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
+    pub remote_branch_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
+    pub remote_selection: usize,
+    pub remote_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
+}
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
 use ratatui::style::{Color, Modifier, Style};
@@ -133,7 +142,7 @@ pub fn draw_branches_view(
         .block(local_block)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    let mut local_state = app.local_branch_list_state.borrow_mut();
+    let mut local_state = app.branch_list.local_branch_list_state.borrow_mut();
     if local_focused {
         local_state.select(Some(local_branch_selection));
     } else {
@@ -182,7 +191,7 @@ pub fn draw_branches_view(
         .block(remote_block)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    let mut remote_state = app.remote_branch_list_state.borrow_mut();
+    let mut remote_state = app.branch_list.remote_branch_list_state.borrow_mut();
     if remote_focused {
         remote_state.select(Some(remote_branch_selection));
     } else {
@@ -283,7 +292,7 @@ pub fn draw_remotes_view(
         .block(list_block)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    let mut list_state = app.remote_list_state.borrow_mut();
+    let mut list_state = app.branch_list.remote_list_state.borrow_mut();
     if focused {
         list_state.select(Some(remote_selection));
     } else {

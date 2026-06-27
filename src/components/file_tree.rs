@@ -1,3 +1,10 @@
+#[derive(Default)]
+pub struct FileTreeComponent {
+    pub expanded_folders: std::collections::HashSet<String>,
+    pub visible_files: Vec<crate::app::FileTreeItem>,
+    pub file_list_selection: usize,
+    pub file_content_scroll: usize,
+}
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
 use ratatui::style::{Color, Modifier, Style};
@@ -442,3 +449,25 @@ pub fn draw_commit_files_panel(
     }
 }
 
+
+
+impl FileTreeComponent {
+    pub fn file_content_scroll_up(&mut self) {
+        self.file_content_scroll = self.file_content_scroll.saturating_sub(1);
+    }
+    pub fn file_content_scroll_down(&mut self) {
+        self.file_content_scroll = self.file_content_scroll.saturating_add(1);
+    }
+    pub fn file_content_scroll_page_up(&mut self, page: usize) {
+        self.file_content_scroll = self.file_content_scroll.saturating_sub(page);
+    }
+    pub fn file_content_scroll_page_down(&mut self, page: usize) {
+        self.file_content_scroll = self.file_content_scroll.saturating_add(page);
+    }
+    pub fn file_content_scroll_to_top(&mut self) {
+        self.file_content_scroll = 0;
+    }
+    pub fn file_content_scroll_to_bottom(&mut self) {
+        self.file_content_scroll = usize::MAX;
+    }
+}

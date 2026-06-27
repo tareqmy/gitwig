@@ -644,7 +644,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 let remote_name =
                     if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
                         info.remotes
-                            .get(app.remote_selection)
+                            .get(app.branch_list.remote_selection)
                             .or_else(|| info.remotes.first())
                             .map(|r| r.name.clone())
                     } else {
@@ -946,42 +946,42 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 KeyCode::Up => {
                     if app.detail_focus == DetailSection::FileContent {
-                        app.file_content_scroll_up();
+                        app.file_tree.file_content_scroll_up();
                     } else {
                         app.file_list_up();
                     }
                 }
                 KeyCode::Down => {
                     if app.detail_focus == DetailSection::FileContent {
-                        app.file_content_scroll_down();
+                        app.file_tree.file_content_scroll_down();
                     } else {
                         app.file_list_down();
                     }
                 }
                 KeyCode::PageUp => {
                     if app.detail_focus == DetailSection::FileContent {
-                        app.file_content_scroll_page_up(app.config.page_size);
+                        app.file_tree.file_content_scroll_page_up(app.config.page_size);
                     } else {
                         app.file_list_page_up(app.config.page_size);
                     }
                 }
                 KeyCode::PageDown => {
                     if app.detail_focus == DetailSection::FileContent {
-                        app.file_content_scroll_page_down(app.config.page_size);
+                        app.file_tree.file_content_scroll_page_down(app.config.page_size);
                     } else {
                         app.file_list_page_down(app.config.page_size);
                     }
                 }
                 KeyCode::Home => {
                     if app.detail_focus == DetailSection::FileContent {
-                        app.file_content_scroll_to_top();
+                        app.file_tree.file_content_scroll_to_top();
                     } else {
                         app.file_list_to_top();
                     }
                 }
                 KeyCode::End => {
                     if app.detail_focus == DetailSection::FileContent {
-                        app.file_content_scroll_to_bottom();
+                        app.file_tree.file_content_scroll_to_bottom();
                     } else {
                         app.file_list_to_bottom();
                     }
@@ -1163,7 +1163,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         }
                         Some(None) => {
                             app.remote_picker_action = Some(RemotePickerAction::FetchRemote);
-                            app.remote_picker_selection = app.remote_selection;
+                            app.remote_picker_selection = app.branch_list.remote_selection;
                             app.mode = Mode::RemotePicker;
                         }
                         None => {}
@@ -2300,7 +2300,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                     }) = &app.current_detail
                                     {
                                         info.remotes
-                                            .get(app.remote_selection)
+                                            .get(app.branch_list.remote_selection)
                                             .or_else(|| info.remotes.first())
                                             .map(|r| r.name.clone())
                                     } else {
@@ -2706,7 +2706,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 if let Some(inner) = areas.local_branches_inner {
                     if inner.contains(pos) {
                         let clicked_row = (pos.y - inner.y) as usize;
-                        let offset = app.local_branch_list_state.borrow().offset();
+                        let offset = app.branch_list.local_branch_list_state.borrow().offset();
                         let actual_idx = offset + clicked_row;
                         let total = match &app.current_detail {
                             Some(crate::repo::ItemDetail::Repo { info, .. }) => {
@@ -2715,7 +2715,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                             _ => 0,
                         };
                         if actual_idx < total {
-                            app.local_branch_selection = actual_idx;
+                            app.branch_list.local_branch_selection = actual_idx;
                         }
                     }
                 }
@@ -2736,7 +2736,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 if let Some(inner) = areas.remote_branches_inner {
                     if inner.contains(pos) {
                         let clicked_row = (pos.y - inner.y) as usize;
-                        let offset = app.remote_branch_list_state.borrow().offset();
+                        let offset = app.branch_list.remote_branch_list_state.borrow().offset();
                         let actual_idx = offset + clicked_row;
                         let total = match &app.current_detail {
                             Some(crate::repo::ItemDetail::Repo { info, .. }) => {
@@ -2745,7 +2745,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                             _ => 0,
                         };
                         if actual_idx < total {
-                            app.remote_branch_selection = actual_idx;
+                            app.branch_list.remote_branch_selection = actual_idx;
                         }
                     }
                 }
@@ -2766,7 +2766,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 if let Some(inner) = areas.local_tags_inner {
                     if inner.contains(pos) {
                         let clicked_row = (pos.y - inner.y) as usize;
-                        let offset = app.local_tag_list_state.borrow().offset();
+                        let offset = app.tag_list.local_tag_list_state.borrow().offset();
                         let actual_idx = offset + clicked_row;
                         let total = match &app.current_detail {
                             Some(crate::repo::ItemDetail::Repo { info, .. }) => {
@@ -2775,7 +2775,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                             _ => 0,
                         };
                         if actual_idx < total {
-                            app.local_tag_selection = actual_idx;
+                            app.tag_list.local_tag_selection = actual_idx;
                         }
                     }
                 }
@@ -2813,10 +2813,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::FileContent;
-                app.file_content_scroll_up();
+                app.file_tree.file_content_scroll_up();
             } else if is_scroll_down {
                 app.detail_focus = DetailSection::FileContent;
-                app.file_content_scroll_down();
+                app.file_tree.file_content_scroll_down();
             }
         }
     }
@@ -2828,14 +2828,14 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 if let Some(inner) = areas.remotes_inner {
                     if inner.contains(pos) {
                         let clicked_row = (pos.y - inner.y) as usize;
-                        let offset = app.remote_list_state.borrow().offset();
+                        let offset = app.branch_list.remote_list_state.borrow().offset();
                         let actual_idx = offset + clicked_row;
                         let total = match &app.current_detail {
                             Some(crate::repo::ItemDetail::Repo { info, .. }) => info.remotes.len(),
                             _ => 0,
                         };
                         if actual_idx < total {
-                            app.remote_selection = actual_idx;
+                            app.branch_list.remote_selection = actual_idx;
                         }
                     }
                 }
@@ -2856,15 +2856,15 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 if let Some(inner) = areas.stashes_inner {
                     if inner.contains(pos) {
                         let clicked_row = (pos.y - inner.y) as usize;
-                        let offset = app.stash_list_state.borrow().offset();
+                        let offset = app.stash_list.stash_list_state.borrow().offset();
                         let actual_idx = offset + clicked_row;
                         let total = match &app.current_detail {
                             Some(crate::repo::ItemDetail::Repo { info, .. }) => info.stashes.len(),
                             _ => 0,
                         };
                         if actual_idx < total {
-                            app.stash_selection = actual_idx;
-                            app.stash_file_selection = 0;
+                            app.stash_list.stash_selection = actual_idx;
+                            app.stash_list.stash_file_selection = 0;
                             app.diff.diff_scroll = 0;
                             app.refresh_file_diff();
                         }
@@ -2887,18 +2887,18 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 if let Some(inner) = areas.stashed_files_inner {
                     if inner.contains(pos) {
                         let clicked_row = (pos.y - inner.y) as usize;
-                        let offset = app.stash_file_list_state.borrow().offset();
+                        let offset = app.stash_list.stash_file_list_state.borrow().offset();
                         let actual_idx = offset + clicked_row;
                         let total = match &app.current_detail {
                             Some(crate::repo::ItemDetail::Repo { info, .. }) => info
                                 .stashes
-                                .get(app.stash_selection)
+                                .get(app.stash_list.stash_selection)
                                 .map(|s| s.files.len())
                                 .unwrap_or(0),
                             _ => 0,
                         };
                         if actual_idx < total {
-                            app.stash_file_selection = actual_idx;
+                            app.stash_list.stash_file_selection = actual_idx;
                             app.diff.diff_scroll = 0;
                             app.refresh_file_diff();
                         }

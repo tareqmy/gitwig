@@ -1,3 +1,9 @@
+#[derive(Default)]
+pub struct TagListComponent {
+    pub local_tag_selection: usize,
+    pub remote_tag_selection: usize,
+    pub local_tag_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
+}
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
 use ratatui::style::{Color, Modifier, Style};
@@ -122,7 +128,7 @@ pub fn draw_tags_view(
         .block(local_block)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    let mut local_state = app.local_tag_list_state.borrow_mut();
+    let mut local_state = app.tag_list.local_tag_list_state.borrow_mut();
     if local_focused {
         local_state.select(Some(local_tag_selection));
     } else {

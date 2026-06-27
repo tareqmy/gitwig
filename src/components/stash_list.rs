@@ -1,3 +1,10 @@
+#[derive(Default)]
+pub struct StashListComponent {
+    pub stash_selection: usize,
+    pub stash_file_selection: usize,
+    pub stash_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
+    pub stash_file_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
+}
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
 use ratatui::style::{Color, Modifier, Style};
@@ -148,7 +155,7 @@ pub fn draw_stashes_view(
         .block(list_block)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-    let mut list_state = app.stash_list_state.borrow_mut();
+    let mut list_state = app.stash_list.stash_list_state.borrow_mut();
     if stashes_focused || !info.stashes.is_empty() {
         list_state.select(Some(stash_selection));
     } else {
@@ -170,7 +177,7 @@ pub fn draw_stashes_view(
         Borders::ALL,
         files_focused,
         if files_focused || !stashed_files.is_empty() { Some(stash_file_selection) } else { None },
-        &app.stash_file_list_state,
+        &app.stash_list.stash_file_list_state,
         left_chunks[1],
     );
     areas.stashed_files_inner = Some(stashed_files_inner);
