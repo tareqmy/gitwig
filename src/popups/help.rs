@@ -1,13 +1,18 @@
-use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap, Padding, Gauge, List, ListItem, ListState};
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, parse_color};
-use crate::ui::layout::{centered_rect, centered_rect_fixed};
 use crate::ui::HELP_LINES;
+use crate::ui::layout::{centered_rect, centered_rect_fixed};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
+    primary_style,
+};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{
+    Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph, Wrap,
+};
 
 pub fn draw_help_overlay(f: &mut Frame, app: &App, area: Rect, scroll: usize) {
     let popup_area = centered_rect(60, 70, area);
@@ -158,15 +163,13 @@ pub fn draw_help_overlay(f: &mut Frame, app: &App, area: Rect, scroll: usize) {
     }
 }
 
-
-
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 pub struct HelpPopup;
 impl HelpPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
         let code = key.code;
         match code {
-KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+            KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_dialog();
             }
             KeyCode::Up => {
@@ -198,7 +201,7 @@ impl DetailHelpPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
         let code = key.code;
         match code {
-KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+            KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.close_detail_help();
             }
             KeyCode::Up => {

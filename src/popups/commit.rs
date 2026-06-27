@@ -1,7 +1,6 @@
-
+use crate::components::{Component, DrawableComponent, EventState};
+use crate::queue::{InternalEvent, Queue};
 use crossterm::event::{Event, KeyCode, KeyModifiers};
-use crate::components::{Component, EventState, DrawableComponent};
-use crate::queue::{Queue, InternalEvent};
 
 pub struct CommitPopup {
     pub queue: Queue,
@@ -116,16 +115,21 @@ impl Component for CommitPopup {
     }
 }
 
-use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap, Padding, Gauge, List, ListItem, ListState};
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
-use crate::ui_detail::DetailAreas;
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, parse_color};
 use crate::ui::layout::{centered_rect, centered_rect_fixed};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
+    primary_style,
+};
+use crate::ui_detail::DetailAreas;
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{
+    Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph, Wrap,
+};
 
 use crate::ui::*;
 pub fn draw_commit_popup(
@@ -222,7 +226,6 @@ pub fn draw_commit_popup(
     }
 }
 
-
 pub struct GenericInputPopup {
     pub queue: Queue,
 }
@@ -234,7 +237,9 @@ impl GenericInputPopup {
 }
 
 impl DrawableComponent for GenericInputPopup {
-    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 impl Component for GenericInputPopup {

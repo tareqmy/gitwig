@@ -1,4 +1,3 @@
-
 #[derive(Default)]
 pub struct CommitListComponent {
     pub queue: crate::queue::Queue,
@@ -9,19 +8,24 @@ pub struct CommitListComponent {
     pub details_scroll: usize,
 }
 
+use crate::app::{App, DetailSection, Mode};
+use crate::repo::FileEntry;
+use crate::repo::RemoteInfo;
+use crate::repo::{CommitEntry, DiffLine, RepoInfo, WorktreeChanges};
+use crate::ui::layout::{centered_rect, centered_rect_fixed};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
+    primary_style,
+};
+use crate::ui_detail::{DetailAreas, error_style, file_entry_line, read_file_content};
 use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap, Padding, Gauge, List, ListItem, ListState, Table, TableState, Row, Cell};
-use crate::app::{App, Mode, DetailSection};
-use crate::repo::RemoteInfo;
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, parse_color};
-use crate::ui::layout::{centered_rect, centered_rect_fixed};
-use crate::ui_detail::{error_style, read_file_content, file_entry_line, DetailAreas};
-use crate::repo::FileEntry;
-use crate::repo::{RepoInfo, CommitEntry, DiffLine, WorktreeChanges};
-
+use ratatui::widgets::{
+    Block, BorderType, Borders, Cell, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph,
+    Row, Table, TableState, Wrap,
+};
 
 pub fn draw_detail_commits(
     f: &mut Frame,
@@ -420,8 +424,6 @@ pub fn draw_logs_view(
     f.render_stateful_widget(table, inner, &mut state);
 }
 
-
-
 impl CommitListComponent {
     pub fn details_scroll_up(&mut self) {
         self.details_scroll = self.details_scroll.saturating_sub(1);
@@ -431,20 +433,15 @@ impl CommitListComponent {
     }
 }
 
-
 impl CommitListComponent {
     pub fn new(queue: crate::queue::Queue) -> Self {
-        Self {
-            queue,
-            ..Default::default()
-        }
+        Self { queue, ..Default::default() }
     }
 }
 
-
-use crossterm::event::{Event, KeyCode, KeyEvent};
 use crate::components::{Component, EventState};
 use crate::queue::InternalEvent;
+use crossterm::event::{Event, KeyCode, KeyEvent};
 
 impl Component for CommitListComponent {
     fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
@@ -524,7 +521,6 @@ impl Component for CommitListComponent {
         Ok(EventState::NotConsumed)
     }
 }
-
 
 impl crate::components::DrawableComponent for CommitListComponent {
     fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> {

@@ -1,12 +1,17 @@
-use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap, Padding, Gauge, List, ListItem, ListState};
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, parse_color};
 use crate::ui::layout::{centered_rect, centered_rect_fixed};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
+    primary_style,
+};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{
+    Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph, Wrap,
+};
 
 pub fn draw_loading_screen(f: &mut Frame, area: Rect, app: &App) {
     let popup_area = centered_rect_fixed(60, 7, area);
@@ -139,4 +144,3 @@ pub fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
     .alignment(ratatui::layout::Alignment::Center);
     f.render_widget(hint, chunks[4]);
 }
-

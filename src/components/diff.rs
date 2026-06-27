@@ -1,4 +1,3 @@
-
 #[derive(Default)]
 pub struct DiffComponent {
     pub queue: crate::queue::Queue,
@@ -9,20 +8,25 @@ pub struct DiffComponent {
     pub diff_line_selection: usize,
 }
 
+use crate::app::{App, DetailSection, Mode};
+use crate::components::commit_list::draw_commit_details_widget;
+use crate::repo::FileEntry;
+use crate::repo::{CommitEntry, DiffLine, RepoInfo, WorktreeChanges};
+use crate::repo::{DiffLineKind, RemoteInfo};
+use crate::ui::layout::{centered_rect, centered_rect_fixed};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
+    primary_style,
+};
+use crate::ui_detail::{DetailAreas, error_style, file_entry_line, read_file_content};
 use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap, Padding, Gauge, List, ListItem, ListState, Table, Row, Cell};
-use crate::app::{App, Mode, DetailSection};
-use crate::repo::{RemoteInfo, DiffLineKind};
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, parse_color};
-use crate::ui::layout::{centered_rect, centered_rect_fixed};
-use crate::ui_detail::{error_style, read_file_content, file_entry_line, DetailAreas};
-use crate::repo::FileEntry;
-use crate::components::commit_list::draw_commit_details_widget;
-use crate::repo::{RepoInfo, CommitEntry, DiffLine, WorktreeChanges};
-
+use ratatui::widgets::{
+    Block, BorderType, Borders, Cell, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph,
+    Row, Table, Wrap,
+};
 
 pub fn draw_file_subpanel(
     f: &mut Frame,
@@ -290,7 +294,6 @@ pub fn draw_inspect_window(
     }
 }
 
-
 impl DiffComponent {
     pub fn diff_scroll_up(&mut self) {
         self.diff_scroll = self.diff_scroll.saturating_sub(1);
@@ -321,32 +324,48 @@ impl DiffComponent {
 
 impl DiffComponent {
     pub fn new(queue: crate::queue::Queue) -> Self {
-        Self {
-            queue,
-            ..Default::default()
-        }
+        Self { queue, ..Default::default() }
     }
 }
 
-
-use crossterm::event::{Event, KeyCode};
-use crate::components::{Component, EventState, DrawableComponent};
+use crate::components::{Component, DrawableComponent, EventState};
 use crate::queue::InternalEvent;
+use crossterm::event::{Event, KeyCode};
 
 impl DrawableComponent for DiffComponent {
-    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 impl Component for DiffComponent {
     fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
         if let Event::Key(key) = ev {
             match key.code {
-                KeyCode::Up => { self.queue.push(InternalEvent::DiffScrollUp); return Ok(EventState::Consumed); }
-                KeyCode::Down => { self.queue.push(InternalEvent::DiffScrollDown); return Ok(EventState::Consumed); }
-                KeyCode::PageUp => { self.queue.push(InternalEvent::DiffScrollPageUp); return Ok(EventState::Consumed); }
-                KeyCode::PageDown => { self.queue.push(InternalEvent::DiffScrollPageDown); return Ok(EventState::Consumed); }
-                KeyCode::Home => { self.queue.push(InternalEvent::DiffScrollTop); return Ok(EventState::Consumed); }
-                KeyCode::End => { self.queue.push(InternalEvent::DiffScrollBottom); return Ok(EventState::Consumed); }
+                KeyCode::Up => {
+                    self.queue.push(InternalEvent::DiffScrollUp);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Down => {
+                    self.queue.push(InternalEvent::DiffScrollDown);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::PageUp => {
+                    self.queue.push(InternalEvent::DiffScrollPageUp);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::PageDown => {
+                    self.queue.push(InternalEvent::DiffScrollPageDown);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Home => {
+                    self.queue.push(InternalEvent::DiffScrollTop);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::End => {
+                    self.queue.push(InternalEvent::DiffScrollBottom);
+                    return Ok(EventState::Consumed);
+                }
                 _ => {}
             }
         }

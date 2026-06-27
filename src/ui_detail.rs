@@ -246,7 +246,14 @@ pub fn draw(
             }
 
             areas.commits = Some(header_rows[2]);
-            crate::components::commit_list::draw_logs_view(f, info, commit_selection, commit_search_query, app, header_rows[2]);
+            crate::components::commit_list::draw_logs_view(
+                f,
+                info,
+                commit_selection,
+                commit_search_query,
+                app,
+                header_rows[2],
+            );
 
             // Draw SearchColumnPicker overlay if in that mode
             if matches!(mode, Mode::SearchColumnPicker) {
@@ -629,7 +636,15 @@ pub fn draw(
                 );
             } else if detail_tab == 5 {
                 // Render Remotes view (tab 6, index 5)
-                crate::components::branch_list::draw_remotes_view(f, info, *focus, remote_selection, areas, app, body_area);
+                crate::components::branch_list::draw_remotes_view(
+                    f,
+                    info,
+                    *focus,
+                    remote_selection,
+                    areas,
+                    app,
+                    body_area,
+                );
             } else if detail_tab == 6 {
                 // Render Stashes view (tab 7, index 6)
                 crate::components::stash_list::draw_stashes_view(
@@ -680,7 +695,12 @@ pub fn draw(
             }
             // Draw branch create popup on top when requested.
             if matches!(mode, Mode::BranchCreateInput) {
-                crate::popups::create_branch::draw_branch_create_popup(f, input_buffer, branch.as_deref(), body_area);
+                crate::popups::create_branch::draw_branch_create_popup(
+                    f,
+                    input_buffer,
+                    branch.as_deref(),
+                    body_area,
+                );
             }
             // Draw remote add name popup on top when requested.
             if matches!(mode, Mode::RemoteAddNameInput) {
@@ -688,7 +708,12 @@ pub fn draw(
             }
             // Draw remote add url popup on top when requested.
             if matches!(mode, Mode::RemoteAddUrlInput) {
-                crate::popups::add_remote::draw_remote_add_url_popup(f, &app.remote_add_name, input_buffer, body_area);
+                crate::popups::add_remote::draw_remote_add_url_popup(
+                    f,
+                    &app.remote_add_name,
+                    input_buffer,
+                    body_area,
+                );
             }
             // Draw remote delete popup on top when requested.
             if matches!(mode, Mode::RemoteDeleteConfirm) {
@@ -700,7 +725,12 @@ pub fn draw(
             }
             // Draw tag create popup on top when requested.
             if matches!(mode, Mode::TagCreateInput) {
-                crate::popups::create_tag::draw_tag_create_popup(f, input_buffer, tag_action_target_oid.as_deref(), body_area);
+                crate::popups::create_tag::draw_tag_create_popup(
+                    f,
+                    input_buffer,
+                    tag_action_target_oid.as_deref(),
+                    body_area,
+                );
             }
             // Draw stash create popup on top when requested.
             if matches!(mode, Mode::StashCreateInput) {
@@ -708,7 +738,11 @@ pub fn draw(
             }
             // Draw branch delete popup on top when requested.
             if matches!(mode, Mode::BranchDeleteConfirm) {
-                crate::popups::confirm::draw_branch_delete_popup(f, branch_action_target, body_area);
+                crate::popups::confirm::draw_branch_delete_popup(
+                    f,
+                    branch_action_target,
+                    body_area,
+                );
             }
             // Draw branch push popup on top when requested.
             if matches!(mode, Mode::BranchPushConfirm) {
@@ -716,7 +750,12 @@ pub fn draw(
             }
             // Draw branch merge popup on top when requested.
             if matches!(mode, Mode::BranchMergeConfirm) {
-                crate::popups::confirm::draw_branch_merge_popup(f, branch_action_target, branch.as_deref(), body_area);
+                crate::popups::confirm::draw_branch_merge_popup(
+                    f,
+                    branch_action_target,
+                    branch.as_deref(),
+                    body_area,
+                );
             }
             // Draw merge abort popup on top when requested.
             if matches!(mode, Mode::MergeAbortConfirm) {
@@ -728,7 +767,12 @@ pub fn draw(
             }
             // Draw branch rebase popup on top when requested.
             if matches!(mode, Mode::BranchRebaseConfirm) {
-                crate::popups::confirm::draw_branch_rebase_popup(f, branch_action_target, branch.as_deref(), body_area);
+                crate::popups::confirm::draw_branch_rebase_popup(
+                    f,
+                    branch_action_target,
+                    branch.as_deref(),
+                    body_area,
+                );
             }
             // Draw branch interactive rebase popup on top when requested.
             if matches!(mode, Mode::BranchInteractiveRebaseConfirm) {
@@ -749,7 +793,11 @@ pub fn draw(
             }
             // Draw tag push all popup on top when requested.
             if matches!(mode, Mode::TagPushAllConfirm) {
-                crate::popups::confirm::draw_tag_push_all_popup(f, app.remote_action_target.as_deref(), body_area);
+                crate::popups::confirm::draw_tag_push_all_popup(
+                    f,
+                    app.remote_action_target.as_deref(),
+                    body_area,
+                );
             }
             // Draw cherry-pick popup on top when requested.
             if matches!(mode, Mode::CherryPickConfirm) {
@@ -763,7 +811,12 @@ pub fn draw(
             }
             // Draw revert popup on top when requested.
             if matches!(mode, Mode::RevertConfirm) {
-                crate::popups::confirm::draw_revert_popup(f, &app.revert_target, branch.as_deref(), body_area);
+                crate::popups::confirm::draw_revert_popup(
+                    f,
+                    &app.revert_target,
+                    branch.as_deref(),
+                    body_area,
+                );
             }
             // Draw stash delete popup on top when requested.
             if matches!(mode, Mode::StashDeleteConfirm) {
@@ -785,7 +838,12 @@ pub fn draw(
                         .map(|s| format!("stash@{{{}}}: {}", s.index, s.message)),
                     _ => None,
                 };
-                crate::popups::confirm::draw_stash_apply_popup(f, &stash_name, stash_apply_delete_after, body_area);
+                crate::popups::confirm::draw_stash_apply_popup(
+                    f,
+                    &stash_name,
+                    stash_apply_delete_after,
+                    body_area,
+                );
             }
             // Draw remote picker popup on top when requested.
             if matches!(mode, Mode::RemotePicker) {
@@ -804,11 +862,19 @@ pub fn draw(
             }
             // Draw branch checkout popup on top when requested.
             if matches!(mode, Mode::BranchCheckoutConfirm) {
-                crate::popups::confirm::draw_branch_checkout_popup(f, branch_action_target, body_area);
+                crate::popups::confirm::draw_branch_checkout_popup(
+                    f,
+                    branch_action_target,
+                    body_area,
+                );
             }
             // Draw tag checkout popup on top when requested.
             if matches!(mode, Mode::TagCheckoutConfirm) {
-                crate::popups::confirm::draw_tag_checkout_popup(f, &app.tag_checkout_target, body_area);
+                crate::popups::confirm::draw_tag_checkout_popup(
+                    f,
+                    &app.tag_checkout_target,
+                    body_area,
+                );
             }
         }
         _ => {
@@ -826,16 +892,13 @@ pub fn draw(
 /// Renders the bottom panel for a selected real commit:
 /// left = changed-file list (with selection), right = diff panel.
 
-
 // ── Staging panels ─────────────────────────────────────────────────────────
 
 /// Renders two side-by-side panels: \"Staging Area\" (left, split into Staged/Unstaged)
 /// and \"Staging Details\" (right, diff of selected file).
 
-
 /// Renders a titled sub-panel listing `files`, or a centred placeholder if empty.
 /// `selection` — when `Some(idx)` the panel is focused and the file at `idx` is highlighted.
-
 
 // ── Overview popup ─────────────────────────────────────────────────────────
 
@@ -955,7 +1018,6 @@ fn build_committer_stats_lines(info: &RepoInfo) -> Vec<Line<'static>> {
 
 /// Returns a [`Rect`] that is `percent_x` wide and `percent_y` tall, centred in `r`.
 
-
 // ── Detail help overlay ────────────────────────────────────────────────────
 
 pub const DETAIL_HELP_LINES: &[(&str, &str)] = &[
@@ -1010,9 +1072,6 @@ pub const DETAIL_HELP_LINES: &[(&str, &str)] = &[
 ];
 
 /// Renders a floating shortcut reference overlay centred over `area`.
-
-
-
 
 // ── Body builder ───────────────────────────────────────────────────────────
 
@@ -1216,7 +1275,6 @@ fn kind_line(
 /// Renders a commit confirmation/input popup centered over `area`.
 #[allow(clippy::too_many_arguments)]
 
-
 fn graph_line_spans(line: &crate::repo::GraphLine) -> Line<'static> {
     let mut spans = Vec::new();
 
@@ -1294,7 +1352,6 @@ fn graph_line_spans(line: &crate::repo::GraphLine) -> Line<'static> {
 
 #[allow(clippy::too_many_arguments)]
 
-
 pub fn read_file_content(path: &std::path::Path) -> Result<String, std::io::Error> {
     use std::io::Read;
     let file = std::fs::File::open(path)?;
@@ -1304,32 +1361,3 @@ pub fn read_file_content(path: &std::path::Path) -> Result<String, std::io::Erro
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     Ok(content)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

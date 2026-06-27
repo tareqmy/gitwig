@@ -1,14 +1,19 @@
+use crate::app::{App, Mode};
+use crate::config::SortOrder;
+use crate::repo::RemoteInfo;
+use crate::ui::layout::{centered_rect, centered_rect_fixed};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
+    primary_style,
+};
+use crate::ui::{wrap_excludes, wrap_str};
 use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap, Padding, Gauge, List, ListItem, ListState};
-use crate::app::{App, Mode};
-use crate::repo::RemoteInfo;
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, parse_color};
-use crate::ui::layout::{centered_rect, centered_rect_fixed};
-use crate::config::SortOrder;
-use crate::ui::{wrap_str, wrap_excludes};
+use ratatui::widgets::{
+    Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph, Wrap,
+};
 
 pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     let popup_area = centered_rect(65, 75, area);
@@ -345,16 +350,76 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     }
 }
 
-
-
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 pub struct SettingsPopup;
 impl SettingsPopup {
-    pub fn handle_event(_app: &mut crate::app::App, key: KeyEvent) -> bool {
+    pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
         let code = key.code;
-        match code {
-_ => {}
+        if app.settings_editing && app.settings_selected_index == 3 {
+            match code {
+                KeyCode::Esc => app.cancel_settings_edit(),
+                KeyCode::Enter => app.commit_settings_edit(),
+                KeyCode::Down if app.settings_theme_index + 1 < app.settings_theme_list.len() => {
+                    app.settings_theme_index += 1;
+                }
+                KeyCode::Up if app.settings_theme_index > 0 => {
+                    app.settings_theme_index -= 1;
+                }
+                KeyCode::PageUp if app.settings_theme_index > 0 => {
+                    app.settings_theme_index =
+                        app.settings_theme_index.saturating_sub(app.config.page_size);
+                }
+                KeyCode::PageDown
+                    if app.settings_theme_index + 1 < app.settings_theme_list.len() =>
+                {
+                    app.settings_theme_index = (app.settings_theme_index + app.config.page_size)
+                        .min(app.settings_theme_list.len().saturating_sub(1));
+                }
+                KeyCode::Home => {
+                    app.settings_theme_index = 0;
+                }
+                KeyCode::End if !app.settings_theme_list.is_empty() => {
+                    app.settings_theme_index = app.settings_theme_list.len() - 1;
+                }
+                _ => {}
+            }
+        } else {
+            match code {
+                KeyCode::Esc if app.settings_editing => app.cancel_settings_edit(),
+                KeyCode::Esc => app.mode = Mode::Normal,
+                KeyCode::Char('q') if !app.settings_editing => app.mode = Mode::Normal,
+                KeyCode::Down if !app.settings_editing => {
+                    if app.settings_selected_index + 1 < 14 {
+                        app.settings_selected_index += 1;
+                    }
+                }
+                KeyCode::Up if !app.settings_editing => {
+                    if app.settings_selected_index > 0 {
+                        app.settings_selected_index -= 1;
+                    }
+                }
+                KeyCode::PageUp if !app.settings_editing => {
+                    app.settings_selected_index =
+                        app.settings_selected_index.saturating_sub(app.config.page_size);
+                }
+                KeyCode::PageDown if !app.settings_editing => {
+                    app.settings_selected_index =
+                        (app.settings_selected_index + app.config.page_size).min(13);
+                }
+                KeyCode::Home if !app.settings_editing => {
+                    app.settings_selected_index = 0;
+                }
+                KeyCode::End if !app.settings_editing => {
+                    app.settings_selected_index = 13;
+                }
+                KeyCode::Enter if app.settings_editing => app.commit_settings_edit(),
+                KeyCode::Enter => app.toggle_or_edit_setting(),
+                KeyCode::Char(' ') if !app.settings_editing => app.toggle_or_edit_setting(),
+                KeyCode::Backspace if app.settings_editing => app.input_backspace(),
+                KeyCode::Char(c) if app.settings_editing => app.input_char(c),
+                _ => {}
+            }
         }
-        false
+        true
     }
 }

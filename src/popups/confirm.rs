@@ -1,12 +1,17 @@
-use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap, Padding, Gauge, List, ListItem, ListState};
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, parse_color};
 use crate::ui::layout::{centered_rect, centered_rect_fixed};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
+    primary_style,
+};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{
+    Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph, Wrap,
+};
 
 use crate::ui::*;
 pub fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
@@ -600,7 +605,12 @@ pub fn draw_stash_delete_popup(f: &mut Frame, target: &Option<String>, area: Rec
     f.render_widget(paragraph, popup_area);
 }
 
-pub fn draw_stash_apply_popup(f: &mut Frame, target: &Option<String>, delete_after: bool, area: Rect) {
+pub fn draw_stash_apply_popup(
+    f: &mut Frame,
+    target: &Option<String>,
+    delete_after: bool,
+    area: Rect,
+) {
     let popup_area = centered_rect(55, 25, area);
     f.render_widget(Clear, popup_area);
 
@@ -943,10 +953,9 @@ pub fn draw_remote_delete_popup(f: &mut Frame, remote_name: &str, area: Rect) {
     f.render_widget(paragraph, inner_area);
 }
 
-
+use crate::components::{Component, DrawableComponent, EventState};
+use crate::queue::{InternalEvent, Queue};
 use crossterm::event::{Event, KeyCode};
-use crate::components::{Component, EventState, DrawableComponent};
-use crate::queue::{Queue, InternalEvent};
 
 pub struct ConfirmPopup {
     pub queue: Queue,
@@ -959,7 +968,9 @@ impl ConfirmPopup {
 }
 
 impl DrawableComponent for ConfirmPopup {
-    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 impl Component for ConfirmPopup {

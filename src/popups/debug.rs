@@ -1,12 +1,17 @@
-use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap, Padding, Gauge, List, ListItem, ListState};
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, parse_color};
 use crate::ui::layout::{centered_rect, centered_rect_fixed};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
+    primary_style,
+};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{
+    Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph, Wrap,
+};
 
 pub fn draw_debug_logs(f: &mut Frame, app: &App, area: Rect) {
     let popup_area = centered_rect(90, 90, area);
@@ -70,7 +75,51 @@ pub fn draw_debug_logs(f: &mut Frame, app: &App, area: Rect) {
         .collect();
 
     let paragraph = Paragraph::new(visible_lines).style(Style::default());
-
     f.render_widget(paragraph, inner_rect);
 }
 
+use crossterm::event::{KeyCode, KeyEvent};
+pub struct DebugLogsPopup;
+impl DebugLogsPopup {
+    pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
+        let code = key.code;
+        match code {
+            KeyCode::Esc
+            | KeyCode::Char('q')
+            | KeyCode::Char('D')
+            | KeyCode::Char('l')
+            | KeyCode::Char('L') => {
+                crate::debug_log::info("Exiting debug logs");
+                app.mode = Mode::Normal;
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                let log_count = crate::debug_log::get_logs().len();
+                let max_scroll = log_count.saturating_sub(1);
+                if app.debug_log_scroll < max_scroll {
+                    app.debug_log_scroll += 1;
+                }
+            }
+            KeyCode::Up | KeyCode::Char('k') if app.debug_log_scroll > 0 => {
+                app.debug_log_scroll -= 1;
+            }
+            KeyCode::PageUp => {
+                app.debug_log_scroll = app.debug_log_scroll.saturating_sub(app.config.page_size);
+            }
+            KeyCode::PageDown => {
+                let log_count = crate::debug_log::get_logs().len();
+                let max_scroll = log_count.saturating_sub(1);
+                app.debug_log_scroll =
+                    (app.debug_log_scroll + app.config.page_size).min(max_scroll);
+            }
+            KeyCode::Home => {
+                app.debug_log_scroll = 0;
+            }
+            KeyCode::End => {
+                let log_count = crate::debug_log::get_logs().len();
+                app.debug_log_scroll = log_count.saturating_sub(1);
+            }
+            _ => {}
+        }
+        true
+    }
+}

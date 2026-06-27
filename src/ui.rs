@@ -30,7 +30,6 @@ pub mod style;
 pub use style::*;
 pub mod layout;
 
-
 /// Width of the per-item status zone on the right of each card. Wide
 /// enough to fit a busy repo's worth of indicators ("● 99+ 99! 99? 99↑")
 /// with a little breathing room. Right-aligned, so it crops on the left
@@ -38,8 +37,6 @@ pub mod layout;
 const STATUS_ZONE_WIDTH: u16 = 22;
 
 const UNSELECTED_INDENT: &str = "  ";
-
-
 
 /// Lines of the help overlay. Update this whenever a binding is added or
 /// renamed — it is the user's only complete shortcut reference.
@@ -617,13 +614,7 @@ pub(crate) fn wrap_excludes(val_str: &str, max_width: usize) -> Vec<String> {
 
 #[allow(clippy::needless_range_loop)]
 
-
-
-
-
-
 /// Returns a `Rect` of `(percent_x, percent_y)` dimensions, centered inside `area`.
-
 
 pub(crate) fn confirm_tag_delete_entries(
     target: &str,
@@ -664,7 +655,9 @@ pub(crate) fn confirm_tag_delete_entries(
     (message_spans, entries)
 }
 
-pub(crate) fn confirm_tag_push_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+pub(crate) fn confirm_tag_push_entries(
+    target: &str,
+) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let message_spans = Some(vec![
         Span::raw("Push tag "),
         Span::styled(
@@ -718,18 +711,6 @@ pub(crate) fn confirm_tag_push_all_entries() -> (Option<Vec<Span<'static>>>, Vec
     ];
     (message_spans, entries)
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 #[cfg(unix)]
 #[allow(unsafe_code)]
@@ -789,6 +770,7 @@ pub(crate) fn get_process_stats(_app: &App) -> (f64, f64) {
 mod tests {
     use super::*;
     use crate::app::{App, DetailSection};
+    use crate::components::cmd_bar::{detail_dismiss_entries, inspect_dismiss_entries};
     use crate::config::{Config, FzfConfig, SortOrder, ThemeConfig};
     use crate::repo::{FileEntry, ItemDetail, RepoInfo};
     use std::collections::HashMap;

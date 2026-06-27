@@ -1,15 +1,18 @@
+use crate::app::{App, DetailSection, Mode};
+use crate::config::SortOrder;
+use crate::ui::style::{ACCENT, DANGER, SUCCESS, accent_style, muted_style, primary_style};
+use crate::ui::{
+    confirm_tag_delete_entries, confirm_tag_push_all_entries, confirm_tag_push_entries,
+    draw_input_status, get_process_stats,
+};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
-use crate::app::{App, Mode, DetailSection};
-use crate::config::SortOrder;
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, DANGER, SUCCESS};
-use crate::ui::{get_process_stats, draw_input_status, confirm_tag_delete_entries, confirm_tag_push_entries, confirm_tag_push_all_entries};
 
 pub struct StatusEntry {
-    spans: Vec<Span<'static>>,
+    pub(crate) spans: Vec<Span<'static>>,
 }
 
 impl StatusEntry {
@@ -506,7 +509,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
     }
 }
 
-fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let mut message_spans = None;
     if let Some(msg) = &app.status_message {
         message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
@@ -706,7 +709,7 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
     (message_spans, entries)
 }
 
-fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let mut message_spans = None;
     if let Some(msg) = &app.status_message {
         message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
@@ -1569,4 +1572,3 @@ fn about_dismiss_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     ])];
     (None, entries)
 }
-

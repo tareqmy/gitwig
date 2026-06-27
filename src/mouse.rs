@@ -1,5 +1,5 @@
 use crate::app::{App, DetailSection, Mode, Splitter};
-use crossterm::event::{MouseEvent, MouseEventKind, MouseButton};
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Position;
 
 pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
@@ -488,7 +488,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         _ => 0,
                     };
                     if total > 0 {
-                        app.status_list.staging_file_selection = app.status_list.staging_file_selection.min(total - 1);
+                        app.status_list.staging_file_selection =
+                            app.status_list.staging_file_selection.min(total - 1);
                     } else {
                         app.status_list.staging_file_selection = 0;
                     }
@@ -553,7 +554,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         _ => 0,
                     };
                     if total > 0 {
-                        app.status_list.staging_file_selection = app.status_list.staging_file_selection.min(total - 1);
+                        app.status_list.staging_file_selection =
+                            app.status_list.staging_file_selection.min(total - 1);
                     } else {
                         app.status_list.staging_file_selection = 0;
                     }
@@ -618,7 +620,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         _ => 0,
                     };
                     if total > 0 {
-                        app.status_list.conflict_file_selection = app.status_list.conflict_file_selection.min(total - 1);
+                        app.status_list.conflict_file_selection =
+                            app.status_list.conflict_file_selection.min(total - 1);
                     } else {
                         app.status_list.conflict_file_selection = 0;
                     }
@@ -635,7 +638,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     _ => 0,
                 };
                 if total > 0 {
-                    app.status_list.conflict_file_selection = app.status_list.conflict_file_selection.saturating_sub(1);
+                    app.status_list.conflict_file_selection =
+                        app.status_list.conflict_file_selection.saturating_sub(1);
                     app.refresh_staging_diff();
                 }
             } else if is_scroll_down {
@@ -648,7 +652,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     _ => 0,
                 };
                 if total > 0 {
-                    app.status_list.conflict_file_selection = (app.status_list.conflict_file_selection + 1).min(total - 1);
+                    app.status_list.conflict_file_selection =
+                        (app.status_list.conflict_file_selection + 1).min(total - 1);
                     app.refresh_staging_diff();
                 }
             }
@@ -681,7 +686,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 if app.is_uncommitted_selected() {
                     let total = app.staging_file_total();
                     if total > 0 {
-                        app.status_list.staging_file_selection = app.status_list.staging_file_selection.min(total - 1);
+                        app.status_list.staging_file_selection =
+                            app.status_list.staging_file_selection.min(total - 1);
                     } else {
                         app.status_list.staging_file_selection = 0;
                     }
@@ -704,7 +710,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     if !clicked_file {
                         let total = app.file_total();
                         if total > 0 {
-                            app.status_list.file_selection = app.status_list.file_selection.min(total - 1);
+                            app.status_list.file_selection =
+                                app.status_list.file_selection.min(total - 1);
                         } else {
                             app.status_list.file_selection = 0;
                         }

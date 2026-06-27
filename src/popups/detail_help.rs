@@ -1,14 +1,20 @@
-use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap, Padding, Gauge, List, ListItem, Table, Row, Cell};
-use crate::app::{App, Mode, DetailSection};
+use crate::app::{App, DetailSection, Mode};
 use crate::repo::RemoteInfo;
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, parse_color};
 use crate::ui::layout::{centered_rect, centered_rect_fixed};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
+    primary_style,
+};
 use crate::ui_detail::DETAIL_HELP_LINES;
 use crate::ui_detail::*;
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{
+    Block, BorderType, Borders, Cell, Clear, Gauge, List, ListItem, Padding, Paragraph, Row, Table,
+    Wrap,
+};
 
 pub fn draw_detail_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
     let popup_area = centered_rect(60, 55, area);

@@ -5,9 +5,7 @@ pub struct KeyConfig {
 
 impl Default for KeyConfig {
     fn default() -> Self {
-        Self {
-            keys: crate::keys::KeyList::default(),
-        }
+        Self { keys: crate::keys::KeyList::default() }
     }
 }
 

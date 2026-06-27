@@ -13,7 +13,6 @@ use crossterm::event::{self, Event};
 use ratatui::Terminal;
 use ratatui::layout::{Margin, Rect};
 
-
 use crate::config::{Config, SortOrder, save_config};
 use crate::input;
 use crate::repo::{self, ItemDetail, ItemStatus};
@@ -291,8 +290,6 @@ pub struct App {
 
     pub status_list: crate::components::status_list::StatusListComponent,
 
-
-
     /// Timestamp and selected index of the last mouse click for double-click detection.
     pub last_click: Option<(std::time::Instant, usize)>,
     /// Active tab in the detail view (0 = Details, 1 = Graph, 2 = Branches, 3 = Files).
@@ -435,80 +432,90 @@ enum LogsNavDirection {
 }
 
 impl App {
-
     pub fn drain_queue(&mut self) {
         while let Some(ev) = self.queue.pop() {
             match ev {
-                
                 crate::queue::InternalEvent::ClosePopup => self.mode = Mode::Detail,
 
-                crate::queue::InternalEvent::ConfirmYes => {
-                    match self.mode {
-                        Mode::BranchDeleteConfirm => { self.confirm_branch_delete() }
-                        Mode::BranchPushConfirm => { self.confirm_branch_push() }
-                        Mode::BranchMergeConfirm => { self.confirm_branch_merge() }
-                        Mode::MergeAbortConfirm => { self.confirm_abort_merge() }
-                        Mode::MergeContinueConfirm => { self.confirm_continue_merge() }
-                        Mode::BranchRebaseConfirm => { self.confirm_branch_rebase() }
-                        Mode::BranchInteractiveRebaseConfirm => { self.confirm_branch_interactive_rebase() }
-                        Mode::DiscardChangesConfirm => { self.confirm_discard_changes() }
-                        Mode::RevertConfirm => { self.confirm_revert() }
-                        Mode::TagDeleteConfirm => { self.confirm_tag_delete() }
-                        Mode::TagPushConfirm => { self.confirm_tag_push() }
-                        Mode::TagPushAllConfirm => { self.confirm_tag_push_all() }
-                        Mode::StashDeleteConfirm => { self.confirm_stash_delete() }
-                        Mode::BranchCheckoutConfirm => { self.confirm_branch_checkout() }
-                        Mode::TagCheckoutConfirm => { self.confirm_tag_checkout() }
-                        Mode::RemoteDeleteConfirm => { self.confirm_remote_delete() }
-                        _ => {}
+                crate::queue::InternalEvent::ConfirmYes => match self.mode {
+                    Mode::BranchDeleteConfirm => self.confirm_branch_delete(),
+                    Mode::BranchPushConfirm => self.confirm_branch_push(),
+                    Mode::BranchMergeConfirm => self.confirm_branch_merge(),
+                    Mode::MergeAbortConfirm => self.confirm_abort_merge(),
+                    Mode::MergeContinueConfirm => self.confirm_continue_merge(),
+                    Mode::BranchRebaseConfirm => self.confirm_branch_rebase(),
+                    Mode::BranchInteractiveRebaseConfirm => {
+                        self.confirm_branch_interactive_rebase()
                     }
-                }
-                crate::queue::InternalEvent::ConfirmNo => {
-                    match self.mode {
-                        Mode::BranchDeleteConfirm => { self.cancel_branch_delete() }
-                        Mode::BranchPushConfirm => { self.cancel_branch_push() }
-                        Mode::BranchMergeConfirm => { self.cancel_branch_merge() }
-                        Mode::MergeAbortConfirm => { self.mode = Mode::Detail; }
-                        Mode::MergeContinueConfirm => { self.mode = Mode::Detail; }
-                        Mode::BranchRebaseConfirm => { self.cancel_branch_rebase() }
-                        Mode::BranchInteractiveRebaseConfirm => { self.cancel_branch_interactive_rebase() }
-                        Mode::DiscardChangesConfirm => { self.cancel_discard_changes() }
-                        Mode::RevertConfirm => { self.cancel_revert() }
-                        Mode::TagDeleteConfirm => { self.cancel_tag_delete() }
-                        Mode::TagPushConfirm => { self.cancel_tag_push() }
-                        Mode::TagPushAllConfirm => { self.cancel_tag_push_all() }
-                        Mode::StashDeleteConfirm => { self.cancel_stash_delete() }
-                        Mode::BranchCheckoutConfirm => { self.cancel_branch_checkout() }
-                        Mode::TagCheckoutConfirm => { self.cancel_tag_checkout() }
-                        Mode::RemoteDeleteConfirm => { self.remote_action_target = None;
-                        self.mode = Mode::Detail; }
-                        _ => { self.mode = Mode::Detail; }
+                    Mode::DiscardChangesConfirm => self.confirm_discard_changes(),
+                    Mode::RevertConfirm => self.confirm_revert(),
+                    Mode::TagDeleteConfirm => self.confirm_tag_delete(),
+                    Mode::TagPushConfirm => self.confirm_tag_push(),
+                    Mode::TagPushAllConfirm => self.confirm_tag_push_all(),
+                    Mode::StashDeleteConfirm => self.confirm_stash_delete(),
+                    Mode::BranchCheckoutConfirm => self.confirm_branch_checkout(),
+                    Mode::TagCheckoutConfirm => self.confirm_tag_checkout(),
+                    Mode::RemoteDeleteConfirm => self.confirm_remote_delete(),
+                    _ => {}
+                },
+                crate::queue::InternalEvent::ConfirmNo => match self.mode {
+                    Mode::BranchDeleteConfirm => self.cancel_branch_delete(),
+                    Mode::BranchPushConfirm => self.cancel_branch_push(),
+                    Mode::BranchMergeConfirm => self.cancel_branch_merge(),
+                    Mode::MergeAbortConfirm => {
+                        self.mode = Mode::Detail;
                     }
-                }
+                    Mode::MergeContinueConfirm => {
+                        self.mode = Mode::Detail;
+                    }
+                    Mode::BranchRebaseConfirm => self.cancel_branch_rebase(),
+                    Mode::BranchInteractiveRebaseConfirm => self.cancel_branch_interactive_rebase(),
+                    Mode::DiscardChangesConfirm => self.cancel_discard_changes(),
+                    Mode::RevertConfirm => self.cancel_revert(),
+                    Mode::TagDeleteConfirm => self.cancel_tag_delete(),
+                    Mode::TagPushConfirm => self.cancel_tag_push(),
+                    Mode::TagPushAllConfirm => self.cancel_tag_push_all(),
+                    Mode::StashDeleteConfirm => self.cancel_stash_delete(),
+                    Mode::BranchCheckoutConfirm => self.cancel_branch_checkout(),
+                    Mode::TagCheckoutConfirm => self.cancel_tag_checkout(),
+                    Mode::RemoteDeleteConfirm => {
+                        self.remote_action_target = None;
+                        self.mode = Mode::Detail;
+                    }
+                    _ => {
+                        self.mode = Mode::Detail;
+                    }
+                },
                 crate::queue::InternalEvent::InputChar(c) => self.input_char(c),
                 crate::queue::InternalEvent::InputBackspace => self.input_backspace(),
-                crate::queue::InternalEvent::InputEnter => {
-                    match self.mode {
-                        Mode::BranchCreateInput => { self.commit_branch_create() }
-                        Mode::TagCreateInput => { self.commit_tag_create() }
-                        Mode::StashCreateInput => { self.commit_stash_create() }
-                        Mode::RemoteAddNameInput => { self.commit_remote_add_name() }
-                        Mode::RemoteAddUrlInput => { self.commit_remote_add_url() }
-                        _ => {}
+                crate::queue::InternalEvent::InputEnter => match self.mode {
+                    Mode::BranchCreateInput => self.commit_branch_create(),
+                    Mode::TagCreateInput => self.commit_tag_create(),
+                    Mode::StashCreateInput => self.commit_stash_create(),
+                    Mode::RemoteAddNameInput => self.commit_remote_add_name(),
+                    Mode::RemoteAddUrlInput => self.commit_remote_add_url(),
+                    _ => {}
+                },
+                crate::queue::InternalEvent::InputEsc => match self.mode {
+                    Mode::BranchCreateInput => self.cancel_branch_create(),
+                    Mode::TagCreateInput => {
+                        self.tag_action_target_oid = None;
+                        self.mode = Mode::Detail;
                     }
-                }
-                crate::queue::InternalEvent::InputEsc => {
-                    match self.mode {
-                        Mode::BranchCreateInput => { self.cancel_branch_create() }
-                        Mode::TagCreateInput => { self.tag_action_target_oid = None;
-                        self.mode = Mode::Detail; }
-                        Mode::StashCreateInput => { self.mode = Mode::Detail; }
-                        Mode::RemoteAddNameInput => { self.mode = Mode::Detail; }
-                        Mode::RemoteAddUrlInput => { self.mode = Mode::Detail; }
-                        _ => { self.mode = Mode::Detail; }
+                    Mode::StashCreateInput => {
+                        self.mode = Mode::Detail;
                     }
-                }
- // simplified
+                    Mode::RemoteAddNameInput => {
+                        self.mode = Mode::Detail;
+                    }
+                    Mode::RemoteAddUrlInput => {
+                        self.mode = Mode::Detail;
+                    }
+                    _ => {
+                        self.mode = Mode::Detail;
+                    }
+                },
+                // simplified
                 crate::queue::InternalEvent::Commit => {
                     self.commit_git_changes();
                 }
@@ -521,7 +528,9 @@ impl App {
                 crate::queue::InternalEvent::StartTagCreate => self.start_tag_create(),
                 crate::queue::InternalEvent::RunInteractiveRebase => self.run_interactive_rebase(),
                 crate::queue::InternalEvent::RequestCherryPick => self.request_cherry_pick(),
-                crate::queue::InternalEvent::YankSelectedCommitHash => self.yank_selected_commit_hash(),
+                crate::queue::InternalEvent::YankSelectedCommitHash => {
+                    self.yank_selected_commit_hash()
+                }
                 crate::queue::InternalEvent::RequestRevert => self.request_revert(),
                 crate::queue::InternalEvent::InspectCommit => {
                     self.mode = Mode::Inspect;
@@ -543,54 +552,108 @@ impl App {
                     let page = self.config.page_size;
                     self.detail_commit_page_up(page);
                 }
-                
+
                 crate::queue::InternalEvent::CommitSelectionTop => self.detail_commit_to_top(),
-                crate::queue::InternalEvent::CommitSelectionBottom => self.detail_commit_to_bottom(),
+                crate::queue::InternalEvent::CommitSelectionBottom => {
+                    self.detail_commit_to_bottom()
+                }
                 crate::queue::InternalEvent::LoadMoreCommits => {
                     self.commit_list.limit = self.commit_list.limit.saturating_add(200);
                     self.resync_detail();
                     self.status_message = Some("Loading more commits...".to_string());
                 }
-                crate::queue::InternalEvent::CommitDetailsUp => self.commit_list.details_scroll_up(),
-                crate::queue::InternalEvent::CommitDetailsDown => self.commit_list.details_scroll_down(),
-                crate::queue::InternalEvent::StagingFileUp => if self.is_uncommitted_selected() { self.staging_file_up() } else { self.detail_file_up() },
-                crate::queue::InternalEvent::StagingFileDown => if self.is_uncommitted_selected() { self.staging_file_down() } else { self.detail_file_down() },
+                crate::queue::InternalEvent::CommitDetailsUp => {
+                    self.commit_list.details_scroll_up()
+                }
+                crate::queue::InternalEvent::CommitDetailsDown => {
+                    self.commit_list.details_scroll_down()
+                }
+                crate::queue::InternalEvent::StagingFileUp => {
+                    if self.is_uncommitted_selected() {
+                        self.staging_file_up()
+                    } else {
+                        self.detail_file_up()
+                    }
+                }
+                crate::queue::InternalEvent::StagingFileDown => {
+                    if self.is_uncommitted_selected() {
+                        self.staging_file_down()
+                    } else {
+                        self.detail_file_down()
+                    }
+                }
                 crate::queue::InternalEvent::ConflictFileUp => self.conflict_file_up(),
                 crate::queue::InternalEvent::ConflictFileDown => self.conflict_file_down(),
                 crate::queue::InternalEvent::StageSelectedFile => self.stage_selected_file(),
                 crate::queue::InternalEvent::UnstageSelectedFile => self.unstage_selected_file(),
                 crate::queue::InternalEvent::ResolveConflictOurs => self.resolve_conflict_ours(),
-                crate::queue::InternalEvent::ResolveConflictTheirs => self.resolve_conflict_theirs(),
+                crate::queue::InternalEvent::ResolveConflictTheirs => {
+                    self.resolve_conflict_theirs()
+                }
                 crate::queue::InternalEvent::MarkConflictResolved => self.mark_conflict_resolved(),
-                crate::queue::InternalEvent::MergeAbortConfirm => self.mode = Mode::MergeAbortConfirm,
-                crate::queue::InternalEvent::MergeContinueConfirm => self.mode = Mode::MergeContinueConfirm,
+                crate::queue::InternalEvent::MergeAbortConfirm => {
+                    self.mode = Mode::MergeAbortConfirm
+                }
+                crate::queue::InternalEvent::MergeContinueConfirm => {
+                    self.mode = Mode::MergeContinueConfirm
+                }
                 crate::queue::InternalEvent::StageSelectedHunk => self.stage_selected_hunk(),
                 crate::queue::InternalEvent::UnstageSelectedHunk => self.unstage_selected_hunk(),
                 crate::queue::InternalEvent::StageAllChanges => self.stage_all_changes(),
                 crate::queue::InternalEvent::UnstageAllChanges => self.unstage_all_changes(),
-                crate::queue::InternalEvent::RequestDiscardChanges => self.request_discard_changes(),
-                crate::queue::InternalEvent::RequestDiscardAllChanges => self.request_discard_all_changes(),
+                crate::queue::InternalEvent::RequestDiscardChanges => {
+                    self.request_discard_changes()
+                }
+                crate::queue::InternalEvent::RequestDiscardAllChanges => {
+                    self.request_discard_all_changes()
+                }
                 crate::queue::InternalEvent::StartStashCreate => self.start_stash_create(),
                 crate::queue::InternalEvent::DiffScrollUp => self.diff.diff_scroll_up(),
                 crate::queue::InternalEvent::DiffScrollDown => self.diff.diff_scroll_down(),
-                crate::queue::InternalEvent::DiffScrollPageUp => { let page = self.config.page_size; self.diff.diff_scroll_page_up(page); },
-                crate::queue::InternalEvent::DiffScrollPageDown => { let page = self.config.page_size; self.diff.diff_scroll_page_down(page); },
+                crate::queue::InternalEvent::DiffScrollPageUp => {
+                    let page = self.config.page_size;
+                    self.diff.diff_scroll_page_up(page);
+                }
+                crate::queue::InternalEvent::DiffScrollPageDown => {
+                    let page = self.config.page_size;
+                    self.diff.diff_scroll_page_down(page);
+                }
                 crate::queue::InternalEvent::DiffScrollTop => self.diff.diff_scroll_to_top(),
                 crate::queue::InternalEvent::DiffScrollBottom => self.diff.diff_scroll_to_bottom(),
 
                 // FileTree
                 crate::queue::InternalEvent::FileTreeUp => self.file_list_up(),
                 crate::queue::InternalEvent::FileTreeDown => self.file_list_down(),
-                crate::queue::InternalEvent::FileTreePageUp => { let p = self.config.page_size; self.file_list_page_up(p) },
-                crate::queue::InternalEvent::FileTreePageDown => { let p = self.config.page_size; self.file_list_page_down(p) },
+                crate::queue::InternalEvent::FileTreePageUp => {
+                    let p = self.config.page_size;
+                    self.file_list_page_up(p)
+                }
+                crate::queue::InternalEvent::FileTreePageDown => {
+                    let p = self.config.page_size;
+                    self.file_list_page_down(p)
+                }
                 crate::queue::InternalEvent::FileTreeTop => self.file_list_to_top(),
                 crate::queue::InternalEvent::FileTreeBottom => self.file_list_to_bottom(),
-                crate::queue::InternalEvent::FileContentUp => self.file_tree.file_content_scroll_up(),
-                crate::queue::InternalEvent::FileContentDown => self.file_tree.file_content_scroll_down(),
-                crate::queue::InternalEvent::FileContentPageUp => { let p = self.config.page_size; self.file_tree.file_content_scroll_page_up(p) },
-                crate::queue::InternalEvent::FileContentPageDown => { let p = self.config.page_size; self.file_tree.file_content_scroll_page_down(p) },
-                crate::queue::InternalEvent::FileContentTop => self.file_tree.file_content_scroll_to_top(),
-                crate::queue::InternalEvent::FileContentBottom => self.file_tree.file_content_scroll_to_bottom(),
+                crate::queue::InternalEvent::FileContentUp => {
+                    self.file_tree.file_content_scroll_up()
+                }
+                crate::queue::InternalEvent::FileContentDown => {
+                    self.file_tree.file_content_scroll_down()
+                }
+                crate::queue::InternalEvent::FileContentPageUp => {
+                    let p = self.config.page_size;
+                    self.file_tree.file_content_scroll_page_up(p)
+                }
+                crate::queue::InternalEvent::FileContentPageDown => {
+                    let p = self.config.page_size;
+                    self.file_tree.file_content_scroll_page_down(p)
+                }
+                crate::queue::InternalEvent::FileContentTop => {
+                    self.file_tree.file_content_scroll_to_top()
+                }
+                crate::queue::InternalEvent::FileContentBottom => {
+                    self.file_tree.file_content_scroll_to_bottom()
+                }
                 crate::queue::InternalEvent::ToggleFolderExpanded => self.toggle_folder_expanded(),
                 crate::queue::InternalEvent::CollapseAllFolders => self.collapse_all_folders(),
                 crate::queue::InternalEvent::RequestDiscardFile => self.request_discard_changes(),
@@ -598,14 +661,26 @@ impl App {
                 // BranchList
                 crate::queue::InternalEvent::LocalBranchUp => self.local_branch_up(),
                 crate::queue::InternalEvent::LocalBranchDown => self.local_branch_down(),
-                crate::queue::InternalEvent::LocalBranchPageUp => { let p = self.config.page_size; self.local_branch_page_up(p) },
-                crate::queue::InternalEvent::LocalBranchPageDown => { let p = self.config.page_size; self.local_branch_page_down(p) },
+                crate::queue::InternalEvent::LocalBranchPageUp => {
+                    let p = self.config.page_size;
+                    self.local_branch_page_up(p)
+                }
+                crate::queue::InternalEvent::LocalBranchPageDown => {
+                    let p = self.config.page_size;
+                    self.local_branch_page_down(p)
+                }
                 crate::queue::InternalEvent::LocalBranchTop => self.local_branch_to_top(),
                 crate::queue::InternalEvent::LocalBranchBottom => self.local_branch_to_bottom(),
                 crate::queue::InternalEvent::RemoteBranchUp => self.remote_branch_up(),
                 crate::queue::InternalEvent::RemoteBranchDown => self.remote_branch_down(),
-                crate::queue::InternalEvent::RemoteBranchPageUp => { let p = self.config.page_size; self.remote_branch_page_up(p) },
-                crate::queue::InternalEvent::RemoteBranchPageDown => { let p = self.config.page_size; self.remote_branch_page_down(p) },
+                crate::queue::InternalEvent::RemoteBranchPageUp => {
+                    let p = self.config.page_size;
+                    self.remote_branch_page_up(p)
+                }
+                crate::queue::InternalEvent::RemoteBranchPageDown => {
+                    let p = self.config.page_size;
+                    self.remote_branch_page_down(p)
+                }
                 crate::queue::InternalEvent::RemoteBranchTop => self.remote_branch_to_top(),
                 crate::queue::InternalEvent::RemoteBranchBottom => self.remote_branch_to_bottom(),
                 crate::queue::InternalEvent::CheckoutBranch => self.request_branch_checkout(),
@@ -615,19 +690,34 @@ impl App {
                 crate::queue::InternalEvent::StartBranchRebase => self.request_branch_rebase(),
                 crate::queue::InternalEvent::RequestBranchPush => self.request_branch_push(),
                 crate::queue::InternalEvent::FetchRemote => {
-                    let remote_name = if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-                        info.remotes.get(self.branch_list.remote_selection).or_else(|| info.remotes.first()).map(|r| r.name.clone())
-                    } else { None };
-                    if let Some(name) = remote_name { self.fetch_remote(&name); }
-                },
+                    let remote_name = if let Some(crate::repo::ItemDetail::Repo { info, .. }) =
+                        &self.current_detail
+                    {
+                        info.remotes
+                            .get(self.branch_list.remote_selection)
+                            .or_else(|| info.remotes.first())
+                            .map(|r| r.name.clone())
+                    } else {
+                        None
+                    };
+                    if let Some(name) = remote_name {
+                        self.fetch_remote(&name);
+                    }
+                }
                 crate::queue::InternalEvent::StartRemoteAdd => self.start_remote_add(),
                 crate::queue::InternalEvent::RequestDeleteRemote => self.request_remote_delete(),
 
                 // TagList
                 crate::queue::InternalEvent::TagUp => self.local_tag_up(),
                 crate::queue::InternalEvent::TagDown => self.local_tag_down(),
-                crate::queue::InternalEvent::TagPageUp => { let p = self.config.page_size; self.local_tag_page_up(p) },
-                crate::queue::InternalEvent::TagPageDown => { let p = self.config.page_size; self.local_tag_page_down(p) },
+                crate::queue::InternalEvent::TagPageUp => {
+                    let p = self.config.page_size;
+                    self.local_tag_page_up(p)
+                }
+                crate::queue::InternalEvent::TagPageDown => {
+                    let p = self.config.page_size;
+                    self.local_tag_page_down(p)
+                }
                 crate::queue::InternalEvent::TagTop => self.local_tag_to_top(),
                 crate::queue::InternalEvent::TagBottom => self.local_tag_to_bottom(),
                 crate::queue::InternalEvent::CheckoutTag => self.request_tag_checkout(),
@@ -639,19 +729,30 @@ impl App {
                 // StashList
                 crate::queue::InternalEvent::StashUp => self.stash_up(),
                 crate::queue::InternalEvent::StashDown => self.stash_down(),
-                crate::queue::InternalEvent::StashPageUp => { let p = self.config.page_size; self.stash_page_up(p) },
-                crate::queue::InternalEvent::StashPageDown => { let p = self.config.page_size; self.stash_page_down(p) },
+                crate::queue::InternalEvent::StashPageUp => {
+                    let p = self.config.page_size;
+                    self.stash_page_up(p)
+                }
+                crate::queue::InternalEvent::StashPageDown => {
+                    let p = self.config.page_size;
+                    self.stash_page_down(p)
+                }
                 crate::queue::InternalEvent::StashTop => self.stash_to_top(),
                 crate::queue::InternalEvent::StashBottom => self.stash_to_bottom(),
                 crate::queue::InternalEvent::StashFileUp => self.stash_file_up(),
                 crate::queue::InternalEvent::StashFileDown => self.stash_file_down(),
-                crate::queue::InternalEvent::StashFilePageUp => { let p = self.config.page_size; self.stash_file_page_up(p) },
-                crate::queue::InternalEvent::StashFilePageDown => { let p = self.config.page_size; self.stash_file_page_down(p) },
+                crate::queue::InternalEvent::StashFilePageUp => {
+                    let p = self.config.page_size;
+                    self.stash_file_page_up(p)
+                }
+                crate::queue::InternalEvent::StashFilePageDown => {
+                    let p = self.config.page_size;
+                    self.stash_file_page_down(p)
+                }
                 crate::queue::InternalEvent::StashFileTop => self.stash_file_to_top(),
                 crate::queue::InternalEvent::StashFileBottom => self.stash_file_to_bottom(),
                 crate::queue::InternalEvent::RequestDeleteStash => self.request_stash_delete(),
                 crate::queue::InternalEvent::RequestApplyStash => self.request_stash_apply(),
-
 
                 crate::queue::InternalEvent::CommitSelectionPageDown => {
                     let page = self.config.page_size;
@@ -694,30 +795,26 @@ impl App {
             branch_list: crate::components::branch_list::BranchListComponent::new(queue.clone()),
             tag_list: crate::components::tag_list::TagListComponent::new(queue.clone()),
             stash_list: crate::components::stash_list::StashListComponent::new(queue.clone()),
-            commit_list: crate::components::commit_list::CommitListComponent { limit: 100, queue: queue.clone(), ..Default::default() },
+            commit_list: crate::components::commit_list::CommitListComponent {
+                limit: 100,
+                queue: queue.clone(),
+                ..Default::default()
+            },
             commit_popup: crate::popups::commit::CommitPopup::new(queue.clone()),
             confirm_popup: crate::popups::confirm::ConfirmPopup::new(queue.clone()),
             generic_input_popup: crate::popups::commit::GenericInputPopup::new(queue.clone()),
-            
-            
+
             repo_search_query: None,
-            
-            
+
             diff: crate::components::diff::DiffComponent::new(queue.clone()),
-            
-            
-            
-            
-            
-            
+
             commit_input_scroll: 0,
             help_scroll: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
-            
+
             status_list: crate::components::status_list::StatusListComponent::new(queue.clone()),
-            
-            
+
             last_click: None,
             detail_tab: 0,
             graph_scroll: 0,
@@ -1795,7 +1892,8 @@ impl App {
 
     /// Move local branch selection up.
     pub fn local_branch_up(&mut self) {
-        self.branch_list.local_branch_selection = self.branch_list.local_branch_selection.saturating_sub(1);
+        self.branch_list.local_branch_selection =
+            self.branch_list.local_branch_selection.saturating_sub(1);
     }
 
     /// Move local branch selection down.
@@ -1810,7 +1908,8 @@ impl App {
 
     /// Scroll local branch selection up by page.
     pub fn local_branch_page_up(&mut self, page: usize) {
-        self.branch_list.local_branch_selection = self.branch_list.local_branch_selection.saturating_sub(page);
+        self.branch_list.local_branch_selection =
+            self.branch_list.local_branch_selection.saturating_sub(page);
     }
 
     /// Scroll local branch selection down by page.
@@ -1826,7 +1925,8 @@ impl App {
 
     /// Move remote branch selection up.
     pub fn remote_branch_up(&mut self) {
-        self.branch_list.remote_branch_selection = self.branch_list.remote_branch_selection.saturating_sub(1);
+        self.branch_list.remote_branch_selection =
+            self.branch_list.remote_branch_selection.saturating_sub(1);
     }
 
     /// Move remote branch selection down.
@@ -1841,7 +1941,8 @@ impl App {
 
     /// Scroll remote branch selection up by page.
     pub fn remote_branch_page_up(&mut self, page: usize) {
-        self.branch_list.remote_branch_selection = self.branch_list.remote_branch_selection.saturating_sub(page);
+        self.branch_list.remote_branch_selection =
+            self.branch_list.remote_branch_selection.saturating_sub(page);
     }
 
     /// Scroll remote branch selection down by page.
@@ -1872,7 +1973,8 @@ impl App {
 
     /// Scroll file selection up by page.
     pub fn file_list_page_up(&mut self, page: usize) {
-        self.file_tree.file_list_selection = self.file_tree.file_list_selection.saturating_sub(page);
+        self.file_tree.file_list_selection =
+            self.file_tree.file_list_selection.saturating_sub(page);
         self.file_tree.file_content_scroll = 0;
     }
 
@@ -1931,7 +2033,9 @@ impl App {
             return;
         }
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection) {
+            if let Some(branch_info) =
+                info.local_branches.get(self.branch_list.local_branch_selection)
+            {
                 self.fetching = true;
                 self.status_message = Some("Fetching...".to_string());
 
@@ -1991,7 +2095,9 @@ impl App {
             return;
         }
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection) {
+            if let Some(branch_info) =
+                info.local_branches.get(self.branch_list.local_branch_selection)
+            {
                 if !branch_info.is_head {
                     self.status_message = Some(format!(
                         "Can only pull into the currently checked-out branch. Checkout '{}' first.",
@@ -2058,7 +2164,9 @@ impl App {
             return;
         }
         if let Some(repo::ItemDetail::Repo { info, resolved }) = &self.current_detail {
-            if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection) {
+            if let Some(branch_info) =
+                info.local_branches.get(self.branch_list.local_branch_selection)
+            {
                 let branch_name = branch_info.name.clone();
                 // Check if this branch already has a configured upstream remote.
                 let has_upstream = git2::Repository::open(resolved)
@@ -2190,7 +2298,8 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             match self.detail_focus {
                 DetailSection::LocalBranches => {
-                    if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection)
+                    if let Some(branch_info) =
+                        info.local_branches.get(self.branch_list.local_branch_selection)
                     {
                         if !branch_info.is_head {
                             self.branch_action_target = Some((branch_info.name.clone(), false));
@@ -2257,8 +2366,11 @@ impl App {
                 || !info.changes.unstaged.is_empty()
                 || !info.changes.untracked.is_empty()
                 || !info.changes.conflicted.is_empty();
-            let commit_idx =
-                if dirty { self.commit_list.selection.saturating_sub(1) } else { self.commit_list.selection };
+            let commit_idx = if dirty {
+                self.commit_list.selection.saturating_sub(1)
+            } else {
+                self.commit_list.selection
+            };
             if let Some(commit) = info.commits.get(commit_idx) {
                 self.tag_action_target_oid = Some(commit.oid.clone());
                 self.commit_popup.input_buffer.clear();
@@ -2618,7 +2730,8 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             match self.detail_focus {
                 DetailSection::LocalBranches => {
-                    if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection)
+                    if let Some(branch_info) =
+                        info.local_branches.get(self.branch_list.local_branch_selection)
                     {
                         if branch_info.is_head {
                             self.status_message =
@@ -2676,7 +2789,8 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             match self.detail_focus {
                 DetailSection::LocalBranches => {
-                    if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection)
+                    if let Some(branch_info) =
+                        info.local_branches.get(self.branch_list.local_branch_selection)
                     {
                         self.branch_action_target = Some((branch_info.name.clone(), false));
                         self.mode = Mode::BranchMergeConfirm;
@@ -2771,14 +2885,18 @@ impl App {
     pub fn request_branch_rebase(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if self.detail_focus == DetailSection::LocalBranches {
-                if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection) {
+                if let Some(branch_info) =
+                    info.local_branches.get(self.branch_list.local_branch_selection)
+                {
                     if !branch_info.is_head {
                         self.branch_action_target = Some((branch_info.name.clone(), false));
                         self.mode = Mode::BranchRebaseConfirm;
                     }
                 }
             } else if self.detail_focus == DetailSection::RemoteBranches {
-                if let Some(branch_info) = info.remote_branches.get(self.branch_list.remote_branch_selection) {
+                if let Some(branch_info) =
+                    info.remote_branches.get(self.branch_list.remote_branch_selection)
+                {
                     self.branch_action_target = Some((branch_info.name.clone(), true));
                     self.mode = Mode::BranchRebaseConfirm;
                 }
@@ -2861,14 +2979,18 @@ impl App {
     pub fn request_branch_interactive_rebase(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if self.detail_focus == DetailSection::LocalBranches {
-                if let Some(branch_info) = info.local_branches.get(self.branch_list.local_branch_selection) {
+                if let Some(branch_info) =
+                    info.local_branches.get(self.branch_list.local_branch_selection)
+                {
                     if !branch_info.is_head {
                         self.branch_action_target = Some((branch_info.name.clone(), false));
                         self.mode = Mode::BranchInteractiveRebaseConfirm;
                     }
                 }
             } else if self.detail_focus == DetailSection::RemoteBranches {
-                if let Some(branch_info) = info.remote_branches.get(self.branch_list.remote_branch_selection) {
+                if let Some(branch_info) =
+                    info.remote_branches.get(self.branch_list.remote_branch_selection)
+                {
                     self.branch_action_target = Some((branch_info.name.clone(), true));
                     self.mode = Mode::BranchInteractiveRebaseConfirm;
                 }
@@ -3294,7 +3416,8 @@ impl App {
 
     /// Move staging-area file selection up one row (Staged or Unstaged panel).
     pub fn staging_file_up(&mut self) {
-        self.status_list.staging_file_selection = self.status_list.staging_file_selection.saturating_sub(1);
+        self.status_list.staging_file_selection =
+            self.status_list.staging_file_selection.saturating_sub(1);
         self.diff.diff_scroll = 0;
         self.refresh_staging_diff();
     }
@@ -3311,7 +3434,8 @@ impl App {
 
     /// Move conflict-area file selection up one row.
     pub fn conflict_file_up(&mut self) {
-        self.status_list.conflict_file_selection = self.status_list.conflict_file_selection.saturating_sub(1);
+        self.status_list.conflict_file_selection =
+            self.status_list.conflict_file_selection.saturating_sub(1);
         self.diff.diff_scroll = 0;
         self.refresh_staging_diff();
     }
@@ -3331,13 +3455,7 @@ impl App {
 
     /// Scroll the diff panel up by one line.
 
-
-
-
     /// Scroll the diff panel up by `page` lines.
-
-
-
 
     pub fn get_conflict_hunk_ranges(&self) -> Vec<std::ops::Range<usize>> {
         let mut ranges = Vec::new();
@@ -3735,7 +3853,9 @@ impl App {
 
     pub fn get_file_content_line_count(&self) -> usize {
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(selected_item) = self.file_tree.visible_files.get(self.file_tree.file_list_selection) {
+            if let Some(selected_item) =
+                self.file_tree.visible_files.get(self.file_tree.file_list_selection)
+            {
                 if selected_item.is_dir {
                     let prefix = if selected_item.full_path.is_empty() {
                         "".to_string()
@@ -3797,7 +3917,8 @@ impl App {
 
     /// Scroll the file content panel up by `page` lines.
     pub fn file_content_scroll_page_up(&mut self, page: usize) {
-        self.file_tree.file_content_scroll = self.file_tree.file_content_scroll.saturating_sub(page);
+        self.file_tree.file_content_scroll =
+            self.file_tree.file_content_scroll.saturating_sub(page);
     }
 
     /// Scroll the file content panel down by `page` lines.
@@ -4005,7 +4126,8 @@ impl App {
                 _ => None,
             };
             if let Some((repo_path, commit_oid, file_path)) = params {
-                self.diff.file_diff = repo::get_commit_file_diff(&repo_path, &commit_oid, &file_path);
+                self.diff.file_diff =
+                    repo::get_commit_file_diff(&repo_path, &commit_oid, &file_path);
             } else {
                 self.diff.file_diff.clear();
             }
@@ -4037,7 +4159,8 @@ impl App {
             };
             if let Some((repo_path, file_path, staged_opt)) = params {
                 if let Some(staged) = staged_opt {
-                    self.diff.file_diff = repo::get_worktree_file_diff(&repo_path, &file_path, staged);
+                    self.diff.file_diff =
+                        repo::get_worktree_file_diff(&repo_path, &file_path, staged);
                 } else {
                     self.diff.file_diff = repo::get_conflict_markers_diff(&repo_path, &file_path);
                 }
@@ -4172,7 +4295,12 @@ impl App {
         };
         if let Some((repo_path, file_path)) = params {
             let result = if self.detail_focus == DetailSection::ConflictDiff {
-                repo::resolve_conflict_hunk(&repo_path, &file_path, self.diff.diff_hunk_selection, true)
+                repo::resolve_conflict_hunk(
+                    &repo_path,
+                    &file_path,
+                    self.diff.diff_hunk_selection,
+                    true,
+                )
             } else {
                 repo::resolve_ours(&repo_path, &file_path)
             };
@@ -4206,7 +4334,12 @@ impl App {
         };
         if let Some((repo_path, file_path)) = params {
             let result = if self.detail_focus == DetailSection::ConflictDiff {
-                repo::resolve_conflict_hunk(&repo_path, &file_path, self.diff.diff_hunk_selection, false)
+                repo::resolve_conflict_hunk(
+                    &repo_path,
+                    &file_path,
+                    self.diff.diff_hunk_selection,
+                    false,
+                )
             } else {
                 repo::resolve_theirs(&repo_path, &file_path)
             };
@@ -5252,7 +5385,9 @@ impl App {
     /// Expand the selected folder in the Files tab.
 
     pub fn toggle_folder_expanded(&mut self) {
-        if let Some(item) = self.file_tree.visible_files.get(self.file_tree.file_list_selection).cloned() {
+        if let Some(item) =
+            self.file_tree.visible_files.get(self.file_tree.file_list_selection).cloned()
+        {
             if item.is_dir {
                 if self.file_tree.expanded_folders.contains(&item.full_path) {
                     self.collapse_selected_folder();
@@ -5356,7 +5491,10 @@ impl App {
             info.remote_tags_attempted = true;
             // Use the currently selected remote in the Remotes tab if available,
             // otherwise fall back to the first remote.
-            let remote = info.remotes.get(self.branch_list.remote_selection).or_else(|| info.remotes.first());
+            let remote = info
+                .remotes
+                .get(self.branch_list.remote_selection)
+                .or_else(|| info.remotes.first());
             if let Some(remote) = remote {
                 let repo_path = resolved.clone();
                 let remote_name = remote.name.clone();
@@ -5693,7 +5831,8 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.remotes.len();
             if total > 0 {
-                self.branch_list.remote_selection = (self.branch_list.remote_selection + page).min(total.saturating_sub(1));
+                self.branch_list.remote_selection =
+                    (self.branch_list.remote_selection + page).min(total.saturating_sub(1));
             }
         }
     }
@@ -5725,7 +5864,8 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             let total = info.stashes.len();
             if total > 0 {
-                self.stash_list.stash_selection = (self.stash_list.stash_selection + page).min(total.saturating_sub(1));
+                self.stash_list.stash_selection =
+                    (self.stash_list.stash_selection + page).min(total.saturating_sub(1));
                 self.stash_list.stash_file_selection = 0;
                 self.refresh_file_diff();
             }
@@ -5733,7 +5873,8 @@ impl App {
     }
 
     pub fn stash_file_up(&mut self) {
-        self.stash_list.stash_file_selection = self.stash_list.stash_file_selection.saturating_sub(1);
+        self.stash_list.stash_file_selection =
+            self.stash_list.stash_file_selection.saturating_sub(1);
         self.refresh_file_diff();
     }
 
@@ -5750,7 +5891,8 @@ impl App {
     }
 
     pub fn stash_file_page_up(&mut self, page: usize) {
-        self.stash_list.stash_file_selection = self.stash_list.stash_file_selection.saturating_sub(page);
+        self.stash_list.stash_file_selection =
+            self.stash_list.stash_file_selection.saturating_sub(page);
         self.refresh_file_diff();
     }
 
@@ -5846,10 +5988,6 @@ impl App {
         let max = self.get_file_content_line_count().saturating_sub(1);
         self.file_tree.file_content_scroll = max;
     }
-
-
-
-
 
     pub fn detail_commit_to_top(&mut self) {
         if self.in_logs_ui && self.commit_list.search_query.is_some() {
@@ -5974,8 +6112,11 @@ impl App {
                 || !info.changes.unstaged.is_empty()
                 || !info.changes.untracked.is_empty()
                 || !info.changes.conflicted.is_empty();
-            let commit_idx =
-                if dirty { self.commit_list.selection.saturating_sub(1) } else { self.commit_list.selection };
+            let commit_idx = if dirty {
+                self.commit_list.selection.saturating_sub(1)
+            } else {
+                self.commit_list.selection
+            };
             info.commits.get(commit_idx).map(|commit| commit.oid.clone())
         } else {
             None
@@ -6542,7 +6683,9 @@ where
                                         app.file_tree.expanded_folders.insert(accumulated.clone());
                                     }
                                     app.rebuild_visible_files();
-                                    if let Some(pos) = app.file_tree.visible_files
+                                    if let Some(pos) = app
+                                        .file_tree
+                                        .visible_files
                                         .iter()
                                         .position(|item| item.full_path == selected)
                                     {
@@ -7404,20 +7547,20 @@ mod tests {
         let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
-        assert!(!app.commit_popup_maximized);
+        assert!(!app.commit_popup.maximized);
 
         app.toggle_commit_popup_maximized();
-        assert!(app.commit_popup_maximized);
+        assert!(app.commit_popup.maximized);
 
         app.toggle_commit_popup_maximized();
-        assert!(!app.commit_popup_maximized);
+        assert!(!app.commit_popup.maximized);
 
         app.toggle_commit_popup_maximized();
-        assert!(app.commit_popup_maximized);
+        assert!(app.commit_popup.maximized);
 
         // Cancel resets it
         app.cancel_commit();
-        assert!(!app.commit_popup_maximized);
+        assert!(!app.commit_popup.maximized);
     }
 
     #[test]
@@ -7523,13 +7666,13 @@ mod tests {
         let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
-        assert!(!app.commit_amend);
+        assert!(!app.commit_popup.amend);
 
         app.toggle_commit_amend();
-        assert!(app.commit_amend);
+        assert!(app.commit_popup.amend);
 
         app.toggle_commit_amend();
-        assert!(!app.commit_amend);
+        assert!(!app.commit_popup.amend);
 
         // Without HEAD
         app.start_commit_amend();
@@ -7552,8 +7695,8 @@ mod tests {
         });
 
         app.start_commit_amend();
-        assert!(app.commit_amend);
-        assert!(app.commit_editing);
+        assert!(app.commit_popup.amend);
+        assert!(app.commit_popup.editing);
         assert_eq!(app.mode, Mode::CommitInput);
     }
 

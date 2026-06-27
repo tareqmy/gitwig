@@ -1,4 +1,3 @@
-
 use crate::app::{App, DetailSection, Mode};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -9,7 +8,7 @@ impl InspectPopup {
         let code = key.code;
 
         match code {
-KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 if app.inspect_full_diff {
                     app.inspect_full_diff = false;
                 } else if app.in_logs_ui {
@@ -344,7 +343,8 @@ KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                         app.status_list.conflict_file_selection = len.saturating_sub(1);
                         app.refresh_staging_diff();
                     } else if app.is_uncommitted_selected() {
-                        app.status_list.staging_file_selection = app.staging_file_total().saturating_sub(1);
+                        app.status_list.staging_file_selection =
+                            app.staging_file_total().saturating_sub(1);
                         app.refresh_staging_diff();
                     } else {
                         app.status_list.file_selection = app.file_total().saturating_sub(1);
@@ -355,7 +355,8 @@ KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 } else {
                     if app.is_uncommitted_selected() {
                         if app.diff.diff_line_mode {
-                            app.diff.diff_line_selection = app.diff.file_diff.len().saturating_sub(1);
+                            app.diff.diff_line_selection =
+                                app.diff.file_diff.len().saturating_sub(1);
                             app.diff.diff_scroll = app.diff.diff_line_selection.saturating_sub(17);
                         } else {
                             let hunk_count = app.get_diff_hunk_ranges().len();

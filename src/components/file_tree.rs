@@ -6,21 +6,26 @@ pub struct FileTreeComponent {
     pub file_list_selection: usize,
     pub file_content_scroll: usize,
 }
+use crate::app::{App, DetailSection, Mode};
+use crate::components::commit_list::draw_commit_details_widget;
+use crate::repo;
+use crate::repo::FileEntry;
+use crate::repo::{CommitEntry, DiffLine, RepoInfo, WorktreeChanges};
+use crate::repo::{DiffLineKind, RemoteInfo};
+use crate::ui::layout::{centered_rect, centered_rect_fixed};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
+    primary_style,
+};
+use crate::ui_detail::{DetailAreas, error_style, file_entry_line, read_file_content};
 use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap, Padding, Gauge, List, ListItem, ListState, Table, Row, Cell};
-use crate::app::{App, Mode, DetailSection};
-use crate::repo::{RemoteInfo, DiffLineKind};
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, parse_color};
-use crate::ui::layout::{centered_rect, centered_rect_fixed};
-use crate::ui_detail::{error_style, read_file_content, file_entry_line, DetailAreas};
-use crate::repo::FileEntry;
-use crate::repo;
-use crate::components::commit_list::draw_commit_details_widget;
-use crate::repo::{RepoInfo, CommitEntry, DiffLine, WorktreeChanges};
-
+use ratatui::widgets::{
+    Block, BorderType, Borders, Cell, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph,
+    Row, Table, Wrap,
+};
 
 pub fn draw_files_view(
     f: &mut Frame,
@@ -450,8 +455,6 @@ pub fn draw_commit_files_panel(
     }
 }
 
-
-
 impl FileTreeComponent {
     pub fn file_content_scroll_up(&mut self) {
         self.file_content_scroll = self.file_content_scroll.saturating_sub(1);
@@ -473,41 +476,65 @@ impl FileTreeComponent {
     }
 }
 
-
 impl FileTreeComponent {
     pub fn new(queue: crate::queue::Queue) -> Self {
-        Self {
-            queue,
-            ..Default::default()
-        }
+        Self { queue, ..Default::default() }
     }
 }
 
-
-use crossterm::event::{Event, KeyCode};
-use crate::components::{Component, EventState, DrawableComponent};
+use crate::components::{Component, DrawableComponent, EventState};
 use crate::queue::InternalEvent;
+use crossterm::event::{Event, KeyCode};
 
 impl DrawableComponent for FileTreeComponent {
-    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 impl Component for FileTreeComponent {
     fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
         if let Event::Key(key) = ev {
             match key.code {
-                KeyCode::Up => { self.queue.push(InternalEvent::FileTreeUp); return Ok(EventState::Consumed); }
-                KeyCode::Down => { self.queue.push(InternalEvent::FileTreeDown); return Ok(EventState::Consumed); }
-                KeyCode::PageUp => { self.queue.push(InternalEvent::FileTreePageUp); return Ok(EventState::Consumed); }
-                KeyCode::PageDown => { self.queue.push(InternalEvent::FileTreePageDown); return Ok(EventState::Consumed); }
-                KeyCode::Home => { self.queue.push(InternalEvent::FileTreeTop); return Ok(EventState::Consumed); }
-                KeyCode::End => { self.queue.push(InternalEvent::FileTreeBottom); return Ok(EventState::Consumed); }
-                KeyCode::Enter | KeyCode::Right => { self.queue.push(InternalEvent::ToggleFolderExpanded); return Ok(EventState::Consumed); }
-                KeyCode::Left => { self.queue.push(InternalEvent::CollapseAllFolders); return Ok(EventState::Consumed); }
-                KeyCode::Char('x') | KeyCode::Char('X') => { self.queue.push(InternalEvent::RequestDiscardFile); return Ok(EventState::Consumed); }
+                KeyCode::Up => {
+                    self.queue.push(InternalEvent::FileTreeUp);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Down => {
+                    self.queue.push(InternalEvent::FileTreeDown);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::PageUp => {
+                    self.queue.push(InternalEvent::FileTreePageUp);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::PageDown => {
+                    self.queue.push(InternalEvent::FileTreePageDown);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Home => {
+                    self.queue.push(InternalEvent::FileTreeTop);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::End => {
+                    self.queue.push(InternalEvent::FileTreeBottom);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Enter | KeyCode::Right => {
+                    self.queue.push(InternalEvent::ToggleFolderExpanded);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Left => {
+                    self.queue.push(InternalEvent::CollapseAllFolders);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('x') | KeyCode::Char('X') => {
+                    self.queue.push(InternalEvent::RequestDiscardFile);
+                    return Ok(EventState::Consumed);
+                }
                 _ => {}
             }
         }
         Ok(EventState::NotConsumed)
-}
+    }
 }

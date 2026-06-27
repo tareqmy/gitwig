@@ -9,12 +9,7 @@
 //! we only spin up libgit2 when both checks pass.
 
 #![deny(unsafe_code)]
-#![deny(
-    unused_imports,
-    unused_must_use,
-    dead_code,
-    unused_assignments,
-)]
+#![deny(unused_imports, unused_must_use, dead_code, unused_assignments)]
 #![warn(clippy::all, clippy::perf, clippy::nursery)]
 #![warn(clippy::unwrap_used, clippy::panic)]
 

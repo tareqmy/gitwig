@@ -74,7 +74,6 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         return true;
     }
 
-
     match &app.mode {
         Mode::Normal => match code {
             KeyCode::Esc if app.repo_search_query.is_some() => {
@@ -133,112 +132,15 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             _ => {}
         },
         Mode::Settings => {
-            if app.settings_editing && app.settings_selected_index == 3 {
-                match code {
-                    KeyCode::Esc => app.cancel_settings_edit(),
-                    KeyCode::Enter => app.commit_settings_edit(),
-                    KeyCode::Down
-                        if app.settings_theme_index + 1 < app.settings_theme_list.len() =>
-                    {
-                        app.settings_theme_index += 1;
-                    }
-                    KeyCode::Up if app.settings_theme_index > 0 => {
-                        app.settings_theme_index -= 1;
-                    }
-                    KeyCode::PageUp if app.settings_theme_index > 0 => {
-                        app.settings_theme_index =
-                            app.settings_theme_index.saturating_sub(app.config.page_size);
-                    }
-                    KeyCode::PageDown
-                        if app.settings_theme_index + 1 < app.settings_theme_list.len() =>
-                    {
-                        app.settings_theme_index = (app.settings_theme_index
-                            + app.config.page_size)
-                            .min(app.settings_theme_list.len().saturating_sub(1));
-                    }
-                    KeyCode::Home => {
-                        app.settings_theme_index = 0;
-                    }
-                    KeyCode::End if !app.settings_theme_list.is_empty() => {
-                        app.settings_theme_index = app.settings_theme_list.len() - 1;
-                    }
-                    _ => {}
-                }
-            } else {
-                match code {
-                    KeyCode::Esc if app.settings_editing => app.cancel_settings_edit(),
-                    KeyCode::Esc => app.mode = Mode::Normal,
-                    KeyCode::Char('q') if !app.settings_editing => app.mode = Mode::Normal,
-                    KeyCode::Down if !app.settings_editing => {
-                        if app.settings_selected_index + 1 < 14 {
-                            app.settings_selected_index += 1;
-                        }
-                    }
-                    KeyCode::Up if !app.settings_editing => {
-                        if app.settings_selected_index > 0 {
-                            app.settings_selected_index -= 1;
-                        }
-                    }
-                    KeyCode::PageUp if !app.settings_editing => {
-                        app.settings_selected_index =
-                            app.settings_selected_index.saturating_sub(app.config.page_size);
-                    }
-                    KeyCode::PageDown if !app.settings_editing => {
-                        app.settings_selected_index =
-                            (app.settings_selected_index + app.config.page_size).min(13);
-                    }
-                    KeyCode::Home if !app.settings_editing => {
-                        app.settings_selected_index = 0;
-                    }
-                    KeyCode::End if !app.settings_editing => {
-                        app.settings_selected_index = 13;
-                    }
-                    KeyCode::Enter if app.settings_editing => app.commit_settings_edit(),
-                    KeyCode::Enter => app.toggle_or_edit_setting(),
-                    KeyCode::Char(' ') if !app.settings_editing => app.toggle_or_edit_setting(),
-                    KeyCode::Backspace if app.settings_editing => app.input_backspace(),
-                    KeyCode::Char(c) if app.settings_editing => app.input_char(c),
-                    _ => {}
-                }
+            if crate::popups::settings::SettingsPopup::handle_event(app, key) {
+                return true;
             }
         }
-        Mode::DebugLogs => match code {
-            KeyCode::Esc
-            | KeyCode::Char('q')
-            | KeyCode::Char('D')
-            | KeyCode::Char('l')
-            | KeyCode::Char('L') => {
-                crate::debug_log::info("Exiting debug logs");
-                app.mode = Mode::Normal;
+        Mode::DebugLogs => {
+            if crate::popups::debug::DebugLogsPopup::handle_event(app, key) {
+                return true;
             }
-            KeyCode::Down | KeyCode::Char('j') => {
-                let log_count = crate::debug_log::get_logs().len();
-                let max_scroll = log_count.saturating_sub(1);
-                if app.debug_log_scroll < max_scroll {
-                    app.debug_log_scroll += 1;
-                }
-            }
-            KeyCode::Up | KeyCode::Char('k') if app.debug_log_scroll > 0 => {
-                app.debug_log_scroll -= 1;
-            }
-            KeyCode::PageUp => {
-                app.debug_log_scroll = app.debug_log_scroll.saturating_sub(app.config.page_size);
-            }
-            KeyCode::PageDown => {
-                let log_count = crate::debug_log::get_logs().len();
-                let max_scroll = log_count.saturating_sub(1);
-                app.debug_log_scroll =
-                    (app.debug_log_scroll + app.config.page_size).min(max_scroll);
-            }
-            KeyCode::Home => {
-                app.debug_log_scroll = 0;
-            }
-            KeyCode::End => {
-                let log_count = crate::debug_log::get_logs().len();
-                app.debug_log_scroll = log_count.saturating_sub(1);
-            }
-            _ => {}
-        },
+        }
         Mode::ImportUrlInput => match code {
             KeyCode::Esc => {
                 crate::debug_log::info("Cancelled repository import");
@@ -402,13 +304,33 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             _ => {}
         },
-        Mode::Help => { if crate::popups::help::HelpPopup::handle_event(app, key) { return true; } }
-        Mode::About => { if crate::popups::about::AboutPopup::handle_event(app, key) { return true; } }
-        Mode::Detail => { if crate::tabs::route_detail_event(app, key) { return true; } }
+        Mode::Help => {
+            if crate::popups::help::HelpPopup::handle_event(app, key) {
+                return true;
+            }
+        }
+        Mode::About => {
+            if crate::popups::about::AboutPopup::handle_event(app, key) {
+                return true;
+            }
+        }
+        Mode::Detail => {
+            if crate::tabs::route_detail_event(app, key) {
+                return true;
+            }
+        }
 
-        Mode::Inspect => { if crate::popups::inspect::InspectPopup::handle_event(app, key) { return true; } }
+        Mode::Inspect => {
+            if crate::popups::inspect::InspectPopup::handle_event(app, key) {
+                return true;
+            }
+        }
 
-        Mode::DetailHelp => { if crate::popups::help::DetailHelpPopup::handle_event(app, key) { return true; } }
+        Mode::DetailHelp => {
+            if crate::popups::help::DetailHelpPopup::handle_event(app, key) {
+                return true;
+            }
+        }
         Mode::SearchColumnPicker => match code {
             KeyCode::Up => {
                 app.search_column_selection = app.search_column_selection.saturating_sub(1);
@@ -461,14 +383,16 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             _ => {}
         },
-        Mode::Logs => { if crate::tabs::logs::LogsTab::handle_event(app, key) { return true; } }
-        Mode::RemotePicker => match code {
-            KeyCode::Up => app.remote_picker_up(),
-            KeyCode::Down => app.remote_picker_down(),
-            KeyCode::Enter => app.confirm_remote_picker(),
-            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.cancel_remote_picker(),
-            _ => {}
-        },
+        Mode::Logs => {
+            if crate::tabs::logs::LogsTab::handle_event(app, key) {
+                return true;
+            }
+        }
+        Mode::RemotePicker => {
+            if crate::popups::remote_picker::RemotePickerPopup::handle_event(app, key) {
+                return true;
+            }
+        }
         Mode::CommitSearchInput => match code {
             KeyCode::Esc => app.cancel_commit_search(),
             KeyCode::Enter => app.mode = Mode::Detail,
@@ -482,21 +406,60 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             _ => {}
         },
-        
-        Mode::BranchDeleteConfirm | Mode::BranchPushConfirm | Mode::BranchMergeConfirm | Mode::MergeAbortConfirm | Mode::MergeContinueConfirm | Mode::BranchRebaseConfirm | Mode::BranchInteractiveRebaseConfirm | Mode::DiscardChangesConfirm | Mode::RevertConfirm | Mode::TagDeleteConfirm | Mode::TagPushConfirm | Mode::TagPushAllConfirm | Mode::StashDeleteConfirm | Mode::BranchCheckoutConfirm | Mode::TagCheckoutConfirm | Mode::RemoteDeleteConfirm => {
+
+        Mode::BranchDeleteConfirm
+        | Mode::BranchPushConfirm
+        | Mode::BranchMergeConfirm
+        | Mode::MergeAbortConfirm
+        | Mode::MergeContinueConfirm
+        | Mode::BranchRebaseConfirm
+        | Mode::BranchInteractiveRebaseConfirm
+        | Mode::DiscardChangesConfirm
+        | Mode::RevertConfirm
+        | Mode::TagDeleteConfirm
+        | Mode::TagPushConfirm
+        | Mode::TagPushAllConfirm
+        | Mode::StashDeleteConfirm
+        | Mode::BranchCheckoutConfirm
+        | Mode::TagCheckoutConfirm
+        | Mode::RemoteDeleteConfirm => {
             let ev = crossterm::event::Event::Key(key);
-            if app.confirm_popup.event(&ev).unwrap_or(crate::components::EventState::NotConsumed).is_consumed() { return true; }
+            if app
+                .confirm_popup
+                .event(&ev)
+                .unwrap_or(crate::components::EventState::NotConsumed)
+                .is_consumed()
+            {
+                return true;
+            }
         }
-        Mode::BranchCreateInput | Mode::TagCreateInput | Mode::StashCreateInput | Mode::RemoteAddNameInput | Mode::RemoteAddUrlInput => {
+        Mode::BranchCreateInput
+        | Mode::TagCreateInput
+        | Mode::StashCreateInput
+        | Mode::RemoteAddNameInput
+        | Mode::RemoteAddUrlInput => {
             let ev = crossterm::event::Event::Key(key);
-            if app.generic_input_popup.event(&ev).unwrap_or(crate::components::EventState::NotConsumed).is_consumed() { return true; }
+            if app
+                .generic_input_popup
+                .event(&ev)
+                .unwrap_or(crate::components::EventState::NotConsumed)
+                .is_consumed()
+            {
+                return true;
+            }
         }
 
         Mode::CommitInput => {
             let ev = crossterm::event::Event::Key(key);
-            if app.commit_popup.event(&ev).unwrap_or(crate::components::EventState::NotConsumed).is_consumed() { return true; }
+            if app
+                .commit_popup
+                .event(&ev)
+                .unwrap_or(crate::components::EventState::NotConsumed)
+                .is_consumed()
+            {
+                return true;
+            }
         }
     }
     true
 }
-

@@ -1,15 +1,25 @@
-use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap, Padding, Gauge, List, ListItem, ListState};
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, parse_color};
 use crate::ui::layout::{centered_rect, centered_rect_fixed};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
+    primary_style,
+};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{
+    Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph, Wrap,
+};
 
 use crate::ui::*;
-pub fn draw_remote_picker_popup(f: &mut Frame, remotes: &[RemoteInfo], selection: usize, area: Rect) {
+pub fn draw_remote_picker_popup(
+    f: &mut Frame,
+    remotes: &[RemoteInfo],
+    selection: usize,
+    area: Rect,
+) {
     let popup_area = centered_rect(50, 60, area);
 
     f.render_widget(Clear, popup_area);
@@ -67,3 +77,18 @@ pub fn draw_remote_picker_popup(f: &mut Frame, remotes: &[RemoteInfo], selection
     f.render_widget(Paragraph::new(hint), chunks[1]);
 }
 
+use crossterm::event::{KeyCode, KeyEvent};
+pub struct RemotePickerPopup;
+impl RemotePickerPopup {
+    pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
+        let code = key.code;
+        match code {
+            KeyCode::Up => app.remote_picker_up(),
+            KeyCode::Down => app.remote_picker_down(),
+            KeyCode::Enter => app.confirm_remote_picker(),
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.cancel_remote_picker(),
+            _ => {}
+        }
+        true
+    }
+}

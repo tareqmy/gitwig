@@ -5,20 +5,25 @@ pub struct TagListComponent {
     pub remote_tag_selection: usize,
     pub local_tag_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
 }
+use crate::app::{App, DetailSection, Mode};
+use crate::repo;
+use crate::repo::FileEntry;
+use crate::repo::RemoteInfo;
+use crate::repo::{CommitEntry, DiffLine, RepoInfo, WorktreeChanges};
+use crate::ui::layout::{centered_rect, centered_rect_fixed};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
+    primary_style,
+};
+use crate::ui_detail::{DetailAreas, error_style, file_entry_line, read_file_content};
 use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect, Margin, Position};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap, Padding, Gauge, List, ListItem, ListState, Table, Row, Cell};
-use crate::app::{App, Mode, DetailSection};
-use crate::repo::RemoteInfo;
-use crate::ui::style::{accent_style, muted_style, primary_style, ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, parse_color};
-use crate::ui::layout::{centered_rect, centered_rect_fixed};
-use crate::ui_detail::{error_style, read_file_content, file_entry_line, DetailAreas};
-use crate::repo::FileEntry;
-use crate::repo;
-use crate::repo::{RepoInfo, CommitEntry, DiffLine, WorktreeChanges};
-
+use ratatui::widgets::{
+    Block, BorderType, Borders, Cell, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph,
+    Row, Table, Wrap,
+};
 
 pub fn draw_tags_view(
     f: &mut Frame,
@@ -138,44 +143,73 @@ pub fn draw_tags_view(
     f.render_stateful_widget(local_list, area, &mut *local_state);
 }
 
-
-
 impl TagListComponent {
     pub fn new(queue: crate::queue::Queue) -> Self {
-        Self {
-            queue,
-            ..Default::default()
-        }
+        Self { queue, ..Default::default() }
     }
 }
 
-
-use crossterm::event::{Event, KeyCode};
-use crate::components::{Component, EventState, DrawableComponent};
+use crate::components::{Component, DrawableComponent, EventState};
 use crate::queue::InternalEvent;
+use crossterm::event::{Event, KeyCode};
 
 impl DrawableComponent for TagListComponent {
-    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> { Ok(()) }
+    fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 impl Component for TagListComponent {
     fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
         if let Event::Key(key) = ev {
             match key.code {
-                KeyCode::Up => { self.queue.push(InternalEvent::TagUp); return Ok(EventState::Consumed); }
-                KeyCode::Down => { self.queue.push(InternalEvent::TagDown); return Ok(EventState::Consumed); }
-                KeyCode::PageUp => { self.queue.push(InternalEvent::TagPageUp); return Ok(EventState::Consumed); }
-                KeyCode::PageDown => { self.queue.push(InternalEvent::TagPageDown); return Ok(EventState::Consumed); }
-                KeyCode::Home => { self.queue.push(InternalEvent::TagTop); return Ok(EventState::Consumed); }
-                KeyCode::End => { self.queue.push(InternalEvent::TagBottom); return Ok(EventState::Consumed); }
-                KeyCode::Enter => { self.queue.push(InternalEvent::CheckoutTag); return Ok(EventState::Consumed); }
-                KeyCode::Char('d') | KeyCode::Char('D') => { self.queue.push(InternalEvent::RequestDeleteTag); return Ok(EventState::Consumed); }
-                KeyCode::Char('p') => { self.queue.push(InternalEvent::RequestPushTag); return Ok(EventState::Consumed); }
-                KeyCode::Char('P') => { self.queue.push(InternalEvent::RequestPushAllTags); return Ok(EventState::Consumed); }
-                KeyCode::Char('f') | KeyCode::Char('F') => { self.queue.push(InternalEvent::FetchRemoteTags); return Ok(EventState::Consumed); }
+                KeyCode::Up => {
+                    self.queue.push(InternalEvent::TagUp);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Down => {
+                    self.queue.push(InternalEvent::TagDown);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::PageUp => {
+                    self.queue.push(InternalEvent::TagPageUp);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::PageDown => {
+                    self.queue.push(InternalEvent::TagPageDown);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Home => {
+                    self.queue.push(InternalEvent::TagTop);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::End => {
+                    self.queue.push(InternalEvent::TagBottom);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Enter => {
+                    self.queue.push(InternalEvent::CheckoutTag);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('d') | KeyCode::Char('D') => {
+                    self.queue.push(InternalEvent::RequestDeleteTag);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('p') => {
+                    self.queue.push(InternalEvent::RequestPushTag);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('P') => {
+                    self.queue.push(InternalEvent::RequestPushAllTags);
+                    return Ok(EventState::Consumed);
+                }
+                KeyCode::Char('f') | KeyCode::Char('F') => {
+                    self.queue.push(InternalEvent::FetchRemoteTags);
+                    return Ok(EventState::Consumed);
+                }
                 _ => {}
             }
         }
         Ok(EventState::NotConsumed)
-}
+    }
 }

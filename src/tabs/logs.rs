@@ -1,5 +1,4 @@
-
-use crate::app::{App, Mode, DetailSection};
+use crate::app::{App, DetailSection, Mode};
 use crossterm::event::{KeyCode, KeyEvent};
 
 pub struct LogsTab;
@@ -7,7 +6,7 @@ impl LogsTab {
     pub fn handle_event(app: &mut App, key: KeyEvent) -> bool {
         let code = key.code;
         match code {
-KeyCode::Up => app.detail_commit_up(),
+            KeyCode::Up => app.detail_commit_up(),
             KeyCode::Down => app.detail_commit_down(),
             KeyCode::PageUp => app.detail_commit_page_up(app.config.page_size),
             KeyCode::PageDown => app.detail_commit_page_down(app.config.page_size),
