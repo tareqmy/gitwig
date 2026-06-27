@@ -267,7 +267,9 @@ pub fn draw_files_view(
                 Ok(content) => content,
                 Err(e) => format!("Could not read file: {}", e),
             };
-            let body = Paragraph::new(content_text)
+            let lines: Vec<Line> =
+                content_text.lines().map(crate::ui::syntax::highlight_code_line).collect();
+            let body = Paragraph::new(lines)
                 .block(right_block)
                 .wrap(Wrap { trim: false })
                 .scroll((file_content_scroll as u16, 0));

@@ -120,3 +120,80 @@ pub fn draw_import_popup(f: &mut Frame, area: Rect, app: &App) {
         f.set_cursor_position(Position::new(cursor_x, cursor_y));
     }
 }
+
+use crossterm::event::{KeyCode, KeyEvent};
+pub struct ImportPopup;
+impl ImportPopup {
+    pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
+        let code = key.code;
+        match app.mode {
+            Mode::ImportUrlInput => match code {
+                KeyCode::Esc => {
+                    crate::debug_log::info("Cancelled repository import");
+                    app.mode = Mode::Normal;
+                    app.input_buffer.clear();
+                }
+                KeyCode::Enter => {
+                    app.import_url = app.input_buffer.clone();
+                    app.input_buffer.clear();
+
+                    let repo_name = if let Some(last) = app.import_url.split('/').next_back() {
+                        let name = last.trim_end_matches(".git");
+                        if name.is_empty() { "repo".to_string() } else { name.to_string() }
+                    } else {
+                        "repo".to_string()
+                    };
+
+                    if let Some(home) = dirs::home_dir() {
+                        app.input_buffer = home.join(&repo_name).to_string_lossy().to_string();
+                    } else {
+                        app.input_buffer = format!("./{}", repo_name);
+                    }
+
+                    app.mode = Mode::ImportDestInput;
+                }
+                KeyCode::Backspace => app.input_backspace(),
+                KeyCode::Char(c) => app.input_char(c),
+                _ => {}
+            },
+            Mode::ImportDestInput => match code {
+                KeyCode::Esc => {
+                    app.mode = Mode::ImportUrlInput;
+                    app.input_buffer = app.import_url.clone();
+                }
+                KeyCode::Enter => {
+                    app.import_dest = app.input_buffer.clone();
+                    app.input_buffer.clear();
+
+                    let repo_name = if let Some(last) = app.import_url.split('/').next_back() {
+                        let name = last.trim_end_matches(".git");
+                        if name.is_empty() { "repo".to_string() } else { name.to_string() }
+                    } else {
+                        "repo".to_string()
+                    };
+                    app.input_buffer = repo_name;
+                    app.mode = Mode::ImportNameInput;
+                }
+                KeyCode::Backspace => app.input_backspace(),
+                KeyCode::Char(c) => app.input_char(c),
+                _ => {}
+            },
+            Mode::ImportNameInput => match code {
+                KeyCode::Esc => {
+                    app.mode = Mode::ImportDestInput;
+                    app.input_buffer = app.import_dest.clone();
+                }
+                KeyCode::Enter => {
+                    app.import_name = app.input_buffer.clone();
+                    app.input_buffer.clear();
+                    app.start_import_clone();
+                }
+                KeyCode::Backspace => app.input_backspace(),
+                KeyCode::Char(c) => app.input_char(c),
+                _ => {}
+            },
+            _ => {}
+        }
+        true
+    }
+}

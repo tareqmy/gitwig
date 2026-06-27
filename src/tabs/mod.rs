@@ -3,6 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 pub mod branches;
 pub mod files;
+pub mod home;
 pub mod logs;
 pub mod remotes;
 pub mod stashes;
@@ -11,6 +12,7 @@ pub mod workspace;
 
 pub use branches::BranchesTab;
 pub use files::FilesTab;
+pub use home::HomeTab;
 pub use logs::LogsTab;
 pub use remotes::RemotesTab;
 pub use stashes::StashesTab;

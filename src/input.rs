@@ -4,7 +4,7 @@
 //! appropriate `App` method. Returns `false` when the user has asked to
 //! quit, `true` otherwise.
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::{App, Mode};
 use crate::components::Component;
@@ -73,64 +73,17 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         app.toggle_status_expanded();
         return true;
     }
-
     match &app.mode {
-        Mode::Normal => match code {
-            KeyCode::Esc if app.repo_search_query.is_some() => {
-                app.repo_search_query = None;
-                app.selected_index = 0;
-                app.scroll_top = 0;
+        Mode::Normal
+        | Mode::RepoSearchInput
+        | Mode::Adding
+        | Mode::BulkAddInput
+        | Mode::Editing
+        | Mode::ConfirmDelete => {
+            if !crate::tabs::HomeTab::handle_event(app, key, visible_count) {
+                return false;
             }
-            KeyCode::Char('q') | KeyCode::Esc => return false,
-            KeyCode::Down => app.move_down(visible_count),
-            KeyCode::Up => app.move_up(),
-            KeyCode::PageDown => app.page_down(app.config.page_size),
-            KeyCode::PageUp => app.page_up(app.config.page_size),
-            KeyCode::Home => app.move_to_top(),
-            KeyCode::End => app.move_to_bottom(visible_count),
-            KeyCode::Char('a') => app.start_add(),
-            KeyCode::Char('A') => {
-                app.start_bulk_add();
-            }
-            KeyCode::Char('e') => app.start_edit(),
-            KeyCode::Char('d') => app.request_delete(),
-            KeyCode::Char('?') => app.open_help(),
-            KeyCode::Char('v') | KeyCode::Char('V') => app.open_about(),
-            KeyCode::Char('R') => app.refresh_selected_status(),
-            KeyCode::Char('o') => app.cycle_sort_order(),
-            KeyCode::Char('O') => app.toggle_sort_reverse(),
-            KeyCode::Char('p') => app.toggle_pin_selected(),
-            KeyCode::Char('s') => {
-                app.mode = Mode::Settings;
-                app.settings_selected_index = 0;
-                app.settings_editing = false;
-            }
-            KeyCode::Char('D') | KeyCode::Char('l') | KeyCode::Char('L') => {
-                crate::debug_log::info("Opening debug logs");
-                app.mode = Mode::DebugLogs;
-                app.debug_log_scroll = 0;
-            }
-            KeyCode::Char('i') => {
-                crate::debug_log::info("Starting repository import");
-                app.mode = Mode::ImportUrlInput;
-                app.input_buffer.clear();
-                app.import_url.clear();
-                app.import_dest.clear();
-                app.import_name.clear();
-            }
-            KeyCode::Char('g') => {
-                app.pending_git_app = true;
-            }
-            KeyCode::Char('f') => {
-                app.input_buffer.clear();
-                if let Some(ref q) = app.repo_search_query {
-                    app.input_buffer.push_str(q);
-                }
-                app.mode = Mode::RepoSearchInput;
-            }
-            KeyCode::Enter | KeyCode::Right => app.open_detail(),
-            _ => {}
-        },
+        }
         Mode::Settings => {
             if crate::popups::settings::SettingsPopup::handle_event(app, key) {
                 return true;
@@ -141,143 +94,11 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
-        Mode::ImportUrlInput => match code {
-            KeyCode::Esc => {
-                crate::debug_log::info("Cancelled repository import");
-                app.mode = Mode::Normal;
-                app.input_buffer.clear();
+        Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput => {
+            if crate::popups::import::ImportPopup::handle_event(app, key) {
+                return true;
             }
-            KeyCode::Enter => {
-                app.import_url = app.input_buffer.clone();
-                app.input_buffer.clear();
-
-                let repo_name = if let Some(last) = app.import_url.split('/').next_back() {
-                    let name = last.trim_end_matches(".git");
-                    if name.is_empty() { "repo".to_string() } else { name.to_string() }
-                } else {
-                    "repo".to_string()
-                };
-
-                if let Some(home) = dirs::home_dir() {
-                    app.input_buffer = home.join(&repo_name).to_string_lossy().to_string();
-                } else {
-                    app.input_buffer = format!("./{}", repo_name);
-                }
-
-                app.mode = Mode::ImportDestInput;
-            }
-            KeyCode::Backspace => app.input_backspace(),
-            KeyCode::Char(c) => app.input_char(c),
-            _ => {}
-        },
-        Mode::ImportDestInput => match code {
-            KeyCode::Esc => {
-                app.mode = Mode::ImportUrlInput;
-                app.input_buffer = app.import_url.clone();
-            }
-            KeyCode::Enter => {
-                app.import_dest = app.input_buffer.clone();
-                app.input_buffer.clear();
-
-                let repo_name = if let Some(last) = app.import_url.split('/').next_back() {
-                    let name = last.trim_end_matches(".git");
-                    if name.is_empty() { "repo".to_string() } else { name.to_string() }
-                } else {
-                    "repo".to_string()
-                };
-                app.input_buffer = repo_name;
-                app.mode = Mode::ImportNameInput;
-            }
-            KeyCode::Backspace => app.input_backspace(),
-            KeyCode::Char(c) => app.input_char(c),
-            _ => {}
-        },
-        Mode::ImportNameInput => match code {
-            KeyCode::Esc => {
-                app.mode = Mode::ImportDestInput;
-                app.input_buffer = app.import_dest.clone();
-            }
-            KeyCode::Enter => {
-                app.import_name = app.input_buffer.clone();
-                app.input_buffer.clear();
-                app.start_import_clone();
-            }
-            KeyCode::Backspace => app.input_backspace(),
-            KeyCode::Char(c) => app.input_char(c),
-            _ => {}
-        },
-        Mode::RepoSearchInput => match code {
-            KeyCode::Esc => {
-                app.repo_search_query = None;
-                app.selected_index = 0;
-                app.scroll_top = 0;
-                app.mode = Mode::Normal;
-            }
-            KeyCode::Enter => {
-                app.mode = Mode::Normal;
-            }
-            KeyCode::Backspace => {
-                app.input_backspace();
-                let query = app.input_buffer.clone();
-                if query.is_empty() {
-                    app.repo_search_query = None;
-                } else {
-                    app.repo_search_query = Some(query);
-                }
-                app.clamp_selection();
-                app.clamp_scroll(visible_count);
-            }
-            KeyCode::Char(c) => {
-                app.input_char(c);
-                let query = app.input_buffer.clone();
-                app.repo_search_query = Some(query);
-                app.clamp_selection();
-                app.clamp_scroll(visible_count);
-            }
-            _ => {}
-        },
-        Mode::Adding => match code {
-            KeyCode::Esc => app.cancel_input(),
-            KeyCode::Enter => app.commit_add(),
-            KeyCode::Backspace => app.input_backspace(),
-            KeyCode::Char(c) => app.input_char(c),
-            _ => {}
-        },
-        Mode::BulkAddInput => match code {
-            KeyCode::Esc => app.cancel_input(),
-            KeyCode::Enter => app.commit_bulk_add(),
-            KeyCode::Backspace => app.input_backspace(),
-            KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                if app.config.fzf.enabled {
-                    app.start_bulk_add();
-                } else {
-                    app.error_message =
-                        Some("FZF is disabled in settings. Enable it first.".to_string());
-                }
-            }
-            KeyCode::Tab => {
-                if app.config.fzf.enabled {
-                    app.start_bulk_add();
-                } else {
-                    app.error_message =
-                        Some("FZF is disabled in settings. Enable it first.".to_string());
-                }
-            }
-            KeyCode::Char(c) => app.input_char(c),
-            _ => {}
-        },
-        Mode::Editing => match code {
-            KeyCode::Esc => app.cancel_input(),
-            KeyCode::Enter => app.commit_edit(),
-            KeyCode::Backspace => app.input_backspace(),
-            KeyCode::Char(c) => app.input_char(c),
-            _ => {}
-        },
-        Mode::ConfirmDelete => match code {
-            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_delete(),
-            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.close_dialog(),
-            _ => {}
-        },
+        }
         Mode::CherryPickConfirm => match code {
             KeyCode::Up | KeyCode::Char('k') => {
                 app.cherry_pick_dest_selection = app.cherry_pick_dest_selection.saturating_sub(1);

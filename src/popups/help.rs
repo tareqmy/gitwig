@@ -150,17 +150,7 @@ pub fn draw_help_overlay(f: &mut Frame, app: &App, area: Rect, scroll: usize) {
     f.render_widget(Clear, popup_area);
     f.render_widget(help, popup_area);
 
-    if max_scroll > 0 {
-        let mut scrollbar_state = ratatui::widgets::ScrollbarState::new(lines_len)
-            .position(scroll)
-            .viewport_content_length(inner_height);
-        let scrollbar =
-            ratatui::widgets::Scrollbar::new(ratatui::widgets::ScrollbarOrientation::VerticalRight)
-                .begin_symbol(Some("▲"))
-                .end_symbol(Some("▼"))
-                .thumb_style(Style::default().fg(ACCENT()));
-        f.render_stateful_widget(scrollbar, popup_area, &mut scrollbar_state);
-    }
+    crate::ui::scrollbar::draw_vertical_scrollbar(f, popup_area, scroll, lines_len, inner_height);
 }
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
