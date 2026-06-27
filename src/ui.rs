@@ -29,7 +29,7 @@ use crate::repo::{ItemStatus, RepoSummary};
 pub mod style;
 pub use style::*;
 pub mod layout;
-pub use layout::*;
+
 
 /// Width of the per-item status zone on the right of each card. Wide
 /// enough to fit a busy repo's worth of indicators ("● 99+ 99! 99? 99↑")

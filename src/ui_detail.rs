@@ -9,7 +9,7 @@
 //! `▍ Title` header line. Within "Working Tree", changed files are listed
 //! under Staged / Unstaged / Untracked / Conflicts sub-headers.
 
-use crate::ui::centered_rect;
+use crate::ui::layout::centered_rect;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -248,7 +248,7 @@ pub fn draw(
 
             // Draw SearchColumnPicker overlay if in that mode
             if matches!(mode, Mode::SearchColumnPicker) {
-                draw_search_column_picker(f, app, area);
+                crate::popups::search_columns::draw_search_column_picker(f, app, area);
             }
         }
         return;
@@ -661,7 +661,7 @@ pub fn draw(
             }
             // Draw commit popup on top when requested.
             if matches!(mode, Mode::CommitInput) {
-                draw_commit_popup(
+                crate::popups::commit::draw_commit_popup(
                     f,
                     input_buffer,
                     commit_editing,
@@ -674,23 +674,23 @@ pub fn draw(
             }
             // Draw search column picker popup on top when requested.
             if matches!(mode, Mode::SearchColumnPicker) {
-                draw_search_column_picker(f, app, body_area);
+                crate::popups::search_columns::draw_search_column_picker(f, app, body_area);
             }
             // Draw branch create popup on top when requested.
             if matches!(mode, Mode::BranchCreateInput) {
-                draw_branch_create_popup(f, input_buffer, branch.as_deref(), body_area);
+                crate::popups::create_branch::draw_branch_create_popup(f, input_buffer, branch.as_deref(), body_area);
             }
             // Draw remote add name popup on top when requested.
             if matches!(mode, Mode::RemoteAddNameInput) {
-                draw_remote_add_name_popup(f, input_buffer, body_area);
+                crate::popups::add_remote::draw_remote_add_name_popup(f, input_buffer, body_area);
             }
             // Draw remote add url popup on top when requested.
             if matches!(mode, Mode::RemoteAddUrlInput) {
-                draw_remote_add_url_popup(f, &app.remote_add_name, input_buffer, body_area);
+                crate::popups::add_remote::draw_remote_add_url_popup(f, &app.remote_add_name, input_buffer, body_area);
             }
             // Draw remote delete popup on top when requested.
             if matches!(mode, Mode::RemoteDeleteConfirm) {
-                draw_remote_delete_popup(
+                crate::popups::confirm::draw_remote_delete_popup(
                     f,
                     app.remote_action_target.as_deref().unwrap_or(""),
                     body_area,
@@ -698,39 +698,39 @@ pub fn draw(
             }
             // Draw tag create popup on top when requested.
             if matches!(mode, Mode::TagCreateInput) {
-                draw_tag_create_popup(f, input_buffer, tag_action_target_oid.as_deref(), body_area);
+                crate::popups::create_tag::draw_tag_create_popup(f, input_buffer, tag_action_target_oid.as_deref(), body_area);
             }
             // Draw stash create popup on top when requested.
             if matches!(mode, Mode::StashCreateInput) {
-                draw_stash_create_popup(f, input_buffer, body_area);
+                crate::popups::stash_msg::draw_stash_create_popup(f, input_buffer, body_area);
             }
             // Draw branch delete popup on top when requested.
             if matches!(mode, Mode::BranchDeleteConfirm) {
-                draw_branch_delete_popup(f, branch_action_target, body_area);
+                crate::popups::confirm::draw_branch_delete_popup(f, branch_action_target, body_area);
             }
             // Draw branch push popup on top when requested.
             if matches!(mode, Mode::BranchPushConfirm) {
-                draw_branch_push_popup(f, branch_action_target, body_area);
+                crate::popups::confirm::draw_branch_push_popup(f, branch_action_target, body_area);
             }
             // Draw branch merge popup on top when requested.
             if matches!(mode, Mode::BranchMergeConfirm) {
-                draw_branch_merge_popup(f, branch_action_target, branch.as_deref(), body_area);
+                crate::popups::confirm::draw_branch_merge_popup(f, branch_action_target, branch.as_deref(), body_area);
             }
             // Draw merge abort popup on top when requested.
             if matches!(mode, Mode::MergeAbortConfirm) {
-                draw_merge_abort_confirm_popup(f, body_area);
+                crate::popups::confirm::draw_merge_abort_confirm_popup(f, body_area);
             }
             // Draw merge continue popup on top when requested.
             if matches!(mode, Mode::MergeContinueConfirm) {
-                draw_merge_continue_confirm_popup(f, body_area);
+                crate::popups::confirm::draw_merge_continue_confirm_popup(f, body_area);
             }
             // Draw branch rebase popup on top when requested.
             if matches!(mode, Mode::BranchRebaseConfirm) {
-                draw_branch_rebase_popup(f, branch_action_target, branch.as_deref(), body_area);
+                crate::popups::confirm::draw_branch_rebase_popup(f, branch_action_target, branch.as_deref(), body_area);
             }
             // Draw branch interactive rebase popup on top when requested.
             if matches!(mode, Mode::BranchInteractiveRebaseConfirm) {
-                draw_branch_interactive_rebase_popup(
+                crate::popups::confirm::draw_branch_interactive_rebase_popup(
                     f,
                     branch_action_target,
                     branch.as_deref(),
@@ -739,19 +739,19 @@ pub fn draw(
             }
             // Draw tag delete popup on top when requested.
             if matches!(mode, Mode::TagDeleteConfirm) {
-                draw_tag_delete_popup(f, tag_delete_target, body_area);
+                crate::popups::confirm::draw_tag_delete_popup(f, tag_delete_target, body_area);
             }
             // Draw tag push popup on top when requested.
             if matches!(mode, Mode::TagPushConfirm) {
-                draw_tag_push_popup(f, tag_push_target, body_area);
+                crate::popups::confirm::draw_tag_push_popup(f, tag_push_target, body_area);
             }
             // Draw tag push all popup on top when requested.
             if matches!(mode, Mode::TagPushAllConfirm) {
-                draw_tag_push_all_popup(f, app.remote_action_target.as_deref(), body_area);
+                crate::popups::confirm::draw_tag_push_all_popup(f, app.remote_action_target.as_deref(), body_area);
             }
             // Draw cherry-pick popup on top when requested.
             if matches!(mode, Mode::CherryPickConfirm) {
-                draw_cherry_pick_popup(
+                crate::popups::confirm::draw_cherry_pick_popup(
                     f,
                     &app.cherry_pick_target,
                     branch.as_deref(),
@@ -761,7 +761,7 @@ pub fn draw(
             }
             // Draw revert popup on top when requested.
             if matches!(mode, Mode::RevertConfirm) {
-                draw_revert_popup(f, &app.revert_target, branch.as_deref(), body_area);
+                crate::popups::confirm::draw_revert_popup(f, &app.revert_target, branch.as_deref(), body_area);
             }
             // Draw stash delete popup on top when requested.
             if matches!(mode, Mode::StashDeleteConfirm) {
@@ -772,7 +772,7 @@ pub fn draw(
                         .map(|s| format!("stash@{{{}}}: {}", s.index, s.message)),
                     _ => None,
                 };
-                draw_stash_delete_popup(f, &stash_name, body_area);
+                crate::popups::confirm::draw_stash_delete_popup(f, &stash_name, body_area);
             }
             // Draw stash apply popup on top when requested.
             if matches!(mode, Mode::StashApplyConfirm) {
@@ -783,12 +783,12 @@ pub fn draw(
                         .map(|s| format!("stash@{{{}}}: {}", s.index, s.message)),
                     _ => None,
                 };
-                draw_stash_apply_popup(f, &stash_name, stash_apply_delete_after, body_area);
+                crate::popups::confirm::draw_stash_apply_popup(f, &stash_name, stash_apply_delete_after, body_area);
             }
             // Draw remote picker popup on top when requested.
             if matches!(mode, Mode::RemotePicker) {
                 if let ItemDetail::Repo { info, .. } = detail {
-                    draw_remote_picker_popup(
+                    crate::popups::remote_picker::draw_remote_picker_popup(
                         f,
                         info.remotes.as_slice(),
                         remote_picker_selection,
@@ -798,15 +798,15 @@ pub fn draw(
             }
             // Draw discard changes popup on top when requested.
             if matches!(mode, Mode::DiscardChangesConfirm) {
-                draw_discard_changes_popup(f, discard_target, body_area);
+                crate::popups::confirm::draw_discard_changes_popup(f, discard_target, body_area);
             }
             // Draw branch checkout popup on top when requested.
             if matches!(mode, Mode::BranchCheckoutConfirm) {
-                draw_branch_checkout_popup(f, branch_action_target, body_area);
+                crate::popups::confirm::draw_branch_checkout_popup(f, branch_action_target, body_area);
             }
             // Draw tag checkout popup on top when requested.
             if matches!(mode, Mode::TagCheckoutConfirm) {
-                draw_tag_checkout_popup(f, &app.tag_checkout_target, body_area);
+                crate::popups::confirm::draw_tag_checkout_popup(f, &app.tag_checkout_target, body_area);
             }
         }
         _ => {
@@ -1973,99 +1973,7 @@ fn kind_line(
 
 /// Renders a commit confirmation/input popup centered over `area`.
 #[allow(clippy::too_many_arguments)]
-fn draw_commit_popup(
-    f: &mut Frame,
-    input_buffer: &str,
-    editing: bool,
-    commit_amend: bool,
-    scroll: usize,
-    area: Rect,
-    app: &crate::app::App,
-    areas: &mut DetailAreas,
-) {
-    let popup_area = if app.commit_popup_maximized {
-        let width = area.width.saturating_sub(20).max(area.width.min(40));
-        let height = area.height.saturating_sub(20).max(area.height.min(15));
-        let x = area.x + (area.width.saturating_sub(width)) / 2;
-        let y = area.y + (area.height.saturating_sub(height)) / 2;
-        Rect::new(x, y, width, height)
-    } else {
-        centered_rect(app.commit_popup_width_pct, app.commit_popup_height_pct, area)
-    };
-    areas.commit_popup = Some(popup_area);
-    areas.commit_popup_parent = Some(area);
-    f.render_widget(Clear, popup_area);
 
-    let border_color = if editing { ACCENT() } else { WARNING() };
-    let border_style = Style::default().fg(border_color);
-
-    let title_text = if editing {
-        if commit_amend { " Amend Commit Message " } else { " Commit Message " }
-    } else {
-        if commit_amend { " Confirm Amend Commit " } else { " Confirm Commit " }
-    };
-
-    let title =
-        Line::from(vec![Span::raw(" "), Span::styled(title_text, primary_style()), Span::raw(" ")]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let text = if input_buffer.is_empty() {
-        Paragraph::new(Span::styled("(type commit message here...)", muted_style()))
-            .wrap(Wrap { trim: true })
-            .scroll((scroll as u16, 0))
-    } else {
-        Paragraph::new(input_buffer).wrap(Wrap { trim: true }).scroll((scroll as u16, 0))
-    };
-
-    let inner_area = block.inner(popup_area);
-    f.render_widget(block, popup_area);
-
-    // Split inner area vertically: top is the commit message text area, bottom is the amend option.
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(0), Constraint::Length(1)])
-        .split(inner_area);
-
-    f.render_widget(text, chunks[0]);
-
-    // Render the amend checkbox.
-    let checkbox = if commit_amend { "[X]" } else { "[ ]" };
-    let checkbox_style = if commit_amend {
-        Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)
-    } else {
-        muted_style()
-    };
-    let checkbox_line = Line::from(vec![
-        Span::styled(format!("{} ", checkbox), checkbox_style),
-        Span::styled("Amend last commit", primary_style()),
-        if !editing {
-            Span::styled(" (toggle: [a/space])", muted_style())
-        } else {
-            Span::styled(" (toggle: [⌃A])", muted_style())
-        },
-    ]);
-    f.render_widget(Paragraph::new(checkbox_line), chunks[1]);
-
-    if editing {
-        let lines: Vec<&str> = input_buffer.split('\n').collect();
-        let last_line = lines.last().copied().unwrap_or("");
-        let line_count = lines.len();
-        let cursor_y = chunks[0]
-            .y
-            .saturating_add(line_count.saturating_sub(1) as u16)
-            .min(chunks[0].y.saturating_add(chunks[0].height.saturating_sub(1)));
-        let cursor_offset = last_line.chars().count() as u16;
-        let cursor_x =
-            chunks[0].x.saturating_add(cursor_offset.min(chunks[0].width.saturating_sub(1)));
-        f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
-    }
-}
 
 fn graph_line_spans(line: &crate::repo::GraphLine) -> Line<'static> {
     let mut spans = Vec::new();
@@ -2593,709 +2501,33 @@ fn read_file_content(path: &std::path::Path) -> Result<String, std::io::Error> {
     Ok(content)
 }
 
-fn draw_branch_create_popup(
-    f: &mut Frame,
-    input_buffer: &str,
-    base_branch: Option<&str>,
-    area: Rect,
-) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Create Branch", primary_style()),
-        Span::raw(" "),
-    ]);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
 
-    let base_name = base_branch.unwrap_or("HEAD");
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Base: ", muted_style()),
-            Span::styled(base_name, primary_style()),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("New Branch Name: ", muted_style()),
-            Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
 
-    let inner_area = block.inner(popup_area);
-    f.render_widget(block, popup_area);
 
-    let paragraph = Paragraph::new(content);
-    f.render_widget(paragraph, inner_area);
 
-    let cursor_y = inner_area
-        .y
-        .saturating_add(2)
-        .min(inner_area.y.saturating_add(inner_area.height.saturating_sub(1)));
-    let label_width = "New Branch Name: ".chars().count() as u16;
-    let cursor_offset = label_width.saturating_add(input_buffer.chars().count() as u16);
-    let cursor_x = inner_area
-        .x
-        .saturating_add(cursor_offset)
-        .min(inner_area.x.saturating_add(inner_area.width.saturating_sub(1)));
-    f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
-}
 
-fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(DANGER());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Delete Branch", primary_style()),
-        Span::raw(" "),
-    ]);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
 
-    let (branch_name, is_remote) = match target {
-        Some((name, remote)) => (name.as_str(), *remote),
-        None => ("", false),
-    };
 
-    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Are you sure you want to delete the ", primary_style()),
-            Span::styled(type_label, accent_style()),
-            Span::raw(":"),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::raw("  "),
-            Span::styled(branch_name, Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
 
-    let paragraph = Paragraph::new(content).block(block);
-    f.render_widget(paragraph, popup_area);
-}
 
-fn draw_branch_checkout_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Checkout Branch", primary_style()),
-        Span::raw(" "),
-    ]);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
 
-    let (branch_name, is_remote) = match target {
-        Some((name, remote)) => (name.as_str(), *remote),
-        None => ("", false),
-    };
 
-    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Are you sure you want to checkout the ", primary_style()),
-            Span::styled(type_label, accent_style()),
-            Span::raw(":"),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::raw("  "),
-            Span::styled(branch_name, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
 
-    let paragraph = Paragraph::new(content).block(block);
-    f.render_widget(paragraph, popup_area);
-}
 
-fn draw_tag_checkout_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Checkout Tag", primary_style()),
-        Span::raw(" "),
-    ]);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
 
-    let tag_name = target.as_deref().unwrap_or("");
 
-    let content = vec![
-        Line::from(vec![Span::styled(
-            "Are you sure you want to checkout the tag (detached HEAD):",
-            primary_style(),
-        )]),
-        Line::from(""),
-        Line::from(vec![
-            Span::raw("  "),
-            Span::styled(tag_name, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
 
-    let paragraph = Paragraph::new(content).block(block);
-    f.render_widget(paragraph, popup_area);
-}
 
-fn draw_discard_changes_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
-    let popup_area = centered_rect(60, 20, area);
-    f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(DANGER());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Discard Changes", primary_style()),
-        Span::raw(" "),
-    ]);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let (file_path, staged) = match target {
-        Some((path, staged)) => (path.as_str(), *staged),
-        None => ("", false),
-    };
-
-    let area_label = if staged { "staged" } else { "unstaged" };
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Are you sure you want to discard ", primary_style()),
-            Span::styled(area_label, accent_style()),
-            Span::styled(" changes in:", primary_style()),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::raw("  "),
-            Span::styled(file_path, Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(""),
-        Line::from(vec![Span::styled(
-            "This operation is destructive and cannot be undone.",
-            Style::default().fg(DANGER()),
-        )]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
-
-    let paragraph = Paragraph::new(content).block(block);
-    f.render_widget(paragraph, popup_area);
-}
-
-fn draw_branch_merge_popup(
-    f: &mut Frame,
-    target: &Option<(String, bool)>,
-    current_branch: Option<&str>,
-    area: Rect,
-) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Merge Branch", primary_style()),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let (branch_name, is_remote) = match target {
-        Some((name, remote)) => (name.as_str(), *remote),
-        None => ("", false),
-    };
-
-    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
-
-    let current = current_branch.unwrap_or("HEAD");
-
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Are you sure you want to merge the ", primary_style()),
-            Span::styled(type_label, accent_style()),
-            Span::raw(":"),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::raw("  "),
-            Span::styled(branch_name, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("into the current branch ", primary_style()),
-            Span::styled(format!("'{}'", current), accent_style().add_modifier(Modifier::BOLD)),
-            Span::raw("?"),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
-
-    let paragraph = Paragraph::new(content).block(block);
-    f.render_widget(paragraph, popup_area);
-}
-
-fn draw_merge_abort_confirm_popup(f: &mut Frame, area: Rect) {
-    let popup_area = centered_rect(45, 12, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(DANGER());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Abort Merge", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::uniform(1));
-
-    let content = vec![
-        Line::from(Span::styled("Are you sure you want to abort the merge?", primary_style())),
-        Line::from(""),
-        Line::from(Span::styled("All unresolved conflict changes will be lost.", muted_style())),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
-
-    let paragraph = Paragraph::new(content).block(block);
-    f.render_widget(paragraph, popup_area);
-}
-
-fn draw_merge_continue_confirm_popup(f: &mut Frame, area: Rect) {
-    let popup_area = centered_rect(45, 12, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(SUCCESS());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Continue Merge", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::uniform(1));
-
-    let content = vec![
-        Line::from(Span::styled("Are you sure you want to commit the merge?", primary_style())),
-        Line::from(""),
-        Line::from(Span::styled("This will finalize the merge commit.", muted_style())),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
-
-    let paragraph = Paragraph::new(content).block(block);
-    f.render_widget(paragraph, popup_area);
-}
-
-fn draw_branch_rebase_popup(
-    f: &mut Frame,
-    target: &Option<(String, bool)>,
-    current_branch: Option<&str>,
-    area: Rect,
-) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Rebase Branch", primary_style()),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let (branch_name, is_remote) = match target {
-        Some((name, remote)) => (name.as_str(), *remote),
-        None => ("", false),
-    };
-
-    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
-
-    let current = current_branch.unwrap_or("HEAD");
-
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Are you sure you want to rebase the ", primary_style()),
-            Span::styled(
-                format!("current branch '{}'", current),
-                accent_style().add_modifier(Modifier::BOLD),
-            ),
-        ]),
-        Line::from(vec![
-            Span::styled("onto the ", primary_style()),
-            Span::styled(type_label, accent_style()),
-            Span::raw(":"),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::raw("  "),
-            Span::styled(branch_name, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
-
-    let paragraph = Paragraph::new(content).block(block);
-    f.render_widget(paragraph, popup_area);
-}
-
-fn draw_branch_interactive_rebase_popup(
-    f: &mut Frame,
-    target: &Option<(String, bool)>,
-    current_branch: Option<&str>,
-    area: Rect,
-) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Interactive Rebase Branch", primary_style()),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let (branch_name, is_remote) = match target {
-        Some((name, remote)) => (name.as_str(), *remote),
-        None => ("", false),
-    };
-
-    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
-
-    let current = current_branch.unwrap_or("HEAD");
-
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Are you sure you want to interactively rebase the ", primary_style()),
-            Span::styled(
-                format!("current branch '{}'", current),
-                accent_style().add_modifier(Modifier::BOLD),
-            ),
-        ]),
-        Line::from(vec![
-            Span::styled("onto the ", primary_style()),
-            Span::styled(type_label, accent_style()),
-            Span::raw(":"),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::raw("  "),
-            Span::styled(branch_name, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
-
-    let paragraph = Paragraph::new(content).block(block);
-    f.render_widget(paragraph, popup_area);
-}
-
-fn draw_remote_picker_popup(f: &mut Frame, remotes: &[RemoteInfo], selection: usize, area: Rect) {
-    let popup_area = centered_rect(50, 60, area);
-
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(ACCENT());
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(Line::from(vec![
-            Span::raw(" "),
-            Span::styled("Select Remote", primary_style()),
-            Span::raw(" "),
-        ]))
-        .padding(Padding::horizontal(1));
-
-    let inner = block.inner(popup_area);
-    f.render_widget(block, popup_area);
-
-    // Split inner: list on top, hint at bottom.
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(1)])
-        .split(inner);
-
-    let items: Vec<ListItem> = remotes
-        .iter()
-        .enumerate()
-        .map(|(i, r)| {
-            let style = if i == selection {
-                accent_style().add_modifier(Modifier::BOLD | Modifier::REVERSED)
-            } else {
-                primary_style()
-            };
-            ListItem::new(Line::from(vec![
-                Span::raw("  "),
-                Span::styled(r.name.clone(), style),
-                Span::styled("  ", muted_style()),
-                Span::styled(r.url.clone(), muted_style()),
-            ]))
-        })
-        .collect();
-
-    let mut list_state = ListState::default();
-    list_state.select(Some(selection));
-    f.render_stateful_widget(List::new(items), chunks[0], &mut list_state);
-
-    let hint = Line::from(vec![
-        Span::styled("↑↓ navigate  ", muted_style()),
-        Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
-        Span::styled(" confirm  ", muted_style()),
-        Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
-        Span::styled(" cancel", muted_style()),
-    ]);
-    f.render_widget(Paragraph::new(hint), chunks[1]);
-}
-
-fn draw_branch_push_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Push Branch", primary_style()),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let branch_name = match target {
-        Some((name, _)) => name.as_str(),
-        None => "",
-    };
-
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Are you sure you want to push branch ", primary_style()),
-            Span::styled(branch_name, accent_style().add_modifier(Modifier::BOLD)),
-            Span::raw("?"),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
-
-    let paragraph = Paragraph::new(content).block(block);
-    f.render_widget(paragraph, popup_area);
-}
-
-fn draw_tag_create_popup(
-    f: &mut Frame,
-    input_buffer: &str,
-    target_commit_oid: Option<&str>,
-    area: Rect,
-) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Create Tag", primary_style()),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let commit_hash = target_commit_oid
-        .map(|oid| if oid.len() >= 7 { &oid[..7] } else { oid })
-        .unwrap_or("unknown");
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Target Commit: ", muted_style()),
-            Span::styled(commit_hash, primary_style()),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Tag Name: ", muted_style()),
-            Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
-
-    let inner_area = block.inner(popup_area);
-    f.render_widget(block, popup_area);
-
-    let paragraph = Paragraph::new(content);
-    f.render_widget(paragraph, inner_area);
-
-    let cursor_y = inner_area
-        .y
-        .saturating_add(2)
-        .min(inner_area.y.saturating_add(inner_area.height.saturating_sub(1)));
-    let label_width = "Tag Name: ".chars().count() as u16;
-    let cursor_offset = label_width.saturating_add(input_buffer.chars().count() as u16);
-    let cursor_x = inner_area
-        .x
-        .saturating_add(cursor_offset)
-        .min(inner_area.x.saturating_add(inner_area.width.saturating_sub(1)));
-    f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
-}
-
-fn draw_stash_create_popup(f: &mut Frame, input_buffer: &str, area: Rect) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Stash Changes", primary_style()),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let content = vec![
-        Line::from(vec![Span::styled("Stash Name / Message: ", muted_style())]),
-        Line::from(""),
-        Line::from(vec![Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD))]),
-    ];
-
-    let inner_area = block.inner(popup_area);
-    f.render_widget(block, popup_area);
-
-    let paragraph = Paragraph::new(content);
-    f.render_widget(paragraph, inner_area);
-
-    let cursor_y = inner_area
-        .y
-        .saturating_add(2)
-        .min(inner_area.y.saturating_add(inner_area.height.saturating_sub(1)));
-    let cursor_offset = input_buffer.chars().count() as u16;
-    let cursor_x = inner_area
-        .x
-        .saturating_add(cursor_offset)
-        .min(inner_area.x.saturating_add(inner_area.width.saturating_sub(1)));
-    f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
-}
 
 #[allow(clippy::too_many_arguments)]
 fn draw_tags_view(
@@ -3568,406 +2800,19 @@ fn draw_remotes_view(
     f.render_widget(details_paragraph, right_area);
 }
 
-fn draw_tag_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
-    let popup_area = centered_rect(55, 25, area);
-    f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(DANGER());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Delete Tag", primary_style()),
-        Span::raw(" "),
-    ]);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
 
-    let (tag_name, is_on_remote) = match target {
-        Some((name, is_on_remote)) => (name.as_str(), *is_on_remote),
-        None => ("", false),
-    };
 
-    let mut content = vec![
-        Line::from(vec![
-            Span::styled("Are you sure you want to delete the tag ", primary_style()),
-            Span::styled(tag_name, accent_style()),
-            Span::raw("?"),
-        ]),
-        Line::from(""),
-    ];
 
-    if is_on_remote {
-        content.push(Line::from(vec![
-            Span::styled("Warning: ", Style::default().fg(WARNING()).add_modifier(Modifier::BOLD)),
-            Span::raw(
-                "This tag is also present on the remote and will be deleted from the remote.",
-            ),
-        ]));
-        content.push(Line::from(""));
-    }
 
-    content.push(Line::from(vec![
-        Span::styled("Confirm: ", muted_style()),
-        Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-        Span::styled(" / Cancel: ", muted_style()),
-        Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-    ]));
 
-    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
-    f.render_widget(paragraph, popup_area);
-}
 
-fn draw_stash_delete_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(DANGER());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Delete Stash", primary_style()),
-        Span::raw(" "),
-    ]);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
 
-    let stash_name = match target {
-        Some(name) => name.as_str(),
-        None => "",
-    };
 
-    let content = vec![
-        Line::from(vec![Span::styled(
-            "Are you sure you want to delete the stash:",
-            primary_style(),
-        )]),
-        Line::from(""),
-        Line::from(vec![
-            Span::raw("  "),
-            Span::styled(stash_name, Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
 
-    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
-    f.render_widget(paragraph, popup_area);
-}
-
-fn draw_stash_apply_popup(f: &mut Frame, target: &Option<String>, delete_after: bool, area: Rect) {
-    let popup_area = centered_rect(55, 25, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Apply Stash", primary_style()),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let stash_name = match target {
-        Some(name) => name.as_str(),
-        None => "",
-    };
-
-    let mut content = vec![
-        Line::from(vec![Span::styled(
-            "Are you sure you want to apply the stash:",
-            primary_style(),
-        )]),
-        Line::from(""),
-        Line::from(vec![
-            Span::raw("  "),
-            Span::styled(stash_name, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(""),
-    ];
-
-    let delete_after_style = if delete_after {
-        Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(ratatui::style::Color::DarkGray)
-    };
-
-    let checkbox = if delete_after { "[X]" } else { "[ ]" };
-
-    content.push(Line::from(vec![
-        Span::styled(format!("  {} ", checkbox), delete_after_style),
-        Span::styled("Delete stash after applying", primary_style()),
-        Span::styled(" (toggle: [d/space/a])", muted_style()),
-    ]));
-
-    content.push(Line::from(""));
-
-    content.push(Line::from(vec![
-        Span::styled("Confirm: ", muted_style()),
-        Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-        Span::styled(" / Cancel: ", muted_style()),
-        Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-    ]));
-
-    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
-    f.render_widget(paragraph, popup_area);
-}
-
-fn draw_cherry_pick_popup(
-    f: &mut Frame,
-    target: &Option<(String, String)>,
-    current_branch: Option<&str>,
-    app: &crate::app::App,
-    area: Rect,
-) {
-    let popup_area = centered_rect(60, 75, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Cherry-pick Commit", primary_style()),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(2));
-
-    let inner = block.inner(popup_area);
-    f.render_widget(block, popup_area);
-
-    // Split inner: top contains details (2 rows), bottom contains list/dropdown.
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3), // Details (2 lines + spacer)
-            Constraint::Min(1),    // Local branches dropdown/list
-            Constraint::Length(1), // Help / shortcuts hint
-        ])
-        .split(inner);
-
-    let (commit_oid, summary) = match target {
-        Some((oid, sum)) => (oid.as_str(), sum.as_str()),
-        None => ("", ""),
-    };
-    let source_branch = current_branch.unwrap_or("HEAD");
-
-    let details_content = vec![
-        Line::from(vec![
-            Span::styled("Commit: ", muted_style()),
-            Span::styled(format!("{:.7}", commit_oid), accent_style().add_modifier(Modifier::BOLD)),
-            Span::raw(" ("),
-            Span::styled(summary, primary_style()),
-            Span::raw(")"),
-        ]),
-        Line::from(vec![
-            Span::styled("Taken From: ", muted_style()),
-            Span::styled(source_branch, primary_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
-    f.render_widget(Paragraph::new(details_content), chunks[0]);
-
-    // Destination branches dropdown (List)
-    let items: Vec<ListItem> = if app.cherry_pick_dest_branches.is_empty() {
-        vec![ListItem::new(Line::from(vec![Span::styled(
-            "  (No local branches found)",
-            muted_style(),
-        )]))]
-    } else {
-        app.cherry_pick_dest_branches
-            .iter()
-            .enumerate()
-            .map(|(i, b)| {
-                let is_selected = i == app.cherry_pick_dest_selection;
-                let style = if is_selected {
-                    accent_style().add_modifier(Modifier::BOLD | Modifier::REVERSED)
-                } else {
-                    primary_style()
-                };
-                let prefix = if is_selected { "▸ " } else { "  " };
-                ListItem::new(Line::from(vec![
-                    Span::styled(prefix, style),
-                    Span::styled(b.clone(), style),
-                ]))
-            })
-            .collect()
-    };
-
-    let mut list_state = ListState::default();
-    list_state.select(Some(app.cherry_pick_dest_selection));
-
-    let list_block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Plain)
-        .border_style(muted_style())
-        .title("Select Destination Branch");
-
-    let list_area = chunks[1];
-    f.render_stateful_widget(List::new(items).block(list_block), list_area, &mut list_state);
-
-    let hint = Line::from(vec![
-        Span::styled("↑↓ / j k navigate  ", muted_style()),
-        Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
-        Span::styled(" confirm  ", muted_style()),
-        Span::styled("Esc / q", accent_style().add_modifier(Modifier::BOLD)),
-        Span::styled(" cancel", muted_style()),
-    ]);
-    f.render_widget(Paragraph::new(hint), chunks[2]);
-}
-
-fn draw_revert_popup(
-    f: &mut Frame,
-    target: &Option<(String, String)>,
-    current_branch: Option<&str>,
-    area: Rect,
-) {
-    let popup_area = centered_rect(55, 25, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Revert Commit", primary_style()),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let (commit_oid, summary) = match target {
-        Some((oid, sum)) => (oid.as_str(), sum.as_str()),
-        None => ("", ""),
-    };
-
-    let current = current_branch.unwrap_or("HEAD");
-
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Are you sure you want to revert commit ", primary_style()),
-            Span::styled(format!("{:.7}", commit_oid), accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(vec![
-            Span::styled("on branch ", primary_style()),
-            Span::styled(format!("'{}'", current), accent_style().add_modifier(Modifier::BOLD)),
-            Span::raw("?"),
-        ]),
-        Line::from(""),
-        Line::from(vec![Span::raw("  "), Span::styled(summary, primary_style())]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
-
-    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
-    f.render_widget(paragraph, popup_area);
-}
-
-fn draw_tag_push_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(SUCCESS());
-    let title =
-        Line::from(vec![Span::raw(" "), Span::styled("Push Tag", primary_style()), Span::raw(" ")]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let tag_name = target.as_deref().unwrap_or("");
-
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Are you sure you want to push the tag ", primary_style()),
-            Span::styled(tag_name, accent_style()),
-            Span::raw(" to remote?"),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
-
-    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
-    f.render_widget(paragraph, popup_area);
-}
-
-fn draw_tag_push_all_popup(f: &mut Frame, remote: Option<&str>, area: Rect) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(SUCCESS());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Push All Tags", primary_style()),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let remote_str = remote.unwrap_or("remote");
-
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Are you sure you want to push ", primary_style()),
-            Span::styled(
-                "ALL local tags",
-                Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
-            ),
-        ]),
-        Line::from(vec![Span::styled(format!("to remote '{}'?", remote_str), primary_style())]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
-        ]),
-    ];
-
-    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
-    f.render_widget(paragraph, popup_area);
-}
 
 #[allow(clippy::too_many_arguments)]
 fn draw_stashes_view(
@@ -4479,78 +3324,7 @@ fn draw_commit_details_widget(
 
 
 
-fn draw_search_column_picker(f: &mut Frame, app: &crate::app::App, area: Rect) {
-    let popup_area = centered_rect(50, 30, area);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(ACCENT()))
-        .title(Line::from(vec![
-            Span::raw(" "),
-            Span::styled("Search Columns Selector", primary_style()),
-            Span::raw(" "),
-        ]));
-
-    let inner = block.inner(popup_area);
-    f.render_widget(Clear, popup_area);
-    f.render_widget(block, popup_area);
-
-    let vertical_chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1), // Spacer
-            Constraint::Length(4), // Columns
-            Constraint::Min(0),    // Instructions
-        ])
-        .split(inner);
-
-    let columns = [
-        ("SHA", app.search_columns_sha),
-        ("Message", app.search_columns_message),
-        ("Author", app.search_columns_author),
-        ("Date", app.search_columns_date),
-    ];
-
-    let mut lines = Vec::new();
-    for (idx, (name, enabled)) in columns.iter().enumerate() {
-        let is_selected = idx == app.search_column_selection;
-        let checkbox = if *enabled { "[x]" } else { "[ ]" };
-
-        let checkbox_span = if *enabled {
-            Span::styled(checkbox, Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD))
-        } else {
-            Span::styled(checkbox, muted_style())
-        };
-
-        let style = if is_selected {
-            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default()
-        };
-
-        let select_indicator = if is_selected { "▸ " } else { "  " };
-
-        lines.push(Line::from(vec![
-            Span::styled(select_indicator, style),
-            checkbox_span,
-            Span::raw(" "),
-            Span::styled(name.to_string(), style),
-        ]));
-    }
-
-    f.render_widget(Paragraph::new(lines), vertical_chunks[1]);
-
-    let instructions = Line::from(vec![
-        Span::styled(" [Space]", accent_style()),
-        Span::raw(" Toggle  "),
-        Span::styled("[Enter]", accent_style()),
-        Span::raw(" Confirm  "),
-        Span::styled("[Esc]", accent_style()),
-        Span::raw(" Cancel "),
-    ]);
-    f.render_widget(Paragraph::new(instructions).alignment(Alignment::Center), vertical_chunks[2]);
-}
 
 fn draw_logs_view(
     f: &mut Frame,
@@ -4677,132 +3451,8 @@ fn draw_logs_view(
     f.render_stateful_widget(table, inner, &mut state);
 }
 
-fn draw_remote_add_name_popup(f: &mut Frame, input_buffer: &str, area: Rect) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
 
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Add Remote (Step 1/2)", primary_style()),
-        Span::raw(" "),
-    ]);
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
 
-    let content = vec![
-        Line::from(vec![Span::styled("Remote Name: ", muted_style())]),
-        Line::from(""),
-        Line::from(vec![Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD))]),
-    ];
 
-    let inner_area = block.inner(popup_area);
-    f.render_widget(block, popup_area);
 
-    let paragraph = Paragraph::new(content);
-    f.render_widget(paragraph, inner_area);
-
-    let cursor_y = inner_area
-        .y
-        .saturating_add(2)
-        .min(inner_area.y.saturating_add(inner_area.height.saturating_sub(1)));
-    let cursor_offset = input_buffer.chars().count() as u16;
-    let cursor_x = inner_area
-        .x
-        .saturating_add(cursor_offset)
-        .min(inner_area.x.saturating_add(inner_area.width.saturating_sub(1)));
-    f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
-}
-
-fn draw_remote_add_url_popup(f: &mut Frame, remote_name: &str, input_buffer: &str, area: Rect) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Add Remote (Step 2/2)", primary_style()),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Remote Name: ", muted_style()),
-            Span::styled(remote_name, primary_style().add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(""),
-        Line::from(vec![Span::styled("Remote URL: ", muted_style())]),
-        Line::from(""),
-        Line::from(vec![Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD))]),
-    ];
-
-    let inner_area = block.inner(popup_area);
-    f.render_widget(block, popup_area);
-
-    let paragraph = Paragraph::new(content);
-    f.render_widget(paragraph, inner_area);
-
-    let cursor_y = inner_area
-        .y
-        .saturating_add(4)
-        .min(inner_area.y.saturating_add(inner_area.height.saturating_sub(1)));
-    let cursor_offset = input_buffer.chars().count() as u16;
-    let cursor_x = inner_area
-        .x
-        .saturating_add(cursor_offset)
-        .min(inner_area.x.saturating_add(inner_area.width.saturating_sub(1)));
-    f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
-}
-
-fn draw_remote_delete_popup(f: &mut Frame, remote_name: &str, area: Rect) {
-    let popup_area = centered_rect(50, 15, area);
-    f.render_widget(Clear, popup_area);
-
-    let border_style = Style::default().fg(DANGER());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Remove Remote", primary_style()),
-        Span::raw(" "),
-    ]);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(border_style)
-        .title(title)
-        .padding(Padding::horizontal(1));
-
-    let content = vec![
-        Line::from(vec![
-            Span::raw("Are you sure you want to remove remote "),
-            Span::styled(remote_name, Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
-            Span::raw("?"),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("All remote-tracking branches for ", muted_style()),
-            Span::styled(remote_name, primary_style()),
-            Span::styled(" will be deleted.", muted_style()),
-        ]),
-        Line::from(""),
-        Line::from(vec![Span::styled("Confirm: [y]  Cancel: [n/Esc]", muted_style())]),
-    ];
-
-    let inner_area = block.inner(popup_area);
-    f.render_widget(block, popup_area);
-
-    let paragraph = Paragraph::new(content);
-    f.render_widget(paragraph, inner_area);
-}
