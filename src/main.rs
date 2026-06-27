@@ -22,7 +22,7 @@ mod app;
 mod config;
 mod debug_log;
 mod input;
-mod repo;
+pub use gitwig_core as repo;
 mod ui;
 mod ui_detail;
 

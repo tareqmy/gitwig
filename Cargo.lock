@@ -492,10 +492,19 @@ dependencies = [
  "crossterm",
  "dirs",
  "git2",
+ "gitwig-core",
  "libc",
  "ratatui",
  "serde",
  "toml",
+]
+
+[[package]]
+name = "gitwig-core"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "git2",
 ]
 
 [[package]]
