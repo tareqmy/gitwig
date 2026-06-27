@@ -14,3 +14,4 @@ pub mod remote_picker;
 pub mod search_columns;
 pub mod add_remote;
 pub mod confirm;
+pub mod detail_help;
