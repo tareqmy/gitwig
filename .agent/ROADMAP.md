@@ -87,7 +87,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Keybindings**
 - [ ] **Git logs pagination**
 - [ ] **Per Repository rule**
-- [ ] **Apply label for repositories**
+- [ ] **Apply label for repositories**: so that from the home page it can be viewed as a group
 - [ ] For large repo load time is high — see `.agent/LARGE_REPO_PERFORMANCE_PLAN.md` for full analysis
   - Phase A — Quick wins (no architecture change):
     - [x] A1: Change `max_commits` default from 0 (unlimited) to 500

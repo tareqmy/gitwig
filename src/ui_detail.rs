@@ -178,10 +178,7 @@ pub fn draw(
     area: Rect,
 ) {
     if app.in_logs_ui
-        && matches!(
-            mode,
-            Mode::Logs | Mode::LogsSearchInput | Mode::SearchColumnPicker
-        )
+        && matches!(mode, Mode::Logs | Mode::LogsSearchInput | Mode::SearchColumnPicker)
     {
         if let ItemDetail::Repo { info, .. } = detail {
             let header_rows = Layout::default()
@@ -201,10 +198,7 @@ pub fn draw(
 
             let branch = info.branch.as_ref();
             let header_left = Paragraph::new(Line::from(vec![
-                Span::styled(
-                    "▍ ",
-                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-                ),
+                Span::styled("▍ ", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
                 Span::styled(
                     format!("Logs - {}", item_name),
                     primary_style().add_modifier(Modifier::BOLD),
@@ -249,14 +243,7 @@ pub fn draw(
             }
 
             areas.commits = Some(header_rows[2]);
-            draw_logs_view(
-                f,
-                info,
-                commit_selection,
-                commit_search_query,
-                app,
-                header_rows[2],
-            );
+            draw_logs_view(f, info, commit_selection, commit_search_query, app, header_rows[2]);
 
             // Draw SearchColumnPicker overlay if in that mode
             if matches!(mode, Mode::SearchColumnPicker) {
@@ -376,9 +363,8 @@ pub fn draw(
         let inner = (w / 8).max(3);
         let centre = w.saturating_sub(outer * 2 + inner * 2);
 
-        let fade_outer = Style::default()
-            .fg(ratatui::style::Color::DarkGray)
-            .add_modifier(Modifier::DIM);
+        let fade_outer =
+            Style::default().fg(ratatui::style::Color::DarkGray).add_modifier(Modifier::DIM);
         let fade_inner = muted_style().add_modifier(Modifier::DIM);
         let solid = muted_style();
 
@@ -417,10 +403,7 @@ pub fn draw(
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             };
-            spans.push(Span::styled(
-                format!("{} {} [{}] {}", bullet, name, index, bullet),
-                style,
-            ));
+            spans.push(Span::styled(format!("{} {} [{}] {}", bullet, name, index, bullet), style));
         }
         let tab_line = Line::from(spans);
         f.render_widget(Paragraph::new(tab_line), tab_area);
@@ -441,12 +424,8 @@ pub fn draw(
 
                 // Record main vertical splitter boundary in workspace tab
                 let split_row = body_area.y + detail_chunks[0].height;
-                areas.workspace_main_splitter = Some(Rect::new(
-                    body_area.x,
-                    split_row.saturating_sub(1),
-                    body_area.width,
-                    2,
-                ));
+                areas.workspace_main_splitter =
+                    Some(Rect::new(body_area.x, split_row.saturating_sub(1), body_area.width, 2));
 
                 let dirty = !info.changes.staged.is_empty()
                     || !info.changes.unstaged.is_empty()
@@ -872,12 +851,8 @@ fn draw_commit_files_panel(
 
     // Record horizontal splitter boundary
     let split_col = area.x + panels[0].width;
-    areas.inspect_horizontal_splitter = Some(Rect::new(
-        split_col.saturating_sub(1),
-        area.y,
-        2,
-        area.height,
-    ));
+    areas.inspect_horizontal_splitter =
+        Some(Rect::new(split_col.saturating_sub(1), area.y, 2, area.height));
 
     let left_focused = focus == DetailSection::Staged || focus == DetailSection::Unstaged;
     let right_focused = focus == DetailSection::StagingDetails;
@@ -893,22 +868,15 @@ fn draw_commit_files_panel(
 
     // Record vertical splitter boundary
     let split_row = panels[0].y + left_chunks[0].height;
-    areas.inspect_vertical_splitter = Some(Rect::new(
-        panels[0].x,
-        split_row.saturating_sub(1),
-        panels[0].width,
-        2,
-    ));
+    areas.inspect_vertical_splitter =
+        Some(Rect::new(panels[0].x, split_row.saturating_sub(1), panels[0].width, 2));
 
     areas.bottom_left = Some(left_chunks[0]);
     areas.commit_details = Some(left_chunks[1]);
 
     // ── Left Top: changed files ───────────────────────────────────────────────
-    let left_border_style = if left_focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
+    let left_border_style =
+        if left_focused { Style::default().fg(ACCENT()) } else { muted_style() };
     let left_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -927,11 +895,7 @@ fn draw_commit_files_panel(
     if commit.files.is_empty() {
         let v = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(40),
-                Constraint::Length(1),
-                Constraint::Min(0),
-            ])
+            .constraints([Constraint::Percentage(40), Constraint::Length(1), Constraint::Min(0)])
             .split(left_inner);
         f.render_widget(
             Paragraph::new(Span::styled("No files changed", muted_style()))
@@ -939,11 +903,8 @@ fn draw_commit_files_panel(
             v[1],
         );
     } else {
-        let items: Vec<ListItem> = commit
-            .files
-            .iter()
-            .map(|f| ListItem::new(file_entry_line(f)))
-            .collect();
+        let items: Vec<ListItem> =
+            commit.files.iter().map(|f| ListItem::new(file_entry_line(f))).collect();
         let list =
             List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
         let mut state = app.changed_files_list_state.borrow_mut();
@@ -966,11 +927,8 @@ fn draw_commit_files_panel(
     areas.commit_details = Some(left_chunks[1]);
 
     // ── Right: diff panel ─────────────────────────────────────────────────
-    let right_border_style = if right_focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
+    let right_border_style =
+        if right_focused { Style::default().fg(ACCENT()) } else { muted_style() };
     let right_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -996,18 +954,11 @@ fn draw_commit_files_panel(
     if file_diff.is_empty() {
         let v_center = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(45),
-                Constraint::Length(1),
-                Constraint::Min(0),
-            ])
+            .constraints([Constraint::Percentage(45), Constraint::Length(1), Constraint::Min(0)])
             .split(right_inner);
         f.render_widget(
-            Paragraph::new(Span::styled(
-                "Select a file to view its diff",
-                muted_style(),
-            ))
-            .alignment(Alignment::Center),
+            Paragraph::new(Span::styled("Select a file to view its diff", muted_style()))
+                .alignment(Alignment::Center),
             v_center[1],
         );
     } else {
@@ -1033,9 +984,7 @@ fn draw_commit_files_panel(
             })
             .collect();
         f.render_widget(
-            Paragraph::new(diff_spans)
-                .scroll((diff_scroll as u16, 0))
-                .wrap(Wrap { trim: false }),
+            Paragraph::new(diff_spans).scroll((diff_scroll as u16, 0)).wrap(Wrap { trim: false }),
             right_inner,
         );
     }
@@ -1130,12 +1079,8 @@ fn draw_staging_panels(
 
         // Record horizontal splitter boundary
         let split_col = area.x + panels[0].width;
-        areas.inspect_horizontal_splitter = Some(Rect::new(
-            split_col.saturating_sub(1),
-            area.y,
-            2,
-            area.height,
-        ));
+        areas.inspect_horizontal_splitter =
+            Some(Rect::new(split_col.saturating_sub(1), area.y, 2, area.height));
 
         // Focus-aware border helpers.
         let left_focused = focus == DetailSection::Staged
@@ -1143,11 +1088,8 @@ fn draw_staging_panels(
             || focus == DetailSection::Conflicts;
 
         // ── Left panel: outer border labelled "Staging Area" ──────────────────
-        let left_border_style = if left_focused {
-            Style::default().fg(ACCENT())
-        } else {
-            muted_style()
-        };
+        let left_border_style =
+            if left_focused { Style::default().fg(ACCENT()) } else { muted_style() };
         let left_outer = Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
@@ -1183,12 +1125,8 @@ fn draw_staging_panels(
 
         // Record vertical splitter boundary in left inner
         let split_row = left_inner.y + left_split[0].height;
-        areas.inspect_vertical_splitter = Some(Rect::new(
-            left_inner.x,
-            split_row.saturating_sub(1),
-            left_inner.width,
-            2,
-        ));
+        areas.inspect_vertical_splitter =
+            Some(Rect::new(left_inner.x, split_row.saturating_sub(1), left_inner.width, 2));
 
         areas.staged_sub = Some(left_split[0]);
         areas.unstaged_sub = Some(left_split[1]);
@@ -1206,11 +1144,7 @@ fn draw_staging_panels(
             "Nothing staged",
             Borders::BOTTOM,
             focus == DetailSection::Staged,
-            if focus == DetailSection::Staged {
-                Some(staging_file_selection)
-            } else {
-                None
-            },
+            if focus == DetailSection::Staged { Some(staging_file_selection) } else { None },
             &app.staged_list_state,
             left_split[0],
         );
@@ -1222,17 +1156,9 @@ fn draw_staging_panels(
             WARNING(),
             &changes.unstaged,
             "No unstaged changes",
-            if has_conflicts {
-                Borders::BOTTOM
-            } else {
-                Borders::empty()
-            },
+            if has_conflicts { Borders::BOTTOM } else { Borders::empty() },
             focus == DetailSection::Unstaged,
-            if focus == DetailSection::Unstaged {
-                Some(staging_file_selection)
-            } else {
-                None
-            },
+            if focus == DetailSection::Unstaged { Some(staging_file_selection) } else { None },
             &app.unstaged_list_state,
             left_split[1],
         );
@@ -1261,11 +1187,8 @@ fn draw_staging_panels(
         }
 
         // ── Right panel – Staging Details ─────────────────────────────────────
-        let right_border_style = if right_focused {
-            Style::default().fg(ACCENT())
-        } else {
-            muted_style()
-        };
+        let right_border_style =
+            if right_focused { Style::default().fg(ACCENT()) } else { muted_style() };
         let right_block = Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
@@ -1295,18 +1218,11 @@ fn draw_staging_panels(
     if file_diff.is_empty() {
         let v_center = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(45),
-                Constraint::Length(1),
-                Constraint::Min(0),
-            ])
+            .constraints([Constraint::Percentage(45), Constraint::Length(1), Constraint::Min(0)])
             .split(right_inner);
         f.render_widget(
-            Paragraph::new(Span::styled(
-                "Select a file to view its diff",
-                muted_style(),
-            ))
-            .alignment(Alignment::Center),
+            Paragraph::new(Span::styled("Select a file to view its diff", muted_style()))
+                .alignment(Alignment::Center),
             v_center[1],
         );
     } else {
@@ -1320,24 +1236,15 @@ fn draw_staging_panels(
                 let (prefix, bg_style) = if right_focused {
                     if app.diff_line_mode {
                         if i == app.diff_line_selection {
-                            (
-                                "▎",
-                                Style::default().bg(ratatui::style::Color::Rgb(70, 70, 70)),
-                            )
+                            ("▎", Style::default().bg(ratatui::style::Color::Rgb(70, 70, 70)))
                         } else if is_selected_hunk {
-                            (
-                                " ",
-                                Style::default().bg(ratatui::style::Color::Rgb(40, 40, 40)),
-                            )
+                            (" ", Style::default().bg(ratatui::style::Color::Rgb(40, 40, 40)))
                         } else {
                             (" ", Style::default())
                         }
                     } else {
                         if is_selected_hunk {
-                            (
-                                "▎",
-                                Style::default().bg(ratatui::style::Color::Rgb(50, 50, 50)),
-                            )
+                            ("▎", Style::default().bg(ratatui::style::Color::Rgb(50, 50, 50)))
                         } else {
                             (" ", Style::default())
                         }
@@ -1370,9 +1277,7 @@ fn draw_staging_panels(
             })
             .collect();
         f.render_widget(
-            Paragraph::new(diff_spans)
-                .scroll((diff_scroll as u16, 0))
-                .wrap(Wrap { trim: false }),
+            Paragraph::new(diff_spans).scroll((diff_scroll as u16, 0)).wrap(Wrap { trim: false }),
             right_inner,
         );
     }
@@ -1395,22 +1300,14 @@ fn draw_file_subpanel(
 ) -> Rect {
     // When focused, highlight the title in accent; border stays muted (contained inside outer).
     let title_style = if focused {
-        Style::default()
-            .fg(ACCENT())
-            .add_modifier(ratatui::style::Modifier::BOLD)
+        Style::default().fg(ACCENT()).add_modifier(ratatui::style::Modifier::BOLD)
     } else {
         Style::default().fg(title_color)
     };
-    let border_style = if focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
+    let border_style = if focused { Style::default().fg(ACCENT()) } else { muted_style() };
     // Sub-panel block — bottom border separates Staged from Unstaged.
-    let block = Block::default()
-        .borders(borders)
-        .border_style(border_style)
-        .title(Line::from(vec![
+    let block =
+        Block::default().borders(borders).border_style(border_style).title(Line::from(vec![
             Span::raw(" "),
             Span::styled(title, title_style),
             Span::raw("  "),
@@ -1424,11 +1321,7 @@ fn draw_file_subpanel(
     if files.is_empty() {
         let v = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(40),
-                Constraint::Length(1),
-                Constraint::Min(0),
-            ])
+            .constraints([Constraint::Percentage(40), Constraint::Length(1), Constraint::Min(0)])
             .split(inner);
         f.render_widget(
             Paragraph::new(Span::styled(empty_msg, muted_style())).alignment(Alignment::Center),
@@ -1439,10 +1332,8 @@ fn draw_file_subpanel(
 
     if let Some(sel_idx) = selection {
         // Focused: render as a selectable list with highlight.
-        let items: Vec<ListItem> = files
-            .iter()
-            .map(|e| ListItem::new(file_entry_line(e)))
-            .collect();
+        let items: Vec<ListItem> =
+            files.iter().map(|e| ListItem::new(file_entry_line(e))).collect();
         let list =
             List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
         let mut state = list_state.borrow_mut();
@@ -1477,12 +1368,8 @@ fn draw_overview_tab(
 
     // Record horizontal splitter boundary in overview tab
     let split_col = area.x + chunks[0].width;
-    areas.overview_horizontal_splitter = Some(Rect::new(
-        split_col.saturating_sub(1),
-        area.y,
-        2,
-        area.height,
-    ));
+    areas.overview_horizontal_splitter =
+        Some(Rect::new(split_col.saturating_sub(1), area.y, 2, area.height));
 
     let left_block = Block::default()
         .borders(Borders::ALL)
@@ -1496,16 +1383,11 @@ fn draw_overview_tab(
         .padding(Padding::horizontal(1));
 
     let body_lines = build_repo_body(resolved, info);
-    let body = Paragraph::new(body_lines)
-        .block(left_block)
-        .wrap(Wrap { trim: false });
+    let body = Paragraph::new(body_lines).block(left_block).wrap(Wrap { trim: false });
     f.render_widget(body, chunks[0]);
 
-    let right_title = if info.committer_stats_limit_reached {
-        "Stats (last 10k commits)"
-    } else {
-        "Stats"
-    };
+    let right_title =
+        if info.committer_stats_limit_reached { "Stats (last 10k commits)" } else { "Stats" };
 
     let right_block = Block::default()
         .borders(Borders::ALL)
@@ -1539,9 +1421,8 @@ fn draw_overview_tab(
         }
         repo::TabData::Loaded(_) => {
             let stats_lines = build_committer_stats_lines(info);
-            let stats_body = Paragraph::new(stats_lines)
-                .block(right_block)
-                .wrap(Wrap { trim: false });
+            let stats_body =
+                Paragraph::new(stats_lines).block(right_block).wrap(Wrap { trim: false });
             f.render_widget(stats_body, chunks[1]);
         }
     }
@@ -1571,11 +1452,7 @@ fn build_committer_stats_lines(info: &RepoInfo) -> Vec<Line<'static>> {
 
             stat_spans.push(Span::styled("  ➔  ", muted_style()));
             stat_spans.push(Span::styled(
-                format!(
-                    "{} commit{}",
-                    stat.count,
-                    if stat.count == 1 { "" } else { "s" }
-                ),
+                format!("{} commit{}", stat.count, if stat.count == 1 { "" } else { "s" }),
                 Style::default().fg(SUCCESS()),
             ));
 
@@ -1609,14 +1486,8 @@ fn centred_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 // ── Detail help overlay ────────────────────────────────────────────────────
 
 pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
-    (
-        "↑ [Up]",
-        "Select previous commit / file / branch / file tree item",
-    ),
-    (
-        "↓ [Down]",
-        "Select next commit / file / branch / file tree item",
-    ),
+    ("↑ [Up]", "Select previous commit / file / branch / file tree item"),
+    ("↓ [Down]", "Select next commit / file / branch / file tree item"),
     ("⇞ [PgUp]", "Jump page size rows up"),
     ("⇟ [PgDn]", "Jump page size rows down"),
     ("Home", "Scroll to top / go to first item"),
@@ -1626,39 +1497,15 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("← / →", "Focus Local/Remote branch (Branches tab)"),
     ("← / → or < / >", "Collapse/Expand folder (Files tab)"),
     ("f", "Fuzzy find files (Files tab)"),
-    (
-        "↵ [Enter]",
-        "Stage/Unstage file, Checkout branch, Checkout tag, or Inspect commit",
-    ),
-    (
-        "c / C",
-        "Commit (c) / Amend last commit (C) (Workspace/Inspect) / Create branch (Branches)",
-    ),
+    ("↵ [Enter]", "Stage/Unstage file, Checkout branch, Checkout tag, or Inspect commit"),
+    ("c / C", "Commit (c) / Amend last commit (C) (Workspace/Inspect) / Create branch (Branches)"),
     ("t", "Create tag (Workspace tab commits list)"),
-    (
-        "i",
-        "Interactive rebase from selected commit (Workspace) / selected branch (Branches)",
-    ),
-    (
-        "f",
-        "Open search column picker and go to logs (Workspace tab)",
-    ),
-    (
-        "d",
-        "Delete selected branch (Branches) / tag (Tags) / stash (Stashes)",
-    ),
-    (
-        "a",
-        "Stage/Unstage All (Workspace) / Apply selected stash (Stashes)",
-    ),
-    (
-        "x",
-        "Discard changes in selected file (Workspace / Inspect)",
-    ),
-    (
-        "X",
-        "Discard all changes in repository (Workspace / Inspect)",
-    ),
+    ("i", "Interactive rebase from selected commit (Workspace) / selected branch (Branches)"),
+    ("f", "Open search column picker and go to logs (Workspace tab)"),
+    ("d", "Delete selected branch (Branches) / tag (Tags) / stash (Stashes)"),
+    ("a", "Stage/Unstage All (Workspace) / Apply selected stash (Stashes)"),
+    ("x", "Discard changes in selected file (Workspace / Inspect)"),
+    ("X", "Discard all changes in repository (Workspace / Inspect)"),
     ("m", "Merge selected branch into current branch (Branches)"),
     ("r", "Rebase current branch onto selected branch (Branches)"),
     ("1", "Go to Workspace tab"),
@@ -1669,41 +1516,23 @@ pub(crate) const DETAIL_HELP_LINES: &[(&str, &str)] = &[
     ("6", "Go to Remotes tab"),
     ("7", "Go to Stashes tab"),
     ("8", "Go to Overview tab"),
-    (
-        "f / F",
-        "Fetch remote tags (Tags tab) / Fetch selected remote (Remotes tab)",
-    ),
+    ("f / F", "Fetch remote tags (Tags tab) / Fetch selected remote (Remotes tab)"),
     ("⇧F [Shift+F]", "Fetch selected local branch's upstream"),
     ("p", "Pull branch (Branches) / Push tag (Tags)"),
-    (
-        "⇧P [Shift+P]",
-        "Push branch (Branches) / Push all tags (Tags)",
-    ),
+    ("⇧P [Shift+P]", "Push branch (Branches) / Push all tags (Tags)"),
     ("R", "Resync current tab state"),
     ("y", "Yank selected commit hash (Workspace commits list)"),
     ("s", "Stash changes (Workspace changes or Stashes tab)"),
-    (
-        "o",
-        "Accept OURS version of conflict (Conflicts / ConflictDiff)",
-    ),
-    (
-        "t",
-        "Accept THEIRS version of conflict (Conflicts / ConflictDiff)",
-    ),
+    ("o", "Accept OURS version of conflict (Conflicts / ConflictDiff)"),
+    ("t", "Accept THEIRS version of conflict (Conflicts / ConflictDiff)"),
     ("r", "Mark conflict as resolved (Conflicts / ConflictDiff)"),
     ("A", "Abort the merge (Conflicts / ConflictDiff)"),
     ("C", "Continue the merge (Conflicts / ConflictDiff)"),
     ("? / ⎋ [Esc]", "Close this help"),
     ("q / ⎋ [Esc]", "Back to repository list"),
-    (
-        "→ [Right] / ↵ [Enter]",
-        "Inspect selected commit (Workspace commits list)",
-    ),
+    ("→ [Right] / ↵ [Enter]", "Inspect selected commit (Workspace commits list)"),
     ("⎋ [Esc]", "Back to workspace commits list (Inspect mode)"),
-    (
-        "Left-Click",
-        "Focus clicked panel / change tab (mouse support)",
-    ),
+    ("Left-Click", "Focus clicked panel / change tab (mouse support)"),
     ("Left-Click+Drag", "Drag boundaries to resize split panels"),
 ];
 
@@ -1712,21 +1541,14 @@ fn draw_detail_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
     let popup_area = centred_rect(60, 55, area);
     f.render_widget(Clear, popup_area);
 
-    let key_width = DETAIL_HELP_LINES
-        .iter()
-        .map(|(k, _)| k.chars().count())
-        .max()
-        .unwrap_or(0);
+    let key_width = DETAIL_HELP_LINES.iter().map(|(k, _)| k.chars().count()).max().unwrap_or(0);
 
     let mut lines: Vec<Line> = vec![Line::from("")];
     for (key, desc) in DETAIL_HELP_LINES {
         let padded = format!("{:>width$}", key, width = key_width);
         lines.push(Line::from(vec![
             Span::raw("  "),
-            Span::styled(
-                padded,
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(padded, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
             Span::raw("   "),
             Span::raw((*desc).to_string()),
         ]));
@@ -1751,9 +1573,7 @@ fn draw_detail_help_overlay(f: &mut Frame, area: Rect, scroll: usize) {
     let scroll = scroll.min(max_scroll);
 
     let lines_len = lines.len();
-    let para = Paragraph::new(lines)
-        .block(block)
-        .scroll((scroll as u16, 0));
+    let para = Paragraph::new(lines).block(block).scroll((scroll as u16, 0));
     f.render_widget(para, popup_area);
 
     if max_scroll > 0 {
@@ -1782,11 +1602,7 @@ fn draw_detail_commits(
     commit_limit: usize,
 ) {
     let focused = focus == DetailSection::Commits;
-    let border_style = if focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
+    let border_style = if focused { Style::default().fg(ACCENT()) } else { muted_style() };
 
     // Filter commits based on search query
     let filtered_commits: Vec<&crate::repo::CommitEntry> = if let Some(query) = commit_search_query
@@ -1822,11 +1638,8 @@ fn draw_detail_commits(
     };
 
     let total_entries = filtered_commits.len() + if show_dirty { 1 } else { 0 };
-    let selected_num = if total_entries > 0 {
-        (commit_selection + 1).min(total_entries)
-    } else {
-        0
-    };
+    let selected_num =
+        if total_entries > 0 { (commit_selection + 1).min(total_entries) } else { 0 };
 
     let count_text = if total_entries > 0 {
         format!("({}/{})", selected_num, total_entries)
@@ -1861,10 +1674,8 @@ fn draw_detail_commits(
         .title(Line::from(title_spans));
 
     if info.commits.len() >= commit_limit {
-        let footer_text = format!(
-            " Showing first {} commits — press G to load more ",
-            info.commits.len()
-        );
+        let footer_text =
+            format!(" Showing first {} commits — press G to load more ", info.commits.len());
         block = block.title_bottom(
             Line::from(vec![Span::styled(footer_text, muted_style())])
                 .alignment(ratatui::layout::Alignment::Center),
@@ -1878,18 +1689,11 @@ fn draw_detail_commits(
         f.render_widget(block, area);
         let v = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(40),
-                Constraint::Length(1),
-                Constraint::Min(0),
-            ])
+            .constraints([Constraint::Percentage(40), Constraint::Length(1), Constraint::Min(0)])
             .split(inner);
         f.render_widget(
-            Paragraph::new(Span::styled(
-                "No commits yet / empty repository",
-                muted_style(),
-            ))
-            .alignment(Alignment::Center),
+            Paragraph::new(Span::styled("No commits yet / empty repository", muted_style()))
+                .alignment(Alignment::Center),
             v[1],
         );
         return;
@@ -1910,10 +1714,7 @@ fn draw_detail_commits(
             Cell::from(Span::styled("-", muted_style())),
             Cell::from(Span::styled("-", muted_style())),
             Cell::from(Span::styled("-", muted_style())),
-            Cell::from(Span::styled(
-                "<uncommitted>",
-                Style::default().fg(WARNING()),
-            )),
+            Cell::from(Span::styled("<uncommitted>", Style::default().fg(WARNING()))),
         ]));
     }
     rows.extend(filtered_commits.iter().map(|commit| {
@@ -1922,10 +1723,7 @@ fn draw_detail_commits(
         for r in &commit.refs {
             let (label, style) = if let Some(tag) = r.strip_prefix("tag:") {
                 // Tag — yellow
-                (
-                    format!("[{}]", tag),
-                    Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
-                )
+                (format!("[{}]", tag), Style::default().fg(WARNING()).add_modifier(Modifier::BOLD))
             } else if let Some(remote) = r.strip_prefix("remote:") {
                 // Remote tracking branch — green
                 (
@@ -1934,10 +1732,7 @@ fn draw_detail_commits(
                 )
             } else {
                 // Local branch — cyan
-                (
-                    format!("[{}]", r),
-                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-                )
+                (format!("[{}]", r), Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
             };
             spans.push(Span::styled(label, style));
             spans.push(Span::raw(" "));
@@ -1946,14 +1741,8 @@ fn draw_detail_commits(
 
         let id_span = if !commit.signature_status.is_empty() && commit.signature_status != "N" {
             let (sig_char, sig_style) = match commit.signature_status.as_str() {
-                "G" => (
-                    "✓",
-                    Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
-                ),
-                "B" => (
-                    "✗",
-                    Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-                ),
+                "G" => ("✓", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
+                "B" => ("✗", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
                 "U" | "X" | "Y" | "R" => ("✓", Style::default().fg(WARNING())),
                 _ => ("?", muted_style()),
             };
@@ -1963,10 +1752,7 @@ fn draw_detail_commits(
                 Span::styled(commit.id.clone(), Style::default().fg(WARNING())),
             ])
         } else {
-            Line::from(vec![Span::styled(
-                commit.id.clone(),
-                Style::default().fg(WARNING()),
-            )])
+            Line::from(vec![Span::styled(commit.id.clone(), Style::default().fg(WARNING()))])
         };
 
         Row::new(vec![
@@ -2015,10 +1801,7 @@ fn build_body(app: &crate::app::App, detail: &ItemDetail) -> Vec<Line<'static>> 
                 "Not a directory",
                 "(path does not exist or isn't accessible)",
             ));
-            lines.push(field_line(
-                "Path",
-                Span::raw(resolved.display().to_string()),
-            ));
+            lines.push(field_line("Path", Span::raw(resolved.display().to_string())));
             lines
         }
         ItemDetail::Directory { resolved } => {
@@ -2030,10 +1813,7 @@ fn build_body(app: &crate::app::App, detail: &ItemDetail) -> Vec<Line<'static>> 
                 "Plain directory",
                 "(exists, but no .git entry was found)",
             ));
-            lines.push(field_line(
-                "Path",
-                Span::raw(resolved.display().to_string()),
-            ));
+            lines.push(field_line("Path", Span::raw(resolved.display().to_string())));
             lines
         }
         ItemDetail::Error { resolved, message } => {
@@ -2045,10 +1825,7 @@ fn build_body(app: &crate::app::App, detail: &ItemDetail) -> Vec<Line<'static>> 
                 "Could not read repository",
                 "(libgit2 reported an error — see below)",
             ));
-            lines.push(field_line(
-                "Path",
-                Span::raw(resolved.display().to_string()),
-            ));
+            lines.push(field_line("Path", Span::raw(resolved.display().to_string())));
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
                 Span::raw(FIELD_INDENT),
@@ -2065,20 +1842,9 @@ fn build_repo_body(resolved: &std::path::Path, info: &RepoInfo) -> Vec<Line<'sta
 
     // ── General ───────────────────────────────────────────────────────────
     push_section_header(&mut lines, "General");
-    lines.push(kind_line(
-        "●",
-        SUCCESS(),
-        "Git Repository",
-        "(inspectable libgit2)",
-    ));
-    lines.push(field_line(
-        "Path",
-        Span::raw(resolved.display().to_string()),
-    ));
-    let branch = info
-        .branch
-        .clone()
-        .unwrap_or_else(|| "(detached HEAD)".to_string());
+    lines.push(kind_line("●", SUCCESS(), "Git Repository", "(inspectable libgit2)"));
+    lines.push(field_line("Path", Span::raw(resolved.display().to_string())));
+    let branch = info.branch.clone().unwrap_or_else(|| "(detached HEAD)".to_string());
     lines.push(field_line("Branch", Span::styled(branch, accent_style())));
 
     // ── HEAD Commit ───────────────────────────────────────────────────────
@@ -2088,17 +1854,11 @@ fn build_repo_body(resolved: &std::path::Path, info: &RepoInfo) -> Vec<Line<'sta
             "Hash",
             Span::styled(head.short_id.clone(), Style::default().fg(WARNING())),
         ));
-        lines.push(field_line(
-            "Message",
-            Span::styled(head.summary.clone(), primary_style()),
-        ));
+        lines.push(field_line("Message", Span::styled(head.summary.clone(), primary_style())));
         lines.push(field_line("Author", Span::raw(head.author.clone())));
         lines.push(field_line("Date", Span::raw(head.when.clone())));
     } else {
-        lines.push(field_line(
-            "HEAD",
-            Span::styled("(empty repository)", muted_style()),
-        ));
+        lines.push(field_line("HEAD", Span::styled("(empty repository)", muted_style())));
     }
 
     // ── Sync ──────────────────────────────────────────────────────────────
@@ -2126,10 +1886,7 @@ fn push_section_header(lines: &mut Vec<Line<'static>>, title: &'static str) {
 fn append_sync(lines: &mut Vec<Line<'static>>, info: &RepoInfo) {
     match &info.upstream {
         None => {
-            lines.push(field_line(
-                "Upstream",
-                Span::styled("(not configured)", muted_style()),
-            ));
+            lines.push(field_line("Upstream", Span::styled("(not configured)", muted_style())));
             lines.push(field_line("Sync", Span::styled("—", muted_style())));
         }
         Some(name) => {
@@ -2144,10 +1901,8 @@ fn append_sync(lines: &mut Vec<Line<'static>>, info: &RepoInfo) {
                     Span::styled("in sync", Style::default().fg(SUCCESS())),
                 ));
             } else {
-                let mut spans = vec![
-                    Span::raw(FIELD_INDENT),
-                    Span::styled(field_label("Sync"), muted_style()),
-                ];
+                let mut spans =
+                    vec![Span::raw(FIELD_INDENT), Span::styled(field_label("Sync"), muted_style())];
                 if s.ahead > 0 {
                     spans.push(Span::styled(format!("{} ahead", s.ahead), primary_style()));
                 }
@@ -2213,11 +1968,7 @@ fn field_label(name: &str) -> String {
 }
 
 fn field_line(name: &'static str, value: Span<'static>) -> Line<'static> {
-    Line::from(vec![
-        Span::raw(FIELD_INDENT),
-        Span::styled(field_label(name), muted_style()),
-        value,
-    ])
+    Line::from(vec![Span::raw(FIELD_INDENT), Span::styled(field_label(name), muted_style()), value])
 }
 
 fn kind_line(
@@ -2255,11 +2006,7 @@ fn draw_commit_popup(
         let y = area.y + (area.height.saturating_sub(height)) / 2;
         Rect::new(x, y, width, height)
     } else {
-        centred_rect(
-            app.commit_popup_width_pct,
-            app.commit_popup_height_pct,
-            area,
-        )
+        centred_rect(app.commit_popup_width_pct, app.commit_popup_height_pct, area)
     };
     areas.commit_popup = Some(popup_area);
     areas.commit_popup_parent = Some(area);
@@ -2269,24 +2016,13 @@ fn draw_commit_popup(
     let border_style = Style::default().fg(border_color);
 
     let title_text = if editing {
-        if commit_amend {
-            " Amend Commit Message "
-        } else {
-            " Commit Message "
-        }
+        if commit_amend { " Amend Commit Message " } else { " Commit Message " }
     } else {
-        if commit_amend {
-            " Confirm Amend Commit "
-        } else {
-            " Confirm Commit "
-        }
+        if commit_amend { " Confirm Amend Commit " } else { " Confirm Commit " }
     };
 
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled(title_text, primary_style()),
-        Span::raw(" "),
-    ]);
+    let title =
+        Line::from(vec![Span::raw(" "), Span::styled(title_text, primary_style()), Span::raw(" ")]);
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -2300,9 +2036,7 @@ fn draw_commit_popup(
             .wrap(Wrap { trim: true })
             .scroll((scroll as u16, 0))
     } else {
-        Paragraph::new(input_buffer)
-            .wrap(Wrap { trim: true })
-            .scroll((scroll as u16, 0))
+        Paragraph::new(input_buffer).wrap(Wrap { trim: true }).scroll((scroll as u16, 0))
     };
 
     let inner_area = block.inner(popup_area);
@@ -2341,15 +2075,10 @@ fn draw_commit_popup(
         let cursor_y = chunks[0]
             .y
             .saturating_add(line_count.saturating_sub(1) as u16)
-            .min(
-                chunks[0]
-                    .y
-                    .saturating_add(chunks[0].height.saturating_sub(1)),
-            );
+            .min(chunks[0].y.saturating_add(chunks[0].height.saturating_sub(1)));
         let cursor_offset = last_line.chars().count() as u16;
-        let cursor_x = chunks[0]
-            .x
-            .saturating_add(cursor_offset.min(chunks[0].width.saturating_sub(1)));
+        let cursor_x =
+            chunks[0].x.saturating_add(cursor_offset.min(chunks[0].width.saturating_sub(1)));
         f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
     }
 }
@@ -2362,24 +2091,14 @@ fn graph_line_spans(line: &crate::repo::GraphLine) -> Line<'static> {
 
     if let Some(ref c) = line.commit {
         // 2. Commit OID (short hash)
-        let short_hash = if c.oid.len() >= 7 {
-            &c.oid[0..7]
-        } else {
-            &c.oid
-        };
+        let short_hash = if c.oid.len() >= 7 { &c.oid[0..7] } else { &c.oid };
         spans.push(Span::styled(format!("{} ", short_hash), accent_style()));
 
         // Verification signature status badge
         if !c.signature_status.is_empty() && c.signature_status != "N" {
             let (sig_char, sig_style) = match c.signature_status.as_str() {
-                "G" => (
-                    "✓ ",
-                    Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
-                ),
-                "B" => (
-                    "✗ ",
-                    Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-                ),
+                "G" => ("✓ ", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
+                "B" => ("✗ ", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
                 "U" | "X" | "Y" | "R" => ("✓ ", Style::default().fg(WARNING())),
                 _ => ("? ", muted_style()),
             };
@@ -2419,15 +2138,9 @@ fn graph_line_spans(line: &crate::repo::GraphLine) -> Line<'static> {
                         Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
                     ));
                 } else if ref_item.contains('/') {
-                    spans.push(Span::styled(
-                        ref_item.to_string(),
-                        Style::default().fg(DANGER()),
-                    ));
+                    spans.push(Span::styled(ref_item.to_string(), Style::default().fg(DANGER())));
                 } else {
-                    spans.push(Span::styled(
-                        ref_item.to_string(),
-                        Style::default().fg(SUCCESS()),
-                    ));
+                    spans.push(Span::styled(ref_item.to_string(), Style::default().fg(SUCCESS())));
                 }
             }
             spans.push(Span::styled(") ", muted_style()));
@@ -2513,20 +2226,13 @@ fn draw_branches_view(
 
     // Record horizontal splitter boundary in branches tab
     let split_col = area.x + left_area.width;
-    areas.branches_horizontal_splitter = Some(Rect::new(
-        split_col.saturating_sub(1),
-        area.y,
-        2,
-        area.height,
-    ));
+    areas.branches_horizontal_splitter =
+        Some(Rect::new(split_col.saturating_sub(1), area.y, 2, area.height));
 
     // ── Local Branches Panel ──
     let local_focused = focus == DetailSection::LocalBranches;
-    let local_border_style = if local_focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
+    let local_border_style =
+        if local_focused { Style::default().fg(ACCENT()) } else { muted_style() };
     let local_block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER())
@@ -2583,11 +2289,8 @@ fn draw_branches_view(
 
     // ── Remote Branches Panel ──
     let remote_focused = focus == DetailSection::RemoteBranches;
-    let remote_border_style = if remote_focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
+    let remote_border_style =
+        if remote_focused { Style::default().fg(ACCENT()) } else { muted_style() };
     let remote_block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER())
@@ -2603,10 +2306,7 @@ fn draw_branches_view(
         .remote_branches
         .iter()
         .map(|b| {
-            let mut spans = vec![
-                Span::raw("  "),
-                Span::styled(b.name.clone(), primary_style()),
-            ];
+            let mut spans = vec![Span::raw("  "), Span::styled(b.name.clone(), primary_style())];
             if !b.short_sha.is_empty() {
                 spans.push(Span::raw("  "));
                 spans.push(Span::styled(format!("[{}]", b.short_sha), accent_style()));
@@ -2714,21 +2414,13 @@ fn draw_files_view(
         areas.files_horizontal_splitter = None;
     } else {
         let split_col = area.x + chunks[0].width;
-        areas.files_horizontal_splitter = Some(Rect::new(
-            split_col.saturating_sub(1),
-            area.y,
-            2,
-            area.height,
-        ));
+        areas.files_horizontal_splitter =
+            Some(Rect::new(split_col.saturating_sub(1), area.y, 2, area.height));
     }
 
     if !files_full_screen {
         let focused = focus == DetailSection::Files;
-        let border_style = if focused {
-            Style::default().fg(ACCENT())
-        } else {
-            muted_style()
-        };
+        let border_style = if focused { Style::default().fg(ACCENT()) } else { muted_style() };
 
         let left_block = Block::default()
             .borders(Borders::ALL)
@@ -2777,17 +2469,10 @@ fn draw_files_view(
     if let Some(selected_item) = visible_files.get(file_list_selection) {
         if selected_item.is_dir {
             // Selected item is a directory: list its direct contents
-            let folder_name = if selected_item.name.is_empty() {
-                "/"
-            } else {
-                &selected_item.name
-            };
+            let folder_name = if selected_item.name.is_empty() { "/" } else { &selected_item.name };
             let right_focused = focus == DetailSection::FileContent;
-            let right_border_style = if right_focused {
-                Style::default().fg(ACCENT())
-            } else {
-                muted_style()
-            };
+            let right_border_style =
+                if right_focused { Style::default().fg(ACCENT()) } else { muted_style() };
 
             let mut title_spans = vec![
                 Span::raw(" "),
@@ -2866,18 +2551,12 @@ fn draw_files_view(
         } else {
             // Selected item is a file: show its contents
             let right_focused = focus == DetailSection::FileContent;
-            let right_border_style = if right_focused {
-                Style::default().fg(ACCENT())
-            } else {
-                muted_style()
-            };
+            let right_border_style =
+                if right_focused { Style::default().fg(ACCENT()) } else { muted_style() };
 
             let mut title_spans = vec![
                 Span::raw(" "),
-                Span::styled(
-                    format!("Content of {}", selected_item.name),
-                    primary_style(),
-                ),
+                Span::styled(format!("Content of {}", selected_item.name), primary_style()),
             ];
             if right_focused && file_content_scroll > 0 {
                 title_spans.push(Span::styled(
@@ -2972,18 +2651,16 @@ fn draw_branch_create_popup(
     let paragraph = Paragraph::new(content);
     f.render_widget(paragraph, inner_area);
 
-    let cursor_y = inner_area.y.saturating_add(2).min(
-        inner_area
-            .y
-            .saturating_add(inner_area.height.saturating_sub(1)),
-    );
+    let cursor_y = inner_area
+        .y
+        .saturating_add(2)
+        .min(inner_area.y.saturating_add(inner_area.height.saturating_sub(1)));
     let label_width = "New Branch Name: ".chars().count() as u16;
     let cursor_offset = label_width.saturating_add(input_buffer.chars().count() as u16);
-    let cursor_x = inner_area.x.saturating_add(cursor_offset).min(
-        inner_area
-            .x
-            .saturating_add(inner_area.width.saturating_sub(1)),
-    );
+    let cursor_x = inner_area
+        .x
+        .saturating_add(cursor_offset)
+        .min(inner_area.x.saturating_add(inner_area.width.saturating_sub(1)));
     f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
 }
 
@@ -3010,11 +2687,7 @@ fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area
         None => ("", false),
     };
 
-    let type_label = if is_remote {
-        "remote-tracking branch"
-    } else {
-        "branch"
-    };
+    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
     let content = vec![
         Line::from(vec![
             Span::styled("Are you sure you want to delete the ", primary_style()),
@@ -3024,10 +2697,7 @@ fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(
-                branch_name,
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(branch_name, Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
         Line::from(vec![
@@ -3065,11 +2735,7 @@ fn draw_branch_checkout_popup(f: &mut Frame, target: &Option<(String, bool)>, ar
         None => ("", false),
     };
 
-    let type_label = if is_remote {
-        "remote-tracking branch"
-    } else {
-        "branch"
-    };
+    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
     let content = vec![
         Line::from(vec![
             Span::styled("Are you sure you want to checkout the ", primary_style()),
@@ -3079,10 +2745,7 @@ fn draw_branch_checkout_popup(f: &mut Frame, target: &Option<(String, bool)>, ar
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(
-                branch_name,
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(branch_name, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
         Line::from(vec![
@@ -3125,10 +2788,7 @@ fn draw_tag_checkout_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(
-                tag_name,
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(tag_name, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
         Line::from(vec![
@@ -3176,10 +2836,7 @@ fn draw_discard_changes_popup(f: &mut Frame, target: &Option<(String, bool)>, ar
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(
-                file_path,
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(file_path, Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
         Line::from(vec![Span::styled(
@@ -3227,11 +2884,7 @@ fn draw_branch_merge_popup(
         None => ("", false),
     };
 
-    let type_label = if is_remote {
-        "remote-tracking branch"
-    } else {
-        "branch"
-    };
+    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
 
     let current = current_branch.unwrap_or("HEAD");
 
@@ -3244,18 +2897,12 @@ fn draw_branch_merge_popup(
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(
-                branch_name,
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(branch_name, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
         Line::from(vec![
             Span::styled("into the current branch ", primary_style()),
-            Span::styled(
-                format!("'{}'", current),
-                accent_style().add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(format!("'{}'", current), accent_style().add_modifier(Modifier::BOLD)),
             Span::raw("?"),
         ]),
         Line::from(""),
@@ -3278,10 +2925,7 @@ fn draw_merge_abort_confirm_popup(f: &mut Frame, area: Rect) {
     let border_style = Style::default().fg(DANGER());
     let title = Line::from(vec![
         Span::raw(" "),
-        Span::styled(
-            "Abort Merge",
-            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-        ),
+        Span::styled("Abort Merge", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
         Span::raw(" "),
     ]);
 
@@ -3293,22 +2937,13 @@ fn draw_merge_abort_confirm_popup(f: &mut Frame, area: Rect) {
         .padding(Padding::uniform(1));
 
     let content = vec![
-        Line::from(Span::styled(
-            "Are you sure you want to abort the merge?",
-            primary_style(),
-        )),
+        Line::from(Span::styled("Are you sure you want to abort the merge?", primary_style())),
         Line::from(""),
-        Line::from(Span::styled(
-            "All unresolved conflict changes will be lost.",
-            muted_style(),
-        )),
+        Line::from(Span::styled("All unresolved conflict changes will be lost.", muted_style())),
         Line::from(""),
         Line::from(vec![
             Span::styled("Confirm: ", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
             Span::styled(" / Cancel: ", muted_style()),
             Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
         ]),
@@ -3325,10 +2960,7 @@ fn draw_merge_continue_confirm_popup(f: &mut Frame, area: Rect) {
     let border_style = Style::default().fg(SUCCESS());
     let title = Line::from(vec![
         Span::raw(" "),
-        Span::styled(
-            "Continue Merge",
-            Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
-        ),
+        Span::styled("Continue Merge", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
         Span::raw(" "),
     ]);
 
@@ -3340,22 +2972,13 @@ fn draw_merge_continue_confirm_popup(f: &mut Frame, area: Rect) {
         .padding(Padding::uniform(1));
 
     let content = vec![
-        Line::from(Span::styled(
-            "Are you sure you want to commit the merge?",
-            primary_style(),
-        )),
+        Line::from(Span::styled("Are you sure you want to commit the merge?", primary_style())),
         Line::from(""),
-        Line::from(Span::styled(
-            "This will finalize the merge commit.",
-            muted_style(),
-        )),
+        Line::from(Span::styled("This will finalize the merge commit.", muted_style())),
         Line::from(""),
         Line::from(vec![
             Span::styled("Confirm: ", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
             Span::styled(" / Cancel: ", muted_style()),
             Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
         ]),
@@ -3393,11 +3016,7 @@ fn draw_branch_rebase_popup(
         None => ("", false),
     };
 
-    let type_label = if is_remote {
-        "remote-tracking branch"
-    } else {
-        "branch"
-    };
+    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
 
     let current = current_branch.unwrap_or("HEAD");
 
@@ -3417,10 +3036,7 @@ fn draw_branch_rebase_popup(
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(
-                branch_name,
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(branch_name, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
         Line::from(vec![
@@ -3463,20 +3079,13 @@ fn draw_branch_interactive_rebase_popup(
         None => ("", false),
     };
 
-    let type_label = if is_remote {
-        "remote-tracking branch"
-    } else {
-        "branch"
-    };
+    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
 
     let current = current_branch.unwrap_or("HEAD");
 
     let content = vec![
         Line::from(vec![
-            Span::styled(
-                "Are you sure you want to interactively rebase the ",
-                primary_style(),
-            ),
+            Span::styled("Are you sure you want to interactively rebase the ", primary_style()),
             Span::styled(
                 format!("current branch '{}'", current),
                 accent_style().add_modifier(Modifier::BOLD),
@@ -3490,10 +3099,7 @@ fn draw_branch_interactive_rebase_popup(
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(
-                branch_name,
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(branch_name, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
         Line::from(vec![
@@ -3652,18 +3258,16 @@ fn draw_tag_create_popup(
     let paragraph = Paragraph::new(content);
     f.render_widget(paragraph, inner_area);
 
-    let cursor_y = inner_area.y.saturating_add(2).min(
-        inner_area
-            .y
-            .saturating_add(inner_area.height.saturating_sub(1)),
-    );
+    let cursor_y = inner_area
+        .y
+        .saturating_add(2)
+        .min(inner_area.y.saturating_add(inner_area.height.saturating_sub(1)));
     let label_width = "Tag Name: ".chars().count() as u16;
     let cursor_offset = label_width.saturating_add(input_buffer.chars().count() as u16);
-    let cursor_x = inner_area.x.saturating_add(cursor_offset).min(
-        inner_area
-            .x
-            .saturating_add(inner_area.width.saturating_sub(1)),
-    );
+    let cursor_x = inner_area
+        .x
+        .saturating_add(cursor_offset)
+        .min(inner_area.x.saturating_add(inner_area.width.saturating_sub(1)));
     f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
 }
 
@@ -3688,10 +3292,7 @@ fn draw_stash_create_popup(f: &mut Frame, input_buffer: &str, area: Rect) {
     let content = vec![
         Line::from(vec![Span::styled("Stash Name / Message: ", muted_style())]),
         Line::from(""),
-        Line::from(vec![Span::styled(
-            input_buffer,
-            primary_style().add_modifier(Modifier::BOLD),
-        )]),
+        Line::from(vec![Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD))]),
     ];
 
     let inner_area = block.inner(popup_area);
@@ -3700,17 +3301,15 @@ fn draw_stash_create_popup(f: &mut Frame, input_buffer: &str, area: Rect) {
     let paragraph = Paragraph::new(content);
     f.render_widget(paragraph, inner_area);
 
-    let cursor_y = inner_area.y.saturating_add(2).min(
-        inner_area
-            .y
-            .saturating_add(inner_area.height.saturating_sub(1)),
-    );
+    let cursor_y = inner_area
+        .y
+        .saturating_add(2)
+        .min(inner_area.y.saturating_add(inner_area.height.saturating_sub(1)));
     let cursor_offset = input_buffer.chars().count() as u16;
-    let cursor_x = inner_area.x.saturating_add(cursor_offset).min(
-        inner_area
-            .x
-            .saturating_add(inner_area.width.saturating_sub(1)),
-    );
+    let cursor_x = inner_area
+        .x
+        .saturating_add(cursor_offset)
+        .min(inner_area.x.saturating_add(inner_area.width.saturating_sub(1)));
     f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
 }
 
@@ -3770,11 +3369,8 @@ fn draw_tags_view(
 
     // ── Local Tags Panel ──
     let local_focused = focus == DetailSection::LocalTags;
-    let local_border_style = if local_focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
+    let local_border_style =
+        if local_focused { Style::default().fg(ACCENT()) } else { muted_style() };
     let local_block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER())
@@ -3896,11 +3492,7 @@ fn draw_remotes_view(
     let right_area = chunks[1];
 
     let focused = focus == DetailSection::Remotes;
-    let border_style = if focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
+    let border_style = if focused { Style::default().fg(ACCENT()) } else { muted_style() };
 
     // ── Remotes List Panel ──
     let list_block = Block::default()
@@ -3975,10 +3567,8 @@ fn draw_remotes_view(
             ]));
         }
         details_lines.push(Line::from(""));
-        details_lines.push(Line::from(vec![
-            Span::raw("  "),
-            Span::styled("Refspecs:", primary_style()),
-        ]));
+        details_lines
+            .push(Line::from(vec![Span::raw("  "), Span::styled("Refspecs:", primary_style())]));
         for spec in &selected_remote.refspecs {
             details_lines.push(Line::from(vec![
                 Span::raw("    "),
@@ -3987,10 +3577,7 @@ fn draw_remotes_view(
         }
     } else {
         details_lines.push(Line::from(""));
-        details_lines.push(Line::from(Span::styled(
-            "  No remotes configured",
-            muted_style(),
-        )));
+        details_lines.push(Line::from(Span::styled("  No remotes configured", muted_style())));
     }
 
     let details_paragraph = Paragraph::new(details_lines).block(details_block);
@@ -4031,10 +3618,7 @@ fn draw_tag_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: R
 
     if is_on_remote {
         content.push(Line::from(vec![
-            Span::styled(
-                "Warning: ",
-                Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("Warning: ", Style::default().fg(WARNING()).add_modifier(Modifier::BOLD)),
             Span::raw(
                 "This tag is also present on the remote and will be deleted from the remote.",
             ),
@@ -4049,9 +3633,7 @@ fn draw_tag_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, area: R
         Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
     ]));
 
-    let paragraph = Paragraph::new(content)
-        .block(block)
-        .wrap(Wrap { trim: false });
+    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
     f.render_widget(paragraph, popup_area);
 }
 
@@ -4086,10 +3668,7 @@ fn draw_stash_delete_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(
-                stash_name,
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(stash_name, Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
         Line::from(vec![
@@ -4100,9 +3679,7 @@ fn draw_stash_delete_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
         ]),
     ];
 
-    let paragraph = Paragraph::new(content)
-        .block(block)
-        .wrap(Wrap { trim: false });
+    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
     f.render_widget(paragraph, popup_area);
 }
 
@@ -4137,10 +3714,7 @@ fn draw_stash_apply_popup(f: &mut Frame, target: &Option<String>, delete_after: 
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(
-                stash_name,
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(stash_name, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
         ]),
         Line::from(""),
     ];
@@ -4168,9 +3742,7 @@ fn draw_stash_apply_popup(f: &mut Frame, target: &Option<String>, delete_after: 
         Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
     ]));
 
-    let paragraph = Paragraph::new(content)
-        .block(block)
-        .wrap(Wrap { trim: false });
+    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
     f.render_widget(paragraph, popup_area);
 }
 
@@ -4220,10 +3792,7 @@ fn draw_cherry_pick_popup(
     let details_content = vec![
         Line::from(vec![
             Span::styled("Commit: ", muted_style()),
-            Span::styled(
-                format!("{:.7}", commit_oid),
-                accent_style().add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(format!("{:.7}", commit_oid), accent_style().add_modifier(Modifier::BOLD)),
             Span::raw(" ("),
             Span::styled(summary, primary_style()),
             Span::raw(")"),
@@ -4271,11 +3840,7 @@ fn draw_cherry_pick_popup(
         .title("Select Destination Branch");
 
     let list_area = chunks[1];
-    f.render_stateful_widget(
-        List::new(items).block(list_block),
-        list_area,
-        &mut list_state,
-    );
+    f.render_stateful_widget(List::new(items).block(list_block), list_area, &mut list_state);
 
     let hint = Line::from(vec![
         Span::styled("↑↓ / j k navigate  ", muted_style()),
@@ -4320,39 +3885,25 @@ fn draw_revert_popup(
     let content = vec![
         Line::from(vec![
             Span::styled("Are you sure you want to revert commit ", primary_style()),
-            Span::styled(
-                format!("{:.7}", commit_oid),
-                accent_style().add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(format!("{:.7}", commit_oid), accent_style().add_modifier(Modifier::BOLD)),
         ]),
         Line::from(vec![
             Span::styled("on branch ", primary_style()),
-            Span::styled(
-                format!("'{}'", current),
-                accent_style().add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(format!("'{}'", current), accent_style().add_modifier(Modifier::BOLD)),
             Span::raw("?"),
         ]),
         Line::from(""),
-        Line::from(vec![
-            Span::raw("  "),
-            Span::styled(summary, primary_style()),
-        ]),
+        Line::from(vec![Span::raw("  "), Span::styled(summary, primary_style())]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Confirm: ", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
             Span::styled(" / Cancel: ", muted_style()),
             Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
         ]),
     ];
 
-    let paragraph = Paragraph::new(content)
-        .block(block)
-        .wrap(Wrap { trim: false });
+    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
     f.render_widget(paragraph, popup_area);
 }
 
@@ -4361,11 +3912,8 @@ fn draw_tag_push_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(SUCCESS());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Push Tag", primary_style()),
-        Span::raw(" "),
-    ]);
+    let title =
+        Line::from(vec![Span::raw(" "), Span::styled("Push Tag", primary_style()), Span::raw(" ")]);
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -4391,9 +3939,7 @@ fn draw_tag_push_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
         ]),
     ];
 
-    let paragraph = Paragraph::new(content)
-        .block(block)
-        .wrap(Wrap { trim: false });
+    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
     f.render_widget(paragraph, popup_area);
 }
 
@@ -4425,10 +3971,7 @@ fn draw_tag_push_all_popup(f: &mut Frame, remote: Option<&str>, area: Rect) {
                 Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
             ),
         ]),
-        Line::from(vec![Span::styled(
-            format!("to remote '{}'?", remote_str),
-            primary_style(),
-        )]),
+        Line::from(vec![Span::styled(format!("to remote '{}'?", remote_str), primary_style())]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Confirm: ", muted_style()),
@@ -4438,9 +3981,7 @@ fn draw_tag_push_all_popup(f: &mut Frame, remote: Option<&str>, area: Rect) {
         ]),
     ];
 
-    let paragraph = Paragraph::new(content)
-        .block(block)
-        .wrap(Wrap { trim: false });
+    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
     f.render_widget(paragraph, popup_area);
 }
 
@@ -4525,12 +4066,8 @@ fn draw_stashes_view(
 
     // Record horizontal splitter boundary in stashes tab
     let split_col = area.x + left_area.width;
-    areas.stashes_horizontal_splitter = Some(Rect::new(
-        split_col.saturating_sub(1),
-        area.y,
-        2,
-        area.height,
-    ));
+    areas.stashes_horizontal_splitter =
+        Some(Rect::new(split_col.saturating_sub(1), area.y, 2, area.height));
 
     // Split left area vertically: top = Stashes list, bottom = Stashed files
     let left_chunks = Layout::default()
@@ -4543,23 +4080,16 @@ fn draw_stashes_view(
 
     // Record vertical splitter boundary in left panel of stashes tab
     let split_row = left_area.y + left_chunks[0].height;
-    areas.stashes_vertical_splitter = Some(Rect::new(
-        left_area.x,
-        split_row.saturating_sub(1),
-        left_area.width,
-        2,
-    ));
+    areas.stashes_vertical_splitter =
+        Some(Rect::new(left_area.x, split_row.saturating_sub(1), left_area.width, 2));
 
     areas.stashes = Some(left_chunks[0]);
     areas.stashed_files = Some(left_chunks[1]);
 
     // ── Stashes List Panel ──
     let stashes_focused = focus == DetailSection::Stashes;
-    let stashes_border_style = if stashes_focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
+    let stashes_border_style =
+        if stashes_focused { Style::default().fg(ACCENT()) } else { muted_style() };
 
     let list_block = Block::default()
         .borders(Borders::ALL)
@@ -4611,11 +4141,7 @@ fn draw_stashes_view(
         "No files in this stash",
         Borders::ALL,
         files_focused,
-        if files_focused || !stashed_files.is_empty() {
-            Some(stash_file_selection)
-        } else {
-            None
-        },
+        if files_focused || !stashed_files.is_empty() { Some(stash_file_selection) } else { None },
         &app.stash_file_list_state,
         left_chunks[1],
     );
@@ -4623,15 +4149,11 @@ fn draw_stashes_view(
 
     // ── Right panel: Diff/Stash Details ──
     let diff_focused = focus == DetailSection::StagingDetails;
-    let right_border_style = if diff_focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
+    let right_border_style =
+        if diff_focused { Style::default().fg(ACCENT()) } else { muted_style() };
 
-    let selected_file_name: Option<String> = stashed_files
-        .get(stash_file_selection)
-        .map(|e| e.path.clone());
+    let selected_file_name: Option<String> =
+        stashed_files.get(stash_file_selection).map(|e| e.path.clone());
 
     let right_block = Block::default()
         .borders(Borders::ALL)
@@ -4655,18 +4177,11 @@ fn draw_stashes_view(
     if file_diff.is_empty() {
         let v_center = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(45),
-                Constraint::Length(1),
-                Constraint::Min(0),
-            ])
+            .constraints([Constraint::Percentage(45), Constraint::Length(1), Constraint::Min(0)])
             .split(right_inner);
         f.render_widget(
-            Paragraph::new(Span::styled(
-                "Select a file to view its diff",
-                muted_style(),
-            ))
-            .alignment(Alignment::Center),
+            Paragraph::new(Span::styled("Select a file to view its diff", muted_style()))
+                .alignment(Alignment::Center),
             v_center[1],
         );
     } else {
@@ -4692,9 +4207,7 @@ fn draw_stashes_view(
             })
             .collect();
         f.render_widget(
-            Paragraph::new(diff_spans)
-                .scroll((diff_scroll as u16, 0))
-                .wrap(Wrap { trim: false }),
+            Paragraph::new(diff_spans).scroll((diff_scroll as u16, 0)).wrap(Wrap { trim: false }),
             right_inner,
         );
     }
@@ -4761,12 +4274,8 @@ fn draw_inspect_window(
 
         // Record horizontal splitter boundary
         let split_col = area.x + panels[0].width;
-        areas.inspect_horizontal_splitter = Some(Rect::new(
-            split_col.saturating_sub(1),
-            area.y,
-            2,
-            area.height,
-        ));
+        areas.inspect_horizontal_splitter =
+            Some(Rect::new(split_col.saturating_sub(1), area.y, 2, area.height));
 
         // Split left panel vertically: top is Commit Details, bottom is Changed Files
         let left_chunks = Layout::default()
@@ -4779,12 +4288,8 @@ fn draw_inspect_window(
 
         // Record vertical splitter boundary in left panel
         let split_row = panels[0].y + left_chunks[0].height;
-        areas.inspect_vertical_splitter = Some(Rect::new(
-            panels[0].x,
-            split_row.saturating_sub(1),
-            panels[0].width,
-            2,
-        ));
+        areas.inspect_vertical_splitter =
+            Some(Rect::new(panels[0].x, split_row.saturating_sub(1), panels[0].width, 2));
 
         // Record panel areas for mouse hit testing/scrolling
         areas.commit_details = Some(left_chunks[0]);
@@ -4804,11 +4309,8 @@ fn draw_inspect_window(
         );
 
         // ── Left Bottom: Changed Files ─────────────────────────────────────
-        let left_border_style = if left_focused {
-            Style::default().fg(ACCENT())
-        } else {
-            muted_style()
-        };
+        let left_border_style =
+            if left_focused { Style::default().fg(ACCENT()) } else { muted_style() };
         let left_block = Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
@@ -4838,11 +4340,8 @@ fn draw_inspect_window(
                 v[1],
             );
         } else {
-            let items: Vec<ListItem> = commit
-                .files
-                .iter()
-                .map(|f| ListItem::new(file_entry_line(f)))
-                .collect();
+            let items: Vec<ListItem> =
+                commit.files.iter().map(|f| ListItem::new(file_entry_line(f))).collect();
             let list =
                 List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
             let mut state = ListState::default();
@@ -4855,11 +4354,8 @@ fn draw_inspect_window(
         }
 
         // ── Right: Diff ───────────────────────────────────────────────────
-        let right_border_style = if right_focused {
-            Style::default().fg(ACCENT())
-        } else {
-            muted_style()
-        };
+        let right_border_style =
+            if right_focused { Style::default().fg(ACCENT()) } else { muted_style() };
         let right_block = Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
@@ -4887,18 +4383,11 @@ fn draw_inspect_window(
     if file_diff.is_empty() {
         let v_center = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(45),
-                Constraint::Length(1),
-                Constraint::Min(0),
-            ])
+            .constraints([Constraint::Percentage(45), Constraint::Length(1), Constraint::Min(0)])
             .split(right_inner);
         f.render_widget(
-            Paragraph::new(Span::styled(
-                "Select a file to view its diff",
-                muted_style(),
-            ))
-            .alignment(Alignment::Center),
+            Paragraph::new(Span::styled("Select a file to view its diff", muted_style()))
+                .alignment(Alignment::Center),
             v_center[1],
         );
     } else {
@@ -4924,9 +4413,7 @@ fn draw_inspect_window(
             })
             .collect();
         f.render_widget(
-            Paragraph::new(diff_spans)
-                .scroll((diff_scroll as u16, 0))
-                .wrap(Wrap { trim: false }),
+            Paragraph::new(diff_spans).scroll((diff_scroll as u16, 0)).wrap(Wrap { trim: false }),
             right_inner,
         );
     }
@@ -4939,11 +4426,7 @@ fn draw_commit_details_widget(
     scroll: usize,
     area: Rect,
 ) {
-    let border_style = if focused {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
+    let border_style = if focused { Style::default().fg(ACCENT()) } else { muted_style() };
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -4956,11 +4439,7 @@ fn draw_commit_details_widget(
             } else {
                 Span::raw("")
             },
-            if focused {
-                Span::styled("  ↑↓ scroll", muted_style())
-            } else {
-                Span::raw("")
-            },
+            if focused { Span::styled("  ↑↓ scroll", muted_style()) } else { Span::raw("") },
             Span::raw(" "),
         ]))
         .padding(Padding::horizontal(1));
@@ -4970,10 +4449,7 @@ fn draw_commit_details_widget(
     let mut lines = Vec::new();
 
     // Hash
-    lines.push(Line::from(vec![
-        Span::styled("Hash:   ", primary_style()),
-        Span::raw(&commit.oid),
-    ]));
+    lines.push(Line::from(vec![Span::styled("Hash:   ", primary_style()), Span::raw(&commit.oid)]));
 
     // Author
     lines.push(Line::from(vec![
@@ -4995,9 +4471,7 @@ fn draw_commit_details_widget(
                 ref_spans.push(Span::raw(", "));
             }
             let style = if r.starts_with("tag:") {
-                Style::default()
-                    .fg(ratatui::style::Color::Yellow)
-                    .add_modifier(Modifier::BOLD)
+                Style::default().fg(ratatui::style::Color::Yellow).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
             };
@@ -5015,9 +4489,7 @@ fn draw_commit_details_widget(
         lines.push(Line::from(vec![Span::raw(line.to_string())]));
     }
 
-    let paragraph = Paragraph::new(lines)
-        .scroll((scroll as u16, 0))
-        .wrap(Wrap { trim: true });
+    let paragraph = Paragraph::new(lines).scroll((scroll as u16, 0)).wrap(Wrap { trim: true });
     f.render_widget(paragraph, inner);
 }
 
@@ -5080,10 +4552,7 @@ fn draw_search_column_picker(f: &mut Frame, app: &crate::app::App, area: Rect) {
         let checkbox = if *enabled { "[x]" } else { "[ ]" };
 
         let checkbox_span = if *enabled {
-            Span::styled(
-                checkbox,
-                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
-            )
+            Span::styled(checkbox, Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD))
         } else {
             Span::styled(checkbox, muted_style())
         };
@@ -5114,10 +4583,7 @@ fn draw_search_column_picker(f: &mut Frame, app: &crate::app::App, area: Rect) {
         Span::styled("[Esc]", accent_style()),
         Span::raw(" Cancel "),
     ]);
-    f.render_widget(
-        Paragraph::new(instructions).alignment(Alignment::Center),
-        vertical_chunks[2],
-    );
+    f.render_widget(Paragraph::new(instructions).alignment(Alignment::Center), vertical_chunks[2]);
 }
 
 fn draw_logs_view(
@@ -5173,20 +4639,14 @@ fn draw_logs_view(
 
         for r in &commit.refs {
             let (label, style) = if let Some(tag) = r.strip_prefix("tag:") {
-                (
-                    format!("[{}]", tag),
-                    Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
-                )
+                (format!("[{}]", tag), Style::default().fg(WARNING()).add_modifier(Modifier::BOLD))
             } else if let Some(remote) = r.strip_prefix("remote:") {
                 (
                     format!("[{}]", remote),
                     Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
                 )
             } else {
-                (
-                    format!("[{}]", r),
-                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-                )
+                (format!("[{}]", r), Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
             };
             spans.push(Span::styled(label, style));
             spans.push(Span::raw(" "));
@@ -5272,10 +4732,7 @@ fn draw_remote_add_name_popup(f: &mut Frame, input_buffer: &str, area: Rect) {
     let content = vec![
         Line::from(vec![Span::styled("Remote Name: ", muted_style())]),
         Line::from(""),
-        Line::from(vec![Span::styled(
-            input_buffer,
-            primary_style().add_modifier(Modifier::BOLD),
-        )]),
+        Line::from(vec![Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD))]),
     ];
 
     let inner_area = block.inner(popup_area);
@@ -5284,17 +4741,15 @@ fn draw_remote_add_name_popup(f: &mut Frame, input_buffer: &str, area: Rect) {
     let paragraph = Paragraph::new(content);
     f.render_widget(paragraph, inner_area);
 
-    let cursor_y = inner_area.y.saturating_add(2).min(
-        inner_area
-            .y
-            .saturating_add(inner_area.height.saturating_sub(1)),
-    );
+    let cursor_y = inner_area
+        .y
+        .saturating_add(2)
+        .min(inner_area.y.saturating_add(inner_area.height.saturating_sub(1)));
     let cursor_offset = input_buffer.chars().count() as u16;
-    let cursor_x = inner_area.x.saturating_add(cursor_offset).min(
-        inner_area
-            .x
-            .saturating_add(inner_area.width.saturating_sub(1)),
-    );
+    let cursor_x = inner_area
+        .x
+        .saturating_add(cursor_offset)
+        .min(inner_area.x.saturating_add(inner_area.width.saturating_sub(1)));
     f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
 }
 
@@ -5324,10 +4779,7 @@ fn draw_remote_add_url_popup(f: &mut Frame, remote_name: &str, input_buffer: &st
         Line::from(""),
         Line::from(vec![Span::styled("Remote URL: ", muted_style())]),
         Line::from(""),
-        Line::from(vec![Span::styled(
-            input_buffer,
-            primary_style().add_modifier(Modifier::BOLD),
-        )]),
+        Line::from(vec![Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD))]),
     ];
 
     let inner_area = block.inner(popup_area);
@@ -5336,17 +4788,15 @@ fn draw_remote_add_url_popup(f: &mut Frame, remote_name: &str, input_buffer: &st
     let paragraph = Paragraph::new(content);
     f.render_widget(paragraph, inner_area);
 
-    let cursor_y = inner_area.y.saturating_add(4).min(
-        inner_area
-            .y
-            .saturating_add(inner_area.height.saturating_sub(1)),
-    );
+    let cursor_y = inner_area
+        .y
+        .saturating_add(4)
+        .min(inner_area.y.saturating_add(inner_area.height.saturating_sub(1)));
     let cursor_offset = input_buffer.chars().count() as u16;
-    let cursor_x = inner_area.x.saturating_add(cursor_offset).min(
-        inner_area
-            .x
-            .saturating_add(inner_area.width.saturating_sub(1)),
-    );
+    let cursor_x = inner_area
+        .x
+        .saturating_add(cursor_offset)
+        .min(inner_area.x.saturating_add(inner_area.width.saturating_sub(1)));
     f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
 }
 
@@ -5371,10 +4821,7 @@ fn draw_remote_delete_popup(f: &mut Frame, remote_name: &str, area: Rect) {
     let content = vec![
         Line::from(vec![
             Span::raw("Are you sure you want to remove remote "),
-            Span::styled(
-                remote_name,
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(remote_name, Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
             Span::raw("?"),
         ]),
         Line::from(""),
@@ -5384,10 +4831,7 @@ fn draw_remote_delete_popup(f: &mut Frame, remote_name: &str, area: Rect) {
             Span::styled(" will be deleted.", muted_style()),
         ]),
         Line::from(""),
-        Line::from(vec![Span::styled(
-            "Confirm: [y]  Cancel: [n/Esc]",
-            muted_style(),
-        )]),
+        Line::from(vec![Span::styled("Confirm: [y]  Cancel: [n/Esc]", muted_style())]),
     ];
 
     let inner_area = block.inner(popup_area);

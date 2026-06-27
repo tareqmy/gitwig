@@ -4,6 +4,11 @@
 //! `app::run`, and tears the terminal down on the way out. Application
 //! logic lives in the `app`, `ui`, `input`, and `config` modules.
 
+#![deny(unsafe_code)]
+#![deny(unused_imports, unused_must_use, dead_code, unused_assignments)]
+#![warn(clippy::all, clippy::perf, clippy::nursery)]
+#![warn(clippy::unwrap_used, clippy::panic)]
+
 use std::{env, error::Error, io, path::PathBuf};
 
 use crossterm::{
@@ -78,11 +83,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Cleanup terminal: disable raw mode, leave alt screen, disable mouse
     disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
     terminal.show_cursor()?;
 
     // Log any error returned from app logic

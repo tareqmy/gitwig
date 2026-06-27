@@ -30,12 +30,7 @@ pub fn log(level: &str, msg: &str) {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| {
                 let secs = d.as_secs();
-                format!(
-                    "{:02}:{:02}:{:02}",
-                    (secs / 3600) % 24,
-                    (secs / 60) % 60,
-                    secs % 60
-                )
+                format!("{:02}:{:02}:{:02}", (secs / 3600) % 24, (secs / 60) % 60, secs % 60)
             })
             .unwrap_or_else(|_| "00:00:00".to_string());
 
@@ -47,10 +42,8 @@ pub fn log(level: &str, msg: &str) {
             let log_dir = home.join(".gitwig");
             let _ = std::fs::create_dir_all(&log_dir);
             let log_path = log_dir.join("gitwig.log");
-            if let Ok(mut file) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&log_path)
+            if let Ok(mut file) =
+                std::fs::OpenOptions::new().create(true).append(true).open(&log_path)
             {
                 use std::io::Write;
                 let _ = writeln!(file, "{}", log_msg);
@@ -80,9 +73,5 @@ pub fn debug(msg: impl AsRef<str>) {
 
 pub fn get_logs() -> Vec<String> {
     let mutex = LOGS.get_or_init(init_logs);
-    if let Ok(guard) = mutex.lock() {
-        guard.clone()
-    } else {
-        Vec::new()
-    }
+    if let Ok(guard) = mutex.lock() { guard.clone() } else { Vec::new() }
 }

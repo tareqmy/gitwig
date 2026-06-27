@@ -59,10 +59,7 @@ pub(crate) fn SUCCESS() -> Color {
 }
 #[allow(non_snake_case)]
 pub(crate) fn CARD_BORDER() -> BorderType {
-    THEME
-        .read()
-        .map(|l| l.border_type)
-        .unwrap_or(BorderType::Rounded)
+    THEME.read().map(|l| l.border_type).unwrap_or(BorderType::Rounded)
 }
 
 pub fn parse_color(s: &str) -> Color {
@@ -142,10 +139,7 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("⇞ [PgUp]", "Jump one page up / page up"),
     ("Home", "Go to top / scroll to top"),
     ("End", "Go to bottom / scroll to bottom"),
-    (
-        "↵ [Enter] / → [Right]",
-        "Open detail view for selected item / stage file",
-    ),
+    ("↵ [Enter] / → [Right]", "Open detail view for selected item / stage file"),
     ("a", "Add a new item"),
     ("A", "Bulk add folders in a directory"),
     ("i", "Import remote repository"),
@@ -158,31 +152,19 @@ pub(crate) const HELP_LINES: &[(&str, &str)] = &[
     ("g", "Launch preferred Git client for selected repository"),
     ("s", "Open options/settings page"),
     ("l", "Open debug logs panel"),
-    (
-        "⎋ [Esc]",
-        "Cancel input, close dialog, leave detail view, or quit",
-    ),
+    ("⎋ [Esc]", "Cancel input, close dialog, leave detail view, or quit"),
     ("⌫ [Backspace]", "Erase character while typing"),
     ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
     ("w / W", "Cycle panel focus forward (w) / backward (W)"),
-    (
-        "c / C",
-        "Commit (c) / Amend last commit (C) (Workspace) / Create branch (Branches)",
-    ),
+    ("c / C", "Commit (c) / Amend last commit (C) (Workspace) / Create branch (Branches)"),
     ("⇧F", "Fetch selected branch (Branches tab)"),
-    (
-        "p",
-        "Pull branch (Branches) / Push tag (Tags) / Toggle pin (List)",
-    ),
+    ("p", "Pull branch (Branches) / Push tag (Tags) / Toggle pin (List)"),
     ("⇧P", "Push branch (Branches) / Push all tags (Tags)"),
     ("s", "Stash changes (Workspace changes or Stashes tab)"),
     ("?", "Toggle this help overlay"),
     ("v", "Show about popup / creator profile"),
     ("q", "Quit (also closes detail view)"),
-    (
-        "Left-Click",
-        "Focus clicked panel / change tab (mouse support)",
-    ),
+    ("Left-Click", "Focus clicked panel / change tab (mouse support)"),
     ("Left-Click+Drag", "Drag boundaries to resize split panels"),
 ];
 
@@ -318,10 +300,7 @@ pub fn draw(
         draw_about_popup(f, area, app);
     }
 
-    if matches!(
-        app.mode,
-        Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput
-    ) {
+    if matches!(app.mode, Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput) {
         draw_import_popup(f, area, app);
     }
 
@@ -447,11 +426,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             (UNSELECTED_INDENT, Style::default(), Style::default())
         };
 
-        let border_type = if is_selected {
-            BorderType::LightDoubleDashed
-        } else {
-            CARD_BORDER()
-        };
+        let border_type = if is_selected { BorderType::LightDoubleDashed } else { CARD_BORDER() };
 
         // Render the border block; split its inner rect into two rows:
         //   row 0 — item path (left) + status indicator (right)
@@ -496,11 +471,9 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         f.render_widget(Paragraph::new(name_line), name_cols[0]);
 
         if is_pinned {
-            let pin_line = Line::from(Span::styled(
-                app.sym("pinned").trim(),
-                Style::default().fg(WARNING()),
-            ))
-            .alignment(Alignment::Right);
+            let pin_line =
+                Line::from(Span::styled(app.sym("pinned").trim(), Style::default().fg(WARNING())))
+                    .alignment(Alignment::Right);
             f.render_widget(Paragraph::new(pin_line), name_cols[1]);
         }
 
@@ -534,18 +507,11 @@ fn draw_empty_state(f: &mut Frame, area: Rect) {
     // Vertical: push content to the upper-middle third of the area.
     let vert = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage(25),
-            Constraint::Min(0),
-            Constraint::Percentage(40),
-        ])
+        .constraints([Constraint::Percentage(25), Constraint::Min(0), Constraint::Percentage(40)])
         .split(area);
 
     let lines = vec![
-        Line::from(vec![Span::styled(
-            "No repositories tracked yet.",
-            primary_style(),
-        )]),
+        Line::from(vec![Span::styled("No repositories tracked yet.", primary_style())]),
         Line::from(""),
         Line::from(vec![
             Span::raw("Press  "),
@@ -575,10 +541,7 @@ fn draw_empty_state(f: &mut Frame, area: Rect) {
         Line::from(""),
         Line::from(vec![
             Span::styled("Tip: ", muted_style()),
-            Span::styled(
-                "paths support ~ expansion  (e.g. ~/code/my-project)",
-                muted_style(),
-            ),
+            Span::styled("paths support ~ expansion  (e.g. ~/code/my-project)", muted_style()),
         ]),
     ];
 
@@ -590,11 +553,7 @@ fn draw_empty_state(f: &mut Frame, area: Rect) {
 fn draw_search_empty_state(f: &mut Frame, area: Rect, query: &str) {
     let vert = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage(25),
-            Constraint::Min(0),
-            Constraint::Percentage(40),
-        ])
+        .constraints([Constraint::Percentage(25), Constraint::Min(0), Constraint::Percentage(40)])
         .split(area);
 
     let lines = vec![
@@ -640,15 +599,8 @@ fn status_indicator_line(app: &App, status: &ItemStatus) -> Line<'static> {
 }
 
 fn repo_indicator_line(app: &App, summary: &RepoSummary) -> Line<'static> {
-    let dot_color = if summary.conflicted > 0 {
-        DANGER()
-    } else {
-        SUCCESS()
-    };
-    let mut spans = vec![Span::styled(
-        app.sym("bullet_filled"),
-        Style::default().fg(dot_color),
-    )];
+    let dot_color = if summary.conflicted > 0 { DANGER() } else { SUCCESS() };
+    let mut spans = vec![Span::styled(app.sym("bullet_filled"), Style::default().fg(dot_color))];
     if summary.unchanged() {
         spans.push(Span::raw(" "));
         spans.push(Span::styled("clean", muted_style()));
@@ -660,17 +612,9 @@ fn repo_indicator_line(app: &App, summary: &RepoSummary) -> Line<'static> {
         (summary.staged, "+", Style::default().fg(ACCENT())),
         (summary.modified, "!", Style::default().fg(WARNING())),
         (summary.untracked, "?", muted_style()),
-        (
-            summary.conflicted,
-            app.sym("action").trim(),
-            Style::default().fg(DANGER()),
-        ),
+        (summary.conflicted, app.sym("action").trim(), Style::default().fg(DANGER())),
         (summary.ahead, app.sym("up"), primary_style()),
-        (
-            summary.behind,
-            app.sym("down"),
-            Style::default().fg(WARNING()),
-        ),
+        (summary.behind, app.sym("down"), Style::default().fg(WARNING())),
     ];
     for (count, symbol, style) in parts {
         if count > 0 {
@@ -879,11 +823,8 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             draw_status_layout(f, area, msg_spans, entries, app);
         }
         Mode::BranchPushConfirm => {
-            let target = app
-                .branch_action_target
-                .as_ref()
-                .map(|(name, _)| name.as_str())
-                .unwrap_or("");
+            let target =
+                app.branch_action_target.as_ref().map(|(name, _)| name.as_str()).unwrap_or("");
             let (msg_spans, entries) = confirm_branch_push_entries(target);
             draw_status_layout(f, area, msg_spans, entries, app);
         }
@@ -965,10 +906,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 .unwrap_or_default();
             let msg_spans = vec![
                 Span::raw("Cherry-pick commit "),
-                Span::styled(
-                    format!("{:.7}", target),
-                    accent_style().add_modifier(Modifier::BOLD),
-                ),
+                Span::styled(format!("{:.7}", target), accent_style().add_modifier(Modifier::BOLD)),
                 Span::raw(" ("),
                 Span::styled(summary, primary_style()),
                 Span::raw(")?"),
@@ -1008,10 +946,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 .unwrap_or_default();
             let msg_spans = vec![
                 Span::raw("Revert commit "),
-                Span::styled(
-                    format!("{:.7}", target),
-                    accent_style().add_modifier(Modifier::BOLD),
-                ),
+                Span::styled(format!("{:.7}", target), accent_style().add_modifier(Modifier::BOLD)),
                 Span::raw(" ("),
                 Span::styled(summary, primary_style()),
                 Span::raw(")?"),
@@ -1047,11 +982,8 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 ),
                 Span::styled("Choose columns to apply search on  ", muted_style()),
             ];
-            let entries_data = [
-                ("Toggle", "Space"),
-                ("Confirm & Search", "Enter"),
-                ("Cancel", "Esc"),
-            ];
+            let entries_data =
+                [("Toggle", "Space"), ("Confirm & Search", "Enter"), ("Cancel", "Esc")];
             let mut entries = Vec::new();
             for (i, (label, key)) in entries_data.iter().enumerate() {
                 let mut spans = Vec::new();
@@ -1081,11 +1013,8 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     muted_style(),
                 ),
             ];
-            let entries_data = [
-                ("Inspect", "Enter"),
-                ("Search / Columns", "f"),
-                ("Back to Workspace", "Esc/q"),
-            ];
+            let entries_data =
+                [("Inspect", "Enter"), ("Search / Columns", "f"), ("Back to Workspace", "Esc/q")];
             let mut entries = Vec::new();
             for (i, (label, key)) in entries_data.iter().enumerate() {
                 let mut spans = Vec::new();
@@ -1143,10 +1072,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Continue Merge  ",
                     Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
                 ),
-                Span::styled(
-                    "Are you sure you want to continue the merge?  ",
-                    primary_style(),
-                ),
+                Span::styled("Are you sure you want to continue the merge?  ", primary_style()),
             ];
             let entries_data = [("Confirm Continue", "y"), ("Cancel", "n/Esc")];
             let mut entries = Vec::new();
@@ -1379,18 +1305,8 @@ fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusE
             v.push(("Help", "?"));
             v
         }
-        7 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-8"),
-            ("Resync", "R"),
-            ("Help", "?"),
-        ],
-        _ => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-8"),
-            ("Resync", "R"),
-            ("Help", "?"),
-        ],
+        7 => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Resync", "R"), ("Help", "?")],
+        _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Resync", "R"), ("Help", "?")],
     };
     for (i, (label, key)) in entries_data.iter().enumerate() {
         let mut spans = Vec::new();
@@ -1417,16 +1333,8 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
     let mut entries_data = Vec::new();
 
     if app.detail_focus == DetailSection::ConflictDiff {
-        let exit_label = if app.inspect_full_diff {
-            "Exit Full Screen"
-        } else {
-            "Workspace"
-        };
-        let exit_key = if app.inspect_full_diff {
-            "←/⎋/q"
-        } else {
-            "⎋/q"
-        };
+        let exit_label = if app.inspect_full_diff { "Exit Full Screen" } else { "Workspace" };
+        let exit_key = if app.inspect_full_diff { "←/⎋/q" } else { "⎋/q" };
         entries_data.push((exit_label, exit_key));
         if app.is_uncommitted_selected() {
             entries_data.push(("Accept Ours", "o"));
@@ -1442,11 +1350,7 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
         }
         entries_data.push(("Help", "?"));
     } else if app.detail_focus == DetailSection::Conflicts {
-        let exit_label = if app.in_logs_ui {
-            "Logs UI"
-        } else {
-            "Workspace"
-        };
+        let exit_label = if app.in_logs_ui { "Logs UI" } else { "Workspace" };
         entries_data.push((exit_label, "⎋/q"));
         entries_data.push(("Cycle Focus", "w/W"));
         if app.is_uncommitted_selected() {
@@ -1485,11 +1389,7 @@ fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<Status
         entries_data.push(("Scroll Diff", "↑↓"));
         entries_data.push(("Help", "?"));
     } else {
-        let exit_label = if app.in_logs_ui {
-            "Logs UI"
-        } else {
-            "Workspace"
-        };
+        let exit_label = if app.in_logs_ui { "Logs UI" } else { "Workspace" };
         entries_data.push((exit_label, "⎋/q"));
         entries_data.push(("Cycle Focus", "w/W"));
 
@@ -1623,11 +1523,7 @@ fn commit_input_editing_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntr
 fn commit_input_confirm_entries(
     commit_amend: bool,
 ) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
-    let amend_toggle_label = if commit_amend {
-        "Amend: [Yes]"
-    } else {
-        "Amend: [No]"
-    };
+    let amend_toggle_label = if commit_amend { "Amend: [Yes]" } else { "Amend: [No]" };
     let entries = vec![
         StatusEntry::new(vec![
             Span::raw("Submit Commit"),
@@ -1709,9 +1605,7 @@ fn draw_status_layout(
     if is_merging {
         spans.push(Span::styled(
             "[ ⚡ MERGING ] ",
-            Style::default()
-                .fg(Color::LightRed)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD),
         ));
     } else {
         spans.push(Span::raw(" "));
@@ -1805,11 +1699,7 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
         SortOrder::RecentVisit => "Recent",
         SortOrder::LatestChanges => "Changes",
     };
-    let sort_dir = if app.config.sort_reverse {
-        " (Rev)"
-    } else {
-        ""
-    };
+    let sort_dir = if app.config.sort_reverse { " (Rev)" } else { "" };
     let sort_key_label = format!("Sort: {}{}", sort_label, sort_dir);
 
     let entries_data = vec![
@@ -1862,10 +1752,7 @@ fn confirm_delete_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<Stat
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -1884,11 +1771,7 @@ fn confirm_branch_delete_entries(
     target: &str,
     is_remote: bool,
 ) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
-    let type_label = if is_remote {
-        "remote-tracking branch"
-    } else {
-        "branch"
-    };
+    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
     let message_spans = Some(vec![
         Span::raw("Delete "),
         Span::raw(type_label),
@@ -1904,10 +1787,7 @@ fn confirm_branch_delete_entries(
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -1936,10 +1816,7 @@ fn confirm_remote_delete_entries(target: &str) -> (Option<Vec<Span<'static>>>, V
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -1958,19 +1835,12 @@ fn confirm_branch_checkout_entries(
     target: &str,
     is_remote: bool,
 ) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
-    let type_label = if is_remote {
-        "remote-tracking branch"
-    } else {
-        "branch"
-    };
+    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
     let message_spans = Some(vec![
         Span::raw("Checkout "),
         Span::raw(type_label),
         Span::raw(" "),
-        Span::styled(
-            format!("\"{}\"", target),
-            accent_style().add_modifier(Modifier::BOLD),
-        ),
+        Span::styled(format!("\"{}\"", target), accent_style().add_modifier(Modifier::BOLD)),
         Span::raw("? "),
     ]);
     let entries = vec![
@@ -1996,10 +1866,7 @@ fn confirm_branch_checkout_entries(
 fn confirm_tag_checkout_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let message_spans = Some(vec![
         Span::raw("Checkout tag "),
-        Span::styled(
-            format!("\"{}\"", target),
-            accent_style().add_modifier(Modifier::BOLD),
-        ),
+        Span::styled(format!("\"{}\"", target), accent_style().add_modifier(Modifier::BOLD)),
         Span::raw(" (detached HEAD)? "),
     ]);
     let entries = vec![
@@ -2029,10 +1896,7 @@ fn confirm_discard_changes_entries(
     let message_spans = if target == "All Changes" {
         Some(vec![
             Span::raw("Discard "),
-            Span::styled(
-                "ALL",
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("ALL", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
             Span::raw(" changes in the repository? "),
         ])
     } else {
@@ -2053,10 +1917,7 @@ fn confirm_discard_changes_entries(
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -2075,11 +1936,7 @@ fn confirm_branch_merge_entries(
     target: &str,
     is_remote: bool,
 ) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
-    let type_label = if is_remote {
-        "remote-tracking branch"
-    } else {
-        "branch"
-    };
+    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
     let message_spans = Some(vec![
         Span::raw("Merge "),
         Span::raw(type_label),
@@ -2095,10 +1952,7 @@ fn confirm_branch_merge_entries(
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -2117,11 +1971,7 @@ fn confirm_branch_rebase_entries(
     target: &str,
     is_remote: bool,
 ) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
-    let type_label = if is_remote {
-        "remote-tracking branch"
-    } else {
-        "branch"
-    };
+    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
     let message_spans = Some(vec![
         Span::raw("Rebase current branch onto "),
         Span::raw(type_label),
@@ -2137,10 +1987,7 @@ fn confirm_branch_rebase_entries(
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -2159,11 +2006,7 @@ fn confirm_branch_interactive_rebase_entries(
     target: &str,
     is_remote: bool,
 ) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
-    let type_label = if is_remote {
-        "remote-tracking branch"
-    } else {
-        "branch"
-    };
+    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
     let message_spans = Some(vec![
         Span::raw("Interactively rebase current branch onto "),
         Span::raw(type_label),
@@ -2179,10 +2022,7 @@ fn confirm_branch_interactive_rebase_entries(
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -2211,10 +2051,7 @@ fn confirm_stash_delete_entries(target: &str) -> (Option<Vec<Span<'static>>>, Ve
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -2241,20 +2078,14 @@ fn confirm_stash_apply_entries(
         ),
         Span::raw("? "),
     ]);
-    let delete_toggle_label = if delete_after {
-        "Delete after apply: [Yes]"
-    } else {
-        "Delete after apply: [No]"
-    };
+    let delete_toggle_label =
+        if delete_after { "Delete after apply: [Yes]" } else { "Delete after apply: [No]" };
     let entries = vec![
         StatusEntry::new(vec![
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -2319,10 +2150,7 @@ fn confirm_branch_push_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -2365,10 +2193,7 @@ fn draw_input_status(f: &mut Frame, area: Rect, verb: &str, buffer: &str) {
     let prefix = format!(" {} › ", verb);
 
     let spans = vec![
-        Span::styled(
-            prefix.clone(),
-            Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
-        ),
+        Span::styled(prefix.clone(), Style::default().fg(WARNING()).add_modifier(Modifier::BOLD)),
         Span::styled(buffer.to_string(), primary_style()),
         Span::styled(" ", muted_style()),
         Span::raw("Save"),
@@ -2389,9 +2214,7 @@ fn draw_input_status(f: &mut Frame, area: Rect, verb: &str, buffer: &str) {
     // Place the real terminal cursor at the end of the input. Clamp to
     // the visible width so a long input doesn't push the cursor off-screen.
     let cursor_offset = (prefix.chars().count() + buffer.chars().count()) as u16;
-    let cursor_x = area
-        .x
-        .saturating_add(cursor_offset.min(area.width.saturating_sub(1)));
+    let cursor_x = area.x.saturating_add(cursor_offset.min(area.width.saturating_sub(1)));
     f.set_cursor_position(Position::new(cursor_x, area.y));
 }
 
@@ -2442,11 +2265,7 @@ fn wrap_excludes(val_str: &str, max_width: usize) -> Vec<String> {
     if !current_line.is_empty() {
         lines.push(current_line);
     }
-    if lines.is_empty() {
-        vec![String::new()]
-    } else {
-        lines
-    }
+    if lines.is_empty() { vec![String::new()] } else { lines }
 }
 
 #[allow(clippy::needless_range_loop)]
@@ -2605,17 +2424,10 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             _ => String::new(),
         };
 
-        let val_offset = if is_selected && app.settings_editing {
-            11
-        } else {
-            5
-        };
+        let val_offset = if is_selected && app.settings_editing { 11 } else { 5 };
         let val_width = available_text_width.saturating_sub(val_offset).max(10);
-        let val_chunks = if i == 8 {
-            wrap_excludes(&val_str, val_width)
-        } else {
-            wrap_str(&val_str, val_width)
-        };
+        let val_chunks =
+            if i == 8 { wrap_excludes(&val_str, val_width) } else { wrap_str(&val_str, val_width) };
 
         let desc_offset = 5;
         let desc_width = available_text_width.saturating_sub(desc_offset).max(10);
@@ -2660,9 +2472,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         if cursor_line < scroll_y {
             scroll_y = cursor_line;
         } else if cursor_line >= scroll_y + viewport_height {
-            scroll_y = cursor_line
-                .saturating_sub(viewport_height)
-                .saturating_add(1);
+            scroll_y = cursor_line.saturating_sub(viewport_height).saturating_add(1);
         }
     }
 
@@ -2674,14 +2484,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
         // Line 1: Label line
         items.push(Line::from(vec![
-            Span::styled(
-                prefix,
-                if is_selected {
-                    accent_style()
-                } else {
-                    muted_style()
-                },
-            ),
+            Span::styled(prefix, if is_selected { accent_style() } else { muted_style() }),
             Span::styled(
                 label,
                 if is_selected {
@@ -2695,27 +2498,17 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         // Line 2: First line of value (indented by val_offset)
         let mut val_line_spans = Vec::new();
         if is_selected && app.settings_editing {
-            let label_edit = if i == 3 {
-                "   [Select]: "
-            } else {
-                "   [Edit]: "
-            };
+            let label_edit = if i == 3 { "   [Select]: " } else { "   [Edit]: " };
             val_line_spans.push(Span::styled(label_edit, muted_style()));
             val_line_spans.push(Span::styled(
                 val_chunks[0].clone(),
-                Style::default()
-                    .fg(ACCENT())
-                    .add_modifier(Modifier::UNDERLINED),
+                Style::default().fg(ACCENT()).add_modifier(Modifier::UNDERLINED),
             ));
         } else {
             val_line_spans.push(Span::styled("   : ", muted_style()));
             val_line_spans.push(Span::styled(
                 val_chunks[0].clone(),
-                if is_selected {
-                    accent_style()
-                } else {
-                    Style::default()
-                },
+                if is_selected { accent_style() } else { Style::default() },
             ));
         }
         items.push(Line::from(val_line_spans));
@@ -2726,9 +2519,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             let span = Span::styled(
                 chunk.clone(),
                 if is_selected && app.settings_editing {
-                    Style::default()
-                        .fg(ACCENT())
-                        .add_modifier(Modifier::UNDERLINED)
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::UNDERLINED)
                 } else if is_selected {
                     accent_style()
                 } else {
@@ -2740,10 +2531,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
         // Description lines (indented by 5 spaces)
         for chunk in desc_chunks {
-            items.push(Line::from(vec![
-                Span::raw("     "),
-                Span::styled(chunk, muted_style()),
-            ]));
+            items.push(Line::from(vec![Span::raw("     "), Span::styled(chunk, muted_style())]));
         }
 
         // Spacer
@@ -2794,10 +2582,7 @@ fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             } else {
                 Style::default()
             };
-            theme_spans.push(Line::from(Span::styled(
-                format!("{}{}", prefix, theme_name),
-                style,
-            )));
+            theme_spans.push(Line::from(Span::styled(format!("{}{}", prefix, theme_name), style)));
         }
 
         let list = Paragraph::new(theme_spans);
@@ -2916,22 +2701,10 @@ fn draw_help_overlay(f: &mut Frame, app: &App, area: Rect, scroll: usize) {
             Span::raw(desc),
         ])
     };
-    lines.push(pad_suffix(
-        "+",
-        Style::default().fg(ACCENT()),
-        "files staged for commit",
-    ));
-    lines.push(pad_suffix(
-        "!",
-        Style::default().fg(WARNING()),
-        "files modified but not staged",
-    ));
+    lines.push(pad_suffix("+", Style::default().fg(ACCENT()), "files staged for commit"));
+    lines.push(pad_suffix("!", Style::default().fg(WARNING()), "files modified but not staged"));
     lines.push(pad_suffix("?", muted_style(), "untracked files"));
-    lines.push(pad_suffix(
-        app.sym("up"),
-        primary_style(),
-        "commits ahead of upstream (need push)",
-    ));
+    lines.push(pad_suffix(app.sym("up"), primary_style(), "commits ahead of upstream (need push)"));
     lines.push(pad_suffix(
         app.sym("down"),
         Style::default().fg(WARNING()),
@@ -3020,10 +2793,7 @@ fn draw_about_popup(f: &mut Frame, area: Rect, _app: &App) {
     // Title / Version
     let title_line = Line::from(vec![
         Span::styled("Gitwig v", primary_style().add_modifier(Modifier::BOLD)),
-        Span::styled(
-            env!("CARGO_PKG_VERSION"),
-            primary_style().add_modifier(Modifier::BOLD),
-        ),
+        Span::styled(env!("CARGO_PKG_VERSION"), primary_style().add_modifier(Modifier::BOLD)),
     ])
     .alignment(Alignment::Center);
     f.render_widget(Paragraph::new(title_line), info_chunks[0]);
@@ -3124,10 +2894,7 @@ fn confirm_tag_delete_entries(
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -3156,10 +2923,7 @@ fn confirm_tag_push_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<St
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -3177,10 +2941,7 @@ fn confirm_tag_push_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<St
 fn confirm_tag_push_all_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let message_spans = Some(vec![
         Span::raw("Push "),
-        Span::styled(
-            "ALL",
-            Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
-        ),
+        Span::styled("ALL", Style::default().fg(WARNING()).add_modifier(Modifier::BOLD)),
         Span::raw(" local tags? "),
     ]);
     let entries = vec![
@@ -3188,10 +2949,7 @@ fn confirm_tag_push_all_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntr
             Span::raw("Confirm"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("y", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
             Span::styled("]", muted_style()),
         ]),
         StatusEntry::new(vec![
@@ -3221,10 +2979,7 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
     let border_style = Style::default().fg(ACCENT());
     let title = Line::from(vec![
         Span::raw(" ⇆ "),
-        Span::styled(
-            "Network Sync",
-            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-        ),
+        Span::styled("Network Sync", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
         Span::raw(" "),
     ]);
 
@@ -3256,15 +3011,9 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
         ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][spinner_idx]
     };
 
-    let status_text = app
-        .status_message
-        .as_deref()
-        .unwrap_or("Executing Git network operation...");
+    let status_text = app.status_message.as_deref().unwrap_or("Executing Git network operation...");
     let status_para = Paragraph::new(Line::from(vec![
-        Span::styled(
-            spinner,
-            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-        ),
+        Span::styled(spinner, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
         Span::raw("  "),
         Span::styled(status_text, primary_style()),
     ]));
@@ -3280,10 +3029,7 @@ fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
 
     let hint = Paragraph::new(Line::from(vec![
         Span::styled("Press ", muted_style()),
-        Span::styled(
-            "Esc",
-            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-        ),
+        Span::styled("Esc", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
         Span::styled(" to dismiss if stuck", muted_style()),
     ]))
     .alignment(ratatui::layout::Alignment::Center);
@@ -3331,10 +3077,7 @@ fn draw_error_popup(f: &mut Frame, app: &App, area: Rect, err: &str) {
     let border_style = Style::default().fg(DANGER());
     let title = Line::from(vec![
         Span::raw(format!(" {} ", app.sym("warning").trim())),
-        Span::styled(
-            "Error",
-            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-        ),
+        Span::styled("Error", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
         Span::raw(" "),
     ]);
 
@@ -3357,9 +3100,8 @@ fn draw_error_popup(f: &mut Frame, app: &App, area: Rect, err: &str) {
         ])
         .split(inner);
 
-    let err_para = Paragraph::new(err)
-        .wrap(ratatui::widgets::Wrap { trim: true })
-        .style(Style::default());
+    let err_para =
+        Paragraph::new(err).wrap(ratatui::widgets::Wrap { trim: true }).style(Style::default());
     f.render_widget(err_para, chunks[0]);
 
     let hint = Paragraph::new(Line::from(vec![
@@ -3409,16 +3151,10 @@ fn draw_import_popup(f: &mut Frame, area: Rect, app: &App) {
     } else {
         Style::default()
     };
-    let url_val = if matches!(app.mode, Mode::ImportUrlInput) {
-        &app.input_buffer
-    } else {
-        &app.import_url
-    };
+    let url_val =
+        if matches!(app.mode, Mode::ImportUrlInput) { &app.input_buffer } else { &app.import_url };
     let url_para = Paragraph::new(Line::from(vec![
-        Span::styled(
-            "Source URL: ",
-            Style::default().add_modifier(Modifier::BOLD),
-        ),
+        Span::styled("Source URL: ", Style::default().add_modifier(Modifier::BOLD)),
         Span::styled(url_val, url_style),
     ]));
     f.render_widget(url_para, chunks[0]);
@@ -3435,10 +3171,7 @@ fn draw_import_popup(f: &mut Frame, area: Rect, app: &App) {
         &app.import_dest
     };
     let dest_para = Paragraph::new(Line::from(vec![
-        Span::styled(
-            "Dest Path:  ",
-            Style::default().add_modifier(Modifier::BOLD),
-        ),
+        Span::styled("Dest Path:  ", Style::default().add_modifier(Modifier::BOLD)),
         Span::styled(dest_val, dest_style),
     ]));
     f.render_widget(dest_para, chunks[1]);
@@ -3455,10 +3188,7 @@ fn draw_import_popup(f: &mut Frame, area: Rect, app: &App) {
         &app.import_name
     };
     let name_para = Paragraph::new(Line::from(vec![
-        Span::styled(
-            "Repo Name:  ",
-            Style::default().add_modifier(Modifier::BOLD),
-        ),
+        Span::styled("Repo Name:  ", Style::default().add_modifier(Modifier::BOLD)),
         Span::styled(name_val, name_style),
     ]));
     f.render_widget(name_para, chunks[2]);
@@ -3488,9 +3218,7 @@ fn draw_import_popup(f: &mut Frame, area: Rect, app: &App) {
     if cursor_y > 0 {
         let prefix_len = 12;
         let cursor_offset = (prefix_len + app.input_buffer.chars().count()) as u16;
-        let cursor_x = chunks[0]
-            .x
-            .saturating_add(cursor_offset.min(inner.width.saturating_sub(1)));
+        let cursor_x = chunks[0].x.saturating_add(cursor_offset.min(inner.width.saturating_sub(1)));
         f.set_cursor_position(Position::new(cursor_x, cursor_y));
     }
 }
@@ -3541,9 +3269,7 @@ fn draw_debug_logs(f: &mut Frame, app: &App, area: Rect) {
                 } else if level_part.contains("WARN") {
                     spans.push(Span::styled(
                         level_part,
-                        Style::default()
-                            .fg(Color::Yellow)
-                            .add_modifier(Modifier::BOLD),
+                        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
                     ));
                 } else if level_part.contains("INFO") {
                     spans.push(Span::styled(level_part, Style::default().fg(Color::Green)));
@@ -3569,10 +3295,8 @@ fn draw_loading_screen(f: &mut Frame, area: Rect, app: &App) {
     let border_style = Style::default().fg(ACCENT());
 
     let loading_msg = if let Some(path) = &app.loading_repo_path {
-        let repo_name = std::path::Path::new(path)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or(path);
+        let repo_name =
+            std::path::Path::new(path).file_name().and_then(|n| n.to_str()).unwrap_or(path);
         format!("Loading repository '{}'...", repo_name)
     } else {
         "Loading repository...".to_string()
@@ -3592,10 +3316,7 @@ fn draw_loading_screen(f: &mut Frame, area: Rect, app: &App) {
 
     let title = Line::from(vec![
         Span::raw(" ⌛ "),
-        Span::styled(
-            "Please Wait",
-            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-        ),
+        Span::styled("Please Wait", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
         Span::raw(" "),
     ]);
 
@@ -3621,10 +3342,7 @@ fn draw_loading_screen(f: &mut Frame, area: Rect, app: &App) {
 
     let text_line = Line::from(vec![
         Span::raw(format!("{}  ", loading_msg)),
-        Span::styled(
-            spinner,
-            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
-        ),
+        Span::styled(spinner, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
     ])
     .alignment(Alignment::Center);
 
@@ -3640,6 +3358,7 @@ fn draw_loading_screen(f: &mut Frame, area: Rect, app: &App) {
 }
 
 #[cfg(unix)]
+#[allow(unsafe_code)]
 fn get_process_stats(app: &App) -> (f64, f64) {
     if let Ok(mut guard) = app.cpu_tracker.lock() {
         let now = std::time::Instant::now();
@@ -3727,15 +3446,10 @@ mod tests {
 
         // 1. Setup dirty working tree detail
         let mut info = RepoInfo::default();
-        info.changes.staged.push(FileEntry {
-            path: "file.txt".to_string(),
-            label: "M",
-        });
+        info.changes.staged.push(FileEntry { path: "file.txt".to_string(), label: "M" });
 
-        app.current_detail = Some(ItemDetail::Repo {
-            resolved: PathBuf::from("/dummy"),
-            info: Box::new(info),
-        });
+        app.current_detail =
+            Some(ItemDetail::Repo { resolved: PathBuf::from("/dummy"), info: Box::new(info) });
         app.commit_selection = 0; // selection = uncommitted
         app.in_logs_ui = false;
 
@@ -3745,39 +3459,14 @@ mod tests {
         let entry_labels: Vec<String> = entries
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Unstage File [↵]"))
-        );
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Unstage All [a]"))
-        );
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Discard [x]"))
-        );
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Discard All [X]"))
-        );
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Commit/Amend [c/C]"))
-        );
+        assert!(entry_labels.iter().any(|label| label.contains("Unstage File [↵]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Unstage All [a]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Discard [x]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Discard All [X]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Commit/Amend [c/C]")));
 
         // B) Unstaged focus -> Stage File [↵]
         app.detail_focus = DetailSection::Unstaged;
@@ -3785,34 +3474,13 @@ mod tests {
         let entry_labels: Vec<String> = entries
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Stage File [↵]"))
-        );
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Stage All [a]"))
-        );
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Discard [x]"))
-        );
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Discard All [X]"))
-        );
+        assert!(entry_labels.iter().any(|label| label.contains("Stage File [↵]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Stage All [a]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Discard [x]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Discard All [X]")));
 
         // C) StagingDetails with last_staging_focus == Staged -> Unstage Hunk [↵]
         app.detail_focus = DetailSection::StagingDetails;
@@ -3821,19 +3489,10 @@ mod tests {
         let entry_labels: Vec<String> = entries
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Unstage Hunk [↵]"))
-        );
+        assert!(entry_labels.iter().any(|label| label.contains("Unstage Hunk [↵]")));
 
         // D) StagingDetails with last_staging_focus == Unstaged -> Stage Hunk [↵]
         app.detail_focus = DetailSection::StagingDetails;
@@ -3842,24 +3501,11 @@ mod tests {
         let entry_labels: Vec<String> = entries
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Stage Hunk [↵]"))
-        );
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Discard Hunk [x/Del]"))
-        );
+        assert!(entry_labels.iter().any(|label| label.contains("Stage Hunk [↵]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Discard Hunk [x/Del]")));
 
         // D2) StagingDetails with last_staging_focus == Unstaged and diff_line_mode == true -> Stage Line [↵] & Discard Line [x/Del] & Hunk Mode [l]
         app.diff_line_mode = true;
@@ -3867,29 +3513,12 @@ mod tests {
         let entry_labels: Vec<String> = entries
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Stage Line [↵]"))
-        );
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Discard Line [x/Del]"))
-        );
-        assert!(
-            entry_labels
-                .iter()
-                .any(|label| label.contains("Hunk Mode [l]"))
-        );
+        assert!(entry_labels.iter().any(|label| label.contains("Stage Line [↵]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Discard Line [x/Del]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Hunk Mode [l]")));
 
         // D3) Full screen diff mode -> Commit [c]
         app.inspect_full_diff = true;
@@ -3897,19 +3526,10 @@ mod tests {
         let entry_labels_full: Vec<String> = entries_full
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels_full
-                .iter()
-                .any(|label| label.contains("Commit/Amend [c/C]"))
-        );
+        assert!(entry_labels_full.iter().any(|label| label.contains("Commit/Amend [c/C]")));
 
         // E) If in_logs_ui is true, it should NOT render any staging entry
         app.inspect_full_diff = false;
@@ -3918,18 +3538,11 @@ mod tests {
         let entry_labels: Vec<String> = entries
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
         assert!(
-            !entry_labels
-                .iter()
-                .any(|label| label.contains("Stage") || label.contains("Unstage"))
+            !entry_labels.iter().any(|label| label.contains("Stage") || label.contains("Unstage"))
         );
 
         // F) Conflicts focus in Inspect mode -> Accept Ours [o] etc.
@@ -3939,44 +3552,15 @@ mod tests {
         let entry_labels_c: Vec<String> = entries_c
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels_c
-                .iter()
-                .any(|label| label.contains("Accept Ours [o]"))
-        );
-        assert!(
-            entry_labels_c
-                .iter()
-                .any(|label| label.contains("Accept Theirs [t]"))
-        );
-        assert!(
-            entry_labels_c
-                .iter()
-                .any(|label| label.contains("Mark Resolved [r]"))
-        );
-        assert!(
-            entry_labels_c
-                .iter()
-                .any(|label| label.contains("Abort Merge [A]"))
-        );
-        assert!(
-            entry_labels_c
-                .iter()
-                .any(|label| label.contains("Continue Merge [C]"))
-        );
-        assert!(
-            entry_labels_c
-                .iter()
-                .any(|label| label.contains("Inspect [↵/→]"))
-        );
+        assert!(entry_labels_c.iter().any(|label| label.contains("Accept Ours [o]")));
+        assert!(entry_labels_c.iter().any(|label| label.contains("Accept Theirs [t]")));
+        assert!(entry_labels_c.iter().any(|label| label.contains("Mark Resolved [r]")));
+        assert!(entry_labels_c.iter().any(|label| label.contains("Abort Merge [A]")));
+        assert!(entry_labels_c.iter().any(|label| label.contains("Continue Merge [C]")));
+        assert!(entry_labels_c.iter().any(|label| label.contains("Inspect [↵/→]")));
 
         // G) ConflictDiff focus in Inspect mode -> Accept Ours [o] etc.
         app.detail_focus = DetailSection::ConflictDiff;
@@ -3984,44 +3568,15 @@ mod tests {
         let entry_labels_cd: Vec<String> = entries_cd
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels_cd
-                .iter()
-                .any(|label| label.contains("Accept Ours [o]"))
-        );
-        assert!(
-            entry_labels_cd
-                .iter()
-                .any(|label| label.contains("Accept Theirs [t]"))
-        );
-        assert!(
-            entry_labels_cd
-                .iter()
-                .any(|label| label.contains("Mark Resolved [r]"))
-        );
-        assert!(
-            entry_labels_cd
-                .iter()
-                .any(|label| label.contains("Abort Merge [A]"))
-        );
-        assert!(
-            entry_labels_cd
-                .iter()
-                .any(|label| label.contains("Continue Merge [C]"))
-        );
-        assert!(
-            entry_labels_cd
-                .iter()
-                .any(|label| label.contains("Scroll Diff [↑↓/⇟⇞]"))
-        );
+        assert!(entry_labels_cd.iter().any(|label| label.contains("Accept Ours [o]")));
+        assert!(entry_labels_cd.iter().any(|label| label.contains("Accept Theirs [t]")));
+        assert!(entry_labels_cd.iter().any(|label| label.contains("Mark Resolved [r]")));
+        assert!(entry_labels_cd.iter().any(|label| label.contains("Abort Merge [A]")));
+        assert!(entry_labels_cd.iter().any(|label| label.contains("Continue Merge [C]")));
+        assert!(entry_labels_cd.iter().any(|label| label.contains("Scroll Diff [↑↓/⇟⇞]")));
     }
 
     #[test]
@@ -4055,45 +3610,20 @@ mod tests {
         let entry_labels_w: Vec<String> = entries_w
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels_w
-                .iter()
-                .any(|label| label.contains("Inspect [↵/→]"))
-        );
+        assert!(entry_labels_w.iter().any(|label| label.contains("Inspect [↵/→]")));
         assert!(entry_labels_w.iter().any(|label| label.contains("Tag [t]")));
-        assert!(
-            entry_labels_w
-                .iter()
-                .any(|label| label.contains("Load More [G]"))
-        );
-        assert!(
-            entry_labels_w
-                .iter()
-                .any(|label| label.contains("Yank Hash [y]"))
-        );
+        assert!(entry_labels_w.iter().any(|label| label.contains("Load More [G]")));
+        assert!(entry_labels_w.iter().any(|label| label.contains("Yank Hash [y]")));
 
         // Setup uncommitted changes mock for Tab 0 uncommitted shortcuts
         let mut info = RepoInfo::default();
-        info.changes.staged.push(FileEntry {
-            path: "file.txt".to_string(),
-            label: "M",
-        });
-        info.changes.unstaged.push(FileEntry {
-            path: "other.txt".to_string(),
-            label: "M",
-        });
-        app.current_detail = Some(ItemDetail::Repo {
-            resolved: PathBuf::from("/dummy"),
-            info: Box::new(info),
-        });
+        info.changes.staged.push(FileEntry { path: "file.txt".to_string(), label: "M" });
+        info.changes.unstaged.push(FileEntry { path: "other.txt".to_string(), label: "M" });
+        app.current_detail =
+            Some(ItemDetail::Repo { resolved: PathBuf::from("/dummy"), info: Box::new(info) });
         app.commit_selection = 0; // selection = uncommitted
 
         // Tab 0: Workspace, Staged focus
@@ -4102,29 +3632,12 @@ mod tests {
         let entry_labels_s: Vec<String> = entries_s
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels_s
-                .iter()
-                .any(|label| label.contains("Inspect [→]"))
-        );
-        assert!(
-            entry_labels_s
-                .iter()
-                .any(|label| label.contains("Unstage All [a]"))
-        );
-        assert!(
-            entry_labels_s
-                .iter()
-                .any(|label| label.contains("Discard All [X]"))
-        );
+        assert!(entry_labels_s.iter().any(|label| label.contains("Inspect [→]")));
+        assert!(entry_labels_s.iter().any(|label| label.contains("Unstage All [a]")));
+        assert!(entry_labels_s.iter().any(|label| label.contains("Discard All [X]")));
         assert!(!entry_labels_s.iter().any(|label| label.contains("Tag [t]")));
 
         // Tab 0: Workspace, Unstaged focus
@@ -4133,24 +3646,11 @@ mod tests {
         let entry_labels_u: Vec<String> = entries_u
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels_u
-                .iter()
-                .any(|label| label.contains("Stage All [a]"))
-        );
-        assert!(
-            entry_labels_u
-                .iter()
-                .any(|label| label.contains("Discard All [X]"))
-        );
+        assert!(entry_labels_u.iter().any(|label| label.contains("Stage All [a]")));
+        assert!(entry_labels_u.iter().any(|label| label.contains("Discard All [X]")));
 
         // Tab 0: Workspace, StagingDetails focus
         app.detail_focus = DetailSection::StagingDetails;
@@ -4158,24 +3658,11 @@ mod tests {
         let entry_labels_sd: Vec<String> = entries_sd
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels_sd
-                .iter()
-                .any(|label| label.contains("Inspect [→]"))
-        );
-        assert!(
-            !entry_labels_sd
-                .iter()
-                .any(|label| label.contains("Tag [t]"))
-        );
+        assert!(entry_labels_sd.iter().any(|label| label.contains("Inspect [→]")));
+        assert!(!entry_labels_sd.iter().any(|label| label.contains("Tag [t]")));
 
         // Tab 1: Files - Files Focus
         app.detail_tab = 1;
@@ -4184,24 +3671,11 @@ mod tests {
         let entry_labels_f1: Vec<String> = entries_f1
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels_f1
-                .iter()
-                .any(|label| label.contains("Fuzzy Find [f]"))
-        );
-        assert!(
-            entry_labels_f1
-                .iter()
-                .any(|label| label.contains("Expand/Collapse [←/→]"))
-        );
+        assert!(entry_labels_f1.iter().any(|label| label.contains("Fuzzy Find [f]")));
+        assert!(entry_labels_f1.iter().any(|label| label.contains("Expand/Collapse [←/→]")));
 
         // Tab 1: Files - FileContent Focus
         app.detail_focus = DetailSection::FileContent;
@@ -4209,47 +3683,23 @@ mod tests {
         let entry_labels_f2: Vec<String> = entries_f2
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            !entry_labels_f2
-                .iter()
-                .any(|label| label.contains("Fuzzy Find [f]"))
-        );
-        assert!(
-            !entry_labels_f2
-                .iter()
-                .any(|label| label.contains("Expand/Collapse [←/→]"))
-        );
-        assert!(
-            entry_labels_f2
-                .iter()
-                .any(|label| label.contains("Full Screen [→]"))
-        );
+        assert!(!entry_labels_f2.iter().any(|label| label.contains("Fuzzy Find [f]")));
+        assert!(!entry_labels_f2.iter().any(|label| label.contains("Expand/Collapse [←/→]")));
+        assert!(entry_labels_f2.iter().any(|label| label.contains("Full Screen [→]")));
 
         app.inspect_full_diff = true;
         let (_, entries_f2_full) = detail_dismiss_entries(&app);
         let entry_labels_f2_full: Vec<String> = entries_f2_full
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
         assert!(
-            entry_labels_f2_full
-                .iter()
-                .any(|label| label.contains("Exit Full Screen [←/⎋/q]"))
+            entry_labels_f2_full.iter().any(|label| label.contains("Exit Full Screen [←/⎋/q]"))
         );
         app.inspect_full_diff = false;
 
@@ -4260,29 +3710,12 @@ mod tests {
         let entry_labels_b1: Vec<String> = entries_b1
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels_b1
-                .iter()
-                .any(|label| label.contains("Fetch [⇧F]"))
-        );
-        assert!(
-            entry_labels_b1
-                .iter()
-                .any(|label| label.contains("Pull [p]"))
-        );
-        assert!(
-            entry_labels_b1
-                .iter()
-                .any(|label| label.contains("Push [⇧P]"))
-        );
+        assert!(entry_labels_b1.iter().any(|label| label.contains("Fetch [⇧F]")));
+        assert!(entry_labels_b1.iter().any(|label| label.contains("Pull [p]")));
+        assert!(entry_labels_b1.iter().any(|label| label.contains("Push [⇧P]")));
 
         // Tab 3: Branches - RemoteBranches Focus
         app.detail_focus = DetailSection::RemoteBranches;
@@ -4290,29 +3723,12 @@ mod tests {
         let entry_labels_b2: Vec<String> = entries_b2
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            !entry_labels_b2
-                .iter()
-                .any(|label| label.contains("Fetch [⇧F]"))
-        );
-        assert!(
-            !entry_labels_b2
-                .iter()
-                .any(|label| label.contains("Pull [p]"))
-        );
-        assert!(
-            !entry_labels_b2
-                .iter()
-                .any(|label| label.contains("Push [⇧P]"))
-        );
+        assert!(!entry_labels_b2.iter().any(|label| label.contains("Fetch [⇧F]")));
+        assert!(!entry_labels_b2.iter().any(|label| label.contains("Pull [p]")));
+        assert!(!entry_labels_b2.iter().any(|label| label.contains("Push [⇧P]")));
 
         // Tab 6: Stashes - Stashes Focus
         app.detail_tab = 6;
@@ -4321,24 +3737,11 @@ mod tests {
         let entry_labels_s1: Vec<String> = entries_s1
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels_s1
-                .iter()
-                .any(|label| label.contains("Apply [a]"))
-        );
-        assert!(
-            entry_labels_s1
-                .iter()
-                .any(|label| label.contains("Delete [d]"))
-        );
+        assert!(entry_labels_s1.iter().any(|label| label.contains("Apply [a]")));
+        assert!(entry_labels_s1.iter().any(|label| label.contains("Delete [d]")));
 
         // Tab 6: Stashes - StashedFiles Focus
         app.detail_focus = DetailSection::StashedFiles;
@@ -4346,24 +3749,11 @@ mod tests {
         let entry_labels_s2: Vec<String> = entries_s2
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            !entry_labels_s2
-                .iter()
-                .any(|label| label.contains("Apply [a]"))
-        );
-        assert!(
-            !entry_labels_s2
-                .iter()
-                .any(|label| label.contains("Delete [d]"))
-        );
+        assert!(!entry_labels_s2.iter().any(|label| label.contains("Apply [a]")));
+        assert!(!entry_labels_s2.iter().any(|label| label.contains("Delete [d]")));
 
         // Tab 4: Tags
         app.detail_tab = 4;
@@ -4371,19 +3761,10 @@ mod tests {
         let entry_labels_tags: Vec<String> = entries_tags
             .iter()
             .map(|entry| {
-                entry
-                    .spans
-                    .iter()
-                    .map(|s| s.content.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join("")
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(
-            entry_labels_tags
-                .iter()
-                .any(|label| label.contains("Fetch [f]"))
-        );
+        assert!(entry_labels_tags.iter().any(|label| label.contains("Fetch [f]")));
     }
 
     #[test]
@@ -4391,11 +3772,7 @@ mod tests {
         let wrapped = wrap_str("node_modules,target,build,dist", 10);
         assert_eq!(
             wrapped,
-            vec![
-                "node_modul".to_string(),
-                "es,target,".to_string(),
-                "build,dist".to_string(),
-            ]
+            vec!["node_modul".to_string(), "es,target,".to_string(), "build,dist".to_string(),]
         );
 
         let wrapped_empty = wrap_str("", 10);

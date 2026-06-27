@@ -138,9 +138,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.settings_theme_index -= 1;
                     }
                     KeyCode::PageUp if app.settings_theme_index > 0 => {
-                        app.settings_theme_index = app
-                            .settings_theme_index
-                            .saturating_sub(app.config.page_size);
+                        app.settings_theme_index =
+                            app.settings_theme_index.saturating_sub(app.config.page_size);
                     }
                     KeyCode::PageDown
                         if app.settings_theme_index + 1 < app.settings_theme_list.len() =>
@@ -173,9 +172,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         }
                     }
                     KeyCode::PageUp if !app.settings_editing => {
-                        app.settings_selected_index = app
-                            .settings_selected_index
-                            .saturating_sub(app.config.page_size);
+                        app.settings_selected_index =
+                            app.settings_selected_index.saturating_sub(app.config.page_size);
                     }
                     KeyCode::PageDown if !app.settings_editing => {
                         app.settings_selected_index =
@@ -245,11 +243,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
 
                 let repo_name = if let Some(last) = app.import_url.split('/').next_back() {
                     let name = last.trim_end_matches(".git");
-                    if name.is_empty() {
-                        "repo".to_string()
-                    } else {
-                        name.to_string()
-                    }
+                    if name.is_empty() { "repo".to_string() } else { name.to_string() }
                 } else {
                     "repo".to_string()
                 };
@@ -277,11 +271,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
 
                 let repo_name = if let Some(last) = app.import_url.split('/').next_back() {
                     let name = last.trim_end_matches(".git");
-                    if name.is_empty() {
-                        "repo".to_string()
-                    } else {
-                        name.to_string()
-                    }
+                    if name.is_empty() { "repo".to_string() } else { name.to_string() }
                 } else {
                     "repo".to_string()
                 };
@@ -593,11 +583,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             KeyCode::BackTab => {
                 app.inspect_full_diff = false;
-                app.detail_tab = if app.detail_tab == 0 {
-                    7
-                } else {
-                    app.detail_tab - 1
-                };
+                app.detail_tab = if app.detail_tab == 0 { 7 } else { app.detail_tab - 1 };
                 app.set_default_focus_for_tab();
                 if app.config.resync_on_tab_change {
                     app.resync_detail();
@@ -1930,10 +1916,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         return;
     }
 
-    let pos = Position {
-        x: mouse.column,
-        y: mouse.row,
-    };
+    let pos = Position { x: mouse.column, y: mouse.row };
 
     let areas = app.detail_areas;
 
@@ -2259,10 +2242,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     }
 
     // Only handle detail modes beyond this point.
-    if !matches!(
-        app.mode,
-        Mode::Detail | Mode::DetailHelp | Mode::Inspect | Mode::Logs
-    ) {
+    if !matches!(app.mode, Mode::Detail | Mode::DetailHelp | Mode::Inspect | Mode::Logs) {
         return;
     }
 

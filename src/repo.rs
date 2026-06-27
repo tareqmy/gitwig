@@ -57,20 +57,10 @@ impl RepoSummary {
 
 #[derive(Debug, Clone)]
 pub enum ItemDetail {
-    Missing {
-        resolved: PathBuf,
-    },
-    Directory {
-        resolved: PathBuf,
-    },
-    Repo {
-        resolved: PathBuf,
-        info: Box<RepoInfo>,
-    },
-    Error {
-        resolved: PathBuf,
-        message: String,
-    },
+    Missing { resolved: PathBuf },
+    Directory { resolved: PathBuf },
+    Repo { resolved: PathBuf, info: Box<RepoInfo> },
+    Error { resolved: PathBuf, message: String },
 }
 
 #[derive(Debug, Clone, Default)]
@@ -155,14 +145,8 @@ impl<T> TabData<Vec<T>> {
 pub enum TabPayload {
     Files(Result<Vec<String>, String>),
     Graph(Result<Vec<GraphLine>, String>),
-    Branches {
-        local: Result<Vec<BranchInfo>, String>,
-        remote: Result<Vec<BranchInfo>, String>,
-    },
-    Tags {
-        local: Result<Vec<BranchInfo>, String>,
-        remote: Result<Vec<BranchInfo>, String>,
-    },
+    Branches { local: Result<Vec<BranchInfo>, String>, remote: Result<Vec<BranchInfo>, String> },
+    Tags { local: Result<Vec<BranchInfo>, String>, remote: Result<Vec<BranchInfo>, String> },
     Remotes(Result<Vec<RemoteInfo>, String>),
     Stashes(Result<Vec<StashInfo>, String>),
     Overview(Result<(Vec<CommitterStat>, bool), String>),
@@ -333,13 +317,9 @@ pub fn stage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
     let mut index = repo.index().map_err(|e| e.to_string())?;
     let full_path = repo_path.join(file_path);
     if full_path.exists() {
-        index
-            .add_path(Path::new(file_path))
-            .map_err(|e| e.to_string())?;
+        index.add_path(Path::new(file_path)).map_err(|e| e.to_string())?;
     } else {
-        index
-            .remove_path(Path::new(file_path))
-            .map_err(|e| e.to_string())?;
+        index.remove_path(Path::new(file_path)).map_err(|e| e.to_string())?;
     }
     index.write().map_err(|e| e.to_string())?;
     Ok(())
@@ -358,9 +338,7 @@ pub fn unstage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
     } else {
         // New repo with no commits: just remove the entry from the index.
         let mut index = repo.index().map_err(|e| e.to_string())?;
-        index
-            .remove_path(Path::new(file_path))
-            .map_err(|e| e.to_string())?;
+        index.remove_path(Path::new(file_path)).map_err(|e| e.to_string())?;
         index.write().map_err(|e| e.to_string())?;
     }
     Ok(())
@@ -423,9 +401,7 @@ pub fn discard_all_changes(repo_path: &Path) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     if !checkout_out.status.success() {
-        return Err(String::from_utf8_lossy(&checkout_out.stderr)
-            .trim()
-            .to_string());
+        return Err(String::from_utf8_lossy(&checkout_out.stderr).trim().to_string());
     }
 
     // 3. Clean all untracked files/folders
@@ -439,9 +415,7 @@ pub fn discard_all_changes(repo_path: &Path) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     if !clean_out.status.success() {
-        return Err(String::from_utf8_lossy(&clean_out.stderr)
-            .trim()
-            .to_string());
+        return Err(String::from_utf8_lossy(&clean_out.stderr).trim().to_string());
     }
 
     Ok(())
@@ -469,15 +443,7 @@ pub fn stage_line(
     hunk: &[DiffLine],
     selected_line_idx: usize,
 ) -> Result<(), String> {
-    apply_line_patch_inner(
-        repo_path,
-        file_path,
-        hunk,
-        selected_line_idx,
-        false,
-        false,
-        true,
-    )
+    apply_line_patch_inner(repo_path, file_path, hunk, selected_line_idx, false, false, true)
 }
 
 /// Unstage a single line from the Staged diff.
@@ -487,15 +453,7 @@ pub fn unstage_line(
     hunk: &[DiffLine],
     selected_line_idx: usize,
 ) -> Result<(), String> {
-    apply_line_patch_inner(
-        repo_path,
-        file_path,
-        hunk,
-        selected_line_idx,
-        true,
-        true,
-        true,
-    )
+    apply_line_patch_inner(repo_path, file_path, hunk, selected_line_idx, true, true, true)
 }
 
 /// Discard a single line from the Unstaged diff in the working tree.
@@ -505,15 +463,7 @@ pub fn discard_line(
     hunk: &[DiffLine],
     selected_line_idx: usize,
 ) -> Result<(), String> {
-    apply_line_patch_inner(
-        repo_path,
-        file_path,
-        hunk,
-        selected_line_idx,
-        true,
-        true,
-        false,
-    )
+    apply_line_patch_inner(repo_path, file_path, hunk, selected_line_idx, true, true, false)
 }
 
 fn parse_hunk_header(header: &str) -> Option<(usize, usize, usize, usize)> {
@@ -534,11 +484,7 @@ fn parse_hunk_header(header: &str) -> Option<(usize, usize, usize, usize)> {
         let s = p.trim_start_matches(['-', '+']);
         let comps: Vec<&str> = s.split(',').collect();
         let start = comps[0].parse::<usize>().unwrap_or(0);
-        let count = if comps.len() > 1 {
-            comps[1].parse::<usize>().unwrap_or(1)
-        } else {
-            1
-        };
+        let count = if comps.len() > 1 { comps[1].parse::<usize>().unwrap_or(1) } else { 1 };
         (start, count)
     };
 
@@ -708,9 +654,8 @@ fn apply_line_patch_inner(
             .map_err(|e| format!("Failed to write patch to stdin: {}", e))?;
     }
 
-    let output = child
-        .wait_with_output()
-        .map_err(|e| format!("Failed to wait for git apply: {}", e))?;
+    let output =
+        child.wait_with_output().map_err(|e| format!("Failed to wait for git apply: {}", e))?;
 
     if !output.status.success() {
         let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
@@ -774,9 +719,8 @@ fn apply_hunk_patch(
             .map_err(|e| format!("Failed to write patch to stdin: {}", e))?;
     }
 
-    let output = child
-        .wait_with_output()
-        .map_err(|e| format!("Failed to wait for git apply: {}", e))?;
+    let output =
+        child.wait_with_output().map_err(|e| format!("Failed to wait for git apply: {}", e))?;
 
     if !output.status.success() {
         let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
@@ -819,8 +763,7 @@ pub fn discard_file_changes(repo_path: &Path, file_path: &str, staged: bool) -> 
         let mut checkout_opts = git2::build::CheckoutBuilder::new();
         checkout_opts.path(Path::new(file_path));
         checkout_opts.force();
-        repo.checkout_index(None, Some(&mut checkout_opts))
-            .map_err(|e| e.to_string())?;
+        repo.checkout_index(None, Some(&mut checkout_opts)).map_err(|e| e.to_string())?;
     }
 
     Ok(())
@@ -834,12 +777,9 @@ pub fn commit_changes(repo_path: &Path, message: &str) -> Result<(), String> {
     let tree_id = index.write_tree().map_err(|e| e.to_string())?;
     let tree = repo.find_tree(tree_id).map_err(|e| e.to_string())?;
 
-    let signature = repo.signature().map_err(|e| {
-        format!(
-            "Failed to get signature. Check user.name/email config: {}",
-            e
-        )
-    })?;
+    let signature = repo
+        .signature()
+        .map_err(|e| format!("Failed to get signature. Check user.name/email config: {}", e))?;
 
     // Find parent commits
     let mut parents = Vec::new();
@@ -862,15 +802,8 @@ pub fn commit_changes(repo_path: &Path, message: &str) -> Result<(), String> {
 
     let parent_refs: Vec<&git2::Commit> = parents.iter().collect();
 
-    repo.commit(
-        Some("HEAD"),
-        &signature,
-        &signature,
-        message,
-        &tree,
-        &parent_refs,
-    )
-    .map_err(|e| e.to_string())?;
+    repo.commit(Some("HEAD"), &signature, &signature, message, &tree, &parent_refs)
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -935,20 +868,9 @@ pub fn inspect_detail(
     if !resolved.join(".git").exists() {
         return ItemDetail::Directory { resolved };
     }
-    match collect_info(
-        &resolved,
-        commit_limit,
-        graph_max_commits,
-        enable_commit_signatures,
-    ) {
-        Ok(info) => ItemDetail::Repo {
-            resolved,
-            info: Box::new(info),
-        },
-        Err(e) => ItemDetail::Error {
-            resolved,
-            message: e.to_string(),
-        },
+    match collect_info(&resolved, commit_limit, graph_max_commits, enable_commit_signatures) {
+        Ok(info) => ItemDetail::Repo { resolved, info: Box::new(info) },
+        Err(e) => ItemDetail::Error { resolved, message: e.to_string() },
     }
 }
 
@@ -995,11 +917,8 @@ fn collect_commits(
     walk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?;
 
     let mut commits = Vec::new();
-    let oids: Vec<Result<git2::Oid, git2::Error>> = if limit > 0 {
-        walk.take(limit).collect()
-    } else {
-        walk.collect()
-    };
+    let oids: Vec<Result<git2::Oid, git2::Error>> =
+        if limit > 0 { walk.take(limit).collect() } else { walk.collect() };
 
     let sig_map = if enable_commit_signatures {
         collect_signatures(repo_path, limit)
@@ -1013,12 +932,8 @@ fn collect_commits(
         if let Ok(commit) = repo.find_commit(oid) {
             let short_id = format!("{:.7}", commit.id());
             let oid_str = commit.id().to_string();
-            let summary = commit
-                .summary()
-                .ok()
-                .flatten()
-                .unwrap_or("(no commit message)")
-                .to_string();
+            let summary =
+                commit.summary().ok().flatten().unwrap_or("(no commit message)").to_string();
             let author = commit.author();
             let author_name = author.name().unwrap_or("?");
             let author_email = author.email().unwrap_or("?");
@@ -1027,14 +942,8 @@ fn collect_commits(
             let date = format_utc_date(commit.time().seconds());
             let refs = ref_map.get(&oid).cloned().unwrap_or_default();
             let files = Vec::new();
-            let message = commit
-                .message()
-                .unwrap_or("(no commit message)")
-                .to_string();
-            let sig_status = sig_map
-                .get(&oid_str)
-                .cloned()
-                .unwrap_or_else(|| "N".to_string());
+            let message = commit.message().unwrap_or("(no commit message)").to_string();
+            let sig_status = sig_map.get(&oid_str).cloned().unwrap_or_else(|| "N".to_string());
             commits.push(CommitEntry {
                 id: short_id,
                 oid: oid_str,
@@ -1153,35 +1062,21 @@ fn collect_info(
     }
     populate_ahead_behind(&repo, &mut summary);
 
-    let mut info = RepoInfo {
-        summary,
-        ..RepoInfo::default()
-    };
+    let mut info = RepoInfo { summary, ..RepoInfo::default() };
 
     if let Ok(head) = repo.head() {
         info.branch = head.shorthand().ok().map(String::from);
 
         if let Ok(commit) = head.peel_to_commit() {
             let short_id = format!("{:.7}", commit.id());
-            let summary_text = commit
-                .summary()
-                .ok()
-                .flatten()
-                .unwrap_or("(no commit message)")
-                .to_string();
+            let summary_text =
+                commit.summary().ok().flatten().unwrap_or("(no commit message)").to_string();
             let author = commit.author();
-            let author_str = format!(
-                "{} <{}>",
-                author.name().unwrap_or("?"),
-                author.email().unwrap_or("?")
-            );
+            let author_str =
+                format!("{} <{}>", author.name().unwrap_or("?"), author.email().unwrap_or("?"));
             let when = format_relative_time(commit.time().seconds());
-            info.head = Some(HeadInfo {
-                short_id,
-                summary: summary_text,
-                author: author_str,
-                when,
-            });
+            info.head =
+                Some(HeadInfo { short_id, summary: summary_text, author: author_str, when });
         }
 
         if let Ok(head_name) = head.name() {
@@ -1242,10 +1137,7 @@ pub fn load_tab_graph_stream(
         .spawn()
         .map_err(|e| e.to_string())?;
 
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| "Failed to open stdout".to_string())?;
+    let stdout = child.stdout.take().ok_or_else(|| "Failed to open stdout".to_string())?;
     let reader = std::io::BufReader::new(stdout);
     use std::io::BufRead;
 
@@ -1275,10 +1167,7 @@ pub fn load_tab_graph_stream(
 
 pub fn load_tab_branches(
     repo_path: &Path,
-) -> (
-    Result<Vec<BranchInfo>, String>,
-    Result<Vec<BranchInfo>, String>,
-) {
+) -> (Result<Vec<BranchInfo>, String>, Result<Vec<BranchInfo>, String>) {
     let repo = match Repository::open(repo_path) {
         Ok(r) => r,
         Err(e) => return (Err(e.to_string()), Err(e.to_string())),
@@ -1341,10 +1230,7 @@ pub fn load_tab_branches(
 
 pub fn load_tab_tags(
     repo_path: &Path,
-) -> (
-    Result<Vec<BranchInfo>, String>,
-    Result<Vec<BranchInfo>, String>,
-) {
+) -> (Result<Vec<BranchInfo>, String>, Result<Vec<BranchInfo>, String>) {
     let repo = match Repository::open(repo_path) {
         Ok(r) => r,
         Err(e) => return (Err(e.to_string()), Err(e.to_string())),
@@ -1419,12 +1305,7 @@ pub fn load_tab_stashes(repo_path: &Path) -> Result<Vec<StashInfo>, String> {
         if let Ok(commit) = repo.find_commit(oid) {
             files = commit_changed_files(&repo, &commit);
         }
-        stashes.push(StashInfo {
-            index,
-            message,
-            commit_id: oid.to_string(),
-            files,
-        });
+        stashes.push(StashInfo { index, message, commit_id: oid.to_string(), files });
     }
     Ok(stashes)
 }
@@ -1434,11 +1315,7 @@ pub fn load_tab_overview(
     commit_limit: usize,
 ) -> Result<(Vec<CommitterStat>, bool), String> {
     let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
-    let stats_limit = if commit_limit > 0 {
-        commit_limit.min(10000)
-    } else {
-        10000
-    };
+    let stats_limit = if commit_limit > 0 { commit_limit.min(10000) } else { 10000 };
     let (stats, limit_reached) =
         collect_committer_stats(&repo, stats_limit).map_err(|e| e.to_string())?;
     Ok((stats, limit_reached))
@@ -1489,10 +1366,7 @@ static REF_MAP_CACHE: std::sync::OnceLock<
     std::sync::Mutex<
         std::collections::HashMap<
             String,
-            (
-                std::collections::HashMap<git2::Oid, Vec<String>>,
-                std::time::Instant,
-            ),
+            (std::collections::HashMap<git2::Oid, Vec<String>>, std::time::Instant),
         >,
     >,
 > = std::sync::OnceLock::new();
@@ -1576,10 +1450,7 @@ fn populate_summary_and_file_changes(repo: &Repository, info: &mut RepoInfo) {
 
         if flags.is_conflicted() {
             if info.changes.conflicted.len() < MAX_FILES_PER_SECTION {
-                info.changes.conflicted.push(FileEntry {
-                    path: path.clone(),
-                    label: "C",
-                });
+                info.changes.conflicted.push(FileEntry { path: path.clone(), label: "C" });
             }
             continue;
         }
@@ -1603,25 +1474,16 @@ fn populate_summary_and_file_changes(repo: &Repository, info: &mut RepoInfo) {
             } else {
                 "M"
             };
-            info.changes.staged.push(FileEntry {
-                path: path.clone(),
-                label,
-            });
+            info.changes.staged.push(FileEntry { path: path.clone(), label });
         }
 
         // Working-tree changes
         if flags.is_wt_new() {
             if info.changes.untracked.len() < MAX_FILES_PER_SECTION {
-                info.changes.untracked.push(FileEntry {
-                    path: path.clone(),
-                    label: "?",
-                });
+                info.changes.untracked.push(FileEntry { path: path.clone(), label: "?" });
             }
             if info.changes.unstaged.len() < MAX_FILES_PER_SECTION {
-                info.changes.unstaged.push(FileEntry {
-                    path: path.clone(),
-                    label: "N",
-                });
+                info.changes.unstaged.push(FileEntry { path: path.clone(), label: "N" });
             }
         } else if (flags.is_wt_modified()
             || flags.is_wt_deleted()
@@ -1638,10 +1500,7 @@ fn populate_summary_and_file_changes(repo: &Repository, info: &mut RepoInfo) {
             } else {
                 "M"
             };
-            info.changes.unstaged.push(FileEntry {
-                path: path.clone(),
-                label,
-            });
+            info.changes.unstaged.push(FileEntry { path: path.clone(), label });
         }
     }
 }
@@ -1662,9 +1521,7 @@ fn collect_summary(repo: &Repository) -> RepoSummary {
 
 fn populate_worktree(repo: &Repository, s: &mut RepoSummary) {
     let mut opts = StatusOptions::new();
-    opts.include_untracked(true)
-        .renames_head_to_index(true)
-        .show(StatusShow::IndexAndWorkdir);
+    opts.include_untracked(true).renames_head_to_index(true).show(StatusShow::IndexAndWorkdir);
     let Ok(statuses) = repo.statuses(Some(&mut opts)) else {
         return;
     };
@@ -1791,10 +1648,7 @@ fn format_utc_date(secs: i64) -> String {
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = y + if m <= 2 { 1 } else { 0 };
 
-    format!(
-        "{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
-        y, m, d, hour, minute, second
-    )
+    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC", y, m, d, hour, minute, second)
 }
 
 // ── Per-file diff (private) ────────────────────────────────────────────────
@@ -1815,9 +1669,8 @@ fn get_file_diff_inner(
     let mut opts = git2::DiffOptions::new();
     opts.pathspec(file_path);
 
-    let diff = repo
-        .diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), Some(&mut opts))
-        .ok()?;
+    let diff =
+        repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), Some(&mut opts)).ok()?;
 
     collect_diff_lines(&diff)
 }
@@ -1840,8 +1693,7 @@ fn get_worktree_diff_inner(
     let diff = if staged {
         // Staged: diff HEAD tree (or empty tree for new repos) → index.
         let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
-        repo.diff_tree_to_index(head_tree.as_ref(), None, Some(&mut opts))
-            .ok()?
+        repo.diff_tree_to_index(head_tree.as_ref(), None, Some(&mut opts)).ok()?
     } else {
         // Unstaged: diff index → working directory.
         repo.diff_index_to_workdir(None, Some(&mut opts)).ok()?
@@ -1881,11 +1733,8 @@ fn parse_graph_line(line: &str) -> GraphLine {
             let summary = parts[2].trim().to_string();
             let author = parts[3].trim().to_string();
             let date = parts[4].trim().to_string();
-            let signature_status = if parts.len() >= 6 {
-                parts[5].trim().to_string()
-            } else {
-                "N".to_string()
-            };
+            let signature_status =
+                if parts.len() >= 6 { parts[5].trim().to_string() } else { "N".to_string() };
 
             let char_count = graph_and_hash.chars().count();
             if char_count >= 40 {
@@ -1903,22 +1752,13 @@ fn parse_graph_line(line: &str) -> GraphLine {
                     }),
                 }
             } else {
-                GraphLine {
-                    graph: graph_and_hash.to_string(),
-                    commit: None,
-                }
+                GraphLine { graph: graph_and_hash.to_string(), commit: None }
             }
         } else {
-            GraphLine {
-                graph: line.to_string(),
-                commit: None,
-            }
+            GraphLine { graph: line.to_string(), commit: None }
         }
     } else {
-        GraphLine {
-            graph: line.to_string(),
-            commit: None,
-        }
+        GraphLine { graph: line.to_string(), commit: None }
     }
 }
 
@@ -2012,10 +1852,7 @@ pub fn checkout_remote_branch(
         return Err(git2::Error::from_str(&err));
     }
 
-    Ok(format!(
-        "Created and switched to branch '{}' tracking '{}'",
-        local_name, remote_branch_name
-    ))
+    Ok(format!("Created and switched to branch '{}' tracking '{}'", local_name, remote_branch_name))
 }
 
 /// Creates a new local branch pointing at HEAD.
@@ -2132,11 +1969,7 @@ pub fn get_remote_tags(
             let ref_name = parts[1];
             if ref_name.starts_with("refs/tags/") {
                 let is_peeled = ref_name.ends_with("^{}");
-                let clean_ref = if is_peeled {
-                    &ref_name[..ref_name.len() - 3]
-                } else {
-                    ref_name
-                };
+                let clean_ref = if is_peeled { &ref_name[..ref_name.len() - 3] } else { ref_name };
                 let tag_name = clean_ref.strip_prefix("refs/tags/").unwrap_or(clean_ref);
                 let short_sha = if sha.len() >= 7 { &sha[..7] } else { sha };
 
@@ -2166,12 +1999,7 @@ pub fn get_remote_tags(
 
     let mut tags = Vec::new();
     for (name, (short_sha, short_message)) in tags_map {
-        tags.push(BranchInfo {
-            name,
-            is_head: false,
-            short_sha,
-            short_message,
-        });
+        tags.push(BranchInfo { name, is_head: false, short_sha, short_message });
     }
     tags.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(tags)
@@ -2180,10 +2008,7 @@ pub fn get_remote_tags(
 pub fn serialize_tags(tags: &[BranchInfo]) -> String {
     let mut s = String::new();
     for tag in tags {
-        s.push_str(&format!(
-            "{}|{}|{}\n",
-            tag.name, tag.short_sha, tag.short_message
-        ));
+        s.push_str(&format!("{}|{}|{}\n", tag.name, tag.short_sha, tag.short_message));
     }
     s
 }
@@ -2289,31 +2114,19 @@ pub fn get_last_commit_message(repo_path: &Path) -> Option<String> {
 
 pub fn commit_amend(repo_path: &Path, message: &str) -> Result<(), String> {
     let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
-    let head = repo
-        .head()
-        .map_err(|e| format!("No HEAD commit to amend: {}", e))?;
+    let head = repo.head().map_err(|e| format!("No HEAD commit to amend: {}", e))?;
     let head_commit = head.peel_to_commit().map_err(|e| e.to_string())?;
 
     let mut index = repo.index().map_err(|e| e.to_string())?;
     let tree_id = index.write_tree().map_err(|e| e.to_string())?;
     let tree = repo.find_tree(tree_id).map_err(|e| e.to_string())?;
 
-    let signature = repo.signature().map_err(|e| {
-        format!(
-            "Failed to get signature. Check user.name/email config: {}",
-            e
-        )
-    })?;
+    let signature = repo
+        .signature()
+        .map_err(|e| format!("Failed to get signature. Check user.name/email config: {}", e))?;
 
     head_commit
-        .amend(
-            Some("HEAD"),
-            None,
-            Some(&signature),
-            None,
-            Some(message),
-            Some(&tree),
-        )
+        .amend(Some("HEAD"), None, Some(&signature), None, Some(message), Some(&tree))
         .map_err(|e| e.to_string())?;
 
     Ok(())
@@ -2363,20 +2176,11 @@ pub fn get_conflict_markers_diff(repo_path: &Path, file_path: &str) -> Vec<DiffL
                 content: line.to_string(),
             });
         } else if in_ours {
-            lines.push(DiffLine {
-                kind: DiffLineKind::ConflictOurs,
-                content: line.to_string(),
-            });
+            lines.push(DiffLine { kind: DiffLineKind::ConflictOurs, content: line.to_string() });
         } else if in_theirs {
-            lines.push(DiffLine {
-                kind: DiffLineKind::ConflictTheirs,
-                content: line.to_string(),
-            });
+            lines.push(DiffLine { kind: DiffLineKind::ConflictTheirs, content: line.to_string() });
         } else {
-            lines.push(DiffLine {
-                kind: DiffLineKind::Context,
-                content: line.to_string(),
-            });
+            lines.push(DiffLine { kind: DiffLineKind::Context, content: line.to_string() });
         }
     }
     lines
@@ -2550,10 +2354,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -2594,10 +2395,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_sig_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -2675,10 +2473,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -2693,10 +2488,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -2734,10 +2526,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -2760,18 +2549,10 @@ mod tests {
         match detail {
             ItemDetail::Repo { info, .. } => {
                 // Verify no folders are in the unstaged/untracked list
-                let unstaged_paths: Vec<String> = info
-                    .changes
-                    .unstaged
-                    .iter()
-                    .map(|f| f.path.clone())
-                    .collect();
-                let untracked_paths: Vec<String> = info
-                    .changes
-                    .untracked
-                    .iter()
-                    .map(|f| f.path.clone())
-                    .collect();
+                let unstaged_paths: Vec<String> =
+                    info.changes.unstaged.iter().map(|f| f.path.clone()).collect();
+                let untracked_paths: Vec<String> =
+                    info.changes.untracked.iter().map(|f| f.path.clone()).collect();
 
                 // Folder itself should NOT be listed
                 assert!(!unstaged_paths.contains(&"untracked_dir".to_string()));
@@ -2797,10 +2578,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -2854,10 +2632,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -2885,10 +2660,7 @@ mod tests {
         // Case 2: Tracked file with unstaged modification
         std::fs::write(&file_tracked, "unstaged modifications\n").unwrap();
         discard_file_changes(&temp_path, "tracked.txt", false).unwrap();
-        assert_eq!(
-            std::fs::read_to_string(&file_tracked).unwrap(),
-            "original content\n"
-        );
+        assert_eq!(std::fs::read_to_string(&file_tracked).unwrap(), "original content\n");
 
         // Case 3: Tracked file with staged modification
         std::fs::write(&file_tracked, "staged modifications\n").unwrap();
@@ -2902,10 +2674,7 @@ mod tests {
             _ => panic!("Expected ItemDetail::Repo"),
         }
         discard_file_changes(&temp_path, "tracked.txt", true).unwrap();
-        assert_eq!(
-            std::fs::read_to_string(&file_tracked).unwrap(),
-            "original content\n"
-        );
+        assert_eq!(std::fs::read_to_string(&file_tracked).unwrap(), "original content\n");
         // verify it's no longer staged/unstaged (it's clean)
         let detail = inspect_detail(temp_path.to_str().unwrap(), 0, 1000, false);
         match detail {
@@ -2921,10 +2690,7 @@ mod tests {
         assert!(!file_tracked.exists());
         discard_file_changes(&temp_path, "tracked.txt", false).unwrap();
         assert!(file_tracked.exists());
-        assert_eq!(
-            std::fs::read_to_string(&file_tracked).unwrap(),
-            "original content\n"
-        );
+        assert_eq!(std::fs::read_to_string(&file_tracked).unwrap(), "original content\n");
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);
@@ -2935,10 +2701,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -2999,21 +2762,15 @@ mod tests {
 
         // Now check staged diff for the file: it should contain the second modification
         let staged_diff = get_worktree_file_diff(&temp_path, "multihunk.txt", true);
-        let staged_content: String = staged_diff
-            .iter()
-            .map(|l| l.content.as_str())
-            .collect::<Vec<_>>()
-            .join("\n");
+        let staged_content: String =
+            staged_diff.iter().map(|l| l.content.as_str()).collect::<Vec<_>>().join("\n");
         assert!(staged_content.contains("Line 18 modified"));
         assert!(!staged_content.contains("Line 2 modified"));
 
         // Check unstaged diff for the file: it should contain the first modification
         let unstaged_diff = get_worktree_file_diff(&temp_path, "multihunk.txt", false);
-        let unstaged_content: String = unstaged_diff
-            .iter()
-            .map(|l| l.content.as_str())
-            .collect::<Vec<_>>()
-            .join("\n");
+        let unstaged_content: String =
+            unstaged_diff.iter().map(|l| l.content.as_str()).collect::<Vec<_>>().join("\n");
         assert!(unstaged_content.contains("Line 2 modified"));
         assert!(!unstaged_content.contains("Line 18 modified"));
 
@@ -3051,10 +2808,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -3128,10 +2882,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -3243,10 +2994,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_all_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -3280,9 +3028,7 @@ mod tests {
         let status = repo.statuses(None).unwrap();
         for entry in status.iter() {
             assert!(
-                entry
-                    .status()
-                    .intersects(git2::Status::INDEX_MODIFIED | git2::Status::INDEX_NEW)
+                entry.status().intersects(git2::Status::INDEX_MODIFIED | git2::Status::INDEX_NEW)
             );
         }
 
@@ -3292,11 +3038,7 @@ mod tests {
         // Verify all changes are unstaged again
         let status = repo.statuses(None).unwrap();
         for entry in status.iter() {
-            assert!(
-                entry
-                    .status()
-                    .intersects(git2::Status::WT_MODIFIED | git2::Status::WT_NEW)
-            );
+            assert!(entry.status().intersects(git2::Status::WT_MODIFIED | git2::Status::WT_NEW));
         }
 
         // Discard all changes
@@ -3320,10 +3062,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_conflict_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -3393,15 +3132,9 @@ mod tests {
         // 5. Check conflict markers diff
         let diff = get_conflict_markers_diff(&temp_path, "conflict.txt");
         assert!(!diff.is_empty());
-        let has_separator = diff
-            .iter()
-            .any(|l| matches!(l.kind, DiffLineKind::ConflictSeparator));
-        let has_ours = diff
-            .iter()
-            .any(|l| matches!(l.kind, DiffLineKind::ConflictOurs));
-        let has_theirs = diff
-            .iter()
-            .any(|l| matches!(l.kind, DiffLineKind::ConflictTheirs));
+        let has_separator = diff.iter().any(|l| matches!(l.kind, DiffLineKind::ConflictSeparator));
+        let has_ours = diff.iter().any(|l| matches!(l.kind, DiffLineKind::ConflictOurs));
+        let has_theirs = diff.iter().any(|l| matches!(l.kind, DiffLineKind::ConflictTheirs));
         assert!(has_separator);
         assert!(has_ours);
         assert!(has_theirs);
@@ -3465,10 +3198,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "twig_test_hunk_conflict_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
 
@@ -3562,13 +3292,7 @@ mod tests {
         // File is fully resolved so it should have been automatically staged
         let status = repo.statuses(None).unwrap();
         assert_eq!(status.len(), 1);
-        assert!(
-            status
-                .get(0)
-                .unwrap()
-                .status()
-                .contains(git2::Status::INDEX_MODIFIED)
-        );
+        assert!(status.get(0).unwrap().status().contains(git2::Status::INDEX_MODIFIED));
 
         // Continue and finalize the merge
         continue_merge(&temp_path).unwrap();

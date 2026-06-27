@@ -302,9 +302,7 @@ impl Config {
 /// Falls back to `./.gitwig/` in the unlikely event that the home directory
 /// cannot be resolved (e.g. inside a stripped-down container).
 fn home_gitwig_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".gitwig")
+    dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")).join(".gitwig")
 }
 
 /// Loads the configuration, ensuring `~/.gitwig/` always exists.
@@ -603,10 +601,8 @@ mod tests {
 
     #[test]
     fn test_theme_separation_load_and_save() {
-        let unique_id = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        let unique_id =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
         let test_dir = std::env::temp_dir().join(format!("gitwig_test_theme_{}", unique_id));
         fs::create_dir_all(&test_dir).unwrap();
         let config_path = test_dir.join("config.toml");
@@ -660,10 +656,8 @@ border_type = "double"
 
     #[test]
     fn test_write_popular_themes_creates_files() {
-        let unique_id = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        let unique_id =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
         let test_dir =
             std::env::temp_dir().join(format!("gitwig_test_popular_themes_{}", unique_id));
         fs::create_dir_all(&test_dir).unwrap();

@@ -452,11 +452,7 @@ impl App {
         crate::debug_log::info("Initializing Gitwig application state");
         crate::ui::update_theme(&config.theme);
         let original_items = config.items.clone();
-        let statuses = config
-            .items
-            .iter()
-            .map(|s| repo::inspect_summary(s))
-            .collect();
+        let statuses = config.items.iter().map(|s| repo::inspect_summary(s)).collect();
         let (tx, rx) = std::sync::mpsc::channel();
         let (detail_tx, detail_rx) = std::sync::mpsc::channel();
         let (tab_tx, tab_rx) = std::sync::mpsc::channel();
@@ -587,17 +583,11 @@ impl App {
 
         // Detect update / initial setup
         let current_version = env!("CARGO_PKG_VERSION");
-        let version_path = app
-            .config_path
-            .parent()
-            .unwrap_or(&app.config_path)
-            .join(".version");
+        let version_path = app.config_path.parent().unwrap_or(&app.config_path).join(".version");
         let mut is_first_run = false;
 
         let last_version = if version_path.exists() {
-            std::fs::read_to_string(&version_path)
-                .map(|s| s.trim().to_string())
-                .unwrap_or_default()
+            std::fs::read_to_string(&version_path).map(|s| s.trim().to_string()).unwrap_or_default()
         } else {
             is_first_run = true;
             String::new()
@@ -699,9 +689,7 @@ impl App {
     }
 
     pub fn get_selected_item_index(&self) -> Option<usize> {
-        self.get_filtered_items()
-            .get(self.selected_index)
-            .map(|(orig_idx, _)| *orig_idx)
+        self.get_filtered_items().get(self.selected_index).map(|(orig_idx, _)| *orig_idx)
     }
 
     /// Ensure `selected_index` is a valid index into `config.items` (or filtered items).
@@ -860,19 +848,14 @@ impl App {
     pub fn sort_items_in_place(&mut self) {
         let mut zipped: Vec<(String, ItemStatus)> = match self.config.sort_by {
             SortOrder::Custom => {
-                let mut status_map: std::collections::HashMap<String, ItemStatus> = self
-                    .config
-                    .items
-                    .drain(..)
-                    .zip(self.statuses.drain(..))
-                    .collect();
+                let mut status_map: std::collections::HashMap<String, ItemStatus> =
+                    self.config.items.drain(..).zip(self.statuses.drain(..)).collect();
                 let mut z: Vec<(String, ItemStatus)> = self
                     .original_items
                     .iter()
                     .map(|item| {
-                        let status = status_map
-                            .remove(item)
-                            .unwrap_or_else(|| repo::inspect_summary(item));
+                        let status =
+                            status_map.remove(item).unwrap_or_else(|| repo::inspect_summary(item));
                         (item.clone(), status)
                     })
                     .collect();
@@ -882,12 +865,8 @@ impl App {
                 z
             }
             SortOrder::Alphabetical => {
-                let mut z: Vec<(String, ItemStatus)> = self
-                    .config
-                    .items
-                    .drain(..)
-                    .zip(self.statuses.drain(..))
-                    .collect();
+                let mut z: Vec<(String, ItemStatus)> =
+                    self.config.items.drain(..).zip(self.statuses.drain(..)).collect();
                 z.sort_by(|a, b| a.0.cmp(&b.0));
                 if self.config.sort_reverse {
                     z.reverse();
@@ -896,12 +875,8 @@ impl App {
             }
             SortOrder::RecentVisit => {
                 let visits = &self.config.visits;
-                let mut z: Vec<(String, ItemStatus)> = self
-                    .config
-                    .items
-                    .drain(..)
-                    .zip(self.statuses.drain(..))
-                    .collect();
+                let mut z: Vec<(String, ItemStatus)> =
+                    self.config.items.drain(..).zip(self.statuses.drain(..)).collect();
                 z.sort_by(|a, b| {
                     let time_a = visits.get(&a.0).copied().unwrap_or(0);
                     let time_b = visits.get(&b.0).copied().unwrap_or(0);
@@ -913,12 +888,8 @@ impl App {
                 z
             }
             SortOrder::LatestChanges => {
-                let mut z: Vec<(String, ItemStatus)> = self
-                    .config
-                    .items
-                    .drain(..)
-                    .zip(self.statuses.drain(..))
-                    .collect();
+                let mut z: Vec<(String, ItemStatus)> =
+                    self.config.items.drain(..).zip(self.statuses.drain(..)).collect();
                 z.sort_by(|a, b| {
                     let time_a = repo::get_latest_change_time(&a.0);
                     let time_b = repo::get_latest_change_time(&b.0);
@@ -997,11 +968,7 @@ impl App {
             self.selected_index = pos;
         }
 
-        let msg = self
-            .status_message
-            .as_deref()
-            .unwrap_or("Saved")
-            .to_string();
+        let msg = self.status_message.as_deref().unwrap_or("Saved").to_string();
         self.persist(&msg);
     }
 
@@ -1150,10 +1117,7 @@ impl App {
             };
             self.detail_cache.insert(
                 path_str,
-                DetailCache {
-                    detail: detail.clone(),
-                    loaded_at: std::time::Instant::now(),
-                },
+                DetailCache { detail: detail.clone(), loaded_at: std::time::Instant::now() },
             );
         }
     }
@@ -1161,15 +1125,11 @@ impl App {
     /// Apply a loaded detail snapshot, clamping selection indices to their new totals.
     pub fn apply_detail_snapshot(&mut self, detail: repo::ItemDetail) {
         let mut merged_detail = detail;
-        if let Some(repo::ItemDetail::Repo {
-            resolved: old_resolved,
-            info: old_info,
-        }) = &self.current_detail
+        if let Some(repo::ItemDetail::Repo { resolved: old_resolved, info: old_info }) =
+            &self.current_detail
         {
-            if let repo::ItemDetail::Repo {
-                resolved: new_resolved,
-                info: new_info,
-            } = &mut merged_detail
+            if let repo::ItemDetail::Repo { resolved: new_resolved, info: new_info } =
+                &mut merged_detail
             {
                 if old_resolved == new_resolved {
                     if new_info.remotes.is_not_loaded() {
@@ -1227,11 +1187,8 @@ impl App {
             let staged_len = info.changes.staged.len();
             let unstaged_len = info.changes.unstaged.len();
 
-            let commit_files_len = info
-                .commits
-                .get(self.commit_selection)
-                .map(|c| c.files.len())
-                .unwrap_or(0);
+            let commit_files_len =
+                info.commits.get(self.commit_selection).map(|c| c.files.len()).unwrap_or(0);
 
             info_lengths = Some((
                 commits_len,
@@ -1436,10 +1393,7 @@ impl App {
                         let _ = tx.send((
                             path.to_string_lossy().to_string(),
                             tab_idx,
-                            repo::TabPayload::Branches {
-                                local: local_res,
-                                remote: remote_res,
-                            },
+                            repo::TabPayload::Branches { local: local_res, remote: remote_res },
                         ));
                     });
                 }
@@ -1457,10 +1411,7 @@ impl App {
                         let _ = tx.send((
                             path.to_string_lossy().to_string(),
                             tab_idx,
-                            repo::TabPayload::Tags {
-                                local: local_res,
-                                remote: remote_res,
-                            },
+                            repo::TabPayload::Tags { local: local_res, remote: remote_res },
                         ));
                     });
                 }
@@ -1560,11 +1511,8 @@ impl App {
             return;
         }
         if self.detail_tab == 0 {
-            let mut next_focus = if reverse {
-                self.detail_focus.prev()
-            } else {
-                self.detail_focus.next()
-            };
+            let mut next_focus =
+                if reverse { self.detail_focus.prev() } else { self.detail_focus.next() };
             for _ in 0..10 {
                 let skip = match next_focus {
                     DetailSection::Staged => {
@@ -1594,22 +1542,15 @@ impl App {
                     _ => false,
                 };
                 if skip {
-                    next_focus = if reverse {
-                        next_focus.prev()
-                    } else {
-                        next_focus.next()
-                    };
+                    next_focus = if reverse { next_focus.prev() } else { next_focus.next() };
                 } else {
                     break;
                 }
             }
             self.detail_focus = next_focus;
         } else {
-            self.detail_focus = if reverse {
-                self.detail_focus.prev()
-            } else {
-                self.detail_focus.next()
-            };
+            self.detail_focus =
+                if reverse { self.detail_focus.prev() } else { self.detail_focus.next() };
         }
         if self.detail_focus == DetailSection::Staged
             || self.detail_focus == DetailSection::Unstaged
@@ -1914,16 +1855,14 @@ impl App {
                 let has_upstream = git2::Repository::open(resolved)
                     .ok()
                     .and_then(|repo| {
-                        repo.find_branch(&branch_name, git2::BranchType::Local)
-                            .ok()
-                            .and_then(|b| {
-                                b.upstream().ok().and_then(|up| {
-                                    up.get()
-                                        .name()
-                                        .ok()
-                                        .and_then(|n| repo.branch_upstream_remote(n).ok())
-                                })
+                        repo.find_branch(&branch_name, git2::BranchType::Local).ok().and_then(|b| {
+                            b.upstream().ok().and_then(|up| {
+                                up.get()
+                                    .name()
+                                    .ok()
+                                    .and_then(|n| repo.branch_upstream_remote(n).ok())
                             })
+                        })
                     })
                     .is_some();
 
@@ -2017,17 +1956,12 @@ impl App {
                     if set_upstream {
                         cmd.arg("-u");
                     }
-                    cmd.arg(&remote_name)
-                        .arg(&branch_name)
-                        .current_dir(&repo_path);
+                    cmd.arg(&remote_name).arg(&branch_name).current_dir(&repo_path);
 
                     let output = cmd.output()?;
 
                     if output.status.success() {
-                        Ok(format!(
-                            "Pushed '{}' to '{}' successfully",
-                            branch_name, remote_name
-                        ))
+                        Ok(format!("Pushed '{}' to '{}' successfully", branch_name, remote_name))
                     } else {
                         let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
                         Err(format!("git push failed: {}", err_msg).into())
@@ -2114,11 +2048,8 @@ impl App {
                 || !info.changes.unstaged.is_empty()
                 || !info.changes.untracked.is_empty()
                 || !info.changes.conflicted.is_empty();
-            let commit_idx = if dirty {
-                self.commit_selection.saturating_sub(1)
-            } else {
-                self.commit_selection
-            };
+            let commit_idx =
+                if dirty { self.commit_selection.saturating_sub(1) } else { self.commit_selection };
             if let Some(commit) = info.commits.get(commit_idx) {
                 self.tag_action_target_oid = Some(commit.oid.clone());
                 self.input_buffer.clear();
@@ -2208,10 +2139,8 @@ impl App {
         if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
             match repo::remote_add(resolved, &self.remote_add_name, &self.remote_add_url) {
                 Ok(_) => {
-                    self.status_message = Some(format!(
-                        "Remote '{}' added successfully",
-                        self.remote_add_name
-                    ));
+                    self.status_message =
+                        Some(format!("Remote '{}' added successfully", self.remote_add_name));
                     self.resync_detail();
                 }
                 Err(e) => {
@@ -2260,16 +2189,15 @@ impl App {
 
     pub fn confirm_tag_delete(&mut self) {
         if let Some((tag_name, is_on_remote)) = self.tag_delete_target.take() {
-            let (repo_path, remotes_len, first_remote) =
-                if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-                    (
-                        resolved.clone(),
-                        info.remotes.len(),
-                        info.remotes.first().map(|r| r.name.clone()),
-                    )
-                } else {
-                    return;
-                };
+            let (repo_path, remotes_len, first_remote) = if let Some(repo::ItemDetail::Repo {
+                resolved,
+                info,
+            }) = &self.current_detail
+            {
+                (resolved.clone(), info.remotes.len(), info.remotes.first().map(|r| r.name.clone()))
+            } else {
+                return;
+            };
 
             match repo::delete_tag(&repo_path, &tag_name) {
                 Ok(()) => {
@@ -2346,19 +2274,14 @@ impl App {
                 };
 
                 self.fetching = true;
-                self.status_message = Some(format!(
-                    "Pushing tag '{}' to '{}'...",
-                    tag_name, remote_name
-                ));
+                self.status_message =
+                    Some(format!("Pushing tag '{}' to '{}'...", tag_name, remote_name));
                 let tx = self.tx.clone();
                 std::thread::spawn(move || {
                     let mut cmd = std::process::Command::new("git");
                     cmd.env("GIT_TERMINAL_PROMPT", "0")
                         .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
-                    cmd.arg("push")
-                        .arg(&remote_name)
-                        .arg(&tag_name)
-                        .current_dir(&repo_path);
+                    cmd.arg("push").arg(&remote_name).arg(&tag_name).current_dir(&repo_path);
 
                     let output = match cmd.output() {
                         Ok(o) => o,
@@ -2587,10 +2510,8 @@ impl App {
                 }
 
                 self.fetching = true;
-                self.status_message = Some(format!(
-                    "Merging '{}' into '{}'...",
-                    branch_name, current_branch
-                ));
+                self.status_message =
+                    Some(format!("Merging '{}' into '{}'...", branch_name, current_branch));
 
                 let repo_path = resolved.clone();
                 let target_name = branch_name.clone();
@@ -2680,10 +2601,8 @@ impl App {
                 }
 
                 self.fetching = true;
-                self.status_message = Some(format!(
-                    "Rebasing '{}' onto '{}'...",
-                    current_branch, branch_name
-                ));
+                self.status_message =
+                    Some(format!("Rebasing '{}' onto '{}'...", current_branch, branch_name));
 
                 let repo_path = resolved.clone();
                 let target_name = branch_name.clone();
@@ -2781,9 +2700,7 @@ impl App {
                 } else {
                     self.commit_selection
                 };
-                info.commits
-                    .get(commit_idx)
-                    .map(|c| (resolved.clone(), c.oid.clone()))
+                info.commits.get(commit_idx).map(|c| (resolved.clone(), c.oid.clone()))
             }
             _ => None,
         };
@@ -2804,11 +2721,7 @@ impl App {
                 false
             };
 
-            let target = if is_root {
-                "--root".to_string()
-            } else {
-                format!("{}~1", commit_oid)
-            };
+            let target = if is_root { "--root".to_string() } else { format!("{}~1", commit_oid) };
             self.pending_interactive_rebase = Some((repo_path, target));
         }
     }
@@ -2829,9 +2742,7 @@ impl App {
                 } else {
                     self.commit_selection
                 };
-                info.commits
-                    .get(commit_idx)
-                    .map(|c| (c.oid.clone(), c.summary.clone()))
+                info.commits.get(commit_idx).map(|c| (c.oid.clone(), c.summary.clone()))
             }
             _ => None,
         };
@@ -2858,10 +2769,8 @@ impl App {
                     }
                 }
 
-                local_branches = branches_list
-                    .into_iter()
-                    .filter(|name| name != current_branch)
-                    .collect();
+                local_branches =
+                    branches_list.into_iter().filter(|name| name != current_branch).collect();
             }
 
             if local_branches.is_empty() && self.status_message.is_none() {
@@ -2877,10 +2786,8 @@ impl App {
 
     pub fn confirm_cherry_pick(&mut self) {
         let target = self.cherry_pick_target.take();
-        let dest_branch = self
-            .cherry_pick_dest_branches
-            .get(self.cherry_pick_dest_selection)
-            .cloned();
+        let dest_branch =
+            self.cherry_pick_dest_branches.get(self.cherry_pick_dest_selection).cloned();
         self.mode = Mode::Detail;
 
         if let (Some((commit_oid, _summary)), Some(dest_branch)) = (target, dest_branch) {
@@ -2903,9 +2810,8 @@ impl App {
                             .current_dir(&repo_path)
                             .output()?;
                         if !checkout_output.status.success() {
-                            let stderr = String::from_utf8_lossy(&checkout_output.stderr)
-                                .trim()
-                                .to_string();
+                            let stderr =
+                                String::from_utf8_lossy(&checkout_output.stderr).trim().to_string();
                             return Err(format!("git checkout failed: {}", stderr).into());
                         }
 
@@ -2967,9 +2873,7 @@ impl App {
                 } else {
                     self.commit_selection
                 };
-                info.commits
-                    .get(commit_idx)
-                    .map(|c| (c.oid.clone(), c.summary.clone()))
+                info.commits.get(commit_idx).map(|c| (c.oid.clone(), c.summary.clone()))
             }
             _ => None,
         };
@@ -3053,9 +2957,7 @@ impl App {
             return None;
         }
 
-        let pos_opt = matching_indices
-            .iter()
-            .position(|&idx| idx >= self.commit_selection);
+        let pos_opt = matching_indices.iter().position(|&idx| idx >= self.commit_selection);
 
         match direction {
             LogsNavDirection::Down => {
@@ -3657,11 +3559,7 @@ impl App {
                             }
                         }
                     }
-                    if direct_children.is_empty() {
-                        1
-                    } else {
-                        direct_children.len()
-                    }
+                    if direct_children.is_empty() { 1 } else { direct_children.len() }
                 } else {
                     let file_path = resolved.join(&selected_item.full_path);
                     match std::fs::File::open(&file_path) {
@@ -3815,9 +3713,7 @@ impl App {
 
     /// Total files in the currently-selected commit's Changed Files panel.
     pub fn file_total(&self) -> usize {
-        self.get_selected_commit()
-            .map(|c| c.files.len())
-            .unwrap_or(0)
+        self.get_selected_commit().map(|c| c.files.len()).unwrap_or(0)
     }
 
     pub fn is_uncommitted_selected(&self) -> bool {
@@ -3871,9 +3767,7 @@ impl App {
     }
 
     pub fn is_selected_commit_empty(&self) -> bool {
-        self.get_selected_commit()
-            .map(|c| c.files.is_empty())
-            .unwrap_or(true)
+        self.get_selected_commit().map(|c| c.files.is_empty()).unwrap_or(true)
     }
 
     fn current_diff_params(&self) -> Option<(PathBuf, String, String)> {
@@ -4396,11 +4290,8 @@ impl App {
     }
 
     pub fn commit_search_input_change(&mut self) {
-        self.commit_search_query = if self.input_buffer.is_empty() {
-            None
-        } else {
-            Some(self.input_buffer.clone())
-        };
+        self.commit_search_query =
+            if self.input_buffer.is_empty() { None } else { Some(self.input_buffer.clone()) };
         self.clamp_commit_selection();
         self.file_selection = 0;
         self.diff_scroll = 0;
@@ -4653,11 +4544,8 @@ impl App {
                     let selected_theme =
                         self.settings_theme_list[self.settings_theme_index].clone();
                     self.config.theme_name = selected_theme.clone();
-                    let themes_dir = self
-                        .config_path
-                        .parent()
-                        .unwrap_or(&self.config_path)
-                        .join("themes");
+                    let themes_dir =
+                        self.config_path.parent().unwrap_or(&self.config_path).join("themes");
                     let theme_path = themes_dir.join(format!("{}.theme", selected_theme));
                     if theme_path.exists() {
                         if let Ok(theme_contents) = std::fs::read_to_string(&theme_path) {
@@ -4749,11 +4637,7 @@ impl App {
 
     pub fn get_available_themes(&self) -> Vec<String> {
         let mut themes = vec!["default".to_string()];
-        let themes_dir = self
-            .config_path
-            .parent()
-            .unwrap_or(&self.config_path)
-            .join("themes");
+        let themes_dir = self.config_path.parent().unwrap_or(&self.config_path).join("themes");
         if themes_dir.exists() {
             if let Ok(entries) = std::fs::read_dir(themes_dir) {
                 for entry in entries.flatten() {
@@ -4888,11 +4772,7 @@ impl App {
             };
             let path = entry.path();
             if path.is_dir() {
-                let show_dir = if git_only {
-                    path.join(".git").exists()
-                } else {
-                    true
-                };
+                let show_dir = if git_only { path.join(".git").exists() } else { true };
                 if show_dir {
                     if let Some(sub_name) = path.file_name().and_then(|n| n.to_str()) {
                         let mut base_str = trimmed.clone();
@@ -5130,10 +5010,8 @@ impl App {
                     accumulated.push_str(part);
 
                     let is_last = i == parts.len() - 1;
-                    let entry = current
-                        .children
-                        .entry((*part).to_string())
-                        .or_insert_with(|| TempNode {
+                    let entry =
+                        current.children.entry((*part).to_string()).or_insert_with(|| TempNode {
                             name: (*part).to_string(),
                             full_path: accumulated.clone(),
                             is_dir: !is_last,
@@ -5263,10 +5141,7 @@ impl App {
             info.remote_tags_attempted = true;
             // Use the currently selected remote in the Remotes tab if available,
             // otherwise fall back to the first remote.
-            let remote = info
-                .remotes
-                .get(self.remote_selection)
-                .or_else(|| info.remotes.first());
+            let remote = info.remotes.get(self.remote_selection).or_else(|| info.remotes.first());
             if let Some(remote) = remote {
                 let repo_path = resolved.clone();
                 let remote_name = remote.name.clone();
@@ -5275,18 +5150,16 @@ impl App {
                     self.fetching = true;
                     self.status_message = Some(format!("Fetching tags from '{}'...", remote_name));
                 }
-                std::thread::spawn(
-                    move || match repo::get_remote_tags(&repo_path, &remote_name) {
-                        Ok(tags) => {
-                            let serialized = repo::serialize_tags(&tags);
-                            let _ = tx.send(format!("REMOTE_TAGS:{}", serialized));
-                        }
-                        Err(e) => {
-                            let _ = tx
-                                .send(format!("REMOTE_TAGS_ERR:Failed to get remote tags: {}", e));
-                        }
-                    },
-                );
+                std::thread::spawn(move || match repo::get_remote_tags(&repo_path, &remote_name) {
+                    Ok(tags) => {
+                        let serialized = repo::serialize_tags(&tags);
+                        let _ = tx.send(format!("REMOTE_TAGS:{}", serialized));
+                    }
+                    Err(e) => {
+                        let _ =
+                            tx.send(format!("REMOTE_TAGS_ERR:Failed to get remote tags: {}", e));
+                    }
+                });
             }
         }
     }
@@ -5341,9 +5214,7 @@ impl App {
             }
         };
         let remote_name = if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            info.remotes
-                .get(self.remote_picker_selection)
-                .map(|r| r.name.clone())
+            info.remotes.get(self.remote_picker_selection).map(|r| r.name.clone())
         } else {
             None
         };
@@ -5472,19 +5343,14 @@ impl App {
             let tag_name = tag_name.to_string();
             let remote_name = remote_name.to_string();
             self.fetching = true;
-            self.status_message = Some(format!(
-                "Pushing tag '{}' to '{}'...",
-                tag_name, remote_name
-            ));
+            self.status_message =
+                Some(format!("Pushing tag '{}' to '{}'...", tag_name, remote_name));
             let tx = self.tx.clone();
             std::thread::spawn(move || {
                 let mut cmd = std::process::Command::new("git");
                 cmd.env("GIT_TERMINAL_PROMPT", "0")
                     .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
-                cmd.arg("push")
-                    .arg(&remote_name)
-                    .arg(&tag_name)
-                    .current_dir(&repo_path);
+                cmd.arg("push").arg(&remote_name).arg(&tag_name).current_dir(&repo_path);
                 let output = match cmd.output() {
                     Ok(o) => o,
                     Err(e) => {
@@ -5519,10 +5385,7 @@ impl App {
                 let mut cmd = std::process::Command::new("git");
                 cmd.env("GIT_TERMINAL_PROMPT", "0")
                     .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
-                cmd.arg("push")
-                    .arg(&remote_name)
-                    .arg("--tags")
-                    .current_dir(&repo_path);
+                cmd.arg("push").arg(&remote_name).arg("--tags").current_dir(&repo_path);
                 let output = match cmd.output() {
                     Ok(o) => o,
                     Err(e) => {
@@ -5901,14 +5764,9 @@ impl App {
                 || !info.changes.unstaged.is_empty()
                 || !info.changes.untracked.is_empty()
                 || !info.changes.conflicted.is_empty();
-            let commit_idx = if dirty {
-                self.commit_selection.saturating_sub(1)
-            } else {
-                self.commit_selection
-            };
-            info.commits
-                .get(commit_idx)
-                .map(|commit| commit.oid.clone())
+            let commit_idx =
+                if dirty { self.commit_selection.saturating_sub(1) } else { self.commit_selection };
+            info.commits.get(commit_idx).map(|commit| commit.oid.clone())
         } else {
             None
         };
@@ -6034,10 +5892,7 @@ where
         while let Ok((path, detail)) = app.detail_rx.try_recv() {
             app.detail_cache.insert(
                 path.clone(),
-                DetailCache {
-                    detail: detail.clone(),
-                    loaded_at: std::time::Instant::now(),
-                },
+                DetailCache { detail: detail.clone(), loaded_at: std::time::Instant::now() },
             );
 
             let is_currently_loading = Some(&path) == app.loading_repo_path.as_ref();
@@ -6155,9 +6010,8 @@ where
 
                 if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
                     let git_app_name = &app.config.git_app;
-                    let status = std::process::Command::new(git_app_name)
-                        .current_dir(&path)
-                        .status();
+                    let status =
+                        std::process::Command::new(git_app_name).current_dir(&path).status();
 
                     let _ = crossterm::terminal::enable_raw_mode();
                     let _ = crossterm::execute!(
@@ -6511,10 +6365,7 @@ where
 
         let size = terminal.size()?;
         let area = Rect::new(0, 0, size.width, size.height);
-        let inner_area = area.inner(Margin {
-            vertical: 1,
-            horizontal: 1,
-        });
+        let inner_area = area.inner(Margin { vertical: 1, horizontal: 1 });
 
         let available_height = inner_area.height.saturating_sub(app.status_height());
         let visible_count =
@@ -6528,15 +6379,7 @@ where
         let mut detail_areas = DetailAreas::default();
         let mut main_areas = Vec::new();
         terminal.draw(|f| {
-            ui::draw(
-                f,
-                &app,
-                area,
-                inner_area,
-                visible_count,
-                &mut detail_areas,
-                &mut main_areas,
-            )
+            ui::draw(f, &app, area, inner_area, visible_count, &mut detail_areas, &mut main_areas)
         })?;
         app.detail_areas = detail_areas;
         app.main_areas = main_areas;
@@ -6552,9 +6395,7 @@ where
             app.fetch_progress = 0;
         }
 
-        if event::poll(std::time::Duration::from_millis(
-            app.config.poll_interval_ms,
-        ))? {
+        if event::poll(std::time::Duration::from_millis(app.config.poll_interval_ms))? {
             match event::read()? {
                 Event::Key(key) => {
                     if key.kind == crossterm::event::KeyEventKind::Press
@@ -6596,9 +6437,7 @@ fn copy_to_clipboard(text: &str) -> Result<(), String> {
             .spawn()
             .map_err(|e| e.to_string())?;
         if let Some(mut stdin) = child.stdin.take() {
-            stdin
-                .write_all(text.as_bytes())
-                .map_err(|e| e.to_string())?;
+            stdin.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
         }
         child.wait().map_err(|e| e.to_string())?;
         Ok(())
@@ -6611,9 +6450,7 @@ fn copy_to_clipboard(text: &str) -> Result<(), String> {
             .spawn()
             .map_err(|e| e.to_string())?;
         if let Some(mut stdin) = child.stdin.take() {
-            stdin
-                .write_all(text.as_bytes())
-                .map_err(|e| e.to_string())?;
+            stdin.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
         }
         child.wait().map_err(|e| e.to_string())?;
         Ok(())
@@ -6691,9 +6528,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_stash.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
         app.mode = Mode::Detail;
 
@@ -6737,10 +6572,8 @@ mod tests {
 
         // Mock uncommitted changes
         let mut mock_info = repo::RepoInfo::default();
-        mock_info.changes.unstaged = vec![repo::FileEntry {
-            path: "dirty.rs".to_string(),
-            label: "M",
-        }];
+        mock_info.changes.unstaged =
+            vec![repo::FileEntry { path: "dirty.rs".to_string(), label: "M" }];
         app.current_detail = Some(repo::ItemDetail::Repo {
             resolved: PathBuf::from("a_repo"),
             info: Box::new(mock_info),
@@ -6780,9 +6613,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_network.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Simulating the start of a network action
@@ -6794,9 +6625,7 @@ mod tests {
         assert_eq!(app.status_message.as_deref(), Some("Pushing..."));
 
         // Simulate background thread sending a failure message
-        app.tx
-            .send("Push failed: git push rejected".to_string())
-            .unwrap();
+        app.tx.send("Push failed: git push rejected".to_string()).unwrap();
 
         // Run receiver check
         while let Ok(msg) = app.rx.try_recv() {
@@ -6816,10 +6645,7 @@ mod tests {
 
         // Verify that fetching is cleared and error_message popup is active
         assert!(!app.fetching);
-        assert_eq!(
-            app.error_message.as_deref(),
-            Some("Push failed: git push rejected")
-        );
+        assert_eq!(app.error_message.as_deref(), Some("Push failed: git push rejected"));
 
         // Verify keypress dismisses the error popup
         let esc_key = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
@@ -6851,9 +6677,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_remote_tags_progress.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         let mock_info = crate::repo::RepoInfo {
@@ -6874,15 +6698,10 @@ mod tests {
         // Trigger fetch with show_progress = true
         app.fetch_remote_tags(true);
         assert!(app.fetching);
-        assert_eq!(
-            app.status_message.as_deref(),
-            Some("Fetching tags from 'origin'...")
-        );
+        assert_eq!(app.status_message.as_deref(), Some("Fetching tags from 'origin'..."));
 
         // Simulate background thread sending REMOTE_TAGS_ERR
-        app.tx
-            .send("REMOTE_TAGS_ERR:Failed to get remote tags: custom error".to_string())
-            .unwrap();
+        app.tx.send("REMOTE_TAGS_ERR:Failed to get remote tags: custom error".to_string()).unwrap();
 
         // Run rx loop (same as inside app::run)
         if let Ok(msg) = app.rx.try_recv() {
@@ -6893,10 +6712,7 @@ mod tests {
         }
 
         assert!(!app.fetching);
-        assert_eq!(
-            app.error_message.as_deref(),
-            Some("Failed to get remote tags: custom error")
-        );
+        assert_eq!(app.error_message.as_deref(), Some("Failed to get remote tags: custom error"));
     }
 
     #[test]
@@ -6922,9 +6738,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_remote_fetch_progress.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         let mock_info = crate::repo::RepoInfo {
@@ -6945,15 +6759,10 @@ mod tests {
         // Trigger fetch from remote tab (fetch_remote)
         app.fetch_remote("origin");
         assert!(app.fetching);
-        assert_eq!(
-            app.status_message.as_deref(),
-            Some("Fetching remote 'origin'...")
-        );
+        assert_eq!(app.status_message.as_deref(), Some("Fetching remote 'origin'..."));
 
         // Simulate background thread sending Fetch failed message
-        app.tx
-            .send("Fetch failed: custom fetch error".to_string())
-            .unwrap();
+        app.tx.send("Fetch failed: custom fetch error".to_string()).unwrap();
 
         // Run rx loop (same as inside app::run)
         if let Ok(msg) = app.rx.try_recv() {
@@ -6970,10 +6779,7 @@ mod tests {
         }
 
         assert!(!app.fetching);
-        assert_eq!(
-            app.error_message.as_deref(),
-            Some("Fetch failed: custom fetch error")
-        );
+        assert_eq!(app.error_message.as_deref(), Some("Fetch failed: custom fetch error"));
     }
 
     #[test]
@@ -6999,9 +6805,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_set_error.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         let test_error_msg = "Test error message for debugging".to_string();
@@ -7011,20 +6815,13 @@ mod tests {
 
         // Check if debug log contains the message
         let logs = crate::debug_log::get_logs();
-        assert!(
-            logs.iter()
-                .any(|log| log.contains("ERROR") && log.contains(&test_error_msg))
-        );
+        assert!(logs.iter().any(|log| log.contains("ERROR") && log.contains(&test_error_msg)));
     }
 
     #[test]
     fn test_sorting_logic() {
         let config = Config {
-            items: vec![
-                "z_repo".to_string(),
-                "a_repo".to_string(),
-                "m_repo".to_string(),
-            ],
+            items: vec!["z_repo".to_string(), "a_repo".to_string(), "m_repo".to_string()],
             poll_interval_ms: 100,
             max_commits: 0,
             page_size: 10,
@@ -7044,9 +6841,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_sort.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Assert initial custom sort
@@ -7110,9 +6905,7 @@ mod tests {
         let temp_path = std::env::temp_dir().join("gitwig_test_config_duplicate.toml");
         // Ensure starting with a clean state and clean up upon drop
         let _ = std::fs::remove_file(&temp_path);
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // 1. Test adding a repository via input buffer (commit_add)
@@ -7127,10 +6920,7 @@ mod tests {
         app.input_buffer = "/path/to/repo".to_string();
         app.commit_add();
         assert_eq!(app.config.items.len(), 1);
-        assert_eq!(
-            app.status_message,
-            Some("Repository already added".to_string())
-        );
+        assert_eq!(app.status_message, Some("Repository already added".to_string()));
         app.status_message = None; // Reset
 
         // 3. Test trying to add a tilde version of the same repo when it's resolved
@@ -7150,10 +6940,7 @@ mod tests {
             app.commit_add();
             // Should be rejected
             assert_eq!(app.config.items.len(), 2);
-            assert_eq!(
-                app.status_message,
-                Some("Repository already added".to_string())
-            );
+            assert_eq!(app.status_message, Some("Repository already added".to_string()));
             app.status_message = None; // Reset
 
             // Try the opposite direction: add a new absolute path, then try to add with tilde
@@ -7161,10 +6948,7 @@ mod tests {
             app.input_buffer = new_abs;
             app.commit_add();
             assert_eq!(app.config.items.len(), 3);
-            assert_eq!(
-                app.config.items[2],
-                format!("{}/another_cool_repo", home_str)
-            );
+            assert_eq!(app.config.items[2], format!("{}/another_cool_repo", home_str));
             assert_eq!(app.status_message, Some("Saved".to_string()));
             app.status_message = None; // Reset
 
@@ -7173,10 +6957,7 @@ mod tests {
             app.commit_add();
             // Should be rejected
             assert_eq!(app.config.items.len(), 3);
-            assert_eq!(
-                app.status_message,
-                Some("Repository already added".to_string())
-            );
+            assert_eq!(app.status_message, Some("Repository already added".to_string()));
             app.status_message = None; // Reset
         }
 
@@ -7191,10 +6972,7 @@ mod tests {
         // Try duplicate via add_repo_path
         app.add_repo_path("/another/path".to_string());
         assert_eq!(app.config.items.len(), len_before + 1);
-        assert_eq!(
-            app.status_message,
-            Some("Repository already added".to_string())
-        );
+        assert_eq!(app.status_message, Some("Repository already added".to_string()));
     }
 
     #[test]
@@ -7232,9 +7010,7 @@ mod tests {
 
         let config_path = temp_dir.join("config_bulk.toml");
         let _ = std::fs::remove_file(&config_path);
-        let _guard = TestFileGuard {
-            path: config_path.clone(),
-        };
+        let _guard = TestFileGuard { path: config_path.clone() };
         let mut app = App::new(config, config_path);
 
         // Case 1: git_only is enabled (default)
@@ -7270,11 +7046,7 @@ mod tests {
     #[test]
     fn test_pinning_and_sorting() {
         let config = Config {
-            items: vec![
-                "z_repo".to_string(),
-                "a_repo".to_string(),
-                "m_repo".to_string(),
-            ],
+            items: vec!["z_repo".to_string(), "a_repo".to_string(), "m_repo".to_string()],
             poll_interval_ms: 100,
             max_commits: 0,
             page_size: 10,
@@ -7294,9 +7066,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_pin.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Sorting is Alphabetical: initially items should be sorted as a_repo, m_repo, z_repo
@@ -7380,9 +7150,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_scroll.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         assert_eq!(app.commit_input_scroll, 0);
@@ -7424,9 +7192,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_maximize.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         assert!(!app.commit_popup_maximized);
@@ -7468,9 +7234,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_cherry_pick.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Set up a mock repo detail with commits
@@ -7547,9 +7311,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_amend.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         assert!(!app.commit_amend);
@@ -7612,9 +7374,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_splitter.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Mock the detail_areas to simulate a drawn UI frame.
@@ -7886,9 +7646,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_mouse_select.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
         app.mode = Mode::Detail;
 
@@ -7957,19 +7715,11 @@ mod tests {
         app.detail_areas = crate::ui_detail::DetailAreas::default();
         let mut mock_info_2 = repo::RepoInfo::default();
         mock_info_2.changes.staged = vec![
-            repo::FileEntry {
-                path: "s1.rs".to_string(),
-                label: "M",
-            },
-            repo::FileEntry {
-                path: "s2.rs".to_string(),
-                label: "M",
-            },
+            repo::FileEntry { path: "s1.rs".to_string(), label: "M" },
+            repo::FileEntry { path: "s2.rs".to_string(), label: "M" },
         ];
-        mock_info_2.changes.unstaged = vec![repo::FileEntry {
-            path: "u1.rs".to_string(),
-            label: "M",
-        }];
+        mock_info_2.changes.unstaged =
+            vec![repo::FileEntry { path: "u1.rs".to_string(), label: "M" }];
         app.current_detail = Some(repo::ItemDetail::Repo {
             resolved: PathBuf::from("a_repo"),
             info: Box::new(mock_info_2),
@@ -7990,10 +7740,8 @@ mod tests {
         // 3. Unstaged subpanel click test
         app.detail_areas = crate::ui_detail::DetailAreas::default();
         let mut mock_info_2_unstaged = repo::RepoInfo::default();
-        mock_info_2_unstaged.changes.unstaged = vec![repo::FileEntry {
-            path: "u1.rs".to_string(),
-            label: "M",
-        }];
+        mock_info_2_unstaged.changes.unstaged =
+            vec![repo::FileEntry { path: "u1.rs".to_string(), label: "M" }];
         app.current_detail = Some(repo::ItemDetail::Repo {
             resolved: PathBuf::from("a_repo"),
             info: Box::new(mock_info_2_unstaged),
@@ -8160,14 +7908,8 @@ mod tests {
                     commit_id: "123".to_string(),
                     message: "s1".to_string(),
                     files: vec![
-                        repo::FileEntry {
-                            path: "f1.rs".to_string(),
-                            label: "M",
-                        },
-                        repo::FileEntry {
-                            path: "f2.rs".to_string(),
-                            label: "M",
-                        },
+                        repo::FileEntry { path: "f1.rs".to_string(), label: "M" },
+                        repo::FileEntry { path: "f2.rs".to_string(), label: "M" },
                     ],
                 },
                 repo::StashInfo {
@@ -8237,9 +7979,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_settings.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         assert_eq!(app.mode, Mode::Normal);
@@ -8363,11 +8103,7 @@ mod tests {
         assert!(!app.settings_editing);
         assert_eq!(
             app.config.fzf.excludes,
-            vec![
-                "target".to_string(),
-                "node_modules".to_string(),
-                ".git".to_string()
-            ]
+            vec!["target".to_string(), "node_modules".to_string(), ".git".to_string()]
         );
 
         // Go down to Preferred Git Client (index 9)
@@ -8479,9 +8215,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_remotes.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Put app in Detail Mode on tab 5 (Remotes)
@@ -8557,9 +8291,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Open details view
@@ -8568,10 +8300,7 @@ mod tests {
         app.detail_focus = DetailSection::Staged;
 
         let mut changes = crate::repo::WorktreeChanges::default();
-        changes.staged.push(crate::repo::FileEntry {
-            path: "dummy.txt".to_string(),
-            label: "M",
-        });
+        changes.staged.push(crate::repo::FileEntry { path: "dummy.txt".to_string(), label: "M" });
         let info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
             changes,
@@ -8628,9 +8357,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_enter.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Open details view and focus Commits section
@@ -8639,10 +8366,7 @@ mod tests {
         app.detail_focus = DetailSection::Commits;
 
         let mut changes = crate::repo::WorktreeChanges::default();
-        changes.staged.push(crate::repo::FileEntry {
-            path: "dummy.txt".to_string(),
-            label: "M",
-        });
+        changes.staged.push(crate::repo::FileEntry { path: "dummy.txt".to_string(), label: "M" });
         let info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
             changes,
@@ -8691,9 +8415,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_commit.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Open details view and focus Commits section
@@ -8702,16 +8424,10 @@ mod tests {
         app.detail_focus = DetailSection::Staged;
 
         let mut changes = crate::repo::WorktreeChanges::default();
-        changes.staged.push(crate::repo::FileEntry {
-            path: "dummy.txt".to_string(),
-            label: "M",
-        });
+        changes.staged.push(crate::repo::FileEntry { path: "dummy.txt".to_string(), label: "M" });
         let info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            summary: crate::repo::RepoSummary {
-                staged: 1,
-                ..Default::default()
-            },
+            summary: crate::repo::RepoSummary { staged: 1, ..Default::default() },
             changes,
             ..crate::repo::RepoInfo::default()
         };
@@ -8757,9 +8473,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_workspace_all.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Open details Workspace view and focus Unstaged section
@@ -8768,16 +8482,10 @@ mod tests {
         app.detail_focus = DetailSection::Unstaged;
 
         let mut changes = crate::repo::WorktreeChanges::default();
-        changes.unstaged.push(crate::repo::FileEntry {
-            path: "dummy.txt".to_string(),
-            label: "M",
-        });
+        changes.unstaged.push(crate::repo::FileEntry { path: "dummy.txt".to_string(), label: "M" });
         let info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            summary: crate::repo::RepoSummary {
-                modified: 1,
-                ..Default::default()
-            },
+            summary: crate::repo::RepoSummary { modified: 1, ..Default::default() },
             changes,
             ..crate::repo::RepoInfo::default()
         };
@@ -8825,9 +8533,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_workspace_all.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Open details Inspect view and focus Unstaged section
@@ -8836,16 +8542,10 @@ mod tests {
         app.detail_focus = DetailSection::Unstaged;
 
         let mut changes = crate::repo::WorktreeChanges::default();
-        changes.unstaged.push(crate::repo::FileEntry {
-            path: "dummy.txt".to_string(),
-            label: "M",
-        });
+        changes.unstaged.push(crate::repo::FileEntry { path: "dummy.txt".to_string(), label: "M" });
         let info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
-            summary: crate::repo::RepoSummary {
-                modified: 1,
-                ..Default::default()
-            },
+            summary: crate::repo::RepoSummary { modified: 1, ..Default::default() },
             changes,
             ..crate::repo::RepoInfo::default()
         };
@@ -8883,10 +8583,7 @@ mod tests {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
             "gitwig_test_app_all_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&temp_path).unwrap();
         let repo = git2::Repository::init(&temp_path).unwrap();
@@ -8894,9 +8591,7 @@ mod tests {
         // Configure author
         let mut config_git = repo.config().unwrap();
         config_git.set_str("user.name", "Test User").unwrap();
-        config_git
-            .set_str("user.email", "test@example.com")
-            .unwrap();
+        config_git.set_str("user.email", "test@example.com").unwrap();
 
         // Create initial commit so we have a HEAD
         let file_path = temp_path.join("file.txt");
@@ -8965,9 +8660,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_cycle.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // 1. Uncommitted selected, Staged is not empty, Unstaged is empty
@@ -8976,10 +8669,9 @@ mod tests {
         app.detail_focus = DetailSection::Commits;
 
         let mut changes = crate::repo::WorktreeChanges::default();
-        changes.staged.push(crate::repo::FileEntry {
-            path: "staged_file.txt".to_string(),
-            label: "M",
-        });
+        changes
+            .staged
+            .push(crate::repo::FileEntry { path: "staged_file.txt".to_string(), label: "M" });
         // Unstaged is empty
         let info = crate::repo::RepoInfo {
             branch: Some("main".to_string()),
@@ -9071,9 +8763,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_git_app.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         assert!(!app.pending_git_app);
@@ -9109,9 +8799,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_files_fzf.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
         app.mode = Mode::Detail;
         app.detail_tab = 1; // Files tab
@@ -9150,9 +8838,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_logs_search.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
         app.mode = Mode::Detail;
         app.detail_tab = 0; // Workspace tab
@@ -9360,9 +9046,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_sync.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
         app.mode = Mode::Detail;
         app.detail_tab = 0;
@@ -9460,9 +9144,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_checkout.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
         app.mode = Mode::Detail;
         app.detail_tab = 3; // branches tab
@@ -9510,10 +9192,7 @@ mod tests {
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
         assert!(handled);
         assert_eq!(app.mode, Mode::BranchCheckoutConfirm);
-        assert_eq!(
-            app.branch_action_target,
-            Some(("feature-branch".to_string(), false))
-        );
+        assert_eq!(app.branch_action_target, Some(("feature-branch".to_string(), false)));
 
         // Cancel branch checkout confirmation via 'n'
         let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('n')), 10);
@@ -9554,11 +9233,7 @@ mod tests {
         use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
         let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
         let config = Config {
-            items: vec![
-                "z_repo".to_string(),
-                "a_repo".to_string(),
-                "m_repo".to_string(),
-            ],
+            items: vec!["z_repo".to_string(), "a_repo".to_string(), "m_repo".to_string()],
             poll_interval_ms: 100,
             max_commits: 0,
             page_size: 10,
@@ -9578,9 +9253,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_search.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Initially we should have 3 items
@@ -9637,9 +9310,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_right_arrow.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         assert_eq!(app.mode, Mode::Normal);
@@ -9689,9 +9360,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_full_diff.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Transition to Mode::Inspect and focus StagingDetails
@@ -9746,9 +9415,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_files_full.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Transition to Mode::Detail, select tab 1 (Files) and focus FileContent
@@ -9804,9 +9471,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_fzf_missing.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // Case 1: fzf is missing
@@ -9869,10 +9534,8 @@ mod tests {
             resync_on_tab_change: false,
             graph_max_commits: 1000,
         };
-        let unique_id = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        let unique_id =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
         let temp_dir = std::env::temp_dir().join(format!("gitwig_test_migration_{}", unique_id));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let temp_path = temp_dir.join("config.toml");
@@ -9951,9 +9614,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_about.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
         let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
 
@@ -10023,9 +9684,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_tag_fetch.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         let mock_info = crate::repo::RepoInfo {
@@ -10134,9 +9793,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_tag_push_all.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         // 1. Single Remote Scenario
@@ -10192,10 +9849,7 @@ mod tests {
         app.request_tag_push_all();
         // Should open remote picker
         assert_eq!(app.mode, Mode::RemotePicker);
-        assert_eq!(
-            app.remote_picker_action,
-            Some(RemotePickerAction::PushAllTags)
-        );
+        assert_eq!(app.remote_picker_action, Some(RemotePickerAction::PushAllTags));
 
         // Confirm selection in remote picker (index 1 is upstream)
         app.remote_picker_selection = 1;
@@ -10257,10 +9911,7 @@ mod tests {
         // 1. Manually add to cache
         app.detail_cache.insert(
             repo_path.to_string_lossy().to_string(),
-            DetailCache {
-                detail: mock_detail.clone(),
-                loaded_at: std::time::Instant::now(),
-            },
+            DetailCache { detail: mock_detail.clone(), loaded_at: std::time::Instant::now() },
         );
 
         // 2. Trigger open_detail on this repository (it will load from cache immediately)
@@ -10382,9 +10033,7 @@ mod tests {
             graph_max_commits: 1000,
         };
         let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_resize.toml");
-        let _guard = TestFileGuard {
-            path: temp_path.clone(),
-        };
+        let _guard = TestFileGuard { path: temp_path.clone() };
         let mut app = App::new(config, temp_path);
 
         app.mode = Mode::CommitInput;
@@ -10509,10 +10158,7 @@ mod tests {
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 
         // Setup mock repo details
-        let mut info = repo::RepoInfo {
-            branch: Some("main".to_string()),
-            ..Default::default()
-        };
+        let mut info = repo::RepoInfo { branch: Some("main".to_string()), ..Default::default() };
         info.commits.push(repo::CommitEntry {
             id: "abc1234".to_string(),
             oid: "abc123456789".to_string(),
