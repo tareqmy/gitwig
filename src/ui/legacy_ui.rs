@@ -26,9 +26,7 @@ use crate::repo::{ItemStatus, RepoSummary};
 // helpers below: `muted_style()` for de-emphasis, bold for emphasis, and the
 // accent colors only for true accents (selection, mode, warnings).
 
-pub mod style;
-pub use style::*;
-pub mod layout;
+pub use super::style::*;
 
 /// Width of the per-item status zone on the right of each card. Wide
 /// enough to fit a busy repo's worth of indicators ("● 99+ 99! 99? 99↑")
