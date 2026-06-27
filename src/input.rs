@@ -10,8 +10,15 @@ use crate::app::{App, Mode};
 use crate::components::Component;
 
 /// Dispatch a key press. Returns `false` if the user requested quit.
+/// The queue is always drained after every keypress, regardless of exit path.
 pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     app.drain_queue();
+    let result = dispatch_key(app, key, visible_count);
+    app.drain_queue();
+    result
+}
+
+fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     crate::debug_log::info(format!("Key pressed: {:?}", key.code));
     let code = key.code;
 

@@ -4536,7 +4536,7 @@ impl App {
             self.commit_popup.input_buffer.clear();
             if let Some(ItemDetail::Repo { resolved, .. }) = &self.current_detail {
                 if let Some(last_msg) = repo::get_last_commit_message(resolved) {
-                    self.input_buffer = last_msg;
+                    self.commit_popup.input_buffer = last_msg;
                 }
             }
             self.commit_popup.editing = true;
@@ -4569,7 +4569,7 @@ impl App {
 
     /// Performs the git commit with the message in `input_buffer`.
     pub fn commit_git_changes(&mut self) {
-        let msg = self.input_buffer.trim().to_string();
+        let msg = self.commit_popup.input_buffer.trim().to_string();
         if msg.is_empty() {
             self.status_message = Some("Commit message cannot be empty".to_string());
             self.mode = Mode::Detail;

@@ -665,7 +665,7 @@ pub fn draw(
             if matches!(mode, Mode::CommitInput) {
                 crate::popups::commit::draw_commit_popup(
                     f,
-                    input_buffer,
+                    &app.commit_popup.input_buffer,
                     commit_editing,
                     commit_amend,
                     commit_input_scroll,

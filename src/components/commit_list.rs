@@ -466,6 +466,10 @@ impl Component for CommitListComponent {
                     self.queue.push(InternalEvent::StartTagCreate);
                     return Ok(EventState::Consumed);
                 }
+                KeyCode::Char('b') | KeyCode::Char('B') => {
+                    self.queue.push(InternalEvent::StartBranchCreate);
+                    return Ok(EventState::Consumed);
+                }
                 KeyCode::Char('i') | KeyCode::Char('I') => {
                     self.queue.push(InternalEvent::RunInteractiveRebase);
                     return Ok(EventState::Consumed);
