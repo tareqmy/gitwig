@@ -2348,6 +2348,51 @@ pub fn continue_merge(repo_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Returns the upstream tracking remote name for a branch, if configured.
+pub fn get_branch_upstream_remote(repo_path: &Path, branch_name: &str) -> Option<String> {
+    let repo = Repository::open(repo_path).ok()?;
+    let branch = repo.find_branch(branch_name, git2::BranchType::Local).ok()?;
+    let upstream = branch.upstream().ok()?;
+    let upstream_ref = upstream.get().name().ok()?;
+    let remote_buf = repo.branch_upstream_remote(upstream_ref).ok()?;
+    remote_buf.as_str().ok().map(|s| s.to_string())
+}
+
+/// Returns whether the specified branch has a configured upstream tracking branch.
+pub fn has_upstream_remote(repo_path: &Path, branch_name: &str) -> bool {
+    get_branch_upstream_remote(repo_path, branch_name).is_some()
+}
+
+/// Finds the remote target for pushing a branch. Returns `(remote_name, set_upstream)`.
+pub fn get_branch_push_target(repo_path: &Path, branch_name: &str) -> Option<(String, bool)> {
+    let repo = Repository::open(repo_path).ok()?;
+    let branch = repo.find_branch(branch_name, git2::BranchType::Local).ok()?;
+    if let Ok(upstream) = branch.upstream() {
+        if let Ok(upstream_ref) = upstream.get().name() {
+            if let Ok(remote_buf) = repo.branch_upstream_remote(upstream_ref) {
+                if let Ok(name) = remote_buf.as_str() {
+                    return Some((name.to_string(), false));
+                }
+            }
+        }
+    }
+    let remotes = repo.remotes().ok()?;
+    let first_remote = remotes.iter().next()?.ok()??.to_string();
+    Some((first_remote, true))
+}
+
+/// Returns whether the specified commit OID has no parents (i.e. it is the root commit).
+pub fn is_root_commit(repo_path: &Path, commit_oid: &str) -> bool {
+    if let Ok(repo) = Repository::open(repo_path) {
+        if let Ok(oid) = git2::Oid::from_str(commit_oid) {
+            if let Ok(commit) = repo.find_commit(oid) {
+                return commit.parent_count() == 0;
+            }
+        }
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3302,6 +3347,57 @@ mod tests {
         // Continue and finalize the merge
         continue_merge(&temp_path).unwrap();
         assert!(!is_merging(&temp_path));
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_branch_and_commit_helpers() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_helpers_{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&temp_path);
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // 1. Initialize repository
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // 2. Create initial commit (root commit)
+        let file_path = temp_path.join("test.txt");
+        std::fs::write(&file_path, "root content").unwrap();
+        stage_file(&temp_path, "test.txt").unwrap();
+        commit_changes(&temp_path, "root commit").unwrap();
+
+        let head_oid = repo.head().unwrap().target().unwrap().to_string();
+        assert!(is_root_commit(&temp_path, &head_oid));
+
+        // 3. Create second commit (non-root commit)
+        std::fs::write(&file_path, "second content").unwrap();
+        stage_file(&temp_path, "test.txt").unwrap();
+        commit_changes(&temp_path, "second commit").unwrap();
+
+        let new_head_oid = repo.head().unwrap().target().unwrap().to_string();
+        assert!(!is_root_commit(&temp_path, &new_head_oid));
+
+        // 4. Test push target with first remote config
+        // Currently there are no remotes, so it should return None or fallback.
+        // Wait, get_branch_push_target returns None if no remotes are found and no upstream config.
+        // Let's add a remote.
+        remote_add(&temp_path, "origin", "https://github.com/example/repo.git").unwrap();
+        let target = get_branch_push_target(&temp_path, "master")
+            .or_else(|| get_branch_push_target(&temp_path, "main"));
+        assert!(target.is_some());
+        let (remote_name, set_upstream) = target.unwrap();
+        assert_eq!(remote_name, "origin");
+        assert!(set_upstream);
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);

@@ -2045,27 +2045,22 @@ impl App {
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                        let repo = git2::Repository::open(&repo_path)?;
-                        let branch = repo.find_branch(&branch_name, git2::BranchType::Local)?;
-
-                        let upstream = match branch.upstream() {
-                            Ok(u) => u,
-                            Err(_) => {
-                                return Ok(
-                                    "No upstream tracking branch configured for this branch"
-                                        .to_string(),
-                                );
-                            }
-                        };
-                        let upstream_ref = upstream.get().name()?;
-                        let remote_buf = repo.branch_upstream_remote(upstream_ref)?;
-                        let remote_name = remote_buf.as_str()?;
+                        let remote_name =
+                            match repo::get_branch_upstream_remote(&repo_path, &branch_name) {
+                                Some(name) => name,
+                                None => {
+                                    return Ok(
+                                        "No upstream tracking branch configured for this branch"
+                                            .to_string(),
+                                    );
+                                }
+                            };
 
                         let output = std::process::Command::new("git")
                             .env("GIT_TERMINAL_PROMPT", "0")
                             .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
                             .arg("fetch")
-                            .arg(remote_name)
+                            .arg(&remote_name)
                             .current_dir(&repo_path)
                             .output()?;
 
@@ -2115,18 +2110,10 @@ impl App {
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                        let repo = git2::Repository::open(&repo_path)?;
-                        let branch = repo.find_branch(&branch_name, git2::BranchType::Local)?;
-
-                        let _upstream = match branch.upstream() {
-                            Ok(u) => u,
-                            Err(_) => {
-                                return Ok(
-                                    "No upstream tracking branch configured for this branch"
-                                        .to_string(),
-                                );
-                            }
-                        };
+                        if !repo::has_upstream_remote(&repo_path, &branch_name) {
+                            return Ok("No upstream tracking branch configured for this branch"
+                                .to_string());
+                        }
 
                         let output = std::process::Command::new("git")
                             .env("GIT_TERMINAL_PROMPT", "0")
@@ -2169,19 +2156,7 @@ impl App {
             {
                 let branch_name = branch_info.name.clone();
                 // Check if this branch already has a configured upstream remote.
-                let has_upstream = git2::Repository::open(resolved)
-                    .ok()
-                    .and_then(|repo| {
-                        repo.find_branch(&branch_name, git2::BranchType::Local).ok().and_then(|b| {
-                            b.upstream().ok().and_then(|up| {
-                                up.get()
-                                    .name()
-                                    .ok()
-                                    .and_then(|n| repo.branch_upstream_remote(n).ok())
-                            })
-                        })
-                    })
-                    .is_some();
+                let has_upstream = repo::has_upstream_remote(resolved, &branch_name);
 
                 if !has_upstream && info.remotes.len() > 1 {
                     // Multiple remotes, no upstream — ask user to pick.
@@ -2224,31 +2199,11 @@ impl App {
             let repo_path = resolved.clone();
             let branch_name = branch_name.to_string();
 
-            let mut remote_name = None;
-            let mut set_upstream = false;
-
-            if let Ok(repo) = git2::Repository::open(&repo_path) {
-                if let Ok(branch) = repo.find_branch(&branch_name, git2::BranchType::Local) {
-                    if let Ok(upstream) = branch.upstream() {
-                        if let Ok(upstream_ref) = upstream.get().name() {
-                            if let Ok(remote_buf) = repo.branch_upstream_remote(upstream_ref) {
-                                if let Ok(name) = remote_buf.as_str() {
-                                    remote_name = Some(name.to_string());
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if remote_name.is_none() {
-                    if let Ok(remotes) = repo.remotes() {
-                        if let Some(Ok(Some(first_remote))) = remotes.iter().next() {
-                            remote_name = Some(first_remote.to_string());
-                            set_upstream = true;
-                        }
-                    }
-                }
-            }
+            let (remote_name, set_upstream) =
+                match repo::get_branch_push_target(&repo_path, &branch_name) {
+                    Some((name, set_up)) => (Some(name), set_up),
+                    None => (None, false),
+                };
 
             let remote_name = match remote_name {
                 Some(name) => name,
@@ -3038,19 +2993,7 @@ impl App {
 
         if let Some((repo_path, commit_oid)) = params {
             // Check if the commit is root using git2
-            let is_root = if let Ok(repo) = git2::Repository::open(&repo_path) {
-                if let Ok(oid) = git2::Oid::from_str(&commit_oid) {
-                    if let Ok(commit) = repo.find_commit(oid) {
-                        commit.parent_count() == 0
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            } else {
-                false
-            };
+            let is_root = repo::is_root_commit(&repo_path, &commit_oid);
 
             let target = if is_root { "--root".to_string() } else { format!("{}~1", commit_oid) };
             self.pending_interactive_rebase = Some((repo_path, target));
