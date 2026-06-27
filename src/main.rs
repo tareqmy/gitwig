@@ -23,6 +23,9 @@ mod config;
 mod debug_log;
 mod input;
 pub use gitwig_core as repo;
+mod queue;
+mod keys;
+mod components;
 mod ui;
 mod ui_detail;
 
