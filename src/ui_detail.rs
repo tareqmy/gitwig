@@ -4220,7 +4220,10 @@ fn draw_cherry_pick_popup(
     let details_content = vec![
         Line::from(vec![
             Span::styled("Commit: ", muted_style()),
-            Span::styled(format!("{:.7}", commit_oid), accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{:.7}", commit_oid),
+                accent_style().add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" ("),
             Span::styled(summary, primary_style()),
             Span::raw(")"),
@@ -4234,9 +4237,10 @@ fn draw_cherry_pick_popup(
 
     // Destination branches dropdown (List)
     let items: Vec<ListItem> = if app.cherry_pick_dest_branches.is_empty() {
-        vec![ListItem::new(Line::from(vec![
-            Span::styled("  (No local branches found)", muted_style()),
-        ]))]
+        vec![ListItem::new(Line::from(vec![Span::styled(
+            "  (No local branches found)",
+            muted_style(),
+        )]))]
     } else {
         app.cherry_pick_dest_branches
             .iter()

@@ -224,6 +224,8 @@ pub fn draw(
             | Mode::StashApplyConfirm
             | Mode::CherryPickConfirm
             | Mode::RevertConfirm
+            | Mode::MergeAbortConfirm
+            | Mode::MergeContinueConfirm
             | Mode::StashCreateInput
             | Mode::RemotePicker
             | Mode::CommitSearchInput
@@ -1112,30 +1114,27 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             draw_status_layout(f, area, msg_spans, entries, app);
         }
         Mode::MergeAbortConfirm => {
-            let msg_spans = vec![
-                Span::styled(
-                    "Abort Merge  ",
-                    Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-                ),
-                Span::styled(
-                    "Are you sure you want to abort the merge?  ",
-                    primary_style(),
-                ),
+            let msg_spans = vec![Span::styled(
+                "Abort Merge?  ",
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+            )];
+            let entries = vec![
+                StatusEntry::new(vec![
+                    Span::raw("Confirm"),
+                    Span::raw(" "),
+                    Span::styled("[", muted_style()),
+                    Span::styled("y", accent_style()),
+                    Span::styled("]", muted_style()),
+                ]),
+                StatusEntry::new(vec![
+                    Span::styled(" ", muted_style()),
+                    Span::raw("Cancel"),
+                    Span::raw(" "),
+                    Span::styled("[", muted_style()),
+                    Span::styled("n/⎋", accent_style()),
+                    Span::styled("]", muted_style()),
+                ]),
             ];
-            let entries_data = [("Confirm Abort", "y"), ("Cancel", "n/Esc")];
-            let mut entries = Vec::new();
-            for (i, (label, key)) in entries_data.iter().enumerate() {
-                let mut spans = Vec::new();
-                if i > 0 {
-                    spans.push(Span::styled(" ", muted_style()));
-                }
-                spans.push(Span::raw((*label).to_string()));
-                spans.push(Span::raw(" "));
-                spans.push(Span::styled("[", muted_style()));
-                spans.push(Span::styled((*key).to_string(), accent_style()));
-                spans.push(Span::styled("]", muted_style()));
-                entries.push(StatusEntry::new(spans));
-            }
             draw_status_layout(f, area, Some(msg_spans), entries, app);
         }
         Mode::MergeContinueConfirm => {

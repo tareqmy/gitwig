@@ -2855,19 +2855,20 @@ impl App {
             let mut local_branches = Vec::new();
             if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
                 let current_branch = info.branch.as_deref().unwrap_or("HEAD");
-                
+
                 let mut branches_list = Vec::new();
                 if let Some(branches) = info.local_branches.as_ref() {
                     branches_list = branches.iter().map(|b| b.name.clone()).collect();
                 }
-                
+
                 if branches_list.is_empty() {
                     match repo::load_tab_branches(resolved) {
                         (Ok(branches), _) => {
                             branches_list = branches.iter().map(|b| b.name.clone()).collect();
                         }
                         (Err(err), _) => {
-                            self.status_message = Some(format!("Failed to load local branches: {}", err));
+                            self.status_message =
+                                Some(format!("Failed to load local branches: {}", err));
                         }
                     }
                 }
