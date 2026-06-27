@@ -473,8 +473,17 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             _ => {}
         },
         Mode::CherryPickConfirm => match code {
-            KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_cherry_pick(),
-            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_cherry_pick(),
+            KeyCode::Up | KeyCode::Char('k') => {
+                app.cherry_pick_dest_selection = app.cherry_pick_dest_selection.saturating_sub(1);
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if !app.cherry_pick_dest_branches.is_empty() {
+                    app.cherry_pick_dest_selection = (app.cherry_pick_dest_selection + 1)
+                        .min(app.cherry_pick_dest_branches.len().saturating_sub(1));
+                }
+            }
+            KeyCode::Enter => app.confirm_cherry_pick(),
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.cancel_cherry_pick(),
             _ => {}
         },
         Mode::RevertConfirm => match code {

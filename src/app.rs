@@ -359,6 +359,10 @@ pub struct App {
     pub discard_target: Option<(String, bool)>,
     /// Target commit (hash, summary) for cherry-pick.
     pub cherry_pick_target: Option<(String, String)>,
+    /// Selected destination branch index for the cherry-pick popup.
+    pub cherry_pick_dest_selection: usize,
+    /// List of local branch names available for cherry-pick destination.
+    pub cherry_pick_dest_branches: Vec<String>,
     /// Target commit (hash, summary) for revert.
     pub revert_target: Option<(String, String)>,
     /// Simulated fetch progress percentage.
@@ -536,6 +540,8 @@ impl App {
             tag_push_target: None,
             discard_target: None,
             cherry_pick_target: None,
+            cherry_pick_dest_selection: 0,
+            cherry_pick_dest_branches: Vec::new(),
             revert_target: None,
             fetch_progress: 0,
             stash_apply_delete_after: true,
@@ -2846,6 +2852,38 @@ impl App {
         };
 
         if let Some((oid, summary)) = commit_data {
+            let mut local_branches = Vec::new();
+            if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+                let current_branch = info.branch.as_deref().unwrap_or("HEAD");
+                
+                let mut branches_list = Vec::new();
+                if let Some(branches) = info.local_branches.as_ref() {
+                    branches_list = branches.iter().map(|b| b.name.clone()).collect();
+                }
+                
+                if branches_list.is_empty() {
+                    match repo::load_tab_branches(resolved) {
+                        (Ok(branches), _) => {
+                            branches_list = branches.iter().map(|b| b.name.clone()).collect();
+                        }
+                        (Err(err), _) => {
+                            self.status_message = Some(format!("Failed to load local branches: {}", err));
+                        }
+                    }
+                }
+
+                local_branches = branches_list
+                    .into_iter()
+                    .filter(|name| name != current_branch)
+                    .collect();
+            }
+
+            if local_branches.is_empty() && self.status_message.is_none() {
+                self.status_message = Some("No local destination branches found.".to_string());
+            }
+
+            self.cherry_pick_dest_branches = local_branches;
+            self.cherry_pick_dest_selection = 0;
             self.cherry_pick_target = Some((oid, summary));
             self.mode = Mode::CherryPickConfirm;
         }
@@ -2853,18 +2891,39 @@ impl App {
 
     pub fn confirm_cherry_pick(&mut self) {
         let target = self.cherry_pick_target.take();
+        let dest_branch = self
+            .cherry_pick_dest_branches
+            .get(self.cherry_pick_dest_selection)
+            .cloned();
         self.mode = Mode::Detail;
 
-        if let Some((commit_oid, _summary)) = target {
+        if let (Some((commit_oid, _summary)), Some(dest_branch)) = (target, dest_branch) {
             if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
                 self.fetching = true;
-                self.status_message = Some(format!("Cherry-picking commit {:.7}...", commit_oid));
+                self.status_message = Some(format!(
+                    "Cherry-picking commit {:.7} into {}...",
+                    commit_oid, dest_branch
+                ));
 
                 let repo_path = resolved.clone();
                 let tx = self.tx.clone();
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                        // 1. Checkout the destination branch
+                        let checkout_output = std::process::Command::new("git")
+                            .arg("checkout")
+                            .arg(&dest_branch)
+                            .current_dir(&repo_path)
+                            .output()?;
+                        if !checkout_output.status.success() {
+                            let stderr = String::from_utf8_lossy(&checkout_output.stderr)
+                                .trim()
+                                .to_string();
+                            return Err(format!("git checkout failed: {}", stderr).into());
+                        }
+
+                        // 2. Perform cherry-pick
                         let output = std::process::Command::new("git")
                             .env("GIT_TERMINAL_PROMPT", "0")
                             .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
@@ -2875,8 +2934,8 @@ impl App {
 
                         if output.status.success() {
                             Ok(format!(
-                                "Cherry-picked commit {:.7} successfully",
-                                commit_oid
+                                "Cherry-picked commit {:.7} successfully into {}",
+                                commit_oid, dest_branch
                             ))
                         } else {
                             let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -2901,6 +2960,8 @@ impl App {
 
     pub fn cancel_cherry_pick(&mut self) {
         self.cherry_pick_target = None;
+        self.cherry_pick_dest_branches.clear();
+        self.cherry_pick_dest_selection = 0;
         self.mode = Mode::Detail;
     }
 
@@ -10334,5 +10395,107 @@ mod tests {
         assert!(app.status_message.is_some());
         let msg = app.status_message.as_ref().unwrap();
         assert!(msg.contains("Copied hash abc1234") || msg.contains("Failed to copy"));
+    }
+
+    #[test]
+    fn test_cherry_pick_destination_branches() {
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+            compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
+            tab_ttl_secs: 60,
+            resync_on_tab_change: false,
+            graph_max_commits: 1000,
+        };
+        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+
+        // Setup mock repo details
+        let mut info = repo::RepoInfo {
+            branch: Some("main".to_string()),
+            ..Default::default()
+        };
+        info.commits.push(repo::CommitEntry {
+            id: "abc1234".to_string(),
+            oid: "abc123456789".to_string(),
+            author: "Tester".to_string(),
+            when: "".to_string(),
+            date: "".to_string(),
+            summary: "Initial commit".to_string(),
+            message: "Initial commit".to_string(),
+            refs: vec![],
+            files: vec![],
+            signature_status: "".to_string(),
+        });
+        info.local_branches = repo::TabData::Loaded(vec![
+            repo::BranchInfo {
+                name: "main".to_string(),
+                is_head: true,
+                short_sha: "abc1234".to_string(),
+                short_message: "msg".to_string(),
+            },
+            repo::BranchInfo {
+                name: "feature-1".to_string(),
+                is_head: false,
+                short_sha: "def5678".to_string(),
+                short_message: "msg2".to_string(),
+            },
+            repo::BranchInfo {
+                name: "feature-2".to_string(),
+                is_head: false,
+                short_sha: "9999999".to_string(),
+                short_message: "msg3".to_string(),
+            },
+        ]);
+        app.current_detail = Some(repo::ItemDetail::Repo {
+            resolved: PathBuf::from("/dummy"),
+            info: Box::new(info),
+        });
+
+        // Trigger cherry pick
+        app.commit_selection = 0;
+        app.request_cherry_pick();
+
+        assert_eq!(app.mode, Mode::CherryPickConfirm);
+        assert_eq!(app.cherry_pick_dest_branches.len(), 2);
+        assert_eq!(app.cherry_pick_dest_branches[0], "feature-1");
+        assert_eq!(app.cherry_pick_dest_branches[1], "feature-2");
+        assert_eq!(app.cherry_pick_dest_selection, 0);
+
+        // Test navigation
+        // Press Down
+        let event_down = crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Down,
+            crossterm::event::KeyModifiers::empty(),
+        );
+        crate::input::handle_key(&mut app, event_down, 0);
+        assert_eq!(app.cherry_pick_dest_selection, 1);
+
+        // Press Down again (should clamp)
+        let event_down_again = crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Down,
+            crossterm::event::KeyModifiers::empty(),
+        );
+        crate::input::handle_key(&mut app, event_down_again, 0);
+        assert_eq!(app.cherry_pick_dest_selection, 1);
+
+        // Press Up
+        let event_up = crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Up,
+            crossterm::event::KeyModifiers::empty(),
+        );
+        crate::input::handle_key(&mut app, event_up, 0);
+        assert_eq!(app.cherry_pick_dest_selection, 0);
     }
 }

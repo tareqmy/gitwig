@@ -973,10 +973,18 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             ];
             let entries = vec![
                 StatusEntry::new(vec![
-                    Span::raw("Confirm Cherry-pick"),
+                    Span::raw("Navigate"),
                     Span::raw(" "),
                     Span::styled("[", muted_style()),
-                    Span::styled("y", accent_style()),
+                    Span::styled("↑↓/jk", accent_style()),
+                    Span::styled("]", muted_style()),
+                ]),
+                StatusEntry::new(vec![
+                    Span::styled(" ", muted_style()),
+                    Span::raw("Confirm"),
+                    Span::raw(" "),
+                    Span::styled("[", muted_style()),
+                    Span::styled("↵", accent_style()),
                     Span::styled("]", muted_style()),
                 ]),
                 StatusEntry::new(vec![
@@ -984,7 +992,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     Span::raw("Cancel"),
                     Span::raw(" "),
                     Span::styled("[", muted_style()),
-                    Span::styled("n/⎋", accent_style()),
+                    Span::styled("⎋/q", accent_style()),
                     Span::styled("]", muted_style()),
                 ]),
             ];

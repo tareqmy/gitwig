@@ -771,7 +771,13 @@ pub fn draw(
             }
             // Draw cherry-pick popup on top when requested.
             if matches!(mode, Mode::CherryPickConfirm) {
-                draw_cherry_pick_popup(f, &app.cherry_pick_target, branch.as_deref(), body_area);
+                draw_cherry_pick_popup(
+                    f,
+                    &app.cherry_pick_target,
+                    branch.as_deref(),
+                    app,
+                    body_area,
+                );
             }
             // Draw revert popup on top when requested.
             if matches!(mode, Mode::RevertConfirm) {
@@ -4172,9 +4178,10 @@ fn draw_cherry_pick_popup(
     f: &mut Frame,
     target: &Option<(String, String)>,
     current_branch: Option<&str>,
+    app: &crate::app::App,
     area: Rect,
 ) {
-    let popup_area = centred_rect(55, 25, area);
+    let popup_area = centred_rect(60, 75, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
@@ -4189,55 +4196,91 @@ fn draw_cherry_pick_popup(
         .border_type(BorderType::Rounded)
         .border_style(border_style)
         .title(title)
-        .padding(Padding::horizontal(1));
+        .padding(Padding::horizontal(2));
+
+    let inner = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    // Split inner: top contains details (2 rows), bottom contains list/dropdown.
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3), // Details (2 lines + spacer)
+            Constraint::Min(1),    // Local branches dropdown/list
+            Constraint::Length(1), // Help / shortcuts hint
+        ])
+        .split(inner);
 
     let (commit_oid, summary) = match target {
         Some((oid, sum)) => (oid.as_str(), sum.as_str()),
         None => ("", ""),
     };
+    let source_branch = current_branch.unwrap_or("HEAD");
 
-    let current = current_branch.unwrap_or("HEAD");
-
-    let content = vec![
+    let details_content = vec![
         Line::from(vec![
-            Span::styled(
-                "Are you sure you want to cherry-pick commit ",
-                primary_style(),
-            ),
-            Span::styled(
-                format!("{:.7}", commit_oid),
-                accent_style().add_modifier(Modifier::BOLD),
-            ),
-        ]),
-        Line::from(vec![
-            Span::styled("onto branch ", primary_style()),
-            Span::styled(
-                format!("'{}'", current),
-                accent_style().add_modifier(Modifier::BOLD),
-            ),
-            Span::raw("?"),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::raw("  "),
+            Span::styled("Commit: ", muted_style()),
+            Span::styled(format!("{:.7}", commit_oid), accent_style().add_modifier(Modifier::BOLD)),
+            Span::raw(" ("),
             Span::styled(summary, primary_style()),
+            Span::raw(")"),
         ]),
-        Line::from(""),
         Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
-            Span::styled(
-                "y",
-                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled("Taken From: ", muted_style()),
+            Span::styled(source_branch, primary_style().add_modifier(Modifier::BOLD)),
         ]),
     ];
+    f.render_widget(Paragraph::new(details_content), chunks[0]);
 
-    let paragraph = Paragraph::new(content)
-        .block(block)
-        .wrap(Wrap { trim: false });
-    f.render_widget(paragraph, popup_area);
+    // Destination branches dropdown (List)
+    let items: Vec<ListItem> = if app.cherry_pick_dest_branches.is_empty() {
+        vec![ListItem::new(Line::from(vec![
+            Span::styled("  (No local branches found)", muted_style()),
+        ]))]
+    } else {
+        app.cherry_pick_dest_branches
+            .iter()
+            .enumerate()
+            .map(|(i, b)| {
+                let is_selected = i == app.cherry_pick_dest_selection;
+                let style = if is_selected {
+                    accent_style().add_modifier(Modifier::BOLD | Modifier::REVERSED)
+                } else {
+                    primary_style()
+                };
+                let prefix = if is_selected { "▸ " } else { "  " };
+                ListItem::new(Line::from(vec![
+                    Span::styled(prefix, style),
+                    Span::styled(b.clone(), style),
+                ]))
+            })
+            .collect()
+    };
+
+    let mut list_state = ListState::default();
+    list_state.select(Some(app.cherry_pick_dest_selection));
+
+    let list_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Plain)
+        .border_style(muted_style())
+        .title("Select Destination Branch");
+
+    let list_area = chunks[1];
+    f.render_stateful_widget(
+        List::new(items).block(list_block),
+        list_area,
+        &mut list_state,
+    );
+
+    let hint = Line::from(vec![
+        Span::styled("↑↓ / j k navigate  ", muted_style()),
+        Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" confirm  ", muted_style()),
+        Span::styled("Esc / q", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" cancel", muted_style()),
+    ]);
+    f.render_widget(Paragraph::new(hint), chunks[2]);
 }
 
 fn draw_revert_popup(
