@@ -24,11 +24,22 @@ jobs:
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
 
+      - name: Install libgit2 dependency
+        run: sudo apt-get update && sudo apt-get install -y libgit2-dev
+
       - name: Check Formatting
-        run: cargo fmt --all -- --check
+        run: make fmt-check
 
       - name: Lint (Clippy)
-        run: cargo clippy --all-targets -- -D warnings
+        run: make lint
+
+  deny:
+    name: Cargo Deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check licenses, sources, and advisories
+        uses: EmbarkStudios/cargo-deny-action@v2
 
   test:
     name: Test Suite
@@ -50,4 +61,5 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgit2-dev
 
       - name: Run Tests
-        run: cargo test
+        run: make test
+

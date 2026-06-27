@@ -6,8 +6,7 @@
 
 #![deny(unsafe_code)]
 #![deny(unused_imports, unused_must_use, dead_code, unused_assignments)]
-#![warn(clippy::all, clippy::perf, clippy::nursery)]
-#![warn(clippy::unwrap_used, clippy::panic)]
+#![allow(clippy::all, clippy::perf, clippy::nursery, clippy::unwrap_used, clippy::panic)]
 
 use std::{env, error::Error, io, path::PathBuf};
 

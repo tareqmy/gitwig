@@ -42,7 +42,7 @@ clean:
 	cargo clean
 
 lint:
-	cargo clippy -p gitwig --all-targets
+	cargo clippy --workspace --all-targets -- -D warnings -D clippy::unwrap_used
 
 fmt-check:
 	cargo fmt -- --check
