@@ -120,6 +120,10 @@ pub struct DetailAreas {
     pub stashes_inner: Option<Rect>,
     /// Inner area of stashed files list.
     pub stashed_files_inner: Option<Rect>,
+    /// Bounding box of the commit message popup.
+    pub commit_popup: Option<Rect>,
+    /// Bounding box of the parent area the commit popup was centered inside.
+    pub commit_popup_parent: Option<Rect>,
 }
 
 /// Renders the detail view into `area` and records panel bounds in `areas`.
@@ -684,7 +688,8 @@ pub fn draw(
                     commit_amend,
                     commit_input_scroll,
                     body_area,
-                    app.commit_popup_maximized,
+                    app,
+                    areas,
                 );
             }
             // Draw search column picker popup on top when requested.
@@ -2225,6 +2230,7 @@ fn kind_line(
 }
 
 /// Renders a commit confirmation/input popup centered over `area`.
+#[allow(clippy::too_many_arguments)]
 fn draw_commit_popup(
     f: &mut Frame,
     input_buffer: &str,
@@ -2232,17 +2238,24 @@ fn draw_commit_popup(
     commit_amend: bool,
     scroll: usize,
     area: Rect,
-    maximized: bool,
+    app: &crate::app::App,
+    areas: &mut DetailAreas,
 ) {
-    let popup_area = if maximized {
+    let popup_area = if app.commit_popup_maximized {
         let width = area.width.saturating_sub(20).max(area.width.min(40));
         let height = area.height.saturating_sub(20).max(area.height.min(15));
         let x = area.x + (area.width.saturating_sub(width)) / 2;
         let y = area.y + (area.height.saturating_sub(height)) / 2;
         Rect::new(x, y, width, height)
     } else {
-        centred_rect(80, 45, area)
+        centred_rect(
+            app.commit_popup_width_pct,
+            app.commit_popup_height_pct,
+            area,
+        )
     };
+    areas.commit_popup = Some(popup_area);
+    areas.commit_popup_parent = Some(area);
     f.render_widget(Clear, popup_area);
 
     let border_color = if editing { ACCENT() } else { WARNING() };

@@ -2029,12 +2029,104 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         }
                     }
                 }
+                Splitter::CommitPopupWidth => {
+                    if let Some(parent) = areas.commit_popup_parent {
+                        if parent.width > 0 {
+                            let center_x = parent.x + parent.width / 2;
+                            let half_width = (pos.x as i16 - center_x as i16).unsigned_abs();
+                            let new_width = 2 * half_width;
+                            let pct = ((new_width as f32 / parent.width as f32) * 100.0) as u16;
+                            app.commit_popup_width_pct = pct.clamp(20, 98);
+                        }
+                    }
+                }
+                Splitter::CommitPopupHeight => {
+                    if let Some(parent) = areas.commit_popup_parent {
+                        if parent.height > 0 {
+                            let center_y = parent.y + parent.height / 2;
+                            let half_height = (pos.y as i16 - center_y as i16).unsigned_abs();
+                            let new_height = 2 * half_height;
+                            let pct = ((new_height as f32 / parent.height as f32) * 100.0) as u16;
+                            app.commit_popup_height_pct = pct.clamp(20, 95);
+                        }
+                    }
+                }
+                Splitter::CommitPopupBoth => {
+                    if let Some(parent) = areas.commit_popup_parent {
+                        if parent.width > 0 && parent.height > 0 {
+                            let center_x = parent.x + parent.width / 2;
+                            let half_width = (pos.x as i16 - center_x as i16).unsigned_abs();
+                            let new_width = 2 * half_width;
+                            let pct_x = ((new_width as f32 / parent.width as f32) * 100.0) as u16;
+                            app.commit_popup_width_pct = pct_x.clamp(20, 98);
+
+                            let center_y = parent.y + parent.height / 2;
+                            let half_height = (pos.y as i16 - center_y as i16).unsigned_abs();
+                            let new_height = 2 * half_height;
+                            let pct_y = ((new_height as f32 / parent.height as f32) * 100.0) as u16;
+                            app.commit_popup_height_pct = pct_y.clamp(20, 95);
+                        }
+                    }
+                }
             }
         }
         return;
     }
 
     if is_click {
+        if app.mode == Mode::CommitInput {
+            if let Some(rect) = areas.commit_popup {
+                let on_left = pos.x == rect.x;
+                let on_right = pos.x == rect.x + rect.width - 1;
+                let on_top = pos.y == rect.y;
+                let on_bottom = pos.y == rect.y + rect.height - 1;
+
+                if (on_left || on_right) && (on_top || on_bottom) {
+                    if app.commit_popup_maximized {
+                        if let Some(parent) = areas.commit_popup_parent {
+                            if parent.width > 0 && parent.height > 0 {
+                                app.commit_popup_width_pct =
+                                    ((rect.width as f32 / parent.width as f32) * 100.0) as u16;
+                                app.commit_popup_height_pct =
+                                    ((rect.height as f32 / parent.height as f32) * 100.0) as u16;
+                            }
+                        }
+                        app.commit_popup_maximized = false;
+                    }
+                    app.active_drag_splitter = Some(Splitter::CommitPopupBoth);
+                    return;
+                } else if on_left || on_right {
+                    if app.commit_popup_maximized {
+                        if let Some(parent) = areas.commit_popup_parent {
+                            if parent.width > 0 && parent.height > 0 {
+                                app.commit_popup_width_pct =
+                                    ((rect.width as f32 / parent.width as f32) * 100.0) as u16;
+                                app.commit_popup_height_pct =
+                                    ((rect.height as f32 / parent.height as f32) * 100.0) as u16;
+                            }
+                        }
+                        app.commit_popup_maximized = false;
+                    }
+                    app.active_drag_splitter = Some(Splitter::CommitPopupWidth);
+                    return;
+                } else if on_top || on_bottom {
+                    if app.commit_popup_maximized {
+                        if let Some(parent) = areas.commit_popup_parent {
+                            if parent.width > 0 && parent.height > 0 {
+                                app.commit_popup_width_pct =
+                                    ((rect.width as f32 / parent.width as f32) * 100.0) as u16;
+                                app.commit_popup_height_pct =
+                                    ((rect.height as f32 / parent.height as f32) * 100.0) as u16;
+                            }
+                        }
+                        app.commit_popup_maximized = false;
+                    }
+                    app.active_drag_splitter = Some(Splitter::CommitPopupHeight);
+                    return;
+                }
+            }
+        }
+
         if let Some(rect) = areas.inspect_horizontal_splitter {
             if rect.contains(pos) {
                 app.active_drag_splitter = Some(Splitter::InspectHorizontal);

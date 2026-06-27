@@ -164,6 +164,9 @@ pub enum Splitter {
     StashesHorizontal,  // Stashes view: left (lists) vs right (diff)
     StashesVertical,    // Stashes view: top list vs bottom files list
     OverviewHorizontal, // Overview view: left (info) vs right (stats)
+    CommitPopupWidth,   // Dragging vertical border of commit popup
+    CommitPopupHeight,  // Dragging horizontal border of commit popup
+    CommitPopupBoth,    // Dragging corner of commit popup
 }
 
 impl DetailSection {
@@ -386,6 +389,10 @@ pub struct App {
     pub stashes_vertical_split_pct: u16,
     /// Percentage width of the left overview panel in the Overview tab (default: 50).
     pub overview_horizontal_split_pct: u16,
+    /// Percentage width of the commit message popup (default: 80).
+    pub commit_popup_width_pct: u16,
+    /// Percentage height of the commit message popup (default: 45).
+    pub commit_popup_height_pct: u16,
     /// Active drag splitter if dragging is in progress.
     pub active_drag_splitter: Option<Splitter>,
     pub settings_selected_index: usize,
@@ -543,6 +550,8 @@ impl App {
             stashes_horizontal_split_pct: 38,
             stashes_vertical_split_pct: 38,
             overview_horizontal_split_pct: 38,
+            commit_popup_width_pct: 80,
+            commit_popup_height_pct: 45,
             active_drag_splitter: None,
             settings_selected_index: 0,
             settings_editing: false,
@@ -10100,5 +10109,78 @@ mod tests {
 
         // Clean up
         let _ = std::fs::remove_dir_all(&repo_path);
+    }
+
+    #[test]
+    fn test_commit_popup_mouse_resize() {
+        use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+        use ratatui::layout::Rect;
+
+        let config = Config {
+            items: vec![],
+            poll_interval_ms: 100,
+            max_commits: 0,
+            page_size: 10,
+            sort_by: SortOrder::Custom,
+            visits: HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme: ThemeConfig::default(),
+            theme_name: "default".to_string(),
+            fzf: FzfConfig::default(),
+            git_app: "gitui".to_string(),
+            compatibility_mode: false,
+            detail_cache_ttl_secs: 30,
+            enable_commit_signatures: false,
+            tab_ttl_secs: 60,
+            resync_on_tab_change: false,
+            graph_max_commits: 1000,
+        };
+        let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_resize.toml");
+        let _guard = TestFileGuard {
+            path: temp_path.clone(),
+        };
+        let mut app = App::new(config, temp_path);
+
+        app.mode = Mode::CommitInput;
+        app.commit_popup_width_pct = 80;
+        app.commit_popup_height_pct = 45;
+
+        // Mock detail_areas
+        // Parent area is 100x100
+        // Popup area with 80% width and 45% height is centered:
+        // width = 80, height = 45. x = 10, y = 27
+        app.detail_areas.commit_popup_parent = Some(Rect::new(0, 0, 100, 100));
+        app.detail_areas.commit_popup = Some(Rect::new(10, 27, 80, 45));
+
+        // Click on the right border (pos.x = 89, pos.y = 50)
+        let down_event = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 89,
+            row: 50,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, down_event);
+        assert_eq!(app.active_drag_splitter, Some(Splitter::CommitPopupWidth));
+
+        // Drag right border to column 95 -> new half_width = |95 - 50| = 45 -> new_width = 90 -> 90%
+        let drag_event = MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: 95,
+            row: 50,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, drag_event);
+        assert_eq!(app.commit_popup_width_pct, 90);
+
+        // Release mouse
+        let up_event = MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Left),
+            column: 95,
+            row: 50,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        crate::input::handle_mouse(&mut app, up_event);
+        assert_eq!(app.active_drag_splitter, None);
     }
 }
