@@ -12,7 +12,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph};
 
 pub fn draw_stashing_ui(f: &mut Frame, info: &RepoInfo, app: &App, area: Rect) {
-    let popup_area = centered_rect(75, 65, area);
+    let popup_area = centered_rect(85, 75, area);
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
