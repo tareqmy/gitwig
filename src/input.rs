@@ -119,6 +119,11 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
+        Mode::FileHistory => {
+            if crate::tabs::FileHistoryTab::handle_event(app, key) {
+                return true;
+            }
+        }
 
         Mode::Inspect => {
             if crate::popups::inspect::InspectPopup::handle_event(app, key) {

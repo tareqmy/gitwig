@@ -539,6 +539,35 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = inspect_dismiss_entries(app);
             draw_status_layout(f, area, msg_spans, entries, app);
         }
+        Mode::FileHistory => {
+            let msg_spans = vec![Span::styled(
+                "File History  ",
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+            )];
+            let entries_data = if app.file_history_focus == 0 {
+                vec![("Back", "Esc/q"), ("Navigate Revisions", "↑↓"), ("Focus Diff", "Tab/w/→")]
+            } else {
+                vec![
+                    ("Back", "Esc/q"),
+                    ("Scroll Diff", "↑↓/PgUp/PgDn"),
+                    ("Focus Revisions", "Tab/w/←"),
+                ]
+            };
+            let mut entries = Vec::new();
+            for (i, (label, key)) in entries_data.iter().enumerate() {
+                let mut spans = Vec::new();
+                if i > 0 {
+                    spans.push(Span::styled(" ", muted_style()));
+                }
+                spans.push(Span::raw((*label).to_string()));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("[", muted_style()));
+                spans.push(Span::styled((*key).to_string(), accent_style()));
+                spans.push(Span::styled("]", muted_style()));
+                entries.push(StatusEntry::new(spans));
+            }
+            draw_status_layout(f, area, Some(msg_spans), entries, app);
+        }
         Mode::DebugLogs => {
             let msg_spans = vec![Span::styled(
                 "Debug Logs  ",
@@ -661,6 +690,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             if app.detail_focus == DetailSection::Files {
                 v.push(("Expand/Collapse", "←/→"));
                 v.push(("Fuzzy Find", "f"));
+                v.push(("History", "⇧H"));
             } else if app.detail_focus == DetailSection::FileContent {
                 if app.inspect_full_diff {
                     v.push(("Exit Full Screen", "←/⎋/q"));
@@ -1026,6 +1056,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         Mode::Normal => ("NORMAL", Color::Blue),
         Mode::Detail => ("DETAIL", Color::Magenta),
         Mode::Inspect => ("INSPECT", Color::Rgb(175, 95, 0)),
+        Mode::FileHistory => ("HISTORY", Color::Rgb(0, 135, 175)),
         Mode::StashingUI => ("STASH", Color::Cyan),
         Mode::Settings => ("SETTINGS", Color::Green),
         Mode::Help | Mode::DetailHelp => ("HELP", Color::DarkGray),

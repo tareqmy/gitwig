@@ -75,6 +75,7 @@
 | `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) or Local/Remote tag (Tags tab) |
 | `←` / `→` or `<` / `>` or `,` / `.` | Detail | Collapse/Expand directory (Files tab) |
 | `f`                  | Detail          | Fuzzy find files (Files tab)      |
+| `Shift+H`            | Detail          | View selected file's commit/revision history (Files tab) |
 | `c`                  | Detail          | Open commit prompt (Workspace tab or Inspect view), or Create branch from HEAD (Branches tab) |
 | `a`                  | Detail          | Stage All (Workspace tab Unstaged focus) / Unstage All (Workspace tab Staged focus) or Apply stash (Stashes tab) |
 | `x`                  | Detail          | Discard selected file changes (Workspace tab or Inspect view; asks confirmation) |
@@ -172,6 +173,7 @@ The **Files** tab displays all tracked files in the repository as an interactive
 - **Expand Folder:** Select a collapsed directory and press `>` or `.` or `Right-Arrow`.
 - **Collapse Folder:** Select an expanded directory and press `<` or `,` or `Left-Arrow`.
 - **Preview Panel:** Selecting a file displays its content (up to 100 KB) on the right; selecting a directory displays a list of files and folders directly inside it.
+- **File History View:** Select any file in the tree and press `Shift+H` to open a history split-panel view, showing revisions on the left and the revision's diff on the right. Press `Tab` / `w` to cycle focus, and `Esc` / `q` to return.
 
 ### Graph Tab
 

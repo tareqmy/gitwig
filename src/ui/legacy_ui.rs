@@ -141,6 +141,8 @@ pub fn draw(
                 content_area,
             );
         }
+    } else if app.mode == Mode::FileHistory {
+        crate::tabs::FileHistoryTab::draw_file_history(f, app, content_area);
     } else if app.mode == Mode::Settings {
         crate::popups::settings::draw_settings_page(f, app, content_area);
     } else if app.mode == Mode::DebugLogs {
@@ -1016,6 +1018,7 @@ mod tests {
             .collect();
         assert!(entry_labels_f1.iter().any(|label| label.contains("Fuzzy Find [f]")));
         assert!(entry_labels_f1.iter().any(|label| label.contains("Expand/Collapse [←/→]")));
+        assert!(entry_labels_f1.iter().any(|label| label.contains("History [⇧H]")));
 
         // Tab 1: Files - FileContent Focus
         app.detail_focus = DetailSection::FileContent;
@@ -1028,6 +1031,7 @@ mod tests {
             .collect();
         assert!(!entry_labels_f2.iter().any(|label| label.contains("Fuzzy Find [f]")));
         assert!(!entry_labels_f2.iter().any(|label| label.contains("Expand/Collapse [←/→]")));
+        assert!(!entry_labels_f2.iter().any(|label| label.contains("History [⇧H]")));
         assert!(entry_labels_f2.iter().any(|label| label.contains("Full Screen [→]")));
 
         app.inspect_full_diff = true;

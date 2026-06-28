@@ -49,6 +49,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Mice click on tab headers to change active tabs in the Detail view.
 - [x] Mouse wheel vertical scroll support for all scrollable views (lists, trees, diffs).
 - [x] Files tab showing tracked repository files in an interactive nested tree structure with split-panel preview (file contents or folder list).
+- [x] Per-file revision history view (shortcut `Shift+H` in Files tab).
 - [x] Stash list (dedicated Stashes detail tab).
 - [x] Stashing actions: apply and delete stash (Details / Stashes).
 - [x] Main page sorting (Alphabetical, Recent Visit, Latest Changes, Custom) and direction toggle (o / O).

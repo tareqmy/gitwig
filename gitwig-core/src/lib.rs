@@ -78,6 +78,15 @@ pub struct BranchInfo {
 }
 
 #[derive(Debug, Clone, Default)]
+pub struct FileRevision {
+    pub commit_oid: String,
+    pub author: String,
+    pub date: String,
+    pub when: String,
+    pub summary: String,
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct StashInfo {
     pub index: usize,
     pub message: String,
@@ -1035,6 +1044,77 @@ fn collect_commits(
     }
 
     Ok(commits)
+}
+
+pub fn get_file_history(repo_path: &Path, file_path: &str) -> Result<Vec<FileRevision>, String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let mut walk = repo.revwalk().map_err(|e| e.to_string())?;
+    if walk.push_head().is_err() {
+        return Ok(Vec::new());
+    }
+    walk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME).map_err(|e| e.to_string())?;
+
+    let mut revisions = Vec::new();
+
+    for oid_res in walk {
+        let oid = oid_res.map_err(|e| e.to_string())?;
+        let commit = repo.find_commit(oid).map_err(|e| e.to_string())?;
+
+        let commit_tree = commit.tree().map_err(|e| e.to_string())?;
+        let mut modified = false;
+
+        if commit.parent_count() > 0 {
+            for i in 0..commit.parent_count() {
+                if let Ok(parent) = commit.parent(i) {
+                    if let Ok(parent_tree) = parent.tree() {
+                        let mut diff_opts = git2::DiffOptions::new();
+                        diff_opts.pathspec(file_path);
+                        if let Ok(diff) = repo.diff_tree_to_tree(
+                            Some(&parent_tree),
+                            Some(&commit_tree),
+                            Some(&mut diff_opts),
+                        ) {
+                            if diff.deltas().len() > 0 {
+                                modified = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            let mut diff_opts = git2::DiffOptions::new();
+            diff_opts.pathspec(file_path);
+            if let Ok(diff) = repo.diff_tree_to_tree(None, Some(&commit_tree), Some(&mut diff_opts))
+            {
+                if diff.deltas().len() > 0 {
+                    modified = true;
+                }
+            }
+        }
+
+        if modified {
+            let author = commit.author();
+            let author_name = author.name().unwrap_or("?");
+            let author_email = author.email().unwrap_or("?");
+            let author_str = format!("{} <{}>", author_name, author_email);
+            let time_secs = commit.time().seconds();
+            let when = format_relative_time(time_secs);
+            let date = format_utc_date(time_secs);
+            let summary =
+                commit.summary().ok().flatten().unwrap_or("(no commit message)").to_string();
+
+            revisions.push(FileRevision {
+                commit_oid: oid.to_string(),
+                author: author_str,
+                date,
+                when,
+                summary,
+            });
+        }
+    }
+
+    Ok(revisions)
 }
 
 fn collect_committer_stats(

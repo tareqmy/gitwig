@@ -88,7 +88,11 @@ pub fn get_detail_help_lines(app: &App) -> Vec<Line<'_>> {
         ),
         (
             "Files Tab",
-            vec![("← / → or < / >", "Collapse/Expand folder"), ("f", "Fuzzy find files")],
+            vec![
+                ("← / → or < / >", "Collapse/Expand folder"),
+                ("f", "Fuzzy find files"),
+                ("⇧H [Shift+H]", "Show file history"),
+            ],
         ),
         (
             "Branches & Tags Tab",

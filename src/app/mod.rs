@@ -130,6 +130,8 @@ pub enum Mode {
     CherryPickConfirm,
     /// Confirming revert of a commit.
     RevertConfirm,
+    /// Per-file history view.
+    FileHistory,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -409,6 +411,12 @@ pub struct App {
     pub detail_rx: std::sync::mpsc::Receiver<(String, repo::ItemDetail)>,
     pub tab_tx: std::sync::mpsc::Sender<(String, usize, repo::TabPayload)>,
     pub tab_rx: std::sync::mpsc::Receiver<(String, usize, repo::TabPayload)>,
+    pub file_history_revisions: Vec<repo::FileRevision>,
+    pub file_history_selection: usize,
+    pub file_history_diff: Vec<repo::DiffLine>,
+    pub file_history_diff_scroll: usize,
+    pub file_history_path: String,
+    pub file_history_focus: usize,
     pub cpu_tracker: std::sync::Mutex<Option<(f64, std::time::Instant, f64, f64)>>,
     pub watcher: Option<notify::RecommendedWatcher>,
 }
@@ -950,6 +958,12 @@ impl App {
             detail_rx,
             tab_tx,
             tab_rx,
+            file_history_revisions: Vec::new(),
+            file_history_selection: 0,
+            file_history_diff: Vec::new(),
+            file_history_diff_scroll: 0,
+            file_history_path: String::new(),
+            file_history_focus: 0,
             cpu_tracker: std::sync::Mutex::new(None),
             watcher: None,
         };

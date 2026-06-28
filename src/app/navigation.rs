@@ -2271,6 +2271,64 @@ impl App {
         }
     }
 
+    pub fn open_file_history(&mut self) {
+        let selected_file = if let Some(item) =
+            self.file_tree.visible_files.get(self.file_tree.file_list_selection)
+        {
+            if !item.is_dir { Some(item.full_path.clone()) } else { None }
+        } else {
+            None
+        };
+
+        if let Some(file_path) = selected_file {
+            let repo_path =
+                if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                    Some(resolved.clone())
+                } else {
+                    None
+                };
+            if let Some(repo_path) = repo_path {
+                match repo::get_file_history(&repo_path, &file_path) {
+                    Ok(revisions) => {
+                        self.file_history_revisions = revisions;
+                        self.file_history_selection = 0;
+                        self.file_history_path = file_path;
+                        self.file_history_diff = Vec::new();
+                        self.file_history_diff_scroll = 0;
+                        self.file_history_focus = 0;
+                        self.mode = Mode::FileHistory;
+                        self.refresh_file_history_diff();
+                    }
+                    Err(e) => {
+                        self.set_error(format!("Failed to load file history: {}", e));
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn refresh_file_history_diff(&mut self) {
+        if self.file_history_revisions.is_empty() {
+            self.file_history_diff = Vec::new();
+            return;
+        }
+        let revision = &self.file_history_revisions[self.file_history_selection].clone();
+        let repo_path = if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail
+        {
+            Some(resolved.clone())
+        } else {
+            None
+        };
+        if let Some(repo_path) = repo_path {
+            self.file_history_diff = repo::get_commit_file_diff(
+                &repo_path,
+                &revision.commit_oid,
+                &self.file_history_path,
+            );
+            self.file_history_diff_scroll = 0;
+        }
+    }
+
     /// Shift panel focus to the left.
     pub fn move_focus_left(&mut self) {
         if self.detail_tab == 3 {

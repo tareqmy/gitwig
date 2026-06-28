@@ -4189,3 +4189,73 @@ fn test_max_commits_limit_setting() {
     app.drain_queue();
     assert_eq!(app.commit_list.limit, 90);
 }
+
+#[test]
+fn test_file_history_view_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let config = Config {
+        items: vec![".".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 10,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_file_history.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+
+    let mut app = App::new(config, temp_path);
+    app.detail_tab = 1; // Files Tab
+    app.detail_focus = DetailSection::Files;
+
+    app.file_tree.visible_files.push(crate::app::FileTreeItem {
+        name: "Cargo.toml".to_string(),
+        full_path: "Cargo.toml".to_string(),
+        is_dir: false,
+        depth: 0,
+        is_expanded: false,
+    });
+    app.file_tree.file_list_selection = 0;
+
+    let mock_info = crate::repo::RepoInfo { ..crate::repo::RepoInfo::default() };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(mock_info),
+    });
+
+    // Open file history
+    app.open_file_history();
+    assert_eq!(app.mode, Mode::FileHistory);
+    assert_eq!(app.file_history_path, "Cargo.toml");
+    assert_eq!(app.file_history_selection, 0);
+    assert_eq!(app.file_history_focus, 0); // Focus on revisions list
+
+    // Simulate Key Press - Tab to focus Diff Panel
+    let consumed = crate::tabs::FileHistoryTab::handle_event(&mut app, key_event(KeyCode::Tab));
+    assert!(consumed);
+    assert_eq!(app.file_history_focus, 1); // Focus is on Diff panel
+
+    // Simulate Key Press - Tab to focus Revisions Panel
+    let consumed = crate::tabs::FileHistoryTab::handle_event(&mut app, key_event(KeyCode::Tab));
+    assert!(consumed);
+    assert_eq!(app.file_history_focus, 0); // Focus is back on Revisions
+
+    // Simulate Key Press - Esc to exit File History mode
+    let consumed = crate::tabs::FileHistoryTab::handle_event(&mut app, key_event(KeyCode::Esc));
+    assert!(consumed);
+    assert_eq!(app.mode, Mode::Detail);
+}

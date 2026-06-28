@@ -11,6 +11,10 @@ impl FilesTab {
         let ev = crossterm::event::Event::Key(key);
 
         if detail_focus == DetailSection::Files {
+            if code == KeyCode::Char('H') {
+                app.open_file_history();
+                return true;
+            }
             // 'f' launches FZF file picker
             if code == KeyCode::Char('f') {
                 app.pending_files_fzf = true;

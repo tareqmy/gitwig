@@ -2,6 +2,7 @@ use crate::app::{App, DetailSection};
 use crossterm::event::{KeyCode, KeyEvent};
 
 pub mod branches;
+pub mod file_history;
 pub mod files;
 pub mod graph;
 pub mod home;
@@ -12,6 +13,7 @@ pub mod tags;
 pub mod workspace;
 
 pub use branches::BranchesTab;
+pub use file_history::FileHistoryTab;
 pub use files::FilesTab;
 pub use graph::GraphTab;
 pub use home::HomeTab;
