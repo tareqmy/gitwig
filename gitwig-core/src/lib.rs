@@ -1166,6 +1166,11 @@ fn collect_info(
 
     populate_summary_and_file_changes(&repo, &mut info);
 
+    if let Ok(remotes) = load_tab_remotes(path) {
+        info.remotes = TabData::Loaded(remotes);
+        info.tab_loaded_at[5] = Some(std::time::Instant::now());
+    }
+
     Ok(info)
 }
 

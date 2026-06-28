@@ -1155,10 +1155,12 @@ where
                                 Ok(t) => repo::TabData::Loaded(t),
                                 Err(e) => repo::TabData::Error(e),
                             };
-                            info.remote_tags = match remote {
-                                Ok(t) => repo::TabData::Loaded(t),
-                                Err(e) => repo::TabData::Error(e),
-                            };
+                            if !info.remote_tags_loaded {
+                                info.remote_tags = match remote {
+                                    Ok(t) => repo::TabData::Loaded(t),
+                                    Err(e) => repo::TabData::Error(e),
+                                };
+                            }
                         }
                         repo::TabPayload::Remotes(res) => {
                             info.remotes = match res {

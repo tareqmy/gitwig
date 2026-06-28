@@ -422,6 +422,8 @@ impl App {
                 info.stashes = repo::TabData::NotLoaded;
                 info.graph_lines = repo::TabData::NotLoaded;
                 info.committer_stats = repo::TabData::NotLoaded;
+                info.remote_tags_loaded = false;
+                info.remote_tags_attempted = false;
                 info.tab_loaded_at = [None; 8];
             }
 
