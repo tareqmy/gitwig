@@ -1,5 +1,10 @@
 # 🌿 Gitwig — A Minimal Terminal Git UI
 
+<p align="center">
+  <img src="resources/icon.png" width="180" height="180" alt="Gitwig Logo" />
+</p>
+
+
 **Gitwig** (from **Git** + **Twig**, representing the branches of a repository) is a lightweight terminal-based Git UI, designed as a fast and minimal alternative to GUI tools like SourceTree. Built with Rust and `ratatui`, Gitwig presents your Git-related items in a clean, bordered layout directly in the terminal.
 
 ---

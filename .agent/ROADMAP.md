@@ -69,22 +69,22 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Conflict resolution UI.
 
 ## Phase 7: Advanced Git Workflows & Power-User Tools
-- [x] Add debug panel
+- [x] Add a debug panel
 - [x] Git clone
 - [x] Bulk add repo option
 - [x] Optional usage of fzf
 - [x] Git Remote add/delete option
-- [x] Ensure single character input to avoid multiple same command being applied.
+- [x] Ensure single character input to avoid multiple same commands being applied.
 - [x] About
-- [x] Solve windows button press bug
+- [x] Solve windows’ button press bug
 - [x] Commit Signatures: Display GPG/SSH commit verification status in the history log list.
 - [x] Stash Pop: Perform a single-action "Pop Stash" (apply and delete).
 - [x] Cherry-pick & Revert: Apply a specific commit (`cherry-pick`) or create a reverting commit (`revert`) from the log view.
 - [x] Commit window resize
 - [x] Show memory and cpu usage from within the app
 - [x] For large repo load time is high
-- [x] Refactor the codebase to make it managable
-- [ ] **Per repository settings, theme, font**
+- [x] Refactor the codebase to make it manageable
+- [ ] **Per repository settings, theme**
 - [ ] **Show UI first, Load data later per tab**
 - [ ] **Keybindings**
 - [ ] **Git logs pagination**
@@ -98,5 +98,5 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 ## Phase 8: Intelligent AI Integrations (Optional/Configurable)
 - [ ] **Semantic Commit Generator:** Press a key (e.g., `⌃G`) in the Commit popup to generate conventional commit messages from staged diffs using Gemini/Ollama/OpenAI APIs.
 - [ ] **Diff Summarizer:** Highlight a large diff/hunk and get a brief explanation of what the change does.
-- [ ] **Smart Conflict Explainer:** Provide a natural-language description of merge conflicts, highlighting the logical differences between "Ours" and "Theirs".
+- [ ] **Smart Conflict Explainer:** Provides a natural-language description of merge conflicts, highlighting the logical differences between "Ours" and "Theirs".
 - [ ] **Local LLM Support:** Integration with local Ollama instances for offline code analysis.
