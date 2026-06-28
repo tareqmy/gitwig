@@ -41,8 +41,8 @@ pub fn get_detail_help_lines(app: &App) -> Vec<Line<'_>> {
         (
             "General Navigation",
             vec![
-                ("↑ [Up]", "Select previous commit / file / branch / file tree item"),
-                ("↓ [Down]", "Select next commit / file / branch / file tree item"),
+                ("↑ [Up] / k", "Select previous commit / file / branch / file tree item"),
+                ("↓ [Down] / j", "Select next commit / file / branch / file tree item"),
                 ("⇞ [PgUp]", "Jump page size rows up"),
                 ("⇟ [PgDn]", "Jump page size rows down"),
                 ("Home", "Scroll to top / go to first item"),

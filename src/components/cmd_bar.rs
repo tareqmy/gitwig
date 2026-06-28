@@ -448,7 +448,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
-                    "Use arrow keys / PgUp / PgDn / Home / End to navigate commits  ",
+                    "Use arrow keys / j / k / PgUp / PgDn / Home / End to navigate commits  ",
                     muted_style(),
                 ),
             ];

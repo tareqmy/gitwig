@@ -40,8 +40,8 @@ pub fn get_help_lines(app: &App) -> Vec<Line<'_>> {
         (
             "Global & Navigation",
             vec![
-                ("↑ [Up]", "Move selection up / scroll up"),
-                ("↓ [Down]", "Move selection down / scroll down"),
+                ("↑ [Up] / k", "Move selection up / scroll up"),
+                ("↓ [Down] / j", "Move selection down / scroll down"),
                 ("⇞ [PgUp]", "Jump one page up"),
                 ("⇟ [PgDn]", "Jump one page down"),
                 ("Home", "Go to top / scroll to top"),
