@@ -129,12 +129,12 @@ pub fn draw_files_view(
                 let indent = "  ".repeat(item.depth);
                 let (prefix, style) = if item.is_dir {
                     if item.is_expanded {
-                        (app.sym("folder_tree_expanded"), primary_style())
+                        (files_tab_sym("folder_tree_expanded"), primary_style())
                     } else {
-                        (app.sym("folder_tree_collapsed"), primary_style())
+                        (files_tab_sym("folder_tree_collapsed"), primary_style())
                     }
                 } else {
-                    (app.sym("file_tree"), muted_style())
+                    (files_tab_sym("file_tree"), muted_style())
                 };
 
                 ListItem::new(Line::from(vec![
@@ -223,13 +223,13 @@ pub fn draw_files_view(
                     if is_dir {
                         lines.push(Line::from(vec![
                             Span::raw("  "),
-                            Span::styled(app.sym("folder"), Style::default().fg(ACCENT())),
+                            Span::styled(files_tab_sym("folder"), Style::default().fg(ACCENT())),
                             Span::styled(name, primary_style()),
                         ]));
                     } else {
                         lines.push(Line::from(vec![
                             Span::raw("  "),
-                            Span::styled(app.sym("file"), muted_style()),
+                            Span::styled(files_tab_sym("file"), muted_style()),
                             Span::raw(name),
                         ]));
                     }
@@ -542,5 +542,16 @@ impl Component for FileTreeComponent {
             }
         }
         Ok(EventState::NotConsumed)
+    }
+}
+
+fn files_tab_sym(key: &str) -> &'static str {
+    match key {
+        "folder_tree_expanded" => "v ",
+        "folder_tree_collapsed" => "> ",
+        "file_tree" => "  -  ",
+        "folder" => "[D]",
+        "file" => "[F]",
+        _ => "",
     }
 }
