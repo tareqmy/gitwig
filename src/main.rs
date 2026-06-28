@@ -6,7 +6,17 @@
 
 #![deny(unsafe_code)]
 #![deny(unused_imports, unused_must_use, dead_code, unused_assignments)]
-#![allow(clippy::all, clippy::perf, clippy::nursery, clippy::unwrap_used, clippy::panic)]
+#![deny(clippy::all, clippy::perf)]
+#![allow(
+    clippy::collapsible_if,
+    clippy::collapsible_else_if,
+    clippy::too_many_arguments,
+    clippy::needless_range_loop,
+    clippy::derivable_impls,
+    clippy::empty_line_after_doc_comments,
+    clippy::empty_line_after_outer_attr
+)]
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::panic))]
 
 use std::{env, error::Error, io, path::PathBuf};
 

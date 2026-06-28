@@ -10,7 +10,9 @@
 
 #![deny(unsafe_code)]
 #![deny(unused_imports, unused_must_use, dead_code, unused_assignments)]
-#![allow(clippy::all, clippy::perf, clippy::nursery, clippy::unwrap_used, clippy::panic)]
+#![deny(clippy::all, clippy::perf)]
+#![allow(clippy::collapsible_if, clippy::collapsible_else_if)]
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::panic))]
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -1381,7 +1383,7 @@ fn get_cached_ref_map(
 ) -> std::collections::HashMap<git2::Oid, Vec<String>> {
     let cache_lock =
         REF_MAP_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
-    let mut cache = cache_lock.lock().unwrap();
+    let mut cache = cache_lock.lock().unwrap_or_else(|e| e.into_inner());
     let path_key = repo_path.to_string_lossy().to_string();
 
     if let Some((map, loaded_at)) = cache.get(&path_key) {
@@ -2252,25 +2254,31 @@ pub fn resolve_conflict_hunk(
 
             // Read ours block (until =======)
             let mut found_separator = false;
-            while let Some(next_line) = lines_iter.peek() {
+            while let Some(&next_line) = lines_iter.peek() {
                 if next_line.starts_with("=======") {
                     lines_iter.next(); // consume =======
                     found_separator = true;
                     break;
                 }
-                ours_block.push(lines_iter.next().unwrap().to_string());
+                if let Some(line) = lines_iter.next() {
+                    ours_block.push(line.to_string());
+                }
             }
 
             // Read theirs block (until >>>>>>>)
             let mut found_end = false;
             let mut end_line_marker = ">>>>>>>".to_string();
-            while let Some(next_line) = lines_iter.peek() {
+            while let Some(&next_line) = lines_iter.peek() {
                 if next_line.starts_with(">>>>>>>") {
-                    end_line_marker = lines_iter.next().unwrap().to_string(); // consume >>>>>>>
+                    if let Some(marker) = lines_iter.next() {
+                        end_line_marker = marker.to_string(); // consume >>>>>>>
+                    }
                     found_end = true;
                     break;
                 }
-                theirs_block.push(lines_iter.next().unwrap().to_string());
+                if let Some(line) = lines_iter.next() {
+                    theirs_block.push(line.to_string());
+                }
             }
 
             if current_hunk_idx == hunk_idx {
@@ -2393,6 +2401,7 @@ pub fn is_root_commit(repo_path: &Path, commit_oid: &str) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
     use std::fs::File;

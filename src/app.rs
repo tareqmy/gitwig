@@ -1312,14 +1312,15 @@ impl App {
             let enable_commit_signatures = self.config.enable_commit_signatures;
 
             if cached_valid {
-                let cached = self.detail_cache.get(&item).unwrap().clone();
-                let cached_commits_count = match &cached.detail {
-                    repo::ItemDetail::Repo { info, .. } => info.commits.len(),
-                    _ => 200,
-                };
-                self.commit_list.limit = cached_commits_count.max(200);
-                self.current_detail = Some(cached.detail);
-                self.rebuild_visible_files();
+                if let Some(cached) = self.detail_cache.get(&item).cloned() {
+                    let cached_commits_count = match &cached.detail {
+                        repo::ItemDetail::Repo { info, .. } => info.commits.len(),
+                        _ => 200,
+                    };
+                    self.commit_list.limit = cached_commits_count.max(200);
+                    self.current_detail = Some(cached.detail);
+                    self.rebuild_visible_files();
+                }
 
                 let max_commits = self.commit_list.limit;
                 // Silent background refresh
@@ -3246,7 +3247,7 @@ impl App {
                         Some(matching_indices[pos])
                     }
                 } else {
-                    Some(*matching_indices.last().unwrap())
+                    matching_indices.last().copied()
                 }
             }
             LogsNavDirection::Up => {
@@ -3257,7 +3258,7 @@ impl App {
                         Some(matching_indices[0])
                     }
                 } else {
-                    Some(*matching_indices.last().unwrap())
+                    matching_indices.last().copied()
                 }
             }
             LogsNavDirection::PageDown(page) => {
@@ -3270,7 +3271,7 @@ impl App {
                     let final_pos = target_pos.min(matching_indices.len() - 1);
                     Some(matching_indices[final_pos])
                 } else {
-                    Some(*matching_indices.last().unwrap())
+                    matching_indices.last().copied()
                 }
             }
             LogsNavDirection::PageUp(page) => {
@@ -6783,6 +6784,7 @@ fn copy_to_clipboard(text: &str) -> Result<(), String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
     use crate::config::{FzfConfig, SortOrder, ThemeConfig};

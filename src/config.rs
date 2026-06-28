@@ -596,6 +596,7 @@ pub fn save_config(config: &Config, path: &Path) -> Result<(), Box<dyn Error>> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
 

@@ -765,6 +765,7 @@ pub(crate) fn get_process_stats(_app: &App) -> (f64, f64) {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
     use crate::app::{App, DetailSection};
