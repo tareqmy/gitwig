@@ -3712,3 +3712,79 @@ fn test_cherry_pick_destination_branches() {
     crate::input::handle_key(&mut app, event_up, 0);
     assert_eq!(app.cherry_pick_dest_selection, 0);
 }
+
+#[test]
+fn test_graph_tab_scrolling() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_graph.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Setup mock details
+    let info = repo::RepoInfo {
+        branch: Some("main".to_string()),
+        graph_lines: repo::TabData::Loaded(
+            (1..=15)
+                .map(|i| repo::GraphLine { graph: format!("line {}", i), commit: None })
+                .collect(),
+        ),
+        ..Default::default()
+    };
+    app.current_detail =
+        Some(repo::ItemDetail::Repo { resolved: PathBuf::from("/dummy"), info: Box::new(info) });
+
+    app.mode = Mode::Detail;
+    app.detail_tab = 2; // Graph tab
+    app.graph_scroll = 0;
+
+    // Press Down
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert!(handled);
+    assert_eq!(app.graph_scroll, 1);
+
+    // Press PageDown
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
+    assert!(handled);
+    assert_eq!(app.graph_scroll, 11);
+
+    // Press End
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
+    assert!(handled);
+    assert_eq!(app.graph_scroll, 14); // len = 15, max index = 14
+
+    // Press Up
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
+    assert!(handled);
+    assert_eq!(app.graph_scroll, 13);
+
+    // Press PageUp
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
+    assert!(handled);
+    assert_eq!(app.graph_scroll, 3);
+
+    // Press Home
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
+    assert!(handled);
+    assert_eq!(app.graph_scroll, 0);
+}

@@ -3,6 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 pub mod branches;
 pub mod files;
+pub mod graph;
 pub mod home;
 pub mod logs;
 pub mod remotes;
@@ -12,6 +13,7 @@ pub mod workspace;
 
 pub use branches::BranchesTab;
 pub use files::FilesTab;
+pub use graph::GraphTab;
 pub use home::HomeTab;
 pub use logs::LogsTab;
 pub use remotes::RemotesTab;
@@ -148,6 +150,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
         _ => match app.detail_tab {
             0 => return WorkspaceTab::handle_event(app, key),
             1 => return FilesTab::handle_event(app, key),
+            2 => return GraphTab::handle_event(app, key),
             3 => return BranchesTab::handle_event(app, key),
             4 => return TagsTab::handle_event(app, key),
             5 => return RemotesTab::handle_event(app, key),
