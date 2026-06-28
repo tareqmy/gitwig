@@ -4399,4 +4399,23 @@ fn test_repository_labels_flow() {
     let filtered = app.get_filtered_items();
     assert_eq!(filtered.len(), 1);
     assert_eq!(filtered[0].1, &"/path/to/repo1".to_string());
+
+    // Test mouse clicking on a label to filter by it
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    app.repo_search_query = None;
+
+    // Simulate bounding box for repo1 card (starts at y=0, height=4)
+    let rect = ratatui::layout::Rect::new(0, 0, 50, 4);
+    app.main_areas = vec![rect];
+
+    // Click on the second label "[rust]" (ranges from x=17 to 23, y=1)
+    let click_event = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 19,
+        row: 1,
+        modifiers: KeyModifiers::empty(),
+    };
+
+    crate::mouse::handle_mouse(&mut app, click_event);
+    assert_eq!(app.repo_search_query.as_deref(), Some("rust"));
 }

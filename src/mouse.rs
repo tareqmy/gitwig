@@ -318,6 +318,55 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 if rect.contains(pos) {
                     let actual_index = i + app.scroll_top;
                     if actual_index < app.get_items_len() {
+                        if pos.y == rect.y + 1 {
+                            let filtered_items = app.get_filtered_items();
+                            if let Some(&(original_index, item)) = filtered_items.get(actual_index)
+                            {
+                                let mut current_x = rect.x + 2;
+
+                                let mark = if actual_index == app.selected_index {
+                                    app.sym("selection_mark")
+                                } else {
+                                    "  "
+                                };
+                                current_x += mark.chars().count() as u16;
+
+                                let fallback = crate::repo::ItemStatus::Missing;
+                                let status = app.statuses.get(original_index).unwrap_or(&fallback);
+                                let is_git = matches!(status, crate::repo::ItemStatus::GitRepo(_));
+                                if is_git {
+                                    current_x += app.sym("git_repo").chars().count() as u16;
+                                }
+
+                                let repo_name = std::path::Path::new(item)
+                                    .file_name()
+                                    .and_then(|s| s.to_str())
+                                    .unwrap_or(item.as_str());
+                                current_x += repo_name.chars().count() as u16;
+
+                                if let Some(lbls) = app.config.labels.get(item) {
+                                    for lbl in lbls {
+                                        current_x += 1;
+
+                                        let label_width = lbl.chars().count() as u16 + 2;
+                                        let label_start = current_x;
+                                        let label_end = current_x + label_width;
+
+                                        if pos.x >= label_start && pos.x < label_end {
+                                            crate::debug_log::info(format!(
+                                                "Clicked label: {}",
+                                                lbl
+                                            ));
+                                            app.repo_search_query = Some(lbl.clone());
+                                            app.selected_index = 0;
+                                            app.scroll_top = 0;
+                                            return;
+                                        }
+                                        current_x = label_end;
+                                    }
+                                }
+                            }
+                        }
                         let now = std::time::Instant::now();
                         let is_double_click = if let Some((last_time, last_idx)) = app.last_click {
                             last_idx == actual_index
