@@ -910,6 +910,24 @@ fn collect_signatures(repo_path: &Path, limit: usize) -> std::collections::HashM
     sigs
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct CachedCommit {
+    id: String,
+    author: String,
+    date: String,
+    summary: String,
+    message: String,
+    time: i64,
+}
+
+fn hash_path(path: &Path) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    path.hash(&mut hasher);
+    format!("{:x}", hasher.finish())
+}
+
 fn collect_commits(
     repo: &Repository,
     limit: usize,
@@ -933,23 +951,66 @@ fn collect_commits(
     };
     let ref_map = get_cached_ref_map(repo, repo_path);
 
+    // Load commit cache
+    let cache_dir = dirs::home_dir().map(|h| h.join(".gitwig/commit_cache"));
+    if let Some(ref dir) = cache_dir {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let hash = hash_path(repo_path);
+    let cache_file = cache_dir.as_ref().map(|d| d.join(format!("{}.json", hash)));
+    let mut cache: std::collections::HashMap<String, CachedCommit> = cache_file
+        .as_ref()
+        .and_then(|f| std::fs::read_to_string(f).ok())
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default();
+
+    let mut cache_updated = false;
+
     for id in oids {
         let oid = id?;
-        if let Ok(commit) = repo.find_commit(oid) {
+        let oid_str = oid.to_string();
+        let sig_status = sig_map.get(&oid_str).cloned().unwrap_or_else(|| "N".to_string());
+        let refs = ref_map.get(&oid).cloned().unwrap_or_default();
+        let files = Vec::new();
+
+        if let Some(cached) = cache.get(&oid_str) {
+            let when = format_relative_time(cached.time);
+            commits.push(CommitEntry {
+                id: cached.id.clone(),
+                oid: oid_str,
+                author: cached.author.clone(),
+                when,
+                date: cached.date.clone(),
+                summary: cached.summary.clone(),
+                message: cached.message.clone(),
+                refs,
+                files,
+                signature_status: sig_status,
+            });
+        } else if let Ok(commit) = repo.find_commit(oid) {
             let short_id = format!("{:.7}", commit.id());
-            let oid_str = commit.id().to_string();
             let summary =
                 commit.summary().ok().flatten().unwrap_or("(no commit message)").to_string();
             let author = commit.author();
             let author_name = author.name().unwrap_or("?");
             let author_email = author.email().unwrap_or("?");
             let author_str = format!("{} <{}>", author_name, author_email);
-            let when = format_relative_time(commit.time().seconds());
-            let date = format_utc_date(commit.time().seconds());
-            let refs = ref_map.get(&oid).cloned().unwrap_or_default();
-            let files = Vec::new();
+            let time_secs = commit.time().seconds();
+            let when = format_relative_time(time_secs);
+            let date = format_utc_date(time_secs);
             let message = commit.message().unwrap_or("(no commit message)").to_string();
-            let sig_status = sig_map.get(&oid_str).cloned().unwrap_or_else(|| "N".to_string());
+
+            let cached = CachedCommit {
+                id: short_id.clone(),
+                author: author_str.clone(),
+                date: date.clone(),
+                summary: summary.clone(),
+                message: message.clone(),
+                time: time_secs,
+            };
+            cache.insert(oid_str.clone(), cached);
+            cache_updated = true;
+
             commits.push(CommitEntry {
                 id: short_id,
                 oid: oid_str,
@@ -964,6 +1025,15 @@ fn collect_commits(
             });
         }
     }
+
+    if cache_updated {
+        if let Some(ref f) = cache_file {
+            if let Ok(json) = serde_json::to_string(&cache) {
+                let _ = std::fs::write(f, json);
+            }
+        }
+    }
+
     Ok(commits)
 }
 

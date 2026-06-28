@@ -406,6 +406,7 @@ pub struct App {
     pub tab_tx: std::sync::mpsc::Sender<(String, usize, repo::TabPayload)>,
     pub tab_rx: std::sync::mpsc::Receiver<(String, usize, repo::TabPayload)>,
     pub cpu_tracker: std::sync::Mutex<Option<(f64, std::time::Instant, f64, f64)>>,
+    pub watcher: Option<notify::RecommendedWatcher>,
 }
 
 #[derive(Clone, Debug)]
@@ -439,6 +440,58 @@ mod tests;
 mod workspace;
 
 impl App {
+    pub fn setup_watcher(&mut self) {
+        use notify::{RecursiveMode, Watcher};
+
+        self.watcher = None;
+
+        let tx = self.tx.clone();
+        let mut watcher =
+            match notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
+                if let Ok(event) = res {
+                    for path in event.paths {
+                        let path_str = path.to_string_lossy();
+                        let clean_path =
+                            path_str.replace("\\.git\\", "/.git/").replace("\\.git", "/.git");
+                        if let Some(pos) = clean_path.find("/.git") {
+                            let repo_root = &clean_path[..pos];
+                            if !path_str.ends_with(".lock")
+                                && (path_str.contains("/.git/refs/")
+                                    || path_str.ends_with("/.git/index")
+                                    || path_str.ends_with("/.git/HEAD"))
+                            {
+                                let _ = tx.send(format!("REFRESH_REPO:{}", repo_root));
+                            }
+                        }
+                    }
+                }
+            }) {
+                Ok(w) => w,
+                Err(e) => {
+                    crate::debug_log::warn(format!("Failed to initialize file watcher: {}", e));
+                    return;
+                }
+            };
+
+        for item in &self.config.items {
+            let canon = match std::fs::canonicalize(item) {
+                Ok(c) => c,
+                Err(_) => PathBuf::from(item),
+            };
+            let git_dir = canon.join(".git");
+            if git_dir.exists() && git_dir.is_dir() {
+                if let Err(e) = watcher.watch(&git_dir, RecursiveMode::Recursive) {
+                    crate::debug_log::warn(format!(
+                        "Failed to watch repository {:?}: {}",
+                        git_dir, e
+                    ));
+                }
+            }
+        }
+
+        self.watcher = Some(watcher);
+    }
+
     pub fn drain_queue(&mut self) {
         while let Some(ev) = self.queue.pop() {
             match ev {
@@ -888,6 +941,7 @@ impl App {
             tab_tx,
             tab_rx,
             cpu_tracker: std::sync::Mutex::new(None),
+            watcher: None,
         };
 
         if app.config.sort_by != SortOrder::Custom {
@@ -950,6 +1004,8 @@ impl App {
             }
         }
 
+        app.setup_watcher();
+
         app
     }
 }
@@ -964,7 +1020,22 @@ where
 {
     loop {
         while let Ok(msg) = app.rx.try_recv() {
-            if let Some(dest_path) = msg.strip_prefix("CLONE_SUCCESS:") {
+            if let Some(repo_path) = msg.strip_prefix("REFRESH_REPO:") {
+                let canon_target =
+                    std::fs::canonicalize(repo_path).unwrap_or_else(|_| PathBuf::from(repo_path));
+                if let Some(idx) = app.config.items.iter().position(|item| {
+                    let canon_item =
+                        std::fs::canonicalize(item).unwrap_or_else(|_| PathBuf::from(item));
+                    canon_item == canon_target
+                }) {
+                    app.statuses[idx] = repo::inspect_summary(&app.config.items[idx]);
+                    if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
+                        if resolved == &canon_target {
+                            app.resync_detail();
+                        }
+                    }
+                }
+            } else if let Some(dest_path) = msg.strip_prefix("CLONE_SUCCESS:") {
                 app.fetching = false;
                 app.status_message = Some("Cloning completed successfully".to_string());
                 app.add_repo_path(dest_path.to_string());

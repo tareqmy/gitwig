@@ -2154,6 +2154,7 @@ impl App {
             Ok(()) => Some(success_msg.to_string()),
             Err(e) => Some(format!("Save failed: {}", e)),
         };
+        self.setup_watcher();
     }
 
     /// Rebuilds the flattened list of visible tree nodes in the Files tab.

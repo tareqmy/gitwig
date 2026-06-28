@@ -88,7 +88,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Git logs pagination**
 - [ ] **Per Repository rule**
 - [ ] **Apply label for repositories**: so that from the home page it can be viewed as a group
-- [ ] For large repo load time is high — see `.agent/LARGE_REPO_PERFORMANCE_PLAN.md` for full analysis
+- [x] For large repo load time is high — see `.agent/LARGE_REPO_PERFORMANCE_PLAN.md` for full analysis
   - Phase A — Quick wins (no architecture change):
     - [x] A1: Change `max_commits` default from 0 (unlimited) to 500
     - [x] A2: Add `--max-count=1000` flag to `collect_graph_lines` subprocess; expose `graph_max_commits` config
@@ -103,6 +103,9 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
     - [x] C1: In-memory `DetailCache` with TTL (stale-while-revalidate on re-visit)
     - [x] C2: Make `build_ref_map` conditional / lazy
     - [x] C3: Per-tab TTL — silent background refresh when tab data is stale
+  - Phase D — OS-level Watching & Commit Cache:
+    - [x] D1: cross-platform file watcher for `.git` changes using the `notify` crate, auto-updating repository indicators
+    - [x] D2: persistent JSON commit metadata cache (`~/.gitwig/commit_cache/`) to speed up history walks
 - [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
 - [ ] **Git Submodules:** Detect, list, initialize, and update submodules.
 - [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
