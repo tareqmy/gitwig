@@ -28,13 +28,21 @@ Welcome, Agent. You are tasked with helping build **Gitwig**, a high-performance
 ## Module Layout
 The crate is organized so each file has a single clear responsibility. Keep it that way as the codebase grows.
 
-- `src/main.rs` — entry point only. Terminal setup/teardown and the call into `app::run`. **Should stay small** (under ~80 lines). No state, no rendering, no key handling here.
-- `src/app.rs` — application state (`App` struct), the `Mode` enum, state-mutation methods, and the event loop (`run`). All mutation lives here.
-- `src/ui.rs` — pure rendering. Reads `&App`, writes to a `Frame`. Owns `HELP_LINES` and the help-overlay layout. Never mutates state.
-- `src/input.rs` — keystroke dispatch. Maps `(Mode, KeyCode)` to `App` method calls and signals quit via a `bool` return. No business logic here — just routing.
-- `src/config.rs` — TOML load/save plus the `Config` struct. No UI awareness.
-- `src/repo.rs` — all repository inspection. Owns `ItemStatus`, `RepoSummary`, `expand_tilde`, and both public entry points: `inspect_summary` (card-level, called per add/edit/delete/refresh) and `inspect_detail` (Detail-view snapshot, called only from `App::open_detail`). A shared `collect_summary` helper ensures both paths produce identical counts. Also owns `ItemDetail`, `RepoInfo`, `HeadInfo`, `RemoteInfo`.
-- **src/ui_detail.rs** — rendering for the Detail view. Imports the theme constants/helpers from `src/ui.rs`. Pure — no state. Receives the current active tab `detail_tab` and the focused section `detail_focus` to highlight it with an accent border. The view is structured as: a one-row breadcrumb header (item name left, branch name right), a tab-selection bar (Details, Graph, Branches, Files), and the active tab body. Tab 0 (Details) shows a top 50% `Commits` panel and a bottom 50% split into `Staging Area` and `Staging Details`. Tab 2 (Branches) shows local and remote branch tracking lists. Tab 3 (Files) renders the repository's files as an interactive nested directory tree structure.
+- `src/main.rs` — entry point only. Terminal setup/teardown and call into `app::run`. Should stay small (under ~80 lines). No state, no rendering, no key handling here.
+- `src/app/` — module directory for application state (`App`) and main loop:
+  - `mod.rs`: holds struct definition, `App::new`, `App::run`, and main orchestration / queue draining.
+  - `actions.rs`: home card list state mutations.
+  - `git.rs`: git network and repository mutations (branches, tags, remotes, fetch, push, pull, rebase, merge).
+  - `workspace.rs`: workspace staging/unstaging, diff refreshers, commits, cherry-pick/revert, and conflicts.
+  - `navigation.rs`: list scrolling, cycle selections, tilde expansion, theme updates, and settings.
+  - `tests.rs`: contains the full unit test suite, conditionally compiled (`#[cfg(test)]`).
+- `src/input.rs` — event routing dispatcher. Maps keyboard event routing directly to active tabs and popups.
+- `src/config.rs` — configuration loading, saving, and Theme list generation.
+- `src/ui/` — layout and styling/theme utilities (e.g., `layout.rs`, `style.rs`, `theme.rs`).
+- `src/tabs/` — layout drawing logic per tab (e.g., `workspace.rs`, `files.rs`, `branches.rs`, `tags.rs`, `stashes.rs`, `overview.rs`, `home.rs`).
+- `src/popups/` — centered modal popup renderers (e.g., `commit.rs`, `confirm.rs`, `help.rs`, `settings.rs`).
+- `src/components/` — modular reusable widgets (e.g., `file_tree.rs`, `commit_list.rs`, `branch_list.rs`, `tag_list.rs`, `stash_list.rs`, `diff.rs`, `status_list.rs`).
+- `gitwig-core/` — workspace member crate. Handles all repository inspection (zero UI dependencies).
 
 ### When to split a file further
 - If any file grows past **~300 lines**, look for an extraction. Common split lines: a new mode that has its own state/rendering, a widget that has its own builder logic, a new config concern (e.g. theme, keybinding overrides).

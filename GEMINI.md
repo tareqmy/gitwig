@@ -19,7 +19,14 @@ Gitwig is a Rust-based Terminal User Interface (TUI) for Git, aiming to provide 
 - **Async Operations:** Long-running Git commands (fetch, clone, large diffs) should not block the UI thread.
 - **Component-based UI:** Use modular widgets for different views (History, Working Tree, Branches).
 - **Modal Input:** Keystroke meaning is mode-dependent (Normal / Adding / Editing / ConfirmDelete / Help / Detail / DetailHelp / About / CommitInput / BranchCreateInput / TagCreateInput / BranchDeleteConfirm / BranchPushConfirm / BranchMergeConfirm / BranchRebaseConfirm / BranchInteractiveRebaseConfirm / TagDeleteConfirm / TagPushConfirm / TagPushAllConfirm / StashDeleteConfirm / StashApplyConfirm / RemotePicker / CommitSearchInput / Inspect / RepoSearchInput). The status bar always reflects the current mode so the user can recover orientation at a glance.
-- **Single-responsibility modules:** `main.rs` (entry) → `app.rs` (state + run loop) → `ui.rs` + `ui_detail.rs` (drawing) → `input.rs` (key dispatch) → `config.rs` (TOML load/save) → `repo.rs` (all repository inspection: card-level `inspect_summary` + Detail-view `inspect_detail`, sharing a `collect_summary` helper). Files should stay small; see `.agent/INSTRUCTIONS.md` for the splitting rule.
+- **Single-responsibility modules:**
+  - `main.rs` (entry)
+  - `src/app/` (application state and orchestration split into `mod.rs`, `actions.rs`, `git.rs`, `workspace.rs`, `navigation.rs`, and `tests.rs`)
+  - `src/ui/` (theme, styles, and layout config)
+  - `src/tabs/`, `src/popups/`, `src/components/` (componentized UI drawing logic)
+  - `src/input.rs` (event routing dispatcher)
+  - `src/config.rs` (TOML load/save)
+  - `gitwig-core` workspace crate (all repository inspection, isolated from UI dependencies)
 
 ## Development Workflow
 - Follow the Roadmap in `.agent/ROADMAP.md`.
