@@ -614,9 +614,13 @@ impl App {
                     self.detail_commit_to_bottom()
                 }
                 crate::queue::InternalEvent::LoadMoreCommits => {
-                    self.commit_list.limit = self.commit_list.limit.saturating_add(200);
-                    self.resync_detail();
-                    self.status_message = Some("Loading more commits...".to_string());
+                    if self.commit_list.limit > 0 {
+                        let add_amount =
+                            if self.config.max_commits > 0 { self.config.max_commits } else { 200 };
+                        self.commit_list.limit = self.commit_list.limit.saturating_add(add_amount);
+                        self.resync_detail();
+                        self.status_message = Some("Loading more commits...".to_string());
+                    }
                 }
                 crate::queue::InternalEvent::CommitDetailsUp => {
                     self.commit_list.details_scroll_up()
@@ -827,6 +831,7 @@ impl App {
         crate::debug_log::info("Initializing Gitwig application state");
         crate::ui::update_theme(&config.theme);
         let original_items = config.items.clone();
+        let max_commits = config.max_commits;
         let statuses = config.items.iter().map(|s| repo::inspect_summary(s)).collect();
         let (tx, rx) = std::sync::mpsc::channel();
         let (detail_tx, detail_rx) = std::sync::mpsc::channel();
@@ -852,7 +857,7 @@ impl App {
             tag_list: crate::components::tag_list::TagListComponent::new(queue.clone()),
             stash_list: crate::components::stash_list::StashListComponent::new(queue.clone()),
             commit_list: crate::components::commit_list::CommitListComponent {
-                limit: 100,
+                limit: max_commits,
                 queue: queue.clone(),
                 ..Default::default()
             },

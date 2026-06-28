@@ -35,9 +35,13 @@ impl WorkspaceTab {
                     return true;
                 }
                 KeyCode::Char('G') => {
-                    app.commit_list.limit = app.commit_list.limit.saturating_add(200);
-                    app.resync_detail();
-                    app.status_message = Some("Loading more commits...".to_string());
+                    if app.commit_list.limit > 0 {
+                        let add_amount =
+                            if app.config.max_commits > 0 { app.config.max_commits } else { 200 };
+                        app.commit_list.limit = app.commit_list.limit.saturating_add(add_amount);
+                        app.resync_detail();
+                        app.status_message = Some("Loading more commits...".to_string());
+                    }
                     return true;
                 }
                 KeyCode::Char('f') => {

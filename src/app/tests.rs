@@ -4090,3 +4090,48 @@ fn test_detail_help_popup_flow() {
     assert!(handled);
     assert_eq!(app.mode, Mode::Detail);
 }
+
+#[test]
+fn test_max_commits_limit_setting() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 45, // Set limit to 45 commits
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_max_commits.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+
+    // 1. Verify initial initialization
+    let mut app = App::new(config, temp_path.clone());
+    assert_eq!(app.commit_list.limit, 45);
+
+    // 2. Verify loading a repository uses max_commits limit
+    app.detail_cache.clear();
+    app.detail_focus = DetailSection::Commits;
+
+    // Simulate opening repo
+    let _ = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert_eq!(app.commit_list.limit, 45);
+
+    // 3. Test LoadMoreCommits pagination adds max_commits (45)
+    app.queue.push(crate::queue::InternalEvent::LoadMoreCommits);
+    app.drain_queue();
+    assert_eq!(app.commit_list.limit, 90);
+}

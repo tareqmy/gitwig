@@ -343,7 +343,11 @@ impl App {
                         repo::ItemDetail::Repo { info, .. } => info.commits.len(),
                         _ => 200,
                     };
-                    self.commit_list.limit = cached_commits_count.max(200);
+                    self.commit_list.limit = if self.config.max_commits > 0 {
+                        cached_commits_count.max(self.config.max_commits)
+                    } else {
+                        0
+                    };
                     self.current_detail = Some(cached.detail);
                     self.rebuild_visible_files();
                 }
@@ -360,7 +364,7 @@ impl App {
                     let _ = tx.send((item_clone, detail));
                 });
             } else {
-                self.commit_list.limit = 200;
+                self.commit_list.limit = self.config.max_commits;
                 self.loading_repo_path = Some(item.clone());
                 let max_commits = self.commit_list.limit;
                 std::thread::spawn(move || {
