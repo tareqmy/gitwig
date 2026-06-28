@@ -694,7 +694,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 ("Interactive Rebase", "i"),
             ];
             if app.detail_focus == DetailSection::LocalBranches {
-                v.push(("Fetch", "⇧F"));
+                v.push(("Fetch", "f/F"));
                 v.push(("Pull", "p"));
                 v.push(("Push", "⇧P"));
             }
@@ -713,7 +713,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
-            ("Fetch", "f"),
+            ("Fetch", "f/F"),
             ("Push", "p"),
             ("Push All", "⇧P"),
             ("Delete", "d"),

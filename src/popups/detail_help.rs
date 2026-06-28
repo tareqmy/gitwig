@@ -100,8 +100,7 @@ pub fn get_detail_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("r", "Rebase current branch onto selected branch / Interactive rebase"),
                 ("p", "Pull branch (Branches) / Push tag (Tags)"),
                 ("⇧P [Shift+P]", "Push branch (Branches) / Push all tags (Tags)"),
-                ("f / F", "Fetch remote tags (Tags tab)"),
-                ("⇧F [Shift+F]", "Fetch selected local branch's upstream"),
+                ("f / F", "Fetch remote (Branches / Tags tabs)"),
             ],
         ),
         (

@@ -38,7 +38,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Dedicated Tags tab to list, check out local/remote tags, delete local tags, and push tag(s) with confirmation dialogs.
 - [x] Merge and Rebase (basic support).
 
-- [x] Fetch and Push operations (Fetch via `Shift+F`, Push via `Shift+P` in Branches tab).
+- [x] Fetch and Push operations (Fetch via `f`/`F`, Push via `Shift+P` in Branches tab).
 - [x] Pull operations (shortcut `p` in Branches tab).
 - [x] Manage multiple remotes.
 - [x] Progress bars for network operations.

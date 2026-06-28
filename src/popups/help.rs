@@ -89,7 +89,7 @@ pub fn get_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("s", "Stash changes (Workspace changes or Stashes tab)"),
                 ("p", "Pull branch (Branches) / Push tag (Tags)"),
                 ("⇧P", "Push branch (Branches) / Push all tags (Tags)"),
-                ("⇧F", "Fetch selected branch (Branches tab)"),
+                ("f / F", "Fetch remote (Branches / Tags / Remotes tabs)"),
             ],
         ),
         (

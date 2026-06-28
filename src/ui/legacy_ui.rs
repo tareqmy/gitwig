@@ -1053,7 +1053,7 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(entry_labels_b1.iter().any(|label| label.contains("Fetch [⇧F]")));
+        assert!(entry_labels_b1.iter().any(|label| label.contains("Fetch [f/F]")));
         assert!(entry_labels_b1.iter().any(|label| label.contains("Pull [p]")));
         assert!(entry_labels_b1.iter().any(|label| label.contains("Push [⇧P]")));
 
@@ -1066,7 +1066,7 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(!entry_labels_b2.iter().any(|label| label.contains("Fetch [⇧F]")));
+        assert!(!entry_labels_b2.iter().any(|label| label.contains("Fetch [f/F]")));
         assert!(!entry_labels_b2.iter().any(|label| label.contains("Pull [p]")));
         assert!(!entry_labels_b2.iter().any(|label| label.contains("Push [⇧P]")));
 
@@ -1104,7 +1104,7 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(entry_labels_tags.iter().any(|label| label.contains("Fetch [f]")));
+        assert!(entry_labels_tags.iter().any(|label| label.contains("Fetch [f/F]")));
     }
 
     #[test]
