@@ -64,8 +64,8 @@ impl InspectPopup {
                     app.refresh_staging_diff();
                 } else {
                     let mut next_focus = match app.detail_focus {
-                        DetailSection::Staged => DetailSection::CommitDetails,
-                        DetailSection::CommitDetails => DetailSection::StagingDetails,
+                        DetailSection::Staged => DetailSection::StagingDetails,
+                        DetailSection::StagingDetails => DetailSection::CommitDetails,
                         _ => DetailSection::Staged,
                     };
                     for _ in 0..3 {
@@ -131,8 +131,8 @@ impl InspectPopup {
                     app.refresh_staging_diff();
                 } else {
                     let mut next_focus = match app.detail_focus {
-                        DetailSection::Staged => DetailSection::StagingDetails,
-                        DetailSection::StagingDetails => DetailSection::CommitDetails,
+                        DetailSection::Staged => DetailSection::CommitDetails,
+                        DetailSection::CommitDetails => DetailSection::StagingDetails,
                         _ => DetailSection::Staged,
                     };
                     for _ in 0..3 {
