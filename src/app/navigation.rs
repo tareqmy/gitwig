@@ -74,7 +74,7 @@ impl App {
     /// Clamp the help scroll value so it doesn't go out of bounds.
     pub fn clamp_help_scroll(&mut self, height: usize) {
         let (percent_y, lines_len) = match self.mode {
-            Mode::Help => (70, crate::ui::HELP_LINES.len() + 14),
+            Mode::Help => (70, crate::popups::help::get_help_lines_len(self)),
             Mode::DetailHelp => (55, crate::ui_detail::DETAIL_HELP_LINES.len() + 2),
             _ => return,
         };

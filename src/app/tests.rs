@@ -3948,3 +3948,76 @@ fn test_settings_panel_organization() {
     assert_eq!(app.settings_selected_index, 3);
     assert!(!app.settings_focus_sidebar);
 }
+
+#[test]
+fn test_help_popup_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_help.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    assert_eq!(app.mode, Mode::Normal);
+
+    // Press '?' to open help overlay
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('?')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Help);
+    assert_eq!(app.help_scroll, 0);
+
+    // Scroll Down
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert!(handled);
+    assert_eq!(app.help_scroll, 1);
+
+    // Scroll Up
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
+    assert!(handled);
+    assert_eq!(app.help_scroll, 0);
+
+    // End (Scrolls to bottom)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
+    assert!(handled);
+    let max_scroll = app.help_scroll;
+    assert!(max_scroll > 0);
+
+    // Home (Scrolls back to top)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
+    assert!(handled);
+    assert_eq!(app.help_scroll, 0);
+
+    // PageDown
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
+    assert!(handled);
+    assert_eq!(app.help_scroll, 10); // page_size is 10
+
+    // PageUp
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
+    assert!(handled);
+    assert_eq!(app.help_scroll, 0);
+
+    // Press Esc to exit help
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Normal);
+}

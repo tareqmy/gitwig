@@ -36,44 +36,6 @@ const STATUS_ZONE_WIDTH: u16 = 22;
 
 const UNSELECTED_INDENT: &str = "  ";
 
-/// Lines of the help overlay. Update this whenever a binding is added or
-/// renamed — it is the user's only complete shortcut reference.
-pub(crate) const HELP_LINES: &[(&str, &str)] = &[
-    ("↑ [Up]", "Move selection up / scroll up"),
-    ("↓ [Down]", "Move selection down / scroll down"),
-    ("⇟ [PgDn]", "Jump one page down / page down"),
-    ("⇞ [PgUp]", "Jump one page up / page up"),
-    ("Home", "Go to top / scroll to top"),
-    ("End", "Go to bottom / scroll to bottom"),
-    ("↵ [Enter] / → [Right]", "Open detail view for selected item / stage file"),
-    ("a", "Add a new item"),
-    ("A", "Bulk add folders in a directory"),
-    ("i", "Import remote repository"),
-    ("e", "Edit selected item"),
-    ("d", "Delete selected item / branch (Branches) / tag (Tags)"),
-    ("f", "Enter repository search mode"),
-    ("R", "Refresh status of selected item"),
-    ("R", "Resync active tab (Detail)"),
-    ("o / O", "Cycle sorting mode / Toggle reverse sorting"),
-    ("g", "Launch preferred Git client for selected repository"),
-    ("s", "Open options/settings page"),
-    ("l", "Open debug logs panel"),
-    ("⎋ [Esc]", "Cancel input, close dialog, leave detail view, or quit"),
-    ("⌫ [Backspace]", "Erase character while typing"),
-    ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
-    ("w / W", "Cycle panel focus forward (w) / backward (W)"),
-    ("c / C", "Commit (c) / Amend last commit (C) (Workspace) / Create branch (Branches)"),
-    ("⇧F", "Fetch selected branch (Branches tab)"),
-    ("p", "Pull branch (Branches) / Push tag (Tags) / Toggle pin (List)"),
-    ("⇧P", "Push branch (Branches) / Push all tags (Tags)"),
-    ("s", "Stash changes (Workspace changes or Stashes tab)"),
-    ("?", "Toggle this help overlay"),
-    ("v", "Show about popup / creator profile"),
-    ("q", "Quit (also closes detail view)"),
-    ("Left-Click", "Focus clicked panel / change tab (mouse support)"),
-    ("Left-Click+Drag", "Drag boundaries to resize split panels"),
-];
-
 /// Top-level draw entry point invoked from inside `terminal.draw`.
 pub fn draw(
     f: &mut Frame,
