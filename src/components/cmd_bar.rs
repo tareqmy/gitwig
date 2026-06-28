@@ -211,7 +211,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         }
         Mode::StashingUI => {
             let mut entries = Vec::new();
-            let entries_data = vec![
+            let entries_data = [
                 ("Cancel", "⎋/q"),
                 ("Save Stash", "s"),
                 ("Toggle Untracked", "u"),

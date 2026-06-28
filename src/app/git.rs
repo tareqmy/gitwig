@@ -339,7 +339,12 @@ impl App {
     pub fn commit_stash_create(&mut self) {
         let stash_name = self.input_buffer.trim().to_string();
         if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
-            match repo::save_stash(resolved, &stash_name, self.stash_untracked, self.stash_keep_index) {
+            match repo::save_stash(
+                resolved,
+                &stash_name,
+                self.stash_untracked,
+                self.stash_keep_index,
+            ) {
                 Ok(()) => {
                     let msg = if stash_name.is_empty() {
                         "Created stash".to_string()

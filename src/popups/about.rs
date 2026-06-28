@@ -1,20 +1,14 @@
 use crate::app::{App, Mode};
-use crate::repo::RemoteInfo;
-use crate::ui::layout::{centered_rect, centered_rect_fixed};
-use crate::ui::style::{
-    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
-    primary_style,
-};
+use crate::ui::layout::centered_rect_fixed;
+use crate::ui::style::{CARD_BORDER, accent_style, muted_style, primary_style};
 use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{
-    Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph, Wrap,
-};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
 pub fn draw_about_popup(f: &mut Frame, area: Rect, app: &App) {
-    let popup_area = centered_rect_fixed(66, 17, area);
+    let popup_area = centered_rect_fixed(70, 18, area);
     f.render_widget(Clear, popup_area);
 
     let block = Block::default()
@@ -48,17 +42,33 @@ pub fn draw_about_popup(f: &mut Frame, area: Rect, app: &App) {
     let leaf_style = if is_compat { Style::default() } else { Style::default().fg(Color::Green) };
     let git_style = if is_compat { Style::default() } else { accent_style() };
 
-    let logo_text = vec![
-        Line::from(""), // spacer
-        Line::from(Span::styled("    .-.-.", leaf_style)),
-        Line::from(Span::styled("   (_\\_/_)", leaf_style)),
-        Line::from(Span::styled("     | |", leaf_style)),
-        Line::from(Span::styled("     | /", leaf_style)),
-        Line::from(Span::styled("   .-*-/", git_style)),
-        Line::from(Span::styled("  /  | \\", git_style)),
-        Line::from(Span::styled(" o   |  o", git_style)),
-        Line::from(Span::styled("     o", git_style)),
-    ];
+    let logo_text = if is_compat {
+        vec![
+            Line::from(""), // spacer
+            Line::from(Span::styled("    .-.-.", leaf_style)),
+            Line::from(Span::styled("   (_\\_/_)", leaf_style)),
+            Line::from(Span::styled("     | |", leaf_style)),
+            Line::from(Span::styled("     | /", leaf_style)),
+            Line::from(Span::styled("   .-*-/", git_style)),
+            Line::from(Span::styled("  /  | \\", git_style)),
+            Line::from(Span::styled(" o   |  o", git_style)),
+            Line::from(Span::styled("     o", git_style)),
+        ]
+    } else {
+        vec![
+            Line::from(""), // spacer
+            Line::from(Span::styled("     ╭───╮", leaf_style)),
+            Line::from(Span::styled("   ╭─╯ 🌿 ╰─╮", leaf_style)),
+            Line::from(Span::styled("   ╰─╮   ╭──╯", leaf_style)),
+            Line::from(Span::styled("     ╰─┬─╯", leaf_style)),
+            Line::from(Span::styled("       │", git_style)),
+            Line::from(Span::styled("     ╭─┴─╮", git_style)),
+            Line::from(Span::styled("    ╭┴─●─╯", git_style)),
+            Line::from(Span::styled("   ╱   │   ╲", git_style)),
+            Line::from(Span::styled("  ●    │    ●", git_style)),
+            Line::from(Span::styled("       ●", git_style)),
+        ]
+    };
 
     let logo_para = Paragraph::new(logo_text).alignment(Alignment::Center);
     f.render_widget(logo_para, about_chunks[0]);
@@ -69,12 +79,11 @@ pub fn draw_about_popup(f: &mut Frame, area: Rect, app: &App) {
         .constraints([
             Constraint::Length(1), // Title/version
             Constraint::Length(1), // Spacer
-            Constraint::Length(1), // Creator
-            Constraint::Length(1), // Website
-            Constraint::Length(1), // GitHub
-            Constraint::Length(1), // Email
+            Constraint::Length(5), // Metadata Table (Creator, Website, GitHub, License, Email)
             Constraint::Length(1), // Spacer
-            Constraint::Length(3), // Description
+            Constraint::Length(2), // Description
+            Constraint::Length(1), // Spacer
+            Constraint::Length(3), // Inspired by / Credits
             Constraint::Length(1), // Spacer
             Constraint::Length(1), // Close instructions
             Constraint::Min(0),
@@ -88,31 +97,31 @@ pub fn draw_about_popup(f: &mut Frame, area: Rect, app: &App) {
     ]);
     f.render_widget(Paragraph::new(title_line), info_chunks[0]);
 
-    // Creator details
-    let creator_line = Line::from(vec![
-        Span::styled("Creator:  ", primary_style().add_modifier(Modifier::BOLD)),
-        Span::raw("Tareq M. Yousuf "),
-        Span::styled("(@tareqmy)", muted_style()),
-    ]);
-    f.render_widget(Paragraph::new(creator_line), info_chunks[2]);
-
-    let website_line = Line::from(vec![
-        Span::styled("Website:  ", primary_style().add_modifier(Modifier::BOLD)),
-        Span::styled("https://tareqmy.com/", accent_style()),
-    ]);
-    f.render_widget(Paragraph::new(website_line), info_chunks[3]);
-
-    let github_line = Line::from(vec![
-        Span::styled("GitHub:   ", primary_style().add_modifier(Modifier::BOLD)),
-        Span::styled("https://github.com/tareqmy", accent_style()),
-    ]);
-    f.render_widget(Paragraph::new(github_line), info_chunks[4]);
-
-    let email_line = Line::from(vec![
-        Span::styled("Email:    ", primary_style().add_modifier(Modifier::BOLD)),
-        Span::styled("tareq.y@gmail.com", accent_style()),
-    ]);
-    f.render_widget(Paragraph::new(email_line), info_chunks[5]);
+    // Metadata Details
+    let metadata_lines = vec![
+        Line::from(vec![
+            Span::styled("Creator:  ", primary_style().add_modifier(Modifier::BOLD)),
+            Span::raw("Tareq M. Yousuf "),
+            Span::styled("(@tareqmy)", muted_style()),
+        ]),
+        Line::from(vec![
+            Span::styled("Website:  ", primary_style().add_modifier(Modifier::BOLD)),
+            Span::styled("https://tareqmy.com/", accent_style()),
+        ]),
+        Line::from(vec![
+            Span::styled("GitHub:   ", primary_style().add_modifier(Modifier::BOLD)),
+            Span::styled("https://github.com/tareqmy/gitwig", accent_style()),
+        ]),
+        Line::from(vec![
+            Span::styled("License:  ", primary_style().add_modifier(Modifier::BOLD)),
+            Span::styled("MIT", Style::default().add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(vec![
+            Span::styled("Email:    ", primary_style().add_modifier(Modifier::BOLD)),
+            Span::styled("tareq.y@gmail.com", accent_style()),
+        ]),
+    ];
+    f.render_widget(Paragraph::new(metadata_lines), info_chunks[2]);
 
     // Description
     let desc_para = Paragraph::new(vec![Line::from(Span::styled(
@@ -120,7 +129,25 @@ pub fn draw_about_popup(f: &mut Frame, area: Rect, app: &App) {
         muted_style(),
     ))])
     .wrap(Wrap { trim: true });
-    f.render_widget(desc_para, info_chunks[7]);
+    f.render_widget(desc_para, info_chunks[4]);
+
+    // Inspired By / Credits
+    let credits_lines = vec![
+        Line::from(Span::styled("Inspired by:", primary_style().add_modifier(Modifier::BOLD))),
+        Line::from(vec![
+            Span::raw("  • "),
+            Span::styled("Sourcetree", primary_style()),
+            Span::styled(" (staging & tree visualization)", muted_style()),
+        ]),
+        Line::from(vec![
+            Span::raw("  • "),
+            Span::styled("lazygit", primary_style()),
+            Span::styled(" & ", muted_style()),
+            Span::styled("gitui", primary_style()),
+            Span::styled(" (fast modal terminal UX)", muted_style()),
+        ]),
+    ];
+    f.render_widget(Paragraph::new(credits_lines), info_chunks[6]);
 
     // Close instruction
     let close_line = Line::from(vec![
@@ -132,10 +159,10 @@ pub fn draw_about_popup(f: &mut Frame, area: Rect, app: &App) {
         Span::styled("v", accent_style()),
         Span::styled(" to close", muted_style()),
     ]);
-    f.render_widget(Paragraph::new(close_line), info_chunks[9]);
+    f.render_widget(Paragraph::new(close_line), info_chunks[8]);
 }
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 pub struct AboutPopup;
 impl AboutPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {

@@ -2153,10 +2153,7 @@ pub fn save_stash(
         cmd.arg("-m").arg(message);
     }
 
-    let output = cmd
-        .current_dir(repo_path)
-        .output()
-        .map_err(|e| e.to_string())?;
+    let output = cmd.current_dir(repo_path).output().map_err(|e| e.to_string())?;
 
     if !output.status.success() {
         let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
