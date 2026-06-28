@@ -739,7 +739,11 @@ pub fn draw(
             }
             // Draw stash create popup on top when requested.
             if matches!(mode, Mode::StashCreateInput) {
-                crate::popups::stash_msg::draw_stash_create_popup(f, input_buffer, body_area);
+                crate::popups::stash_msg::draw_stash_create_popup(f, input_buffer, body_area, app);
+            }
+            // Draw stashing UI overlay on top when requested.
+            if matches!(mode, Mode::StashingUI) {
+                crate::popups::stashing_ui::draw_stashing_ui(f, info, app, body_area);
             }
             // Draw branch delete popup on top when requested.
             if matches!(mode, Mode::BranchDeleteConfirm) {

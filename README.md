@@ -82,6 +82,11 @@
 | `X`                  | Detail          | Discard all changes in repository (Workspace tab or Inspect view; asks confirmation) |
 | `i`                  | Detail          | Interactive rebase from selected commit (Workspace tab commits list) |
 | `d`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), or stash (Stashes tab; asks confirmation) |
+| `s`                  | Detail          | Open Stashing UI overlay (Workspace tab) or Prompt to save stash (Stashing UI / Stashes tab) |
+| `u`                  | Detail          | Toggle "Stash untracked files" option (Stashing UI)               |
+| `i`                  | Detail          | Toggle "Keep index" option (Stashing UI)                         |
+| `Ctrl+U`             | Input (Stash)   | Toggle "Stash untracked files" option (Stash Create popup)       |
+| `Ctrl+I`             | Input (Stash)   | Toggle "Keep index" option (Stash Create popup)                 |
 | `m`                  | Detail          | Merge selected branch into current branch (Branches tab; asks confirmation) |
 | `r`                  | Detail          | Rebase current branch onto selected branch (Branches tab; asks confirmation) |
 | `o`                  | Detail          | Accept OURS version of conflict (Workspace tab Conflicts / ConflictDiff) |
@@ -200,6 +205,17 @@ The **Stashes** tab lists all available stashes in the repository with a horizon
 - **Stashed Files (Bottom-Left):** Lists the files changed/saved in the selected stash.
 - **Stash Diff (Right):** Shows the unified patch diff of the selected file.
 - Navigate stashes or stashed files using `↑`/`k` and `↓`/`j`.
+
+### Stashing UI
+
+Pressing `s` / `S` inside the **Workspace** tab opens the dedicated **Stashing UI** overlay popup:
+- **Left Panel:** Displays the list of all modified, staged, unstaged, untracked, and conflicted files that will be stashed. You can navigate through this list using `↑`/`↓`/`k`/`j`.
+- **Right Panel:** Displays checkboxes for stashing options:
+  - Toggle stashing untracked files with `u`.
+  - Toggle keeping the index with `i`.
+- **Actions:**
+  - Press `s` to save the stash. This opens a text prompt to input an optional stash message/name (where stashing options can also be toggled with `Ctrl+U` and `Ctrl+I`).
+  - Press `Esc` / `q` / `Q` to cancel and return to the Workspace view.
 
 ### Overview Tab
 

@@ -60,6 +60,7 @@ pub fn draw(
             | Mode::CommitInput
             | Mode::BranchCreateInput
             | Mode::TagCreateInput
+            | Mode::StashingUI
             | Mode::BranchDeleteConfirm
             | Mode::BranchCheckoutConfirm
             | Mode::TagCheckoutConfirm

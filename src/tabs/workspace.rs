@@ -89,8 +89,11 @@ impl WorkspaceTab {
                     app.yank_selected_commit_hash();
                     return true;
                 }
-                KeyCode::Char('s') | KeyCode::Char('S') if app.has_uncommitted_changes() => {
-                    app.start_stash_create();
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    app.stashing_ui_selection = 0;
+                    app.stash_untracked = true;
+                    app.stash_keep_index = false;
+                    app.mode = Mode::StashingUI;
                     return true;
                 }
                 KeyCode::Enter | KeyCode::Right => {
@@ -258,8 +261,11 @@ impl WorkspaceTab {
                         app.request_discard_all_changes();
                         return true;
                     }
-                    KeyCode::Char('s') | KeyCode::Char('S') if app.is_uncommitted_selected() => {
-                        app.start_stash_create();
+                    KeyCode::Char('s') | KeyCode::Char('S') => {
+                        app.stashing_ui_selection = 0;
+                        app.stash_untracked = true;
+                        app.stash_keep_index = false;
+                        app.mode = Mode::StashingUI;
                         return true;
                     }
                     KeyCode::Char('c') if app.is_uncommitted_selected() => {
@@ -426,8 +432,11 @@ impl WorkspaceTab {
                     app.toggle_diff_line_mode();
                     return true;
                 }
-                KeyCode::Char('s') | KeyCode::Char('S') if app.is_uncommitted_selected() => {
-                    app.start_stash_create();
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    app.stashing_ui_selection = 0;
+                    app.stash_untracked = true;
+                    app.stash_keep_index = false;
+                    app.mode = Mode::StashingUI;
                     return true;
                 }
                 KeyCode::Char('c') if app.is_uncommitted_selected() => {

@@ -91,11 +91,11 @@ fn test_stash_creation_flow() {
 
     assert!(app.has_uncommitted_changes());
 
-    // Pressing 's' should activate StashCreateInput
+    // Pressing 's' should navigate to the Stashing UI overlay (Mode::StashingUI)
     let s_key = KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty());
     let consumed = crate::input::handle_key(&mut app, s_key, 0);
     assert!(consumed);
-    assert_eq!(app.mode, Mode::StashCreateInput);
+    assert_eq!(app.mode, Mode::StashingUI);
 }
 
 #[test]

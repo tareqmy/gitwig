@@ -2130,14 +2130,30 @@ pub fn apply_stash(repo_path: &Path, index: usize) -> Result<(), String> {
     Ok(())
 }
 
-pub fn save_stash(repo_path: &Path, message: &str) -> Result<(), String> {
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
+pub fn save_stash(
+    repo_path: &Path,
+    message: &str,
+    include_untracked: bool,
+    keep_index: bool,
+) -> Result<(), String> {
+    let mut cmd = std::process::Command::new("git");
+    cmd.env("GIT_TERMINAL_PROMPT", "0")
         .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
         .arg("stash")
-        .arg("push")
-        .arg("-m")
-        .arg(message)
+        .arg("push");
+
+    if include_untracked {
+        cmd.arg("--include-untracked");
+    }
+    if keep_index {
+        cmd.arg("--keep-index");
+    }
+
+    if !message.is_empty() {
+        cmd.arg("-m").arg(message);
+    }
+
+    let output = cmd
         .current_dir(repo_path)
         .output()
         .map_err(|e| e.to_string())?;

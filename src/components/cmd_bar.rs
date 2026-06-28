@@ -209,6 +209,29 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 app.config.compatibility_mode,
             );
         }
+        Mode::StashingUI => {
+            let mut entries = Vec::new();
+            let entries_data = vec![
+                ("Cancel", "⎋/q"),
+                ("Save Stash", "s"),
+                ("Toggle Untracked", "u"),
+                ("Toggle Keep Index", "i"),
+                ("Navigate", "↑↓"),
+            ];
+            for (i, (label, key)) in entries_data.iter().enumerate() {
+                let mut spans = Vec::new();
+                if i > 0 {
+                    spans.push(Span::styled(" ", muted_style()));
+                }
+                spans.push(Span::raw((*label).to_string()));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("[", muted_style()));
+                spans.push(Span::styled((*key).to_string(), accent_style()));
+                spans.push(Span::styled("]", muted_style()));
+                entries.push(StatusEntry::new(spans));
+            }
+            draw_status_layout(f, area, None, entries, app);
+        }
         Mode::BranchDeleteConfirm => {
             let (target, is_remote) = app
                 .branch_action_target
@@ -1003,6 +1026,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         Mode::Normal => ("NORMAL", Color::Blue),
         Mode::Detail => ("DETAIL", Color::Magenta),
         Mode::Inspect => ("INSPECT", Color::Rgb(175, 95, 0)),
+        Mode::StashingUI => ("STASH", Color::Cyan),
         Mode::Settings => ("SETTINGS", Color::Green),
         Mode::Help | Mode::DetailHelp => ("HELP", Color::DarkGray),
         Mode::About => ("ABOUT", Color::DarkGray),

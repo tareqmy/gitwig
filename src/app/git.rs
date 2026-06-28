@@ -338,15 +338,15 @@ impl App {
 
     pub fn commit_stash_create(&mut self) {
         let stash_name = self.input_buffer.trim().to_string();
-        if stash_name.is_empty() {
-            self.status_message = Some("Stash name cannot be empty".to_string());
-            self.mode = Mode::Detail;
-            return;
-        }
         if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
-            match repo::save_stash(resolved, &stash_name) {
+            match repo::save_stash(resolved, &stash_name, self.stash_untracked, self.stash_keep_index) {
                 Ok(()) => {
-                    self.status_message = Some(format!("Created stash '{}'", stash_name));
+                    let msg = if stash_name.is_empty() {
+                        "Created stash".to_string()
+                    } else {
+                        format!("Created stash '{}'", stash_name)
+                    };
+                    self.status_message = Some(msg);
                     self.stash_list.stash_selection = 0;
                     self.stash_list.stash_file_selection = 0;
                     self.resync_detail();

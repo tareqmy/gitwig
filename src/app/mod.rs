@@ -73,6 +73,8 @@ pub enum Mode {
     StashApplyConfirm,
     /// Typing a stash name/message to create.
     StashCreateInput,
+    /// Showing the stashing UI panel with options and file list.
+    StashingUI,
     /// Picking a remote when multiple are available.
     RemotePicker,
     /// Typing a search query for commits.
@@ -355,6 +357,12 @@ pub struct App {
     pub fetch_progress: u16,
     /// Option to delete the stash after applying.
     pub stash_apply_delete_after: bool,
+    /// Option to stash untracked files.
+    pub stash_untracked: bool,
+    /// Option to keep the index after stashing.
+    pub stash_keep_index: bool,
+    /// Selection index in the Stashing UI file list.
+    pub stashing_ui_selection: usize,
     /// Preserved original order of repository items from the config.
     pub original_items: Vec<String>,
     /// Which action the remote picker was opened for.
@@ -908,6 +916,9 @@ impl App {
             revert_target: None,
             fetch_progress: 0,
             stash_apply_delete_after: true,
+            stash_untracked: true,
+            stash_keep_index: false,
+            stashing_ui_selection: 0,
             remote_picker_action: None,
             remote_picker_selection: 0,
             inspect_horizontal_split_pct: 38,

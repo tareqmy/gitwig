@@ -11,16 +11,19 @@ impl StashesTab {
             KeyCode::Char('d') | KeyCode::Char('D') => {
                 if detail_focus == DetailSection::Stashes {
                     app.request_stash_delete();
+                    return true;
                 }
             }
             KeyCode::Char('a') | KeyCode::Char('A') => {
                 if detail_focus == DetailSection::Stashes {
                     app.request_stash_apply();
+                    return true;
                 }
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
                 if detail_focus == DetailSection::Stashes {
                     app.start_stash_create();
+                    return true;
                 }
             }
             KeyCode::Up => match detail_focus {
