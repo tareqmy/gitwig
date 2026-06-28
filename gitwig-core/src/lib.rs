@@ -1341,7 +1341,7 @@ pub fn load_tab_tags(
             }
         }
     }
-    local_tags.sort_by(|a, b| a.name.cmp(&b.name));
+    local_tags.sort_by(|a, b| b.name.cmp(&a.name));
 
     (Ok(local_tags), Ok(Vec::new()))
 }
@@ -2082,7 +2082,7 @@ pub fn get_remote_tags(
     for (name, (short_sha, short_message)) in tags_map {
         tags.push(BranchInfo { name, is_head: false, short_sha, short_message });
     }
-    tags.sort_by(|a, b| a.name.cmp(&b.name));
+    tags.sort_by(|a, b| b.name.cmp(&a.name));
     Ok(tags)
 }
 
