@@ -114,16 +114,22 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             draw_status_layout(f, area, msg_spans, entries, app);
         }
         Mode::Adding => {
-            draw_input_status(f, area, "Add", &app.input_buffer);
+            draw_input_status(f, area, "Add", &app.input_buffer, app.config.compatibility_mode);
         }
         Mode::BulkAddInput => {
-            draw_input_status(f, area, "Bulk Add (Tab for FZF)", &app.input_buffer);
+            draw_input_status(
+                f,
+                area,
+                "Bulk Add (Tab for FZF)",
+                &app.input_buffer,
+                app.config.compatibility_mode,
+            );
         }
         Mode::Editing => {
-            draw_input_status(f, area, "Edit", &app.input_buffer);
+            draw_input_status(f, area, "Edit", &app.input_buffer, app.config.compatibility_mode);
         }
         Mode::RepoSearchInput => {
-            draw_input_status(f, area, "Find", &app.input_buffer);
+            draw_input_status(f, area, "Find", &app.input_buffer, app.config.compatibility_mode);
         }
         Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput => {
             let msg_spans = vec![Span::styled(
@@ -177,13 +183,31 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             draw_status_layout(f, area, msg_spans, entries, app);
         }
         Mode::BranchCreateInput => {
-            draw_input_status(f, area, "Create Branch", &app.input_buffer);
+            draw_input_status(
+                f,
+                area,
+                "Create Branch",
+                &app.input_buffer,
+                app.config.compatibility_mode,
+            );
         }
         Mode::TagCreateInput => {
-            draw_input_status(f, area, "Create Tag", &app.input_buffer);
+            draw_input_status(
+                f,
+                area,
+                "Create Tag",
+                &app.input_buffer,
+                app.config.compatibility_mode,
+            );
         }
         Mode::StashCreateInput => {
-            draw_input_status(f, area, "Stash Changes", &app.input_buffer);
+            draw_input_status(
+                f,
+                area,
+                "Stash Changes",
+                &app.input_buffer,
+                app.config.compatibility_mode,
+            );
         }
         Mode::BranchDeleteConfirm => {
             let (target, is_remote) = app
@@ -386,7 +410,13 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             draw_status_layout(f, area, Some(msg_spans), entries, app);
         }
         Mode::LogsSearchInput => {
-            draw_input_status(f, area, "Search Logs", &app.input_buffer);
+            draw_input_status(
+                f,
+                area,
+                "Search Logs",
+                &app.input_buffer,
+                app.config.compatibility_mode,
+            );
         }
         Mode::Logs => {
             let msg_spans = vec![
@@ -417,7 +447,13 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             draw_status_layout(f, area, Some(msg_spans), entries, app);
         }
         Mode::CommitSearchInput => {
-            draw_input_status(f, area, "Search Commits", &app.input_buffer);
+            draw_input_status(
+                f,
+                area,
+                "Search Commits",
+                &app.input_buffer,
+                app.config.compatibility_mode,
+            );
         }
         Mode::DiscardChangesConfirm => {
             let (target, staged) = app
@@ -962,6 +998,72 @@ fn commit_input_confirm_entries(
     (None, entries)
 }
 
+fn get_mode_badge(mode: &Mode) -> Span<'static> {
+    let (label, color) = match mode {
+        Mode::Normal => ("NORMAL", Color::Blue),
+        Mode::Detail => ("DETAIL", Color::Magenta),
+        Mode::Inspect => ("INSPECT", Color::Rgb(175, 95, 0)),
+        Mode::Settings => ("SETTINGS", Color::Green),
+        Mode::Help | Mode::DetailHelp => ("HELP", Color::DarkGray),
+        Mode::About => ("ABOUT", Color::DarkGray),
+        Mode::Adding
+        | Mode::BulkAddInput
+        | Mode::Editing
+        | Mode::RepoSearchInput
+        | Mode::ImportUrlInput
+        | Mode::ImportDestInput
+        | Mode::ImportNameInput
+        | Mode::RemoteAddNameInput
+        | Mode::RemoteAddUrlInput
+        | Mode::BranchCreateInput
+        | Mode::TagCreateInput
+        | Mode::StashCreateInput
+        | Mode::LogsSearchInput => ("INPUT", Color::Red),
+        Mode::ConfirmDelete
+        | Mode::BranchDeleteConfirm
+        | Mode::BranchCheckoutConfirm
+        | Mode::TagCheckoutConfirm
+        | Mode::BranchPushConfirm
+        | Mode::BranchMergeConfirm
+        | Mode::BranchRebaseConfirm
+        | Mode::BranchInteractiveRebaseConfirm
+        | Mode::TagDeleteConfirm
+        | Mode::TagPushConfirm
+        | Mode::TagPushAllConfirm
+        | Mode::StashDeleteConfirm
+        | Mode::StashApplyConfirm
+        | Mode::CherryPickConfirm
+        | Mode::RevertConfirm
+        | Mode::MergeAbortConfirm
+        | Mode::MergeContinueConfirm => ("CONFIRM", Color::Rgb(135, 0, 135)),
+        _ => ("NORMAL", Color::Blue),
+    };
+
+    Span::styled(label, Style::default().fg(color).add_modifier(Modifier::BOLD))
+}
+
+fn extend_spans_with_separator(
+    spans: &mut Vec<Span<'static>>,
+    entries: Vec<StatusEntry>,
+    is_compat: bool,
+) {
+    let separator = if is_compat { " > " } else { " ⟩ " };
+    let mut first = true;
+    for entry in entries {
+        if !first {
+            spans.push(Span::styled(separator, muted_style()));
+        }
+        first = false;
+        let mut start = 0;
+        if !entry.spans.is_empty() && entry.spans[0].content.trim().is_empty() {
+            start = 1;
+        }
+        for span in &entry.spans[start..] {
+            spans.push(span.clone());
+        }
+    }
+}
+
 fn draw_status_layout(
     f: &mut Frame,
     area: Rect,
@@ -981,23 +1083,31 @@ fn draw_status_layout(
 
     let status_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Min(1), Constraint::Length(25)])
+        .constraints([Constraint::Min(1), Constraint::Length(28)])
         .split(area);
 
     let left_area = status_chunks[0];
     let right_area = status_chunks[1];
 
     let mut spans = Vec::new();
+
+    // Add Mode Badge
+    let badge = get_mode_badge(&app.mode);
+    let badge_len = badge.content.chars().count();
+    let mode_sep = if app.config.compatibility_mode { " > " } else { " ⟩ " };
+
+    spans.push(badge);
+    spans.push(Span::styled(mode_sep, muted_style()));
+
+    let mut initial_width = badge_len + 3;
     if is_merging {
         spans.push(Span::styled(
             "[ ⚡ MERGING ] ",
             Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD),
         ));
-    } else {
-        spans.push(Span::raw(" "));
+        initial_width += 14;
     }
 
-    let mut initial_width = if is_merging { 14 } else { 1 };
     if let Some(ref msg) = message_spans {
         spans.extend(msg.clone());
         initial_width += msg.iter().map(|s| s.content.chars().count()).sum::<usize>();
@@ -1006,9 +1116,7 @@ fn draw_status_layout(
     let max_width = left_area.width as usize;
 
     if app.status_expanded {
-        for entry in entries {
-            spans.extend(entry.spans);
-        }
+        extend_spans_with_separator(&mut spans, entries, app.config.compatibility_mode);
         spans.push(Span::styled(" ", muted_style()));
         spans.push(Span::raw("Less"));
         spans.push(Span::raw(" "));
@@ -1025,21 +1133,26 @@ fn draw_status_layout(
         let mut fitted_entries = Vec::new();
         let mut current_width = initial_width;
         let mut truncated = false;
+        let sep_width = 3;
+        let mut first = true;
 
         for entry in entries {
-            let w = entry.width();
-            if current_width + w <= limit {
-                current_width += w;
+            let mut w = entry.width();
+            if !entry.spans.is_empty() && entry.spans[0].content.trim().is_empty() {
+                w = w.saturating_sub(entry.spans[0].content.chars().count());
+            }
+            let increment = if first { w } else { w + sep_width };
+            if current_width + increment <= limit {
+                current_width += increment;
                 fitted_entries.push(entry);
+                first = false;
             } else {
                 truncated = true;
                 break;
             }
         }
 
-        for entry in fitted_entries {
-            spans.extend(entry.spans);
-        }
+        extend_spans_with_separator(&mut spans, fitted_entries, app.config.compatibility_mode);
 
         if truncated {
             spans.push(Span::styled(" ", muted_style()));
@@ -1057,14 +1170,31 @@ fn draw_status_layout(
     // Render CPU & Memory Stats on the right
     let (rss_mb, cpu_pct) = get_process_stats(app);
     let stats_text = if rss_mb > 0.0 {
-        format!(" MEM: {:.1}MB | CPU: {:.1}% ", rss_mb, cpu_pct)
+        format!(" mem: {:.1}mb │ cpu: {:.1}% ", rss_mb, cpu_pct)
     } else {
         "".to_string()
     };
     if !stats_text.is_empty() {
-        let stats_line =
-            Line::from(vec![Span::styled(stats_text, muted_style())]).alignment(Alignment::Right);
-        f.render_widget(Paragraph::new(stats_line), right_area);
+        if right_area.height >= 3 {
+            let block = ratatui::widgets::Block::default()
+                .borders(ratatui::widgets::Borders::ALL)
+                .border_style(muted_style())
+                .border_type(ratatui::widgets::BorderType::Rounded);
+            let inner = block.inner(right_area);
+            f.render_widget(block, right_area);
+
+            let stats_line = Line::from(vec![Span::styled(stats_text.trim(), muted_style())])
+                .alignment(Alignment::Center);
+            f.render_widget(Paragraph::new(stats_line), inner);
+        } else {
+            let stats_line = Line::from(vec![
+                Span::styled("│", muted_style()),
+                Span::styled(stats_text, muted_style()),
+                Span::styled("│", muted_style()),
+            ])
+            .alignment(Alignment::Right);
+            f.render_widget(Paragraph::new(stats_line), right_area);
+        }
     }
 }
 

@@ -493,31 +493,53 @@ fn repo_indicator_line(app: &App, summary: &RepoSummary) -> Line<'static> {
     Line::from(spans)
 }
 
-pub(crate) fn draw_input_status(f: &mut Frame, area: Rect, verb: &str, buffer: &str) {
-    let prefix = format!(" {} › ", verb);
+pub(crate) fn draw_input_status(
+    f: &mut Frame,
+    area: Rect,
+    verb: &str,
+    buffer: &str,
+    is_compat: bool,
+) {
+    let mut spans = Vec::new();
 
-    let spans = vec![
-        Span::styled(prefix.clone(), Style::default().fg(WARNING()).add_modifier(Modifier::BOLD)),
-        Span::styled(buffer.to_string(), primary_style()),
-        Span::styled(" ", muted_style()),
-        Span::raw("Save"),
-        Span::raw(" "),
-        Span::styled("[", muted_style()),
-        Span::styled("↵", accent_style()),
-        Span::styled("]", muted_style()),
-        Span::styled(" ", muted_style()),
-        Span::raw("Cancel"),
-        Span::raw(" "),
-        Span::styled("[", muted_style()),
-        Span::styled("⎋", accent_style()),
-        Span::styled("]", muted_style()),
-    ];
+    // Add Mode Badge
+    spans.push(Span::styled(
+        "INPUT",
+        Style::default().fg(ratatui::style::Color::Red).add_modifier(Modifier::BOLD),
+    ));
+
+    let mode_sep = if is_compat { " > " } else { " ⟩ " };
+    spans.push(Span::styled(mode_sep, muted_style()));
+
+    let prefix = format!("{} › ", verb);
+    spans.push(Span::styled(
+        prefix.clone(),
+        Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
+    ));
+    spans.push(Span::styled(buffer.to_string(), primary_style()));
+
+    let separator = if is_compat { " > " } else { " ⟩ " };
+    spans.push(Span::styled(separator, muted_style()));
+    spans.push(Span::raw("Save"));
+    spans.push(Span::raw(" "));
+    spans.push(Span::styled("[", muted_style()));
+    spans.push(Span::styled("↵", accent_style()));
+    spans.push(Span::styled("]", muted_style()));
+
+    spans.push(Span::styled(separator, muted_style()));
+    spans.push(Span::raw("Cancel"));
+    spans.push(Span::raw(" "));
+    spans.push(Span::styled("[", muted_style()));
+    let cancel_key = if is_compat { "Esc" } else { "⎋" };
+    spans.push(Span::styled(cancel_key, accent_style()));
+    spans.push(Span::styled("]", muted_style()));
+
     let para = Paragraph::new(Line::from(spans));
     f.render_widget(para, area);
 
-    // Place the real terminal cursor at the end of the input. Clamp to
-    // the visible width so a long input doesn't push the cursor off-screen.
-    let cursor_offset = (prefix.chars().count() + buffer.chars().count()) as u16;
+    // Cursor position calculation includes the Mode Badge (5 chars) and Mode Sep (3 chars)
+    let badge_offset = 5 + 3;
+    let cursor_offset = (badge_offset + prefix.chars().count() + buffer.chars().count()) as u16;
     let cursor_x = area.x.saturating_add(cursor_offset.min(area.width.saturating_sub(1)));
     f.set_cursor_position(Position::new(cursor_x, area.y));
 }
