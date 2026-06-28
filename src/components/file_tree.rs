@@ -127,20 +127,28 @@ pub fn draw_files_view(
             .iter()
             .map(|item| {
                 let indent = "  ".repeat(item.depth);
-                let (prefix, style) = if item.is_dir {
+                let (prefix, prefix_style, name_style) = if item.is_dir {
                     if item.is_expanded {
-                        (files_tab_sym("folder_tree_expanded"), primary_style())
+                        (
+                            files_tab_sym("folder_tree_expanded"),
+                            Style::default().fg(ACCENT()),
+                            Style::default().fg(ACCENT()),
+                        )
                     } else {
-                        (files_tab_sym("folder_tree_collapsed"), primary_style())
+                        (
+                            files_tab_sym("folder_tree_collapsed"),
+                            Style::default().fg(ACCENT()),
+                            Style::default().fg(ACCENT()),
+                        )
                     }
                 } else {
-                    (files_tab_sym("file_tree"), muted_style())
+                    (files_tab_sym("file_tree"), muted_style(), primary_style())
                 };
 
                 ListItem::new(Line::from(vec![
                     Span::raw(indent),
-                    Span::styled(prefix, style),
-                    Span::styled(item.name.clone(), primary_style()),
+                    Span::styled(prefix, prefix_style),
+                    Span::styled(item.name.clone(), name_style),
                 ]))
             })
             .collect();
@@ -224,13 +232,15 @@ pub fn draw_files_view(
                         lines.push(Line::from(vec![
                             Span::raw("  "),
                             Span::styled(files_tab_sym("folder"), Style::default().fg(ACCENT())),
-                            Span::styled(name, primary_style()),
+                            Span::raw(" "),
+                            Span::styled(name, Style::default().fg(ACCENT())),
                         ]));
                     } else {
                         lines.push(Line::from(vec![
                             Span::raw("  "),
                             Span::styled(files_tab_sym("file"), muted_style()),
-                            Span::raw(name),
+                            Span::raw(" "),
+                            Span::styled(name, primary_style()),
                         ]));
                     }
                 }
