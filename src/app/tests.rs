@@ -1496,6 +1496,38 @@ fn test_mouse_row_selection_in_detail_panels() {
     crate::mouse::handle_mouse(&mut app, inspect_file_click);
     assert_eq!(app.status_list.file_selection, 1);
     assert_eq!(app.detail_focus, DetailSection::Staged);
+
+    // 10. Files tab click test
+    app.mode = Mode::Detail;
+    app.detail_tab = 1; // Files Tab
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    app.detail_areas.files = Some(Rect::new(0, 0, 100, 20));
+    app.detail_areas.files_inner = Some(Rect::new(1, 1, 98, 18));
+    app.file_tree.visible_files = vec![
+        crate::app::FileTreeItem {
+            name: "f1.rs".to_string(),
+            full_path: "f1.rs".to_string(),
+            is_dir: false,
+            depth: 0,
+            is_expanded: false,
+        },
+        crate::app::FileTreeItem {
+            name: "f2.rs".to_string(),
+            full_path: "f2.rs".to_string(),
+            is_dir: false,
+            depth: 0,
+            is_expanded: false,
+        },
+    ];
+    let files_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 2, // index 1 (relative to 1)
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, files_click);
+    assert_eq!(app.file_tree.file_list_selection, 1);
+    assert_eq!(app.detail_focus, DetailSection::Files);
 }
 
 #[test]

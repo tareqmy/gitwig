@@ -123,6 +123,8 @@ pub struct DetailAreas {
     pub stashes_inner: Option<Rect>,
     /// Inner area of stashed files list.
     pub stashed_files_inner: Option<Rect>,
+    /// Inner area of files list in Files tab.
+    pub files_inner: Option<Rect>,
     /// Bounding box of the commit message popup.
     pub commit_popup: Option<Rect>,
     /// Bounding box of the parent area the commit popup was centered inside.

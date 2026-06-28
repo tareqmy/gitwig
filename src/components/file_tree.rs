@@ -5,6 +5,7 @@ pub struct FileTreeComponent {
     pub visible_files: Vec<crate::app::FileTreeItem>,
     pub file_list_selection: usize,
     pub file_content_scroll: usize,
+    pub file_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
 }
 use crate::app::{App, DetailSection, Mode};
 use crate::components::commit_list::draw_commit_details_widget;
@@ -144,14 +145,17 @@ pub fn draw_files_view(
             })
             .collect();
 
+        let left_inner = left_block.inner(chunks[0]);
+        areas.files_inner = Some(left_inner);
+
         let list = List::new(items)
             .block(left_block)
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
-        let mut state = ListState::default();
+        let mut state = app.file_tree.file_list_state.borrow_mut();
         state.select(Some(file_list_selection));
 
-        f.render_stateful_widget(list, chunks[0], &mut state);
+        f.render_stateful_widget(list, chunks[0], &mut *state);
     }
 
     // Right panel: file preview or folder contents

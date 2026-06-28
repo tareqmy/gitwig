@@ -880,8 +880,18 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     if let Some(rect) = areas.files {
         if rect.contains(pos) {
             if is_click {
-                if app.detail_focus != DetailSection::Files {
-                    app.detail_focus = DetailSection::Files;
+                app.detail_focus = DetailSection::Files;
+                if let Some(inner) = areas.files_inner {
+                    if inner.contains(pos) {
+                        let clicked_row = (pos.y - inner.y) as usize;
+                        let offset = app.file_tree.file_list_state.borrow().offset();
+                        let actual_idx = offset + clicked_row;
+                        let total = app.file_tree.visible_files.len();
+                        if actual_idx < total {
+                            app.file_tree.file_list_selection = actual_idx;
+                            app.file_tree.file_content_scroll = 0;
+                        }
+                    }
                 }
             } else if is_scroll_up {
                 app.detail_focus = DetailSection::Files;

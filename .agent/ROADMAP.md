@@ -87,7 +87,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Refactor the codebase to make it manageable
 
 ## Phase 8:
-- [ ] **Per-file history view**
+- [x] Per-file history view
 - [ ] **Per repository settings, theme**
 - [ ] **Show UI first, Load data later per tab**
 - [ ] **Keybindings**
