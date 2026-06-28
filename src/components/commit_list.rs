@@ -112,7 +112,7 @@ pub fn draw_detail_commits(
 
     if info.commits.len() >= commit_limit {
         let footer_text =
-            format!(" Showing first {} commits — press G to load more ", info.commits.len());
+            format!(" Showing latest {} commits — press G to load more ", info.commits.len());
         block = block.title_bottom(
             Line::from(vec![Span::styled(footer_text, muted_style())])
                 .alignment(ratatui::layout::Alignment::Center),
