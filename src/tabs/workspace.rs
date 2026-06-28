@@ -454,6 +454,10 @@ impl WorkspaceTab {
                     app.mode = Mode::MergeAbortConfirm;
                     return true;
                 }
+                KeyCode::Right => {
+                    app.mode = Mode::Inspect;
+                    return true;
+                }
                 _ => {}
             },
             // ── CommitDetails panel ────────────────────────────────────────────

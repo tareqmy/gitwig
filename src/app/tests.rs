@@ -1896,6 +1896,18 @@ fn test_workspace_tab_right_arrow_inspect() {
     // Verify we are still in Inspect mode, but focus returned to Staged files list
     assert_eq!(app.mode, Mode::Inspect);
     assert_eq!(app.detail_focus, DetailSection::Staged);
+
+    // Go back to Detail mode for testing transition from StagingDetails
+    app.mode = Mode::Detail;
+    app.detail_focus = DetailSection::StagingDetails;
+
+    // Press Right arrow on StagingDetails (diff panel)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+    assert!(handled);
+
+    // Verify we transitioned to Inspect mode
+    assert_eq!(app.mode, Mode::Inspect);
+    assert_eq!(app.detail_focus, DetailSection::StagingDetails);
 }
 
 #[test]
