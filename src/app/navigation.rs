@@ -75,7 +75,7 @@ impl App {
     pub fn clamp_help_scroll(&mut self, height: usize) {
         let (percent_y, lines_len) = match self.mode {
             Mode::Help => (70, crate::popups::help::get_help_lines_len(self)),
-            Mode::DetailHelp => (55, crate::ui_detail::DETAIL_HELP_LINES.len() + 2),
+            Mode::DetailHelp => (55, crate::popups::detail_help::get_detail_help_lines_len(self)),
             _ => return,
         };
         let popup_height = (height * percent_y) / 100;

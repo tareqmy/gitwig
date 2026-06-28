@@ -674,7 +674,12 @@ pub fn draw(
             }
             // Draw detail help overlay on top when requested.
             if matches!(mode, Mode::DetailHelp) {
-                crate::popups::detail_help::draw_detail_help_overlay(f, body_area, help_scroll);
+                crate::popups::detail_help::draw_detail_help_overlay(
+                    f,
+                    app,
+                    body_area,
+                    help_scroll,
+                );
             }
             // Draw commit popup on top when requested.
             if matches!(mode, Mode::CommitInput) {
@@ -1018,58 +1023,7 @@ fn build_committer_stats_lines(info: &RepoInfo) -> Vec<Line<'static>> {
 
 /// Returns a [`Rect`] that is `percent_x` wide and `percent_y` tall, centred in `r`.
 
-// ── Detail help overlay ────────────────────────────────────────────────────
-
-pub const DETAIL_HELP_LINES: &[(&str, &str)] = &[
-    ("↑ [Up]", "Select previous commit / file / branch / file tree item"),
-    ("↓ [Down]", "Select next commit / file / branch / file tree item"),
-    ("⇞ [PgUp]", "Jump page size rows up"),
-    ("⇟ [PgDn]", "Jump page size rows down"),
-    ("Home", "Scroll to top / go to first item"),
-    ("End", "Scroll to bottom / go to last item"),
-    ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
-    ("w / W", "Cycle panel focus forward (w) / backward (W)"),
-    ("← / →", "Focus Local/Remote branch (Branches tab)"),
-    ("← / → or < / >", "Collapse/Expand folder (Files tab)"),
-    ("f", "Fuzzy find files (Files tab)"),
-    ("↵ [Enter]", "Stage/Unstage file, Checkout branch, Checkout tag, or Inspect commit"),
-    ("c / C", "Commit (c) / Amend last commit (C) (Workspace/Inspect) / Create branch (Branches)"),
-    ("t", "Create tag (Workspace tab commits list)"),
-    ("i", "Interactive rebase from selected commit (Workspace) / selected branch (Branches)"),
-    ("f", "Open search column picker and go to logs (Workspace tab)"),
-    ("d", "Delete selected branch (Branches) / tag (Tags) / stash (Stashes)"),
-    ("a", "Stage/Unstage All (Workspace) / Apply selected stash (Stashes)"),
-    ("x", "Discard changes in selected file (Workspace / Inspect)"),
-    ("X", "Discard all changes in repository (Workspace / Inspect)"),
-    ("m", "Merge selected branch into current branch (Branches)"),
-    ("r", "Rebase current branch onto selected branch (Branches)"),
-    ("1", "Go to Workspace tab"),
-    ("2", "Go to Files tab"),
-    ("3", "Go to Graph View tab"),
-    ("4", "Go to Branches tab"),
-    ("5", "Go to Tags tab"),
-    ("6", "Go to Remotes tab"),
-    ("7", "Go to Stashes tab"),
-    ("8", "Go to Overview tab"),
-    ("f / F", "Fetch remote tags (Tags tab) / Fetch selected remote (Remotes tab)"),
-    ("⇧F [Shift+F]", "Fetch selected local branch's upstream"),
-    ("p", "Pull branch (Branches) / Push tag (Tags)"),
-    ("⇧P [Shift+P]", "Push branch (Branches) / Push all tags (Tags)"),
-    ("R", "Resync current tab state"),
-    ("y", "Yank selected commit hash (Workspace commits list)"),
-    ("s", "Stash changes (Workspace changes or Stashes tab)"),
-    ("o", "Accept OURS version of conflict (Conflicts / ConflictDiff)"),
-    ("t", "Accept THEIRS version of conflict (Conflicts / ConflictDiff)"),
-    ("r", "Mark conflict as resolved (Conflicts / ConflictDiff)"),
-    ("A", "Abort the merge (Conflicts / ConflictDiff)"),
-    ("C", "Continue the merge (Conflicts / ConflictDiff)"),
-    ("? / ⎋ [Esc]", "Close this help"),
-    ("q / ⎋ [Esc]", "Back to repository list"),
-    ("→ [Right] / ↵ [Enter]", "Inspect selected commit (Workspace commits list)"),
-    ("⎋ [Esc]", "Back to workspace commits list (Inspect mode)"),
-    ("Left-Click", "Focus clicked panel / change tab (mouse support)"),
-    ("Left-Click+Drag", "Drag boundaries to resize split panels"),
-];
+// Detail help overlay configuration is now dynamically generated in detail_help.rs
 
 /// Renders a floating shortcut reference overlay centred over `area`.
 

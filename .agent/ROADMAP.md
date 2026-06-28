@@ -84,6 +84,8 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Show memory and cpu usage from within the app
 - [x] For large repo load time is high
 - [x] Refactor the codebase to make it manageable
+
+## Phase 8:
 - [ ] **Per repository settings, theme**
 - [ ] **Show UI first, Load data later per tab**
 - [ ] **Keybindings**
@@ -95,7 +97,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
 - [ ] **Add fzf as dependency**
 
-## Phase 8: Intelligent AI Integrations (Optional/Configurable)
+## Phase 9: Intelligent AI Integrations (Optional/Configurable)
 - [ ] **Semantic Commit Generator:** Press a key (e.g., `⌃G`) in the Commit popup to generate conventional commit messages from staged diffs using Gemini/Ollama/OpenAI APIs.
 - [ ] **Diff Summarizer:** Highlight a large diff/hunk and get a brief explanation of what the change does.
 - [ ] **Smart Conflict Explainer:** Provides a natural-language description of merge conflicts, highlighting the logical differences between "Ours" and "Theirs".
