@@ -198,6 +198,7 @@ pub fn draw_inspect_window(
                 Span::raw(" "),
             ]));
         let left_inner = left_block.inner(left_chunks[1]);
+        areas.changed_files_inner = Some(left_inner);
         f.render_widget(left_block, left_chunks[1]);
 
         if commit.files.is_empty() {
@@ -219,7 +220,7 @@ pub fn draw_inspect_window(
                 commit.files.iter().map(|f| ListItem::new(file_entry_line(f))).collect();
             let list =
                 List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-            let mut state = ListState::default();
+            let mut state = app.status_list.changed_files_list_state.borrow_mut();
             if left_focused {
                 state.select(Some(file_selection));
             } else {

@@ -1458,6 +1458,44 @@ fn test_mouse_row_selection_in_detail_panels() {
     crate::mouse::handle_mouse(&mut app, stash_file_click);
     assert_eq!(app.stash_list.stash_file_selection, 1);
     assert_eq!(app.detail_focus, DetailSection::StashedFiles);
+
+    // 9. Inspect view file click test
+    app.mode = Mode::Inspect;
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    let mut mock_info_inspect = repo::RepoInfo::default();
+    let mock_commit = repo::CommitEntry {
+        id: "1234567".to_string(),
+        oid: "1234567890abcdef1234567890abcdef12345678".to_string(),
+        summary: "test summary".to_string(),
+        author: "author".to_string(),
+        when: "now".to_string(),
+        date: "now".to_string(),
+        refs: vec![],
+        message: "message".to_string(),
+        files: vec![
+            repo::FileEntry { path: "file1.rs".to_string(), label: "M" },
+            repo::FileEntry { path: "file2.rs".to_string(), label: "M" },
+        ],
+        signature_status: "N".to_string(),
+    };
+    mock_info_inspect.commits = vec![mock_commit];
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("a_repo"),
+        info: Box::new(mock_info_inspect),
+    });
+    app.commit_list.selection = 0;
+
+    app.detail_areas.bottom_left = Some(Rect::new(0, 10, 50, 10));
+    app.detail_areas.changed_files_inner = Some(Rect::new(1, 11, 48, 8));
+    let inspect_file_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 5,
+        row: 12, // index 1 (relative to 11)
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, inspect_file_click);
+    assert_eq!(app.status_list.file_selection, 1);
+    assert_eq!(app.detail_focus, DetailSection::Staged);
 }
 
 #[test]
