@@ -300,8 +300,6 @@ pub struct App {
     /// Flattened visible files inside the Files tab.
     /// Vertical scroll offset for the git history graph view (Graph tab).
     pub graph_scroll: usize,
-    /// Whether we are currently editing the commit message in the popup.
-    pub commit_editing: bool,
     /// Whether the status bar is expanded.
     pub status_expanded: bool,
     /// Sender for background task events.
@@ -324,8 +322,6 @@ pub struct App {
     pub in_logs_ui: bool,
     /// Whether we are in full-screen diff mode under inspect view.
     pub inspect_full_diff: bool,
-    /// Whether the commit popup is maximized to leave 20 characters on all sides.
-    pub commit_popup_maximized: bool,
     /// Selection in search column picker.
     pub search_column_selection: usize,
     /// Columns to include in search.
@@ -357,8 +353,6 @@ pub struct App {
     pub fetch_progress: u16,
     /// Option to delete the stash after applying.
     pub stash_apply_delete_after: bool,
-    /// Option to amend the last commit.
-    pub commit_amend: bool,
     /// Preserved original order of repository items from the config.
     pub original_items: Vec<String>,
     /// Which action the remote picker was opened for.
@@ -878,7 +872,6 @@ impl App {
             last_click: None,
             detail_tab: 0,
             graph_scroll: 0,
-            commit_editing: false,
             status_expanded: false,
             tx,
             rx,
@@ -890,7 +883,6 @@ impl App {
             pending_interactive_rebase: None,
             in_logs_ui: false,
             inspect_full_diff: false,
-            commit_popup_maximized: false,
             search_column_selection: 0,
             search_columns_sha: true,
             search_columns_message: true,
@@ -908,7 +900,6 @@ impl App {
             revert_target: None,
             fetch_progress: 0,
             stash_apply_delete_after: true,
-            commit_amend: false,
             remote_picker_action: None,
             remote_picker_selection: 0,
             inspect_horizontal_split_pct: 38,

@@ -40,7 +40,7 @@ impl Component for CommitPopup {
             if self.editing {
                 match key.code {
                     KeyCode::Esc => {
-                        self.editing = false;
+                        self.queue.push(InternalEvent::ClosePopup);
                         return Ok(EventState::Consumed);
                     }
                     KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -52,7 +52,11 @@ impl Component for CommitPopup {
                         return Ok(EventState::Consumed);
                     }
                     KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.queue.push(InternalEvent::ClosePopup);
+                        self.editing = false;
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.maximized = !self.maximized;
                         return Ok(EventState::Consumed);
                     }
                     KeyCode::Char(c) => {
@@ -91,7 +95,10 @@ impl Component for CommitPopup {
                         self.amend = !self.amend;
                         return Ok(EventState::Consumed);
                     }
-                    KeyCode::Char('m') | KeyCode::Char('M') => {
+                    KeyCode::Char('d')
+                    | KeyCode::Char('D')
+                    | KeyCode::Char('m')
+                    | KeyCode::Char('M') => {
                         self.maximized = !self.maximized;
                         return Ok(EventState::Consumed);
                     }
@@ -142,7 +149,7 @@ pub fn draw_commit_popup(
     app: &crate::app::App,
     areas: &mut DetailAreas,
 ) {
-    let popup_area = if app.commit_popup_maximized {
+    let popup_area = if app.commit_popup.maximized {
         let width = area.width.saturating_sub(20).max(area.width.min(40));
         let height = area.height.saturating_sub(20).max(area.height.min(15));
         let x = area.x + (area.width.saturating_sub(width)) / 2;

@@ -187,7 +187,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 let on_bottom = pos.y == rect.y + rect.height - 1;
 
                 if (on_left || on_right) && (on_top || on_bottom) {
-                    if app.commit_popup_maximized {
+                    if app.commit_popup.maximized {
                         if let Some(parent) = areas.commit_popup_parent {
                             if parent.width > 0 && parent.height > 0 {
                                 app.commit_popup_width_pct =
@@ -196,12 +196,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                     ((rect.height as f32 / parent.height as f32) * 100.0) as u16;
                             }
                         }
-                        app.commit_popup_maximized = false;
+                        app.commit_popup.maximized = false;
                     }
                     app.active_drag_splitter = Some(Splitter::CommitPopupBoth);
                     return;
                 } else if on_left || on_right {
-                    if app.commit_popup_maximized {
+                    if app.commit_popup.maximized {
                         if let Some(parent) = areas.commit_popup_parent {
                             if parent.width > 0 && parent.height > 0 {
                                 app.commit_popup_width_pct =
@@ -210,12 +210,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                     ((rect.height as f32 / parent.height as f32) * 100.0) as u16;
                             }
                         }
-                        app.commit_popup_maximized = false;
+                        app.commit_popup.maximized = false;
                     }
                     app.active_drag_splitter = Some(Splitter::CommitPopupWidth);
                     return;
                 } else if on_top || on_bottom {
-                    if app.commit_popup_maximized {
+                    if app.commit_popup.maximized {
                         if let Some(parent) = areas.commit_popup_parent {
                             if parent.width > 0 && parent.height > 0 {
                                 app.commit_popup_width_pct =
@@ -224,7 +224,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                     ((rect.height as f32 / parent.height as f32) * 100.0) as u16;
                             }
                         }
-                        app.commit_popup_maximized = false;
+                        app.commit_popup.maximized = false;
                     }
                     app.active_drag_splitter = Some(Splitter::CommitPopupHeight);
                     return;

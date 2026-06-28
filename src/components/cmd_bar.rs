@@ -169,10 +169,10 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             draw_status_layout(f, area, msg_spans, entries, app);
         }
         Mode::CommitInput => {
-            let (msg_spans, entries) = if app.commit_editing {
+            let (msg_spans, entries) = if app.commit_popup.editing {
                 commit_input_editing_entries()
             } else {
-                commit_input_confirm_entries(app.commit_amend)
+                commit_input_confirm_entries(app.commit_popup.amend)
             };
             draw_status_layout(f, area, msg_spans, entries, app);
         }

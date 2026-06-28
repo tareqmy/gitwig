@@ -3788,3 +3788,77 @@ fn test_graph_tab_scrolling() {
     assert!(handled);
     assert_eq!(app.graph_scroll, 0);
 }
+
+#[test]
+fn test_commit_popup_custom_keys() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_keys.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Enters CommitInput mode
+    app.mode = Mode::CommitInput;
+    app.commit_popup.editing = true;
+    app.commit_popup.maximized = false;
+
+    // Test Ctrl+D in editing mode -> toggles maximized
+    let ctrl_d = KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL);
+    let handled = crate::input::handle_key(&mut app, ctrl_d, 0);
+    assert!(handled);
+    assert!(app.commit_popup.maximized);
+
+    // Test Ctrl+D in editing mode again -> restores
+    let handled = crate::input::handle_key(&mut app, ctrl_d, 0);
+    assert!(handled);
+    assert!(!app.commit_popup.maximized);
+
+    // Test Ctrl+C in editing mode -> switches editing state to false (confirm mode)
+    let ctrl_c = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL);
+    let handled = crate::input::handle_key(&mut app, ctrl_c, 0);
+    assert!(handled);
+    assert!(!app.commit_popup.editing);
+    assert_eq!(app.mode, Mode::CommitInput); // Still in CommitInput mode!
+
+    // Test 'd' in confirm mode -> toggles maximized
+    let key_d = KeyEvent::new(KeyCode::Char('d'), KeyModifiers::empty());
+    let handled = crate::input::handle_key(&mut app, key_d, 0);
+    assert!(handled);
+    assert!(app.commit_popup.maximized);
+
+    // Test 'd' in confirm mode again -> restores
+    let handled = crate::input::handle_key(&mut app, key_d, 0);
+    assert!(handled);
+    assert!(!app.commit_popup.maximized);
+
+    // Test 'e' in confirm mode -> switches editing back to true
+    let key_e = KeyEvent::new(KeyCode::Char('e'), KeyModifiers::empty());
+    let handled = crate::input::handle_key(&mut app, key_e, 0);
+    assert!(handled);
+    assert!(app.commit_popup.editing);
+
+    // Test Esc in editing mode -> closes popup / returns to Detail mode
+    let key_esc = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
+    let handled = crate::input::handle_key(&mut app, key_esc, 0);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+}
