@@ -14,8 +14,10 @@ impl HomeTab {
                     app.scroll_top = 0;
                 }
                 KeyCode::Char('q') | KeyCode::Esc => return false,
-                KeyCode::Down => app.move_down(visible_count),
-                KeyCode::Up => app.move_up(),
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                    app.move_down(visible_count)
+                }
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => app.move_up(),
                 KeyCode::PageDown => app.page_down(app.config.page_size),
                 KeyCode::PageUp => app.page_up(app.config.page_size),
                 KeyCode::Home => app.move_to_top(),

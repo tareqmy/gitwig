@@ -193,7 +193,7 @@ impl InspectPopup {
                     }
                 }
             }
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                 if app.detail_focus == DetailSection::Staged
                     || app.detail_focus == DetailSection::Unstaged
                     || app.detail_focus == DetailSection::Conflicts
@@ -219,7 +219,7 @@ impl InspectPopup {
                     }
                 }
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                 if app.detail_focus == DetailSection::Staged
                     || app.detail_focus == DetailSection::Unstaged
                     || app.detail_focus == DetailSection::Conflicts

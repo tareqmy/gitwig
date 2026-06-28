@@ -26,13 +26,13 @@ impl StashesTab {
                     return true;
                 }
             }
-            KeyCode::Up => match detail_focus {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => match detail_focus {
                 DetailSection::Stashes => app.stash_up(),
                 DetailSection::StashedFiles => app.stash_file_up(),
                 DetailSection::StagingDetails => app.diff.diff_scroll_up(),
                 _ => {}
             },
-            KeyCode::Down => match detail_focus {
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => match detail_focus {
                 DetailSection::Stashes => app.stash_down(),
                 DetailSection::StashedFiles => app.stash_file_down(),
                 DetailSection::StagingDetails => app.diff.diff_scroll_down(),

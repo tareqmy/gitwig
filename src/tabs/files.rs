@@ -46,8 +46,10 @@ impl FilesTab {
                     app.inspect_full_diff = false;
                     return true;
                 }
-                KeyCode::Up => app.file_tree.queue.push(crate::queue::InternalEvent::FileContentUp),
-                KeyCode::Down => {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                    app.file_tree.queue.push(crate::queue::InternalEvent::FileContentUp)
+                }
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                     app.file_tree.queue.push(crate::queue::InternalEvent::FileContentDown)
                 }
                 KeyCode::PageUp => {

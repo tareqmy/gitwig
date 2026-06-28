@@ -343,11 +343,11 @@ impl Component for DiffComponent {
     fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
         if let Event::Key(key) = ev {
             match key.code {
-                KeyCode::Up => {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                     self.queue.push(InternalEvent::DiffScrollUp);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Down => {
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                     self.queue.push(InternalEvent::DiffScrollDown);
                     return Ok(EventState::Consumed);
                 }

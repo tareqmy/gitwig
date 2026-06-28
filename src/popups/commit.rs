@@ -106,11 +106,11 @@ impl Component for CommitPopup {
                         self.queue.push(InternalEvent::Commit);
                         return Ok(EventState::Consumed);
                     }
-                    KeyCode::Up => {
+                    KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                         self.scroll = self.scroll.saturating_sub(1);
                         return Ok(EventState::Consumed);
                     }
-                    KeyCode::Down => {
+                    KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                         self.scroll = self.scroll.saturating_add(1);
                         return Ok(EventState::Consumed);
                     }

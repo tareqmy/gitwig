@@ -93,10 +93,10 @@ impl SearchColumnsPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
         let code = key.code;
         match code {
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                 app.search_column_selection = app.search_column_selection.saturating_sub(1);
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                 if app.search_column_selection < 3 {
                     app.search_column_selection += 1;
                 }

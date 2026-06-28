@@ -6,8 +6,8 @@ impl LogsTab {
     pub fn handle_event(app: &mut App, key: KeyEvent) -> bool {
         let code = key.code;
         match code {
-            KeyCode::Up => app.detail_commit_up(),
-            KeyCode::Down => app.detail_commit_down(),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => app.detail_commit_up(),
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => app.detail_commit_down(),
             KeyCode::PageUp => app.detail_commit_page_up(app.config.page_size),
             KeyCode::PageDown => app.detail_commit_page_down(app.config.page_size),
             KeyCode::Home => app.detail_commit_to_top(),

@@ -7,8 +7,8 @@ impl RemotesTab {
     pub fn handle_event(app: &mut App, key: KeyEvent) -> bool {
         let code = key.code;
         match code {
-            KeyCode::Up => app.remote_up(),
-            KeyCode::Down => app.remote_down(),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => app.remote_up(),
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => app.remote_down(),
             KeyCode::PageUp => app.remote_page_up(app.config.page_size),
             KeyCode::PageDown => app.remote_page_down(app.config.page_size),
             KeyCode::Home => app.remote_to_top(),

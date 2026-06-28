@@ -52,14 +52,14 @@ impl BranchesTab {
                 app.move_focus_right();
                 return true;
             }
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                 if detail_focus == DetailSection::LocalBranches {
                     app.local_branch_up();
                 } else {
                     app.remote_branch_up();
                 }
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                 if detail_focus == DetailSection::LocalBranches {
                     app.local_branch_down();
                 } else {

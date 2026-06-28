@@ -499,11 +499,11 @@ impl Component for CommitListComponent {
                     self.queue.push(InternalEvent::LoadMoreCommits);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Up => {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                     self.queue.push(InternalEvent::CommitSelectionUp);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Down => {
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                     self.queue.push(InternalEvent::CommitSelectionDown);
                     return Ok(EventState::Consumed);
                 }

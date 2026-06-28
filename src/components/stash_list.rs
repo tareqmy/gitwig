@@ -274,11 +274,11 @@ impl Component for StashListComponent {
     fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
         if let Event::Key(key) = ev {
             match key.code {
-                KeyCode::Up => {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                     self.queue.push(InternalEvent::StashUp);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Down => {
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                     self.queue.push(InternalEvent::StashDown);
                     return Ok(EventState::Consumed);
                 }

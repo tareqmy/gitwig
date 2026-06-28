@@ -498,10 +498,14 @@ impl SettingsPopup {
             match code {
                 KeyCode::Esc => app.cancel_settings_edit(),
                 KeyCode::Enter => app.commit_settings_edit(),
-                KeyCode::Down if app.settings_theme_index + 1 < app.settings_theme_list.len() => {
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J')
+                    if app.settings_theme_index + 1 < app.settings_theme_list.len() =>
+                {
                     app.settings_theme_index += 1;
                 }
-                KeyCode::Up if app.settings_theme_index > 0 => {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K')
+                    if app.settings_theme_index > 0 =>
+                {
                     app.settings_theme_index -= 1;
                 }
                 KeyCode::PageUp if app.settings_theme_index > 0 => {
@@ -568,7 +572,7 @@ impl SettingsPopup {
                     app.settings_selected_index = THEME_SETTING_INDICES[0];
                     app.settings_focus_sidebar = false;
                 }
-                KeyCode::Down | KeyCode::Char('j') => {
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                     if app.settings_focus_sidebar {
                         let cat = get_active_category(app.settings_selected_index);
                         if cat + 1 < 4 {
@@ -583,7 +587,7 @@ impl SettingsPopup {
                         }
                     }
                 }
-                KeyCode::Up | KeyCode::Char('k') => {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                     if app.settings_focus_sidebar {
                         let cat = get_active_category(app.settings_selected_index);
                         if cat > 0 {

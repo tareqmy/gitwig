@@ -83,8 +83,8 @@ impl RemotePickerPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
         let code = key.code;
         match code {
-            KeyCode::Up => app.remote_picker_up(),
-            KeyCode::Down => app.remote_picker_down(),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => app.remote_picker_up(),
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => app.remote_picker_down(),
             KeyCode::Enter => app.confirm_remote_picker(),
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.cancel_remote_picker(),
             _ => {}

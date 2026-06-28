@@ -10,11 +10,11 @@ impl WorkspaceTab {
         match detail_focus {
             // ── Commits panel ──────────────────────────────────────────────────
             DetailSection::Commits => match code {
-                KeyCode::Up => {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                     app.detail_commit_up();
                     return true;
                 }
-                KeyCode::Down => {
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                     app.detail_commit_down();
                     return true;
                 }
@@ -116,7 +116,7 @@ impl WorkspaceTab {
             // ── Staged / Unstaged / Conflicts panels ───────────────────────────
             DetailSection::Staged | DetailSection::Unstaged | DetailSection::Conflicts => {
                 match code {
-                    KeyCode::Up => {
+                    KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                         if detail_focus == DetailSection::Conflicts {
                             app.conflict_file_up();
                         } else if app.is_uncommitted_selected() {
@@ -126,7 +126,7 @@ impl WorkspaceTab {
                         }
                         return true;
                     }
-                    KeyCode::Down => {
+                    KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                         if detail_focus == DetailSection::Conflicts {
                             app.conflict_file_down();
                         } else if app.is_uncommitted_selected() {
@@ -316,7 +316,7 @@ impl WorkspaceTab {
             }
             // ── StagingDetails / ConflictDiff panels ───────────────────────────
             DetailSection::StagingDetails | DetailSection::ConflictDiff => match code {
-                KeyCode::Up => {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                     if app.is_uncommitted_selected() {
                         if app.diff.diff_line_mode {
                             app.diff_line_up();
@@ -328,7 +328,7 @@ impl WorkspaceTab {
                     }
                     return true;
                 }
-                KeyCode::Down => {
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                     if app.is_uncommitted_selected() {
                         if app.diff.diff_line_mode {
                             app.diff_line_down();
@@ -471,11 +471,11 @@ impl WorkspaceTab {
             },
             // ── CommitDetails panel ────────────────────────────────────────────
             DetailSection::CommitDetails => match code {
-                KeyCode::Up => {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                     app.commit_details_scroll_up();
                     return true;
                 }
-                KeyCode::Down => {
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                     app.commit_details_scroll_down();
                     return true;
                 }
