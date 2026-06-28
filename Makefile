@@ -36,7 +36,7 @@ release:
 	cargo build --release
 
 publish:
-	cargo publish
+	cargo publish -p gitwig-core && cargo publish
 
 clean:
 	cargo clean
