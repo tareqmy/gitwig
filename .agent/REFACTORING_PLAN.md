@@ -53,7 +53,7 @@ Add `.clippy.toml` and `.rustfmt.toml` to enforce consistent code style.
 
 ---
 
-## Phase 2: Cargo Workspace & Crate Extraction
+## Phase 2: Cargo Workspace & Crate Extraction (DONE ✅)
 
 Convert to a `[workspace]` and extract `repo.rs` into `gitwig-core`:
 
@@ -66,7 +66,7 @@ members = [".", "gitwig-core"]
 
 ---
 
-## Phase 3: UI Directory Structure — Exact File Layout
+## Phase 3: UI Directory Structure — Exact File Layout (DONE ✅)
 
 This is the main phase. The target structure mirrors gitui's exactly.
 Below is a precise mapping: **what currently exists → where it goes**.
@@ -282,7 +282,7 @@ components push to the queue. `App` drains the queue once per frame.
 
 ---
 
-## Phase 4: Deconstructing `app.rs` and `input.rs`
+## Phase 4: Deconstructing `app.rs` and `input.rs` (DONE ✅)
 
 ### 4a. `App` struct shrinks to an orchestrator
 

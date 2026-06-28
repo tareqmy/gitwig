@@ -1,0 +1,3714 @@
+#![allow(clippy::unwrap_used, clippy::panic)]
+use super::*;
+
+use crate::config::{FzfConfig, SortOrder, ThemeConfig};
+use std::collections::HashMap;
+
+struct TestFileGuard {
+    path: PathBuf,
+}
+
+impl Drop for TestFileGuard {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+#[test]
+fn test_stash_creation_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_stash.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+    app.mode = Mode::Detail;
+
+    // Verify starting stash creation triggers correct state
+    app.start_stash_create();
+    assert_eq!(app.mode, Mode::StashCreateInput);
+    assert!(app.input_buffer.is_empty());
+
+    // Simulate typing stash name
+    app.input_buffer = "my_custom_stash".to_string();
+
+    // Simulate pressing Esc (cancel)
+    let esc_key = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
+    let consumed = crate::input::handle_key(&mut app, esc_key, 0);
+    assert!(consumed);
+    assert_eq!(app.mode, Mode::Detail);
+
+    // Re-start and simulate typing again
+    app.start_stash_create();
+    app.input_buffer = "my_custom_stash".to_string();
+
+    // Simulate backspace and typing character
+    let backspace_key = KeyEvent::new(KeyCode::Backspace, KeyModifiers::empty());
+    crate::input::handle_key(&mut app, backspace_key, 0);
+    assert_eq!(app.input_buffer, "my_custom_stas");
+
+    let char_key = KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty());
+    crate::input::handle_key(&mut app, char_key, 0);
+    assert_eq!(app.input_buffer, "my_custom_stash");
+
+    // Simulate enter (commit stash)
+    let enter_key = KeyEvent::new(KeyCode::Enter, KeyModifiers::empty());
+    crate::input::handle_key(&mut app, enter_key, 0);
+
+    // Mode returns to detail
+    assert_eq!(app.mode, Mode::Detail);
+
+    // Verify we can trigger stash creation from Commits panel if we have uncommitted changes
+    app.mode = Mode::Detail;
+    app.detail_focus = DetailSection::Commits;
+
+    // Mock uncommitted changes
+    let mut mock_info = repo::RepoInfo::default();
+    mock_info.changes.unstaged = vec![repo::FileEntry { path: "dirty.rs".to_string(), label: "M" }];
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("a_repo"),
+        info: Box::new(mock_info),
+    });
+
+    assert!(app.has_uncommitted_changes());
+
+    // Pressing 's' should activate StashCreateInput
+    let s_key = KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty());
+    let consumed = crate::input::handle_key(&mut app, s_key, 0);
+    assert!(consumed);
+    assert_eq!(app.mode, Mode::StashCreateInput);
+}
+
+#[test]
+fn test_network_action_progress_and_error_handling() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_network.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Simulating the start of a network action
+    app.fetching = true;
+    app.status_message = Some("Pushing...".to_string());
+
+    // Assert progress popup is active
+    assert!(app.fetching);
+    assert_eq!(app.status_message.as_deref(), Some("Pushing..."));
+
+    // Simulate background thread sending a failure message
+    app.tx.send("Push failed: git push rejected".to_string()).unwrap();
+
+    // Run receiver check
+    while let Ok(msg) = app.rx.try_recv() {
+        let is_err = msg.starts_with("Fetch failed:")
+            || msg.starts_with("Pull failed:")
+            || msg.starts_with("Push failed:")
+            || msg.starts_with("Failed to")
+            || msg.contains("failed");
+
+        if is_err {
+            app.error_message = Some(msg);
+        } else {
+            app.status_message = Some(msg);
+        }
+        app.fetching = false;
+    }
+
+    // Verify that fetching is cleared and error_message popup is active
+    assert!(!app.fetching);
+    assert_eq!(app.error_message.as_deref(), Some("Push failed: git push rejected"));
+
+    // Verify keypress dismisses the error popup
+    let esc_key = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
+    let consumed = crate::input::handle_key(&mut app, esc_key, 0);
+    assert!(consumed);
+    assert!(app.error_message.is_none());
+}
+
+#[test]
+fn test_remote_tags_progress_and_error_handling() {
+    let config = Config {
+        items: vec![".".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_remote_tags_progress.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        remotes: crate::repo::TabData::Loaded(vec![crate::repo::RemoteInfo {
+            name: "origin".to_string(),
+            url: "git@github.com:tareqmy/gitwig.git".to_string(),
+            push_url: None,
+            refspecs: vec![],
+        }]),
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(mock_info),
+    });
+
+    // Trigger fetch with show_progress = true
+    app.fetch_remote_tags(true);
+    assert!(app.fetching);
+    assert_eq!(app.status_message.as_deref(), Some("Fetching tags from 'origin'..."));
+
+    // Simulate background thread sending REMOTE_TAGS_ERR
+    app.tx.send("REMOTE_TAGS_ERR:Failed to get remote tags: custom error".to_string()).unwrap();
+
+    // Run rx loop (same as inside app::run)
+    if let Ok(msg) = app.rx.try_recv() {
+        if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
+            app.set_error(err_msg.to_string());
+            app.fetching = false;
+        }
+    }
+
+    assert!(!app.fetching);
+    assert_eq!(app.error_message.as_deref(), Some("Failed to get remote tags: custom error"));
+}
+
+#[test]
+fn test_remote_fetch_progress_and_error_handling() {
+    let config = Config {
+        items: vec![".".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_remote_fetch_progress.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        remotes: crate::repo::TabData::Loaded(vec![crate::repo::RemoteInfo {
+            name: "origin".to_string(),
+            url: "git@github.com:tareqmy/gitwig.git".to_string(),
+            push_url: None,
+            refspecs: vec![],
+        }]),
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(mock_info),
+    });
+
+    // Trigger fetch from remote tab (fetch_remote)
+    app.fetch_remote("origin");
+    assert!(app.fetching);
+    assert_eq!(app.status_message.as_deref(), Some("Fetching remote 'origin'..."));
+
+    // Simulate background thread sending Fetch failed message
+    app.tx.send("Fetch failed: custom fetch error".to_string()).unwrap();
+
+    // Run rx loop (same as inside app::run)
+    if let Ok(msg) = app.rx.try_recv() {
+        let is_err = msg.starts_with("Fetch failed:")
+            || msg.starts_with("Pull failed:")
+            || msg.starts_with("Push failed:")
+            || msg.starts_with("Failed to")
+            || msg.contains("failed");
+
+        if is_err {
+            app.set_error(msg);
+        }
+        app.fetching = false;
+    }
+
+    assert!(!app.fetching);
+    assert_eq!(app.error_message.as_deref(), Some("Fetch failed: custom fetch error"));
+}
+
+#[test]
+fn test_set_error_logging() {
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_set_error.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    let test_error_msg = "Test error message for debugging".to_string();
+    app.set_error(test_error_msg.clone());
+
+    assert_eq!(app.error_message.as_ref(), Some(&test_error_msg));
+
+    // Check if debug log contains the message
+    let logs = crate::debug_log::get_logs();
+    assert!(logs.iter().any(|log| log.contains("ERROR") && log.contains(&test_error_msg)));
+}
+
+#[test]
+fn test_sorting_logic() {
+    let config = Config {
+        items: vec!["z_repo".to_string(), "a_repo".to_string(), "m_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_sort.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Assert initial custom sort
+    assert_eq!(app.config.items[0], "z_repo");
+    assert_eq!(app.config.items[1], "a_repo");
+
+    // Cycle to alphabetical
+    app.cycle_sort_order();
+    assert_eq!(app.config.sort_by, SortOrder::Alphabetical);
+    assert_eq!(app.config.items[0], "a_repo");
+    assert_eq!(app.config.items[1], "m_repo");
+    assert_eq!(app.config.items[2], "z_repo");
+
+    // Toggle reverse sorting
+    app.toggle_sort_reverse();
+    assert!(app.config.sort_reverse);
+    assert_eq!(app.config.items[0], "z_repo");
+    assert_eq!(app.config.items[1], "m_repo");
+    assert_eq!(app.config.items[2], "a_repo");
+
+    // Toggle back
+    app.toggle_sort_reverse();
+    assert!(!app.config.sort_reverse);
+
+    // Cycle to recent visit
+    // Set visit times: a_repo visited at 10, z_repo at 20, m_repo at 5
+    app.config.visits.insert("a_repo".to_string(), 10);
+    app.config.visits.insert("z_repo".to_string(), 20);
+    app.config.visits.insert("m_repo".to_string(), 5);
+
+    app.cycle_sort_order();
+    assert_eq!(app.config.sort_by, SortOrder::RecentVisit);
+    // Descending order (recent first) -> z_repo (20), a_repo (10), m_repo (5)
+    assert_eq!(app.config.items[0], "z_repo");
+    assert_eq!(app.config.items[1], "a_repo");
+    assert_eq!(app.config.items[2], "m_repo");
+}
+
+#[test]
+fn test_duplicate_prevention() {
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_duplicate.toml");
+    // Ensure starting with a clean state and clean up upon drop
+    let _ = std::fs::remove_file(&temp_path);
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // 1. Test adding a repository via input buffer (commit_add)
+    app.input_buffer = " /path/to/repo ".to_string(); // trimmed to "/path/to/repo"
+    app.commit_add();
+    assert_eq!(app.config.items.len(), 1);
+    assert_eq!(app.config.items[0], "/path/to/repo");
+    assert_eq!(app.status_message, Some("Saved".to_string()));
+    app.status_message = None; // Reset
+
+    // 2. Test trying to add the exact same repo path again (via commit_add)
+    app.input_buffer = "/path/to/repo".to_string();
+    app.commit_add();
+    assert_eq!(app.config.items.len(), 1);
+    assert_eq!(app.status_message, Some("Repository already added".to_string()));
+    app.status_message = None; // Reset
+
+    // 3. Test trying to add a tilde version of the same repo when it's resolved
+    if let Some(home) = dirs::home_dir() {
+        let home_str = home.to_string_lossy().to_string();
+        // First add the tilde path
+        app.input_buffer = "~/my_cool_repo".to_string();
+        app.commit_add();
+        assert_eq!(app.config.items.len(), 2);
+        assert_eq!(app.config.items[1], "~/my_cool_repo");
+        assert_eq!(app.status_message, Some("Saved".to_string()));
+        app.status_message = None; // Reset
+
+        // Now try to add the expanded absolute path
+        let expanded_path = format!("{}/my_cool_repo", home_str);
+        app.input_buffer = expanded_path;
+        app.commit_add();
+        // Should be rejected
+        assert_eq!(app.config.items.len(), 2);
+        assert_eq!(app.status_message, Some("Repository already added".to_string()));
+        app.status_message = None; // Reset
+
+        // Try the opposite direction: add a new absolute path, then try to add with tilde
+        let new_abs = format!("{}/another_cool_repo", home_str);
+        app.input_buffer = new_abs;
+        app.commit_add();
+        assert_eq!(app.config.items.len(), 3);
+        assert_eq!(app.config.items[2], format!("{}/another_cool_repo", home_str));
+        assert_eq!(app.status_message, Some("Saved".to_string()));
+        app.status_message = None; // Reset
+
+        // Now try to add with tilde
+        app.input_buffer = "~/another_cool_repo".to_string();
+        app.commit_add();
+        // Should be rejected
+        assert_eq!(app.config.items.len(), 3);
+        assert_eq!(app.status_message, Some("Repository already added".to_string()));
+        app.status_message = None; // Reset
+    }
+
+    // 4. Test adding via add_repo_path directly
+    let len_before = app.config.items.len();
+    app.add_repo_path(" /another/path ".to_string());
+    assert_eq!(app.config.items.len(), len_before + 1);
+    assert_eq!(app.config.items.last().unwrap(), "/another/path");
+    assert_eq!(app.status_message, Some("Added repository".to_string()));
+    app.status_message = None; // Reset
+
+    // Try duplicate via add_repo_path
+    app.add_repo_path("/another/path".to_string());
+    assert_eq!(app.config.items.len(), len_before + 1);
+    assert_eq!(app.status_message, Some("Repository already added".to_string()));
+}
+
+#[test]
+fn test_bulk_add_folders() {
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_dir = std::env::temp_dir().join("gitwig_test_bulk_add_dir");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let repo_a = temp_dir.join("repo_a");
+    let repo_b = temp_dir.join("repo_b");
+    let repo_c = temp_dir.join("repo_c");
+    std::fs::create_dir_all(repo_a.join(".git")).unwrap();
+    std::fs::create_dir_all(&repo_b).unwrap();
+    std::fs::create_dir_all(repo_c.join(".git")).unwrap();
+
+    let config_path = temp_dir.join("config_bulk.toml");
+    let _ = std::fs::remove_file(&config_path);
+    let _guard = TestFileGuard { path: config_path.clone() };
+    let mut app = App::new(config, config_path);
+
+    // Case 1: git_only is enabled (default)
+    app.config.fzf.git_only = true;
+    app.input_buffer = temp_dir.to_string_lossy().to_string();
+    app.commit_bulk_add();
+
+    // Should include repo_a and repo_c, but NOT repo_b
+    assert_eq!(app.config.items.len(), 2);
+    assert!(app.config.items.iter().any(|item| item.ends_with("repo_a")));
+    assert!(app.config.items.iter().any(|item| item.ends_with("repo_c")));
+    assert!(!app.config.items.iter().any(|item| item.ends_with("repo_b")));
+
+    // Clear items and try again with git_only = false
+    app.config.items.clear();
+    app.original_items.clear();
+    app.statuses.clear();
+
+    app.config.fzf.git_only = false;
+    app.input_buffer = temp_dir.to_string_lossy().to_string();
+    app.commit_bulk_add();
+
+    // Should include repo_a, repo_b, and repo_c
+    assert_eq!(app.config.items.len(), 3);
+    assert!(app.config.items.iter().any(|item| item.ends_with("repo_a")));
+    assert!(app.config.items.iter().any(|item| item.ends_with("repo_b")));
+    assert!(app.config.items.iter().any(|item| item.ends_with("repo_c")));
+
+    // Clean up
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_pinning_and_sorting() {
+    let config = Config {
+        items: vec!["z_repo".to_string(), "a_repo".to_string(), "m_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Alphabetical,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_pin.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Sorting is Alphabetical: initially items should be sorted as a_repo, m_repo, z_repo
+    app.sort_items_in_place();
+    assert_eq!(app.config.items[0], "a_repo");
+    assert_eq!(app.config.items[1], "m_repo");
+    assert_eq!(app.config.items[2], "z_repo");
+
+    // Pin the last one ("z_repo", index 2)
+    app.selected_index = 2;
+    app.toggle_pin_selected();
+
+    // After pinning, z_repo is pinned.
+    // It must move to the top (index 0).
+    // The selection cursor must also follow z_repo, meaning selected_index should become 0.
+    assert!(app.config.pinned.contains("z_repo"));
+    assert_eq!(app.config.items[0], "z_repo");
+    assert_eq!(app.config.items[1], "a_repo");
+    assert_eq!(app.config.items[2], "m_repo");
+    assert_eq!(app.selected_index, 0);
+
+    // Reverse sorting with z_repo pinned:
+    // Pinned block is ["z_repo"]. Unpinned block is ["a_repo", "m_repo"] -> reverse alphabetical is ["m_repo", "a_repo"]
+    // Pinned is kept on top: ["z_repo", "m_repo", "a_repo"]
+    app.toggle_sort_reverse();
+    assert_eq!(app.config.items[0], "z_repo");
+    assert_eq!(app.config.items[1], "m_repo");
+    assert_eq!(app.config.items[2], "a_repo");
+    // selected_index should still track "z_repo" (which is at index 0)
+    assert_eq!(app.selected_index, 0);
+
+    // Toggle reverse back
+    app.toggle_sort_reverse();
+
+    // Pin m_repo too (currently at index 2)
+    app.selected_index = 2; // "m_repo"
+    app.toggle_pin_selected();
+
+    // Now both z_repo and m_repo are pinned.
+    // Alphabetical sort:
+    // Pinned: m_repo, z_repo -> sorted alphabetically is ["m_repo", "z_repo"]
+    // Unpinned: a_repo -> ["a_repo"]
+    // Combined: ["m_repo", "z_repo", "a_repo"]
+    assert_eq!(app.config.items[0], "m_repo");
+    assert_eq!(app.config.items[1], "z_repo");
+    assert_eq!(app.config.items[2], "a_repo");
+    // cursor was on m_repo, which ended up at index 0
+    assert_eq!(app.selected_index, 0);
+
+    // Unpin m_repo (currently at index 0)
+    app.selected_index = 0;
+    app.toggle_pin_selected();
+
+    // Now only z_repo is pinned.
+    // Items should be ["z_repo", "a_repo", "m_repo"]
+    assert_eq!(app.config.items[0], "z_repo");
+    assert_eq!(app.config.items[1], "a_repo");
+    assert_eq!(app.config.items[2], "m_repo");
+}
+
+#[test]
+fn test_commit_input_scroll() {
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_scroll.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    assert_eq!(app.commit_input_scroll, 0);
+
+    app.commit_input_scroll_down();
+    assert_eq!(app.commit_input_scroll, 1);
+
+    app.commit_input_scroll_down();
+    assert_eq!(app.commit_input_scroll, 2);
+
+    app.commit_input_scroll_up();
+    assert_eq!(app.commit_input_scroll, 1);
+
+    // Cancel resets it
+    app.cancel_commit();
+    assert_eq!(app.commit_input_scroll, 0);
+}
+
+#[test]
+fn test_commit_popup_maximized_toggle() {
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_maximize.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    assert!(!app.commit_popup.maximized);
+
+    app.toggle_commit_popup_maximized();
+    assert!(app.commit_popup.maximized);
+
+    app.toggle_commit_popup_maximized();
+    assert!(!app.commit_popup.maximized);
+
+    app.toggle_commit_popup_maximized();
+    assert!(app.commit_popup.maximized);
+
+    // Cancel resets it
+    app.cancel_commit();
+    assert!(!app.commit_popup.maximized);
+}
+
+#[test]
+fn test_cherry_pick_and_revert_flow() {
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_cherry_pick.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Set up a mock repo detail with commits
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        commits: vec![crate::repo::CommitEntry {
+            id: "1234567".to_string(),
+            oid: "1234567890abcdef1234567890abcdef12345678".to_string(),
+            summary: "test commit".to_string(),
+            author: "author".to_string(),
+            when: "today".to_string(),
+            date: "today".to_string(),
+            refs: vec![],
+            message: "msg".to_string(),
+            files: vec![],
+            signature_status: "N".to_string(),
+        }],
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("/mock/repo"),
+        info: Box::new(mock_info),
+    });
+
+    // 1. Cherry-pick flow
+    app.commit_list.selection = 0;
+    app.request_cherry_pick();
+    assert_eq!(app.mode, Mode::CherryPickConfirm);
+    assert!(app.cherry_pick_target.is_some());
+    assert_eq!(
+        app.cherry_pick_target.as_ref().unwrap().0,
+        "1234567890abcdef1234567890abcdef12345678"
+    );
+
+    app.cancel_cherry_pick();
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.cherry_pick_target.is_none());
+
+    // 2. Revert flow
+    app.commit_list.selection = 0;
+    app.request_revert();
+    assert_eq!(app.mode, Mode::RevertConfirm);
+    assert!(app.revert_target.is_some());
+    assert_eq!(app.revert_target.as_ref().unwrap().0, "1234567890abcdef1234567890abcdef12345678");
+
+    app.cancel_revert();
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.revert_target.is_none());
+}
+
+#[test]
+fn test_commit_amend_flow() {
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_amend.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    assert!(!app.commit_popup.amend);
+
+    app.toggle_commit_amend();
+    assert!(app.commit_popup.amend);
+
+    app.toggle_commit_amend();
+    assert!(!app.commit_popup.amend);
+
+    // Without HEAD
+    app.start_commit_amend();
+    assert_eq!(app.status_message.as_deref(), Some("No commit to amend"));
+    assert_eq!(app.mode, Mode::Normal);
+
+    // With HEAD
+    let info = crate::repo::RepoInfo {
+        head: Some(crate::repo::HeadInfo {
+            short_id: "dummy_sha".to_string(),
+            summary: "dummy message".to_string(),
+            author: "author".to_string(),
+            when: "now".to_string(),
+        }),
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/dummy"),
+        info: Box::new(info),
+    });
+
+    app.start_commit_amend();
+    assert!(app.commit_popup.amend);
+    assert!(app.commit_popup.editing);
+    assert_eq!(app.mode, Mode::CommitInput);
+}
+
+#[test]
+fn test_splitter_dragging() {
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    use ratatui::layout::Rect;
+
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_splitter.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Mock the detail_areas to simulate a drawn UI frame.
+    // Left panel is 40 columns wide (from 0 to 40), Right is 60 columns wide (40 to 100).
+    // Total width = 100. Horizontal splitter is at column 40.
+    // We set the bounding boxes.
+    app.detail_areas.bottom_left = Some(Rect::new(0, 0, 40, 50));
+    app.detail_areas.bottom_right = Some(Rect::new(40, 0, 60, 50));
+    app.detail_areas.inspect_horizontal_splitter = Some(Rect::new(39, 0, 2, 50));
+
+    // Click on the horizontal splitter
+    let down_event = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 39,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, down_event);
+    assert_eq!(app.active_drag_splitter, Some(Splitter::InspectHorizontal));
+
+    // Drag to column 30 (which means 30% of total width 100)
+    let drag_event = MouseEvent {
+        kind: MouseEventKind::Drag(MouseButton::Left),
+        column: 30,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, drag_event);
+    assert_eq!(app.inspect_horizontal_split_pct, 30);
+
+    // Release mouse
+    let up_event = MouseEvent {
+        kind: MouseEventKind::Up(MouseButton::Left),
+        column: 30,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, up_event);
+    assert_eq!(app.active_drag_splitter, None);
+
+    // Test WorkspaceMain splitter dragging
+    app.detail_areas.commits = Some(Rect::new(0, 0, 100, 20));
+    app.detail_areas.bottom_right = Some(Rect::new(0, 20, 100, 30));
+    app.detail_areas.workspace_main_splitter = Some(Rect::new(0, 19, 100, 2));
+
+    // Click on the vertical workspace main splitter
+    let down_event_main = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 19,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, down_event_main);
+    assert_eq!(app.active_drag_splitter, Some(Splitter::WorkspaceMain));
+
+    // Drag to row 25 (which is 50% height since total height is 50)
+    let drag_event_main = MouseEvent {
+        kind: MouseEventKind::Drag(MouseButton::Left),
+        column: 10,
+        row: 25,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, drag_event_main);
+    assert_eq!(app.workspace_main_split_pct, 50);
+
+    // Drag to row 15 (which is 30% height)
+    let drag_event_main_2 = MouseEvent {
+        kind: MouseEventKind::Drag(MouseButton::Left),
+        column: 10,
+        row: 15,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, drag_event_main_2);
+    assert_eq!(app.workspace_main_split_pct, 30);
+
+    // Release mouse
+    let up_event_main = MouseEvent {
+        kind: MouseEventKind::Up(MouseButton::Left),
+        column: 10,
+        row: 15,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, up_event_main);
+    assert_eq!(app.active_drag_splitter, None);
+
+    // Test Files splitter dragging
+    app.detail_areas.files = Some(Rect::new(0, 0, 45, 50));
+    app.detail_areas.file_content = Some(Rect::new(45, 0, 55, 50));
+    app.detail_areas.files_horizontal_splitter = Some(Rect::new(44, 0, 2, 50));
+
+    let down_event_files = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 44,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, down_event_files);
+    assert_eq!(app.active_drag_splitter, Some(Splitter::FilesHorizontal));
+
+    let drag_event_files = MouseEvent {
+        kind: MouseEventKind::Drag(MouseButton::Left),
+        column: 60,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, drag_event_files);
+    assert_eq!(app.files_horizontal_split_pct, 60);
+
+    let up_event_files = MouseEvent {
+        kind: MouseEventKind::Up(MouseButton::Left),
+        column: 60,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, up_event_files);
+    assert_eq!(app.active_drag_splitter, None);
+
+    // Test Branches splitter dragging
+    app.detail_areas = DetailAreas::default();
+    app.detail_areas.local_branches = Some(Rect::new(0, 0, 50, 50));
+    app.detail_areas.remote_branches = Some(Rect::new(50, 0, 50, 50));
+    app.detail_areas.branches_horizontal_splitter = Some(Rect::new(49, 0, 2, 50));
+
+    let down_event_branches = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 49,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, down_event_branches);
+    assert_eq!(app.active_drag_splitter, Some(Splitter::BranchesHorizontal));
+
+    let drag_event_branches = MouseEvent {
+        kind: MouseEventKind::Drag(MouseButton::Left),
+        column: 35,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, drag_event_branches);
+    assert_eq!(app.branches_horizontal_split_pct, 35);
+
+    let up_event_branches = MouseEvent {
+        kind: MouseEventKind::Up(MouseButton::Left),
+        column: 35,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, up_event_branches);
+    assert_eq!(app.active_drag_splitter, None);
+
+    // Test Stashes splitter dragging (horizontal & vertical)
+    app.detail_areas = DetailAreas::default();
+    app.detail_areas.stashes = Some(Rect::new(0, 0, 35, 25));
+    app.detail_areas.stashed_files = Some(Rect::new(0, 25, 35, 25));
+    app.detail_areas.bottom_right = Some(Rect::new(35, 0, 65, 50));
+    app.detail_areas.stashes_horizontal_splitter = Some(Rect::new(34, 0, 2, 50));
+    app.detail_areas.stashes_vertical_splitter = Some(Rect::new(0, 24, 35, 2));
+
+    // Click stashes horizontal splitter
+    let down_stashes_h = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 34,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, down_stashes_h);
+    assert_eq!(app.active_drag_splitter, Some(Splitter::StashesHorizontal));
+
+    let drag_stashes_h = MouseEvent {
+        kind: MouseEventKind::Drag(MouseButton::Left),
+        column: 40,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, drag_stashes_h);
+    assert_eq!(app.stashes_horizontal_split_pct, 40);
+
+    let up_stashes_h = MouseEvent {
+        kind: MouseEventKind::Up(MouseButton::Left),
+        column: 40,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, up_stashes_h);
+
+    // Click stashes vertical splitter
+    let down_stashes_v = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 24,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, down_stashes_v);
+    assert_eq!(app.active_drag_splitter, Some(Splitter::StashesVertical));
+
+    let drag_stashes_v = MouseEvent {
+        kind: MouseEventKind::Drag(MouseButton::Left),
+        column: 10,
+        row: 30,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, drag_stashes_v);
+    assert_eq!(app.stashes_vertical_split_pct, 60);
+
+    let up_stashes_v = MouseEvent {
+        kind: MouseEventKind::Up(MouseButton::Left),
+        column: 10,
+        row: 30,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, up_stashes_v);
+
+    // Test Overview splitter dragging
+    app.detail_areas = DetailAreas::default();
+    app.detail_areas.tab_bar = Some(Rect::new(0, 0, 100, 2));
+    app.detail_areas.overview_horizontal_splitter = Some(Rect::new(49, 2, 2, 48));
+
+    let down_overview = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 49,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, down_overview);
+    assert_eq!(app.active_drag_splitter, Some(Splitter::OverviewHorizontal));
+
+    let drag_overview = MouseEvent {
+        kind: MouseEventKind::Drag(MouseButton::Left),
+        column: 30,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, drag_overview);
+    assert_eq!(app.overview_horizontal_split_pct, 30);
+
+    let up_overview = MouseEvent {
+        kind: MouseEventKind::Up(MouseButton::Left),
+        column: 30,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, up_overview);
+    assert_eq!(app.active_drag_splitter, None);
+}
+
+#[test]
+fn test_mouse_row_selection_in_detail_panels() {
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    use ratatui::layout::Rect;
+
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_mouse_select.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+    app.mode = Mode::Detail;
+
+    // 1. Commits panel click test
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    app.detail_areas.commits = Some(Rect::new(0, 0, 100, 20));
+    app.detail_areas.commits_inner = Some(Rect::new(1, 1, 98, 18));
+    let mock_info = repo::RepoInfo {
+        branch: Some("main".to_string()),
+        commits: vec![
+            repo::CommitEntry {
+                id: "1".to_string(),
+                oid: "1111111111111111111111111111111111111111".to_string(),
+                summary: "C1".to_string(),
+                author: "A".to_string(),
+                when: "now".to_string(),
+                date: "now".to_string(),
+                refs: vec![],
+                message: "msg".to_string(),
+                files: vec![],
+                signature_status: "N".to_string(),
+            },
+            repo::CommitEntry {
+                id: "2".to_string(),
+                oid: "2222222222222222222222222222222222222222".to_string(),
+                summary: "C2".to_string(),
+                author: "B".to_string(),
+                when: "now".to_string(),
+                date: "now".to_string(),
+                refs: vec![],
+                message: "msg".to_string(),
+                files: vec![],
+                signature_status: "N".to_string(),
+            },
+            repo::CommitEntry {
+                id: "3".to_string(),
+                oid: "3333333333333333333333333333333333333333".to_string(),
+                summary: "C3".to_string(),
+                author: "C".to_string(),
+                when: "now".to_string(),
+                date: "now".to_string(),
+                refs: vec![],
+                message: "msg".to_string(),
+                files: vec![],
+                signature_status: "N".to_string(),
+            },
+        ],
+        ..repo::RepoInfo::default()
+    };
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("a_repo"),
+        info: Box::new(mock_info),
+    });
+
+    let commit_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 3,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, commit_click);
+    assert_eq!(app.commit_list.selection, 1);
+    assert_eq!(app.detail_focus, DetailSection::Commits);
+
+    // 2. Staged subpanel click test
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    let mut mock_info_2 = repo::RepoInfo::default();
+    mock_info_2.changes.staged = vec![
+        repo::FileEntry { path: "s1.rs".to_string(), label: "M" },
+        repo::FileEntry { path: "s2.rs".to_string(), label: "M" },
+    ];
+    mock_info_2.changes.unstaged = vec![repo::FileEntry { path: "u1.rs".to_string(), label: "M" }];
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("a_repo"),
+        info: Box::new(mock_info_2),
+    });
+
+    app.detail_areas.staged_sub = Some(Rect::new(0, 20, 50, 10));
+    app.detail_areas.staged_sub_inner = Some(Rect::new(1, 21, 48, 8));
+    let staged_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 5,
+        row: 22,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, staged_click);
+    assert_eq!(app.status_list.staging_file_selection, 1);
+    assert_eq!(app.detail_focus, DetailSection::Staged);
+
+    // 3. Unstaged subpanel click test
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    let mut mock_info_2_unstaged = repo::RepoInfo::default();
+    mock_info_2_unstaged.changes.unstaged =
+        vec![repo::FileEntry { path: "u1.rs".to_string(), label: "M" }];
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("a_repo"),
+        info: Box::new(mock_info_2_unstaged),
+    });
+    app.detail_areas.unstaged_sub = Some(Rect::new(0, 30, 50, 10));
+    app.detail_areas.unstaged_sub_inner = Some(Rect::new(1, 31, 48, 8));
+    let unstaged_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 5,
+        row: 31,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, unstaged_click);
+    assert_eq!(app.status_list.staging_file_selection, 0);
+    assert_eq!(app.detail_focus, DetailSection::Unstaged);
+
+    // 4. Local branches click test
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    let mock_info_3 = repo::RepoInfo {
+        local_branches: repo::TabData::Loaded(vec![
+            repo::BranchInfo {
+                name: "b1".to_string(),
+                is_head: true,
+                short_sha: "123".to_string(),
+                short_message: "msg".to_string(),
+            },
+            repo::BranchInfo {
+                name: "b2".to_string(),
+                is_head: false,
+                short_sha: "456".to_string(),
+                short_message: "msg".to_string(),
+            },
+        ]),
+        remote_branches: repo::TabData::Loaded(vec![repo::BranchInfo {
+            name: "origin/b1".to_string(),
+            is_head: false,
+            short_sha: "123".to_string(),
+            short_message: "msg".to_string(),
+        }]),
+        ..Default::default()
+    };
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("a_repo"),
+        info: Box::new(mock_info_3),
+    });
+
+    app.detail_areas.local_branches = Some(Rect::new(0, 0, 50, 20));
+    app.detail_areas.local_branches_inner = Some(Rect::new(1, 1, 48, 18));
+    let local_branch_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 5,
+        row: 2, // inner.y = 1, so row 2 is index 1
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, local_branch_click);
+    assert_eq!(app.branch_list.local_branch_selection, 1);
+    assert_eq!(app.detail_focus, DetailSection::LocalBranches);
+
+    // 5. Remote branches click test
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    let mock_info_3_remote = repo::RepoInfo {
+        remote_branches: repo::TabData::Loaded(vec![repo::BranchInfo {
+            name: "origin/b1".to_string(),
+            is_head: false,
+            short_sha: "123".to_string(),
+            short_message: "msg".to_string(),
+        }]),
+        ..Default::default()
+    };
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("a_repo"),
+        info: Box::new(mock_info_3_remote),
+    });
+    app.detail_areas.remote_branches = Some(Rect::new(50, 0, 50, 20));
+    app.detail_areas.remote_branches_inner = Some(Rect::new(51, 1, 48, 18));
+    let remote_branch_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 55,
+        row: 1, // index 0
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, remote_branch_click);
+    assert_eq!(app.branch_list.remote_branch_selection, 0);
+    assert_eq!(app.detail_focus, DetailSection::RemoteBranches);
+
+    // 6. Local tags click test
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    let mock_info_4 = repo::RepoInfo {
+        local_tags: repo::TabData::Loaded(vec![
+            repo::BranchInfo {
+                name: "t1".to_string(),
+                is_head: false,
+                short_sha: "123".to_string(),
+                short_message: "msg".to_string(),
+            },
+            repo::BranchInfo {
+                name: "t2".to_string(),
+                is_head: false,
+                short_sha: "456".to_string(),
+                short_message: "msg".to_string(),
+            },
+        ]),
+        ..Default::default()
+    };
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("a_repo"),
+        info: Box::new(mock_info_4),
+    });
+
+    app.detail_areas.local_tags = Some(Rect::new(0, 0, 100, 20));
+    app.detail_areas.local_tags_inner = Some(Rect::new(1, 1, 98, 18));
+    let tag_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 2, // index 1
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, tag_click);
+    assert_eq!(app.tag_list.local_tag_selection, 1);
+    assert_eq!(app.detail_focus, DetailSection::LocalTags);
+
+    // 7. Remotes click test
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    let mock_info_5 = repo::RepoInfo {
+        remotes: repo::TabData::Loaded(vec![
+            repo::RemoteInfo {
+                name: "r1".to_string(),
+                url: "url1".to_string(),
+                push_url: None,
+                refspecs: vec![],
+            },
+            repo::RemoteInfo {
+                name: "r2".to_string(),
+                url: "url2".to_string(),
+                push_url: None,
+                refspecs: vec![],
+            },
+        ]),
+        ..Default::default()
+    };
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("a_repo"),
+        info: Box::new(mock_info_5),
+    });
+
+    app.detail_areas.remotes = Some(Rect::new(0, 0, 100, 20));
+    app.detail_areas.remotes_inner = Some(Rect::new(1, 1, 98, 18));
+    let remote_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 2, // index 1
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, remote_click);
+    assert_eq!(app.branch_list.remote_selection, 1);
+    assert_eq!(app.detail_focus, DetailSection::Remotes);
+
+    // 8. Stashes and Stashed Files click test
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    let mock_info_6 = repo::RepoInfo {
+        stashes: repo::TabData::Loaded(vec![
+            repo::StashInfo {
+                index: 0,
+                commit_id: "123".to_string(),
+                message: "s1".to_string(),
+                files: vec![
+                    repo::FileEntry { path: "f1.rs".to_string(), label: "M" },
+                    repo::FileEntry { path: "f2.rs".to_string(), label: "M" },
+                ],
+            },
+            repo::StashInfo {
+                index: 1,
+                commit_id: "456".to_string(),
+                message: "s2".to_string(),
+                files: vec![],
+            },
+        ]),
+        ..Default::default()
+    };
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("a_repo"),
+        info: Box::new(mock_info_6),
+    });
+
+    app.detail_areas.stashes = Some(Rect::new(0, 0, 100, 20));
+    app.detail_areas.stashes_inner = Some(Rect::new(1, 1, 98, 18));
+    let stash_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 2, // index 1
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, stash_click);
+    assert_eq!(app.stash_list.stash_selection, 1);
+    assert_eq!(app.detail_focus, DetailSection::Stashes);
+
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    // re-apply mock info if needed (already in app.current_detail)
+    app.stash_list.stash_selection = 0;
+    app.detail_areas.stashed_files = Some(Rect::new(0, 20, 100, 20));
+    app.detail_areas.stashed_files_inner = Some(Rect::new(1, 21, 98, 18));
+    let stash_file_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 22, // index 1 (relative to 21)
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, stash_file_click);
+    assert_eq!(app.stash_list.stash_file_selection, 1);
+    assert_eq!(app.detail_focus, DetailSection::StashedFiles);
+}
+
+#[test]
+fn test_settings_mode_navigation_and_editing() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_settings.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    assert_eq!(app.mode, Mode::Normal);
+
+    // Press 's' to enter settings
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('s')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Settings);
+    assert_eq!(app.settings_selected_index, 0);
+    assert!(!app.settings_editing);
+
+    // Select poll interval, press enter to edit
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(handled);
+    assert!(app.settings_editing);
+    assert_eq!(app.input_buffer, "100");
+
+    // Backspace once and append '5' to make it '105'
+    crate::input::handle_key(&mut app, key_event(KeyCode::Backspace), 10);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('5')), 10);
+    assert_eq!(app.input_buffer, "105");
+
+    // Commit change
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.poll_interval_ms, 105);
+
+    // Go down to "Sort By"
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 1);
+
+    // Toggle Sort By (Custom -> Alphabetical)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert_eq!(app.config.sort_by, SortOrder::Alphabetical);
+
+    // Go down to "Sort Reverse"
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 2);
+
+    // Toggle Sort Reverse (false -> true)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char(' ')), 10);
+    assert!(app.config.sort_reverse);
+
+    // Go down to Theme (index 3)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 3);
+
+    // Edit Theme Name dropdown
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+    assert!(app.settings_theme_list.contains(&"default".to_string()));
+
+    // Pressing Down increases index (if there are other themes available)
+    let prev_idx = app.settings_theme_index;
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    if app.settings_theme_list.len() > 1 {
+        assert_eq!(app.settings_theme_index, prev_idx + 1);
+    }
+
+    // Cancel theme edit
+    crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert!(!app.settings_editing);
+
+    // Go down to FZF Max Depth (index 4)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 4);
+
+    // Edit FZF Max Depth
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+    app.input_buffer = "3".to_string();
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.fzf.max_depth, 3);
+
+    // Go down to FZF Start Dir (index 5)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 5);
+
+    // Edit FZF Start Dir
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+    app.input_buffer = "/some/path".to_string();
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.fzf.start_dir, "/some/path");
+
+    // Go down to Max Commits (index 6)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 6);
+
+    // Edit Max Commits
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+    app.input_buffer = "100".to_string();
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.max_commits, 100);
+
+    // Go down to Page Size (index 7)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 7);
+
+    // Edit Page Size
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+    app.input_buffer = "15".to_string();
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.page_size, 15);
+
+    // Go down to FZF Excludes (index 8)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 8);
+
+    // Edit FZF Excludes
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+    app.input_buffer = "target, node_modules ,.git".to_string();
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_editing);
+    assert_eq!(
+        app.config.fzf.excludes,
+        vec!["target".to_string(), "node_modules".to_string(), ".git".to_string()]
+    );
+
+    // Go down to Preferred Git Client (index 9)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 9);
+
+    // Edit Preferred Git Client
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+    app.input_buffer = "lazygit".to_string();
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.git_app, "lazygit");
+
+    // Go down to FZF Git Only (index 10)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 10);
+    assert!(app.config.fzf.git_only);
+
+    // Toggle FZF Git Only
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.config.fzf.git_only);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.config.fzf.git_only);
+
+    // Go down to Use FZF (index 11)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 11);
+    assert!(app.config.fzf.enabled);
+
+    // Toggle Use FZF
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.config.fzf.enabled);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.config.fzf.enabled);
+
+    // Go down to Compatibility Mode (index 12)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 12);
+    assert!(!app.config.compatibility_mode);
+
+    // Toggle Compatibility Mode
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.config.compatibility_mode);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.config.compatibility_mode);
+
+    // Go down to Resync on Tab Change (index 13)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 13);
+    assert!(!app.config.resync_on_tab_change);
+
+    // Toggle Resync on Tab Change
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.config.resync_on_tab_change);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.config.resync_on_tab_change);
+
+    // Test PageUp, PageDown, Home, and End key navigation in Settings Mode
+    app.config.page_size = 3;
+
+    // At index 13: PageUp should go to 13 - 3 = 10
+    crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
+    assert_eq!(app.settings_selected_index, 10);
+
+    // PageUp should go to 10 - 3 = 7
+    crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
+    assert_eq!(app.settings_selected_index, 7);
+
+    // PageDown should go to 7 + 3 = 10
+    crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
+    assert_eq!(app.settings_selected_index, 10);
+
+    // End should go to 13
+    crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
+    assert_eq!(app.settings_selected_index, 13);
+
+    // Home should go to 0
+    crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
+    assert_eq!(app.settings_selected_index, 0);
+
+    // Press Esc to exit settings
+    crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert_eq!(app.mode, Mode::Normal);
+}
+
+#[test]
+fn test_remote_add_delete_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_remotes.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Put app in Detail Mode on tab 5 (Remotes)
+    app.mode = Mode::Detail;
+    app.detail_tab = 5;
+    app.detail_focus = DetailSection::Remotes;
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(repo::RepoInfo {
+            remotes: repo::TabData::Loaded(vec![repo::RemoteInfo {
+                name: "origin".to_string(),
+                url: "https://github.com/example/repo.git".to_string(),
+                push_url: None,
+                refspecs: vec![],
+            }]),
+            ..Default::default()
+        }),
+    });
+
+    // Trigger remote add (a/A)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::RemoteAddNameInput);
+
+    // Type remote name: "upstream"
+    app.input_buffer = "upstream".to_string();
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::RemoteAddUrlInput);
+    assert_eq!(app.remote_add_name, "upstream");
+
+    // Escape URL input back to Detail Mode
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+
+    // Trigger remote delete (d/D) on the selected remote ("origin")
+    app.branch_list.remote_selection = 0;
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('d')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::RemoteDeleteConfirm);
+    assert_eq!(app.remote_action_target.as_deref(), Some("origin"));
+
+    // Press 'n' to cancel deletion
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('n')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.remote_action_target.is_none());
+}
+
+#[test]
+fn test_workspace_tab_right_arrow_inspect() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Open details view
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+    app.detail_focus = DetailSection::Staged;
+
+    let mut changes = crate::repo::WorktreeChanges::default();
+    changes.staged.push(crate::repo::FileEntry { path: "dummy.txt".to_string(), label: "M" });
+    let info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        changes,
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.commit_list.selection = 0;
+
+    // Verify we are not in Inspect mode
+    assert_ne!(app.mode, Mode::Inspect);
+
+    // Press Right arrow on Staged files list
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+    assert!(handled);
+
+    // Verify we transitioned to Inspect mode and focused StagingDetails
+    assert_eq!(app.mode, Mode::Inspect);
+    assert_eq!(app.detail_focus, DetailSection::StagingDetails);
+
+    // Press Left arrow in Inspect mode on StagingDetails
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Left), 10);
+    assert!(handled);
+
+    // Verify we are still in Inspect mode, but focus returned to Staged files list
+    assert_eq!(app.mode, Mode::Inspect);
+    assert_eq!(app.detail_focus, DetailSection::Staged);
+}
+
+#[test]
+fn test_commit_enter_key_inspect() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_enter.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Open details view and focus Commits section
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+    app.detail_focus = DetailSection::Commits;
+
+    let mut changes = crate::repo::WorktreeChanges::default();
+    changes.staged.push(crate::repo::FileEntry { path: "dummy.txt".to_string(), label: "M" });
+    let info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        changes,
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.commit_list.selection = 0;
+
+    // Verify we are not in Inspect mode
+    assert_ne!(app.mode, Mode::Inspect);
+
+    // Press Enter on Commits section
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(handled);
+
+    // Verify we transitioned to Inspect mode and focused Staged files list
+    assert_eq!(app.mode, Mode::Inspect);
+    assert_eq!(app.detail_focus, DetailSection::Staged);
+}
+
+#[test]
+fn test_inspect_commit_shortcut() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_commit.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Open details view and focus Commits section
+    app.mode = Mode::Inspect;
+    app.detail_tab = 0;
+    app.detail_focus = DetailSection::Staged;
+
+    let mut changes = crate::repo::WorktreeChanges::default();
+    changes.staged.push(crate::repo::FileEntry { path: "dummy.txt".to_string(), label: "M" });
+    let info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        summary: crate::repo::RepoSummary { staged: 1, ..Default::default() },
+        changes,
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.commit_list.selection = 0;
+
+    assert_eq!(app.mode, Mode::Inspect);
+    assert!(app.is_uncommitted_selected());
+
+    // Press 'c' in Inspect mode
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('c')), 10);
+    assert!(handled);
+
+    // Verify we transitioned to CommitInput mode
+    assert_eq!(app.mode, Mode::CommitInput);
+}
+
+#[test]
+fn test_workspace_all_changes_shortcuts() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_workspace_all.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Open details Workspace view and focus Unstaged section
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+    app.detail_focus = DetailSection::Unstaged;
+
+    let mut changes = crate::repo::WorktreeChanges::default();
+    changes.unstaged.push(crate::repo::FileEntry { path: "dummy.txt".to_string(), label: "M" });
+    let info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        summary: crate::repo::RepoSummary { modified: 1, ..Default::default() },
+        changes,
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.commit_list.selection = 0;
+
+    assert!(app.is_uncommitted_selected());
+
+    // Press 'X' to discard all changes
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('X')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::DiscardChangesConfirm);
+    assert_eq!(app.discard_target.as_ref().unwrap().0, "All Changes");
+
+    // Cancel discard all
+    app.cancel_discard_changes();
+    assert_eq!(app.mode, Mode::Detail);
+}
+
+#[test]
+fn test_inspect_workspace_all_changes_shortcuts() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_workspace_all.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Open details Inspect view and focus Unstaged section
+    app.mode = Mode::Inspect;
+    app.detail_tab = 0;
+    app.detail_focus = DetailSection::Unstaged;
+
+    let mut changes = crate::repo::WorktreeChanges::default();
+    changes.unstaged.push(crate::repo::FileEntry { path: "dummy.txt".to_string(), label: "M" });
+    let info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        summary: crate::repo::RepoSummary { modified: 1, ..Default::default() },
+        changes,
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.commit_list.selection = 0;
+
+    assert!(app.is_uncommitted_selected());
+
+    // Press 'X' to discard all changes in Inspect mode
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('X')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::DiscardChangesConfirm);
+    assert_eq!(app.discard_target.as_ref().unwrap().0, "All Changes");
+
+    // Cancel discard all and reset to Inspect mode
+    app.cancel_discard_changes();
+    app.mode = Mode::Inspect;
+
+    // Press 'a' (stage all) on Unstaged focus
+    app.detail_focus = DetailSection::Unstaged;
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
+    assert!(handled);
+
+    // Press 'a' (unstage all) on Staged focus
+    app.detail_focus = DetailSection::Staged;
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
+    assert!(handled);
+}
+
+#[test]
+fn test_workspace_all_changes_focus_transitions() {
+    let mut temp_path = std::env::temp_dir();
+    temp_path.push(format!(
+        "gitwig_test_app_all_{}",
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    std::fs::create_dir_all(&temp_path).unwrap();
+    let repo = git2::Repository::init(&temp_path).unwrap();
+
+    // Configure author
+    let mut config_git = repo.config().unwrap();
+    config_git.set_str("user.name", "Test User").unwrap();
+    config_git.set_str("user.email", "test@example.com").unwrap();
+
+    // Create initial commit so we have a HEAD
+    let file_path = temp_path.join("file.txt");
+    std::fs::write(&file_path, "initial").unwrap();
+
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let mut app = App::new(config, temp_path.join("config.toml"));
+
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: temp_path.clone(),
+        info: Box::new(crate::repo::RepoInfo::default()),
+    });
+
+    // 1. Stage All Focus Transition (Unstaged -> Staged)
+    app.detail_focus = DetailSection::Unstaged;
+    app.stage_all_changes();
+    assert_eq!(app.detail_focus, DetailSection::Staged);
+
+    // 2. Unstage All Focus Transition (Staged -> Unstaged)
+    app.detail_focus = DetailSection::Staged;
+    app.unstage_all_changes();
+    assert_eq!(app.detail_focus, DetailSection::Unstaged);
+
+    let _ = std::fs::remove_dir_all(&temp_path);
+}
+
+#[test]
+fn test_workspace_tab_focus_cycle_skips_empty_panels() {
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_cycle.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // 1. Uncommitted selected, Staged is not empty, Unstaged is empty
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+    app.detail_focus = DetailSection::Commits;
+
+    let mut changes = crate::repo::WorktreeChanges::default();
+    changes.staged.push(crate::repo::FileEntry { path: "staged_file.txt".to_string(), label: "M" });
+    // Unstaged is empty
+    let info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        changes,
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.commit_list.selection = 0; // index 0 is "<uncommitted>"
+
+    // We cycle from Commits -> Staged (since Staged is not empty)
+    app.cycle_detail_focus(false);
+    assert_eq!(app.detail_focus, DetailSection::Staged);
+
+    // Cycle from Staged -> StagingDetails (skips empty Unstaged, skips CommitDetails because uncommitted is selected)
+    app.cycle_detail_focus(false);
+    assert_eq!(app.detail_focus, DetailSection::StagingDetails);
+
+    // Cycle from StagingDetails -> Commits
+    app.cycle_detail_focus(false);
+    assert_eq!(app.detail_focus, DetailSection::Commits);
+
+    // Cycle reverse: Commits -> StagingDetails
+    app.cycle_detail_focus(true);
+    assert_eq!(app.detail_focus, DetailSection::StagingDetails);
+
+    // Cycle reverse: StagingDetails -> Staged
+    app.cycle_detail_focus(true);
+    assert_eq!(app.detail_focus, DetailSection::Staged);
+
+    // Cycle reverse: Staged -> Commits
+    app.cycle_detail_focus(true);
+    assert_eq!(app.detail_focus, DetailSection::Commits);
+
+    // 2. Regular commit selected (is_uncommitted_selected is false)
+    // With a regular commit, staged & unstaged are empty.
+    app.commit_list.selection = 1; // Not uncommitted
+
+    let empty_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("."),
+        info: Box::new(empty_info),
+    });
+
+    // We cycle from Commits -> CommitDetails (skips empty Staged and empty Unstaged)
+    app.cycle_detail_focus(false);
+    assert_eq!(app.detail_focus, DetailSection::CommitDetails);
+
+    // Cycle from CommitDetails -> Commits (skips empty StagingDetails because staged & unstaged are empty)
+    app.cycle_detail_focus(false);
+    assert_eq!(app.detail_focus, DetailSection::Commits);
+
+    // Cycle reverse: Commits -> CommitDetails
+    app.cycle_detail_focus(true);
+    assert_eq!(app.detail_focus, DetailSection::CommitDetails);
+
+    // Cycle reverse: CommitDetails -> Commits
+    app.cycle_detail_focus(true);
+    assert_eq!(app.detail_focus, DetailSection::Commits);
+}
+
+#[test]
+fn test_git_app_shortcut_triggers_pending() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_git_app.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    assert!(!app.pending_git_app);
+
+    // Pressing 'g' triggers pending_git_app
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('g')), 10);
+    assert!(handled);
+    assert!(app.pending_git_app);
+}
+
+#[test]
+fn test_files_fzf_shortcut_triggers_pending() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_files_fzf.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+    app.mode = Mode::Detail;
+    app.detail_tab = 1; // Files tab
+    app.detail_focus = DetailSection::Files;
+
+    assert!(!app.pending_files_fzf);
+
+    // Pressing 'f' triggers pending_files_fzf when in files tab
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('f')), 10);
+    assert!(handled);
+    assert!(app.pending_files_fzf);
+}
+
+#[test]
+fn test_logs_search_picker_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_logs_search.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+    app.mode = Mode::Detail;
+    app.detail_tab = 0; // Workspace tab
+    app.detail_focus = DetailSection::Commits;
+
+    // 1. Press 'f' to open search column picker
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('f')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::SearchColumnPicker);
+    assert_eq!(app.search_column_selection, 0);
+
+    // 2. Select down
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.search_column_selection, 1);
+
+    // 3. Toggle column message (initially true, should become false)
+    assert!(app.search_columns_message);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char(' ')), 10);
+    assert!(!app.search_columns_message);
+
+    // 4. Press Enter to transition to LogsSearchInput
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert_eq!(app.mode, Mode::LogsSearchInput);
+    assert!(app.in_logs_ui);
+
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        commits: vec![
+            crate::repo::CommitEntry {
+                id: "1234567".to_string(),
+                oid: "1234567890abcdef1234567890abcdef12345678".to_string(),
+                summary: "first test".to_string(),
+                author: "test author 1".to_string(),
+                when: "today".to_string(),
+                date: "today".to_string(),
+                refs: vec![],
+                message: "msg".to_string(),
+                files: vec![],
+                signature_status: "N".to_string(),
+            },
+            crate::repo::CommitEntry {
+                id: "2234567".to_string(),
+                oid: "2234567890abcdef1234567890abcdef12345678".to_string(),
+                summary: "no match".to_string(),
+                author: "author 1".to_string(),
+                when: "today".to_string(),
+                date: "today".to_string(),
+                refs: vec![],
+                message: "msg".to_string(),
+                files: vec![],
+                signature_status: "N".to_string(),
+            },
+            crate::repo::CommitEntry {
+                id: "2345678".to_string(),
+                oid: "234567890abcdef1234567890abcdef12345678a".to_string(),
+                summary: "second test".to_string(),
+                author: "test author 2".to_string(),
+                when: "today".to_string(),
+                date: "today".to_string(),
+                refs: vec![],
+                message: "msg".to_string(),
+                files: vec![],
+                signature_status: "N".to_string(),
+            },
+            crate::repo::CommitEntry {
+                id: "3234567".to_string(),
+                oid: "3234567890abcdef1234567890abcdef12345678".to_string(),
+                summary: "no match".to_string(),
+                author: "author 1".to_string(),
+                when: "today".to_string(),
+                date: "today".to_string(),
+                refs: vec![],
+                message: "msg".to_string(),
+                files: vec![],
+                signature_status: "N".to_string(),
+            },
+            crate::repo::CommitEntry {
+                id: "4234567".to_string(),
+                oid: "4234567890abcdef1234567890abcdef12345678".to_string(),
+                summary: "third test".to_string(),
+                author: "test author 1".to_string(),
+                when: "today".to_string(),
+                date: "today".to_string(),
+                refs: vec![],
+                message: "msg".to_string(),
+                files: vec![],
+                signature_status: "N".to_string(),
+            },
+        ],
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(mock_info),
+    });
+
+    // 5. Input search query characters and hit Enter
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('t')), 10);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('e')), 10);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('s')), 10);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('t')), 10);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+
+    assert_eq!(app.mode, Mode::Logs);
+    assert_eq!(app.commit_list.search_query.as_deref(), Some("test"));
+    assert_eq!(app.commit_total(), 5);
+
+    // Test scrolling/navigation (should only jump between matches: 0, 2, 4)
+    assert_eq!(app.commit_list.selection, 0); // starts at 0 (which is a match)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.commit_list.selection, 2); // skips non-match at index 1
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.commit_list.selection, 4); // skips non-match at index 3
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.commit_list.selection, 4); // remains at last match
+
+    crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
+    assert_eq!(app.commit_list.selection, 0); // jumps back to first match
+    crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
+    assert_eq!(app.commit_list.selection, 4); // jumps back to last match
+
+    crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
+    assert_eq!(app.commit_list.selection, 2);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
+    assert_eq!(app.commit_list.selection, 0);
+
+    // 6. Test match helper
+    let matching_commit = crate::repo::CommitEntry {
+        id: "1234567".to_string(),
+        oid: "1234567890abcdef1234567890abcdef12345678".to_string(),
+        summary: "a test message".to_string(), // message column disabled, so shouldn't match message!
+        author: "test author".to_string(),     // author column enabled, should match author!
+        when: "today".to_string(),
+        date: "today".to_string(),
+        refs: vec![],
+        message: "message body".to_string(),
+        files: vec![],
+        signature_status: "N".to_string(),
+    };
+    assert!(app.commit_matches_query(&matching_commit));
+
+    let non_matching_commit = crate::repo::CommitEntry {
+        id: "1234567".to_string(),
+        oid: "1234567890abcdef1234567890abcdef12345678".to_string(),
+        summary: "a test message".to_string(), // message column disabled, message has test but is ignored!
+        author: "other author".to_string(),    // author doesn't match!
+        when: "today".to_string(),
+        date: "today".to_string(),
+        refs: vec![],
+        message: "message body".to_string(),
+        files: vec![],
+        signature_status: "N".to_string(),
+    };
+    assert!(!app.commit_matches_query(&non_matching_commit));
+
+    // Test entering inspect UI via Enter key when in Mode::Logs
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert_eq!(app.mode, Mode::Inspect);
+    assert!(app.in_logs_ui);
+
+    // Press 'q' to go back to Mode::Logs
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('q')), 10);
+    assert_eq!(app.mode, Mode::Logs);
+    assert!(app.in_logs_ui);
+
+    // Press Enter again to transition to Mode::Inspect
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert_eq!(app.mode, Mode::Inspect);
+    assert!(app.in_logs_ui);
+
+    // Press Esc to go back to Mode::Logs
+    crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert_eq!(app.mode, Mode::Logs);
+    assert!(app.in_logs_ui);
+
+    // 7. Press Esc to go back to workspace
+    crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(!app.in_logs_ui);
+    assert!(app.commit_list.search_query.is_none());
+}
+
+#[test]
+fn test_detail_view_sync_on_tab_change_and_refresh() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec![".".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_sync.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("mock_branch_name_test_xyz".to_string()),
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(mock_info),
+    });
+
+    // 1. Simulate tab switch (e.g. key '2') with resync_on_tab_change = false
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('2')), 10);
+    assert!(handled);
+    assert_eq!(app.detail_tab, 1);
+    assert!(app.current_detail.is_some());
+    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert_eq!(info.branch.as_deref(), Some("mock_branch_name_test_xyz"));
+    } else {
+        panic!("Expected Repo detail");
+    }
+
+    // 2. Simulate tab switch (e.g. key '3') with resync_on_tab_change = true
+    app.config.resync_on_tab_change = true;
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('3')), 10);
+    assert!(handled);
+    assert_eq!(app.detail_tab, 2);
+    assert!(app.current_detail.is_some());
+
+    // Wait and process the async message
+    let (path, detail) = app.detail_rx.recv().unwrap();
+    assert_eq!(Some(&path), app.loading_repo_path.as_ref());
+    app.apply_detail_snapshot(detail);
+    app.loading_repo_path = None;
+
+    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert_ne!(info.branch.as_deref(), Some("mock_branch_name_test_xyz"));
+    } else {
+        panic!("Expected Repo detail");
+    }
+
+    // Reset to mock info for manual refresh test
+    let mock_info_2 = crate::repo::RepoInfo {
+        branch: Some("mock_branch_name_test_xyz".to_string()),
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(mock_info_2),
+    });
+
+    // 3. Press 'R' to refresh/resync manually (should resync even if resync_on_tab_change is false)
+    app.config.resync_on_tab_change = false;
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('R')), 10);
+    assert!(handled);
+    assert_eq!(app.status_message.as_deref(), Some("Refreshed"));
+
+    // Wait and process the async message
+    let (path, detail) = app.detail_rx.recv().unwrap();
+    assert_eq!(Some(&path), app.loading_repo_path.as_ref());
+    app.apply_detail_snapshot(detail);
+    app.loading_repo_path = None;
+
+    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert_ne!(info.branch.as_deref(), Some("mock_branch_name_test_xyz"));
+    } else {
+        panic!("Expected Repo detail");
+    }
+}
+
+#[test]
+fn test_branch_and_tag_checkout_confirmation() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec![".gitwig".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_checkout.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+    app.mode = Mode::Detail;
+    app.detail_tab = 3; // branches tab
+    app.detail_focus = DetailSection::LocalBranches;
+
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        local_branches: crate::repo::TabData::Loaded(vec![
+            crate::repo::BranchInfo {
+                name: "main".to_string(),
+                is_head: true,
+                short_sha: "".to_string(),
+                short_message: "".to_string(),
+            },
+            crate::repo::BranchInfo {
+                name: "feature-branch".to_string(),
+                is_head: false,
+                short_sha: "".to_string(),
+                short_message: "".to_string(),
+            },
+        ]),
+        remote_branches: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "origin/feature-branch".to_string(),
+            is_head: false,
+            short_sha: "".to_string(),
+            short_message: "".to_string(),
+        }]),
+        local_tags: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "v1.0.0".to_string(),
+            is_head: false,
+            short_sha: "".to_string(),
+            short_message: "".to_string(),
+        }]),
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(mock_info),
+    });
+
+    // Select the non-head local branch "feature-branch" (index 1)
+    app.branch_list.local_branch_selection = 1;
+
+    // Pressing Enter should request confirmation
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::BranchCheckoutConfirm);
+    assert_eq!(app.branch_action_target, Some(("feature-branch".to_string(), false)));
+
+    // Cancel branch checkout confirmation via 'n'
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('n')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(app.branch_action_target, None);
+
+    // Request again
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::BranchCheckoutConfirm);
+
+    // Confirm branch checkout confirmation via 'y' (it will fail to checkout in dummy/test repo path, but checks handler path)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('y')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(app.branch_action_target, None);
+
+    // Switch to Tags tab (detail_tab = 4)
+    app.detail_tab = 4;
+    app.tag_list.local_tag_selection = 0;
+
+    // Pressing Enter should request tag checkout confirmation
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::TagCheckoutConfirm);
+    assert_eq!(app.tag_checkout_target, Some("v1.0.0".to_string()));
+
+    // Cancel tag checkout confirmation via Esc
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(app.tag_checkout_target, None);
+}
+
+#[test]
+fn test_repo_search_filtering() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["z_repo".to_string(), "a_repo".to_string(), "m_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_search.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Initially we should have 3 items
+    assert_eq!(app.get_items_len(), 3);
+    assert_eq!(app.get_filtered_items().len(), 3);
+
+    // Press 'f' to enter search mode
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('f')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::RepoSearchInput);
+
+    // Type 'a'
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
+    assert!(handled);
+    assert_eq!(app.repo_search_query.as_deref(), Some("a"));
+    assert_eq!(app.get_items_len(), 1);
+    assert_eq!(app.get_filtered_items()[0].1, &"a_repo".to_string());
+
+    // Press Enter to confirm/exit search input mode
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Normal);
+    assert_eq!(app.repo_search_query.as_deref(), Some("a"));
+
+    // Press Esc in normal mode to clear the filter
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert!(handled);
+    assert_eq!(app.repo_search_query, None);
+    assert_eq!(app.get_items_len(), 3);
+}
+
+#[test]
+fn test_normal_mode_right_arrow_detail() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_right_arrow.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    assert_eq!(app.mode, Mode::Normal);
+
+    // Press Right arrow key in Normal mode
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+    assert!(handled);
+
+    // Verify we opened detail view in loading state
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(app.loading_repo_path.as_deref(), Some("a_repo"));
+
+    // Wait for background thread message
+    let (path, detail) = app.detail_rx.recv().unwrap();
+    assert_eq!(path, "a_repo");
+
+    // Manually apply to verify state transition
+    app.current_detail = Some(detail);
+    app.loading_repo_path = None;
+
+    assert_eq!(app.loading_repo_path, None);
+    assert!(app.current_detail.is_some());
+}
+
+#[test]
+fn test_inspect_full_screen_diff_toggle() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_full_diff.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Transition to Mode::Inspect and focus StagingDetails
+    app.mode = Mode::Inspect;
+    app.detail_focus = DetailSection::StagingDetails;
+    app.inspect_full_diff = false;
+
+    // Press Right arrow
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+    assert!(handled);
+    assert!(app.inspect_full_diff);
+
+    // Press Left arrow to exit full diff
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Left), 10);
+    assert!(handled);
+    assert!(!app.inspect_full_diff);
+
+    // Press Right arrow again to enter full diff
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+    assert!(handled);
+    assert!(app.inspect_full_diff);
+
+    // Press Esc to exit full diff
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert!(handled);
+    assert!(!app.inspect_full_diff);
+    assert_eq!(app.mode, Mode::Inspect); // Still in Inspect mode!
+}
+
+#[test]
+fn test_files_tab_full_screen_toggle() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_files_full.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Transition to Mode::Detail, select tab 1 (Files) and focus FileContent
+    app.mode = Mode::Detail;
+    app.detail_tab = 1;
+    app.detail_focus = DetailSection::FileContent;
+    app.inspect_full_diff = false;
+
+    // Press Right arrow on FileContent
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+    assert!(handled);
+    assert!(app.inspect_full_diff);
+
+    // Press Left arrow to exit full screen
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Left), 10);
+    assert!(handled);
+    assert!(!app.inspect_full_diff);
+
+    // Press Right arrow again
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+    assert!(handled);
+    assert!(app.inspect_full_diff);
+
+    // Press Esc to exit full screen
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert!(handled);
+    assert!(!app.inspect_full_diff);
+    assert_eq!(app.mode, Mode::Detail); // Still in Detail mode!
+}
+
+#[test]
+fn test_fzf_missing_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_fzf_missing.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Case 1: fzf is missing
+    app.force_fzf_missing = Some(true);
+    app.mode = Mode::Normal;
+
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
+    assert!(handled);
+    assert!(!app.pending_fzf);
+    assert_eq!(app.mode, Mode::Adding);
+    assert!(app.error_message.is_none());
+
+    // Esc should cancel Adding mode
+    let handled_dismiss = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert!(handled_dismiss);
+    assert_eq!(app.mode, Mode::Normal);
+
+    // A -> should fallback to BulkAddInput (manual typing)
+    let handled_bulk = crate::input::handle_key(&mut app, key_event(KeyCode::Char('A')), 10);
+    assert!(handled_bulk);
+    assert!(!app.pending_bulk_fzf);
+    assert_eq!(app.mode, Mode::BulkAddInput);
+    assert!(app.error_message.is_none());
+
+    // Case 2: fzf is installed
+    app.force_fzf_missing = Some(false);
+    app.mode = Mode::Normal;
+    let handled_add = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
+    assert!(handled_add);
+    assert!(app.pending_fzf);
+    assert!(app.error_message.is_none());
+
+    app.mode = Mode::Normal;
+    let handled_bulk_add = crate::input::handle_key(&mut app, key_event(KeyCode::Char('A')), 10);
+    assert!(handled_bulk_add);
+    assert!(app.pending_bulk_fzf);
+    assert!(app.error_message.is_none());
+}
+
+#[test]
+fn test_initial_setup_and_migration() {
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let unique_id =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let temp_dir = std::env::temp_dir().join(format!("gitwig_test_migration_{}", unique_id));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let temp_path = temp_dir.join("config.toml");
+
+    // Save initial config
+    crate::config::save_config(&config, &temp_path).unwrap();
+
+    // 1. First run: version file does not exist.
+    {
+        let app = App::new(config.clone(), temp_path.clone());
+        let version_path = temp_dir.join(".version");
+        assert!(version_path.exists());
+        let written_version = std::fs::read_to_string(&version_path).unwrap();
+        assert_eq!(written_version.trim(), env!("CARGO_PKG_VERSION"));
+        assert_eq!(
+            app.status_message,
+            Some(format!("Welcome to Gitwig v{}!", env!("CARGO_PKG_VERSION")))
+        );
+    }
+
+    // 2. Second run: version file matches current version.
+    {
+        let app = App::new(config.clone(), temp_path.clone());
+        // No new status message should be set
+        assert!(app.status_message.is_none());
+    }
+
+    // 3. Update run: version file has older version.
+    {
+        let version_path = temp_dir.join(".version");
+        std::fs::write(&version_path, "0.1.0").unwrap();
+
+        let app = App::new(config.clone(), temp_path.clone());
+        // Check status message
+        assert_eq!(
+            app.status_message,
+            Some(format!(
+                "Gitwig updated to v{}! Configuration verified and backed up.",
+                env!("CARGO_PKG_VERSION")
+            ))
+        );
+        // Check config backup exists
+        let backup_path = temp_path.with_extension("toml.bak");
+        assert!(backup_path.exists());
+        // Check version was updated
+        let written_version = std::fs::read_to_string(&version_path).unwrap();
+        assert_eq!(written_version.trim(), env!("CARGO_PKG_VERSION"));
+    }
+
+    // Clean up
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_about_popup_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_about.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    // Assert initial mode is Normal
+    assert_eq!(app.mode, Mode::Normal);
+
+    // Open about popup
+    app.open_about();
+    assert_eq!(app.mode, Mode::About);
+
+    // Close about popup
+    app.close_dialog();
+    assert_eq!(app.mode, Mode::Normal);
+
+    // Test key inputs via handle_key
+    // 1. In Normal mode, pressing 'v' should open about popup
+    app.mode = Mode::Normal;
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('v')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::About);
+
+    // 2. In About mode, pressing 'v' should close it
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('v')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Normal);
+
+    // 3. In Normal mode, pressing 'V' should open about popup
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('V')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::About);
+
+    // 4. In About mode, pressing 'Esc' should close it
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Normal);
+
+    // 5. In Normal mode, pressing 'v' then closing with 'q'
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('v')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::About);
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('q')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Normal);
+}
+
+#[test]
+fn test_tag_fetch_attempt_and_dismiss_flow() {
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_tag_fetch.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        summary: crate::repo::RepoSummary {
+            branch: Some("main".to_string()),
+            staged: 0,
+            modified: 0,
+            untracked: 0,
+            conflicted: 0,
+            ahead: 0,
+            behind: 0,
+        },
+        changes: crate::repo::WorktreeChanges {
+            staged: vec![],
+            unstaged: vec![],
+            conflicted: vec![],
+            untracked: vec![],
+        },
+        remotes: crate::repo::TabData::Loaded(vec![crate::repo::RemoteInfo {
+            name: "origin".to_string(),
+            url: "git@github.com:tareqmy/gitwig.git".to_string(),
+            push_url: None,
+            refspecs: vec![],
+        }]),
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(mock_info),
+    });
+
+    // Initially remote_tags_attempted is false
+    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert!(!info.remote_tags_attempted);
+    }
+
+    // 1. Switch to tab 4 (Tags tab) and trigger set_default_focus_for_tab
+    app.detail_tab = 4;
+    app.set_default_focus_for_tab();
+
+    // Should start fetching and set attempted flag to true
+    assert!(app.fetching);
+    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert!(info.remote_tags_attempted);
+    }
+
+    // 2. Receive error from the background thread
+    app.tx.send("REMOTE_TAGS_ERR:Failed to get remote tags: network timeout".to_string()).unwrap();
+
+    // Process message in receiver
+    if let Ok(msg) = app.rx.try_recv() {
+        if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
+            app.set_error(err_msg.to_string());
+            app.fetching = false;
+        }
+    }
+
+    // Verify fetching is false and error popup is shown
+    assert!(!app.fetching);
+    assert_eq!(app.error_message.as_deref(), Some("Failed to get remote tags: network timeout"));
+
+    // 3. Trigger set_default_focus_for_tab again.
+    // It should NOT call fetch_remote_tags again since attempted is true.
+    app.set_default_focus_for_tab();
+    assert!(!app.fetching);
+
+    // 4. Test mouse click to dismiss error popup
+    let mouse_event = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 10,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, mouse_event);
+
+    // Error message should be dismissed (None)
+    assert_eq!(app.error_message, None);
+}
+
+#[test]
+fn test_tag_push_all_confirmation_flow() {
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_tag_push_all.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // 1. Single Remote Scenario
+    let mock_info_single = crate::repo::RepoInfo {
+        remotes: crate::repo::TabData::Loaded(vec![crate::repo::RemoteInfo {
+            name: "origin".to_string(),
+            url: "git@github.com:tareqmy/gitwig.git".to_string(),
+            push_url: None,
+            refspecs: vec![],
+        }]),
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(mock_info_single),
+    });
+
+    // Request tag push all
+    app.request_tag_push_all();
+    // Should go directly to TagPushAllConfirm
+    assert_eq!(app.mode, Mode::TagPushAllConfirm);
+    assert_eq!(app.remote_action_target.as_deref(), Some("origin"));
+
+    // Cancel
+    app.cancel_tag_push_all();
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(app.remote_action_target, None);
+
+    // 2. Multi-Remote Scenario
+    let mock_info_multi = crate::repo::RepoInfo {
+        remotes: crate::repo::TabData::Loaded(vec![
+            crate::repo::RemoteInfo {
+                name: "origin".to_string(),
+                url: "git@github.com:tareqmy/gitwig.git".to_string(),
+                push_url: None,
+                refspecs: vec![],
+            },
+            crate::repo::RemoteInfo {
+                name: "upstream".to_string(),
+                url: "git@github.com:parent/gitwig.git".to_string(),
+                push_url: None,
+                refspecs: vec![],
+            },
+        ]),
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(mock_info_multi),
+    });
+
+    // Request tag push all
+    app.request_tag_push_all();
+    // Should open remote picker
+    assert_eq!(app.mode, Mode::RemotePicker);
+    assert_eq!(app.remote_picker_action, Some(RemotePickerAction::PushAllTags));
+
+    // Confirm selection in remote picker (index 1 is upstream)
+    app.remote_picker_selection = 1;
+    app.confirm_remote_picker();
+
+    // Should transition to TagPushAllConfirm and set target to upstream
+    assert_eq!(app.mode, Mode::TagPushAllConfirm);
+    assert_eq!(app.remote_action_target.as_deref(), Some("upstream"));
+
+    // Confirm push
+    app.confirm_tag_push_all();
+    // Should trigger pushing, transition to Detail mode and clear target
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(app.remote_action_target, None);
+}
+
+#[test]
+fn test_detail_cache_ttl_behavior() {
+    let temp_dir = std::env::temp_dir();
+    let repo_path = temp_dir.join("test_cache_repo");
+    let _ = std::fs::remove_dir_all(&repo_path);
+    std::fs::create_dir_all(&repo_path).unwrap();
+
+    // Initialize App
+    let config = Config {
+        items: vec![repo_path.to_string_lossy().to_string()],
+        poll_interval_ms: 100,
+        max_commits: 200,
+        graph_max_commits: 1000,
+
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme_name: "default".to_string(),
+        theme: ThemeConfig::default(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: true,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+    };
+
+    let mut app = App::new(config, PathBuf::from(""));
+
+    // Create a mock detail snapshot
+    let mock_detail = crate::repo::ItemDetail::Repo {
+        resolved: repo_path.clone(),
+        info: Box::new(crate::repo::RepoInfo {
+            commits: vec![],
+            files: crate::repo::TabData::Loaded(vec!["file1.txt".to_string()]),
+            ..crate::repo::RepoInfo::default()
+        }),
+    };
+
+    // 1. Manually add to cache
+    app.detail_cache.insert(
+        repo_path.to_string_lossy().to_string(),
+        DetailCache { detail: mock_detail.clone(), loaded_at: std::time::Instant::now() },
+    );
+
+    // 2. Trigger open_detail on this repository (it will load from cache immediately)
+    app.open_detail();
+
+    // loading_repo_path should be None because it loaded from cache silently!
+    assert!(app.loading_repo_path.is_none());
+    assert!(app.current_detail.is_some());
+
+    // Verify loaded files tab data is preserved
+    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert_eq!(info.files.as_slice(), &["file1.txt".to_string()]);
+    }
+
+    // Clean up
+    let _ = std::fs::remove_dir_all(&repo_path);
+}
+
+#[test]
+fn test_tab_ttl_behavior() {
+    let temp_dir = std::env::temp_dir();
+    let repo_path = temp_dir.join("test_tab_ttl_repo");
+    let _ = std::fs::remove_dir_all(&repo_path);
+    std::fs::create_dir_all(&repo_path).unwrap();
+
+    // Initialize App with a short Tab TTL (e.g. 1s)
+    let config = Config {
+        items: vec![repo_path.to_string_lossy().to_string()],
+        poll_interval_ms: 100,
+        max_commits: 200,
+        graph_max_commits: 1000,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 1, // 1s TTL
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme_name: "default".to_string(),
+        theme: ThemeConfig::default(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: true,
+        resync_on_tab_change: false,
+    };
+
+    let mut app = App::new(config, PathBuf::from(""));
+
+    // Set up mock current detail
+    let mock_info = crate::repo::RepoInfo {
+        commits: vec![],
+        files: crate::repo::TabData::Loaded(vec!["file1.txt".to_string()]),
+        tab_loaded_at: [None; 8],
+        tab_loading: [false; 8],
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: repo_path.clone(),
+        info: Box::new(mock_info),
+    });
+
+    // 1. Initial trigger when NotLoaded
+    // Reset state to NotLoaded
+    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
+        info.files = crate::repo::TabData::NotLoaded;
+    }
+    app.trigger_tab_load_if_needed(1);
+    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert!(info.tab_loading[1]);
+        assert!(info.files.is_loading());
+    }
+
+    // 2. Receive loaded payload simulation
+    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
+        info.tab_loading[1] = false;
+        info.tab_loaded_at[1] = Some(std::time::Instant::now() - std::time::Duration::from_secs(5)); // Mark loaded 5s ago (stale)
+        info.files = crate::repo::TabData::Loaded(vec!["file_refreshed.txt".to_string()]);
+    }
+
+    // 3. Trigger tab load when it is stale (stale-while-revalidate)
+    app.trigger_tab_load_if_needed(1);
+    if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        // Should be loading in the background (tab_loading is true)
+        assert!(info.tab_loading[1]);
+        // But info.files state should still be TabData::Loaded! (no spinner)
+        assert!(matches!(info.files, crate::repo::TabData::Loaded(_)));
+        assert_eq!(info.files.as_slice(), &["file_refreshed.txt".to_string()]);
+    }
+
+    // Clean up
+    let _ = std::fs::remove_dir_all(&repo_path);
+}
+
+#[test]
+fn test_commit_popup_mouse_resize() {
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    use ratatui::layout::Rect;
+
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_resize.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::CommitInput;
+    app.commit_popup_width_pct = 80;
+    app.commit_popup_height_pct = 45;
+
+    // Mock detail_areas
+    // Parent area is 100x100
+    // Popup area with 80% width and 45% height is centered:
+    // width = 80, height = 45. x = 10, y = 27
+    app.detail_areas.commit_popup_parent = Some(Rect::new(0, 0, 100, 100));
+    app.detail_areas.commit_popup = Some(Rect::new(10, 27, 80, 45));
+
+    // Click on the right border (pos.x = 89, pos.y = 50)
+    let down_event = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 89,
+        row: 50,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, down_event);
+    assert_eq!(app.active_drag_splitter, Some(Splitter::CommitPopupWidth));
+
+    // Drag right border to column 95 -> new half_width = |95 - 50| = 45 -> new_width = 90 -> 90%
+    let drag_event = MouseEvent {
+        kind: MouseEventKind::Drag(MouseButton::Left),
+        column: 95,
+        row: 50,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, drag_event);
+    assert_eq!(app.commit_popup_width_pct, 90);
+
+    // Release mouse
+    let up_event = MouseEvent {
+        kind: MouseEventKind::Up(MouseButton::Left),
+        column: 95,
+        row: 50,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, up_event);
+    assert_eq!(app.active_drag_splitter, None);
+}
+
+#[test]
+fn test_yank_selected_commit_hash() {
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+
+    // Setup mock repo commits
+    let mut info = repo::RepoInfo::default();
+    info.commits.push(repo::CommitEntry {
+        id: "abc1234".to_string(),
+        oid: "abc123456789".to_string(),
+        author: "Tester".to_string(),
+        when: "".to_string(),
+        date: "".to_string(),
+        summary: "Initial commit".to_string(),
+        message: "Initial commit".to_string(),
+        refs: vec![],
+        files: vec![],
+        signature_status: "".to_string(),
+    });
+    app.current_detail =
+        Some(repo::ItemDetail::Repo { resolved: PathBuf::from("/dummy"), info: Box::new(info) });
+
+    // Select the committed item
+    app.commit_list.selection = 0;
+    app.detail_tab = 0;
+
+    // Try yanking. Note: since standard clipboards might fail in some test/headless envs,
+    // we can test the behavior and see if it sets self.status_message to either success or error.
+    app.yank_selected_commit_hash();
+    assert!(app.status_message.is_some());
+    let msg = app.status_message.as_ref().unwrap();
+    assert!(msg.contains("Copied hash abc1234") || msg.contains("Failed to copy"));
+}
+
+#[test]
+fn test_cherry_pick_destination_branches() {
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+
+    // Setup mock repo details
+    let mut info = repo::RepoInfo { branch: Some("main".to_string()), ..Default::default() };
+    info.commits.push(repo::CommitEntry {
+        id: "abc1234".to_string(),
+        oid: "abc123456789".to_string(),
+        author: "Tester".to_string(),
+        when: "".to_string(),
+        date: "".to_string(),
+        summary: "Initial commit".to_string(),
+        message: "Initial commit".to_string(),
+        refs: vec![],
+        files: vec![],
+        signature_status: "".to_string(),
+    });
+    info.local_branches = repo::TabData::Loaded(vec![
+        repo::BranchInfo {
+            name: "main".to_string(),
+            is_head: true,
+            short_sha: "abc1234".to_string(),
+            short_message: "msg".to_string(),
+        },
+        repo::BranchInfo {
+            name: "feature-1".to_string(),
+            is_head: false,
+            short_sha: "def5678".to_string(),
+            short_message: "msg2".to_string(),
+        },
+        repo::BranchInfo {
+            name: "feature-2".to_string(),
+            is_head: false,
+            short_sha: "9999999".to_string(),
+            short_message: "msg3".to_string(),
+        },
+    ]);
+    app.current_detail =
+        Some(repo::ItemDetail::Repo { resolved: PathBuf::from("/dummy"), info: Box::new(info) });
+
+    // Trigger cherry pick
+    app.commit_list.selection = 0;
+    app.request_cherry_pick();
+
+    assert_eq!(app.mode, Mode::CherryPickConfirm);
+    assert_eq!(app.cherry_pick_dest_branches.len(), 2);
+    assert_eq!(app.cherry_pick_dest_branches[0], "feature-1");
+    assert_eq!(app.cherry_pick_dest_branches[1], "feature-2");
+    assert_eq!(app.cherry_pick_dest_selection, 0);
+
+    // Test navigation
+    // Press Down
+    let event_down = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    crate::input::handle_key(&mut app, event_down, 0);
+    assert_eq!(app.cherry_pick_dest_selection, 1);
+
+    // Press Down again (should clamp)
+    let event_down_again = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    crate::input::handle_key(&mut app, event_down_again, 0);
+    assert_eq!(app.cherry_pick_dest_selection, 1);
+
+    // Press Up
+    let event_up = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    crate::input::handle_key(&mut app, event_up, 0);
+    assert_eq!(app.cherry_pick_dest_selection, 0);
+}
