@@ -302,6 +302,8 @@ pub struct App {
     pub graph_scroll: usize,
     /// Whether the status bar is expanded.
     pub status_expanded: bool,
+    /// Whether the settings panel focus is on the sidebar categories.
+    pub settings_focus_sidebar: bool,
     /// Sender for background task events.
     pub tx: std::sync::mpsc::Sender<String>,
     /// Receiver for background task events.
@@ -873,6 +875,7 @@ impl App {
             detail_tab: 0,
             graph_scroll: 0,
             status_expanded: false,
+            settings_focus_sidebar: true,
             tx,
             rx,
             fetching: false,

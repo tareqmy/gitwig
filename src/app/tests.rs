@@ -1496,6 +1496,12 @@ fn test_settings_mode_navigation_and_editing() {
     assert_eq!(app.mode, Mode::Settings);
     assert_eq!(app.settings_selected_index, 0);
     assert!(!app.settings_editing);
+    assert!(app.settings_focus_sidebar);
+
+    // Focus right content pane via 'w'
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('w')), 10);
+    assert!(handled);
+    assert!(!app.settings_focus_sidebar);
 
     // Select poll interval, press enter to edit
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
@@ -1513,15 +1519,23 @@ fn test_settings_mode_navigation_and_editing() {
     assert!(!app.settings_editing);
     assert_eq!(app.config.poll_interval_ms, 105);
 
-    // Go down to "Sort By"
+    // Return to sidebar
+    crate::input::handle_key(&mut app, key_event(KeyCode::Left), 10);
+    assert!(app.settings_focus_sidebar);
+
+    // Go down to "Sorting & Limits" category in sidebar
     crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
     assert_eq!(app.settings_selected_index, 1);
+
+    // Focus right content pane
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_focus_sidebar);
 
     // Toggle Sort By (Custom -> Alphabetical)
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
     assert_eq!(app.config.sort_by, SortOrder::Alphabetical);
 
-    // Go down to "Sort Reverse"
+    // Go down to "Sort Reverse" (within Sorting category)
     crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
     assert_eq!(app.settings_selected_index, 2);
 
@@ -1529,9 +1543,14 @@ fn test_settings_mode_navigation_and_editing() {
     crate::input::handle_key(&mut app, key_event(KeyCode::Char(' ')), 10);
     assert!(app.config.sort_reverse);
 
-    // Go down to Theme (index 3)
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    // Return to sidebar
+    crate::input::handle_key(&mut app, key_event(KeyCode::Left), 10);
+    assert!(app.settings_focus_sidebar);
+
+    // Press '4' to jump directly to Theme category (index 3)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('4')), 10);
     assert_eq!(app.settings_selected_index, 3);
+    assert!(!app.settings_focus_sidebar);
 
     // Edit Theme Name dropdown
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
@@ -1549,6 +1568,22 @@ fn test_settings_mode_navigation_and_editing() {
     crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
     assert!(!app.settings_editing);
 
+    // Press '3' to jump directly to FZF category (index 11)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('3')), 10);
+    assert_eq!(app.settings_selected_index, 11);
+
+    // Navigate FZF category: 11 -> 5
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 5);
+
+    // Edit FZF Start Dir
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+    app.input_buffer = "/some/path".to_string();
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.fzf.start_dir, "/some/path");
+
     // Go down to FZF Max Depth (index 4)
     crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
     assert_eq!(app.settings_selected_index, 4);
@@ -1561,41 +1596,16 @@ fn test_settings_mode_navigation_and_editing() {
     assert!(!app.settings_editing);
     assert_eq!(app.config.fzf.max_depth, 3);
 
-    // Go down to FZF Start Dir (index 5)
+    // Go down to FZF Git Only (index 10)
     crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
-    assert_eq!(app.settings_selected_index, 5);
+    assert_eq!(app.settings_selected_index, 10);
+    assert!(app.config.fzf.git_only);
 
-    // Edit FZF Start Dir
+    // Toggle FZF Git Only
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(app.settings_editing);
-    app.input_buffer = "/some/path".to_string();
+    assert!(!app.config.fzf.git_only);
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(!app.settings_editing);
-    assert_eq!(app.config.fzf.start_dir, "/some/path");
-
-    // Go down to Max Commits (index 6)
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
-    assert_eq!(app.settings_selected_index, 6);
-
-    // Edit Max Commits
-    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(app.settings_editing);
-    app.input_buffer = "100".to_string();
-    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(!app.settings_editing);
-    assert_eq!(app.config.max_commits, 100);
-
-    // Go down to Page Size (index 7)
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
-    assert_eq!(app.settings_selected_index, 7);
-
-    // Edit Page Size
-    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(app.settings_editing);
-    app.input_buffer = "15".to_string();
-    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(!app.settings_editing);
-    assert_eq!(app.config.page_size, 15);
+    assert!(app.config.fzf.git_only);
 
     // Go down to FZF Excludes (index 8)
     crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
@@ -1612,7 +1622,23 @@ fn test_settings_mode_navigation_and_editing() {
         vec!["target".to_string(), "node_modules".to_string(), ".git".to_string()]
     );
 
-    // Go down to Preferred Git Client (index 9)
+    // Go to General Settings (Category 0) using hotkey '1'
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('1')), 10);
+    assert_eq!(app.settings_selected_index, 0);
+
+    // Navigate to Page Size (index 7): 0 -> 7
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 7);
+
+    // Edit Page Size
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+    app.input_buffer = "15".to_string();
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.page_size, 15);
+
+    // Go down to Preferred Git Client (index 9): 7 -> 9
     crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
     assert_eq!(app.settings_selected_index, 9);
 
@@ -1624,29 +1650,7 @@ fn test_settings_mode_navigation_and_editing() {
     assert!(!app.settings_editing);
     assert_eq!(app.config.git_app, "lazygit");
 
-    // Go down to FZF Git Only (index 10)
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
-    assert_eq!(app.settings_selected_index, 10);
-    assert!(app.config.fzf.git_only);
-
-    // Toggle FZF Git Only
-    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(!app.config.fzf.git_only);
-    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(app.config.fzf.git_only);
-
-    // Go down to Use FZF (index 11)
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
-    assert_eq!(app.settings_selected_index, 11);
-    assert!(app.config.fzf.enabled);
-
-    // Toggle Use FZF
-    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(!app.config.fzf.enabled);
-    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(app.config.fzf.enabled);
-
-    // Go down to Compatibility Mode (index 12)
+    // Go down to Compatibility Mode (index 12): 9 -> 12
     crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
     assert_eq!(app.settings_selected_index, 12);
     assert!(!app.config.compatibility_mode);
@@ -1657,7 +1661,7 @@ fn test_settings_mode_navigation_and_editing() {
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
     assert!(!app.config.compatibility_mode);
 
-    // Go down to Resync on Tab Change (index 13)
+    // Go down to Resync on Tab Change (index 13): 12 -> 13
     crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
     assert_eq!(app.settings_selected_index, 13);
     assert!(!app.config.resync_on_tab_change);
@@ -1668,30 +1672,50 @@ fn test_settings_mode_navigation_and_editing() {
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
     assert!(!app.config.resync_on_tab_change);
 
-    // Test PageUp, PageDown, Home, and End key navigation in Settings Mode
-    app.config.page_size = 3;
+    // Test Max Commits (index 6) in Category 1
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('2')), 10);
+    assert_eq!(app.settings_selected_index, 1);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 1 -> 2
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 2 -> 6
+    assert_eq!(app.settings_selected_index, 6);
 
-    // At index 13: PageUp should go to 13 - 3 = 10
+    // Edit Max Commits
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+    app.input_buffer = "100".to_string();
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.max_commits, 100);
+
+    // Test Use FZF (index 11) in Category 2
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('3')), 10);
+    assert_eq!(app.settings_selected_index, 11);
+    assert!(app.config.fzf.enabled);
+
+    // Toggle Use FZF
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.config.fzf.enabled);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.config.fzf.enabled);
+
+    // PageUp, PageDown, Home, End testing within Category 2:
     crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-    assert_eq!(app.settings_selected_index, 10);
+    assert_eq!(app.settings_selected_index, 11); // Category 2 start is 11
 
-    // PageUp should go to 10 - 3 = 7
-    crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-    assert_eq!(app.settings_selected_index, 7);
-
-    // PageDown should go to 7 + 3 = 10
-    crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
-    assert_eq!(app.settings_selected_index, 10);
-
-    // End should go to 13
-    crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
-    assert_eq!(app.settings_selected_index, 13);
-
-    // Home should go to 0
     crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
-    assert_eq!(app.settings_selected_index, 0);
+    assert_eq!(app.settings_selected_index, 11);
 
-    // Press Esc to exit settings
+    crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
+    assert_eq!(app.settings_selected_index, 8); // Category 2 end is 8
+
+    crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
+    assert_eq!(app.settings_selected_index, 8);
+
+    // Press Esc to focus sidebar
+    crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
+    assert!(app.settings_focus_sidebar);
+
+    // Press Esc on sidebar to exit settings
     crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
     assert_eq!(app.mode, Mode::Normal);
 }
@@ -3861,4 +3885,66 @@ fn test_commit_popup_custom_keys() {
     let handled = crate::input::handle_key(&mut app, key_esc, 0);
     assert!(handled);
     assert_eq!(app.mode, Mode::Detail);
+}
+
+#[test]
+fn test_settings_panel_organization() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_org.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::Settings;
+    app.settings_selected_index = 0;
+    app.settings_editing = false;
+    app.settings_focus_sidebar = false;
+
+    // Press Left -> focuses sidebar
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Left), 10);
+    assert!(handled);
+    assert!(app.settings_focus_sidebar);
+
+    // Press Down in sidebar -> goes to category 1 (Sorting & Limits), setting index becomes 1 (Sort By)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert!(handled);
+    assert_eq!(app.settings_selected_index, 1);
+    assert!(app.settings_focus_sidebar);
+
+    // Press Right -> focuses right content pane
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Right), 10);
+    assert!(handled);
+    assert!(!app.settings_focus_sidebar);
+
+    // Press '3' -> jumps to FZF category first item (11)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('3')), 10);
+    assert!(handled);
+    assert_eq!(app.settings_selected_index, 11);
+    assert!(!app.settings_focus_sidebar);
+
+    // Press '4' -> jumps to Theme category (3)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('4')), 10);
+    assert!(handled);
+    assert_eq!(app.settings_selected_index, 3);
+    assert!(!app.settings_focus_sidebar);
 }

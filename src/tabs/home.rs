@@ -36,6 +36,7 @@ impl HomeTab {
                     app.mode = Mode::Settings;
                     app.settings_selected_index = 0;
                     app.settings_editing = false;
+                    app.settings_focus_sidebar = true;
                 }
                 KeyCode::Char('D') | KeyCode::Char('l') | KeyCode::Char('L') => {
                     crate::debug_log::info("Opening debug logs");

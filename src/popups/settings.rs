@@ -11,12 +11,200 @@ use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{
-    Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph, Wrap,
-};
+use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
+
+const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13];
+const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6];
+const FZF_SETTING_INDICES: &[usize] = &[11, 5, 4, 10, 8];
+const THEME_SETTING_INDICES: &[usize] = &[3];
+
+fn get_category_indices(cat: usize) -> &'static [usize] {
+    match cat {
+        0 => GENERAL_SETTING_INDICES,
+        1 => SORTING_SETTING_INDICES,
+        2 => FZF_SETTING_INDICES,
+        3 => THEME_SETTING_INDICES,
+        _ => &[],
+    }
+}
+
+fn get_category_name(cat: usize) -> &'static str {
+    match cat {
+        0 => "General Settings",
+        1 => "Sorting & Limits",
+        2 => "FZF Discovery",
+        3 => "Theme & Style",
+        _ => "",
+    }
+}
+
+fn get_category_icon(cat: usize, compat: bool) -> &'static str {
+    if compat {
+        match cat {
+            0 => "* ",
+            1 => "# ",
+            2 => "? ",
+            3 => "@ ",
+            _ => "",
+        }
+    } else {
+        match cat {
+            0 => "⚙ ",
+            1 => "📶 ",
+            2 => "🔍 ",
+            3 => "🎨 ",
+            _ => "",
+        }
+    }
+}
+
+fn get_active_category(selected_idx: usize) -> usize {
+    if GENERAL_SETTING_INDICES.contains(&selected_idx) {
+        0
+    } else if SORTING_SETTING_INDICES.contains(&selected_idx) {
+        1
+    } else if FZF_SETTING_INDICES.contains(&selected_idx) {
+        2
+    } else {
+        3
+    }
+}
+
+fn get_sub_index(selected_idx: usize) -> usize {
+    let cat = get_active_category(selected_idx);
+    let indices = get_category_indices(cat);
+    indices.iter().position(|&x| x == selected_idx).unwrap_or(0)
+}
+
+fn get_label(global_idx: usize) -> &'static str {
+    match global_idx {
+        0 => "Poll Interval (ms)",
+        1 => "Sort By",
+        2 => "Sort Reverse",
+        3 => "Theme Name",
+        4 => "FZF Max Depth",
+        5 => "FZF Start Dir",
+        6 => "Max Commits",
+        7 => "Page Size",
+        8 => "FZF Exclude Folders",
+        9 => "Preferred Git Client",
+        10 => "FZF Git Only",
+        11 => "Use FZF",
+        12 => "Compatibility Mode",
+        13 => "Resync on Tab Change",
+        _ => "",
+    }
+}
+
+fn get_desc(global_idx: usize) -> &'static str {
+    match global_idx {
+        0 => "Event-loop poll interval in milliseconds. Sane range: 16-500.",
+        1 => "Initial repository sorting criteria.",
+        2 => "Reverse the order of repositories.",
+        3 => "Active theme configuration name. Press Enter/Space to select from dropdown.",
+        4 => "Maximum directory depth to search for git repositories.",
+        5 => "Starting directory for interactive repository discovery via FZF.",
+        6 => "Maximum commits to load in workspace view. Set to 0 for unlimited.",
+        7 => "Number of lines/items scrolled by Page Up / Page Down.",
+        8 => "Comma-separated list of folders/patterns to exclude from FZF search.",
+        9 => "External Git application triggered by 'g' key (e.g. gitui or lazygit).",
+        10 => "Only scan folders that contain a .git directory.",
+        11 => {
+            "Whether to use FZF for repository discovery. If disabled, manual text input is used."
+        }
+        12 => {
+            "Use simple ASCII symbols instead of complex Unicode emojis/icons to avoid layout breakage in some terminals."
+        }
+        13 => {
+            "Whether to automatically refresh repository details from disk when switching tabs inside a repository."
+        }
+        _ => "",
+    }
+}
+
+fn get_val_str(app: &App, global_idx: usize) -> String {
+    let is_selected = app.settings_selected_index == global_idx;
+    match global_idx {
+        0 => {
+            if is_selected && app.settings_editing {
+                format!("{}█", app.input_buffer)
+            } else {
+                app.config.poll_interval_ms.to_string()
+            }
+        }
+        1 => {
+            let s = match app.config.sort_by {
+                SortOrder::Alphabetical => "Alphabetical",
+                SortOrder::RecentVisit => "Recent Visit",
+                SortOrder::LatestChanges => "Latest Changes",
+                SortOrder::Custom => "Custom",
+            };
+            s.to_string()
+        }
+        2 => app.config.sort_reverse.to_string(),
+        3 => {
+            if is_selected && app.settings_editing {
+                if app.settings_theme_index < app.settings_theme_list.len() {
+                    app.settings_theme_list[app.settings_theme_index].clone()
+                } else {
+                    app.config.theme_name.clone()
+                }
+            } else {
+                app.config.theme_name.clone()
+            }
+        }
+        4 => {
+            if is_selected && app.settings_editing {
+                format!("{}█", app.input_buffer)
+            } else {
+                app.config.fzf.max_depth.to_string()
+            }
+        }
+        5 => {
+            if is_selected && app.settings_editing {
+                format!("{}█", app.input_buffer)
+            } else {
+                app.config.fzf.start_dir.clone()
+            }
+        }
+        6 => {
+            if is_selected && app.settings_editing {
+                format!("{}█", app.input_buffer)
+            } else {
+                app.config.max_commits.to_string()
+            }
+        }
+        7 => {
+            if is_selected && app.settings_editing {
+                format!("{}█", app.input_buffer)
+            } else {
+                app.config.page_size.to_string()
+            }
+        }
+        8 => {
+            if is_selected && app.settings_editing {
+                format!("{}█", app.input_buffer)
+            } else {
+                app.config.fzf.excludes.join(",")
+            }
+        }
+        9 => {
+            if is_selected && app.settings_editing {
+                format!("{}█", app.input_buffer)
+            } else {
+                app.config.git_app.clone()
+            }
+        }
+        10 => app.config.fzf.git_only.to_string(),
+        11 => app.config.fzf.enabled.to_string(),
+        12 => app.config.compatibility_mode.to_string(),
+        13 => app.config.resync_on_tab_change.to_string(),
+        _ => String::new(),
+    }
+}
 
 pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
-    let popup_area = centered_rect(65, 75, area);
+    let popup_area = centered_rect(75, 75, area);
 
     // Draw background block
     let block = Block::default()
@@ -37,149 +225,103 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     let inner_rect = block.inner(popup_area);
 
-    let available_text_width = (inner_rect.width as usize).saturating_sub(2);
+    // Split inner_rect horizontally: sidebar vs content
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(28), // Sidebar
+            Constraint::Length(1),      // Separator
+            Constraint::Percentage(71), // Right content pane
+        ])
+        .split(inner_rect);
 
-    // First pass: compute chunks and item layout
-    let mut items_data = Vec::new();
+    // Draw vertical separator
+    let sep_block = Block::default().borders(Borders::LEFT).border_style(muted_style());
+    f.render_widget(sep_block, chunks[1]);
+
+    let active_cat = get_active_category(app.settings_selected_index);
+    let is_compat = app.config.compatibility_mode;
+
+    // 1. Sidebar Categories Rendering
+    let mut sidebar_items = Vec::new();
+    for idx in 0..4 {
+        let is_selected = idx == active_cat;
+        let is_focused = is_selected && app.settings_focus_sidebar;
+
+        let prefix = if is_focused {
+            if is_compat { "> " } else { "▶ " }
+        } else if is_selected {
+            if is_compat { "o " } else { "● " }
+        } else {
+            "  "
+        };
+
+        let icon = get_category_icon(idx, is_compat);
+        let name = get_category_name(idx);
+        let style = if is_focused {
+            accent_style().add_modifier(Modifier::BOLD)
+        } else if is_selected {
+            primary_style().add_modifier(Modifier::BOLD)
+        } else {
+            muted_style()
+        };
+
+        sidebar_items.push(Line::from(vec![
+            Span::styled(prefix, if is_focused { accent_style() } else { muted_style() }),
+            Span::styled(icon, style),
+            Span::styled(name, style),
+        ]));
+        sidebar_items.push(Line::from("")); // spacer
+    }
+
+    let sidebar_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(if app.settings_focus_sidebar { accent_style() } else { muted_style() })
+        .title(Span::styled(" Categories ", primary_style()))
+        .padding(Padding::horizontal(1));
+
+    let sidebar_inner = sidebar_block.inner(chunks[0]);
+    f.render_widget(sidebar_block, chunks[0]);
+
+    let sidebar_paragraph = Paragraph::new(sidebar_items);
+    f.render_widget(sidebar_paragraph, sidebar_inner);
+
+    // 2. Settings Content Pane Rendering
+    let indices = get_category_indices(active_cat);
+    let right_inner_rect = chunks[2].inner(Margin { horizontal: 1, vertical: 1 });
+    let available_text_width = (right_inner_rect.width as usize).saturating_sub(6);
+
+    let mut right_items = Vec::new();
     let mut current_line = 0;
-    let mut item_starts = [0; 14];
+    let mut item_starts = vec![0; indices.len()];
 
     let mut selected_val_chunks_len = 1;
-    let mut selected_last_chunk_char_count: usize = 0;
+    let mut selected_last_chunk_char_count = 0;
     let mut selected_val_offset = 11;
 
-    for i in 0..14 {
-        let is_selected = app.settings_selected_index == i;
-        let label = match i {
-            0 => "Poll Interval (ms)",
-            1 => "Sort By",
-            2 => "Sort Reverse",
-            3 => "Theme Name",
-            4 => "FZF Max Depth",
-            5 => "FZF Start Dir",
-            6 => "Max Commits",
-            7 => "Page Size",
-            8 => "FZF Exclude Folders",
-            9 => "Preferred Git Client",
-            10 => "FZF Git Only",
-            11 => "Use FZF",
-            12 => "Compatibility Mode",
-            13 => "Resync on Tab Change",
-            _ => "",
-        };
+    let active_sub_idx = get_sub_index(app.settings_selected_index);
 
-        let desc = match i {
-            0 => "Event-loop poll interval in milliseconds. Sane range: 16-500.",
-            1 => "Initial repository sorting criteria.",
-            2 => "Reverse the order of repositories.",
-            3 => "Active theme configuration name. Press Enter/Space to select from dropdown.",
-            4 => "Maximum directory depth to search for git repositories.",
-            5 => "Starting directory for interactive repository discovery via FZF.",
-            6 => "Maximum commits to load in workspace view. Set to 0 for unlimited.",
-            7 => "Number of lines/items scrolled by Page Up / Page Down.",
-            8 => "Comma-separated list of folders/patterns to exclude from FZF search.",
-            9 => "External Git application triggered by 'g' key (e.g. gitui or lazygit).",
-            10 => "Only scan folders that contain a .git directory.",
-            11 => {
-                "Whether to use FZF for repository discovery. If disabled, manual text input is used."
-            }
-            12 => {
-                "Use simple ASCII symbols instead of complex Unicode emojis/icons to avoid layout breakage in some terminals."
-            }
-            13 => {
-                "Whether to automatically refresh repository details from disk when switching tabs inside a repository."
-            }
-            _ => "",
-        };
+    for (sub_idx, &global_idx) in indices.iter().enumerate() {
+        let is_selected = sub_idx == active_sub_idx && !app.settings_focus_sidebar;
 
-        let val_str = match i {
-            0 => {
-                if is_selected && app.settings_editing {
-                    format!("{}█", app.input_buffer)
-                } else {
-                    app.config.poll_interval_ms.to_string()
-                }
-            }
-            1 => {
-                let s = match app.config.sort_by {
-                    SortOrder::Alphabetical => "Alphabetical",
-                    SortOrder::RecentVisit => "Recent Visit",
-                    SortOrder::LatestChanges => "Latest Changes",
-                    SortOrder::Custom => "Custom",
-                };
-                s.to_string()
-            }
-            2 => app.config.sort_reverse.to_string(),
-            3 => {
-                if is_selected && app.settings_editing {
-                    if app.settings_theme_index < app.settings_theme_list.len() {
-                        app.settings_theme_list[app.settings_theme_index].clone()
-                    } else {
-                        app.config.theme_name.clone()
-                    }
-                } else {
-                    app.config.theme_name.clone()
-                }
-            }
-            4 => {
-                if is_selected && app.settings_editing {
-                    format!("{}█", app.input_buffer)
-                } else {
-                    app.config.fzf.max_depth.to_string()
-                }
-            }
-            5 => {
-                if is_selected && app.settings_editing {
-                    format!("{}█", app.input_buffer)
-                } else {
-                    app.config.fzf.start_dir.clone()
-                }
-            }
-            6 => {
-                if is_selected && app.settings_editing {
-                    format!("{}█", app.input_buffer)
-                } else {
-                    app.config.max_commits.to_string()
-                }
-            }
-            7 => {
-                if is_selected && app.settings_editing {
-                    format!("{}█", app.input_buffer)
-                } else {
-                    app.config.page_size.to_string()
-                }
-            }
-            8 => {
-                if is_selected && app.settings_editing {
-                    format!("{}█", app.input_buffer)
-                } else {
-                    app.config.fzf.excludes.join(",")
-                }
-            }
-            9 => {
-                if is_selected && app.settings_editing {
-                    format!("{}█", app.input_buffer)
-                } else {
-                    app.config.git_app.clone()
-                }
-            }
-            10 => app.config.fzf.git_only.to_string(),
-            11 => app.config.fzf.enabled.to_string(),
-            12 => app.config.compatibility_mode.to_string(),
-            13 => app.config.resync_on_tab_change.to_string(),
-            _ => String::new(),
-        };
+        let label = get_label(global_idx);
+        let desc = get_desc(global_idx);
+        let val_str = get_val_str(app, global_idx);
 
         let val_offset = if is_selected && app.settings_editing { 11 } else { 5 };
         let val_width = available_text_width.saturating_sub(val_offset).max(10);
-        let val_chunks =
-            if i == 8 { wrap_excludes(&val_str, val_width) } else { wrap_str(&val_str, val_width) };
+        let val_chunks = if global_idx == 8 {
+            wrap_excludes(&val_str, val_width)
+        } else {
+            wrap_str(&val_str, val_width)
+        };
 
         let desc_offset = 5;
         let desc_width = available_text_width.saturating_sub(desc_offset).max(10);
         let desc_chunks = wrap_str(desc, desc_width);
 
-        item_starts[i] = current_line;
+        item_starts[sub_idx] = current_line;
         let item_height = 1 + val_chunks.len() + desc_chunks.len() + 1; // label + value + desc + spacer
         current_line += item_height;
 
@@ -190,46 +332,10 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             selected_val_offset = val_offset;
         }
 
-        items_data.push((label, is_selected, val_chunks, desc_chunks, val_offset));
-    }
-
-    let total_height = current_line;
-    let viewport_height = inner_rect.height as usize;
-    let mut scroll_y = if viewport_height >= total_height {
-        0
-    } else {
-        let sel_idx = app.settings_selected_index;
-        let sel_start = item_starts[sel_idx];
-        let sel_height = if sel_idx < 13 {
-            item_starts[sel_idx + 1] - sel_start
-        } else {
-            total_height - sel_start
-        };
-        let item_center = sel_start + sel_height / 2;
-        let half_viewport = viewport_height / 2;
-        let target_scroll = item_center.saturating_sub(half_viewport);
-        let max_scroll = total_height.saturating_sub(viewport_height);
-        target_scroll.min(max_scroll)
-    };
-
-    if app.settings_editing && app.settings_selected_index != 3 {
-        let sel_idx = app.settings_selected_index;
-        let cursor_line = item_starts[sel_idx] + 1 + (selected_val_chunks_len - 1);
-        if cursor_line < scroll_y {
-            scroll_y = cursor_line;
-        } else if cursor_line >= scroll_y + viewport_height {
-            scroll_y = cursor_line.saturating_sub(viewport_height).saturating_add(1);
-        }
-    }
-
-    let mut items = Vec::new();
-    for (i, (label, is_selected, val_chunks, desc_chunks, val_offset)) in
-        items_data.into_iter().enumerate()
-    {
-        let prefix = if is_selected { " > " } else { "   " };
+        let prefix = if is_selected { "> " } else { "  " };
 
         // Line 1: Label line
-        items.push(Line::from(vec![
+        right_items.push(Line::from(vec![
             Span::styled(prefix, if is_selected { accent_style() } else { muted_style() }),
             Span::styled(
                 label,
@@ -244,7 +350,7 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         // Line 2: First line of value (indented by val_offset)
         let mut val_line_spans = Vec::new();
         if is_selected && app.settings_editing {
-            let label_edit = if i == 3 { "   [Select]: " } else { "   [Edit]: " };
+            let label_edit = if global_idx == 3 { "   [Select]: " } else { "   [Edit]: " };
             val_line_spans.push(Span::styled(label_edit, muted_style()));
             val_line_spans.push(Span::styled(
                 val_chunks[0].clone(),
@@ -257,7 +363,7 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
                 if is_selected { accent_style() } else { Style::default() },
             ));
         }
-        items.push(Line::from(val_line_spans));
+        right_items.push(Line::from(val_line_spans));
 
         // Subsequent lines of the value (indented by val_offset spaces)
         for chunk in val_chunks.iter().skip(1) {
@@ -272,34 +378,68 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
                     Style::default()
                 },
             );
-            items.push(Line::from(vec![Span::raw(spaces), span]));
+            right_items.push(Line::from(vec![Span::raw(spaces), span]));
         }
 
         // Description lines (indented by 5 spaces)
         for chunk in desc_chunks {
-            items.push(Line::from(vec![Span::raw("     "), Span::styled(chunk, muted_style())]));
+            right_items
+                .push(Line::from(vec![Span::raw("     "), Span::styled(chunk, muted_style())]));
         }
 
         // Spacer
-        items.push(Line::from(""));
+        right_items.push(Line::from(""));
     }
 
-    let paragraph = Paragraph::new(items)
-        .block(Block::default().padding(Padding::horizontal(1)))
-        .alignment(Alignment::Left)
-        .scroll((scroll_y as u16, 0));
+    let viewport_height = right_inner_rect.height as usize;
+    let total_height = current_line;
+    let mut scroll_y = if viewport_height >= total_height {
+        0
+    } else {
+        let sel_start = item_starts[active_sub_idx];
+        let sel_height = if active_sub_idx + 1 < indices.len() {
+            item_starts[active_sub_idx + 1] - sel_start
+        } else {
+            total_height - sel_start
+        };
+        let item_center = sel_start + sel_height / 2;
+        let target_scroll = item_center.saturating_sub(viewport_height / 2);
+        let max_scroll = total_height.saturating_sub(viewport_height);
+        target_scroll.min(max_scroll)
+    };
 
-    f.render_widget(paragraph, inner_rect);
+    if app.settings_editing && app.settings_selected_index != 3 && !app.settings_focus_sidebar {
+        let cursor_line = item_starts[active_sub_idx] + 1 + (selected_val_chunks_len - 1);
+        if cursor_line < scroll_y {
+            scroll_y = cursor_line;
+        } else if cursor_line >= scroll_y + viewport_height {
+            scroll_y = cursor_line.saturating_sub(viewport_height).saturating_add(1);
+        }
+    }
 
-    if app.settings_editing && app.settings_selected_index == 3 {
-        // Draw the dropdown box
+    let right_title = format!(" {} ", get_category_name(active_cat));
+    let right_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(if !app.settings_focus_sidebar { accent_style() } else { muted_style() })
+        .title(Span::styled(right_title, primary_style()))
+        .padding(Padding::horizontal(1));
+
+    let content_inner = right_block.inner(chunks[2]);
+    f.render_widget(right_block, chunks[2]);
+
+    let paragraph =
+        Paragraph::new(right_items).alignment(Alignment::Left).scroll((scroll_y as u16, 0));
+    f.render_widget(paragraph, content_inner);
+
+    // Dropdown rendering for theme name (index 3)
+    if app.settings_editing && app.settings_selected_index == 3 && !app.settings_focus_sidebar {
         let dropdown_width = 30;
         let dropdown_height = (app.settings_theme_list.len() + 2) as u16;
 
-        // Position it near the theme name row
-        let theme_row_y = item_starts[3] as u16;
-        let dropdown_x = inner_rect.x + 25;
-        let dropdown_y = (inner_rect.y + theme_row_y + 2).saturating_sub(scroll_y as u16);
+        let theme_row_y = item_starts[active_sub_idx] as u16;
+        let dropdown_x = content_inner.x + 15;
+        let dropdown_y = (content_inner.y + theme_row_y + 2).saturating_sub(scroll_y as u16);
 
         let dropdown_area = Rect::new(
             dropdown_x.min(area.right().saturating_sub(dropdown_width)),
@@ -322,7 +462,7 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         let mut theme_spans = Vec::new();
         for (idx, theme_name) in app.settings_theme_list.iter().enumerate() {
             let is_active = idx == app.settings_theme_index;
-            let prefix = if is_active { "▶ " } else { "  " };
+            let prefix = if is_active { if is_compat { "> " } else { "▶ " } } else { "  " };
             let style = if is_active {
                 accent_style().add_modifier(Modifier::BOLD)
             } else {
@@ -335,14 +475,13 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         f.render_widget(list, dropdown_inner);
     }
 
-    if app.settings_editing && app.settings_selected_index != 3 {
-        let sel_idx = app.settings_selected_index;
-        let cursor_line = item_starts[sel_idx] + 1 + (selected_val_chunks_len - 1);
+    // Cursor position rendering
+    if app.settings_editing && app.settings_selected_index != 3 && !app.settings_focus_sidebar {
+        let cursor_line = item_starts[active_sub_idx] + 1 + (selected_val_chunks_len - 1);
 
         if cursor_line >= scroll_y && cursor_line < scroll_y + viewport_height {
-            let cursor_y = (inner_rect.y + cursor_line as u16).saturating_sub(scroll_y as u16);
-            let cursor_x = inner_rect.x
-                + 1
+            let cursor_y = (content_inner.y + cursor_line as u16).saturating_sub(scroll_y as u16);
+            let cursor_x = content_inner.x
                 + selected_val_offset as u16
                 + selected_last_chunk_char_count.saturating_sub(1) as u16;
             f.set_cursor_position(Position::new(cursor_x, cursor_y));
@@ -383,40 +522,123 @@ impl SettingsPopup {
                 }
                 _ => {}
             }
-        } else {
+        } else if app.settings_editing {
             match code {
-                KeyCode::Esc if app.settings_editing => app.cancel_settings_edit(),
-                KeyCode::Esc => app.mode = Mode::Normal,
-                KeyCode::Char('q') if !app.settings_editing => app.mode = Mode::Normal,
-                KeyCode::Down if !app.settings_editing => {
-                    if app.settings_selected_index + 1 < 14 {
-                        app.settings_selected_index += 1;
+                KeyCode::Esc => app.cancel_settings_edit(),
+                KeyCode::Enter => app.commit_settings_edit(),
+                KeyCode::Backspace => app.input_backspace(),
+                KeyCode::Char(c) => app.input_char(c),
+                _ => {}
+            }
+        } else {
+            // Non-editing mode
+            match code {
+                KeyCode::Esc => {
+                    if !app.settings_focus_sidebar {
+                        app.settings_focus_sidebar = true;
+                    } else {
+                        app.mode = Mode::Normal;
                     }
                 }
-                KeyCode::Up if !app.settings_editing => {
-                    if app.settings_selected_index > 0 {
-                        app.settings_selected_index -= 1;
+                KeyCode::Char('q') | KeyCode::Char('Q') => {
+                    app.mode = Mode::Normal;
+                }
+                KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
+                    app.settings_focus_sidebar = true;
+                }
+                KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
+                    app.settings_focus_sidebar = false;
+                }
+                KeyCode::Char('w') | KeyCode::Char('W') => {
+                    app.settings_focus_sidebar = false;
+                }
+                KeyCode::Char('1') => {
+                    app.settings_selected_index = GENERAL_SETTING_INDICES[0];
+                    app.settings_focus_sidebar = false;
+                }
+                KeyCode::Char('2') => {
+                    app.settings_selected_index = SORTING_SETTING_INDICES[0];
+                    app.settings_focus_sidebar = false;
+                }
+                KeyCode::Char('3') => {
+                    app.settings_selected_index = FZF_SETTING_INDICES[0];
+                    app.settings_focus_sidebar = false;
+                }
+                KeyCode::Char('4') => {
+                    app.settings_selected_index = THEME_SETTING_INDICES[0];
+                    app.settings_focus_sidebar = false;
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    if app.settings_focus_sidebar {
+                        let cat = get_active_category(app.settings_selected_index);
+                        if cat + 1 < 4 {
+                            app.settings_selected_index = get_category_indices(cat + 1)[0];
+                        }
+                    } else {
+                        let cat = get_active_category(app.settings_selected_index);
+                        let indices = get_category_indices(cat);
+                        let sub = get_sub_index(app.settings_selected_index);
+                        if sub + 1 < indices.len() {
+                            app.settings_selected_index = indices[sub + 1];
+                        }
                     }
                 }
-                KeyCode::PageUp if !app.settings_editing => {
-                    app.settings_selected_index =
-                        app.settings_selected_index.saturating_sub(app.config.page_size);
+                KeyCode::Up | KeyCode::Char('k') => {
+                    if app.settings_focus_sidebar {
+                        let cat = get_active_category(app.settings_selected_index);
+                        if cat > 0 {
+                            app.settings_selected_index = get_category_indices(cat - 1)[0];
+                        }
+                    } else {
+                        let cat = get_active_category(app.settings_selected_index);
+                        let indices = get_category_indices(cat);
+                        let sub = get_sub_index(app.settings_selected_index);
+                        if sub > 0 {
+                            app.settings_selected_index = indices[sub - 1];
+                        }
+                    }
                 }
-                KeyCode::PageDown if !app.settings_editing => {
-                    app.settings_selected_index =
-                        (app.settings_selected_index + app.config.page_size).min(13);
+                KeyCode::PageUp => {
+                    if app.settings_focus_sidebar {
+                        app.settings_selected_index = GENERAL_SETTING_INDICES[0];
+                    } else {
+                        let cat = get_active_category(app.settings_selected_index);
+                        app.settings_selected_index = get_category_indices(cat)[0];
+                    }
                 }
-                KeyCode::Home if !app.settings_editing => {
-                    app.settings_selected_index = 0;
+                KeyCode::PageDown => {
+                    if app.settings_focus_sidebar {
+                        app.settings_selected_index = THEME_SETTING_INDICES[0];
+                    } else {
+                        let cat = get_active_category(app.settings_selected_index);
+                        let indices = get_category_indices(cat);
+                        app.settings_selected_index = indices[indices.len() - 1];
+                    }
                 }
-                KeyCode::End if !app.settings_editing => {
-                    app.settings_selected_index = 13;
+                KeyCode::Home => {
+                    if app.settings_focus_sidebar {
+                        app.settings_selected_index = GENERAL_SETTING_INDICES[0];
+                    } else {
+                        let cat = get_active_category(app.settings_selected_index);
+                        app.settings_selected_index = get_category_indices(cat)[0];
+                    }
                 }
-                KeyCode::Enter if app.settings_editing => app.commit_settings_edit(),
-                KeyCode::Enter => app.toggle_or_edit_setting(),
-                KeyCode::Char(' ') if !app.settings_editing => app.toggle_or_edit_setting(),
-                KeyCode::Backspace if app.settings_editing => app.input_backspace(),
-                KeyCode::Char(c) if app.settings_editing => app.input_char(c),
+                KeyCode::End => {
+                    if app.settings_focus_sidebar {
+                        app.settings_selected_index = THEME_SETTING_INDICES[0];
+                    } else {
+                        let cat = get_active_category(app.settings_selected_index);
+                        let indices = get_category_indices(cat);
+                        app.settings_selected_index = indices[indices.len() - 1];
+                    }
+                }
+                KeyCode::Enter | KeyCode::Char(' ') => {
+                    if app.settings_focus_sidebar {
+                        app.settings_focus_sidebar = false;
+                    } else {
+                        app.toggle_or_edit_setting();
+                    }
+                }
                 _ => {}
             }
         }
