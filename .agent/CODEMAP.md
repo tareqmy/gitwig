@@ -32,8 +32,9 @@ The codebase is organized into modular single-responsibility crates and files:
 | **Main Entry** | `src/main.rs` | Sets up terminal context, installs a panic hook to safely restore raw mode, and starts `app::run`. |
 | **State Engine** | `src/app/` | Holds the core `App` struct and splits its method implementations across `mod.rs` (orchestration/drain_queue), `actions.rs` (home repository card mutations), `git.rs` (branches, tags, remotes, push/pull/fetch/rebase), `workspace.rs` (staging, commits, conflict resolution), `navigation.rs` (scrolling, sorting, settings), and `tests.rs` (the test suite). |
 | **Input Router** | `src/input.rs` | Captures keyboard events and delegates routing to the active tab or popup. |
+| **Mouse Handler** | `src/mouse.rs` | Listens to mouse clicks, scrolling, drag-to-resize splitters, and commit popup resize events. |
 | **Component Queue** | `src/queue.rs` | Defines a thread-safe, lock-free queue (`Queue` and `InternalEvent`) used by components to request state changes from the engine. |
-| **Theme & Style** | `src/ui/` | Contains the global styling definitions (`style.rs`), layout helper utilities (`layout.rs`), and theme configurations (`theme.rs`). |
+| **Theme & Style** | `src/ui/` | Contains the main rendering logic (`draw.rs`), styling/theme configurations (`style.rs`), layout helper utilities (`layout.rs`), and detailed inspection view (`ui_detail.rs`). |
 | **Modal Popups** | `src/popups/` | Modular modal components for user inputs and confirmations (e.g. `commit.rs`, `confirm.rs`, `settings.rs`, `help.rs`). |
 | **Application Tabs**| `src/tabs/` | Drawing logic for the home screen list and individual repository tabs (`home.rs`, `workspace.rs`, `files.rs`, `branches.rs`, `tags.rs`, `stashes.rs`, `overview.rs`). |
 | **TUI Components** | `src/components/` | Reusable rendering widgets that maintain their own internal visual/table state (e.g. `file_tree.rs`, `commit_list.rs`, `branch_list.rs`, `diff.rs`). |

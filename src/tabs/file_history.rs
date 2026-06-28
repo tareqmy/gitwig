@@ -1,12 +1,12 @@
 use crate::app::{App, Mode};
 use crate::repo::DiffLineKind;
-use crate::ui::style::{ACCENT, DANGER, SUCCESS, muted_style, primary_style};
+use crate::ui::style::{CARD_BORDER, ACCENT, DANGER, SUCCESS, muted_style, primary_style};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Borders, List, ListItem, Paragraph, Wrap};
+use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Wrap};
 
 pub struct FileHistoryTab;
 
@@ -125,7 +125,7 @@ impl FileHistoryTab {
 
         let left_block = Block::default()
             .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
+            .border_type(CARD_BORDER())
             .border_style(left_border_style)
             .title(Line::from(vec![
                 Span::raw(" "),
@@ -167,7 +167,7 @@ impl FileHistoryTab {
 
                     let oid_span = Span::styled(
                         format!("{:.7}", rev.commit_oid),
-                        Style::default().fg(ratatui::style::Color::Cyan),
+                        Style::default().fg(ACCENT()),
                     );
                     let when_span = Span::styled(format!(" ({})", rev.when), muted_style());
                     let author_span = Span::styled(format!(" - {}", rev.author), muted_style());
@@ -209,7 +209,7 @@ impl FileHistoryTab {
 
         let right_block = Block::default()
             .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
+            .border_type(CARD_BORDER())
             .border_style(right_border_style)
             .title(Line::from(vec![
                 Span::raw(" "),
@@ -255,7 +255,7 @@ impl FileHistoryTab {
                     let style = match line.kind {
                         DiffLineKind::Added => Style::default().fg(SUCCESS()),
                         DiffLineKind::Removed => Style::default().fg(DANGER()),
-                        DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
+                        DiffLineKind::Header => Style::default().fg(ACCENT()),
                         DiffLineKind::Context => Style::default(),
                         DiffLineKind::ConflictOurs => {
                             Style::default().fg(ratatui::style::Color::LightRed)

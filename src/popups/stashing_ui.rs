@@ -24,7 +24,7 @@ pub fn draw_stashing_ui(f: &mut Frame, info: &RepoInfo, app: &App, area: Rect) {
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title);
 
@@ -55,14 +55,14 @@ pub fn draw_stashing_ui(f: &mut Frame, info: &RepoInfo, app: &App, area: Rect) {
     }
     if app.stash_untracked {
         for entry in &info.changes.untracked {
-            files.push((entry, "untracked", Style::default().fg(Color::Cyan)));
+            files.push((entry, "untracked", Style::default().fg(ACCENT())));
         }
     }
 
     // 1. Files List Panel (Left)
     let list_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(muted_style())
         .title(Line::from(vec![
             Span::raw(" "),
@@ -105,7 +105,7 @@ pub fn draw_stashing_ui(f: &mut Frame, info: &RepoInfo, app: &App, area: Rect) {
     // 2. Options Panel (Right)
     let options_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(muted_style())
         .title(Line::from(vec![
             Span::raw(" "),

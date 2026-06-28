@@ -38,7 +38,7 @@ pub mod popups;
 mod queue;
 pub mod tabs;
 mod ui;
-mod ui_detail;
+pub use crate::ui::ui_detail;
 
 use crate::app::{App, run};
 use crate::config::load_config;

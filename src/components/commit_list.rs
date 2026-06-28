@@ -106,7 +106,7 @@ pub fn draw_detail_commits(
 
     let mut block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(Line::from(title_spans));
 
@@ -235,7 +235,7 @@ pub fn draw_commit_details_widget(
     let border_style = if focused { Style::default().fg(ACCENT()) } else { muted_style() };
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(Line::from(vec![
             Span::raw(" "),
@@ -309,7 +309,7 @@ pub fn draw_logs_view(
 ) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(Style::default().fg(ACCENT()))
         .title(Line::from(vec![
             Span::raw(" "),

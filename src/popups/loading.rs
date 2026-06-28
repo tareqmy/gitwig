@@ -131,7 +131,7 @@ pub fn draw_progress_popup(f: &mut Frame, area: Rect, app: &App) {
     let gauge = Gauge::default()
         .block(Block::default().padding(Padding::ZERO))
         .gauge_style(Style::default().fg(ACCENT()))
-        .style(Style::default().fg(Color::DarkGray))
+        .style(muted_style())
         .percent(app.fetch_progress)
         .use_unicode(true);
     f.render_widget(gauge, chunks[2]);

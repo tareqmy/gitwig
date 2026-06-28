@@ -19,7 +19,7 @@ pub fn draw_search_column_picker(f: &mut Frame, app: &crate::app::App, area: Rec
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(Style::default().fg(ACCENT()))
         .title(Line::from(vec![
             Span::raw(" "),

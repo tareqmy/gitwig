@@ -1,7 +1,8 @@
 pub mod layout;
-pub mod legacy_ui;
+pub mod draw;
 pub mod scrollbar;
 pub mod style;
 pub mod syntax;
+pub mod ui_detail;
 
-pub use legacy_ui::*;
+pub use draw::*;

@@ -114,7 +114,7 @@ pub fn draw_inspect_window(
 
         let right_block = Block::default()
             .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
+            .border_type(CARD_BORDER())
             .border_style(Style::default().fg(ACCENT()))
             .title(Line::from(vec![
                 Span::raw(" "),
@@ -188,7 +188,7 @@ pub fn draw_inspect_window(
             if left_focused { Style::default().fg(ACCENT()) } else { muted_style() };
         let left_block = Block::default()
             .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
+            .border_type(CARD_BORDER())
             .border_style(left_border_style)
             .title(Line::from(vec![
                 Span::raw(" "),
@@ -234,7 +234,7 @@ pub fn draw_inspect_window(
             if right_focused { Style::default().fg(ACCENT()) } else { muted_style() };
         let right_block = Block::default()
             .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
+            .border_type(CARD_BORDER())
             .border_style(right_border_style)
             .title(Line::from(vec![
                 Span::raw(" "),
@@ -273,7 +273,7 @@ pub fn draw_inspect_window(
                 let style = match line.kind {
                     DiffLineKind::Added => Style::default().fg(SUCCESS()),
                     DiffLineKind::Removed => Style::default().fg(DANGER()),
-                    DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
+                    DiffLineKind::Header => Style::default().fg(ACCENT()),
                     DiffLineKind::Context => Style::default(),
                     DiffLineKind::ConflictOurs => {
                         Style::default().fg(ratatui::style::Color::LightRed)

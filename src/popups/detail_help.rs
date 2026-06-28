@@ -190,7 +190,7 @@ pub fn draw_detail_help_overlay(f: &mut Frame, app: &App, area: Rect, scroll: us
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(Style::default().fg(ACCENT()))
         .title(Line::from(vec![
             Span::raw(" "),

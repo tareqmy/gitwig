@@ -28,7 +28,7 @@ pub fn draw_stash_create_popup(f: &mut Frame, input_buffer: &str, area: Rect, ap
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::uniform(1));
@@ -94,7 +94,7 @@ pub fn draw_stash_create_popup(f: &mut Frame, input_buffer: &str, area: Rect, ap
         Paragraph::new(options_text).block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
+                .border_type(CARD_BORDER())
                 .border_style(muted_style())
                 .title(Line::from(vec![
                     Span::raw(" "),

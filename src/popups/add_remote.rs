@@ -27,7 +27,7 @@ pub fn draw_remote_add_name_popup(f: &mut Frame, input_buffer: &str, area: Rect)
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -69,7 +69,7 @@ pub fn draw_remote_add_url_popup(f: &mut Frame, remote_name: &str, input_buffer:
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));

@@ -27,7 +27,7 @@ pub fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, 
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -75,7 +75,7 @@ pub fn draw_branch_checkout_popup(f: &mut Frame, target: &Option<(String, bool)>
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -123,7 +123,7 @@ pub fn draw_tag_checkout_popup(f: &mut Frame, target: &Option<String>, area: Rec
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -166,7 +166,7 @@ pub fn draw_discard_changes_popup(f: &mut Frame, target: &Option<(String, bool)>
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -224,7 +224,7 @@ pub fn draw_branch_merge_popup(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -281,7 +281,7 @@ pub fn draw_merge_abort_confirm_popup(f: &mut Frame, area: Rect) {
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::uniform(1));
@@ -316,7 +316,7 @@ pub fn draw_merge_continue_confirm_popup(f: &mut Frame, area: Rect) {
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::uniform(1));
@@ -356,7 +356,7 @@ pub fn draw_branch_rebase_popup(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -419,7 +419,7 @@ pub fn draw_branch_interactive_rebase_popup(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -477,7 +477,7 @@ pub fn draw_branch_push_popup(f: &mut Frame, target: &Option<(String, bool)>, ar
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -519,7 +519,7 @@ pub fn draw_tag_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, are
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -572,7 +572,7 @@ pub fn draw_stash_delete_popup(f: &mut Frame, target: &Option<String>, area: Rec
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -623,7 +623,7 @@ pub fn draw_stash_apply_popup(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -649,7 +649,7 @@ pub fn draw_stash_apply_popup(
     let delete_after_style = if delete_after {
         Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)
     } else {
-        Style::default().fg(ratatui::style::Color::DarkGray)
+        muted_style()
     };
 
     let checkbox = if delete_after { "[X]" } else { "[ ]" };
@@ -692,7 +692,7 @@ pub fn draw_cherry_pick_popup(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(2));
@@ -797,7 +797,7 @@ pub fn draw_revert_popup(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -844,7 +844,7 @@ pub fn draw_tag_push_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -883,7 +883,7 @@ pub fn draw_tag_push_all_popup(f: &mut Frame, remote: Option<&str>, area: Rect) 
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));
@@ -925,7 +925,7 @@ pub fn draw_remote_delete_popup(f: &mut Frame, remote_name: &str, area: Rect) {
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));

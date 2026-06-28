@@ -1,6 +1,6 @@
 use crate::app::{App, DetailSection, Mode};
 use crate::config::SortOrder;
-use crate::ui::style::{ACCENT, DANGER, SUCCESS, accent_style, muted_style, primary_style};
+use crate::ui::style::{CARD_BORDER, ACCENT, DANGER, SUCCESS, accent_style, muted_style, primary_style};
 use crate::ui::{
     confirm_tag_delete_entries, confirm_tag_push_all_entries, confirm_tag_push_entries,
     draw_input_status, get_process_stats,
@@ -1057,10 +1057,10 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         Mode::Detail => ("DETAIL", Color::Magenta),
         Mode::Inspect => ("INSPECT", Color::Rgb(175, 95, 0)),
         Mode::FileHistory => ("HISTORY", Color::Rgb(0, 135, 175)),
-        Mode::StashingUI => ("STASH", Color::Cyan),
+        Mode::StashingUI => ("STASH", ACCENT()),
         Mode::Settings => ("SETTINGS", Color::Green),
-        Mode::Help | Mode::DetailHelp => ("HELP", Color::DarkGray),
-        Mode::About => ("ABOUT", Color::DarkGray),
+        Mode::Help | Mode::DetailHelp => ("HELP", Color::Rgb(150, 150, 150)),
+        Mode::About => ("ABOUT", Color::Rgb(150, 150, 150)),
         Mode::Adding
         | Mode::BulkAddInput
         | Mode::Editing
@@ -1234,7 +1234,7 @@ fn draw_status_layout(
             let block = ratatui::widgets::Block::default()
                 .borders(ratatui::widgets::Borders::ALL)
                 .border_style(muted_style())
-                .border_type(ratatui::widgets::BorderType::Rounded);
+                .border_type(CARD_BORDER());
             let inner = block.inner(right_area);
             f.render_widget(block, right_area);
 

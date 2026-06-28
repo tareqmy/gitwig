@@ -176,7 +176,7 @@ pub fn draw_commit_popup(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(title)
         .padding(Padding::horizontal(1));

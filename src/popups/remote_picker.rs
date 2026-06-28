@@ -27,7 +27,7 @@ pub fn draw_remote_picker_popup(
     let border_style = Style::default().fg(ACCENT());
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(Line::from(vec![
             Span::raw(" "),

@@ -232,7 +232,7 @@ pub fn draw_stashes_view(
                 let style = match line.kind {
                     DiffLineKind::Added => Style::default().fg(SUCCESS()),
                     DiffLineKind::Removed => Style::default().fg(DANGER()),
-                    DiffLineKind::Header => Style::default().fg(ratatui::style::Color::Cyan),
+                    DiffLineKind::Header => Style::default().fg(ACCENT()),
                     DiffLineKind::Context => Style::default(),
                     DiffLineKind::ConflictOurs => {
                         Style::default().fg(ratatui::style::Color::LightRed)

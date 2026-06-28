@@ -276,7 +276,7 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     let sidebar_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(if app.settings_focus_sidebar { accent_style() } else { muted_style() })
         .title(Span::styled(" Categories ", primary_style()))
         .padding(Padding::horizontal(1));
@@ -420,7 +420,7 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     let right_title = format!(" {} ", get_category_name(active_cat));
     let right_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(if !app.settings_focus_sidebar { accent_style() } else { muted_style() })
         .title(Span::styled(right_title, primary_style()))
         .padding(Padding::horizontal(1));
@@ -450,7 +450,7 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
         let dropdown_block = Block::default()
             .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
+            .border_type(CARD_BORDER())
             .border_style(accent_style())
             .title(Span::styled(" Select Theme ", accent_style()));
 

@@ -230,18 +230,14 @@ pub fn draw(
                 let divider_line = Line::from(vec![
                     Span::styled(
                         " ".repeat(outer),
-                        Style::default()
-                            .fg(ratatui::style::Color::DarkGray)
-                            .add_modifier(Modifier::DIM),
+                        muted_style(),
                     ),
                     Span::styled("┄".repeat(inner), muted_style().add_modifier(Modifier::DIM)),
                     Span::styled("┈".repeat(centre), muted_style()),
                     Span::styled("┄".repeat(inner), muted_style().add_modifier(Modifier::DIM)),
                     Span::styled(
                         " ".repeat(outer),
-                        Style::default()
-                            .fg(ratatui::style::Color::DarkGray)
-                            .add_modifier(Modifier::DIM),
+                        muted_style(),
                     ),
                 ]);
                 f.render_widget(Paragraph::new(divider_line), header_rows[1]);
@@ -375,8 +371,7 @@ pub fn draw(
         let inner = (w / 8).max(3);
         let centre = w.saturating_sub(outer * 2 + inner * 2);
 
-        let fade_outer =
-            Style::default().fg(ratatui::style::Color::DarkGray).add_modifier(Modifier::DIM);
+        let fade_outer = muted_style();
         let fade_inner = muted_style().add_modifier(Modifier::DIM);
         let solid = muted_style();
 
@@ -937,7 +932,7 @@ fn draw_overview_tab(
 
     let left_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(muted_style())
         .title(Line::from(vec![
             Span::raw(" "),
@@ -955,7 +950,7 @@ fn draw_overview_tab(
 
     let right_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(muted_style())
         .title(Line::from(vec![
             Span::raw(" "),
