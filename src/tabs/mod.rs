@@ -98,15 +98,6 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             app.inspect_full_diff = false;
             app.detail_tab = 4;
             app.detail_focus = DetailSection::LocalTags;
-            let attempted =
-                if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
-                    info.remote_tags_attempted
-                } else {
-                    false
-                };
-            if !attempted {
-                app.fetch_remote_tags(true);
-            }
             if app.config.resync_on_tab_change {
                 app.resync_detail();
             }

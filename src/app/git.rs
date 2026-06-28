@@ -1,62 +1,6 @@
 use super::*;
 
 impl App {
-    /// Spawns a background thread to fetch the remote of the selected local branch.
-    pub fn fetch_selected_branch(&mut self) {
-        if self.fetching {
-            return;
-        }
-        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(branch_info) =
-                info.local_branches.get(self.branch_list.local_branch_selection)
-            {
-                self.fetching = true;
-                self.status_message = Some("Fetching...".to_string());
-
-                let repo_path = resolved.clone();
-                let branch_name = branch_info.name.clone();
-                let tx = self.tx.clone();
-
-                std::thread::spawn(move || {
-                    let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                        let remote_name =
-                            match repo::get_branch_upstream_remote(&repo_path, &branch_name) {
-                                Some(name) => name,
-                                None => {
-                                    return Ok(
-                                        "No upstream tracking branch configured for this branch"
-                                            .to_string(),
-                                    );
-                                }
-                            };
-
-                        let output = std::process::Command::new("git")
-                            .env("GIT_TERMINAL_PROMPT", "0")
-                            .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
-                            .arg("fetch")
-                            .arg(&remote_name)
-                            .current_dir(&repo_path)
-                            .output()?;
-
-                        if output.status.success() {
-                            Ok(format!("Fetched remote '{}' successfully", remote_name))
-                        } else {
-                            let err_msg =
-                                String::from_utf8_lossy(&output.stderr).trim().to_string();
-                            Err(format!("git fetch failed: {}", err_msg).into())
-                        }
-                    })();
-
-                    let msg = match res {
-                        Ok(success) => success,
-                        Err(e) => format!("Fetch failed: {}", e),
-                    };
-                    let _ = tx.send(msg);
-                });
-            }
-        }
-    }
-
     /// Spawns a background thread to pull the upstream remote branch into the selected local branch.
     /// Can only pull if the selected local branch is the currently checked-out branch.
     pub fn pull_selected_branch(&mut self) {

@@ -1,4 +1,5 @@
 use crate::app::{App, DetailSection};
+use crate::components::Component;
 use crossterm::event::{KeyCode, KeyEvent};
 
 pub struct BranchesTab;
@@ -28,10 +29,7 @@ impl BranchesTab {
                 app.request_branch_interactive_rebase();
                 return true;
             }
-            KeyCode::Char('F') if detail_focus == DetailSection::LocalBranches => {
-                app.fetch_selected_branch();
-                return true;
-            }
+
             KeyCode::Char('P') if detail_focus == DetailSection::LocalBranches => {
                 app.request_branch_push();
                 return true;
@@ -95,6 +93,15 @@ impl BranchesTab {
                 }
             }
             _ => {}
+        }
+        let ev = crossterm::event::Event::Key(key);
+        if app
+            .branch_list
+            .event(&ev)
+            .unwrap_or(crate::components::EventState::NotConsumed)
+            .is_consumed()
+        {
+            return true;
         }
         false
     }

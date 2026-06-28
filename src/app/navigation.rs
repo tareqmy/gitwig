@@ -2296,15 +2296,6 @@ impl App {
             3 => self.detail_focus = DetailSection::LocalBranches,
             4 => {
                 self.detail_focus = DetailSection::LocalTags;
-                let attempted =
-                    if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-                        info.remote_tags_attempted
-                    } else {
-                        false
-                    };
-                if !attempted {
-                    self.fetch_remote_tags(true);
-                }
             }
             5 => {
                 self.detail_focus = DetailSection::Remotes;

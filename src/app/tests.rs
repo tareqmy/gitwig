@@ -3291,7 +3291,11 @@ fn test_tag_fetch_attempt_and_dismiss_flow() {
     app.detail_tab = 4;
     app.set_default_focus_for_tab();
 
-    // Should start fetching and set attempted flag to true
+    // Verify it doesn't auto-fetch anymore
+    assert!(!app.fetching);
+
+    // Manually trigger tag fetch (simulating pressing f/F)
+    app.fetch_remote_tags(true);
     assert!(app.fetching);
     if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
         assert!(info.remote_tags_attempted);
