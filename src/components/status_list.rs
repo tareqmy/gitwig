@@ -40,7 +40,7 @@ pub fn draw_staging_panels(
     diff_scroll: usize,
     areas: &mut DetailAreas,
     inspect_horizontal_split_pct: u16,
-    inspect_vertical_split_pct: u16,
+    _inspect_vertical_split_pct: u16,
     app: &crate::app::App,
     area: Rect,
 ) {
@@ -153,10 +153,7 @@ pub fn draw_staging_panels(
         } else {
             Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Percentage(inspect_vertical_split_pct),
-                    Constraint::Percentage(100 - inspect_vertical_split_pct),
-                ])
+                .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)])
                 .split(left_inner)
         };
 
