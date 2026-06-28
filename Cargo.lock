@@ -521,7 +521,7 @@ dependencies = [
 
 [[package]]
 name = "gitwig"
-version = "1.3.2"
+version = "2.0.1"
 dependencies = [
  "crossterm",
  "dirs",
