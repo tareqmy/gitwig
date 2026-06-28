@@ -156,4 +156,42 @@ impl App {
         self.selected_index = 0;
         self.mode = Mode::Normal;
     }
+
+    pub fn start_edit_labels(&mut self) {
+        if let Some(current) = self.get_selected_item() {
+            crate::debug_log::info(format!("Editing labels for repository: {}", current));
+            let current_labels = self
+                .config
+                .labels
+                .get(current.as_str())
+                .map(|lbls| lbls.join(", "))
+                .unwrap_or_default();
+            self.input_buffer = current_labels;
+            self.mode = Mode::LabelInput;
+        }
+    }
+
+    pub fn commit_edit_labels(&mut self) {
+        let current = self.get_selected_item().cloned();
+        if let Some(current) = current {
+            let trimmed = self.input_buffer.trim();
+            if trimmed.is_empty() {
+                self.config.labels.remove(current.as_str());
+            } else {
+                let lbls: Vec<String> = trimmed
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                if lbls.is_empty() {
+                    self.config.labels.remove(current.as_str());
+                } else {
+                    self.config.labels.insert(current.clone(), lbls);
+                }
+            }
+            self.persist("Saved labels");
+        }
+        self.input_buffer.clear();
+        self.mode = Mode::Normal;
+    }
 }

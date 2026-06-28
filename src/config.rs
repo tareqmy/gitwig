@@ -195,6 +195,9 @@ pub struct Config {
     /// Map of repository items to their last visit time.
     #[serde(default = "default_visits")]
     pub visits: std::collections::HashMap<String, u64>,
+    /// Map of repository paths to their labels.
+    #[serde(default)]
+    pub labels: std::collections::HashMap<String, Vec<String>>,
     /// Whether sorting should be reversed.
     #[serde(default)]
     pub sort_reverse: bool,
@@ -371,6 +374,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 page_size: default_page_size(),
                 sort_by: default_sort_by(),
                 visits: default_visits(),
+                labels: std::collections::HashMap::new(),
                 sort_reverse: false,
                 pinned: std::collections::HashSet::new(),
                 theme_name: fallback_theme_name,
@@ -456,6 +460,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         page_size: default_page_size(),
         sort_by: default_sort_by(),
         visits: default_visits(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme_name: default_theme_name(),

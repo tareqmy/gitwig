@@ -57,6 +57,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         app.mode,
         Mode::Adding
             | Mode::Editing
+            | Mode::LabelInput
             | Mode::BranchCreateInput
             | Mode::TagCreateInput
             | Mode::StashCreateInput
@@ -79,6 +80,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         | Mode::Adding
         | Mode::BulkAddInput
         | Mode::Editing
+        | Mode::LabelInput
         | Mode::ConfirmDelete => {
             if !crate::tabs::HomeTab::handle_event(app, key, visible_count) {
                 return false;

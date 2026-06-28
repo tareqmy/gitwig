@@ -88,12 +88,12 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 
 ## Phase 8:
 - [x] Per-file history view
+- [x] Apply label for repositories: so that from the home page it can be viewed as a group
 - [ ] **Per repository settings, theme**
 - [ ] **Show UI first, Load data later per tab**
 - [ ] **Keybindings**
 - [ ] **Git logs pagination**
 - [ ] **Per Repository rule**
-- [ ] **Apply label for repositories**: so that from the home page it can be viewed as a group
 - [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
 - [ ] **Git Submodules:** Detect, list, initialize, and update submodules.
 - [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.

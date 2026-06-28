@@ -338,6 +338,15 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             ));
         }
         spans.push(Span::styled(repo_name, text_style));
+        if let Some(lbls) = app.config.labels.get(item) {
+            for lbl in lbls {
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled(
+                    format!("[{}]", lbl),
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::DIM),
+                ));
+            }
+        }
         let name_line = Line::from(spans);
         f.render_widget(Paragraph::new(name_line), name_cols[0]);
 
@@ -771,6 +780,7 @@ mod tests {
             page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
+            labels: std::collections::HashMap::new(),
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
             theme: ThemeConfig::default(),
@@ -930,6 +940,7 @@ mod tests {
             page_size: 10,
             sort_by: SortOrder::Custom,
             visits: HashMap::new(),
+            labels: std::collections::HashMap::new(),
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
             theme: ThemeConfig::default(),

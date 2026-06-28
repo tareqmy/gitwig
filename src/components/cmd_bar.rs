@@ -1,6 +1,8 @@
 use crate::app::{App, DetailSection, Mode};
 use crate::config::SortOrder;
-use crate::ui::style::{CARD_BORDER, ACCENT, DANGER, SUCCESS, accent_style, muted_style, primary_style};
+use crate::ui::style::{
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, accent_style, muted_style, primary_style,
+};
 use crate::ui::{
     confirm_tag_delete_entries, confirm_tag_push_all_entries, confirm_tag_push_entries,
     draw_input_status, get_process_stats,
@@ -127,6 +129,9 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         }
         Mode::Editing => {
             draw_input_status(f, area, "Edit", &app.input_buffer, app.config.compatibility_mode);
+        }
+        Mode::LabelInput => {
+            draw_input_status(f, area, "Labels", &app.input_buffer, app.config.compatibility_mode);
         }
         Mode::RepoSearchInput => {
             draw_input_status(f, area, "Find", &app.input_buffer, app.config.compatibility_mode);
@@ -1285,10 +1290,11 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
         ("Bulk Add", "A"),
         ("Import", "i"),
         ("Edit", "e"),
-        ("Delete", "d"),
+        ("Delete", "D"),
+        ("Labels", "l"),
         ("Refresh", "R"),
         ("Pin", "p"),
-        ("Debug Logs", "l"),
+        ("Debug Logs", "d"),
         ("About", "v"),
         ("Help", "?"),
         ("Quit", "⎋/q"),

@@ -1,6 +1,6 @@
 use crate::app::{App, Mode};
 use crate::repo::DiffLineKind;
-use crate::ui::style::{CARD_BORDER, ACCENT, DANGER, SUCCESS, muted_style, primary_style};
+use crate::ui::style::{ACCENT, CARD_BORDER, DANGER, SUCCESS, muted_style, primary_style};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};

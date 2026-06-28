@@ -28,7 +28,12 @@ impl App {
                         .unwrap_or(item.as_str())
                         .to_lowercase();
                     let full_path = item.to_lowercase();
-                    file_name.contains(&query_lower) || full_path.contains(&query_lower)
+                    let label_match = self.config.labels.get(*item).map_or(false, |lbls| {
+                        lbls.iter().any(|lbl| lbl.to_lowercase().contains(&query_lower))
+                    });
+                    file_name.contains(&query_lower)
+                        || full_path.contains(&query_lower)
+                        || label_match
                 })
                 .collect()
         } else {

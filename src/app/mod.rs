@@ -132,6 +132,8 @@ pub enum Mode {
     RevertConfirm,
     /// Per-file history view.
     FileHistory,
+    /// Editing repository labels.
+    LabelInput,
 }
 
 /// Which panel in the detail view currently has keyboard focus.

@@ -1,4 +1,4 @@
-# 🌿 Gitwig — A Minimal Terminal Git UI
+# 🌿 Gitwig — A Terminal Git TUI
 
 <p align="center">
   <img src="resources/icon.png" width="180" height="180" alt="Gitwig Logo" />

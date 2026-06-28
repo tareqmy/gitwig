@@ -27,7 +27,13 @@ impl HomeTab {
                     app.start_bulk_add();
                 }
                 KeyCode::Char('e') => app.start_edit(),
-                KeyCode::Char('d') => app.request_delete(),
+                KeyCode::Char('D') => app.request_delete(),
+                KeyCode::Char('d') => {
+                    crate::debug_log::info("Opening debug logs");
+                    app.mode = Mode::DebugLogs;
+                    app.debug_log_scroll = 0;
+                }
+                KeyCode::Char('l') => app.start_edit_labels(),
                 KeyCode::Char('?') => app.open_help(),
                 KeyCode::Char('v') | KeyCode::Char('V') => app.open_about(),
                 KeyCode::Char('R') => app.refresh_selected_status(),
@@ -39,11 +45,6 @@ impl HomeTab {
                     app.settings_selected_index = 0;
                     app.settings_editing = false;
                     app.settings_focus_sidebar = true;
-                }
-                KeyCode::Char('D') | KeyCode::Char('l') | KeyCode::Char('L') => {
-                    crate::debug_log::info("Opening debug logs");
-                    app.mode = Mode::DebugLogs;
-                    app.debug_log_scroll = 0;
                 }
                 KeyCode::Char('i') => {
                     crate::debug_log::info("Starting repository import");
@@ -129,6 +130,13 @@ impl HomeTab {
             Mode::Editing => match code {
                 KeyCode::Esc => app.cancel_input(),
                 KeyCode::Enter => app.commit_edit(),
+                KeyCode::Backspace => app.input_backspace(),
+                KeyCode::Char(c) => app.input_char(c),
+                _ => {}
+            },
+            Mode::LabelInput => match code {
+                KeyCode::Esc => app.cancel_input(),
+                KeyCode::Enter => app.commit_edit_labels(),
                 KeyCode::Backspace => app.input_backspace(),
                 KeyCode::Char(c) => app.input_char(c),
                 _ => {}

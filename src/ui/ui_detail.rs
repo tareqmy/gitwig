@@ -228,17 +228,11 @@ pub fn draw(
                 let inner = (w / 8).max(3);
                 let centre = w.saturating_sub(outer * 2 + inner * 2);
                 let divider_line = Line::from(vec![
-                    Span::styled(
-                        " ".repeat(outer),
-                        muted_style(),
-                    ),
+                    Span::styled(" ".repeat(outer), muted_style()),
                     Span::styled("┄".repeat(inner), muted_style().add_modifier(Modifier::DIM)),
                     Span::styled("┈".repeat(centre), muted_style()),
                     Span::styled("┄".repeat(inner), muted_style().add_modifier(Modifier::DIM)),
-                    Span::styled(
-                        " ".repeat(outer),
-                        muted_style(),
-                    ),
+                    Span::styled(" ".repeat(outer), muted_style()),
                 ]);
                 f.render_widget(Paragraph::new(divider_line), header_rows[1]);
             }

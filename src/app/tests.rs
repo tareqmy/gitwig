@@ -25,6 +25,7 @@ fn test_stash_creation_flow() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -109,6 +110,7 @@ fn test_network_action_progress_and_error_handling() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -173,6 +175,7 @@ fn test_remote_tags_progress_and_error_handling() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -234,6 +237,7 @@ fn test_remote_fetch_progress_and_error_handling() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -301,6 +305,7 @@ fn test_set_error_logging() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -337,6 +342,7 @@ fn test_sorting_logic() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -399,6 +405,7 @@ fn test_duplicate_prevention() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -494,6 +501,7 @@ fn test_bulk_add_folders() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -562,6 +570,7 @@ fn test_pinning_and_sorting() {
         page_size: 10,
         sort_by: SortOrder::Alphabetical,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -646,6 +655,7 @@ fn test_commit_input_scroll() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -688,6 +698,7 @@ fn test_commit_popup_maximized_toggle() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -730,6 +741,7 @@ fn test_cherry_pick_and_revert_flow() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -804,6 +816,7 @@ fn test_commit_amend_flow() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -867,6 +880,7 @@ fn test_splitter_dragging() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -1139,6 +1153,7 @@ fn test_mouse_row_selection_in_detail_panels() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -1541,6 +1556,7 @@ fn test_settings_mode_navigation_and_editing() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -1801,6 +1817,7 @@ fn test_remote_add_delete_flow() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -1877,6 +1894,7 @@ fn test_workspace_tab_right_arrow_inspect() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -1953,6 +1971,7 @@ fn test_commit_enter_key_inspect() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2009,6 +2028,7 @@ fn test_inspect_commit_shortcut() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2065,6 +2085,7 @@ fn test_workspace_all_changes_shortcuts() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2123,6 +2144,7 @@ fn test_inspect_workspace_all_changes_shortcuts() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2206,6 +2228,7 @@ fn test_workspace_all_changes_focus_transitions() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2248,6 +2271,7 @@ fn test_workspace_tab_focus_cycle_skips_empty_panels() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2347,6 +2371,7 @@ fn test_git_app_shortcut_triggers_pending() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2383,6 +2408,7 @@ fn test_files_fzf_shortcut_triggers_pending() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2422,6 +2448,7 @@ fn test_logs_search_picker_flow() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2630,6 +2657,7 @@ fn test_detail_view_sync_on_tab_change_and_refresh() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2728,6 +2756,7 @@ fn test_branch_and_tag_checkout_confirmation() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2837,6 +2866,7 @@ fn test_repo_search_filtering() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2894,6 +2924,7 @@ fn test_normal_mode_right_arrow_detail() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2944,6 +2975,7 @@ fn test_inspect_full_screen_diff_toggle() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -2999,6 +3031,7 @@ fn test_files_tab_full_screen_toggle() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -3055,6 +3088,7 @@ fn test_fzf_missing_flow() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -3118,6 +3152,7 @@ fn test_initial_setup_and_migration() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -3197,6 +3232,7 @@ fn test_about_popup_flow() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -3267,6 +3303,7 @@ fn test_tag_fetch_attempt_and_dismiss_flow() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -3375,6 +3412,7 @@ fn test_tag_push_all_confirmation_flow() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -3479,6 +3517,7 @@ fn test_detail_cache_ttl_behavior() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme_name: "default".to_string(),
@@ -3545,6 +3584,7 @@ fn test_tab_ttl_behavior() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme_name: "default".to_string(),
@@ -3614,6 +3654,7 @@ fn test_commit_popup_mouse_resize() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -3682,6 +3723,7 @@ fn test_yank_selected_commit_hash() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -3735,6 +3777,7 @@ fn test_cherry_pick_destination_branches() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -3834,6 +3877,7 @@ fn test_graph_tab_scrolling() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -3909,6 +3953,7 @@ fn test_commit_popup_custom_keys() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -3984,6 +4029,7 @@ fn test_settings_panel_organization() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -4046,6 +4092,7 @@ fn test_help_popup_flow() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -4119,6 +4166,7 @@ fn test_detail_help_popup_flow() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -4188,6 +4236,7 @@ fn test_max_commits_limit_setting() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -4234,6 +4283,7 @@ fn test_file_history_view_flow() {
         page_size: 10,
         sort_by: SortOrder::Custom,
         visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
@@ -4290,4 +4340,63 @@ fn test_file_history_view_flow() {
     let consumed = crate::tabs::FileHistoryTab::handle_event(&mut app, key_event(KeyCode::Esc));
     assert!(consumed);
     assert_eq!(app.mode, Mode::Detail);
+}
+
+#[test]
+fn test_repository_labels_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let config = Config {
+        items: vec!["/path/to/repo1".to_string(), "/path/to/repo2".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 10,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_labels.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+
+    let mut app = App::new(config, temp_path);
+    assert_eq!(app.mode, Mode::Normal);
+    assert_eq!(app.selected_index, 0);
+
+    // Press 'l' to edit labels for selected repo1
+    let _ = crate::input::handle_key(&mut app, key_event(KeyCode::Char('l')), 10);
+    assert_eq!(app.mode, Mode::LabelInput);
+    assert_eq!(app.input_buffer, "");
+
+    // Input "work, rust"
+    for c in "work, rust".chars() {
+        let _ = crate::input::handle_key(&mut app, key_event(KeyCode::Char(c)), 10);
+    }
+    assert_eq!(app.input_buffer, "work, rust");
+
+    // Press Enter to save
+    let _ = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert_eq!(app.mode, Mode::Normal);
+
+    // Check labels were stored
+    let saved_labels = app.config.labels.get("/path/to/repo1").unwrap();
+    assert_eq!(saved_labels, &vec!["work".to_string(), "rust".to_string()]);
+
+    // Test label search filtering
+    app.repo_search_query = Some("rust".to_string());
+    let filtered = app.get_filtered_items();
+    assert_eq!(filtered.len(), 1);
+    assert_eq!(filtered[0].1, &"/path/to/repo1".to_string());
 }
