@@ -106,18 +106,6 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             app.inspect_full_diff = false;
             app.detail_tab = 5;
             app.detail_focus = DetailSection::Remotes;
-            let remote_name =
-                if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
-                    info.remotes
-                        .get(app.branch_list.remote_selection)
-                        .or_else(|| info.remotes.first())
-                        .map(|r| r.name.clone())
-                } else {
-                    None
-                };
-            if let Some(name) = remote_name {
-                app.fetch_remote(&name);
-            }
             if app.config.resync_on_tab_change {
                 app.resync_detail();
             }

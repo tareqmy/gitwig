@@ -390,21 +390,6 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                 }
                                 5 => {
                                     app.detail_focus = DetailSection::Remotes;
-                                    let remote_name = if let Some(crate::repo::ItemDetail::Repo {
-                                        info,
-                                        ..
-                                    }) = &app.current_detail
-                                    {
-                                        info.remotes
-                                            .get(app.branch_list.remote_selection)
-                                            .or_else(|| info.remotes.first())
-                                            .map(|r| r.name.clone())
-                                    } else {
-                                        None
-                                    };
-                                    if let Some(name) = remote_name {
-                                        app.fetch_remote(&name);
-                                    }
                                 }
                                 6 => app.detail_focus = DetailSection::Stashes,
                                 7 => app.detail_focus = DetailSection::Commits,

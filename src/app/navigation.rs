@@ -2299,18 +2299,6 @@ impl App {
             }
             5 => {
                 self.detail_focus = DetailSection::Remotes;
-                let remote_name =
-                    if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-                        info.remotes
-                            .get(self.branch_list.remote_selection)
-                            .or_else(|| info.remotes.first())
-                            .map(|r| r.name.clone())
-                    } else {
-                        None
-                    };
-                if let Some(name) = remote_name {
-                    self.fetch_remote(&name);
-                }
             }
             6 => {
                 self.detail_focus = DetailSection::Stashes;
