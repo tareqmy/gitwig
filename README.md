@@ -9,6 +9,56 @@
 
 ---
 
+## 🚀 Installation & Running
+
+### Installation
+
+#### Via Shell Script (macOS / Linux)
+
+For a quick installation, run the following command in your terminal:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh
+```
+
+*Note: If the repository is private, set your GitHub token first:*
+```sh
+export GITHUB_TOKEN="your_github_pat"
+curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh
+```
+
+#### Via Cargo
+
+You can install **Gitwig** directly from [crates.io](https://crates.io/crates/gitwig):
+
+```sh
+cargo install gitwig
+```
+
+### Building from Source
+
+Alternatively, you can clone the repository and build it from source:
+
+```sh
+git clone https://github.com/tareqmy/gitwig.git
+cd gitwig
+cargo build --release
+```
+
+The compiled binary will be located at `target/release/gitwig`. You can copy it to a directory in your `$PATH` or run it directly.
+
+### Running
+
+```sh
+# Run with default config resolution
+gitwig
+
+# Run with an explicit config path
+gitwig path/to/config.toml
+```
+
+---
+
 ## 📸 Preview
 
 > _(Coming soon — or add an asciinema/screenshot here!)_
@@ -33,9 +83,12 @@
 | -------------------- | --------------- | --------------------------------- |
 | `↑` / `k`            | Normal          | Move selection up                 |
 | `↓` / `j`            | Normal          | Move selection down               |
-| `a`                  | Normal          | Add a new item (via interactive fzf search) |
+| `a`                  | Normal          | Add a new repository (via interactive fzf search) |
+| `A`                  | Normal          | Bulk add folders in a directory   |
+| `i`                  | Normal          | Import remote repository          |
 | `e`                  | Normal          | Edit the selected item            |
 | `d`                  | Normal          | Delete the selected item (asks)   |
+| `l`                  | Normal          | Edit labels of the selected item  |
 | `R`                  | Normal          | Refresh status of selected item   |
 | `f`                  | Normal          | Enter repository search mode      |
 | `p`                  | Normal          | Toggle pin status of selected item |
@@ -43,6 +96,8 @@
 | `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed) |
 | `g`                  | Normal          | Launch the preferred Git client for selected repository (configurable in settings, default is gitui) |
 | `s`                  | Normal          | Open options/settings page        |
+| `d`                  | Normal          | Open debug logs panel             |
+| `v`                  | Normal          | Show about popup / creator profile |
 | `Enter`              | Normal / Commits list | Open Detail view for selected item / Inspect selected commit |
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
 | `⎋` / `q`            | Normal          | Quit                              |
@@ -358,52 +413,4 @@ If you prefer not to install custom fonts, Gitwig includes a built-in fallback:
 
 When Compatibility Mode is active, Gitwig will automatically substitute all Nerd Font glyphs and complex emojis with standard ASCII and basic terminal symbols to ensure a clean, stable layout in any standard monospaced font.
 
----
 
-## 🚀 Installation & Running
-
-### Installation
-
-#### Via Shell Script (macOS / Linux)
-
-For a quick installation, run the following command in your terminal:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh
-```
-
-*Note: If the repository is private, set your GitHub token first:*
-```sh
-export GITHUB_TOKEN="your_github_pat"
-curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh
-```
-
-#### Via Cargo
-
-You can install **Gitwig** directly from [crates.io](https://crates.io/crates/gitwig):
-
-```sh
-cargo install gitwig
-```
-
-### Building from Source
-
-Alternatively, you can clone the repository and build it from source:
-
-```sh
-git clone https://github.com/tareqmy/gitwig.git
-cd gitwig
-cargo build --release
-```
-
-The compiled binary will be located at `target/release/gitwig`. You can copy it to a directory in your `$PATH` or run it directly.
-
-### Running
-
-```sh
-# Run with default config resolution
-gitwig
-
-# Run with an explicit config path
-gitwig path/to/config.toml
-```

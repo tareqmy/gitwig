@@ -90,6 +90,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Per-file history view
 - [x] Apply label for repositories: so that from the home page it can be viewed as a group
 - [x] Distribute application via a curl-to-sh script (`install.sh`).
+- [x] Add fzf as dependency
 - [ ] **Per repository settings, theme**
 - [ ] **Show UI first, Load data later per tab**
 - [ ] **Keybindings**
@@ -98,7 +99,6 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
 - [ ] **Git Submodules:** Detect, list, initialize, and update submodules.
 - [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
-- [ ] **Add fzf as dependency**
 
 ## Phase 9: Intelligent AI Integrations (Optional/Configurable)
 - [ ] **Semantic Commit Generator:** Press a key (e.g., `⌃G`) in the Commit popup to generate conventional commit messages from staged diffs using Gemini/Ollama/OpenAI APIs.
