@@ -44,6 +44,27 @@ use crate::app::{App, run};
 use crate::config::load_config;
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // Parse optional CLI arguments
+    let args: Vec<String> = env::args().collect();
+    if args.len() > 1 {
+        match args[1].as_str() {
+            "--version" | "-v" => {
+                println!("gitwig {}", env!("CARGO_PKG_VERSION"));
+                return Ok(());
+            }
+            "--help" | "-h" => {
+                println!("Gitwig - A Rust-based terminal user interface (TUI) for Git");
+                println!();
+                println!("Usage:");
+                println!("  gitwig [config_path]    Start Gitwig with the specified config file");
+                println!("  gitwig -v, --version    Print version info and exit");
+                println!("  gitwig -h, --help       Print help info and exit");
+                return Ok(());
+            }
+            _ => {}
+        }
+    }
+
     // Install a panic hook to clean up the terminal state on crash
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
