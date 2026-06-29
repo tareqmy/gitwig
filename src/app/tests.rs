@@ -4609,3 +4609,49 @@ fn test_repo_settings_fallbacks() {
     assert_eq!(app.get_current_max_commits(), 100);
     assert_eq!(app.get_current_resync_on_tab_change(), true);
 }
+
+#[test]
+fn test_keybindings_settings_panel_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config::default();
+
+    // Isolate directory
+    let temp_dir = std::env::temp_dir().join("gitwig_test_dir_keybindings");
+    let _ = std::fs::create_dir_all(&temp_dir);
+    let temp_path = temp_dir.join("config.toml");
+
+    let mut app = App::new(config, temp_path);
+
+    // Enter settings
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('s')), 10);
+    assert_eq!(app.mode, Mode::Settings);
+
+    // Jump to keybindings category via '5'
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('5')), 10);
+    assert_eq!(app.settings_selected_index, 14); // Toggle Status Bar
+    assert!(!app.settings_editing);
+
+    // Start editing
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+    assert_eq!(app.input_buffer, ".");
+
+    // Clear and type "comma"
+    app.input_buffer.clear();
+    for c in "comma".chars() {
+        crate::input::handle_key(&mut app, key_event(KeyCode::Char(c)), 10);
+    }
+    assert_eq!(app.input_buffer, "comma");
+
+    // Commit change
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_editing);
+
+    // Verify mapped key matches ','
+    let comma_key = KeyEvent::new(KeyCode::Char(','), KeyModifiers::empty());
+    assert!(app.is_bound(crate::keybindings::Action::ToggleStatusBar, comma_key));
+
+    // Clean up
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}

@@ -1844,6 +1844,12 @@ impl App {
                 self.config.resync_on_tab_change = !self.config.resync_on_tab_change;
                 self.persist("Resync on Tab Change updated");
             }
+            idx if idx >= 14 => {
+                if let Some(action) = crate::keybindings::Action::from_index(idx) {
+                    self.settings_editing = true;
+                    self.input_buffer = self.keybindings.get_action_keys(action).join(", ");
+                }
+            }
             _ => {}
         }
     }
@@ -1951,6 +1957,39 @@ impl App {
                     self.commit_popup.input_buffer.clear();
                 } else {
                     self.status_message = Some("Preferred Git Client cannot be empty".to_string());
+                }
+            }
+            idx if idx >= 14 => {
+                if let Some(action) = crate::keybindings::Action::from_index(idx) {
+                    let keys: Vec<String> = trimmed
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+
+                    let mut all_valid = true;
+                    for k in &keys {
+                        if crate::keybindings::parse_key(k).is_none() {
+                            all_valid = false;
+                            break;
+                        }
+                    }
+
+                    if all_valid {
+                        self.keybindings.update_action_keys(action, keys);
+                        let config_dir = self.config_path.parent().unwrap_or(&self.config_path);
+                        if let Err(e) = self.keybindings.save(config_dir) {
+                            self.status_message =
+                                Some(format!("Failed to save keybindings: {}", e));
+                        } else {
+                            self.status_message = Some("Keybindings updated and saved".to_string());
+                            self.settings_editing = false;
+                            self.commit_popup.input_buffer.clear();
+                        }
+                    } else {
+                        self.status_message =
+                            Some("One or more key mappings are invalid".to_string());
+                    }
                 }
             }
             _ => {}

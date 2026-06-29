@@ -17,6 +17,14 @@ const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6];
 const FZF_SETTING_INDICES: &[usize] = &[11, 5, 4, 10, 8];
 const THEME_SETTING_INDICES: &[usize] = &[3];
+const KEYBINDINGS_SETTING_INDICES: &[usize] = &[
+    14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
+    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53,
+];
+
+fn index_to_action(idx: usize) -> Option<crate::keybindings::Action> {
+    crate::keybindings::Action::from_index(idx)
+}
 
 fn get_category_indices(cat: usize) -> &'static [usize] {
     match cat {
@@ -24,6 +32,7 @@ fn get_category_indices(cat: usize) -> &'static [usize] {
         1 => SORTING_SETTING_INDICES,
         2 => FZF_SETTING_INDICES,
         3 => THEME_SETTING_INDICES,
+        4 => KEYBINDINGS_SETTING_INDICES,
         _ => &[],
     }
 }
@@ -34,6 +43,7 @@ fn get_category_name(cat: usize) -> &'static str {
         1 => "Sorting & Limits",
         2 => "FZF Discovery",
         3 => "Theme & Style",
+        4 => "Keybindings",
         _ => "",
     }
 }
@@ -45,6 +55,7 @@ fn get_category_icon(cat: usize, compat: bool) -> &'static str {
             1 => "# ",
             2 => "? ",
             3 => "@ ",
+            4 => "K ",
             _ => "",
         }
     } else {
@@ -53,6 +64,7 @@ fn get_category_icon(cat: usize, compat: bool) -> &'static str {
             1 => "📶 ",
             2 => "🔍 ",
             3 => "🎨 ",
+            4 => "🔑 ",
             _ => "",
         }
     }
@@ -65,8 +77,10 @@ fn get_active_category(selected_idx: usize) -> usize {
         1
     } else if FZF_SETTING_INDICES.contains(&selected_idx) {
         2
-    } else {
+    } else if THEME_SETTING_INDICES.contains(&selected_idx) {
         3
+    } else {
+        4
     }
 }
 
@@ -92,6 +106,46 @@ fn get_label(global_idx: usize) -> &'static str {
         11 => "Use FZF",
         12 => "Compatibility Mode",
         13 => "Resync on Tab Change",
+        14 => "Toggle Status Bar",
+        15 => "Help",
+        16 => "Quit / Close Dialog",
+        17 => "Home: Move Down",
+        18 => "Home: Move Up",
+        19 => "Home: Page Down",
+        20 => "Home: Page Up",
+        21 => "Home: Go to Top",
+        22 => "Home: Go to Bottom",
+        23 => "Home: Add Repository",
+        24 => "Home: Bulk Add",
+        25 => "Home: Edit Repository",
+        26 => "Home: Delete Repository",
+        27 => "Home: Open Debug Logs",
+        28 => "Home: Edit Labels",
+        29 => "Home: Open About Dialog",
+        30 => "Home: Refresh Status",
+        31 => "Home: Cycle Sort Order",
+        32 => "Home: Toggle Sort Reverse",
+        33 => "Home: Toggle Pin",
+        34 => "Home: Open Settings",
+        35 => "Home: Import Repository",
+        36 => "Home: Open Git App",
+        37 => "Home: Search Repository",
+        38 => "Home: Open Details",
+        39 => "Detail: Close View",
+        40 => "Detail: Help",
+        41 => "Detail: Cycle Focus Fwd",
+        42 => "Detail: Cycle Focus Bwd",
+        43 => "Detail: Refresh View",
+        44 => "Detail: Cycle Tab Fwd",
+        45 => "Detail: Cycle Tab Bwd",
+        46 => "Detail: Tab 1 (Commits)",
+        47 => "Detail: Tab 2 (Files)",
+        48 => "Detail: Tab 3 (Graph)",
+        49 => "Detail: Tab 4 (Branches)",
+        50 => "Detail: Tab 5 (Tags)",
+        51 => "Detail: Tab 6 (Remotes)",
+        52 => "Detail: Tab 7 (Stashes)",
+        53 => "Detail: Tab 8 (Overview)",
         _ => "",
     }
 }
@@ -118,88 +172,98 @@ fn get_desc(global_idx: usize) -> &'static str {
         13 => {
             "Whether to automatically refresh repository details from disk when switching tabs inside a repository."
         }
-        _ => "",
+        _ => "Custom keyboard shortcut combination for this action (e.g. 'ctrl-s, enter, Space').",
     }
 }
 
 fn get_val_str(app: &App, global_idx: usize) -> String {
     let is_selected = app.settings_selected_index == global_idx;
-    match global_idx {
-        0 => {
-            if is_selected && app.settings_editing {
-                format!("{}█", app.input_buffer)
-            } else {
-                app.config.poll_interval_ms.to_string()
+    if global_idx >= 14 {
+        if is_selected && app.settings_editing {
+            format!("{}█", app.input_buffer)
+        } else if let Some(action) = index_to_action(global_idx) {
+            app.keybindings.get_action_keys(action).join(", ")
+        } else {
+            String::new()
+        }
+    } else {
+        match global_idx {
+            0 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.poll_interval_ms.to_string()
+                }
             }
-        }
-        1 => {
-            let s = match app.config.sort_by {
-                SortOrder::Alphabetical => "Alphabetical",
-                SortOrder::RecentVisit => "Recent Visit",
-                SortOrder::LatestChanges => "Latest Changes",
-                SortOrder::Custom => "Custom",
-            };
-            s.to_string()
-        }
-        2 => app.config.sort_reverse.to_string(),
-        3 => {
-            if is_selected && app.settings_editing {
-                if app.settings_theme_index < app.settings_theme_list.len() {
-                    app.settings_theme_list[app.settings_theme_index].clone()
+            1 => {
+                let s = match app.config.sort_by {
+                    SortOrder::Alphabetical => "Alphabetical",
+                    SortOrder::RecentVisit => "Recent Visit",
+                    SortOrder::LatestChanges => "Latest Changes",
+                    SortOrder::Custom => "Custom",
+                };
+                s.to_string()
+            }
+            2 => app.config.sort_reverse.to_string(),
+            3 => {
+                if is_selected && app.settings_editing {
+                    if app.settings_theme_index < app.settings_theme_list.len() {
+                        app.settings_theme_list[app.settings_theme_index].clone()
+                    } else {
+                        app.config.theme_name.clone()
+                    }
                 } else {
                     app.config.theme_name.clone()
                 }
-            } else {
-                app.config.theme_name.clone()
             }
-        }
-        4 => {
-            if is_selected && app.settings_editing {
-                format!("{}█", app.input_buffer)
-            } else {
-                app.config.fzf.max_depth.to_string()
+            4 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.fzf.max_depth.to_string()
+                }
             }
-        }
-        5 => {
-            if is_selected && app.settings_editing {
-                format!("{}█", app.input_buffer)
-            } else {
-                app.config.fzf.start_dir.clone()
+            5 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.fzf.start_dir.clone()
+                }
             }
-        }
-        6 => {
-            if is_selected && app.settings_editing {
-                format!("{}█", app.input_buffer)
-            } else {
-                app.config.max_commits.to_string()
+            6 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.max_commits.to_string()
+                }
             }
-        }
-        7 => {
-            if is_selected && app.settings_editing {
-                format!("{}█", app.input_buffer)
-            } else {
-                app.config.page_size.to_string()
+            7 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.page_size.to_string()
+                }
             }
-        }
-        8 => {
-            if is_selected && app.settings_editing {
-                format!("{}█", app.input_buffer)
-            } else {
-                app.config.fzf.excludes.join(",")
+            8 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.fzf.excludes.join(",")
+                }
             }
-        }
-        9 => {
-            if is_selected && app.settings_editing {
-                format!("{}█", app.input_buffer)
-            } else {
-                app.config.git_app.clone()
+            9 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.git_app.clone()
+                }
             }
+            10 => app.config.fzf.git_only.to_string(),
+            11 => app.config.fzf.enabled.to_string(),
+            12 => app.config.compatibility_mode.to_string(),
+            13 => app.config.resync_on_tab_change.to_string(),
+            _ => String::new(),
         }
-        10 => app.config.fzf.git_only.to_string(),
-        11 => app.config.fzf.enabled.to_string(),
-        12 => app.config.compatibility_mode.to_string(),
-        13 => app.config.resync_on_tab_change.to_string(),
-        _ => String::new(),
     }
 }
 
@@ -244,7 +308,7 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     // 1. Sidebar Categories Rendering
     let mut sidebar_items = Vec::new();
-    for idx in 0..4 {
+    for idx in 0..5 {
         let is_selected = idx == active_cat;
         let is_focused = is_selected && app.settings_focus_sidebar;
 
@@ -572,10 +636,14 @@ impl SettingsPopup {
                     app.settings_selected_index = THEME_SETTING_INDICES[0];
                     app.settings_focus_sidebar = false;
                 }
+                KeyCode::Char('5') => {
+                    app.settings_selected_index = KEYBINDINGS_SETTING_INDICES[0];
+                    app.settings_focus_sidebar = false;
+                }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                     if app.settings_focus_sidebar {
                         let cat = get_active_category(app.settings_selected_index);
-                        if cat + 1 < 4 {
+                        if cat + 1 < 5 {
                             app.settings_selected_index = get_category_indices(cat + 1)[0];
                         }
                     } else {
@@ -612,7 +680,7 @@ impl SettingsPopup {
                 }
                 KeyCode::PageDown => {
                     if app.settings_focus_sidebar {
-                        app.settings_selected_index = THEME_SETTING_INDICES[0];
+                        app.settings_selected_index = KEYBINDINGS_SETTING_INDICES[0];
                     } else {
                         let cat = get_active_category(app.settings_selected_index);
                         let indices = get_category_indices(cat);
@@ -629,7 +697,7 @@ impl SettingsPopup {
                 }
                 KeyCode::End => {
                     if app.settings_focus_sidebar {
-                        app.settings_selected_index = THEME_SETTING_INDICES[0];
+                        app.settings_selected_index = KEYBINDINGS_SETTING_INDICES[0];
                     } else {
                         let cat = get_active_category(app.settings_selected_index);
                         let indices = get_category_indices(cat);

@@ -52,6 +52,54 @@ pub enum Action {
     GoToTab8,
 }
 
+impl Action {
+    pub fn from_index(idx: usize) -> Option<Self> {
+        match idx {
+            14 => Some(Action::ToggleStatusBar),
+            15 => Some(Action::Help),
+            16 => Some(Action::Close),
+            17 => Some(Action::HomeMoveDown),
+            18 => Some(Action::HomeMoveUp),
+            19 => Some(Action::HomePageDown),
+            20 => Some(Action::HomePageUp),
+            21 => Some(Action::HomeHome),
+            22 => Some(Action::HomeEnd),
+            23 => Some(Action::HomeAddRepo),
+            24 => Some(Action::HomeBulkAdd),
+            25 => Some(Action::HomeEditRepo),
+            26 => Some(Action::HomeDeleteRepo),
+            27 => Some(Action::HomeOpenDebugLogs),
+            28 => Some(Action::HomeEditLabels),
+            29 => Some(Action::HomeAbout),
+            30 => Some(Action::HomeRefresh),
+            31 => Some(Action::HomeCycleSort),
+            32 => Some(Action::HomeToggleSortReverse),
+            33 => Some(Action::HomeTogglePin),
+            34 => Some(Action::HomeOpenSettings),
+            35 => Some(Action::HomeImportRepo),
+            36 => Some(Action::HomeOpenGitApp),
+            37 => Some(Action::HomeSearchRepo),
+            38 => Some(Action::HomeOpenDetail),
+            39 => Some(Action::CloseDetail),
+            40 => Some(Action::DetailHelp),
+            41 => Some(Action::CycleFocusForward),
+            42 => Some(Action::CycleFocusBackward),
+            43 => Some(Action::RefreshDetail),
+            44 => Some(Action::CycleTabForward),
+            45 => Some(Action::CycleTabBackward),
+            46 => Some(Action::GoToTab1),
+            47 => Some(Action::GoToTab2),
+            48 => Some(Action::GoToTab3),
+            49 => Some(Action::GoToTab4),
+            50 => Some(Action::GoToTab5),
+            51 => Some(Action::GoToTab6),
+            52 => Some(Action::GoToTab7),
+            53 => Some(Action::GoToTab8),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
 pub struct GlobalKeybindings {
     pub toggle_status_bar: Option<Vec<String>>,
@@ -152,8 +200,9 @@ pub fn parse_key(s: &str) -> Option<(KeyCode, KeyModifiers)> {
         "pageup" | "pgup" => KeyCode::PageUp,
         "pagedown" | "pgdn" => KeyCode::PageDown,
         "delete" | "del" => KeyCode::Delete,
-        "insert" | "ins" => KeyCode::Insert,
         "space" => KeyCode::Char(' '),
+        "comma" => KeyCode::Char(','),
+        "dot" | "period" => KeyCode::Char('.'),
         _ => {
             if let Some(c) = key_str.chars().next() {
                 if key_str.len() == 1 {
@@ -376,6 +425,60 @@ impl KeybindingsConfig {
                 ));
             }
         }
+    }
+
+    pub fn update_action_keys(&mut self, action: Action, keys: Vec<String>) {
+        let keys_opt = Some(keys);
+        match action {
+            Action::ToggleStatusBar => self.global.toggle_status_bar = keys_opt,
+            Action::Help => self.global.help = keys_opt,
+            Action::Close => self.global.close = keys_opt,
+            Action::HomeMoveDown => self.home.move_down = keys_opt,
+            Action::HomeMoveUp => self.home.move_up = keys_opt,
+            Action::HomePageDown => self.home.page_down = keys_opt,
+            Action::HomePageUp => self.home.page_up = keys_opt,
+            Action::HomeHome => self.home.home = keys_opt,
+            Action::HomeEnd => self.home.end = keys_opt,
+            Action::HomeAddRepo => self.home.add_repo = keys_opt,
+            Action::HomeBulkAdd => self.home.bulk_add = keys_opt,
+            Action::HomeEditRepo => self.home.edit_repo = keys_opt,
+            Action::HomeDeleteRepo => self.home.delete_repo = keys_opt,
+            Action::HomeOpenDebugLogs => self.home.open_debug_logs = keys_opt,
+            Action::HomeEditLabels => self.home.edit_labels = keys_opt,
+            Action::HomeAbout => self.home.about = keys_opt,
+            Action::HomeRefresh => self.home.refresh = keys_opt,
+            Action::HomeCycleSort => self.home.cycle_sort = keys_opt,
+            Action::HomeToggleSortReverse => self.home.toggle_sort_reverse = keys_opt,
+            Action::HomeTogglePin => self.home.toggle_pin = keys_opt,
+            Action::HomeOpenSettings => self.home.open_settings = keys_opt,
+            Action::HomeImportRepo => self.home.import_repo = keys_opt,
+            Action::HomeOpenGitApp => self.home.open_git_app = keys_opt,
+            Action::HomeSearchRepo => self.home.search_repo = keys_opt,
+            Action::HomeOpenDetail => self.home.open_detail = keys_opt,
+            Action::CloseDetail => self.navigation.close_detail = keys_opt,
+            Action::DetailHelp => self.navigation.detail_help = keys_opt,
+            Action::CycleFocusForward => self.navigation.cycle_focus_forward = keys_opt,
+            Action::CycleFocusBackward => self.navigation.cycle_focus_backward = keys_opt,
+            Action::RefreshDetail => self.navigation.refresh_detail = keys_opt,
+            Action::CycleTabForward => self.navigation.cycle_tab_forward = keys_opt,
+            Action::CycleTabBackward => self.navigation.cycle_tab_backward = keys_opt,
+            Action::GoToTab1 => self.navigation.go_to_tab_1 = keys_opt,
+            Action::GoToTab2 => self.navigation.go_to_tab_2 = keys_opt,
+            Action::GoToTab3 => self.navigation.go_to_tab_3 = keys_opt,
+            Action::GoToTab4 => self.navigation.go_to_tab_4 = keys_opt,
+            Action::GoToTab5 => self.navigation.go_to_tab_5 = keys_opt,
+            Action::GoToTab6 => self.navigation.go_to_tab_6 = keys_opt,
+            Action::GoToTab7 => self.navigation.go_to_tab_7 = keys_opt,
+            Action::GoToTab8 => self.navigation.go_to_tab_8 = keys_opt,
+        }
+    }
+
+    pub fn save(&self, config_dir: &Path) -> Result<(), std::io::Error> {
+        let keybindings_path = config_dir.join("keybindings.toml");
+        let serialized =
+            toml::to_string_pretty(self).map_err(|e| std::io::Error::other(e.to_string()))?;
+        std::fs::write(&keybindings_path, serialized)?;
+        Ok(())
     }
 
     pub fn load(config_dir: &Path) -> Self {
