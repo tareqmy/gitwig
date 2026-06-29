@@ -1,6 +1,6 @@
 [package]
 name = "gitwig-core"
-version = "2.2.1"
+version = "2.2.2"
 edition = "2024"
 authors = ["tareqmy <tareq.y@gmail.com>"]
 description = "Repository inspection and core Git backend for Gitwig TUI client"
