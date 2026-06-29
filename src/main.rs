@@ -31,6 +31,7 @@ mod app;
 mod config;
 mod debug_log;
 mod input;
+pub mod keybindings;
 pub use gitwig_core as repo;
 pub mod components;
 mod keys;

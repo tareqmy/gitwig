@@ -25,128 +25,160 @@ pub use workspace::WorkspaceTab;
 
 pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     let code = key.code;
-    match code {
-        KeyCode::Esc => {
+    use crate::keybindings::Action;
+
+    if app.is_bound(Action::CloseDetail, key) {
+        if code == KeyCode::Esc {
             if app.inspect_full_diff {
                 app.inspect_full_diff = false;
+                return true;
             } else if app.commit_list.search_query.is_some() {
                 app.cancel_commit_search();
-            } else {
-                app.close_detail();
+                return true;
             }
         }
-        KeyCode::Char('q') | KeyCode::Char('Q') => app.close_detail(),
-        KeyCode::Char('?') => app.open_detail_help(),
-        KeyCode::Char('w') => {
-            app.cycle_detail_focus(false);
-            return true;
-        }
-        KeyCode::Char('W') => {
-            app.cycle_detail_focus(true);
-            return true;
-        }
-        KeyCode::Char('R') => {
+        app.close_detail();
+        return true;
+    }
+
+    if app.is_bound(Action::DetailHelp, key) {
+        app.open_detail_help();
+        return true;
+    }
+
+    if app.is_bound(Action::CycleFocusForward, key) {
+        app.cycle_detail_focus(false);
+        return true;
+    }
+
+    if app.is_bound(Action::CycleFocusBackward, key) {
+        app.cycle_detail_focus(true);
+        return true;
+    }
+
+    if app.is_bound(Action::RefreshDetail, key) {
+        app.resync_detail();
+        app.status_message = Some("Refreshed".to_string());
+        return true;
+    }
+
+    if app.is_bound(Action::CycleTabForward, key) {
+        app.inspect_full_diff = false;
+        app.detail_tab = (app.detail_tab + 1) % 8;
+        app.set_default_focus_for_tab();
+        if app.get_current_resync_on_tab_change() {
             app.resync_detail();
-            app.status_message = Some("Refreshed".to_string());
         }
-        KeyCode::Tab => {
-            app.inspect_full_diff = false;
-            app.detail_tab = (app.detail_tab + 1) % 8;
-            app.set_default_focus_for_tab();
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
+        return true;
+    }
+
+    if app.is_bound(Action::CycleTabBackward, key) {
+        app.inspect_full_diff = false;
+        app.detail_tab = if app.detail_tab == 0 { 7 } else { app.detail_tab - 1 };
+        app.set_default_focus_for_tab();
+        if app.get_current_resync_on_tab_change() {
+            app.resync_detail();
+        }
+        return true;
+    }
+
+    if app.is_bound(Action::GoToTab1, key) {
+        app.inspect_full_diff = false;
+        app.detail_tab = 0;
+        app.detail_focus = DetailSection::Commits;
+        if app.get_current_resync_on_tab_change() {
+            app.resync_detail();
+        }
+        return true;
+    }
+
+    if app.is_bound(Action::GoToTab2, key) {
+        app.inspect_full_diff = false;
+        app.detail_tab = 1;
+        app.detail_focus = DetailSection::Files;
+        if app.get_current_resync_on_tab_change() {
+            app.resync_detail();
+        }
+        return true;
+    }
+
+    if app.is_bound(Action::GoToTab3, key) {
+        app.inspect_full_diff = false;
+        app.detail_tab = 2;
+        if app.get_current_resync_on_tab_change() {
+            app.resync_detail();
+        }
+        return true;
+    }
+
+    if app.is_bound(Action::GoToTab4, key) {
+        app.inspect_full_diff = false;
+        app.detail_tab = 3;
+        app.detail_focus = DetailSection::LocalBranches;
+        if app.get_current_resync_on_tab_change() {
+            app.resync_detail();
+        }
+        return true;
+    }
+
+    if app.is_bound(Action::GoToTab5, key) {
+        app.inspect_full_diff = false;
+        app.detail_tab = 4;
+        app.detail_focus = DetailSection::LocalTags;
+        if app.get_current_resync_on_tab_change() {
+            app.resync_detail();
+        }
+        return true;
+    }
+
+    if app.is_bound(Action::GoToTab6, key) {
+        app.inspect_full_diff = false;
+        app.detail_tab = 5;
+        app.detail_focus = DetailSection::Remotes;
+        if app.get_current_resync_on_tab_change() {
+            app.resync_detail();
+        }
+        return true;
+    }
+
+    if app.is_bound(Action::GoToTab7, key) {
+        app.inspect_full_diff = false;
+        app.detail_tab = 6;
+        app.detail_focus = DetailSection::Stashes;
+        if app.get_current_resync_on_tab_change() {
+            app.resync_detail();
+        }
+        return true;
+    }
+
+    if app.is_bound(Action::GoToTab8, key) {
+        app.inspect_full_diff = false;
+        app.detail_tab = 7;
+        app.detail_focus = DetailSection::Commits;
+        if app.get_current_resync_on_tab_change() {
+            app.resync_detail();
+        }
+        return true;
+    }
+
+    match app.detail_tab {
+        0 => return WorkspaceTab::handle_event(app, key),
+        1 => return FilesTab::handle_event(app, key),
+        2 => return GraphTab::handle_event(app, key),
+        3 => return BranchesTab::handle_event(app, key),
+        4 => return TagsTab::handle_event(app, key),
+        5 => return RemotesTab::handle_event(app, key),
+        6 => return StashesTab::handle_event(app, key),
+        7 => {
+            if code == KeyCode::Char('s') || code == KeyCode::Char('S') {
+                app.repo_settings_selected_index = 0;
+                app.repo_settings_editing = false;
+                app.repo_settings_input = String::new();
+                app.mode = Mode::RepoSettings;
+                return true;
             }
         }
-        KeyCode::BackTab => {
-            app.inspect_full_diff = false;
-            app.detail_tab = if app.detail_tab == 0 { 7 } else { app.detail_tab - 1 };
-            app.set_default_focus_for_tab();
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-        }
-        KeyCode::Char('1') => {
-            app.inspect_full_diff = false;
-            app.detail_tab = 0;
-            app.detail_focus = DetailSection::Commits;
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-        }
-        KeyCode::Char('2') => {
-            app.inspect_full_diff = false;
-            app.detail_tab = 1;
-            app.detail_focus = DetailSection::Files;
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-        }
-        KeyCode::Char('3') => {
-            app.inspect_full_diff = false;
-            app.detail_tab = 2;
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-        }
-        KeyCode::Char('4') => {
-            app.inspect_full_diff = false;
-            app.detail_tab = 3;
-            app.detail_focus = DetailSection::LocalBranches;
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-        }
-        KeyCode::Char('5') => {
-            app.inspect_full_diff = false;
-            app.detail_tab = 4;
-            app.detail_focus = DetailSection::LocalTags;
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-        }
-        KeyCode::Char('6') => {
-            app.inspect_full_diff = false;
-            app.detail_tab = 5;
-            app.detail_focus = DetailSection::Remotes;
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-        }
-        KeyCode::Char('7') => {
-            app.inspect_full_diff = false;
-            app.detail_tab = 6;
-            app.detail_focus = DetailSection::Stashes;
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-        }
-        KeyCode::Char('8') => {
-            app.inspect_full_diff = false;
-            app.detail_tab = 7;
-            app.detail_focus = DetailSection::Commits;
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-        }
-        _ => match app.detail_tab {
-            0 => return WorkspaceTab::handle_event(app, key),
-            1 => return FilesTab::handle_event(app, key),
-            2 => return GraphTab::handle_event(app, key),
-            3 => return BranchesTab::handle_event(app, key),
-            4 => return TagsTab::handle_event(app, key),
-            5 => return RemotesTab::handle_event(app, key),
-            6 => return StashesTab::handle_event(app, key),
-            7 => {
-                if code == KeyCode::Char('s') || code == KeyCode::Char('S') {
-                    app.repo_settings_selected_index = 0;
-                    app.repo_settings_editing = false;
-                    app.repo_settings_input = String::new();
-                    app.mode = Mode::RepoSettings;
-                    return true;
-                }
-            }
-            _ => {}
-        },
+        _ => {}
     }
     false
 }

@@ -7,66 +7,76 @@ impl HomeTab {
     pub fn handle_event(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         let code = key.code;
         match &app.mode {
-            Mode::Normal => match code {
-                KeyCode::Esc if app.repo_search_query.is_some() => {
+            Mode::Normal => {
+                use crate::keybindings::Action;
+                if app.repo_search_query.is_some() && code == KeyCode::Esc {
                     app.repo_search_query = None;
                     app.selected_index = 0;
                     app.scroll_top = 0;
-                }
-                KeyCode::Char('q') | KeyCode::Esc => return false,
-                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                    app.move_down(visible_count)
-                }
-                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => app.move_up(),
-                KeyCode::PageDown => app.page_down(app.get_current_page_size()),
-                KeyCode::PageUp => app.page_up(app.get_current_page_size()),
-                KeyCode::Home => app.move_to_top(),
-                KeyCode::End => app.move_to_bottom(visible_count),
-                KeyCode::Char('a') => app.start_add(),
-                KeyCode::Char('A') => {
+                } else if app.is_bound(Action::Close, key) {
+                    return false;
+                } else if app.is_bound(Action::HomeMoveDown, key) {
+                    app.move_down(visible_count);
+                } else if app.is_bound(Action::HomeMoveUp, key) {
+                    app.move_up();
+                } else if app.is_bound(Action::HomePageDown, key) {
+                    app.page_down(app.get_current_page_size());
+                } else if app.is_bound(Action::HomePageUp, key) {
+                    app.page_up(app.get_current_page_size());
+                } else if app.is_bound(Action::HomeHome, key) {
+                    app.move_to_top();
+                } else if app.is_bound(Action::HomeEnd, key) {
+                    app.move_to_bottom(visible_count);
+                } else if app.is_bound(Action::HomeAddRepo, key) {
+                    app.start_add();
+                } else if app.is_bound(Action::HomeBulkAdd, key) {
                     app.start_bulk_add();
-                }
-                KeyCode::Char('e') => app.start_edit(),
-                KeyCode::Char('D') => app.request_delete(),
-                KeyCode::Char('d') => {
+                } else if app.is_bound(Action::HomeEditRepo, key) {
+                    app.start_edit();
+                } else if app.is_bound(Action::HomeDeleteRepo, key) {
+                    app.request_delete();
+                } else if app.is_bound(Action::HomeOpenDebugLogs, key) {
                     crate::debug_log::info("Opening debug logs");
                     app.mode = Mode::DebugLogs;
                     app.debug_log_scroll = 0;
-                }
-                KeyCode::Char('l') => app.start_edit_labels(),
-                KeyCode::Char('?') => app.open_help(),
-                KeyCode::Char('v') | KeyCode::Char('V') => app.open_about(),
-                KeyCode::Char('R') => app.refresh_selected_status(),
-                KeyCode::Char('o') => app.cycle_sort_order(),
-                KeyCode::Char('O') => app.toggle_sort_reverse(),
-                KeyCode::Char('p') => app.toggle_pin_selected(),
-                KeyCode::Char('s') => {
+                } else if app.is_bound(Action::HomeEditLabels, key) {
+                    app.start_edit_labels();
+                } else if app.is_bound(Action::Help, key) {
+                    app.open_help();
+                } else if app.is_bound(Action::HomeAbout, key) {
+                    app.open_about();
+                } else if app.is_bound(Action::HomeRefresh, key) {
+                    app.refresh_selected_status();
+                } else if app.is_bound(Action::HomeCycleSort, key) {
+                    app.cycle_sort_order();
+                } else if app.is_bound(Action::HomeToggleSortReverse, key) {
+                    app.toggle_sort_reverse();
+                } else if app.is_bound(Action::HomeTogglePin, key) {
+                    app.toggle_pin_selected();
+                } else if app.is_bound(Action::HomeOpenSettings, key) {
                     app.mode = Mode::Settings;
                     app.settings_selected_index = 0;
                     app.settings_editing = false;
                     app.settings_focus_sidebar = true;
-                }
-                KeyCode::Char('i') => {
+                } else if app.is_bound(Action::HomeImportRepo, key) {
                     crate::debug_log::info("Starting repository import");
                     app.mode = Mode::ImportUrlInput;
                     app.input_buffer.clear();
                     app.import_url.clear();
                     app.import_dest.clear();
                     app.import_name.clear();
-                }
-                KeyCode::Char('g') => {
+                } else if app.is_bound(Action::HomeOpenGitApp, key) {
                     app.pending_git_app = true;
-                }
-                KeyCode::Char('f') => {
+                } else if app.is_bound(Action::HomeSearchRepo, key) {
                     app.input_buffer.clear();
                     if let Some(ref q) = app.repo_search_query {
                         app.input_buffer.push_str(q);
                     }
                     app.mode = Mode::RepoSearchInput;
+                } else if app.is_bound(Action::HomeOpenDetail, key) {
+                    app.open_detail();
                 }
-                KeyCode::Enter | KeyCode::Right => app.open_detail(),
-                _ => {}
-            },
+            }
             Mode::RepoSearchInput => match code {
                 KeyCode::Esc => {
                     app.repo_search_query = None;

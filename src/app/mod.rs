@@ -330,6 +330,8 @@ pub struct App {
     pub repo_settings_editing: bool,
     /// Temporary text input buffer for repository settings.
     pub repo_settings_input: String,
+    /// Loaded user/default keybindings configuration.
+    pub keybindings: crate::keybindings::KeybindingsConfig,
     /// Whether external Git application launch is pending.
     pub pending_git_app: bool,
     /// Whether fzf search launch is pending.
@@ -891,9 +893,19 @@ impl App {
         self.config.sym(key)
     }
 
+    pub fn is_bound(
+        &self,
+        action: crate::keybindings::Action,
+        key: crossterm::event::KeyEvent,
+    ) -> bool {
+        self.keybindings.matches(action, key)
+    }
+
     pub fn new(config: Config, config_path: PathBuf) -> Self {
         crate::debug_log::info("Initializing Gitwig application state");
         crate::ui::update_theme(&config.theme);
+        let config_dir = config_path.parent().unwrap_or(&config_path);
+        let keybindings = crate::keybindings::KeybindingsConfig::load(config_dir);
         let original_items = config.items.clone();
         let max_commits = config.max_commits;
         let statuses = config.items.iter().map(|s| repo::inspect_summary(s)).collect();
@@ -953,6 +965,7 @@ impl App {
             repo_settings_selected_index: 0,
             repo_settings_editing: false,
             repo_settings_input: String::new(),
+            keybindings,
             pending_git_app: false,
             pending_fzf: false,
             pending_bulk_fzf: false,
