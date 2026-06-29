@@ -69,15 +69,12 @@ gitwig path/to/config.toml
 
 ## 📸 Preview
 
-You can watch the interactive terminal recording locally using `asciinema`:
+![Gitwig Demo](resources/preview.gif)
 
+*To play the interactive terminal recording locally:*
 ```sh
 asciinema play resources/preview.cast
 ```
-
-<!-- Once you upload the cast to asciinema.org, you can embed the player widget on GitHub:
-[![asciicast](https://asciinema.org/a/YOUR_CAST_ID.svg)](https://asciinema.org/a/YOUR_CAST_ID)
--->
 
 ---
 
