@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
 use super::*;
 
-use crate::config::{FzfConfig, SortOrder, ThemeConfig, RepoConfig};
+use crate::config::{FzfConfig, RepoConfig, SortOrder, ThemeConfig};
 use std::collections::HashMap;
 
 struct TestFileGuard {
@@ -37,7 +37,8 @@ fn test_stash_creation_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_stash.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -122,7 +123,8 @@ fn test_network_action_progress_and_error_handling() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_network.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -187,7 +189,8 @@ fn test_remote_tags_progress_and_error_handling() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_remote_tags_progress.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -249,7 +252,8 @@ fn test_remote_fetch_progress_and_error_handling() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_remote_fetch_progress.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -317,7 +321,8 @@ fn test_set_error_logging() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_set_error.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -354,7 +359,8 @@ fn test_sorting_logic() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_sort.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -417,7 +423,8 @@ fn test_duplicate_prevention() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_duplicate.toml");
     // Ensure starting with a clean state and clean up upon drop
@@ -513,7 +520,8 @@ fn test_bulk_add_folders() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_dir = std::env::temp_dir().join("gitwig_test_bulk_add_dir");
     let _ = std::fs::remove_dir_all(&temp_dir);
@@ -582,7 +590,8 @@ fn test_pinning_and_sorting() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_pin.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -667,7 +676,8 @@ fn test_commit_input_scroll() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_scroll.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -710,7 +720,8 @@ fn test_commit_popup_maximized_toggle() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_maximize.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -753,7 +764,8 @@ fn test_cherry_pick_and_revert_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_cherry_pick.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -828,7 +840,8 @@ fn test_commit_amend_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_amend.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -892,7 +905,8 @@ fn test_splitter_dragging() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_splitter.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -1165,7 +1179,8 @@ fn test_mouse_row_selection_in_detail_panels() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_mouse_select.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -1568,7 +1583,8 @@ fn test_settings_mode_navigation_and_editing() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -1829,7 +1845,8 @@ fn test_remote_add_delete_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_remotes.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -1906,7 +1923,8 @@ fn test_workspace_tab_right_arrow_inspect() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -1983,7 +2001,8 @@ fn test_commit_enter_key_inspect() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_enter.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -2040,7 +2059,8 @@ fn test_inspect_commit_shortcut() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_commit.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -2097,7 +2117,8 @@ fn test_workspace_all_changes_shortcuts() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_workspace_all.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -2156,7 +2177,8 @@ fn test_inspect_workspace_all_changes_shortcuts() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_inspect_workspace_all.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -2240,7 +2262,8 @@ fn test_workspace_all_changes_focus_transitions() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let mut app = App::new(config, temp_path.join("config.toml"));
 
@@ -2283,7 +2306,8 @@ fn test_workspace_tab_focus_cycle_skips_empty_panels() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_cycle.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -2383,7 +2407,8 @@ fn test_git_app_shortcut_triggers_pending() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_git_app.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -2420,7 +2445,8 @@ fn test_files_fzf_shortcut_triggers_pending() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_files_fzf.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -2460,7 +2486,8 @@ fn test_logs_search_picker_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_logs_search.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -2669,7 +2696,8 @@ fn test_detail_view_sync_on_tab_change_and_refresh() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_sync.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -2768,7 +2796,8 @@ fn test_branch_and_tag_checkout_confirmation() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_checkout.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -2878,7 +2907,8 @@ fn test_repo_search_filtering() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_search.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -2936,7 +2966,8 @@ fn test_normal_mode_right_arrow_detail() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_right_arrow.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -2987,7 +3018,8 @@ fn test_inspect_full_screen_diff_toggle() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_full_diff.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -3043,7 +3075,8 @@ fn test_files_tab_full_screen_toggle() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_files_full.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -3100,7 +3133,8 @@ fn test_fzf_missing_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_fzf_missing.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -3164,7 +3198,8 @@ fn test_initial_setup_and_migration() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let unique_id =
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
@@ -3244,7 +3279,8 @@ fn test_about_popup_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_about.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -3315,7 +3351,8 @@ fn test_tag_fetch_attempt_and_dismiss_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_tag_fetch.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -3424,7 +3461,8 @@ fn test_tag_push_all_confirmation_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_tag_push_all.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -3528,7 +3566,8 @@ fn test_detail_cache_ttl_behavior() {
         detail_cache_ttl_secs: 30,
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
-        resync_on_tab_change: false, ..Default::default() 
+        resync_on_tab_change: false,
+        ..Default::default()
     };
 
     let mut app = App::new(config, PathBuf::from(""));
@@ -3592,7 +3631,8 @@ fn test_tab_ttl_behavior() {
         fzf: FzfConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: true,
-        resync_on_tab_change: false, ..Default::default() 
+        resync_on_tab_change: false,
+        ..Default::default()
     };
 
     let mut app = App::new(config, PathBuf::from(""));
@@ -3666,7 +3706,8 @@ fn test_commit_popup_mouse_resize() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_resize.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -3735,7 +3776,8 @@ fn test_yank_selected_commit_hash() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 
@@ -3789,7 +3831,8 @@ fn test_cherry_pick_destination_branches() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 
@@ -3889,7 +3932,8 @@ fn test_graph_tab_scrolling() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_graph.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -3965,7 +4009,8 @@ fn test_commit_popup_custom_keys() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_commit_keys.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -4041,7 +4086,8 @@ fn test_settings_panel_organization() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_org.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -4104,7 +4150,8 @@ fn test_help_popup_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_help.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -4178,7 +4225,8 @@ fn test_detail_help_popup_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_detail_help.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -4248,7 +4296,8 @@ fn test_max_commits_limit_setting() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_max_commits.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -4295,7 +4344,8 @@ fn test_file_history_view_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_file_history.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -4366,7 +4416,8 @@ fn test_repository_labels_flow() {
         enable_commit_signatures: false,
         tab_ttl_secs: 60,
         resync_on_tab_change: false,
-        graph_max_commits: 1000, ..Default::default() 
+        graph_max_commits: 1000,
+        ..Default::default()
     };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_labels.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -4439,12 +4490,8 @@ border_type = "thick"
     std::fs::write(&nord_theme_path, theme_data).unwrap();
 
     let mut repo_configs = HashMap::new();
-    repo_configs.insert(
-        "/path/to/custom_repo".to_string(),
-        RepoConfig {
-            theme: Some("nord".to_string()),
-        },
-    );
+    repo_configs
+        .insert("/path/to/custom_repo".to_string(), RepoConfig { theme: Some("nord".to_string()) });
 
     let config = Config {
         items: vec!["/path/to/custom_repo".to_string()],
@@ -4473,10 +4520,7 @@ fn test_repo_theme_picker_flow() {
     let temp_dir = std::env::temp_dir();
     let config_path = temp_dir.join("gitwig_test_picker_flow_config.toml");
 
-    let config = Config {
-        items: vec!["/path/to/custom_repo".to_string()],
-        ..Default::default()
-    };
+    let config = Config { items: vec!["/path/to/custom_repo".to_string()], ..Default::default() };
 
     let mut app = App::new(config, config_path.clone());
     app.mode = Mode::Detail;
@@ -4488,9 +4532,10 @@ fn test_repo_theme_picker_flow() {
     let handled = crate::input::handle_key(&mut app, s_press, 1);
     assert!(handled);
     assert_eq!(app.mode, Mode::RepoThemePicker);
-    
+
     // Simulate settings theme list loading
-    app.settings_theme_list = vec!["default".to_string(), "dracula".to_string(), "nord".to_string()];
+    app.settings_theme_list =
+        vec!["default".to_string(), "dracula".to_string(), "nord".to_string()];
     app.settings_theme_index = 0;
 
     // Simulate pressing Down key to choose "dracula"
@@ -4511,4 +4556,15 @@ fn test_repo_theme_picker_flow() {
 
     // Clean up
     let _ = std::fs::remove_file(config_path);
+}
+
+#[test]
+fn test_is_newer_version() {
+    assert!(is_newer_version("2.2.1", "2.2.2"));
+    assert!(is_newer_version("2.2.1", "2.3.0"));
+    assert!(is_newer_version("2.2.1", "3.0.0"));
+    assert!(is_newer_version("v2.2.1", "v2.2.2"));
+    assert!(!is_newer_version("2.2.1", "2.2.1"));
+    assert!(!is_newer_version("2.2.1", "2.2.0"));
+    assert!(!is_newer_version("3.0.0", "2.2.1"));
 }

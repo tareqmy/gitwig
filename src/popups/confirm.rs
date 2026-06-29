@@ -1028,3 +1028,56 @@ impl Component for ConfirmPopup {
         Ok(EventState::NotConsumed)
     }
 }
+
+pub fn draw_update_confirm_popup(f: &mut Frame, latest_version: &str, area: Rect) {
+    let popup_area = centered_rect(50, 18, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(SUCCESS());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled(
+            "Update Available",
+            Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let content = vec![
+        Line::from(vec![Span::styled("A new version of Gitwig is available:", primary_style())]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  Current Version: ", muted_style()),
+            Span::styled(env!("CARGO_PKG_VERSION"), primary_style().add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Latest Version:  ", muted_style()),
+            Span::styled(
+                latest_version,
+                Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Would you like to trigger the update now?",
+            primary_style(),
+        )]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
+    f.render_widget(paragraph, popup_area);
+}

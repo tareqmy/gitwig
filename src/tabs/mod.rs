@@ -139,10 +139,16 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             7 => {
                 if code == KeyCode::Char('s') || code == KeyCode::Char('S') {
                     app.settings_theme_list = app.get_available_themes();
-                    let configured_theme = app.get_selected_item().and_then(|path| {
-                        app.config.repo_configs.get(path).and_then(|rc| rc.theme.as_ref())
-                    }).map(|s| s.as_str()).unwrap_or("default");
-                    app.settings_theme_index = app.settings_theme_list.iter()
+                    let configured_theme = app
+                        .get_selected_item()
+                        .and_then(|path| {
+                            app.config.repo_configs.get(path).and_then(|rc| rc.theme.as_ref())
+                        })
+                        .map(|s| s.as_str())
+                        .unwrap_or("default");
+                    app.settings_theme_index = app
+                        .settings_theme_list
+                        .iter()
                         .position(|t| t == configured_theme)
                         .unwrap_or(0);
                     app.mode = Mode::RepoThemePicker;

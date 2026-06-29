@@ -179,7 +179,8 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         | Mode::StashDeleteConfirm
         | Mode::BranchCheckoutConfirm
         | Mode::TagCheckoutConfirm
-        | Mode::RemoteDeleteConfirm => {
+        | Mode::RemoteDeleteConfirm
+        | Mode::UpdateConfirm => {
             let ev = crossterm::event::Event::Key(key);
             if app
                 .confirm_popup

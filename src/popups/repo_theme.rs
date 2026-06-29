@@ -1,11 +1,11 @@
 use crate::app::{App, Mode};
-use crate::ui::style::{accent_style, CARD_BORDER, muted_style, primary_style};
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
-use ratatui::text::{Line, Span};
-use ratatui::Frame;
+use crate::ui::style::{CARD_BORDER, accent_style, muted_style, primary_style};
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::style::{Style, Modifier};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 pub struct RepoThemePopup;
 
@@ -34,7 +34,8 @@ impl RepoThemePopup {
                 if app.settings_theme_index < app.settings_theme_list.len() {
                     let theme_name = app.settings_theme_list[app.settings_theme_index].clone();
                     if let Some(repo_path) = app.get_selected_item().cloned() {
-                        let mut repo_cfg = app.config.repo_configs.get(&repo_path).cloned().unwrap_or_default();
+                        let mut repo_cfg =
+                            app.config.repo_configs.get(&repo_path).cloned().unwrap_or_default();
                         if theme_name == "default" {
                             repo_cfg.theme = None;
                         } else {
@@ -89,12 +90,10 @@ impl RepoThemePopup {
             .split(inner);
 
         f.render_widget(
-            Paragraph::new(vec![
-                Line::from(vec![
-                    Span::raw("Repo: "),
-                    Span::styled(repo_name, primary_style()),
-                ]),
-            ])
+            Paragraph::new(vec![Line::from(vec![
+                Span::raw("Repo: "),
+                Span::styled(repo_name, primary_style()),
+            ])])
             .alignment(Alignment::Center),
             chunks[1],
         );
@@ -105,17 +104,13 @@ impl RepoThemePopup {
         for (idx, theme_name) in app.settings_theme_list.iter().enumerate() {
             let is_selected = idx == app.settings_theme_index;
             let prefix = if is_selected { if is_compat { "> " } else { "▶ " } } else { "  " };
-            let style = if is_selected {
-                accent_style()
-            } else {
-                Style::default()
-            };
-            
+            let style = if is_selected { accent_style() } else { Style::default() };
+
             // Check if this is the currently configured theme for the repo
             let configured_theme = app.get_selected_item().and_then(|path| {
                 app.config.repo_configs.get(path).and_then(|rc| rc.theme.as_ref())
             });
-            
+
             let suffix = match configured_theme {
                 Some(ct) if ct == theme_name => " (active)",
                 None if theme_name == "default" => " (active)",
@@ -128,10 +123,13 @@ impl RepoThemePopup {
                 Style::default()
             };
 
-            theme_spans.push(Line::from(vec![
-                Span::styled(format!("{}{}", prefix, theme_name), style),
-                Span::styled(suffix, muted_style()),
-            ]).style(line_style));
+            theme_spans.push(
+                Line::from(vec![
+                    Span::styled(format!("{}{}", prefix, theme_name), style),
+                    Span::styled(suffix, muted_style()),
+                ])
+                .style(line_style),
+            );
         }
 
         let dropdown_block = Block::default()
@@ -139,14 +137,11 @@ impl RepoThemePopup {
             .border_type(CARD_BORDER())
             .border_style(muted_style())
             .title(Span::styled(" Themes ", muted_style()));
-        
+
         let dropdown_inner = dropdown_block.inner(chunks[3]);
         f.render_widget(dropdown_block, chunks[3]);
 
-        f.render_widget(
-            Paragraph::new(theme_spans),
-            dropdown_inner,
-        );
+        f.render_widget(Paragraph::new(theme_spans), dropdown_inner);
 
         // Shortcuts helper bar
         let helper_line = Line::from(vec![
@@ -157,9 +152,6 @@ impl RepoThemePopup {
             Span::styled(" [Esc/q] ", accent_style()),
             Span::styled("Cancel", muted_style()),
         ]);
-        f.render_widget(
-            Paragraph::new(helper_line).alignment(Alignment::Center),
-            chunks[5],
-        );
+        f.render_widget(Paragraph::new(helper_line).alignment(Alignment::Center), chunks[5]);
     }
 }

@@ -136,6 +136,8 @@ pub enum Mode {
     LabelInput,
     /// Choosing a custom theme for the repository inside Overview.
     RepoThemePicker,
+    /// Confirming self-update of the application.
+    UpdateConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -318,6 +320,10 @@ pub struct App {
     pub rx: std::sync::mpsc::Receiver<String>,
     /// Whether a background fetch is active.
     pub fetching: bool,
+    /// Store the latest version if an update is available.
+    pub update_available: Option<String>,
+    /// Stored previous mode to restore after confirmation/popups.
+    pub previous_mode: Option<Mode>,
     /// Whether external Git application launch is pending.
     pub pending_git_app: bool,
     /// Whether fzf search launch is pending.
@@ -470,7 +476,9 @@ impl App {
                 let theme_path = themes_dir.join(format!("{}.theme", theme_name));
                 if theme_path.exists() {
                     if let Ok(theme_contents) = std::fs::read_to_string(&theme_path) {
-                        if let Ok(theme) = toml::from_str::<crate::config::ThemeConfig>(&theme_contents) {
+                        if let Ok(theme) =
+                            toml::from_str::<crate::config::ThemeConfig>(&theme_contents)
+                        {
                             self.repo_theme_cache.insert(repo_path.clone(), theme);
                         }
                     }
@@ -555,6 +563,7 @@ impl App {
                     Mode::BranchCheckoutConfirm => self.confirm_branch_checkout(),
                     Mode::TagCheckoutConfirm => self.confirm_tag_checkout(),
                     Mode::RemoteDeleteConfirm => self.confirm_remote_delete(),
+                    Mode::UpdateConfirm => self.trigger_self_update(),
                     _ => {}
                 },
                 crate::queue::InternalEvent::ConfirmNo => match self.mode {
@@ -580,6 +589,9 @@ impl App {
                     Mode::RemoteDeleteConfirm => {
                         self.remote_action_target = None;
                         self.mode = Mode::Detail;
+                    }
+                    Mode::UpdateConfirm => {
+                        self.mode = self.previous_mode.take().unwrap_or(Mode::Normal);
                     }
                     _ => {
                         self.mode = Mode::Detail;
@@ -927,6 +939,8 @@ impl App {
             tx,
             rx,
             fetching: false,
+            update_available: None,
+            previous_mode: None,
             pending_git_app: false,
             pending_fzf: false,
             pending_bulk_fzf: false,
@@ -1056,6 +1070,46 @@ impl App {
             }
         }
 
+        #[cfg(not(test))]
+        {
+            let tx_clone = app.tx.clone();
+            std::thread::spawn(move || {
+                let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                    let output = std::process::Command::new("curl")
+                        .arg("--max-time")
+                        .arg("5")
+                        .arg("-fsSL")
+                        .arg("https://raw.githubusercontent.com/tareqmy/gitwig/master/.version")
+                        .output();
+                    if let Ok(out) = output {
+                        if out.status.success() {
+                            let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                            if !version.is_empty() {
+                                return Ok(version);
+                            }
+                        }
+                    }
+                    let output = std::process::Command::new("wget")
+                        .arg("--timeout=5")
+                        .arg("-qO-")
+                        .arg("https://raw.githubusercontent.com/tareqmy/gitwig/master/.version")
+                        .output();
+                    if let Ok(out) = output {
+                        if out.status.success() {
+                            let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                            if !version.is_empty() {
+                                return Ok(version);
+                            }
+                        }
+                    }
+                    Err("Failed to query update version".into())
+                })();
+                if let Ok(latest_version) = res {
+                    let _ = tx_clone.send(format!("UPDATE_CHECK:{}", latest_version));
+                }
+            });
+        }
+
         app.resolve_repo_themes();
         app.setup_watcher();
 
@@ -1088,6 +1142,19 @@ where
                         }
                     }
                 }
+            } else if let Some(latest_version) = msg.strip_prefix("UPDATE_CHECK:") {
+                let current_version = env!("CARGO_PKG_VERSION");
+                if is_newer_version(current_version, latest_version) {
+                    app.update_available = Some(latest_version.to_string());
+                    app.previous_mode = Some(app.mode);
+                    app.mode = Mode::UpdateConfirm;
+                }
+            } else if let Some(success_msg) = msg.strip_prefix("UPDATE_SUCCESS:") {
+                app.fetching = false;
+                app.status_message = Some(success_msg.to_string());
+            } else if let Some(err_msg) = msg.strip_prefix("UPDATE_ERROR:") {
+                app.fetching = false;
+                app.set_error(err_msg.to_string());
             } else if let Some(dest_path) = msg.strip_prefix("CLONE_SUCCESS:") {
                 app.fetching = false;
                 app.status_message = Some("Cloning completed successfully".to_string());
@@ -1726,4 +1793,74 @@ fn copy_to_clipboard(text: &str) -> Result<(), String> {
         }
         Err("Could not find xclip or xsel on Linux system".to_string())
     }
+}
+
+impl App {
+    pub fn trigger_self_update(&mut self) {
+        self.fetching = true;
+        self.status_message = Some("Updating Gitwig...".to_string());
+        self.mode = self.previous_mode.take().unwrap_or(Mode::Normal);
+
+        let tx = self.tx.clone();
+        std::thread::spawn(move || {
+            let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                // First try curl
+                let output = std::process::Command::new("sh")
+                    .arg("-c")
+                    .arg("curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh")
+                    .output();
+
+                if let Ok(ref out) = output {
+                    if out.status.success() {
+                        return Ok("Gitwig updated successfully! Please restart the application."
+                            .to_string());
+                    }
+                }
+
+                // Fallback to wget
+                let output = std::process::Command::new("sh")
+                    .arg("-c")
+                    .arg("wget -qO- https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh")
+                    .output();
+
+                match output {
+                    Ok(out) => {
+                        if out.status.success() {
+                            Ok("Gitwig updated successfully! Please restart the application."
+                                .to_string())
+                        } else {
+                            let err_msg = String::from_utf8_lossy(&out.stderr).trim().to_string();
+                            Err(format!("Update failed: {}", err_msg).into())
+                        }
+                    }
+                    Err(e) => Err(format!("Update failed: {}", e).into()),
+                }
+            })();
+
+            match res {
+                Ok(success_msg) => {
+                    let _ = tx.send(format!("UPDATE_SUCCESS:{}", success_msg));
+                }
+                Err(err) => {
+                    let _ = tx.send(format!("UPDATE_ERROR:{}", err));
+                }
+            }
+        });
+    }
+}
+
+fn is_newer_version(current: &str, latest: &str) -> bool {
+    let parse = |s: &str| -> Vec<u32> {
+        s.trim_start_matches('v').split('.').map(|part| part.parse::<u32>().unwrap_or(0)).collect()
+    };
+    let cur_parts = parse(current);
+    let lat_parts = parse(latest);
+    for (c, l) in cur_parts.iter().zip(lat_parts.iter()) {
+        if l > c {
+            return true;
+        } else if c > l {
+            return false;
+        }
+    }
+    lat_parts.len() > cur_parts.len()
 }
