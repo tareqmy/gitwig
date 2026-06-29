@@ -91,10 +91,10 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Apply label for repositories: so that from the home page it can be viewed as a group
 - [x] Distribute application via a curl-to-sh script (`install.sh`).
 - [x] Add fzf as dependency
+- [x] Git logs pagination
 - [ ] **Per repository settings, theme**
 - [ ] **Show UI first, Load data later per tab**
 - [ ] **Keybindings**
-- [x] **Git logs pagination**
 - [ ] **Per Repository rule**
 - [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
 - [ ] **Git Submodules:** Detect, list, initialize, and update submodules.

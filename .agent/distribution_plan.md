@@ -17,7 +17,7 @@ The installer script detects the host's operating system and architecture, resol
 Gitwig's continuous delivery pipeline (`.github/workflows/cd.yml`) compiles binaries for the following targets:
 * **macOS (Intel):** `x86_64-apple-darwin`
 * **macOS (Apple Silicon):** `aarch64-apple-darwin`
-* **Linux (Intel/AMD 64-bit):** `x86_64-unknown-linux-gnu`
+* **Linux (Intel/AMD 64-bit):** `x86_64-unknown-linux-musl`
 * **Windows (Intel/AMD 64-bit):** `x86_64-pc-windows-msvc` (normally not installed via shell script, but supported if needed)
 
 The release archives uploaded by `taiki-e/upload-rust-binary-action` follow the pattern:
@@ -110,7 +110,7 @@ detect_platform() {
             ;;
         Linux)
             case "${ARCH}" in
-                x86_64|amd64) TARGET="x86_64-unknown-linux-gnu" ;;
+                x86_64|amd64) TARGET="x86_64-unknown-linux-musl" ;;
                 *) error "Unsupported Linux architecture: ${ARCH}" ;;
             esac
             ;;
