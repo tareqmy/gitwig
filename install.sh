@@ -2,14 +2,14 @@
 
 # Gitwig Installer Script
 # Supported Platforms: macOS, Linux (x86_64, arm64)
-# Usage: curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/main/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh
 
 set -eu
 
 # Configuration
 REPO_OWNER="tareqmy"
 REPO_NAME="gitwig"
-GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/master"
 GITHUB_API_URL="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 GITHUB_RELEASES_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases"
 

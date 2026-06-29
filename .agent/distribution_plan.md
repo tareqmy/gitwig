@@ -7,7 +7,7 @@ This plan outlines the design, implementation, and deployment strategy for distr
 ## 1. Overview
 The goal is to allow users to install Gitwig on macOS and Linux systems by running:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh
 ```
 The installer script detects the host's operating system and architecture, resolves the latest release from the GitHub API, downloads the pre-built binary package compiled by GitHub Actions, extracts it, and installs it to an appropriate location in the user's `PATH`.
 
@@ -49,7 +49,7 @@ Below is the shell script to be saved at the repository root (`install.sh`):
 
 # Gitwig Installer Script
 # Supported Platforms: macOS, Linux (x86_64, arm64)
-# Usage: curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/main/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh
 
 set -eu
 
@@ -235,7 +235,7 @@ fi
 To deploy this installation method:
 
 1. **Commit and Push `install.sh`**:
-   Place the `install.sh` script in the root of the Gitwig repository and push it to the `main` branch.
+   Place the `install.sh` script in the root of the Gitwig repository and push it to the `master` branch.
    * Path: `/Users/tareqmy/development/rustprojects/gitwig/install.sh`
 
 2. **Verify Release Versioning**:
@@ -246,7 +246,7 @@ To deploy this installation method:
    ```markdown
    ### Installation via Shell Script
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/main/install.sh | sh
+   curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh
    ```
    ```
 

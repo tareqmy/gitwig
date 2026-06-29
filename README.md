@@ -369,13 +369,13 @@ When Compatibility Mode is active, Gitwig will automatically substitute all Nerd
 For a quick installation, run the following command in your terminal:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh
 ```
 
 *Note: If the repository is private, set your GitHub token first:*
 ```sh
 export GITHUB_TOKEN="your_github_pat"
-curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh
 ```
 
 #### Via Cargo
