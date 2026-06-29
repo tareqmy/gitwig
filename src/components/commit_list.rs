@@ -306,8 +306,8 @@ pub fn draw_logs_view(
     _commit_search_query: &Option<String>,
     app: &crate::app::App,
     area: Rect,
-) {
-    let block = Block::default()
+) -> Rect {
+    let mut block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER())
         .border_style(Style::default().fg(ACCENT()))
@@ -316,6 +316,15 @@ pub fn draw_logs_view(
             Span::styled("Git Commits Logs", primary_style()),
             Span::raw(" "),
         ]));
+
+    if info.commits.len() >= app.commit_list.limit {
+        let footer_text =
+            format!(" Showing latest {} commits — press G to load more ", info.commits.len());
+        block = block.title_bottom(
+            Line::from(vec![Span::styled(footer_text, muted_style())])
+                .alignment(ratatui::layout::Alignment::Center),
+        );
+    }
 
     let inner = block.inner(area);
     f.render_widget(block, area);
@@ -326,7 +335,7 @@ pub fn draw_logs_view(
                 .alignment(Alignment::Center),
             inner,
         );
-        return;
+        return inner;
     }
 
     let header = Row::new(vec![
@@ -416,12 +425,13 @@ pub fn draw_logs_view(
         Constraint::Min(20),
     ];
 
-    let mut state = TableState::default();
+    let mut state = app.commit_list.table_state.borrow_mut();
     state.select(Some(commit_selection));
 
     let table = Table::new(rows, widths).header(header).column_spacing(2);
 
-    f.render_stateful_widget(table, inner, &mut state);
+    f.render_stateful_widget(table, inner, &mut *state);
+    inner
 }
 
 impl CommitListComponent {

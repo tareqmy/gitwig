@@ -49,6 +49,11 @@ impl WorkspaceTab {
                     app.mode = Mode::SearchColumnPicker;
                     return true;
                 }
+                KeyCode::Char('l') | KeyCode::Char('L') => {
+                    app.in_logs_ui = true;
+                    app.mode = Mode::Logs;
+                    return true;
+                }
                 KeyCode::Char('c') if !app.is_uncommitted_selected() => {
                     app.start_commit();
                     return true;

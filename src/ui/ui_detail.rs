@@ -238,7 +238,7 @@ pub fn draw(
             }
 
             areas.commits = Some(header_rows[2]);
-            crate::components::commit_list::draw_logs_view(
+            let inner_rect = crate::components::commit_list::draw_logs_view(
                 f,
                 info,
                 commit_selection,
@@ -246,6 +246,7 @@ pub fn draw(
                 app,
                 header_rows[2],
             );
+            areas.commits_inner = Some(inner_rect);
 
             // Draw SearchColumnPicker overlay if in that mode
             if matches!(mode, Mode::SearchColumnPicker) {

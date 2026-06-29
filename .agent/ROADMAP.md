@@ -94,7 +94,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Per repository settings, theme**
 - [ ] **Show UI first, Load data later per tab**
 - [ ] **Keybindings**
-- [ ] **Git logs pagination**
+- [x] **Git logs pagination**
 - [ ] **Per Repository rule**
 - [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
 - [ ] **Git Submodules:** Detect, list, initialize, and update submodules.

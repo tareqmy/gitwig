@@ -84,6 +84,8 @@ pub fn get_detail_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("X", "Discard all changes in repository"),
                 ("s", "Stash uncommitted changes"),
                 ("f", "Open search logs picker"),
+                ("l", "Open Logs view (Full screen commits list)"),
+                ("G", "Load more commits (Workspace / Logs view)"),
             ],
         ),
         (

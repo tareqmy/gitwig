@@ -457,8 +457,12 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     muted_style(),
                 ),
             ];
-            let entries_data =
-                [("Inspect", "Enter"), ("Search / Columns", "f"), ("Back to Workspace", "Esc/q")];
+            let entries_data = [
+                ("Inspect", "Enter"),
+                ("Search / Columns", "f"),
+                ("Load More", "G"),
+                ("Back to Workspace", "Esc/q"),
+            ];
             let mut entries = Vec::new();
             for (i, (label, key)) in entries_data.iter().enumerate() {
                 let mut spans = Vec::new();
@@ -666,6 +670,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 v.push(("Cherry-pick", "p"));
                 v.push(("Revert", "v"));
                 v.push(("Search/Columns", "f"));
+                v.push(("Logs UI", "l"));
                 v.push(("Load More", "G"));
                 v.push(("Yank Hash", "y"));
                 if app.has_uncommitted_changes() {

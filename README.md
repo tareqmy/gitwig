@@ -149,6 +149,7 @@ asciinema play resources/preview.cast
 | `x`                  | Detail          | Discard selected file changes (Workspace tab or Inspect view; asks confirmation) |
 | `X`                  | Detail          | Discard all changes in repository (Workspace tab or Inspect view; asks confirmation) |
 | `i`                  | Detail          | Interactive rebase from selected commit (Workspace tab commits list) |
+| `l`                  | Detail          | Open Logs view (Full screen commits list; Workspace tab commits list focus) |
 | `d`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), or stash (Stashes tab; asks confirmation) |
 | `s`                  | Detail          | Open Stashing UI overlay (Workspace tab) or Prompt to save stash (Stashing UI / Stashes tab) |
 | `u`                  | Detail          | Toggle "Stash untracked files" option (Stashing UI)               |
