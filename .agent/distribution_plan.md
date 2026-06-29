@@ -323,3 +323,12 @@ Before publicizing the installation method, perform the following verification:
    curl -fsSL http://localhost:8000/install.sh | sh
    kill $PID
    ```
+
+---
+
+## 7. Uninstaller Script Design (`uninstall.sh`)
+An uninstaller script is provided in the repository root to allow users to easily remove the binary:
+```bash
+curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/uninstall.sh | sh
+```
+This script automatically detects the location of the installed `gitwig` binary, prompts the user for confirmation (if run interactively), and deletes it, falling back to `sudo` if the binary was installed in a directory requiring root permissions.

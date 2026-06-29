@@ -47,6 +47,14 @@ cargo build --release
 
 The compiled binary will be located at `target/release/gitwig`. You can copy it to a directory in your `$PATH` or run it directly.
 
+### Uninstalling
+
+If you installed Gitwig via the shell script, you can uninstall it at any time using:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/uninstall.sh | sh
+```
+
 ### Running
 
 ```sh
