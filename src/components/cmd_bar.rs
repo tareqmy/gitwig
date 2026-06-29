@@ -170,15 +170,22 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = about_dismiss_entries();
             draw_status_layout(f, area, msg_spans, entries, app);
         }
-        Mode::RepoThemePicker => {
+        Mode::RepoSettings => {
             let msg_spans = vec![
                 Span::styled(
-                    "Set Repository Theme  ",
+                    "Repository Settings  ",
                     Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
                 ),
-                Span::styled("Use arrow keys / j / k to select, Enter to apply", muted_style()),
+                Span::styled(
+                    "Use arrow keys / j / k to select, Enter / Space / Left / Right to edit",
+                    muted_style(),
+                ),
             ];
-            let entries_data = [("Apply", "Enter"), ("Cancel", "Esc")];
+            let entries_data = if app.repo_settings_editing {
+                vec![("Confirm", "Enter"), ("Cancel", "Esc")]
+            } else {
+                vec![("Close", "Esc/q")]
+            };
             let mut entries = Vec::new();
             for (i, (label, key)) in entries_data.iter().enumerate() {
                 let mut spans = Vec::new();
@@ -1122,7 +1129,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         Mode::Settings => ("SETTINGS", Color::Green),
         Mode::Help | Mode::DetailHelp => ("HELP", Color::Rgb(150, 150, 150)),
         Mode::About => ("ABOUT", Color::Rgb(150, 150, 150)),
-        Mode::RepoThemePicker => ("THEME", Color::Rgb(135, 0, 135)),
+        Mode::RepoSettings => ("REPO SETTINGS", Color::Rgb(135, 0, 135)),
         Mode::Adding
         | Mode::BulkAddInput
         | Mode::Editing

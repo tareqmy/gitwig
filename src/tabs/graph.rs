@@ -15,12 +15,12 @@ impl GraphTab {
                 true
             }
             KeyCode::PageUp => {
-                let page = app.config.page_size;
+                let page = app.get_current_page_size();
                 app.graph_scroll_page_up(page);
                 true
             }
             KeyCode::PageDown => {
-                let page = app.config.page_size;
+                let page = app.get_current_page_size();
                 app.graph_scroll_page_down(page);
                 true
             }

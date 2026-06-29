@@ -54,6 +54,27 @@ impl App {
         self.config.items.get(orig_idx)
     }
 
+    pub fn get_current_page_size(&self) -> usize {
+        self.get_selected_item()
+            .and_then(|path| self.config.repo_configs.get(path))
+            .and_then(|rc| rc.page_size)
+            .unwrap_or(self.config.page_size)
+    }
+
+    pub fn get_current_max_commits(&self) -> usize {
+        self.get_selected_item()
+            .and_then(|path| self.config.repo_configs.get(path))
+            .and_then(|rc| rc.max_commits)
+            .unwrap_or(self.config.max_commits)
+    }
+
+    pub fn get_current_resync_on_tab_change(&self) -> bool {
+        self.get_selected_item()
+            .and_then(|path| self.config.repo_configs.get(path))
+            .and_then(|rc| rc.resync_on_tab_change)
+            .unwrap_or(self.config.resync_on_tab_change)
+    }
+
     pub fn get_selected_item_index(&self) -> Option<usize> {
         self.get_filtered_items().get(self.selected_index).map(|(orig_idx, _)| *orig_idx)
     }
@@ -348,8 +369,8 @@ impl App {
                         repo::ItemDetail::Repo { info, .. } => info.commits.len(),
                         _ => 200,
                     };
-                    self.commit_list.limit = if self.config.max_commits > 0 {
-                        cached_commits_count.max(self.config.max_commits)
+                    self.commit_list.limit = if self.get_current_max_commits() > 0 {
+                        cached_commits_count.max(self.get_current_max_commits())
                     } else {
                         0
                     };
@@ -369,7 +390,7 @@ impl App {
                     let _ = tx.send((item_clone, detail));
                 });
             } else {
-                self.commit_list.limit = self.config.max_commits;
+                self.commit_list.limit = self.get_current_max_commits();
                 self.loading_repo_path = Some(item.clone());
                 let max_commits = self.commit_list.limit;
                 std::thread::spawn(move || {
@@ -655,12 +676,12 @@ impl App {
     /// Trigger asynchronous loading of a tab's lazy data if it is not yet loaded or stale.
     #[allow(clippy::collapsible_match)]
     pub fn trigger_tab_load_if_needed(&mut self, tab_idx: usize) {
+        let commit_limit = self.get_current_max_commits();
         let Some(repo::ItemDetail::Repo { resolved, info }) = &mut self.current_detail else {
             return;
         };
         let path = resolved.clone();
         let tx = self.tab_tx.clone();
-        let commit_limit = self.config.max_commits;
         let graph_max_commits = self.config.graph_max_commits;
         let tab_ttl = self.config.tab_ttl_secs;
 

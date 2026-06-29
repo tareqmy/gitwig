@@ -444,7 +444,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                 7 => app.detail_focus = DetailSection::Commits,
                                 _ => {}
                             }
-                            if app.config.resync_on_tab_change {
+                            if app.get_current_resync_on_tab_change() {
                                 app.resync_detail();
                             }
                             break;

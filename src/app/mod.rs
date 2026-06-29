@@ -134,8 +134,8 @@ pub enum Mode {
     FileHistory,
     /// Editing repository labels.
     LabelInput,
-    /// Choosing a custom theme for the repository inside Overview.
-    RepoThemePicker,
+    /// Choosing custom settings for the repository inside Overview.
+    RepoSettings,
     /// Confirming self-update of the application.
     UpdateConfirm,
 }
@@ -324,6 +324,12 @@ pub struct App {
     pub update_available: Option<String>,
     /// Stored previous mode to restore after confirmation/popups.
     pub previous_mode: Option<Mode>,
+    /// Row selection index for the repository settings popup.
+    pub repo_settings_selected_index: usize,
+    /// Whether we are currently text-editing a repository setting.
+    pub repo_settings_editing: bool,
+    /// Temporary text input buffer for repository settings.
+    pub repo_settings_input: String,
     /// Whether external Git application launch is pending.
     pub pending_git_app: bool,
     /// Whether fzf search launch is pending.
@@ -660,7 +666,7 @@ impl App {
                 crate::queue::InternalEvent::CommitSelectionUp => self.detail_commit_up(),
                 crate::queue::InternalEvent::CommitSelectionDown => self.detail_commit_down(),
                 crate::queue::InternalEvent::CommitSelectionPageUp => {
-                    let page = self.config.page_size;
+                    let page = self.get_current_page_size();
                     self.detail_commit_page_up(page);
                 }
 
@@ -670,8 +676,11 @@ impl App {
                 }
                 crate::queue::InternalEvent::LoadMoreCommits => {
                     if self.commit_list.limit > 0 {
-                        let add_amount =
-                            if self.config.max_commits > 0 { self.config.max_commits } else { 200 };
+                        let add_amount = if self.get_current_max_commits() > 0 {
+                            self.get_current_max_commits()
+                        } else {
+                            200
+                        };
                         self.commit_list.limit = self.commit_list.limit.saturating_add(add_amount);
                         self.resync_detail();
                         self.status_message = Some("Loading more commits...".to_string());
@@ -726,11 +735,11 @@ impl App {
                 crate::queue::InternalEvent::DiffScrollUp => self.diff.diff_scroll_up(),
                 crate::queue::InternalEvent::DiffScrollDown => self.diff.diff_scroll_down(),
                 crate::queue::InternalEvent::DiffScrollPageUp => {
-                    let page = self.config.page_size;
+                    let page = self.get_current_page_size();
                     self.diff.diff_scroll_page_up(page);
                 }
                 crate::queue::InternalEvent::DiffScrollPageDown => {
-                    let page = self.config.page_size;
+                    let page = self.get_current_page_size();
                     self.diff.diff_scroll_page_down(page);
                 }
                 crate::queue::InternalEvent::DiffScrollTop => self.diff.diff_scroll_to_top(),
@@ -740,11 +749,11 @@ impl App {
                 crate::queue::InternalEvent::FileTreeUp => self.file_list_up(),
                 crate::queue::InternalEvent::FileTreeDown => self.file_list_down(),
                 crate::queue::InternalEvent::FileTreePageUp => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.file_list_page_up(p)
                 }
                 crate::queue::InternalEvent::FileTreePageDown => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.file_list_page_down(p)
                 }
                 crate::queue::InternalEvent::FileTreeTop => self.file_list_to_top(),
@@ -756,11 +765,11 @@ impl App {
                     self.file_tree.file_content_scroll_down()
                 }
                 crate::queue::InternalEvent::FileContentPageUp => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.file_tree.file_content_scroll_page_up(p)
                 }
                 crate::queue::InternalEvent::FileContentPageDown => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.file_tree.file_content_scroll_page_down(p)
                 }
                 crate::queue::InternalEvent::FileContentTop => {
@@ -777,11 +786,11 @@ impl App {
                 crate::queue::InternalEvent::LocalBranchUp => self.local_branch_up(),
                 crate::queue::InternalEvent::LocalBranchDown => self.local_branch_down(),
                 crate::queue::InternalEvent::LocalBranchPageUp => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.local_branch_page_up(p)
                 }
                 crate::queue::InternalEvent::LocalBranchPageDown => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.local_branch_page_down(p)
                 }
                 crate::queue::InternalEvent::LocalBranchTop => self.local_branch_to_top(),
@@ -789,11 +798,11 @@ impl App {
                 crate::queue::InternalEvent::RemoteBranchUp => self.remote_branch_up(),
                 crate::queue::InternalEvent::RemoteBranchDown => self.remote_branch_down(),
                 crate::queue::InternalEvent::RemoteBranchPageUp => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.remote_branch_page_up(p)
                 }
                 crate::queue::InternalEvent::RemoteBranchPageDown => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.remote_branch_page_down(p)
                 }
                 crate::queue::InternalEvent::RemoteBranchTop => self.remote_branch_to_top(),
@@ -826,11 +835,11 @@ impl App {
                 crate::queue::InternalEvent::TagUp => self.local_tag_up(),
                 crate::queue::InternalEvent::TagDown => self.local_tag_down(),
                 crate::queue::InternalEvent::TagPageUp => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.local_tag_page_up(p)
                 }
                 crate::queue::InternalEvent::TagPageDown => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.local_tag_page_down(p)
                 }
                 crate::queue::InternalEvent::TagTop => self.local_tag_to_top(),
@@ -845,11 +854,11 @@ impl App {
                 crate::queue::InternalEvent::StashUp => self.stash_up(),
                 crate::queue::InternalEvent::StashDown => self.stash_down(),
                 crate::queue::InternalEvent::StashPageUp => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.stash_page_up(p)
                 }
                 crate::queue::InternalEvent::StashPageDown => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.stash_page_down(p)
                 }
                 crate::queue::InternalEvent::StashTop => self.stash_to_top(),
@@ -857,11 +866,11 @@ impl App {
                 crate::queue::InternalEvent::StashFileUp => self.stash_file_up(),
                 crate::queue::InternalEvent::StashFileDown => self.stash_file_down(),
                 crate::queue::InternalEvent::StashFilePageUp => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.stash_file_page_up(p)
                 }
                 crate::queue::InternalEvent::StashFilePageDown => {
-                    let p = self.config.page_size;
+                    let p = self.get_current_page_size();
                     self.stash_file_page_down(p)
                 }
                 crate::queue::InternalEvent::StashFileTop => self.stash_file_to_top(),
@@ -870,7 +879,7 @@ impl App {
                 crate::queue::InternalEvent::RequestApplyStash => self.request_stash_apply(),
 
                 crate::queue::InternalEvent::CommitSelectionPageDown => {
-                    let page = self.config.page_size;
+                    let page = self.get_current_page_size();
                     self.detail_commit_page_down(page);
                 }
                 _ => {}
@@ -941,6 +950,9 @@ impl App {
             fetching: false,
             update_available: None,
             previous_mode: None,
+            repo_settings_selected_index: 0,
+            repo_settings_editing: false,
+            repo_settings_input: String::new(),
             pending_git_app: false,
             pending_fzf: false,
             pending_bulk_fzf: false,

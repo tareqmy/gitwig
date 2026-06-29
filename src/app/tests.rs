@@ -4490,8 +4490,10 @@ border_type = "thick"
     std::fs::write(&nord_theme_path, theme_data).unwrap();
 
     let mut repo_configs = HashMap::new();
-    repo_configs
-        .insert("/path/to/custom_repo".to_string(), RepoConfig { theme: Some("nord".to_string()) });
+    repo_configs.insert(
+        "/path/to/custom_repo".to_string(),
+        RepoConfig { theme: Some("nord".to_string()), ..Default::default() },
+    );
 
     let config = Config {
         items: vec!["/path/to/custom_repo".to_string()],
@@ -4513,7 +4515,7 @@ border_type = "thick"
 }
 
 #[test]
-fn test_repo_theme_picker_flow() {
+fn test_repo_settings_flow() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
 
@@ -4527,32 +4529,42 @@ fn test_repo_theme_picker_flow() {
     app.detail_tab = 7; // Overview tab
     app.selected_index = 0;
 
-    // Verify pressing 's' opens theme picker
+    // Verify pressing 's' opens repo settings popup
     let s_press = key_event(KeyCode::Char('s'));
     let handled = crate::input::handle_key(&mut app, s_press, 1);
     assert!(handled);
-    assert_eq!(app.mode, Mode::RepoThemePicker);
+    assert_eq!(app.mode, Mode::RepoSettings);
+    assert_eq!(app.repo_settings_selected_index, 0);
 
-    // Simulate settings theme list loading
-    app.settings_theme_list =
-        vec!["default".to_string(), "dracula".to_string(), "nord".to_string()];
-    app.settings_theme_index = 0;
-
-    // Simulate pressing Down key to choose "dracula"
+    // Simulate pressing Down key to go to Page Size row
     let down_press = key_event(KeyCode::Down);
     let handled = crate::input::handle_key(&mut app, down_press, 1);
     assert!(handled);
-    assert_eq!(app.settings_theme_index, 1);
+    assert_eq!(app.repo_settings_selected_index, 1);
 
-    // Simulate pressing Enter to apply
+    // Simulate pressing Enter to start editing Page Size
     let enter_press = key_event(KeyCode::Enter);
     let handled = crate::input::handle_key(&mut app, enter_press, 1);
     assert!(handled);
-    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.repo_settings_editing);
 
-    // Verify configured theme in config is set to "dracula"
+    // Simulate typing "1" and "5" and pressing Enter to apply
+    let one_press = key_event(KeyCode::Char('1'));
+    let handled = crate::input::handle_key(&mut app, one_press, 1);
+    assert!(handled);
+    let five_press = key_event(KeyCode::Char('5'));
+    let handled = crate::input::handle_key(&mut app, five_press, 1);
+    assert!(handled);
+    assert_eq!(app.repo_settings_input, "15");
+
+    let enter_press = key_event(KeyCode::Enter);
+    let handled = crate::input::handle_key(&mut app, enter_press, 1);
+    assert!(handled);
+    assert!(!app.repo_settings_editing);
+
+    // Verify configured page size in config is set to 15
     let repo_cfg = app.config.repo_configs.get("/path/to/custom_repo").unwrap();
-    assert_eq!(repo_cfg.theme.as_deref(), Some("dracula"));
+    assert_eq!(repo_cfg.page_size, Some(15));
 
     // Clean up
     let _ = std::fs::remove_file(config_path);
@@ -4567,4 +4579,33 @@ fn test_is_newer_version() {
     assert!(!is_newer_version("2.2.1", "2.2.1"));
     assert!(!is_newer_version("2.2.1", "2.2.0"));
     assert!(!is_newer_version("3.0.0", "2.2.1"));
+}
+
+#[test]
+fn test_repo_settings_fallbacks() {
+    let mut config = Config::default();
+    config.page_size = 10;
+    config.max_commits = 100;
+    config.resync_on_tab_change = true;
+    config.items = vec!["/path/to/repo_a".to_string(), "/path/to/repo_b".to_string()];
+
+    let mut repo_cfg = RepoConfig::default();
+    repo_cfg.page_size = Some(15);
+    repo_cfg.max_commits = Some(200);
+    repo_cfg.resync_on_tab_change = Some(false);
+    config.repo_configs.insert("/path/to/repo_a".to_string(), repo_cfg);
+
+    let mut app = App::new(config, std::path::PathBuf::from("dummy.toml"));
+
+    // By default, first repo (repo_a) is selected
+    app.selected_index = 0;
+    assert_eq!(app.get_current_page_size(), 15);
+    assert_eq!(app.get_current_max_commits(), 200);
+    assert_eq!(app.get_current_resync_on_tab_change(), false);
+
+    // If second repo (repo_b) is selected, fallback to global configs
+    app.selected_index = 1;
+    assert_eq!(app.get_current_page_size(), 10);
+    assert_eq!(app.get_current_max_commits(), 100);
+    assert_eq!(app.get_current_resync_on_tab_change(), true);
 }

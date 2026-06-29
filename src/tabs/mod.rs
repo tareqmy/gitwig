@@ -53,7 +53,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             app.inspect_full_diff = false;
             app.detail_tab = (app.detail_tab + 1) % 8;
             app.set_default_focus_for_tab();
-            if app.config.resync_on_tab_change {
+            if app.get_current_resync_on_tab_change() {
                 app.resync_detail();
             }
         }
@@ -61,7 +61,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             app.inspect_full_diff = false;
             app.detail_tab = if app.detail_tab == 0 { 7 } else { app.detail_tab - 1 };
             app.set_default_focus_for_tab();
-            if app.config.resync_on_tab_change {
+            if app.get_current_resync_on_tab_change() {
                 app.resync_detail();
             }
         }
@@ -69,7 +69,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             app.inspect_full_diff = false;
             app.detail_tab = 0;
             app.detail_focus = DetailSection::Commits;
-            if app.config.resync_on_tab_change {
+            if app.get_current_resync_on_tab_change() {
                 app.resync_detail();
             }
         }
@@ -77,14 +77,14 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             app.inspect_full_diff = false;
             app.detail_tab = 1;
             app.detail_focus = DetailSection::Files;
-            if app.config.resync_on_tab_change {
+            if app.get_current_resync_on_tab_change() {
                 app.resync_detail();
             }
         }
         KeyCode::Char('3') => {
             app.inspect_full_diff = false;
             app.detail_tab = 2;
-            if app.config.resync_on_tab_change {
+            if app.get_current_resync_on_tab_change() {
                 app.resync_detail();
             }
         }
@@ -92,7 +92,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             app.inspect_full_diff = false;
             app.detail_tab = 3;
             app.detail_focus = DetailSection::LocalBranches;
-            if app.config.resync_on_tab_change {
+            if app.get_current_resync_on_tab_change() {
                 app.resync_detail();
             }
         }
@@ -100,7 +100,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             app.inspect_full_diff = false;
             app.detail_tab = 4;
             app.detail_focus = DetailSection::LocalTags;
-            if app.config.resync_on_tab_change {
+            if app.get_current_resync_on_tab_change() {
                 app.resync_detail();
             }
         }
@@ -108,7 +108,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             app.inspect_full_diff = false;
             app.detail_tab = 5;
             app.detail_focus = DetailSection::Remotes;
-            if app.config.resync_on_tab_change {
+            if app.get_current_resync_on_tab_change() {
                 app.resync_detail();
             }
         }
@@ -116,7 +116,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             app.inspect_full_diff = false;
             app.detail_tab = 6;
             app.detail_focus = DetailSection::Stashes;
-            if app.config.resync_on_tab_change {
+            if app.get_current_resync_on_tab_change() {
                 app.resync_detail();
             }
         }
@@ -124,7 +124,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             app.inspect_full_diff = false;
             app.detail_tab = 7;
             app.detail_focus = DetailSection::Commits;
-            if app.config.resync_on_tab_change {
+            if app.get_current_resync_on_tab_change() {
                 app.resync_detail();
             }
         }
@@ -138,20 +138,10 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             6 => return StashesTab::handle_event(app, key),
             7 => {
                 if code == KeyCode::Char('s') || code == KeyCode::Char('S') {
-                    app.settings_theme_list = app.get_available_themes();
-                    let configured_theme = app
-                        .get_selected_item()
-                        .and_then(|path| {
-                            app.config.repo_configs.get(path).and_then(|rc| rc.theme.as_ref())
-                        })
-                        .map(|s| s.as_str())
-                        .unwrap_or("default");
-                    app.settings_theme_index = app
-                        .settings_theme_list
-                        .iter()
-                        .position(|t| t == configured_theme)
-                        .unwrap_or(0);
-                    app.mode = Mode::RepoThemePicker;
+                    app.repo_settings_selected_index = 0;
+                    app.repo_settings_editing = false;
+                    app.repo_settings_input = String::new();
+                    app.mode = Mode::RepoSettings;
                     return true;
                 }
             }

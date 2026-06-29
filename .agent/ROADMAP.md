@@ -93,8 +93,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Add fzf as dependency
 - [x] Git logs pagination
 - [x] Per repository settings, theme
-- [ ] **Check version updates and notify the user and the option to update**
-- [ ] **Is it possible to see where in the globe the download is happening?**
+- [x] Check version updates and notify the user and the option to update
 - [ ] **Keybindings**
 - [ ] **Per Repository rule**
 - [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.

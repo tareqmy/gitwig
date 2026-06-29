@@ -18,8 +18,8 @@ impl HomeTab {
                     app.move_down(visible_count)
                 }
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => app.move_up(),
-                KeyCode::PageDown => app.page_down(app.config.page_size),
-                KeyCode::PageUp => app.page_up(app.config.page_size),
+                KeyCode::PageDown => app.page_down(app.get_current_page_size()),
+                KeyCode::PageUp => app.page_up(app.get_current_page_size()),
                 KeyCode::Home => app.move_to_top(),
                 KeyCode::End => app.move_to_bottom(visible_count),
                 KeyCode::Char('a') => app.start_add(),

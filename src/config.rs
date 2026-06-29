@@ -69,6 +69,12 @@ pub struct ThemeConfig {
 pub struct RepoConfig {
     #[serde(default)]
     pub theme: Option<String>,
+    #[serde(default)]
+    pub page_size: Option<usize>,
+    #[serde(default)]
+    pub max_commits: Option<usize>,
+    #[serde(default)]
+    pub resync_on_tab_change: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]

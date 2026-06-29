@@ -66,16 +66,16 @@ impl BranchesTab {
             }
             KeyCode::PageUp => {
                 if detail_focus == DetailSection::LocalBranches {
-                    app.local_branch_page_up(app.config.page_size);
+                    app.local_branch_page_up(app.get_current_page_size());
                 } else {
-                    app.remote_branch_page_up(app.config.page_size);
+                    app.remote_branch_page_up(app.get_current_page_size());
                 }
             }
             KeyCode::PageDown => {
                 if detail_focus == DetailSection::LocalBranches {
-                    app.local_branch_page_down(app.config.page_size);
+                    app.local_branch_page_down(app.get_current_page_size());
                 } else {
-                    app.remote_branch_page_down(app.config.page_size);
+                    app.remote_branch_page_down(app.get_current_page_size());
                 }
             }
             KeyCode::Home => {

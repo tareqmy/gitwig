@@ -83,7 +83,7 @@ pub fn draw(
                 | Mode::RemoteAddNameInput
                 | Mode::RemoteAddUrlInput
                 | Mode::RemoteDeleteConfirm
-                | Mode::RepoThemePicker
+                | Mode::RepoSettings
         ) {
             if let Some(repo_theme) = app.repo_theme_cache.get(repo_path) {
                 // Save current theme state
@@ -147,7 +147,7 @@ pub fn draw(
             | Mode::RemoteAddNameInput
             | Mode::RemoteAddUrlInput
             | Mode::RemoteDeleteConfirm
-            | Mode::RepoThemePicker
+            | Mode::RepoSettings
     ) || (app.mode == Mode::UpdateConfirm && app.current_detail.is_some())
     {
         if let Some(detail) = &app.current_detail {
@@ -232,8 +232,8 @@ pub fn draw(
         crate::popups::about::draw_about_popup(f, area, app);
     }
 
-    if matches!(app.mode, Mode::RepoThemePicker) {
-        crate::popups::repo_theme::RepoThemePopup::draw(f, app, area);
+    if matches!(app.mode, Mode::RepoSettings) {
+        crate::popups::repo_settings::RepoSettingsPopup::draw(f, app, area);
     }
 
     if matches!(app.mode, Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput) {

@@ -14,7 +14,7 @@ pub mod inspect;
 pub mod loading;
 pub mod log_search;
 pub mod remote_picker;
-pub mod repo_theme;
+pub mod repo_settings;
 pub mod search_columns;
 pub mod settings;
 pub mod stash_msg;

@@ -8,8 +8,8 @@ impl LogsTab {
         match code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => app.detail_commit_up(),
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => app.detail_commit_down(),
-            KeyCode::PageUp => app.detail_commit_page_up(app.config.page_size),
-            KeyCode::PageDown => app.detail_commit_page_down(app.config.page_size),
+            KeyCode::PageUp => app.detail_commit_page_up(app.get_current_page_size()),
+            KeyCode::PageDown => app.detail_commit_page_down(app.get_current_page_size()),
             KeyCode::Home => app.detail_commit_to_top(),
             KeyCode::End => app.detail_commit_to_bottom(),
             KeyCode::Char('f') => {
@@ -18,8 +18,11 @@ impl LogsTab {
             }
             KeyCode::Char('G') => {
                 if app.commit_list.limit > 0 {
-                    let add_amount =
-                        if app.config.max_commits > 0 { app.config.max_commits } else { 200 };
+                    let add_amount = if app.get_current_max_commits() > 0 {
+                        app.get_current_max_commits()
+                    } else {
+                        200
+                    };
                     app.commit_list.limit = app.commit_list.limit.saturating_add(add_amount);
                     app.resync_detail();
                     app.status_message = Some("Loading more commits...".to_string());

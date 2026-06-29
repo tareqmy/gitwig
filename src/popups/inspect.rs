@@ -251,24 +251,24 @@ impl InspectPopup {
                     || app.detail_focus == DetailSection::Conflicts
                 {
                     if app.detail_focus == DetailSection::Conflicts {
-                        for _ in 0..app.config.page_size {
+                        for _ in 0..app.get_current_page_size() {
                             app.conflict_file_up();
                         }
                     } else if app.is_uncommitted_selected() {
-                        for _ in 0..app.config.page_size {
+                        for _ in 0..app.get_current_page_size() {
                             app.staging_file_up();
                         }
                     } else {
-                        for _ in 0..app.config.page_size {
+                        for _ in 0..app.get_current_page_size() {
                             app.detail_file_up();
                         }
                     }
                 } else if app.detail_focus == DetailSection::CommitDetails {
-                    for _ in 0..app.config.page_size {
+                    for _ in 0..app.get_current_page_size() {
                         app.commit_list.details_scroll_up();
                     }
                 } else {
-                    app.diff.diff_scroll_page_up(app.config.page_size);
+                    app.diff.diff_scroll_page_up(app.get_current_page_size());
                 }
             }
             KeyCode::PageDown => {
@@ -277,24 +277,24 @@ impl InspectPopup {
                     || app.detail_focus == DetailSection::Conflicts
                 {
                     if app.detail_focus == DetailSection::Conflicts {
-                        for _ in 0..app.config.page_size {
+                        for _ in 0..app.get_current_page_size() {
                             app.conflict_file_down();
                         }
                     } else if app.is_uncommitted_selected() {
-                        for _ in 0..app.config.page_size {
+                        for _ in 0..app.get_current_page_size() {
                             app.staging_file_down();
                         }
                     } else {
-                        for _ in 0..app.config.page_size {
+                        for _ in 0..app.get_current_page_size() {
                             app.detail_file_down();
                         }
                     }
                 } else if app.detail_focus == DetailSection::CommitDetails {
-                    for _ in 0..app.config.page_size {
+                    for _ in 0..app.get_current_page_size() {
                         app.commit_list.details_scroll_down();
                     }
                 } else {
-                    app.diff.diff_scroll_page_down(app.config.page_size);
+                    app.diff.diff_scroll_page_down(app.get_current_page_size());
                 }
             }
             KeyCode::Home => {
