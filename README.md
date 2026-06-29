@@ -364,6 +364,22 @@ When Compatibility Mode is active, Gitwig will automatically substitute all Nerd
 
 ### Installation
 
+#### Via Shell Script (macOS / Linux)
+
+For a quick installation, run the following command in your terminal:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/main/install.sh | sh
+```
+
+*Note: If the repository is private, set your GitHub token first:*
+```sh
+export GITHUB_TOKEN="your_github_pat"
+curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/main/install.sh | sh
+```
+
+#### Via Cargo
+
 You can install **Gitwig** directly from [crates.io](https://crates.io/crates/gitwig):
 
 ```sh

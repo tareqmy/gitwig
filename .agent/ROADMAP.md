@@ -89,6 +89,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 ## Phase 8:
 - [x] Per-file history view
 - [x] Apply label for repositories: so that from the home page it can be viewed as a group
+- [x] Distribute application via a curl-to-sh script (`install.sh`).
 - [ ] **Per repository settings, theme**
 - [ ] **Show UI first, Load data later per tab**
 - [ ] **Keybindings**
