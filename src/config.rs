@@ -65,6 +65,12 @@ pub struct ThemeConfig {
     pub border_type: String,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
+pub struct RepoConfig {
+    #[serde(default)]
+    pub theme: Option<String>,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct FzfConfig {
     #[serde(default = "default_fzf_max_depth")]
@@ -88,6 +94,33 @@ impl Default for ThemeConfig {
 impl Default for FzfConfig {
     fn default() -> Self {
         default_fzf()
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            items: vec![],
+            poll_interval_ms: default_poll_interval_ms(),
+            max_commits: default_max_commits(),
+            graph_max_commits: default_graph_max_commits(),
+            detail_cache_ttl_secs: default_detail_cache_ttl_secs(),
+            tab_ttl_secs: default_tab_ttl_secs(),
+            page_size: default_page_size(),
+            sort_by: default_sort_by(),
+            visits: default_visits(),
+            labels: std::collections::HashMap::new(),
+            repo_configs: std::collections::HashMap::new(),
+            sort_reverse: false,
+            pinned: std::collections::HashSet::new(),
+            theme_name: default_theme_name(),
+            theme: default_theme(),
+            fzf: default_fzf(),
+            git_app: default_git_app(),
+            compatibility_mode: true,
+            resync_on_tab_change: false,
+            enable_commit_signatures: false,
+        }
     }
 }
 
@@ -198,6 +231,9 @@ pub struct Config {
     /// Map of repository paths to their labels.
     #[serde(default)]
     pub labels: std::collections::HashMap<String, Vec<String>>,
+    /// Repository specific configurations.
+    #[serde(default)]
+    pub repo_configs: std::collections::HashMap<String, RepoConfig>,
     /// Whether sorting should be reversed.
     #[serde(default)]
     pub sort_reverse: bool,
@@ -375,6 +411,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 sort_by: default_sort_by(),
                 visits: default_visits(),
                 labels: std::collections::HashMap::new(),
+                repo_configs: std::collections::HashMap::new(),
                 sort_reverse: false,
                 pinned: std::collections::HashSet::new(),
                 theme_name: fallback_theme_name,
@@ -461,6 +498,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
         sort_by: default_sort_by(),
         visits: default_visits(),
         labels: std::collections::HashMap::new(),
+        repo_configs: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         theme_name: default_theme_name(),

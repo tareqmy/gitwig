@@ -170,6 +170,30 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = about_dismiss_entries();
             draw_status_layout(f, area, msg_spans, entries, app);
         }
+        Mode::RepoThemePicker => {
+            let msg_spans = vec![
+                Span::styled(
+                    "Set Repository Theme  ",
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled("Use arrow keys / j / k to select, Enter to apply", muted_style()),
+            ];
+            let entries_data = [("Apply", "Enter"), ("Cancel", "Esc")];
+            let mut entries = Vec::new();
+            for (i, (label, key)) in entries_data.iter().enumerate() {
+                let mut spans = Vec::new();
+                if i > 0 {
+                    spans.push(Span::styled(" ", muted_style()));
+                }
+                spans.push(Span::raw((*label).to_string()));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("[", muted_style()));
+                spans.push(Span::styled((*key).to_string(), accent_style()));
+                spans.push(Span::styled("]", muted_style()));
+                entries.push(StatusEntry::new(spans));
+            }
+            draw_status_layout(f, area, Some(msg_spans), entries, app);
+        }
         Mode::Detail | Mode::RemoteAddNameInput | Mode::RemoteAddUrlInput => {
             let (msg_spans, entries) = detail_dismiss_entries(app);
             draw_status_layout(f, area, msg_spans, entries, app);
@@ -790,7 +814,13 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             v.push(("Help", "?"));
             v
         }
-        7 => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Resync", "R"), ("Help", "?")],
+        7 => vec![
+            ("Home", "⎋/q"),
+            ("Tabs", "Tab/1-8"),
+            ("Set Repo Theme", "s"),
+            ("Resync", "R"),
+            ("Help", "?"),
+        ],
         _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Resync", "R"), ("Help", "?")],
     };
     for (i, (label, key)) in entries_data.iter().enumerate() {
@@ -1071,6 +1101,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         Mode::Settings => ("SETTINGS", Color::Green),
         Mode::Help | Mode::DetailHelp => ("HELP", Color::Rgb(150, 150, 150)),
         Mode::About => ("ABOUT", Color::Rgb(150, 150, 150)),
+        Mode::RepoThemePicker => ("THEME", Color::Rgb(135, 0, 135)),
         Mode::Adding
         | Mode::BulkAddInput
         | Mode::Editing

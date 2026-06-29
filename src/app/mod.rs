@@ -134,6 +134,8 @@ pub enum Mode {
     FileHistory,
     /// Editing repository labels.
     LabelInput,
+    /// Choosing a custom theme for the repository inside Overview.
+    RepoThemePicker,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -328,6 +330,9 @@ pub struct App {
     pub pending_interactive_rebase: Option<(PathBuf, String)>,
     /// Whether we are currently viewing logs UI.
     pub in_logs_ui: bool,
+    /// Cached resolved ThemeConfigs for repositories.
+    /// Keyed by repository absolute path.
+    pub repo_theme_cache: std::collections::HashMap<String, crate::config::ThemeConfig>,
     /// Whether we are in full-screen diff mode under inspect view.
     pub inspect_full_diff: bool,
     /// Selection in search column picker.
@@ -454,6 +459,26 @@ mod tests;
 mod workspace;
 
 impl App {
+    pub fn resolve_repo_themes(&mut self) {
+        self.repo_theme_cache.clear();
+        let themes_dir = self.config_path.parent().unwrap_or(&self.config_path).join("themes");
+        if !themes_dir.exists() {
+            return;
+        }
+        for (repo_path, repo_cfg) in &self.config.repo_configs {
+            if let Some(theme_name) = &repo_cfg.theme {
+                let theme_path = themes_dir.join(format!("{}.theme", theme_name));
+                if theme_path.exists() {
+                    if let Ok(theme_contents) = std::fs::read_to_string(&theme_path) {
+                        if let Ok(theme) = toml::from_str::<crate::config::ThemeConfig>(&theme_contents) {
+                            self.repo_theme_cache.insert(repo_path.clone(), theme);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn setup_watcher(&mut self) {
         use notify::{RecursiveMode, Watcher};
 
@@ -908,6 +933,7 @@ impl App {
             pending_files_fzf: false,
             pending_interactive_rebase: None,
             in_logs_ui: false,
+            repo_theme_cache: std::collections::HashMap::new(),
             inspect_full_diff: false,
             search_column_selection: 0,
             search_columns_sha: true,
@@ -1030,6 +1056,7 @@ impl App {
             }
         }
 
+        app.resolve_repo_themes();
         app.setup_watcher();
 
         app

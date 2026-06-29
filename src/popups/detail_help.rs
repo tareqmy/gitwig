@@ -86,6 +86,7 @@ pub fn get_detail_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("f", "Open search logs picker"),
                 ("l", "Open Logs view (Full screen commits list)"),
                 ("G", "Load more commits (Workspace / Logs view)"),
+                ("s", "Set repository theme (Overview tab only)"),
             ],
         ),
         (

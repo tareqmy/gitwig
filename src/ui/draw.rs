@@ -46,6 +46,65 @@ pub fn draw(
     detail_areas: &mut crate::ui_detail::DetailAreas,
     main_areas: &mut Vec<Rect>,
 ) {
+    let mut swapped_theme = None;
+    if let Some(repo_path) = app.get_selected_item() {
+        if matches!(
+            app.mode,
+            Mode::Detail
+                | Mode::DetailHelp
+                | Mode::CommitInput
+                | Mode::BranchCreateInput
+                | Mode::TagCreateInput
+                | Mode::StashingUI
+                | Mode::BranchDeleteConfirm
+                | Mode::BranchCheckoutConfirm
+                | Mode::TagCheckoutConfirm
+                | Mode::BranchPushConfirm
+                | Mode::BranchMergeConfirm
+                | Mode::BranchRebaseConfirm
+                | Mode::BranchInteractiveRebaseConfirm
+                | Mode::TagDeleteConfirm
+                | Mode::TagPushConfirm
+                | Mode::TagPushAllConfirm
+                | Mode::StashDeleteConfirm
+                | Mode::StashApplyConfirm
+                | Mode::CherryPickConfirm
+                | Mode::RevertConfirm
+                | Mode::MergeAbortConfirm
+                | Mode::MergeContinueConfirm
+                | Mode::StashCreateInput
+                | Mode::RemotePicker
+                | Mode::CommitSearchInput
+                | Mode::DiscardChangesConfirm
+                | Mode::Inspect
+                | Mode::SearchColumnPicker
+                | Mode::Logs
+                | Mode::LogsSearchInput
+                | Mode::RemoteAddNameInput
+                | Mode::RemoteAddUrlInput
+                | Mode::RemoteDeleteConfirm
+                | Mode::RepoThemePicker
+        ) {
+            if let Some(repo_theme) = app.repo_theme_cache.get(repo_path) {
+                // Save current theme state
+                let current_theme_config = {
+                    let lock = crate::ui::style::THEME.read().unwrap();
+                    crate::config::ThemeConfig {
+                        accent: crate::ui::style::format_color(lock.accent),
+                        warning: crate::ui::style::format_color(lock.warning),
+                        danger: crate::ui::style::format_color(lock.danger),
+                        success: crate::ui::style::format_color(lock.success),
+                        border_type: crate::ui::style::format_border_type(lock.border_type),
+                    }
+                };
+                
+                // Swap with repo-specific theme
+                crate::ui::update_theme(repo_theme);
+                swapped_theme = Some(current_theme_config);
+            }
+        }
+    }
+
     draw_outer_frame(f, area, app);
 
     // Always reserve the bottom row for the status bar, regardless of mode.
@@ -88,6 +147,7 @@ pub fn draw(
             | Mode::RemoteAddNameInput
             | Mode::RemoteAddUrlInput
             | Mode::RemoteDeleteConfirm
+            | Mode::RepoThemePicker
     ) {
         if let Some(detail) = &app.current_detail {
             let item_name = app.get_selected_item().map(String::as_str).unwrap_or("");
@@ -171,6 +231,10 @@ pub fn draw(
         crate::popups::about::draw_about_popup(f, area, app);
     }
 
+    if matches!(app.mode, Mode::RepoThemePicker) {
+        crate::popups::repo_theme::RepoThemePopup::draw(f, app, area);
+    }
+
     if matches!(app.mode, Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput) {
         crate::popups::import::draw_import_popup(f, area, app);
     }
@@ -179,6 +243,10 @@ pub fn draw(
         crate::popups::error::draw_error_popup(f, app, area, err);
     } else if app.fetching {
         crate::popups::loading::draw_progress_popup(f, area, app);
+    }
+
+    if let Some(original_theme) = swapped_theme {
+        crate::ui::update_theme(&original_theme);
     }
 }
 
@@ -792,7 +860,7 @@ mod tests {
             enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
-            graph_max_commits: 1000,
+            graph_max_commits: 1000, ..Default::default() 
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 
@@ -952,7 +1020,7 @@ mod tests {
             enable_commit_signatures: false,
             tab_ttl_secs: 60,
             resync_on_tab_change: false,
-            graph_max_commits: 1000,
+            graph_max_commits: 1000, ..Default::default() 
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 

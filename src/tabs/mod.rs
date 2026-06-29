@@ -1,4 +1,4 @@
-use crate::app::{App, DetailSection};
+use crate::app::{App, DetailSection, Mode};
 use crossterm::event::{KeyCode, KeyEvent};
 
 pub mod branches;
@@ -136,6 +136,19 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
             4 => return TagsTab::handle_event(app, key),
             5 => return RemotesTab::handle_event(app, key),
             6 => return StashesTab::handle_event(app, key),
+            7 => {
+                if code == KeyCode::Char('s') || code == KeyCode::Char('S') {
+                    app.settings_theme_list = app.get_available_themes();
+                    let configured_theme = app.get_selected_item().and_then(|path| {
+                        app.config.repo_configs.get(path).and_then(|rc| rc.theme.as_ref())
+                    }).map(|s| s.as_str()).unwrap_or("default");
+                    app.settings_theme_index = app.settings_theme_list.iter()
+                        .position(|t| t == configured_theme)
+                        .unwrap_or(0);
+                    app.mode = Mode::RepoThemePicker;
+                    return true;
+                }
+            }
             _ => {}
         },
     }

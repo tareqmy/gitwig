@@ -70,6 +70,38 @@ pub fn parse_border_type(s: &str) -> BorderType {
     }
 }
 
+pub fn format_color(color: Color) -> String {
+    match color {
+        Color::Black => "black".to_string(),
+        Color::Red => "red".to_string(),
+        Color::Green => "green".to_string(),
+        Color::Yellow => "yellow".to_string(),
+        Color::Blue => "blue".to_string(),
+        Color::Magenta => "magenta".to_string(),
+        Color::Cyan => "cyan".to_string(),
+        Color::Gray => "gray".to_string(),
+        Color::DarkGray => "darkgray".to_string(),
+        Color::LightRed => "lightred".to_string(),
+        Color::LightGreen => "lightgreen".to_string(),
+        Color::LightYellow => "lightyellow".to_string(),
+        Color::LightBlue => "lightblue".to_string(),
+        Color::LightMagenta => "lightmagenta".to_string(),
+        Color::LightCyan => "lightcyan".to_string(),
+        Color::White => "white".to_string(),
+        _ => "cyan".to_string(),
+    }
+}
+
+pub fn format_border_type(border: BorderType) -> String {
+    match border {
+        BorderType::Plain => "plain".to_string(),
+        BorderType::Rounded => "rounded".to_string(),
+        BorderType::Double => "double".to_string(),
+        BorderType::Thick => "thick".to_string(),
+        _ => "rounded".to_string(),
+    }
+}
+
 pub fn update_theme(theme: &crate::config::ThemeConfig) {
     if let Ok(mut lock) = THEME.write() {
         lock.accent = parse_color(&theme.accent);

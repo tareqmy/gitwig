@@ -153,6 +153,11 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
+        Mode::RepoThemePicker => {
+            if crate::popups::repo_theme::RepoThemePopup::handle_event(app, key) {
+                return true;
+            }
+        }
         Mode::RemotePicker => {
             if crate::popups::remote_picker::RemotePickerPopup::handle_event(app, key) {
                 return true;

@@ -92,8 +92,9 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Distribute application via a curl-to-sh script (`install.sh`).
 - [x] Add fzf as dependency
 - [x] Git logs pagination
-- [ ] **Per repository settings, theme**
-- [ ] **Show UI first, Load data later per tab**
+- [x] Per repository settings, theme
+- [ ] **Check version updates and notify the user and the option to update**
+- [ ] **Is it possible to see where in the globe the download is happening?**
 - [ ] **Keybindings**
 - [ ] **Per Repository rule**
 - [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.

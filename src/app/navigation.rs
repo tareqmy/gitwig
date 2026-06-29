@@ -2160,7 +2160,8 @@ impl App {
 
     /// Persists `self.config` and records a status message (success or
     /// the save error) for the next render.
-    pub(super) fn persist(&mut self, success_msg: &str) {
+    pub fn persist(&mut self, success_msg: &str) {
+        self.resolve_repo_themes();
         self.status_message = match save_config(&self.config, &self.config_path) {
             Ok(()) => Some(success_msg.to_string()),
             Err(e) => Some(format!("Save failed: {}", e)),
