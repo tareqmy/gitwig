@@ -16,6 +16,8 @@
 **Gitwig** requires the following external tools to be installed on your system:
 - **`git`**: A system installation of `git` is required in your `PATH` for operations like staging, diffing, pushing, pulling, and network syncing.
 - **`ssh`**: Required if you use SSH-based Git remotes for network operations.
+  > [!NOTE]
+  > **SSH Host Key Policy:** To prevent connection hangs in the non-interactive TUI context, Gitwig executes git commands with `GIT_SSH_COMMAND` set to `ssh -o StrictHostKeyChecking=accept-new`. This automatically trusts and saves new host keys, while verifying existing ones to protect against MITM attacks. If you require a different SSH policy, make sure to add host keys to your `known_hosts` beforehand.
 - **`fzf`**: (Optional) Used for interactive repository discovery when adding items via the TUI.
 
 ### Installation
