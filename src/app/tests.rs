@@ -4565,8 +4565,14 @@ fn test_repo_settings_flow() {
 
     let mut app = App::new(config, config_path.clone());
     app.mode = Mode::Detail;
-    app.detail_tab = 8; // Overview tab
+    app.detail_tab = 0;
     app.selected_index = 0;
+
+    // Enter Overview mode via 'v'
+    let v_press = key_event(KeyCode::Char('v'));
+    let handled = crate::input::handle_key(&mut app, v_press, 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Overview);
 
     // Verify pressing 's' opens repo settings popup
     let s_press = key_event(KeyCode::Char('s'));

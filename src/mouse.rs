@@ -303,6 +303,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         return;
     }
 
+    if app.mode == Mode::Overview {
+        return;
+    }
+
     if app.mode == Mode::CommitInput {
         if is_scroll_up {
             app.commit_input_scroll_up();
@@ -399,7 +403,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     }
 
     // Only handle detail modes beyond this point.
-    if !matches!(app.mode, Mode::Detail | Mode::DetailHelp | Mode::Inspect | Mode::Logs) {
+    if !matches!(
+        app.mode,
+        Mode::Detail | Mode::DetailHelp | Mode::Inspect | Mode::Logs | Mode::Overview
+    ) {
         return;
     }
 
@@ -421,7 +428,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         ("Remotes", "R", 5),
                         ("Stashes", "S", 6),
                         ("Worktrees", "K", 7),
-                        ("Overview", "O", 8),
+                        ("Submodules", "M", 8),
                     ];
                     let mut current_offset = 2;
                     for &(long_name, short_name, tab_index) in &tabs_data {

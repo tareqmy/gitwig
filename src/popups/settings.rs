@@ -146,7 +146,7 @@ fn get_label(global_idx: usize) -> &'static str {
         51 => "Detail: Tab 6 (Remotes)",
         52 => "Detail: Tab 7 (Stashes)",
         53 => "Detail: Tab 8 (Worktrees)",
-        54 => "Detail: Tab 9 (Overview)",
+        54 => "Detail: Tab 9 (Submodules)",
         _ => "",
     }
 }
@@ -213,7 +213,7 @@ fn get_desc(global_idx: usize) -> &'static str {
         51 => "Switches directly to the configured remotes tab.",
         52 => "Switches directly to the git stashes list tab.",
         53 => "Switches directly to the repository Worktrees list tab.",
-        54 => "Switches directly to the repository Overview info tab.",
+        54 => "Switches directly to the repository Submodules tab.",
         _ => "",
     }
 }

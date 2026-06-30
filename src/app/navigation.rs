@@ -524,6 +524,9 @@ impl App {
                     if new_info.stashes.is_not_loaded() {
                         new_info.stashes = old_info.stashes.clone();
                     }
+                    if new_info.submodules.is_not_loaded() {
+                        new_info.submodules = old_info.submodules.clone();
+                    }
                     if new_info.committer_stats.is_not_loaded() {
                         new_info.committer_stats = old_info.committer_stats.clone();
                         new_info.committer_stats_limit_reached =
@@ -554,6 +557,8 @@ impl App {
             let unstaged_len = info.changes.unstaged.len();
             let worktrees_len =
                 if let repo::TabData::Loaded(wts) = &info.worktrees { wts.len() } else { 0 };
+            let submodules_len =
+                if let repo::TabData::Loaded(subs) = &info.submodules { subs.len() } else { 0 };
 
             let commit_files_len =
                 info.commits.get(self.commit_list.selection).map(|c| c.files.len()).unwrap_or(0);
@@ -570,6 +575,7 @@ impl App {
                 unstaged_len,
                 commit_files_len,
                 worktrees_len,
+                submodules_len,
             ));
         }
 
@@ -585,6 +591,7 @@ impl App {
             unstaged_len,
             commit_files_len,
             worktrees_len,
+            submodules_len,
         )) = info_lengths
         {
             // 1. Commit selection
@@ -607,6 +614,13 @@ impl App {
                 self.worktree_selection = 0;
             } else if self.worktree_selection >= worktrees_len {
                 self.worktree_selection = worktrees_len - 1;
+            }
+
+            // Clamp submodule selection
+            if submodules_len == 0 {
+                self.submodule_selection = 0;
+            } else if self.submodule_selection >= submodules_len {
+                self.submodule_selection = submodules_len - 1;
             }
 
             // 3. Local branches selection
@@ -688,7 +702,6 @@ impl App {
     /// Trigger asynchronous loading of a tab's lazy data if it is not yet loaded or stale.
     #[allow(clippy::collapsible_match)]
     pub fn trigger_tab_load_if_needed(&mut self, tab_idx: usize) {
-        let commit_limit = self.get_current_max_commits();
         let Some(repo::ItemDetail::Repo { resolved, info }) = &mut self.current_detail else {
             return;
         };
@@ -845,23 +858,45 @@ impl App {
                 }
             }
             8 => {
-                let is_not_loaded = info.committer_stats.is_not_loaded();
+                let is_not_loaded = info.submodules.is_not_loaded();
                 if should_trigger(info, tab_idx, is_not_loaded) {
                     info.tab_loading[tab_idx] = true;
                     if is_not_loaded {
-                        info.committer_stats = repo::TabData::Loading;
+                        info.submodules = repo::TabData::Loading;
                     }
                     std::thread::spawn(move || {
-                        let res = repo::load_tab_overview(&path, commit_limit);
+                        let res = repo::load_tab_submodules(&path);
                         let _ = tx.send((
                             path.to_string_lossy().to_string(),
                             tab_idx,
-                            repo::TabPayload::Overview(res),
+                            repo::TabPayload::Submodules(res),
                         ));
                     });
                 }
             }
             _ => {}
+        }
+    }
+
+    pub fn trigger_overview_load_if_needed(&mut self) {
+        let commit_limit = self.get_current_max_commits();
+        let Some(repo::ItemDetail::Repo { resolved, info }) = &mut self.current_detail else {
+            return;
+        };
+        let path = resolved.clone();
+        let tx = self.tab_tx.clone();
+
+        let should_trigger = info.committer_stats.is_not_loaded();
+        if should_trigger {
+            info.committer_stats = repo::TabData::Loading;
+            std::thread::spawn(move || {
+                let res = repo::load_tab_overview(&path, commit_limit);
+                let _ = tx.send((
+                    path.to_string_lossy().to_string(),
+                    99,
+                    repo::TabPayload::Overview(res),
+                ));
+            });
         }
     }
 
@@ -2460,6 +2495,9 @@ impl App {
             }
             7 => {
                 self.detail_focus = DetailSection::Worktrees;
+            }
+            8 => {
+                self.detail_focus = DetailSection::Submodules;
             }
             _ => {}
         }

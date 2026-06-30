@@ -129,9 +129,10 @@ asciinema play resources/preview.cast
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
 | `Esc` / `q`          | Detail          | Return to the list                |
-| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Workspace → Files → Graph → Branches → Tags → Remotes → Stashes → Worktrees → Overview) |
+| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Workspace → Files → Graph → Branches → Tags → Remotes → Stashes → Worktrees → Submodules) |
 | `w` / `W`            | Detail          | Cycle panel focus forward (w) / backward (W) |
-| `1` - `9`            | Detail          | Jump directly to tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), Worktrees (8), or Overview (9) |
+| `1` - `9`            | Detail          | Jump directly to tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), Worktrees (8), or Submodules (9) |
+| `v` / `V`            | Detail          | Toggle full-screen repository Overview overlay |
 | `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
 | `PgUp` / `PgDn`      | Detail / Normal / Settings | Scroll list/diff/tree/settings by configured `page_size` |
@@ -214,7 +215,7 @@ Items support `~` and `~/...` expansion, so `~/code/gitwig` resolves to your hom
 
 ## 🔍 Detail view
 
-Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports nine tabs for git repositories: **Workspace**, **Files**, **Graph**, **Branches**, **Tags**, **Remotes**, **Stashes**, **Worktrees**, and **Overview**.
+Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports nine tabs for git repositories: **Workspace**, **Files**, **Graph**, **Branches**, **Tags**, **Remotes**, **Stashes**, **Worktrees**, and **Submodules**.
 - Press `1` to switch to the **Workspace** tab.
 - Press `2` to switch to the **Files** tab.
 - Press `3` to switch to the **Graph** tab.
@@ -223,7 +224,8 @@ Press `Enter` on a selected item to open a full-screen Detail view. The detail v
 - Press `6` to switch to the **Remotes** tab.
 - Press `7` to switch to the **Stashes** tab.
 - Press `8` to switch to the **Worktrees** tab.
-- Press `9` to switch to the **Overview** tab.
+- Press `9` to switch to the **Submodules** tab.
+- Press `v` from any tab to toggle the repository **Overview** full-screen overlay.
 - Alternatively, press `Tab` / `Shift+Tab` to cycle forward/backward through the tabs.
 - You can also click on the tab headers directly with the mouse to switch tabs.
 Press `Esc` or `q` to return to the repository list.
@@ -297,28 +299,38 @@ The **Worktrees** tab lists all Git worktrees linked to the repository.
 - Press `p` to prune stale worktree metadata.
 - Press `Enter` to open the selected worktree (registers it to the Home screen cards list if not present, and opens it).
 
-### Overview Tab
+### Submodules Tab
 
-The **Overview** tab displays key repository details including resolved paths, branch upstream tracking info, configured remotes, and general status counts.
+The **Submodules** tab lists all git submodules defined in the repository:
+- **Name:** The submodule identifier.
+- **Status:** Shows `Clean`, `Modified` (local changes or commit mismatch), or `Uninitialized`.
+- **Commit (Index):** The target commit SHA the superproject expects.
+- **Commit (HEAD):** The actual checked-out commit SHA in the submodule directory.
+- **URL:** The remote source URL of the submodule.
+
+### Overview Overlay
+
+Pressing `v` from any repository detail tab displays the **Overview** overlay, showing resolved paths, tracking info, and committer statistics. Press `Esc`, `q`, or `v` to return to your workspace. Press `s` inside the Overview overlay to open the Repository Settings page.
 
 ### Navigation & Interaction
 
 You can navigate and interact with these panels in the following ways:
-- **Cycle Focus:** In the Workspace, Files, Branches, Tags, Stashes, and Worktrees tabs, press `w` / `W` to cycle panel focus:
+- **Cycle Focus:** In the Workspace, Files, Branches, Tags, Stashes, Worktrees, and Submodules tabs, press `w` / `W` to cycle panel focus:
   - **Workspace tab:** `Commits` → `Staged` → `Unstaged` → `StagingDetails`.
   - **Files tab:** `Files` (left tree list) ↔ `FileContent` (right preview panel).
   - **Branches tab:** `Local Branches` ↔ `Remote Branches`.
   - **Tags tab:** `Local Tags` ↔ `Remote Tags`.
   - **Stashes tab:** `Stashes` → `Stashed Files` → `StagingDetails`.
   - **Worktrees tab:** `Worktrees` (main table).
-  Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Workspace tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab, `Worktrees` on Worktrees tab).
+  - **Submodules tab:** `Submodules` (main table).
+  Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Workspace tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab, `Worktrees` on Worktrees tab, `Submodules` on Submodules tab).
 - **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels, stashed files list, files list, and the files tab content preview panel) to focus it immediately.
 - **Resize Split Panels:** Left-click and drag the vertical or horizontal boundary splitter lines between panels to resize them dynamically. This is supported in:
   - **Workspace / Inspect:** Main vertical split (commits vs details), bottom horizontal split (left list vs right diff), and left vertical split (staged vs unstaged or commit details vs files list).
   - **Files:** Horizontal split (repository files tree vs file content preview).
   - **Branches:** Horizontal split (local branches vs remote branches).
   - **Stashes:** Horizontal split (stash lists vs diff) and left vertical split (stashes list vs stashed files).
-  - **Overview:** Horizontal split (overview info vs committer stats).
+  - **Overview Overlay:** Horizontal split (overview info vs committer stats).
 - **Mouse Wheel Scroll:** Use the mouse wheel to scroll vertically through the active list, commit history, branch list, files list, stashed files list, staging details diff, or files tab preview panel.
 - **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, tag, stash, stashed file, or file tree item in the active list.
 - **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).

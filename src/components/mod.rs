@@ -47,5 +47,6 @@ pub mod diff;
 pub mod file_tree;
 pub mod stash_list;
 pub mod status_list;
+pub mod submodule_list;
 pub mod tag_list;
 pub mod worktree_list;

@@ -65,7 +65,7 @@ pub fn get_detail_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("6", "Go to Remotes tab"),
                 ("7", "Go to Stashes tab"),
                 ("8", "Go to Worktrees tab"),
-                ("9", "Go to Overview tab"),
+                ("9", "Go to Submodules tab"),
             ],
         ),
         (
@@ -84,10 +84,11 @@ pub fn get_detail_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("x", "Discard changes in selected file"),
                 ("X", "Discard all changes in repository"),
                 ("s", "Stash uncommitted changes"),
+                ("v", "Show repository Overview (from any tab)"),
                 ("f", "Open search logs picker"),
                 ("l", "Open Logs view (Full screen commits list)"),
                 ("G", "Load more commits (Workspace / Logs view)"),
-                ("s", "Set repository theme (Overview tab only)"),
+                ("s", "Set repository theme (Overview only)"),
             ],
         ),
         (

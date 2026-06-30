@@ -129,6 +129,10 @@ pub struct DetailAreas {
     pub files_inner: Option<Rect>,
     /// Inner area of worktrees list.
     pub worktrees_inner: Option<Rect>,
+    /// Bounding box of submodules list.
+    pub submodules: Option<Rect>,
+    /// Inner area of submodules list.
+    pub submodules_inner: Option<Rect>,
     /// Bounding box of the commit message popup.
     pub commit_popup: Option<Rect>,
     /// Bounding box of the parent area the commit popup was centered inside.
@@ -394,7 +398,7 @@ pub fn draw(
             ("Remotes", "R", 6),
             ("Stashes", "S", 7),
             ("Worktrees", "K", 8),
-            ("Overview", "O", 9),
+            ("Submodules", "M", 9),
         ];
 
         let use_short = tab_area.width < 124;
@@ -670,13 +674,14 @@ pub fn draw(
                     body_area,
                 );
             } else {
-                // Render Overview tab (tab 9, index 8)
-                draw_overview_tab(
+                // Render Submodules view (tab 9, index 8)
+                crate::components::submodule_list::draw_submodules_view(
                     f,
-                    resolved,
                     info,
-                    overview_horizontal_split_pct,
+                    *focus,
+                    app.submodule_selection,
                     areas,
+                    app,
                     body_area,
                 );
             }
@@ -687,6 +692,17 @@ pub fn draw(
                     app,
                     body_area,
                     help_scroll,
+                );
+            }
+            // Draw overview overlay on top when requested.
+            if matches!(mode, Mode::Overview) {
+                draw_overview_tab(
+                    f,
+                    resolved,
+                    info,
+                    overview_horizontal_split_pct,
+                    areas,
+                    body_area,
                 );
             }
             // Draw commit popup on top when requested.
@@ -955,6 +971,8 @@ fn draw_overview_tab(
     areas: &mut DetailAreas,
     area: Rect,
 ) {
+    f.render_widget(Clear, area);
+
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([

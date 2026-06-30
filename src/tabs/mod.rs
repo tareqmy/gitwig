@@ -28,6 +28,12 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     let code = key.code;
     use crate::keybindings::Action;
 
+    if code == KeyCode::Char('v') || code == KeyCode::Char('V') {
+        app.mode = Mode::Overview;
+        app.trigger_overview_load_if_needed();
+        return true;
+    }
+
     if app.is_bound(Action::CloseDetail, key) {
         if code == KeyCode::Esc {
             if app.inspect_full_diff {
@@ -165,7 +171,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::GoToTab9, key) {
         app.inspect_full_diff = false;
         app.detail_tab = 8;
-        app.detail_focus = DetailSection::Commits;
+        app.detail_focus = DetailSection::Submodules;
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
         }
@@ -181,16 +187,33 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
         5 => return RemotesTab::handle_event(app, key),
         6 => return StashesTab::handle_event(app, key),
         7 => return handle_worktree_events(app, key),
-        8 if code == KeyCode::Char('s') || code == KeyCode::Char('S') => {
-            app.repo_settings_selected_index = 0;
-            app.repo_settings_editing = false;
-            app.repo_settings_input = String::new();
-            app.mode = Mode::RepoSettings;
-            return true;
-        }
+        8 => return handle_submodule_events(app, key),
         _ => {}
     }
     false
+}
+
+fn handle_submodule_events(app: &mut App, key: KeyEvent) -> bool {
+    let subs_count = if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        if let repo::TabData::Loaded(subs) = &info.submodules { subs.len() } else { 0 }
+    } else {
+        0
+    };
+
+    let code = key.code;
+    match code {
+        KeyCode::Down | KeyCode::Char('j') => {
+            if subs_count > 0 {
+                app.submodule_selection = (app.submodule_selection + 1).min(subs_count - 1);
+            }
+            true
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.submodule_selection = app.submodule_selection.saturating_sub(1);
+            true
+        }
+        _ => false,
+    }
 }
 
 fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {

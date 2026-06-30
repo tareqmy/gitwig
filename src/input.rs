@@ -161,6 +161,24 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
+        Mode::Overview => match key.code {
+            KeyCode::Esc
+            | KeyCode::Char('q')
+            | KeyCode::Char('Q')
+            | KeyCode::Char('v')
+            | KeyCode::Char('V') => {
+                app.mode = Mode::Detail;
+                return true;
+            }
+            KeyCode::Char('s') | KeyCode::Char('S') => {
+                app.repo_settings_selected_index = 0;
+                app.repo_settings_editing = false;
+                app.repo_settings_input = String::new();
+                app.mode = Mode::RepoSettings;
+                return true;
+            }
+            _ => {}
+        },
         Mode::RemotePicker => {
             if crate::popups::remote_picker::RemotePickerPopup::handle_event(app, key) {
                 return true;

@@ -88,6 +88,7 @@ pub fn draw(
                 | Mode::RemoteAddUrlInput
                 | Mode::RemoteDeleteConfirm
                 | Mode::RepoSettings
+                | Mode::Overview
         ) {
             if let Some(repo_theme) = app.repo_theme_cache.get(repo_path) {
                 // Save current theme state
@@ -157,6 +158,7 @@ pub fn draw(
             | Mode::RemoteAddUrlInput
             | Mode::RemoteDeleteConfirm
             | Mode::RepoSettings
+            | Mode::Overview
     ) || (app.mode == Mode::UpdateConfirm && app.current_detail.is_some())
     {
         if let Some(detail) = &app.current_detail {

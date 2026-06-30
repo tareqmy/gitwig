@@ -36,8 +36,8 @@ The codebase is organized into modular single-responsibility crates and files:
 | **Component Queue** | `src/queue.rs` | Defines a thread-safe, lock-free queue (`Queue` and `InternalEvent`) used by components to request state changes from the engine. |
 | **Theme & Style** | `src/ui/` | Contains the main rendering logic (`draw.rs`), styling/theme configurations (`style.rs`), layout helper utilities (`layout.rs`), and detailed inspection view (`ui_detail.rs`). |
 | **Modal Popups** | `src/popups/` | Modular modal components for user inputs and confirmations (e.g. `commit.rs`, `confirm.rs`, `settings.rs`, `help.rs`). |
-| **Application Tabs**| `src/tabs/` | Drawing logic for the home screen list and individual repository tabs (`home.rs`, `workspace.rs`, `files.rs`, `branches.rs`, `tags.rs`, `stashes.rs`, `overview.rs`). |
-| **TUI Components** | `src/components/` | Reusable rendering widgets that maintain their own internal visual/table state (e.g. `file_tree.rs`, `commit_list.rs`, `branch_list.rs`, `diff.rs`). |
+| **Application Tabs**| `src/tabs/` | Drawing logic for the home screen list and individual repository tabs (`home.rs`, `workspace.rs`, `files.rs`, `branches.rs`, `tags.rs`, `stashes.rs`). |
+| **TUI Components** | `src/components/` | Reusable rendering widgets that maintain their own internal visual/table state (e.g. `file_tree.rs`, `commit_list.rs`, `branch_list.rs`, `diff.rs`, `submodule_list.rs`). |
 | **Git Core Backend** | `gitwig-core/` | Workspace crate containing all libgit2 inspections, repo info collection (`RepoInfo`, `CommitEntry`, etc.), status summaries, and file loading logic. Completely isolated from UI dependencies. |
 | **Configuration** | `src/config.rs` | Manages loading, migrating, and saving TOML settings at `~/.gitwig/config.toml`. |
 

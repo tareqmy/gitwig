@@ -165,6 +165,17 @@ pub struct WorktreeInfo {
     pub lock_reason: Option<String>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SubmoduleInfo {
+    pub name: String,
+    pub path: PathBuf,
+    pub url: String,
+    pub commit_id: Option<String>,
+    pub head_id: Option<String>,
+    pub is_initialized: bool,
+    pub is_dirty: bool,
+}
+
 #[derive(Debug, Clone)]
 pub enum TabPayload {
     Files(Result<Vec<String>, String>),
@@ -175,6 +186,7 @@ pub enum TabPayload {
     Stashes(Result<Vec<StashInfo>, String>),
     Overview(Result<(Vec<CommitterStat>, bool), String>),
     Worktrees(Result<Vec<WorktreeInfo>, String>),
+    Submodules(Result<Vec<SubmoduleInfo>, String>),
 }
 
 #[derive(Debug, Default, Clone)]
@@ -209,6 +221,8 @@ pub struct RepoInfo {
     pub stashes: TabData<Vec<StashInfo>>,
     /// Available worktrees in the repository.
     pub worktrees: TabData<Vec<WorktreeInfo>>,
+    /// Configured submodules in the repository.
+    pub submodules: TabData<Vec<SubmoduleInfo>>,
     /// Committer statistics.
     pub committer_stats: TabData<Vec<CommitterStat>>,
     /// Whether the committer statistics walk was capped by the limit.
@@ -1492,6 +1506,34 @@ pub fn load_tab_overview(
     let (stats, limit_reached) =
         collect_committer_stats(&repo, stats_limit).map_err(|e| e.to_string())?;
     Ok((stats, limit_reached))
+}
+
+pub fn load_tab_submodules(repo_path: &Path) -> Result<Vec<SubmoduleInfo>, String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let submodules = repo.submodules().map_err(|e| e.to_string())?;
+    let mut list = Vec::new();
+    for sub in submodules {
+        let name = sub.name().unwrap_or("").to_string();
+        let path = sub.path().to_path_buf();
+        let url = sub.url().unwrap_or(None).unwrap_or("").to_string();
+        let commit_id = sub.index_id().map(|id| id.to_string());
+        let head_id = sub.head_id().map(|id| id.to_string());
+
+        let mut is_initialized = true;
+        let mut is_dirty = false;
+
+        if let Ok(status) = repo.submodule_status(&name, git2::SubmoduleIgnore::None) {
+            is_initialized = !status.contains(git2::SubmoduleStatus::WD_UNINITIALIZED);
+            is_dirty = status.contains(git2::SubmoduleStatus::WD_MODIFIED)
+                || status.contains(git2::SubmoduleStatus::WD_WD_MODIFIED)
+                || status.contains(git2::SubmoduleStatus::WD_UNTRACKED)
+                || status.contains(git2::SubmoduleStatus::WD_INDEX_MODIFIED)
+                || status.contains(git2::SubmoduleStatus::INDEX_MODIFIED);
+        }
+
+        list.push(SubmoduleInfo { name, path, url, commit_id, head_id, is_initialized, is_dirty });
+    }
+    Ok(list)
 }
 
 /// Build a map from commit `Oid` → list of ref names that point to it.

@@ -146,6 +146,8 @@ pub enum Mode {
     WorktreeLockReasonInput,
     /// Confirming removal options of a worktree.
     WorktreeRemoveConfirm,
+    /// Showing the repository overview in a full window popup.
+    Overview,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -169,6 +171,7 @@ pub enum DetailSection {
     Stashes,
     StashedFiles,
     Worktrees,
+    Submodules,
 }
 
 /// Resizable splitter identifier.
@@ -208,6 +211,7 @@ impl DetailSection {
             Self::Stashes => Self::Stashes,
             Self::StashedFiles => Self::StashedFiles,
             Self::Worktrees => Self::Worktrees,
+            Self::Submodules => Self::Submodules,
         }
     }
 
@@ -231,6 +235,7 @@ impl DetailSection {
             Self::Stashes => Self::Stashes,
             Self::StashedFiles => Self::StashedFiles,
             Self::Worktrees => Self::Worktrees,
+            Self::Submodules => Self::Submodules,
         }
     }
 }
@@ -450,6 +455,7 @@ pub struct App {
     pub file_history_path: String,
     pub file_history_focus: usize,
     pub worktree_selection: usize,
+    pub submodule_selection: usize,
     pub worktree_add_branch: String,
     pub worktree_add_path: String,
     pub worktree_lock_reason: String,
@@ -1047,6 +1053,7 @@ impl App {
             file_history_path: String::new(),
             file_history_focus: 0,
             worktree_selection: 0,
+            submodule_selection: 0,
             worktree_add_branch: String::new(),
             worktree_add_path: String::new(),
             worktree_lock_reason: String::new(),
@@ -1333,6 +1340,12 @@ where
                         repo::TabPayload::Worktrees(res) => {
                             info.worktrees = match res {
                                 Ok(w) => repo::TabData::Loaded(w),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Submodules(res) => {
+                            info.submodules = match res {
+                                Ok(s) => repo::TabData::Loaded(s),
                                 Err(e) => repo::TabData::Error(e),
                             };
                         }
