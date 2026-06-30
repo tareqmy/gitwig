@@ -552,6 +552,8 @@ impl App {
             let stashes_len = info.stashes.len();
             let staged_len = info.changes.staged.len();
             let unstaged_len = info.changes.unstaged.len();
+            let worktrees_len =
+                if let repo::TabData::Loaded(wts) = &info.worktrees { wts.len() } else { 0 };
 
             let commit_files_len =
                 info.commits.get(self.commit_list.selection).map(|c| c.files.len()).unwrap_or(0);
@@ -567,6 +569,7 @@ impl App {
                 staged_len,
                 unstaged_len,
                 commit_files_len,
+                worktrees_len,
             ));
         }
 
@@ -581,6 +584,7 @@ impl App {
             staged_len,
             unstaged_len,
             commit_files_len,
+            worktrees_len,
         )) = info_lengths
         {
             // 1. Commit selection
@@ -596,6 +600,13 @@ impl App {
                 self.file_tree.file_list_selection = 0;
             } else if self.file_tree.file_list_selection >= visible_files_len {
                 self.file_tree.file_list_selection = visible_files_len - 1;
+            }
+
+            // Clamp worktree selection
+            if worktrees_len == 0 {
+                self.worktree_selection = 0;
+            } else if self.worktree_selection >= worktrees_len {
+                self.worktree_selection = worktrees_len - 1;
             }
 
             // 3. Local branches selection
@@ -817,6 +828,23 @@ impl App {
                 }
             }
             7 => {
+                let is_not_loaded = info.worktrees.is_not_loaded();
+                if should_trigger(info, tab_idx, is_not_loaded) {
+                    info.tab_loading[tab_idx] = true;
+                    if is_not_loaded {
+                        info.worktrees = repo::TabData::Loading;
+                    }
+                    std::thread::spawn(move || {
+                        let res = repo::load_tab_worktrees(&path);
+                        let _ = tx.send((
+                            path.to_string_lossy().to_string(),
+                            tab_idx,
+                            repo::TabPayload::Worktrees(res),
+                        ));
+                    });
+                }
+            }
+            8 => {
                 let is_not_loaded = info.committer_stats.is_not_loaded();
                 if should_trigger(info, tab_idx, is_not_loaded) {
                     info.tab_loading[tab_idx] = true;
@@ -2429,6 +2457,9 @@ impl App {
                 self.detail_focus = DetailSection::Stashes;
                 self.stash_list.stash_file_selection = 0;
                 self.refresh_file_diff();
+            }
+            7 => {
+                self.detail_focus = DetailSection::Worktrees;
             }
             _ => {}
         }

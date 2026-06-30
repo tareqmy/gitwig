@@ -100,7 +100,7 @@ asciinema play resources/preview.cast
 | `A`                  | Normal          | Bulk add folders in a directory   |
 | `i`                  | Normal          | Import remote repository          |
 | `e`                  | Normal          | Edit the selected item            |
-| `d`                  | Normal          | Delete the selected item (asks)   |
+| `D`                  | Normal          | Delete the selected item (asks)   |
 | `l`                  | Normal          | Edit labels of the selected item  |
 | `R`                  | Normal          | Refresh status of selected item   |
 | `f`                  | Normal          | Enter repository search mode      |
@@ -150,7 +150,7 @@ asciinema play resources/preview.cast
 | `X`                  | Detail          | Discard all changes in repository (Workspace tab or Inspect view; asks confirmation) |
 | `i`                  | Detail          | Interactive rebase from selected commit (Workspace tab commits list) |
 | `l`                  | Detail          | Open Logs view (Full screen commits list; Workspace tab commits list focus) |
-| `d`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), or stash (Stashes tab; asks confirmation) |
+| `D`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), or stash (Stashes tab; asks confirmation) |
 | `s`                  | Detail          | Open Stashing UI overlay (Workspace tab) or Prompt to save stash (Stashing UI / Stashes tab) |
 | `u`                  | Detail          | Toggle "Stash untracked files" option (Stashing UI)               |
 | `i`                  | Detail          | Toggle "Keep index" option (Stashing UI)                         |
@@ -261,7 +261,7 @@ You can focus either branch panel by pressing `w` / `W` or using the `←` / `�
 
 The **Tags** tab lists both local tags and remote tags.
 - Select a local tag and press `↵` (Enter) to checkout that tag.
-- Select any tag and press `d` / `D` to delete it (asks for confirmation).
+- Select any tag and press `D` to delete it (asks for confirmation).
 - Press `p` to push the selected tag to the remote (asks for confirmation).
 - Press `P` (Shift+P) to push all tags to the remote (asks for confirmation).
 
@@ -272,7 +272,7 @@ The **Remotes** tab lists configured remotes for the repository.
 ### Stashes Tab
 
 The **Stashes** tab lists all available stashes in the repository with a horizontally split layout:
-- **Stashes (Top-Left):** Lists all stashes. Selecting a stash automatically highlights the first file in the files list. Press `d` / `D` to delete the selected stash, or `a` / `A` to apply it (both options ask for confirmation). When applying, you can toggle whether to delete the stash after applying (default is Yes).
+- **Stashes (Top-Left):** Lists all stashes. Selecting a stash automatically highlights the first file in the files list. Press `D` to delete the selected stash, or `a` / `A` to apply it (both options ask for confirmation). When applying, you can toggle whether to delete the stash after applying (default is Yes).
 - **Stashed Files (Bottom-Left):** Lists the files changed/saved in the selected stash.
 - **Stash Diff (Right):** Shows the unified patch diff of the selected file.
 - Navigate stashes or stashed files using `↑`/`k` and `↓`/`j`.
@@ -293,7 +293,7 @@ Pressing `s` / `S` inside the **Workspace** tab opens the dedicated **Stashing U
 The **Worktrees** tab lists all Git worktrees linked to the repository.
 - Press `a` to add a new worktree. You will be prompted to enter a base branch/commit name, followed by the destination path.
 - Press `l` to toggle lock status on the selected worktree (adds/removes lock reason).
-- Press `d` to remove the selected worktree. You can choose to either remove only the Git metadata or delete the folder from disk entirely.
+- Press `D` to remove the selected worktree. You can choose to either remove only the Git metadata or delete the folder from disk entirely.
 - Press `p` to prune stale worktree metadata.
 - Press `Enter` to open the selected worktree (registers it to the Home screen cards list if not present, and opens it).
 
@@ -333,7 +333,7 @@ You can navigate and interact with these panels in the following ways:
   - Select any **local branch** and press `Shift+P` to push it to the remote in the background (if no upstream is configured, it will attempt to push to the first configured remote and set it as the upstream tracking branch).
   - Select any **remote branch** and press `Enter` to check it out (this will switch to the branch, creating a local tracking branch if it doesn't already exist).
   - Press `c` / `C` to create a new branch from the currently checked out branch (or HEAD). A popup dialog will prompt for the new branch name.
-  - Select any local or remote-tracking branch and press `d` / `D` to delete it. A confirmation dialog will prompt before performing the deletion. (The currently checked out branch cannot be deleted).
+  - Select any local or remote-tracking branch and press `D` to delete it. A confirmation dialog will prompt before performing the deletion. (The currently checked out branch cannot be deleted).
 - **Commit Staged Changes / Amend Last Commit:** Press `c` from the Workspace tab or from the Inspect view to open a centered Commit popup window (active if there are staged changes OR a prior HEAD commit exists to amend). 
   - **Compose Mode:** Type your commit message. Press `Ctrl+C` to lock in the text and switch to confirmation state, press `Enter` to insert a newline, or `Esc` to cancel.
   - **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, `a` / `A` / `Space` to toggle the "Amend last commit" option, or `Esc`/`q` to close the popup. Toggling amend to active when the buffer is empty automatically populates the text box with the message from the last commit.

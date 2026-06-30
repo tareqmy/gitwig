@@ -1558,6 +1558,45 @@ fn test_mouse_row_selection_in_detail_panels() {
     crate::mouse::handle_mouse(&mut app, files_click);
     assert_eq!(app.file_tree.file_list_selection, 1);
     assert_eq!(app.detail_focus, DetailSection::Files);
+
+    // 11. Worktrees list click test
+    app.mode = Mode::Detail;
+    app.detail_tab = 7; // Worktrees Tab
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    let mock_info_7 = repo::RepoInfo {
+        worktrees: repo::TabData::Loaded(vec![
+            repo::WorktreeInfo {
+                name: "wt1".to_string(),
+                path: PathBuf::from("wt1"),
+                branch: Some("b1".to_string()),
+                is_locked: false,
+                lock_reason: None,
+            },
+            repo::WorktreeInfo {
+                name: "wt2".to_string(),
+                path: PathBuf::from("wt2"),
+                branch: Some("b2".to_string()),
+                is_locked: false,
+                lock_reason: None,
+            },
+        ]),
+        ..Default::default()
+    };
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("a_repo"),
+        info: Box::new(mock_info_7),
+    });
+    app.detail_areas.worktrees = Some(Rect::new(0, 0, 100, 20));
+    app.detail_areas.worktrees_inner = Some(Rect::new(1, 1, 98, 18));
+    let worktree_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 4, // index 1 (relative to inner.y = 1 + header_height = 2)
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, worktree_click);
+    assert_eq!(app.worktree_selection, 1);
+    assert_eq!(app.detail_focus, DetailSection::Worktrees);
 }
 
 #[test]
@@ -1886,9 +1925,9 @@ fn test_remote_add_delete_flow() {
     assert!(handled);
     assert_eq!(app.mode, Mode::Detail);
 
-    // Trigger remote delete (d/D) on the selected remote ("origin")
+    // Trigger remote delete (D) on the selected remote ("origin")
     app.branch_list.remote_selection = 0;
-    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('d')), 10);
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('D')), 10);
     assert!(handled);
     assert_eq!(app.mode, Mode::RemoteDeleteConfirm);
     assert_eq!(app.remote_action_target.as_deref(), Some("origin"));
@@ -4728,13 +4767,14 @@ fn test_worktree_tui_flows() {
     assert!(handled);
     assert_eq!(app.mode, Mode::Detail);
 
-    // 4. Press 'd' to trigger remove confirm dialog
-    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('d')), 1);
+    // 4. Press 'D' to trigger remove confirm dialog
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('D')), 1);
     assert!(handled);
     assert_eq!(app.mode, Mode::WorktreeRemoveConfirm);
 
-    // Escape removal confirmation
-    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1);
+    // Simulate typing '2' and pressing Enter to confirm
+    app.input_buffer = "2".to_string();
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 1);
     assert!(handled);
     assert_eq!(app.mode, Mode::Detail);
 

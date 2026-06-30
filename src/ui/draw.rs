@@ -1182,7 +1182,7 @@ mod tests {
             })
             .collect();
         assert!(entry_labels_s1.iter().any(|label| label.contains("Apply [a]")));
-        assert!(entry_labels_s1.iter().any(|label| label.contains("Delete [d]")));
+        assert!(entry_labels_s1.iter().any(|label| label.contains("Delete [D]")));
 
         // Tab 6: Stashes - StashedFiles Focus
         app.detail_focus = DetailSection::StashedFiles;
@@ -1194,7 +1194,7 @@ mod tests {
             })
             .collect();
         assert!(!entry_labels_s2.iter().any(|label| label.contains("Apply [a]")));
-        assert!(!entry_labels_s2.iter().any(|label| label.contains("Delete [d]")));
+        assert!(!entry_labels_s2.iter().any(|label| label.contains("Delete [D]")));
 
         // Tab 4: Tags
         app.detail_tab = 4;

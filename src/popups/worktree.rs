@@ -1,7 +1,7 @@
 use crate::ui::layout::centered_rect;
 use crate::ui::style::{ACCENT, CARD_BORDER, DANGER, muted_style, primary_style};
 use ratatui::Frame;
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Padding, Paragraph};
@@ -132,49 +132,4 @@ pub fn draw_worktree_lock_reason_popup(
     let cursor_x =
         inner_area.x.saturating_add(2).saturating_add(input_buffer.chars().count() as u16);
     f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
-}
-
-pub fn draw_worktree_remove_popup(f: &mut Frame, wt_name: &str, area: Rect) {
-    let popup_area = centered_rect(50, 20, area);
-    f.render_widget(Clear, popup_area);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(CARD_BORDER())
-        .border_style(Style::default().fg(DANGER()))
-        .title(Line::from(vec![
-            Span::raw(" "),
-            Span::styled(
-                "Remove Worktree",
-                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(" "),
-        ]))
-        .padding(Padding::uniform(1));
-
-    let content = vec![
-        Line::from(vec![
-            Span::styled("Are you sure you want to remove worktree: ", primary_style()),
-            Span::styled(wt_name, primary_style().add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("[1] ", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
-            Span::styled("Remove git metadata only (leaves folder on disk)", primary_style()),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("[2] ", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
-            Span::styled("Delete folder from disk and remove metadata", primary_style()),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("[Esc] ", muted_style()),
-            Span::styled("Cancel", muted_style()),
-        ]),
-    ];
-
-    let inner_area = block.inner(popup_area);
-    f.render_widget(block, popup_area);
-    f.render_widget(Paragraph::new(content), inner_area);
 }

@@ -1495,4 +1495,23 @@ impl App {
         }
         self.mode = Mode::Detail;
     }
+
+    pub fn commit_worktree_remove(&mut self) {
+        let choice = self.input_buffer.trim().to_string();
+        self.input_buffer.clear();
+        self.mode = Mode::Detail;
+
+        match choice.as_str() {
+            "1" => {
+                self.remove_worktree(false);
+            }
+            "2" => {
+                self.remove_worktree(true);
+            }
+            _ => {
+                self.status_message =
+                    Some("Invalid selection. Type 1 or 2 to remove worktree.".to_string());
+            }
+        }
+    }
 }

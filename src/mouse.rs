@@ -1062,4 +1062,47 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             }
         }
     }
+    // Worktrees list panel.
+    if let Some(rect) = areas.worktrees {
+        if rect.contains(pos) {
+            if is_click {
+                app.detail_focus = DetailSection::Worktrees;
+                if let Some(inner) = areas.worktrees_inner {
+                    if inner.contains(pos) {
+                        // Offset by 2 lines to account for table header (1 line) and bottom margin (1 line)
+                        let header_height = 2;
+                        if pos.y >= inner.y + header_height {
+                            let clicked_row = (pos.y - (inner.y + header_height)) as usize;
+                            let actual_idx = clicked_row;
+                            let total = match &app.current_detail {
+                                Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                                    if let crate::repo::TabData::Loaded(wts) = &info.worktrees {
+                                        wts.len()
+                                    } else {
+                                        0
+                                    }
+                                }
+                                _ => 0,
+                            };
+                            if actual_idx < total {
+                                app.worktree_selection = actual_idx;
+                            }
+                        }
+                    }
+                }
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::Worktrees;
+                app.worktree_selection = app.worktree_selection.saturating_sub(1);
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::Worktrees;
+                if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+                    if let crate::repo::TabData::Loaded(wts) = &info.worktrees {
+                        let wts_count = wts.len();
+                        app.worktree_selection =
+                            (app.worktree_selection + 1).min(wts_count.saturating_sub(1));
+                    }
+                }
+            }
+        }
+    }
 }

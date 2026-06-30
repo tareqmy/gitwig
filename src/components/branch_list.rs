@@ -406,7 +406,7 @@ impl Component for BranchListComponent {
                     self.queue.push(InternalEvent::CheckoutBranch);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Char('d') | KeyCode::Char('D') => {
+                KeyCode::Char('D') => {
                     self.queue.push(InternalEvent::RequestDeleteBranch);
                     return Ok(EventState::Consumed);
                 }

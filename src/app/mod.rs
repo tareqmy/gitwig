@@ -630,27 +630,25 @@ impl App {
                     Mode::StashCreateInput => self.commit_stash_create(),
                     Mode::RemoteAddNameInput => self.commit_remote_add_name(),
                     Mode::RemoteAddUrlInput => self.commit_remote_add_url(),
+                    Mode::WorktreeAddBranchInput => self.commit_worktree_add_branch(),
+                    Mode::WorktreeAddPathInput => self.commit_worktree_add_path(),
+                    Mode::WorktreeLockReasonInput => self.commit_worktree_lock_reason(),
+                    Mode::WorktreeRemoveConfirm => self.commit_worktree_remove(),
                     _ => {}
                 },
-                crate::queue::InternalEvent::InputEsc => match self.mode {
-                    Mode::BranchCreateInput => self.cancel_branch_create(),
-                    Mode::TagCreateInput => {
-                        self.tag_action_target_oid = None;
-                        self.mode = Mode::Detail;
+                crate::queue::InternalEvent::InputEsc => {
+                    self.input_buffer.clear();
+                    match self.mode {
+                        Mode::BranchCreateInput => self.cancel_branch_create(),
+                        Mode::TagCreateInput => {
+                            self.tag_action_target_oid = None;
+                            self.mode = Mode::Detail;
+                        }
+                        _ => {
+                            self.mode = Mode::Detail;
+                        }
                     }
-                    Mode::StashCreateInput => {
-                        self.mode = Mode::Detail;
-                    }
-                    Mode::RemoteAddNameInput => {
-                        self.mode = Mode::Detail;
-                    }
-                    Mode::RemoteAddUrlInput => {
-                        self.mode = Mode::Detail;
-                    }
-                    _ => {
-                        self.mode = Mode::Detail;
-                    }
-                },
+                }
                 // simplified
                 crate::queue::InternalEvent::Commit => {
                     self.commit_git_changes();

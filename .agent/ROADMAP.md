@@ -6,7 +6,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Basic TUI setup with `crossterm` and `tui-rs`.
 - [x] Configuration loading (TOML).
 - [x] Migrate to `ratatui` (0.30) for modern TUI features and active maintenance.
-- [x] In-app config editing — add/edit/delete items with `a`/`e`/`d`, persisted back to the loaded config file.
+- [x] In-app config editing — add/edit/delete items with `a`/`e`/`D`, persisted back to the loaded config file.
 - [x] In-app help overlay — `?` toggles a centered popup listing every shortcut.
 - [x] Per-item filesystem status indicator (missing / directory / git repo) using a lightweight `.git`-existence check; supports `~` expansion.
 - [x] Integrate `git2` for the per-item detail view: branch, HEAD commit, remotes, working-tree status (staged / modified / untracked / conflicted). Snapshot is captured once on Enter.
@@ -95,9 +95,9 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Per repository settings, theme
 - [x] Check version updates and notify the user and the option to update
 - [x] Keybindings
-- [ ] **Per Repository rule**
-- [x] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
+- [x] Git Worktrees: Tab/view to list, create, and remove Git worktrees.
 - [ ] **Git Submodules:** Detect, list, initialize, and update submodules.
+- [ ] **Per Repository rule**
 - [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
 
 ## Phase 9: Intelligent AI Integrations (Optional/Configurable)

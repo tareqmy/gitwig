@@ -306,7 +306,7 @@ impl Component for StashListComponent {
                     self.queue.push(InternalEvent::RequestApplyStash);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Char('d') | KeyCode::Char('D') => {
+                KeyCode::Char('D') => {
                     self.queue.push(InternalEvent::RequestDeleteStash);
                     return Ok(EventState::Consumed);
                 }

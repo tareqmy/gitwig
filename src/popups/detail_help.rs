@@ -103,7 +103,7 @@ pub fn get_detail_help_lines(app: &App) -> Vec<Line<'_>> {
             vec![
                 ("← / →", "Focus Local/Remote branch (Branches tab)"),
                 ("c", "Create branch"),
-                ("d", "Delete selected branch / tag"),
+                ("⇧D [Shift+D]", "Delete selected branch / tag"),
                 ("m", "Merge selected branch into current branch"),
                 ("r", "Rebase current branch onto selected branch / Interactive rebase"),
                 ("p", "Pull branch (Branches) / Push tag (Tags)"),
@@ -115,7 +115,7 @@ pub fn get_detail_help_lines(app: &App) -> Vec<Line<'_>> {
             "Remotes, Stashes & Worktrees Tabs",
             vec![
                 ("a", "Apply stash / Add worktree"),
-                ("d", "Delete stash / Remove worktree"),
+                ("⇧D [Shift+D]", "Delete stash / Remove worktree"),
                 ("l", "Toggle lock status (Worktrees tab only)"),
                 ("p", "Prune worktree metadata (Worktrees tab only)"),
                 ("↵ [Enter]", "Open worktree in new context (Worktrees tab only)"),

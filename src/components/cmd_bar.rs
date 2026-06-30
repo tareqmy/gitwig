@@ -273,42 +273,13 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             );
         }
         Mode::WorktreeRemoveConfirm => {
-            let wt_name =
-                if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
-                    if let crate::repo::TabData::Loaded(wts) = &info.worktrees {
-                        wts.get(app.worktree_selection).map(|w| w.name.as_str()).unwrap_or("")
-                    } else {
-                        ""
-                    }
-                } else {
-                    ""
-                };
-            let msg_spans = vec![
-                Span::raw("Remove worktree "),
-                Span::styled(wt_name.to_string(), Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw("?"),
-            ];
-            let entries = vec![
-                StatusEntry::new(vec![
-                    Span::styled("[", muted_style()),
-                    Span::styled("1", accent_style()),
-                    Span::styled("]", muted_style()),
-                    Span::raw(" Metadata only"),
-                ]),
-                StatusEntry::new(vec![
-                    Span::styled("[", muted_style()),
-                    Span::styled("2", Style::default().fg(DANGER())),
-                    Span::styled("]", muted_style()),
-                    Span::raw(" Delete folder & metadata"),
-                ]),
-                StatusEntry::new(vec![
-                    Span::styled("[", muted_style()),
-                    Span::styled("Esc", muted_style()),
-                    Span::styled("]", muted_style()),
-                    Span::raw(" Cancel"),
-                ]),
-            ];
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
+            draw_input_status(
+                f,
+                area,
+                "Remove Worktree (1: Metadata only, 2: Delete folder & metadata)",
+                &app.input_buffer,
+                app.config.compatibility_mode,
+            );
         }
         Mode::StashingUI => {
             let mut entries = Vec::new();
@@ -845,7 +816,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 ("Cycle Focus", "w/W"),
                 ("Checkout", "↵"),
                 ("Create", "c"),
-                ("Delete", "d"),
+                ("Delete", "D"),
                 ("Merge", "m"),
                 ("Rebase", "r"),
                 ("Interactive Rebase", "i"),
@@ -873,7 +844,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Fetch", "f/F"),
             ("Push", "p"),
             ("Push All", "⇧P"),
-            ("Delete", "d"),
+            ("Delete", "D"),
             ("Resync", "R"),
             ("Help", "?"),
         ],
@@ -885,7 +856,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Jump", "Home/End"),
             ("Fetch", "f/F"),
             ("Add", "a/A"),
-            ("Delete", "d/D"),
+            ("Delete", "D"),
             ("Resync", "R"),
             ("Help", "?"),
         ],
@@ -900,7 +871,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ];
             if app.detail_focus == DetailSection::Stashes {
                 v.push(("Apply", "a"));
-                v.push(("Delete", "d"));
+                v.push(("Delete", "D"));
                 v.push(("Stash New", "s"));
             }
             v.push(("Resync", "R"));
@@ -912,7 +883,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Tabs", "Tab/1-9"),
             ("Navigate", "↑↓"),
             ("Add", "a"),
-            ("Delete", "d"),
+            ("Delete", "D"),
             ("Lock/Unlock", "l"),
             ("Prune", "p"),
             ("Open", "↵"),

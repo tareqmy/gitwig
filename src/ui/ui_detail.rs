@@ -127,6 +127,8 @@ pub struct DetailAreas {
     pub stashed_files_inner: Option<Rect>,
     /// Inner area of files list in Files tab.
     pub files_inner: Option<Rect>,
+    /// Inner area of worktrees list.
+    pub worktrees_inner: Option<Rect>,
     /// Bounding box of the commit message popup.
     pub commit_popup: Option<Rect>,
     /// Bounding box of the parent area the commit popup was centered inside.
@@ -785,15 +787,6 @@ pub fn draw(
                     wt_name,
                     body_area,
                 );
-            }
-            // Draw worktree remove confirmation popup
-            if matches!(mode, Mode::WorktreeRemoveConfirm) {
-                let wt_name = if let repo::TabData::Loaded(wts) = &info.worktrees {
-                    wts.get(app.worktree_selection).map(|w| w.name.as_str()).unwrap_or("")
-                } else {
-                    ""
-                };
-                crate::popups::worktree::draw_worktree_remove_popup(f, wt_name, body_area);
             }
             // Draw branch push popup on top when requested.
             if matches!(mode, Mode::BranchPushConfirm) {

@@ -215,6 +215,7 @@ fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {
         KeyCode::Char('a') => {
             app.worktree_add_branch.clear();
             app.worktree_add_path.clear();
+            app.input_buffer.clear();
             app.mode = Mode::WorktreeAddBranchInput;
             true
         }
@@ -240,6 +241,7 @@ fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {
                             }
                         } else {
                             app.worktree_lock_reason.clear();
+                            app.input_buffer.clear();
                             app.mode = Mode::WorktreeLockReasonInput;
                         }
                     }
@@ -247,9 +249,10 @@ fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {
             }
             true
         }
-        KeyCode::Char('d') => {
+        KeyCode::Char('D') => {
             app.worktree_remove_delete_folder = false;
             app.worktree_remove_force = false;
+            app.input_buffer.clear();
             app.mode = Mode::WorktreeRemoveConfirm;
             true
         }

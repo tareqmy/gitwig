@@ -191,7 +191,7 @@ impl Component for TagListComponent {
                     self.queue.push(InternalEvent::CheckoutTag);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Char('d') | KeyCode::Char('D') => {
+                KeyCode::Char('D') => {
                     self.queue.push(InternalEvent::RequestDeleteTag);
                     return Ok(EventState::Consumed);
                 }

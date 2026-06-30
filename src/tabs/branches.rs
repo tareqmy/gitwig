@@ -13,7 +13,7 @@ impl BranchesTab {
                 app.start_branch_create();
                 return true;
             }
-            KeyCode::Char('d') | KeyCode::Char('D') => {
+            KeyCode::Char('D') => {
                 app.request_branch_delete();
                 return true;
             }

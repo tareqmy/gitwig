@@ -8,7 +8,7 @@ impl StashesTab {
         let code = key.code;
         let detail_focus = app.detail_focus;
         match code {
-            KeyCode::Char('d') | KeyCode::Char('D') => {
+            KeyCode::Char('D') => {
                 if detail_focus == DetailSection::Stashes {
                     app.request_stash_delete();
                     return true;

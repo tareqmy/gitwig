@@ -37,7 +37,7 @@ impl RemotesTab {
                 }
             }
             KeyCode::Char('a') | KeyCode::Char('A') => app.start_remote_add(),
-            KeyCode::Char('d') | KeyCode::Char('D') => app.request_remote_delete(),
+            KeyCode::Char('D') => app.request_remote_delete(),
             _ => {}
         }
         false
