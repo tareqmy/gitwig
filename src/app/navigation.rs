@@ -28,7 +28,7 @@ impl App {
                         .unwrap_or(item.as_str())
                         .to_lowercase();
                     let full_path = item.to_lowercase();
-                    let label_match = self.config.labels.get(*item).map_or(false, |lbls| {
+                    let label_match = self.config.labels.get(*item).is_some_and(|lbls| {
                         lbls.iter().any(|lbl| lbl.to_lowercase().contains(&query_lower))
                     });
                     file_name.contains(&query_lower)
@@ -446,11 +446,12 @@ impl App {
                 info.remote_tags = repo::TabData::NotLoaded;
                 info.files = repo::TabData::NotLoaded;
                 info.stashes = repo::TabData::NotLoaded;
+                info.worktrees = repo::TabData::NotLoaded;
                 info.graph_lines = repo::TabData::NotLoaded;
                 info.committer_stats = repo::TabData::NotLoaded;
                 info.remote_tags_loaded = false;
                 info.remote_tags_attempted = false;
-                info.tab_loaded_at = [None; 8];
+                info.tab_loaded_at = [None; 9];
             }
 
             self.loading_repo_path = Some(item.clone());

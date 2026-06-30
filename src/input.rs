@@ -52,7 +52,6 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         return true;
     }
 
-    // Toggle status bar expanded mode with '.' (except in text input fields)
     let is_text_input = matches!(
         app.mode,
         Mode::Adding
@@ -68,6 +67,9 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::BulkAddInput
             | Mode::RemoteAddNameInput
             | Mode::RemoteAddUrlInput
+            | Mode::WorktreeAddBranchInput
+            | Mode::WorktreeAddPathInput
+            | Mode::WorktreeLockReasonInput
     ) || (matches!(app.mode, Mode::CommitInput) && app.commit_popup.editing)
         || (matches!(app.mode, Mode::Settings) && app.settings_editing);
     if !is_text_input && app.is_bound(crate::keybindings::Action::ToggleStatusBar, key) {
@@ -256,7 +258,10 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         Mode::BranchCreateInput
         | Mode::TagCreateInput
         | Mode::RemoteAddNameInput
-        | Mode::RemoteAddUrlInput => {
+        | Mode::RemoteAddUrlInput
+        | Mode::WorktreeAddBranchInput
+        | Mode::WorktreeAddPathInput
+        | Mode::WorktreeLockReasonInput => {
             let ev = crossterm::event::Event::Key(key);
             if app
                 .generic_input_popup
@@ -267,6 +272,19 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
+
+        Mode::WorktreeRemoveConfirm => match key.code {
+            KeyCode::Esc => {
+                app.mode = Mode::Detail;
+            }
+            KeyCode::Char('1') => {
+                app.remove_worktree(false);
+            }
+            KeyCode::Char('2') => {
+                app.remove_worktree(true);
+            }
+            _ => {}
+        },
 
         Mode::CommitInput => {
             let ev = crossterm::event::Event::Key(key);

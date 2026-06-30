@@ -156,6 +156,15 @@ impl<T> TabData<Vec<T>> {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorktreeInfo {
+    pub name: String,
+    pub path: PathBuf,
+    pub branch: Option<String>,
+    pub is_locked: bool,
+    pub lock_reason: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub enum TabPayload {
     Files(Result<Vec<String>, String>),
@@ -165,6 +174,7 @@ pub enum TabPayload {
     Remotes(Result<Vec<RemoteInfo>, String>),
     Stashes(Result<Vec<StashInfo>, String>),
     Overview(Result<(Vec<CommitterStat>, bool), String>),
+    Worktrees(Result<Vec<WorktreeInfo>, String>),
 }
 
 #[derive(Debug, Default, Clone)]
@@ -197,14 +207,16 @@ pub struct RepoInfo {
     pub files: TabData<Vec<String>>,
     /// Available stashes in the repository.
     pub stashes: TabData<Vec<StashInfo>>,
+    /// Available worktrees in the repository.
+    pub worktrees: TabData<Vec<WorktreeInfo>>,
     /// Committer statistics.
     pub committer_stats: TabData<Vec<CommitterStat>>,
     /// Whether the committer statistics walk was capped by the limit.
     pub committer_stats_limit_reached: bool,
     /// Timestamps when each tab was loaded (index matches tab_idx)
-    pub tab_loaded_at: [Option<std::time::Instant>; 8],
+    pub tab_loaded_at: [Option<std::time::Instant>; 9],
     /// Whether each tab is currently loading in the background (index matches tab_idx)
-    pub tab_loading: [bool; 8],
+    pub tab_loading: [bool; 9],
 }
 
 #[derive(Debug, Clone)]
@@ -2566,6 +2578,121 @@ pub fn is_root_commit(repo_path: &Path, commit_oid: &str) -> bool {
         }
     }
     false
+}
+
+pub fn load_tab_worktrees(repo_path: &Path) -> Result<Vec<WorktreeInfo>, String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let mut worktrees_list = Vec::new();
+    if let Ok(worktree_names) = repo.worktrees() {
+        for name in worktree_names.iter() {
+            let Ok(Some(wt_name)) = name else { continue };
+            if let Ok(wt) = repo.find_worktree(wt_name) {
+                let path = wt.path().to_path_buf();
+                let mut branch = None;
+                if let Ok(wt_repo) = Repository::open(&path) {
+                    if let Ok(head) = wt_repo.head() {
+                        branch = head.shorthand().map(String::from).ok();
+                    }
+                }
+
+                let mut is_locked = false;
+                let mut lock_reason = None;
+                if let Ok(git2::WorktreeLockStatus::Locked(reason_opt)) = wt.is_locked() {
+                    is_locked = true;
+                    if let Some(reason) = reason_opt {
+                        if !reason.is_empty() {
+                            lock_reason = Some(reason);
+                        }
+                    }
+                }
+
+                worktrees_list.push(WorktreeInfo {
+                    name: wt_name.to_string(),
+                    path,
+                    branch,
+                    is_locked,
+                    lock_reason,
+                });
+            }
+        }
+    }
+    Ok(worktrees_list)
+}
+
+pub fn worktree_add(repo_path: &Path, branch: &str, wt_path: &Path) -> Result<(), String> {
+    let output = std::process::Command::new("git")
+        .arg("worktree")
+        .arg("add")
+        .arg(wt_path)
+        .arg(branch)
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(())
+}
+
+pub fn worktree_lock(repo_path: &Path, name: &str, reason: &str) -> Result<(), String> {
+    let output = std::process::Command::new("git")
+        .arg("worktree")
+        .arg("lock")
+        .arg("--reason")
+        .arg(reason)
+        .arg(name)
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(())
+}
+
+pub fn worktree_unlock(repo_path: &Path, name: &str) -> Result<(), String> {
+    let output = std::process::Command::new("git")
+        .arg("worktree")
+        .arg("unlock")
+        .arg(name)
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(())
+}
+
+pub fn worktree_remove(repo_path: &Path, name: &str, force: bool) -> Result<(), String> {
+    let mut cmd = std::process::Command::new("git");
+    cmd.arg("worktree").arg("remove");
+    if force {
+        cmd.arg("--force");
+    }
+    let output = cmd.arg(name).current_dir(repo_path).output().map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(())
+}
+
+pub fn worktree_prune(repo_path: &Path) -> Result<(), String> {
+    let output = std::process::Command::new("git")
+        .arg("worktree")
+        .arg("prune")
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -413,14 +413,15 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     let click_x = pos.x - rect.x;
                     let use_short = rect.width < 124;
                     let tabs_data = [
-                        ("Details", "D", 0),
+                        ("Workspace", "W", 0),
                         ("Files", "F", 1),
                         ("Graph", "G", 2),
                         ("Branches", "B", 3),
                         ("Tags", "T", 4),
                         ("Remotes", "R", 5),
                         ("Stashes", "S", 6),
-                        ("Overview", "O", 7),
+                        ("Worktrees", "K", 7),
+                        ("Overview", "O", 8),
                     ];
                     let mut current_offset = 2;
                     for &(long_name, short_name, tab_index) in &tabs_data {
@@ -441,7 +442,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                     app.detail_focus = DetailSection::Remotes;
                                 }
                                 6 => app.detail_focus = DetailSection::Stashes,
-                                7 => app.detail_focus = DetailSection::Commits,
+                                7 => app.detail_focus = DetailSection::Worktrees,
+                                8 => app.detail_focus = DetailSection::Commits,
                                 _ => {}
                             }
                             if app.get_current_resync_on_tab_change() {

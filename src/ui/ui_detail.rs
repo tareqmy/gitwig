@@ -85,6 +85,8 @@ pub struct DetailAreas {
     pub stashes: Option<Rect>,
     /// Bounding box of the stashed files panel.
     pub stashed_files: Option<Rect>,
+    /// Bounding box of the worktrees panel.
+    pub worktrees: Option<Rect>,
     /// Bounding box of the horizontal splitter in inspect view.
     pub inspect_horizontal_splitter: Option<Rect>,
     /// Bounding box of the vertical splitter in left panel of inspect view.
@@ -389,7 +391,8 @@ pub fn draw(
             ("Tags", "T", 5),
             ("Remotes", "R", 6),
             ("Stashes", "S", 7),
-            ("Overview", "O", 8),
+            ("Worktrees", "K", 8),
+            ("Overview", "O", 9),
         ];
 
         let use_short = tab_area.width < 124;
@@ -653,8 +656,19 @@ pub fn draw(
                     app,
                     body_area,
                 );
+            } else if detail_tab == 7 {
+                // Render Worktrees view (tab 8, index 7)
+                crate::components::worktree_list::draw_worktrees_view(
+                    f,
+                    info,
+                    *focus,
+                    app.worktree_selection,
+                    areas,
+                    app,
+                    body_area,
+                );
             } else {
-                // Render Overview tab (tab 8, index 7)
+                // Render Overview tab (tab 9, index 8)
                 draw_overview_tab(
                     f,
                     resolved,
@@ -744,6 +758,42 @@ pub fn draw(
                     branch_action_target,
                     body_area,
                 );
+            }
+            // Draw worktree add branch name popup
+            if matches!(mode, Mode::WorktreeAddBranchInput) {
+                crate::popups::worktree::draw_worktree_add_branch_popup(f, input_buffer, body_area);
+            }
+            // Draw worktree add path popup
+            if matches!(mode, Mode::WorktreeAddPathInput) {
+                crate::popups::worktree::draw_worktree_add_path_popup(
+                    f,
+                    input_buffer,
+                    &app.worktree_add_branch,
+                    body_area,
+                );
+            }
+            // Draw worktree lock reason popup
+            if matches!(mode, Mode::WorktreeLockReasonInput) {
+                let wt_name = if let repo::TabData::Loaded(wts) = &info.worktrees {
+                    wts.get(app.worktree_selection).map(|w| w.name.as_str()).unwrap_or("")
+                } else {
+                    ""
+                };
+                crate::popups::worktree::draw_worktree_lock_reason_popup(
+                    f,
+                    input_buffer,
+                    wt_name,
+                    body_area,
+                );
+            }
+            // Draw worktree remove confirmation popup
+            if matches!(mode, Mode::WorktreeRemoveConfirm) {
+                let wt_name = if let repo::TabData::Loaded(wts) = &info.worktrees {
+                    wts.get(app.worktree_selection).map(|w| w.name.as_str()).unwrap_or("")
+                } else {
+                    ""
+                };
+                crate::popups::worktree::draw_worktree_remove_popup(f, wt_name, body_area);
             }
             // Draw branch push popup on top when requested.
             if matches!(mode, Mode::BranchPushConfirm) {

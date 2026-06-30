@@ -1,4 +1,5 @@
 use crate::app::{App, DetailSection, Mode};
+use crate::repo;
 use crossterm::event::{KeyCode, KeyEvent};
 
 pub mod branches;
@@ -64,7 +65,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
 
     if app.is_bound(Action::CycleTabForward, key) {
         app.inspect_full_diff = false;
-        app.detail_tab = (app.detail_tab + 1) % 8;
+        app.detail_tab = (app.detail_tab + 1) % 9;
         app.set_default_focus_for_tab();
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
@@ -74,7 +75,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
 
     if app.is_bound(Action::CycleTabBackward, key) {
         app.inspect_full_diff = false;
-        app.detail_tab = if app.detail_tab == 0 { 7 } else { app.detail_tab - 1 };
+        app.detail_tab = if app.detail_tab == 0 { 8 } else { app.detail_tab - 1 };
         app.set_default_focus_for_tab();
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
@@ -154,6 +155,16 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::GoToTab8, key) {
         app.inspect_full_diff = false;
         app.detail_tab = 7;
+        app.detail_focus = DetailSection::Worktrees;
+        if app.get_current_resync_on_tab_change() {
+            app.resync_detail();
+        }
+        return true;
+    }
+
+    if app.is_bound(Action::GoToTab9, key) {
+        app.inspect_full_diff = false;
+        app.detail_tab = 8;
         app.detail_focus = DetailSection::Commits;
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
@@ -169,16 +180,126 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
         4 => return TagsTab::handle_event(app, key),
         5 => return RemotesTab::handle_event(app, key),
         6 => return StashesTab::handle_event(app, key),
-        7 => {
-            if code == KeyCode::Char('s') || code == KeyCode::Char('S') {
-                app.repo_settings_selected_index = 0;
-                app.repo_settings_editing = false;
-                app.repo_settings_input = String::new();
-                app.mode = Mode::RepoSettings;
-                return true;
-            }
+        7 => return handle_worktree_events(app, key),
+        8 if code == KeyCode::Char('s') || code == KeyCode::Char('S') => {
+            app.repo_settings_selected_index = 0;
+            app.repo_settings_editing = false;
+            app.repo_settings_input = String::new();
+            app.mode = Mode::RepoSettings;
+            return true;
         }
         _ => {}
     }
     false
+}
+
+fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {
+    let wts_count = if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        if let repo::TabData::Loaded(wts) = &info.worktrees { wts.len() } else { 0 }
+    } else {
+        0
+    };
+
+    let code = key.code;
+    match code {
+        KeyCode::Down | KeyCode::Char('j') => {
+            if wts_count > 0 {
+                app.worktree_selection = (app.worktree_selection + 1).min(wts_count - 1);
+            }
+            true
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.worktree_selection = app.worktree_selection.saturating_sub(1);
+            true
+        }
+        KeyCode::Char('a') => {
+            app.worktree_add_branch.clear();
+            app.worktree_add_path.clear();
+            app.mode = Mode::WorktreeAddBranchInput;
+            true
+        }
+        KeyCode::Char('l') => {
+            if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+                if let repo::TabData::Loaded(wts) = &info.worktrees {
+                    if let Some(wt) = wts.get(app.worktree_selection) {
+                        if wt.is_locked {
+                            let path_str = match app.config.items.get(app.selected_index) {
+                                Some(p) => p,
+                                None => return false,
+                            };
+                            let path = repo::expand_tilde(path_str);
+                            match repo::worktree_unlock(&path, &wt.name) {
+                                Ok(_) => {
+                                    app.status_message =
+                                        Some("Worktree unlocked successfully".to_string());
+                                    app.resync_detail();
+                                }
+                                Err(e) => {
+                                    app.status_message = Some(format!("Failed to unlock: {}", e));
+                                }
+                            }
+                        } else {
+                            app.worktree_lock_reason.clear();
+                            app.mode = Mode::WorktreeLockReasonInput;
+                        }
+                    }
+                }
+            }
+            true
+        }
+        KeyCode::Char('d') => {
+            app.worktree_remove_delete_folder = false;
+            app.worktree_remove_force = false;
+            app.mode = Mode::WorktreeRemoveConfirm;
+            true
+        }
+        KeyCode::Char('p') => {
+            let path_str = match app.config.items.get(app.selected_index) {
+                Some(p) => p,
+                None => return false,
+            };
+            let path = repo::expand_tilde(path_str);
+            match repo::worktree_prune(&path) {
+                Ok(_) => {
+                    app.status_message = Some("Pruned stale worktree metadata".to_string());
+                    app.resync_detail();
+                }
+                Err(e) => {
+                    app.status_message = Some(format!("Prune failed: {}", e));
+                }
+            }
+            true
+        }
+        KeyCode::Enter => {
+            if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+                if let repo::TabData::Loaded(wts) = &info.worktrees {
+                    if let Some(wt) = wts.get(app.worktree_selection) {
+                        let wt_path = wt.path.clone();
+                        if wt_path.exists() {
+                            let wt_path_str = wt_path.to_string_lossy().to_string();
+                            if !app.config.items.contains(&wt_path_str) {
+                                app.config.items.push(wt_path_str.clone());
+                                let _ = crate::config::save_config(&app.config, &app.config_path);
+                                app.original_items = app.config.items.clone();
+                                if app.config.sort_by != crate::config::SortOrder::Custom {
+                                    app.sort_items_in_place();
+                                }
+                            }
+                            if let Some(pos) =
+                                app.config.items.iter().position(|x| x == &wt_path_str)
+                            {
+                                app.selected_index = pos;
+                                app.open_detail();
+                            }
+                        } else {
+                            app.status_message =
+                                Some("Worktree path does not exist on disk".to_string());
+                        }
+                    }
+                }
+            }
+            true
+        }
+        _ => false,
+    }
 }

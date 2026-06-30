@@ -138,6 +138,14 @@ pub enum Mode {
     RepoSettings,
     /// Confirming self-update of the application.
     UpdateConfirm,
+    /// Typing a branch name for a new worktree.
+    WorktreeAddBranchInput,
+    /// Typing a path for a new worktree.
+    WorktreeAddPathInput,
+    /// Typing a lock reason for a worktree.
+    WorktreeLockReasonInput,
+    /// Confirming removal options of a worktree.
+    WorktreeRemoveConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -160,6 +168,7 @@ pub enum DetailSection {
     Remotes,
     Stashes,
     StashedFiles,
+    Worktrees,
 }
 
 /// Resizable splitter identifier.
@@ -198,6 +207,7 @@ impl DetailSection {
             Self::Remotes => Self::Remotes,
             Self::Stashes => Self::Stashes,
             Self::StashedFiles => Self::StashedFiles,
+            Self::Worktrees => Self::Worktrees,
         }
     }
 
@@ -220,6 +230,7 @@ impl DetailSection {
             Self::Remotes => Self::Remotes,
             Self::Stashes => Self::Stashes,
             Self::StashedFiles => Self::StashedFiles,
+            Self::Worktrees => Self::Worktrees,
         }
     }
 }
@@ -438,6 +449,12 @@ pub struct App {
     pub file_history_diff_scroll: usize,
     pub file_history_path: String,
     pub file_history_focus: usize,
+    pub worktree_selection: usize,
+    pub worktree_add_branch: String,
+    pub worktree_add_path: String,
+    pub worktree_lock_reason: String,
+    pub worktree_remove_delete_folder: bool,
+    pub worktree_remove_force: bool,
     pub cpu_tracker: std::sync::Mutex<Option<(f64, std::time::Instant, f64, f64)>>,
     pub watcher: Option<notify::RecommendedWatcher>,
 }
@@ -1031,6 +1048,12 @@ impl App {
             file_history_diff_scroll: 0,
             file_history_path: String::new(),
             file_history_focus: 0,
+            worktree_selection: 0,
+            worktree_add_branch: String::new(),
+            worktree_add_path: String::new(),
+            worktree_lock_reason: String::new(),
+            worktree_remove_delete_folder: false,
+            worktree_remove_force: false,
             cpu_tracker: std::sync::Mutex::new(None),
             watcher: None,
         };
@@ -1258,7 +1281,7 @@ where
                 if resolved_str == path {
                     crate::debug_log::info(format!("Paths match! Updating tab_idx={}", tab_idx));
                     tab_updated = true;
-                    if tab_idx < 8 {
+                    if tab_idx < 9 {
                         info.tab_loading[tab_idx] = false;
                         info.tab_loaded_at[tab_idx] = Some(std::time::Instant::now());
                     }
@@ -1306,6 +1329,12 @@ where
                         repo::TabPayload::Stashes(res) => {
                             info.stashes = match res {
                                 Ok(s) => repo::TabData::Loaded(s),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Worktrees(res) => {
+                            info.worktrees = match res {
+                                Ok(w) => repo::TabData::Loaded(w),
                                 Err(e) => repo::TabData::Error(e),
                             };
                         }

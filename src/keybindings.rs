@@ -50,6 +50,7 @@ pub enum Action {
     GoToTab6,
     GoToTab7,
     GoToTab8,
+    GoToTab9,
 }
 
 impl Action {
@@ -95,6 +96,7 @@ impl Action {
             51 => Some(Action::GoToTab6),
             52 => Some(Action::GoToTab7),
             53 => Some(Action::GoToTab8),
+            54 => Some(Action::GoToTab9),
             _ => None,
         }
     }
@@ -150,6 +152,7 @@ pub struct NavigationKeybindings {
     pub go_to_tab_6: Option<Vec<String>>,
     pub go_to_tab_7: Option<Vec<String>>,
     pub go_to_tab_8: Option<Vec<String>>,
+    pub go_to_tab_9: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -225,6 +228,18 @@ pub fn keys_equal(
     code_b: KeyCode,
     mods_b: KeyModifiers,
 ) -> bool {
+    let (mut code_a, mut mods_a) = (code_a, mods_a);
+    let (mut code_b, mut mods_b) = (code_b, mods_b);
+
+    if code_a == KeyCode::BackTab {
+        code_a = KeyCode::Tab;
+        mods_a.insert(KeyModifiers::SHIFT);
+    }
+    if code_b == KeyCode::BackTab {
+        code_b = KeyCode::Tab;
+        mods_b.insert(KeyModifiers::SHIFT);
+    }
+
     if let (KeyCode::Char(c_a), KeyCode::Char(c_b)) = (code_a, code_b) {
         if c_a != c_b {
             return false;
@@ -280,7 +295,7 @@ impl KeybindingsConfig {
                 cycle_focus_backward: Some(vec!["W".to_string()]),
                 refresh_detail: Some(vec!["R".to_string()]),
                 cycle_tab_forward: Some(vec!["tab".to_string()]),
-                cycle_tab_backward: Some(vec!["backtab".to_string()]),
+                cycle_tab_backward: Some(vec!["backtab".to_string(), "shift-tab".to_string()]),
                 go_to_tab_1: Some(vec!["1".to_string()]),
                 go_to_tab_2: Some(vec!["2".to_string()]),
                 go_to_tab_3: Some(vec!["3".to_string()]),
@@ -289,6 +304,7 @@ impl KeybindingsConfig {
                 go_to_tab_6: Some(vec!["6".to_string()]),
                 go_to_tab_7: Some(vec!["7".to_string()]),
                 go_to_tab_8: Some(vec!["8".to_string()]),
+                go_to_tab_9: Some(vec!["9".to_string()]),
             },
         }
     }
@@ -345,6 +361,7 @@ impl KeybindingsConfig {
             Action::GoToTab6 => self.navigation.go_to_tab_6.as_ref(),
             Action::GoToTab7 => self.navigation.go_to_tab_7.as_ref(),
             Action::GoToTab8 => self.navigation.go_to_tab_8.as_ref(),
+            Action::GoToTab9 => self.navigation.go_to_tab_9.as_ref(),
         };
 
         keys_opt.cloned().unwrap_or_default()
@@ -470,6 +487,7 @@ impl KeybindingsConfig {
             Action::GoToTab6 => self.navigation.go_to_tab_6 = keys_opt,
             Action::GoToTab7 => self.navigation.go_to_tab_7 = keys_opt,
             Action::GoToTab8 => self.navigation.go_to_tab_8 = keys_opt,
+            Action::GoToTab9 => self.navigation.go_to_tab_9 = keys_opt,
         }
     }
 

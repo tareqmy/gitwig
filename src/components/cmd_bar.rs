@@ -245,6 +245,71 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 app.config.compatibility_mode,
             );
         }
+        Mode::WorktreeAddBranchInput => {
+            draw_input_status(
+                f,
+                area,
+                "Add Worktree (Branch/Commit)",
+                &app.input_buffer,
+                app.config.compatibility_mode,
+            );
+        }
+        Mode::WorktreeAddPathInput => {
+            draw_input_status(
+                f,
+                area,
+                "Add Worktree (Path)",
+                &app.input_buffer,
+                app.config.compatibility_mode,
+            );
+        }
+        Mode::WorktreeLockReasonInput => {
+            draw_input_status(
+                f,
+                area,
+                "Lock Worktree (Reason)",
+                &app.input_buffer,
+                app.config.compatibility_mode,
+            );
+        }
+        Mode::WorktreeRemoveConfirm => {
+            let wt_name =
+                if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+                    if let crate::repo::TabData::Loaded(wts) = &info.worktrees {
+                        wts.get(app.worktree_selection).map(|w| w.name.as_str()).unwrap_or("")
+                    } else {
+                        ""
+                    }
+                } else {
+                    ""
+                };
+            let msg_spans = vec![
+                Span::raw("Remove worktree "),
+                Span::styled(wt_name.to_string(), Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw("?"),
+            ];
+            let entries = vec![
+                StatusEntry::new(vec![
+                    Span::styled("[", muted_style()),
+                    Span::styled("1", accent_style()),
+                    Span::styled("]", muted_style()),
+                    Span::raw(" Metadata only"),
+                ]),
+                StatusEntry::new(vec![
+                    Span::styled("[", muted_style()),
+                    Span::styled("2", Style::default().fg(DANGER())),
+                    Span::styled("]", muted_style()),
+                    Span::raw(" Delete folder & metadata"),
+                ]),
+                StatusEntry::new(vec![
+                    Span::styled("[", muted_style()),
+                    Span::styled("Esc", muted_style()),
+                    Span::styled("]", muted_style()),
+                    Span::raw(" Cancel"),
+                ]),
+            ];
+            draw_status_layout(f, area, Some(msg_spans), entries, app);
+        }
         Mode::StashingUI => {
             let mut entries = Vec::new();
             let entries_data = [

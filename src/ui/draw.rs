@@ -56,6 +56,10 @@ pub fn draw(
                 | Mode::BranchCreateInput
                 | Mode::TagCreateInput
                 | Mode::StashingUI
+                | Mode::WorktreeAddBranchInput
+                | Mode::WorktreeAddPathInput
+                | Mode::WorktreeLockReasonInput
+                | Mode::WorktreeRemoveConfirm
                 | Mode::BranchDeleteConfirm
                 | Mode::BranchCheckoutConfirm
                 | Mode::TagCheckoutConfirm
@@ -88,7 +92,8 @@ pub fn draw(
             if let Some(repo_theme) = app.repo_theme_cache.get(repo_path) {
                 // Save current theme state
                 let current_theme_config = {
-                    let lock = crate::ui::style::THEME.read().unwrap();
+                    let lock =
+                        crate::ui::style::THEME.read().expect("theme lock should be acquired");
                     crate::config::ThemeConfig {
                         accent: crate::ui::style::format_color(lock.accent),
                         warning: crate::ui::style::format_color(lock.warning),
@@ -120,6 +125,10 @@ pub fn draw(
             | Mode::BranchCreateInput
             | Mode::TagCreateInput
             | Mode::StashingUI
+            | Mode::WorktreeAddBranchInput
+            | Mode::WorktreeAddPathInput
+            | Mode::WorktreeLockReasonInput
+            | Mode::WorktreeRemoveConfirm
             | Mode::BranchDeleteConfirm
             | Mode::BranchCheckoutConfirm
             | Mode::TagCheckoutConfirm

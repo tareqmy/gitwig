@@ -3641,8 +3641,8 @@ fn test_tab_ttl_behavior() {
     let mock_info = crate::repo::RepoInfo {
         commits: vec![],
         files: crate::repo::TabData::Loaded(vec!["file1.txt".to_string()]),
-        tab_loaded_at: [None; 8],
-        tab_loading: [false; 8],
+        tab_loaded_at: [None; 9],
+        tab_loading: [false; 9],
         ..crate::repo::RepoInfo::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
@@ -4526,7 +4526,7 @@ fn test_repo_settings_flow() {
 
     let mut app = App::new(config, config_path.clone());
     app.mode = Mode::Detail;
-    app.detail_tab = 7; // Overview tab
+    app.detail_tab = 8; // Overview tab
     app.selected_index = 0;
 
     // Verify pressing 's' opens repo settings popup
@@ -4583,17 +4583,23 @@ fn test_is_newer_version() {
 
 #[test]
 fn test_repo_settings_fallbacks() {
-    let mut config = Config::default();
-    config.page_size = 10;
-    config.max_commits = 100;
-    config.resync_on_tab_change = true;
-    config.items = vec!["/path/to/repo_a".to_string(), "/path/to/repo_b".to_string()];
+    let mut repo_configs = std::collections::HashMap::new();
+    let repo_cfg = RepoConfig {
+        page_size: Some(15),
+        max_commits: Some(200),
+        resync_on_tab_change: Some(false),
+        ..Default::default()
+    };
+    repo_configs.insert("/path/to/repo_a".to_string(), repo_cfg);
 
-    let mut repo_cfg = RepoConfig::default();
-    repo_cfg.page_size = Some(15);
-    repo_cfg.max_commits = Some(200);
-    repo_cfg.resync_on_tab_change = Some(false);
-    config.repo_configs.insert("/path/to/repo_a".to_string(), repo_cfg);
+    let config = Config {
+        page_size: 10,
+        max_commits: 100,
+        resync_on_tab_change: true,
+        items: vec!["/path/to/repo_a".to_string(), "/path/to/repo_b".to_string()],
+        repo_configs,
+        ..Default::default()
+    };
 
     let mut app = App::new(config, std::path::PathBuf::from("dummy.toml"));
 
@@ -4601,13 +4607,13 @@ fn test_repo_settings_fallbacks() {
     app.selected_index = 0;
     assert_eq!(app.get_current_page_size(), 15);
     assert_eq!(app.get_current_max_commits(), 200);
-    assert_eq!(app.get_current_resync_on_tab_change(), false);
+    assert!(!app.get_current_resync_on_tab_change());
 
     // If second repo (repo_b) is selected, fallback to global configs
     app.selected_index = 1;
     assert_eq!(app.get_current_page_size(), 10);
     assert_eq!(app.get_current_max_commits(), 100);
-    assert_eq!(app.get_current_resync_on_tab_change(), true);
+    assert!(app.get_current_resync_on_tab_change());
 }
 
 #[test]
@@ -4653,5 +4659,84 @@ fn test_keybindings_settings_panel_flow() {
     assert!(app.is_bound(crate::keybindings::Action::ToggleStatusBar, comma_key));
 
     // Clean up
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_worktree_tui_flows() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use std::path::PathBuf;
+
+    let config = Config { items: vec!["/path/to/my_repo".to_string()], ..Default::default() };
+    let temp_dir = std::env::temp_dir();
+    let config_path = temp_dir.join("gitwig_test_worktree_config.toml");
+    let mut app = App::new(config, config_path.clone());
+    app.selected_index = 0;
+    app.mode = Mode::Detail;
+
+    // Set up mock details containing worktree elements
+    let mut mock_info = repo::RepoInfo::default();
+    let mock_worktree = repo::WorktreeInfo {
+        name: "my-worktree".to_string(),
+        path: PathBuf::from("/path/to/my_repo/../my-worktree"),
+        branch: Some("my-feature".to_string()),
+        is_locked: false,
+        lock_reason: None,
+    };
+    mock_info.worktrees = repo::TabData::Loaded(vec![mock_worktree]);
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/my_repo"),
+        info: Box::new(mock_info),
+    });
+
+    // Go to worktrees tab (tab 7)
+    app.detail_tab = 7;
+    app.detail_focus = DetailSection::Worktrees;
+    app.worktree_selection = 0;
+
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    // 1. Move selection down (clamped since there's only 1 worktree)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 1);
+    assert!(handled);
+    assert_eq!(app.worktree_selection, 0);
+
+    // 2. Press 'a' to add a worktree (should trigger Branch Input mode)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::WorktreeAddBranchInput);
+
+    // Simulate input typing for branch
+    app.input_buffer = "my-new-branch".to_string();
+    app.commit_worktree_add_branch();
+    assert_eq!(app.mode, Mode::WorktreeAddPathInput);
+    assert_eq!(app.worktree_add_branch, "my-new-branch");
+
+    // Cancel / escape path input
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+
+    // 3. Press 'l' to lock the worktree
+    app.mode = Mode::Detail;
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('l')), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::WorktreeLockReasonInput);
+
+    // Escape lock reason
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+
+    // 4. Press 'd' to trigger remove confirm dialog
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('d')), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::WorktreeRemoveConfirm);
+
+    // Escape removal confirmation
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+
     let _ = std::fs::remove_dir_all(&temp_dir);
 }

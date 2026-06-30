@@ -19,7 +19,7 @@ const FZF_SETTING_INDICES: &[usize] = &[11, 5, 4, 10, 8];
 const THEME_SETTING_INDICES: &[usize] = &[3];
 const KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
-    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53,
+    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
 ];
 
 fn index_to_action(idx: usize) -> Option<crate::keybindings::Action> {
@@ -145,7 +145,8 @@ fn get_label(global_idx: usize) -> &'static str {
         50 => "Detail: Tab 5 (Tags)",
         51 => "Detail: Tab 6 (Remotes)",
         52 => "Detail: Tab 7 (Stashes)",
-        53 => "Detail: Tab 8 (Overview)",
+        53 => "Detail: Tab 8 (Worktrees)",
+        54 => "Detail: Tab 9 (Overview)",
         _ => "",
     }
 }
@@ -211,7 +212,8 @@ fn get_desc(global_idx: usize) -> &'static str {
         50 => "Switches directly to the local tags list tab.",
         51 => "Switches directly to the configured remotes tab.",
         52 => "Switches directly to the git stashes list tab.",
-        53 => "Switches directly to the repository Overview info tab.",
+        53 => "Switches directly to the repository Worktrees list tab.",
+        54 => "Switches directly to the repository Overview info tab.",
         _ => "",
     }
 }

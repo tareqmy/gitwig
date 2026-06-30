@@ -1384,4 +1384,115 @@ impl App {
         self.tag_checkout_target = None;
         self.mode = Mode::Detail;
     }
+
+    pub fn commit_worktree_add_branch(&mut self) {
+        let branch = self.input_buffer.trim().to_string();
+        if branch.is_empty() {
+            self.status_message = Some("Branch name cannot be empty".to_string());
+            self.mode = Mode::Detail;
+            return;
+        }
+        self.worktree_add_branch = branch;
+        self.input_buffer.clear();
+        self.mode = Mode::WorktreeAddPathInput;
+    }
+
+    pub fn commit_worktree_add_path(&mut self) {
+        let path_str = self.input_buffer.trim().to_string();
+        if path_str.is_empty() {
+            self.status_message = Some("Path cannot be empty".to_string());
+            self.mode = Mode::Detail;
+            return;
+        }
+        let wt_path = repo::expand_tilde(&path_str);
+        let resolved_path = match &self.current_detail {
+            Some(repo::ItemDetail::Repo { resolved, .. }) => resolved.clone(),
+            _ => {
+                self.mode = Mode::Detail;
+                return;
+            }
+        };
+        match repo::worktree_add(&resolved_path, &self.worktree_add_branch, &wt_path) {
+            Ok(_) => {
+                self.status_message = Some("Worktree added successfully".to_string());
+                self.resync_detail();
+            }
+            Err(e) => {
+                self.status_message = Some(format!("Failed to add worktree: {}", e));
+            }
+        }
+        self.input_buffer.clear();
+        self.mode = Mode::Detail;
+    }
+
+    pub fn commit_worktree_lock_reason(&mut self) {
+        let reason = self.input_buffer.trim().to_string();
+        let resolved_path = match &self.current_detail {
+            Some(repo::ItemDetail::Repo { resolved, .. }) => resolved.clone(),
+            _ => {
+                self.mode = Mode::Detail;
+                return;
+            }
+        };
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if let repo::TabData::Loaded(wts) = &info.worktrees {
+                if let Some(wt) = wts.get(self.worktree_selection) {
+                    match repo::worktree_lock(&resolved_path, &wt.name, &reason) {
+                        Ok(_) => {
+                            self.status_message = Some("Worktree locked successfully".to_string());
+                            self.resync_detail();
+                        }
+                        Err(e) => {
+                            self.status_message = Some(format!("Failed to lock: {}", e));
+                        }
+                    }
+                }
+            }
+        }
+        self.input_buffer.clear();
+        self.mode = Mode::Detail;
+    }
+
+    pub fn remove_worktree(&mut self, delete_folder: bool) {
+        let resolved_path = match &self.current_detail {
+            Some(repo::ItemDetail::Repo { resolved, .. }) => resolved.clone(),
+            _ => {
+                self.mode = Mode::Detail;
+                return;
+            }
+        };
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if let repo::TabData::Loaded(wts) = &info.worktrees {
+                if let Some(wt) = wts.get(self.worktree_selection) {
+                    if wt.is_locked {
+                        let _ = repo::worktree_unlock(&resolved_path, &wt.name);
+                    }
+
+                    let wt_path = wt.path.clone();
+                    match repo::worktree_remove(&resolved_path, &wt.name, true) {
+                        Ok(_) => {
+                            if delete_folder && wt_path.exists() {
+                                if let Err(e) = std::fs::remove_dir_all(&wt_path) {
+                                    self.status_message = Some(format!(
+                                        "Worktree removed, but failed to delete directory: {}",
+                                        e
+                                    ));
+                                } else {
+                                    self.status_message =
+                                        Some("Worktree metadata and directory removed".to_string());
+                                }
+                            } else {
+                                self.status_message = Some("Worktree metadata removed".to_string());
+                            }
+                            self.resync_detail();
+                        }
+                        Err(e) => {
+                            self.status_message = Some(format!("Failed to remove worktree: {}", e));
+                        }
+                    }
+                }
+            }
+        }
+        self.mode = Mode::Detail;
+    }
 }

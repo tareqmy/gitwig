@@ -48,3 +48,4 @@ pub mod file_tree;
 pub mod stash_list;
 pub mod status_list;
 pub mod tag_list;
+pub mod worktree_list;
