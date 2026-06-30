@@ -2253,10 +2253,13 @@ impl App {
                 let dest_expanded = repo::expand_tilde(&dest_str);
                 let _ = std::fs::create_dir_all(&dest_expanded);
 
-                let mut cmd = std::process::Command::new("git");
-                cmd.env("GIT_TERMINAL_PROMPT", "0")
-                    .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
-                cmd.arg("clone").arg(&url).arg(&dest_expanded);
+                let trimmed_url = url.trim().to_lowercase();
+                if trimmed_url.contains("ext:") || trimmed_url.contains("fd:") {
+                    return Err("Malicious URL protocol rejected".to_string());
+                }
+
+                let mut cmd = git_command();
+                cmd.arg("clone").arg("--").arg(&url).arg(&dest_expanded);
 
                 let output = cmd.output().map_err(|e| e.to_string())?;
                 if output.status.success() {
@@ -2808,4 +2811,24 @@ impl App {
     pub fn help_scroll_to_bottom(&mut self) {
         self.help_scroll = usize::MAX;
     }
+}
+
+fn git_command() -> std::process::Command {
+    let mut cmd = std::process::Command::new("git");
+    cmd.env("GIT_TERMINAL_PROMPT", "0");
+    cmd.env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+    cmd.env("GIT_ALLOW_PROTOCOL", "https:ssh:git:file");
+    cmd.env("GIT_PROTOCOL_FROM_USER", "0");
+    cmd
+}
+
+fn _safe_ref(r: &str) -> Result<&str, String> {
+    let trimmed = r.trim();
+    if trimmed.starts_with('-') {
+        return Err(format!("Invalid ref name: '{}' (ref names cannot start with '-')", r));
+    }
+    if trimmed.is_empty() {
+        return Err("Ref name cannot be empty".to_string());
+    }
+    Ok(trimmed)
 }

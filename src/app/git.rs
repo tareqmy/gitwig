@@ -33,9 +33,8 @@ impl App {
                                 .to_string());
                         }
 
-                        let output = std::process::Command::new("git")
-                            .env("GIT_TERMINAL_PROMPT", "0")
-                            .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                        let _safe_branch = safe_ref(&branch_name)?;
+                        let output = git_command()
                             .arg("pull")
                             .current_dir(&repo_path)
                             .output()?;
@@ -139,14 +138,14 @@ impl App {
             let tx = self.tx.clone();
             std::thread::spawn(move || {
                 let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                    let mut cmd = std::process::Command::new("git");
-                    cmd.env("GIT_TERMINAL_PROMPT", "0")
-                        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+                    let safe_remote = safe_ref(&remote_name)?;
+                    let safe_branch = safe_ref(&branch_name)?;
+                    let mut cmd = git_command();
                     cmd.arg("push");
                     if set_upstream {
                         cmd.arg("-u");
                     }
-                    cmd.arg(&remote_name).arg(&branch_name).current_dir(&repo_path);
+                    cmd.arg(safe_remote).arg(safe_branch).current_dir(&repo_path);
 
                     let output = cmd.output()?;
 
@@ -477,10 +476,22 @@ impl App {
                     Some(format!("Pushing tag '{}' to '{}'...", tag_name, remote_name));
                 let tx = self.tx.clone();
                 std::thread::spawn(move || {
-                    let mut cmd = std::process::Command::new("git");
-                    cmd.env("GIT_TERMINAL_PROMPT", "0")
-                        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
-                    cmd.arg("push").arg(&remote_name).arg(&tag_name).current_dir(&repo_path);
+                    let safe_remote = match safe_ref(&remote_name) {
+                        Ok(r) => r,
+                        Err(e) => {
+                            let _ = tx.send(format!("Invalid remote: {}", e));
+                            return;
+                        }
+                    };
+                    let safe_tag = match safe_ref(&tag_name) {
+                        Ok(t) => t,
+                        Err(e) => {
+                            let _ = tx.send(format!("Invalid tag: {}", e));
+                            return;
+                        }
+                    };
+                    let mut cmd = git_command();
+                    cmd.arg("push").arg(safe_remote).arg(safe_tag).current_dir(&repo_path);
 
                     let output = match cmd.output() {
                         Ok(o) => o,
@@ -720,11 +731,10 @@ impl App {
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                        let output = std::process::Command::new("git")
-                            .env("GIT_TERMINAL_PROMPT", "0")
-                            .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                        let safe_target = safe_ref(&target_name)?;
+                        let output = git_command()
                             .arg("merge")
-                            .arg(&target_name)
+                            .arg(safe_target)
                             .current_dir(&repo_path)
                             .output()?;
 
@@ -815,11 +825,10 @@ impl App {
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                        let output = std::process::Command::new("git")
-                            .env("GIT_TERMINAL_PROMPT", "0")
-                            .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                        let safe_target = safe_ref(&target_name)?;
+                        let output = git_command()
                             .arg("rebase")
-                            .arg(&target_name)
+                            .arg(safe_target)
                             .current_dir(&repo_path)
                             .output()?;
 
@@ -1033,11 +1042,10 @@ impl App {
 
             std::thread::spawn(move || {
                 let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                    let output = std::process::Command::new("git")
-                        .env("GIT_TERMINAL_PROMPT", "0")
-                        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                    let safe_remote = safe_ref(&remote_name)?;
+                    let output = git_command()
                         .arg("fetch")
-                        .arg(&remote_name)
+                        .arg(safe_remote)
                         .current_dir(&repo_path)
                         .output()?;
 
@@ -1147,13 +1155,25 @@ impl App {
                 Some(format!("Pushing '{}' to '{}'...", branch_name, remote_name));
             let tx = self.tx.clone();
             std::thread::spawn(move || {
-                let mut cmd = std::process::Command::new("git");
-                cmd.env("GIT_TERMINAL_PROMPT", "0")
-                    .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+                let safe_remote = match safe_ref(&remote_name) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        let _ = tx.send(format!("Invalid remote: {}", e));
+                        return;
+                    }
+                };
+                let safe_branch = match safe_ref(&branch_name) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        let _ = tx.send(format!("Invalid branch: {}", e));
+                        return;
+                    }
+                };
+                let mut cmd = git_command();
                 cmd.arg("push")
                     .arg("-u")
-                    .arg(&remote_name)
-                    .arg(&branch_name)
+                    .arg(safe_remote)
+                    .arg(safe_branch)
                     .current_dir(&repo_path);
                 let output = match cmd.output() {
                     Ok(o) => o,
@@ -1188,10 +1208,22 @@ impl App {
                 Some(format!("Pushing tag '{}' to '{}'...", tag_name, remote_name));
             let tx = self.tx.clone();
             std::thread::spawn(move || {
-                let mut cmd = std::process::Command::new("git");
-                cmd.env("GIT_TERMINAL_PROMPT", "0")
-                    .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
-                cmd.arg("push").arg(&remote_name).arg(&tag_name).current_dir(&repo_path);
+                let safe_remote = match safe_ref(&remote_name) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        let _ = tx.send(format!("Invalid remote: {}", e));
+                        return;
+                    }
+                };
+                let safe_tag = match safe_ref(&tag_name) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        let _ = tx.send(format!("Invalid tag: {}", e));
+                        return;
+                    }
+                };
+                let mut cmd = git_command();
+                cmd.arg("push").arg(safe_remote).arg(safe_tag).current_dir(&repo_path);
                 let output = match cmd.output() {
                     Ok(o) => o,
                     Err(e) => {
@@ -1223,10 +1255,15 @@ impl App {
             self.status_message = Some(format!("Pushing all tags to '{}'...", remote_name));
             let tx = self.tx.clone();
             std::thread::spawn(move || {
-                let mut cmd = std::process::Command::new("git");
-                cmd.env("GIT_TERMINAL_PROMPT", "0")
-                    .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
-                cmd.arg("push").arg(&remote_name).arg("--tags").current_dir(&repo_path);
+                let safe_remote = match safe_ref(&remote_name) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        let _ = tx.send(format!("Invalid remote: {}", e));
+                        return;
+                    }
+                };
+                let mut cmd = git_command();
+                cmd.arg("push").arg(safe_remote).arg("--tags").current_dir(&repo_path);
                 let output = match cmd.output() {
                     Ok(o) => o,
                     Err(e) => {
@@ -1543,12 +1580,17 @@ impl App {
         let tx = self.tx.clone();
 
         std::thread::spawn(move || {
-            let mut cmd = std::process::Command::new("git");
-            cmd.arg("submodule").arg("add").arg(&url).arg(&path).current_dir(&repo_path);
+            let trimmed_url = url.trim().to_lowercase();
+            if trimmed_url.contains("ext:") || trimmed_url.contains("fd:") {
+                let _ = tx.send("Error: Malicious URL protocol rejected".to_string());
+                return;
+            }
+            let mut cmd = git_command();
+            cmd.arg("submodule").arg("add").arg("--").arg(&url).arg(&path).current_dir(&repo_path);
 
             match cmd.output() {
                 Ok(out) if out.status.success() => {
-                    let _ = std::process::Command::new("git")
+                    let _ = git_command()
                         .arg("submodule")
                         .arg("update")
                         .arg("--init")
@@ -1588,11 +1630,20 @@ impl App {
         let tx = self.tx.clone();
 
         std::thread::spawn(move || {
-            let deinit_res = std::process::Command::new("git")
+            let safe_sub = match safe_ref(&sub_name) {
+                Ok(s) => s,
+                Err(e) => {
+                    let _ = tx.send(format!("Invalid submodule name: {}", e));
+                    return;
+                }
+            };
+
+            let deinit_res = git_command()
                 .arg("submodule")
                 .arg("deinit")
                 .arg("-f")
-                .arg(&sub_name)
+                .arg("--")
+                .arg(safe_sub)
                 .current_dir(&repo_path)
                 .output();
 
@@ -1601,10 +1652,11 @@ impl App {
                 return;
             }
 
-            let rm_res = std::process::Command::new("git")
+            let rm_res = git_command()
                 .arg("rm")
                 .arg("-f")
-                .arg(&sub_name)
+                .arg("--")
+                .arg(safe_sub)
                 .current_dir(&repo_path)
                 .output();
 
@@ -1636,4 +1688,24 @@ impl App {
         self.submodule_delete_target = None;
         self.mode = Mode::Detail;
     }
+}
+
+fn git_command() -> std::process::Command {
+    let mut cmd = std::process::Command::new("git");
+    cmd.env("GIT_TERMINAL_PROMPT", "0");
+    cmd.env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+    cmd.env("GIT_ALLOW_PROTOCOL", "https:ssh:git:file");
+    cmd.env("GIT_PROTOCOL_FROM_USER", "0");
+    cmd
+}
+
+fn safe_ref(r: &str) -> Result<&str, String> {
+    let trimmed = r.trim();
+    if trimmed.starts_with('-') {
+        return Err(format!("Invalid ref name: '{}' (ref names cannot start with '-')", r));
+    }
+    if trimmed.is_empty() {
+        return Err("Ref name cannot be empty".to_string());
+    }
+    Ok(trimmed)
 }

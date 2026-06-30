@@ -385,11 +385,29 @@ pub fn unstage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn git_command() -> std::process::Command {
+    let mut cmd = std::process::Command::new("git");
+    cmd.env("GIT_TERMINAL_PROMPT", "0");
+    cmd.env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+    cmd.env("GIT_ALLOW_PROTOCOL", "https:ssh:git:file");
+    cmd.env("GIT_PROTOCOL_FROM_USER", "0");
+    cmd
+}
+
+pub fn safe_ref(r: &str) -> Result<&str, String> {
+    let trimmed = r.trim();
+    if trimmed.starts_with('-') {
+        return Err(format!("Invalid ref name: '{}' (ref names cannot start with '-')", r));
+    }
+    if trimmed.is_empty() {
+        return Err("Ref name cannot be empty".to_string());
+    }
+    Ok(trimmed)
+}
+
 /// Stage all unstaged/untracked changes (equivalent to `git add -A`).
 pub fn stage_all_changes(repo_path: &Path) -> Result<(), String> {
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+    let output = git_command()
         .arg("add")
         .arg("-A")
         .current_dir(repo_path)
@@ -405,9 +423,7 @@ pub fn stage_all_changes(repo_path: &Path) -> Result<(), String> {
 
 /// Unstage all staged changes (equivalent to `git reset`).
 pub fn unstage_all_changes(repo_path: &Path) -> Result<(), String> {
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+    let output = git_command()
         .arg("reset")
         .current_dir(repo_path)
         .output()
@@ -423,17 +439,13 @@ pub fn unstage_all_changes(repo_path: &Path) -> Result<(), String> {
 /// Discard all staged, unstaged, and untracked changes in the repository.
 pub fn discard_all_changes(repo_path: &Path) -> Result<(), String> {
     // 1. Unstage all first so everything is in the working tree
-    let _ = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+    let _ = git_command()
         .arg("reset")
         .current_dir(repo_path)
         .output();
 
     // 2. Discard all tracked modifications
-    let checkout_out = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+    let checkout_out = git_command()
         .arg("checkout")
         .arg("--")
         .arg(".")
@@ -446,9 +458,7 @@ pub fn discard_all_changes(repo_path: &Path) -> Result<(), String> {
     }
 
     // 3. Clean all untracked files/folders
-    let clean_out = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+    let clean_out = git_command()
         .arg("clean")
         .arg("-fd")
         .current_dir(repo_path)
@@ -2121,13 +2131,13 @@ pub fn delete_remote_tag(
     remote_name: &str,
     tag_name: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+    let safe_remote = safe_ref(remote_name)?;
+    let safe_tag = safe_ref(tag_name)?;
+    let output = git_command()
         .arg("push")
-        .arg(remote_name)
+        .arg(safe_remote)
         .arg("--delete")
-        .arg(tag_name)
+        .arg(safe_tag)
         .current_dir(repo_path)
         .output()?;
     if !output.status.success() {
@@ -2138,11 +2148,10 @@ pub fn delete_remote_tag(
 }
 
 pub fn checkout_tag(repo_path: &Path, tag_name: &str) -> Result<(), git2::Error> {
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+    let safe_tag = safe_ref(tag_name).map_err(|e| git2::Error::from_str(&e))?;
+    let output = git_command()
         .arg("checkout")
-        .arg(tag_name)
+        .arg(safe_tag)
         .current_dir(repo_path)
         .output()
         .map_err(|e| git2::Error::from_str(&e.to_string()))?;
@@ -2159,12 +2168,11 @@ pub fn get_remote_tags(
     repo_path: &Path,
     remote_name: &str,
 ) -> Result<Vec<BranchInfo>, Box<dyn std::error::Error>> {
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+    let safe_remote = safe_ref(remote_name)?;
+    let output = git_command()
         .arg("ls-remote")
         .arg("--tags")
-        .arg(remote_name)
+        .arg(safe_remote)
         .current_dir(repo_path)
         .output()?;
 
