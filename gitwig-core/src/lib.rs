@@ -423,8 +423,16 @@ pub fn sanitize_text(s: &str) -> String {
             }
             i += 1;
         }
+     }
+     result
+}
+
+pub fn safe_sha_slice(sha: &str, len: usize) -> &str {
+    let mut end = len.min(sha.len());
+    while end > 0 && !sha.is_char_boundary(end) {
+        end -= 1;
     }
-    result
+    &sha[..end]
 }
 
 fn git_command() -> std::process::Command {
@@ -1421,7 +1429,8 @@ pub fn load_tab_branches(
                 let mut short_message = String::new();
                 if let Ok(target) = branch.get().peel_to_commit() {
                     let id = target.id();
-                    short_sha = id.to_string()[..7.min(id.to_string().len())].to_string();
+                    let id_str = id.to_string();
+                    short_sha = safe_sha_slice(&id_str, 7).to_string();
                     if let Ok(Some(summary)) = target.summary() {
                         short_message = summary.to_string();
                     }
@@ -1447,7 +1456,8 @@ pub fn load_tab_branches(
                     let mut short_message = String::new();
                     if let Ok(target) = branch.get().peel_to_commit() {
                         let id = target.id();
-                        short_sha = id.to_string()[..7.min(id.to_string().len())].to_string();
+                        let id_str = id.to_string();
+                        short_sha = safe_sha_slice(&id_str, 7).to_string();
                         if let Ok(Some(summary)) = target.summary() {
                             short_message = summary.to_string();
                         }
@@ -1484,7 +1494,8 @@ pub fn load_tab_tags(
                 if let Ok(reference) = repo.find_reference(&format!("refs/tags/{}", tag)) {
                     if let Ok(target) = reference.peel_to_commit() {
                         let id = target.id();
-                        short_sha = id.to_string()[..7.min(id.to_string().len())].to_string();
+                        let id_str = id.to_string();
+                        short_sha = safe_sha_slice(&id_str, 7).to_string();
                         if let Ok(Some(summary)) = target.summary() {
                             short_message = summary.to_string();
                         }
@@ -2234,9 +2245,9 @@ pub fn get_remote_tags(
             let ref_name = parts[1];
             if ref_name.starts_with("refs/tags/") {
                 let is_peeled = ref_name.ends_with("^{}");
-                let clean_ref = if is_peeled { &ref_name[..ref_name.len() - 3] } else { ref_name };
+                let clean_ref = if is_peeled { safe_sha_slice(ref_name, ref_name.len().saturating_sub(3)) } else { ref_name };
                 let tag_name = clean_ref.strip_prefix("refs/tags/").unwrap_or(clean_ref);
-                let short_sha = if sha.len() >= 7 { &sha[..7] } else { sha };
+                let short_sha = safe_sha_slice(sha, 7);
 
                 // Try to resolve the summary locally
                 let mut short_message = String::new();

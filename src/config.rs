@@ -497,9 +497,27 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf, Option
     // ── Always ensure ~/.gitwig/ exists ───────────────────────────────────
     let gitwig_dir = home_gitwig_dir();
     fs::create_dir_all(&gitwig_dir)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = fs::metadata(&gitwig_dir) {
+            let mut perms = meta.permissions();
+            perms.set_mode(0o700);
+            let _ = fs::set_permissions(&gitwig_dir, perms);
+        }
+    }
     let canonical = gitwig_dir.join("config.toml");
     let themes_dir = gitwig_dir.join("themes");
     fs::create_dir_all(&themes_dir)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = fs::metadata(&themes_dir) {
+            let mut perms = meta.permissions();
+            perms.set_mode(0o700);
+            let _ = fs::set_permissions(&themes_dir, perms);
+        }
+    }
     write_popular_themes(&themes_dir)?;
 
     // ── 2. Canonical file already present ─────────────────────────────────
