@@ -1341,27 +1341,32 @@ impl App {
 
     pub fn request_stash_delete(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if info.stashes.get(self.stash_list.stash_selection).is_some() {
+            if let Some(stash) = info.stashes.get(self.stash_list.stash_selection) {
+                self.stash_action_target = Some((stash.commit_id.clone(), stash.message.clone()));
                 self.mode = Mode::StashDeleteConfirm;
             }
         }
     }
 
     pub fn confirm_stash_delete(&mut self) {
-        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(stash) = info.stashes.get(self.stash_list.stash_selection) {
-                let index_to_delete = stash.index;
-                match repo::delete_stash(resolved, index_to_delete) {
-                    Ok(()) => {
-                        self.status_message =
-                            Some(format!("Deleted stash@{{{}}}", index_to_delete));
-                        self.stash_list.stash_selection = 0;
-                        self.stash_list.stash_file_selection = 0;
-                        self.resync_detail();
+        if let Some((target_commit_id, target_msg)) = self.stash_action_target.take() {
+            if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+                if let Some(stash) = info.stashes.iter().find(|s| s.commit_id == target_commit_id && s.message == target_msg) {
+                    let index_to_delete = stash.index;
+                    match repo::delete_stash(resolved, index_to_delete) {
+                        Ok(()) => {
+                            self.status_message =
+                                Some(format!("Deleted stash@{{{}}}", index_to_delete));
+                            self.stash_list.stash_selection = 0;
+                            self.stash_list.stash_file_selection = 0;
+                            self.resync_detail();
+                        }
+                        Err(e) => {
+                            self.status_message = Some(format!("Failed to delete stash: {}", e));
+                        }
                     }
-                    Err(e) => {
-                        self.status_message = Some(format!("Failed to delete stash: {}", e));
-                    }
+                } else {
+                    self.status_message = Some("Failed to delete stash: Stash no longer exists".to_string());
                 }
             }
         }
@@ -1369,12 +1374,14 @@ impl App {
     }
 
     pub fn cancel_stash_delete(&mut self) {
+        self.stash_action_target = None;
         self.mode = Mode::Detail;
     }
 
     pub fn request_stash_apply(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if info.stashes.get(self.stash_list.stash_selection).is_some() {
+            if let Some(stash) = info.stashes.get(self.stash_list.stash_selection) {
+                self.stash_action_target = Some((stash.commit_id.clone(), stash.message.clone()));
                 self.stash_apply_delete_after = true;
                 self.mode = Mode::StashApplyConfirm;
             }
@@ -1382,31 +1389,35 @@ impl App {
     }
 
     pub fn confirm_stash_apply(&mut self) {
-        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-            if let Some(stash) = info.stashes.get(self.stash_list.stash_selection) {
-                let index_to_apply = stash.index;
-                match repo::apply_stash(resolved, index_to_apply) {
-                    Ok(()) => {
-                        let mut success_msg = format!("Applied stash@{{{}}}", index_to_apply);
-                        if self.stash_apply_delete_after {
-                            match repo::delete_stash(resolved, index_to_apply) {
-                                Ok(()) => {
-                                    success_msg.push_str(" and deleted it");
-                                }
-                                Err(e) => {
-                                    success_msg
-                                        .push_str(&format!(", but failed to delete it: {}", e));
+        if let Some((target_commit_id, target_msg)) = self.stash_action_target.take() {
+            if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+                if let Some(stash) = info.stashes.iter().find(|s| s.commit_id == target_commit_id && s.message == target_msg) {
+                    let index_to_apply = stash.index;
+                    match repo::apply_stash(resolved, index_to_apply) {
+                        Ok(()) => {
+                            let mut success_msg = format!("Applied stash@{{{}}}", index_to_apply);
+                            if self.stash_apply_delete_after {
+                                match repo::delete_stash(resolved, index_to_apply) {
+                                    Ok(()) => {
+                                        success_msg.push_str(" and deleted it");
+                                    }
+                                    Err(e) => {
+                                        success_msg
+                                            .push_str(&format!(", but failed to delete it: {}", e));
+                                    }
                                 }
                             }
+                            self.status_message = Some(success_msg);
+                            self.stash_list.stash_selection = 0;
+                            self.stash_list.stash_file_selection = 0;
+                            self.resync_detail();
                         }
-                        self.status_message = Some(success_msg);
-                        self.stash_list.stash_selection = 0;
-                        self.stash_list.stash_file_selection = 0;
-                        self.resync_detail();
+                        Err(e) => {
+                            self.status_message = Some(format!("Failed to apply stash: {}", e));
+                        }
                     }
-                    Err(e) => {
-                        self.status_message = Some(format!("Failed to apply stash: {}", e));
-                    }
+                } else {
+                    self.status_message = Some("Failed to apply stash: Stash no longer exists".to_string());
                 }
             }
         }

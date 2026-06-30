@@ -406,6 +406,8 @@ pub struct App {
     pub stash_untracked: bool,
     /// Option to keep the index after stashing.
     pub stash_keep_index: bool,
+    /// Track the targeted stash by (commit_id, message) for validation on confirm
+    pub stash_action_target: Option<(String, String)>,
     /// Selection index in the Stashing UI file list.
     pub stashing_ui_selection: usize,
     /// Preserved original order of repository items from the config.
@@ -1027,6 +1029,7 @@ impl App {
             stash_apply_delete_after: true,
             stash_untracked: true,
             stash_keep_index: false,
+            stash_action_target: None,
             stashing_ui_selection: 0,
             remote_picker_action: None,
             remote_picker_selection: 0,
