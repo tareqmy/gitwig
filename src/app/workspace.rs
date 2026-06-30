@@ -6,21 +6,7 @@ impl App {
             self.status_message = Some("Cannot cherry-pick uncommitted changes.".to_string());
             return;
         }
-        let commit_data = match &self.current_detail {
-            Some(repo::ItemDetail::Repo { info, .. }) => {
-                let dirty = !info.changes.staged.is_empty()
-                    || !info.changes.unstaged.is_empty()
-                    || !info.changes.untracked.is_empty()
-                    || !info.changes.conflicted.is_empty();
-                let commit_idx = if dirty {
-                    self.commit_list.selection.saturating_sub(1)
-                } else {
-                    self.commit_list.selection
-                };
-                info.commits.get(commit_idx).map(|c| (c.oid.clone(), c.summary.clone()))
-            }
-            _ => None,
-        };
+        let commit_data = self.get_selected_commit().map(|c| (c.oid.clone(), c.summary.clone()));
 
         if let Some((oid, summary)) = commit_data {
             let mut local_branches = Vec::new();
@@ -137,21 +123,7 @@ impl App {
             self.status_message = Some("Cannot revert uncommitted changes.".to_string());
             return;
         }
-        let commit_data = match &self.current_detail {
-            Some(repo::ItemDetail::Repo { info, .. }) => {
-                let dirty = !info.changes.staged.is_empty()
-                    || !info.changes.unstaged.is_empty()
-                    || !info.changes.untracked.is_empty()
-                    || !info.changes.conflicted.is_empty();
-                let commit_idx = if dirty {
-                    self.commit_list.selection.saturating_sub(1)
-                } else {
-                    self.commit_list.selection
-                };
-                info.commits.get(commit_idx).map(|c| (c.oid.clone(), c.summary.clone()))
-            }
-            _ => None,
-        };
+        let commit_data = self.get_selected_commit().map(|c| (c.oid.clone(), c.summary.clone()));
 
         if let Some((oid, summary)) = commit_data {
             self.revert_target = Some((oid, summary));

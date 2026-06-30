@@ -233,21 +233,10 @@ impl App {
             self.status_message = Some("Cannot tag uncommitted changes".to_string());
             return;
         }
-        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            let dirty = !info.changes.staged.is_empty()
-                || !info.changes.unstaged.is_empty()
-                || !info.changes.untracked.is_empty()
-                || !info.changes.conflicted.is_empty();
-            let commit_idx = if dirty {
-                self.commit_list.selection.saturating_sub(1)
-            } else {
-                self.commit_list.selection
-            };
-            if let Some(commit) = info.commits.get(commit_idx) {
-                self.tag_action_target_oid = Some(commit.oid.clone());
-                self.commit_popup.input_buffer.clear();
-                self.mode = Mode::TagCreateInput;
-            }
+        if let Some(commit) = self.get_selected_commit() {
+            self.tag_action_target_oid = Some(commit.oid.clone());
+            self.commit_popup.input_buffer.clear();
+            self.mode = Mode::TagCreateInput;
         }
     }
 
@@ -947,17 +936,8 @@ impl App {
             return;
         }
         let params = match &self.current_detail {
-            Some(repo::ItemDetail::Repo { resolved, info }) => {
-                let dirty = !info.changes.staged.is_empty()
-                    || !info.changes.unstaged.is_empty()
-                    || !info.changes.untracked.is_empty()
-                    || !info.changes.conflicted.is_empty();
-                let commit_idx = if dirty {
-                    self.commit_list.selection.saturating_sub(1)
-                } else {
-                    self.commit_list.selection
-                };
-                info.commits.get(commit_idx).map(|c| (resolved.clone(), c.oid.clone()))
+            Some(repo::ItemDetail::Repo { resolved, .. }) => {
+                self.get_selected_commit().map(|c| (resolved.clone(), c.oid.clone()))
             }
             _ => None,
         };

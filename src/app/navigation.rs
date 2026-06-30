@@ -562,7 +562,7 @@ impl App {
                 if let repo::TabData::Loaded(subs) = &info.submodules { subs.len() } else { 0 };
 
             let commit_files_len =
-                info.commits.get(self.commit_list.selection).map(|c| c.files.len()).unwrap_or(0);
+                self.get_selected_commit().map(|c| c.files.len()).unwrap_or(0);
 
             info_lengths = Some((
                 commits_len,
@@ -2762,20 +2762,7 @@ impl App {
             self.status_message = Some("Cannot yank uncommitted changes".to_string());
             return;
         }
-        let hash_to_copy = if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            let dirty = !info.changes.staged.is_empty()
-                || !info.changes.unstaged.is_empty()
-                || !info.changes.untracked.is_empty()
-                || !info.changes.conflicted.is_empty();
-            let commit_idx = if dirty {
-                self.commit_list.selection.saturating_sub(1)
-            } else {
-                self.commit_list.selection
-            };
-            info.commits.get(commit_idx).map(|commit| commit.oid.clone())
-        } else {
-            None
-        };
+        let hash_to_copy = self.get_selected_commit().map(|commit| commit.oid.clone());
 
         if let Some(hash) = hash_to_copy {
             match copy_to_clipboard(&hash) {
