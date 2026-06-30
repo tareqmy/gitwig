@@ -212,6 +212,24 @@ fn handle_submodule_events(app: &mut App, key: KeyEvent) -> bool {
             app.submodule_selection = app.submodule_selection.saturating_sub(1);
             true
         }
+        KeyCode::Char('a') => {
+            app.submodule_add_url.clear();
+            app.submodule_add_path.clear();
+            app.input_buffer.clear();
+            app.mode = Mode::SubmoduleAddUrlInput;
+            true
+        }
+        KeyCode::Char('D') => {
+            if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+                if let repo::TabData::Loaded(subs) = &info.submodules {
+                    if let Some(sub) = subs.get(app.submodule_selection) {
+                        app.submodule_delete_target = Some(sub.name.clone());
+                        app.mode = Mode::SubmoduleDeleteConfirm;
+                    }
+                }
+            }
+            true
+        }
         _ => false,
     }
 }

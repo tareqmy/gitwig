@@ -4786,3 +4786,75 @@ fn test_worktree_tui_flows() {
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_submodule_tui_flows() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use std::path::PathBuf;
+
+    let config = Config { items: vec!["/path/to/my_repo".to_string()], ..Default::default() };
+    let temp_dir = std::env::temp_dir();
+    let config_path = temp_dir.join("gitwig_test_submodule_config.toml");
+    let mut app = App::new(config, config_path.clone());
+    app.selected_index = 0;
+    app.mode = Mode::Detail;
+
+    // Set up mock details containing submodule elements
+    let mut mock_info = repo::RepoInfo::default();
+    let mock_submodule = repo::SubmoduleInfo {
+        name: "my-submodule".to_string(),
+        path: PathBuf::from("libs/my-submodule"),
+        url: "https://github.com/foo/bar.git".to_string(),
+        commit_id: Some("1234567890abcdef1234567890abcdef12345678".to_string()),
+        head_id: Some("1234567890abcdef1234567890abcdef12345678".to_string()),
+        is_initialized: true,
+        is_dirty: false,
+    };
+    mock_info.submodules = repo::TabData::Loaded(vec![mock_submodule]);
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/my_repo"),
+        info: Box::new(mock_info),
+    });
+
+    // Go to submodules tab (tab 8)
+    app.detail_tab = 8;
+    app.detail_focus = DetailSection::Submodules;
+    app.submodule_selection = 0;
+
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    // 1. Move selection down (clamped since there's only 1 submodule)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 1);
+    assert!(handled);
+    assert_eq!(app.submodule_selection, 0);
+
+    // 2. Press 'a' to add a submodule (should trigger SubmoduleAddUrlInput mode)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::SubmoduleAddUrlInput);
+
+    // Simulate input typing for URL
+    app.input_buffer = "https://github.com/example/lib.git".to_string();
+    app.commit_submodule_add_url();
+    assert_eq!(app.mode, Mode::SubmoduleAddPathInput);
+    assert_eq!(app.submodule_add_url, "https://github.com/example/lib.git");
+
+    // Cancel / escape path input
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+
+    // 3. Press 'D' to trigger remove confirm dialog
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('D')), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::SubmoduleDeleteConfirm);
+    assert_eq!(app.submodule_delete_target, Some("my-submodule".to_string()));
+
+    // Escape confirmation
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(app.submodule_delete_target, None);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}

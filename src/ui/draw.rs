@@ -62,6 +62,9 @@ pub fn draw(
                 | Mode::WorktreeRemoveConfirm
                 | Mode::BranchDeleteConfirm
                 | Mode::BranchCheckoutConfirm
+                | Mode::SubmoduleAddUrlInput
+                | Mode::SubmoduleAddPathInput
+                | Mode::SubmoduleDeleteConfirm
                 | Mode::TagCheckoutConfirm
                 | Mode::BranchPushConfirm
                 | Mode::BranchMergeConfirm
@@ -132,6 +135,9 @@ pub fn draw(
             | Mode::WorktreeRemoveConfirm
             | Mode::BranchDeleteConfirm
             | Mode::BranchCheckoutConfirm
+            | Mode::SubmoduleAddUrlInput
+            | Mode::SubmoduleAddPathInput
+            | Mode::SubmoduleDeleteConfirm
             | Mode::TagCheckoutConfirm
             | Mode::BranchPushConfirm
             | Mode::BranchMergeConfirm

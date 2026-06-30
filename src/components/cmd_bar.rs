@@ -298,6 +298,24 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 app.config.compatibility_mode,
             );
         }
+        Mode::SubmoduleAddUrlInput => {
+            draw_input_status(
+                f,
+                area,
+                "Add Submodule (URL)",
+                &app.input_buffer,
+                app.config.compatibility_mode,
+            );
+        }
+        Mode::SubmoduleAddPathInput => {
+            draw_input_status(
+                f,
+                area,
+                "Add Submodule (Path)",
+                &app.input_buffer,
+                app.config.compatibility_mode,
+            );
+        }
         Mode::StashingUI => {
             let mut entries = Vec::new();
             let entries_data = [
@@ -384,6 +402,11 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 .map(|(name, is_on_remote)| (name.as_str(), *is_on_remote))
                 .unwrap_or(("", false));
             let (msg_spans, entries) = confirm_tag_delete_entries(target, is_on_remote);
+            draw_status_layout(f, area, msg_spans, entries, app);
+        }
+        Mode::SubmoduleDeleteConfirm => {
+            let target = app.submodule_delete_target.as_deref().unwrap_or("");
+            let (msg_spans, entries) = confirm_submodule_delete_entries(target);
             draw_status_layout(f, area, msg_spans, entries, app);
         }
         Mode::TagPushConfirm => {
@@ -910,7 +933,9 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         8 => vec![
             ("Home", "⎋/q"),
             ("Tabs", "Tab/1-9"),
-            ("Set Repo Theme", "s"),
+            ("Navigate", "↑↓"),
+            ("Add", "a"),
+            ("Delete", "D"),
             ("Resync", "R"),
             ("Help", "?"),
         ],
@@ -1892,4 +1917,35 @@ fn about_dismiss_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
         Span::styled("]", muted_style()),
     ])];
     (None, entries)
+}
+
+fn confirm_submodule_delete_entries(
+    target: &str,
+) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let message_spans = Some(vec![
+        Span::raw("Delete submodule "),
+        Span::styled(
+            format!("\"{}\"", target),
+            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("? "),
+    ]);
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Confirm"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("y", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Cancel"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("n/⎋", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (message_spans, entries)
 }

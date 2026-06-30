@@ -71,6 +71,8 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::WorktreeAddPathInput
             | Mode::WorktreeLockReasonInput
             | Mode::WorktreeRemoveConfirm
+            | Mode::SubmoduleAddUrlInput
+            | Mode::SubmoduleAddPathInput
     ) || (matches!(app.mode, Mode::CommitInput) && app.commit_popup.editing)
         || (matches!(app.mode, Mode::Settings) && app.settings_editing);
     if !is_text_input && app.is_bound(crate::keybindings::Action::ToggleStatusBar, key) {
@@ -201,6 +203,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         | Mode::BranchCheckoutConfirm
         | Mode::TagCheckoutConfirm
         | Mode::RemoteDeleteConfirm
+        | Mode::SubmoduleDeleteConfirm
         | Mode::UpdateConfirm => {
             let ev = crossterm::event::Event::Key(key);
             if app
@@ -281,7 +284,9 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         | Mode::WorktreeAddBranchInput
         | Mode::WorktreeAddPathInput
         | Mode::WorktreeLockReasonInput
-        | Mode::WorktreeRemoveConfirm => {
+        | Mode::WorktreeRemoveConfirm
+        | Mode::SubmoduleAddUrlInput
+        | Mode::SubmoduleAddPathInput => {
             let ev = crossterm::event::Event::Key(key);
             if app
                 .generic_input_popup

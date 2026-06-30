@@ -148,6 +148,12 @@ pub enum Mode {
     WorktreeRemoveConfirm,
     /// Showing the repository overview in a full window popup.
     Overview,
+    /// Typing a URL for a new submodule.
+    SubmoduleAddUrlInput,
+    /// Typing a path for a new submodule.
+    SubmoduleAddPathInput,
+    /// Confirming deletion of a submodule.
+    SubmoduleDeleteConfirm,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -461,6 +467,9 @@ pub struct App {
     pub worktree_lock_reason: String,
     pub worktree_remove_delete_folder: bool,
     pub worktree_remove_force: bool,
+    pub submodule_add_url: String,
+    pub submodule_add_path: String,
+    pub submodule_delete_target: Option<String>,
     pub cpu_tracker: std::sync::Mutex<Option<(f64, std::time::Instant, f64, f64)>>,
     pub watcher: Option<notify::RecommendedWatcher>,
 }
@@ -595,6 +604,7 @@ impl App {
                     Mode::TagCheckoutConfirm => self.confirm_tag_checkout(),
                     Mode::RemoteDeleteConfirm => self.confirm_remote_delete(),
                     Mode::UpdateConfirm => self.trigger_self_update(),
+                    Mode::SubmoduleDeleteConfirm => self.confirm_submodule_delete(),
                     _ => {}
                 },
                 crate::queue::InternalEvent::ConfirmNo => match self.mode {
@@ -621,6 +631,7 @@ impl App {
                         self.remote_action_target = None;
                         self.mode = Mode::Detail;
                     }
+                    Mode::SubmoduleDeleteConfirm => self.cancel_submodule_delete(),
                     Mode::UpdateConfirm => {
                         self.mode = self.previous_mode.take().unwrap_or(Mode::Normal);
                     }
@@ -640,6 +651,8 @@ impl App {
                     Mode::WorktreeAddPathInput => self.commit_worktree_add_path(),
                     Mode::WorktreeLockReasonInput => self.commit_worktree_lock_reason(),
                     Mode::WorktreeRemoveConfirm => self.commit_worktree_remove(),
+                    Mode::SubmoduleAddUrlInput => self.commit_submodule_add_url(),
+                    Mode::SubmoduleAddPathInput => self.commit_submodule_add_path(),
                     _ => {}
                 },
                 crate::queue::InternalEvent::InputEsc => {
@@ -1059,6 +1072,9 @@ impl App {
             worktree_lock_reason: String::new(),
             worktree_remove_delete_folder: false,
             worktree_remove_force: false,
+            submodule_add_url: String::new(),
+            submodule_add_path: String::new(),
+            submodule_delete_target: None,
             cpu_tracker: std::sync::Mutex::new(None),
             watcher: None,
         };

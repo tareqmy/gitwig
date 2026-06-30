@@ -804,6 +804,25 @@ pub fn draw(
                     body_area,
                 );
             }
+            // Draw submodule add URL popup
+            if matches!(mode, Mode::SubmoduleAddUrlInput) {
+                crate::popups::submodule::draw_submodule_add_url_popup(f, input_buffer, body_area);
+            }
+            // Draw submodule add Path popup
+            if matches!(mode, Mode::SubmoduleAddPathInput) {
+                crate::popups::submodule::draw_submodule_add_path_popup(
+                    f,
+                    input_buffer,
+                    &app.submodule_add_url,
+                    body_area,
+                );
+            }
+            // Draw submodule delete confirm popup
+            if matches!(mode, Mode::SubmoduleDeleteConfirm) {
+                if let Some(ref sub_name) = app.submodule_delete_target {
+                    crate::popups::submodule::draw_submodule_delete_popup(f, sub_name, body_area);
+                }
+            }
             // Draw branch push popup on top when requested.
             if matches!(mode, Mode::BranchPushConfirm) {
                 crate::popups::confirm::draw_branch_push_popup(f, branch_action_target, body_area);

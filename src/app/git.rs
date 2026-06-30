@@ -1514,4 +1514,126 @@ impl App {
             }
         }
     }
+
+    pub fn commit_submodule_add_url(&mut self) {
+        self.submodule_add_url = self.input_buffer.trim().to_string();
+        self.input_buffer.clear();
+        self.mode = Mode::SubmoduleAddPathInput;
+    }
+
+    pub fn commit_submodule_add_path(&mut self) {
+        self.submodule_add_path = self.input_buffer.trim().to_string();
+        self.input_buffer.clear();
+        self.start_submodule_add();
+    }
+
+    pub fn start_submodule_add(&mut self) {
+        let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail else {
+            self.mode = Mode::Detail;
+            return;
+        };
+        let repo_path = resolved.clone();
+        let url = self.submodule_add_url.clone();
+        let path = self.submodule_add_path.clone();
+
+        self.fetching = true;
+        self.status_message = Some(format!("Adding submodule '{}'...", path));
+        self.mode = Mode::Detail;
+
+        let tx = self.tx.clone();
+
+        std::thread::spawn(move || {
+            let mut cmd = std::process::Command::new("git");
+            cmd.arg("submodule").arg("add").arg(&url).arg(&path).current_dir(&repo_path);
+
+            match cmd.output() {
+                Ok(out) if out.status.success() => {
+                    let _ = std::process::Command::new("git")
+                        .arg("submodule")
+                        .arg("update")
+                        .arg("--init")
+                        .arg("--recursive")
+                        .current_dir(&repo_path)
+                        .output();
+
+                    let _ = tx.send(format!("Submodule '{}' added successfully", path));
+                }
+                Ok(out) => {
+                    let err = String::from_utf8_lossy(&out.stderr).to_string();
+                    let clean_err = err.trim().replace('\n', " ");
+                    let _ = tx.send(format!("Failed to add submodule: {}", clean_err));
+                }
+                Err(e) => {
+                    let _ = tx.send(format!("Failed to run git submodule add: {}", e));
+                }
+            }
+        });
+    }
+
+    pub fn confirm_submodule_delete(&mut self) {
+        let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail else {
+            self.mode = Mode::Detail;
+            return;
+        };
+        let Some(sub_name) = self.submodule_delete_target.take() else {
+            self.mode = Mode::Detail;
+            return;
+        };
+
+        let repo_path = resolved.clone();
+        self.fetching = true;
+        self.status_message = Some(format!("Removing submodule '{}'...", sub_name));
+        self.mode = Mode::Detail;
+
+        let tx = self.tx.clone();
+
+        std::thread::spawn(move || {
+            let deinit_res = std::process::Command::new("git")
+                .arg("submodule")
+                .arg("deinit")
+                .arg("-f")
+                .arg(&sub_name)
+                .current_dir(&repo_path)
+                .output();
+
+            if let Err(e) = deinit_res {
+                let _ = tx.send(format!("Failed to deinit submodule: {}", e));
+                return;
+            }
+
+            let rm_res = std::process::Command::new("git")
+                .arg("rm")
+                .arg("-f")
+                .arg(&sub_name)
+                .current_dir(&repo_path)
+                .output();
+
+            match rm_res {
+                Ok(out) if out.status.success() => {
+                    let dotgit_modules = repo_path.join(".git").join("modules").join(&sub_name);
+                    if dotgit_modules.exists() {
+                        let _ = std::fs::remove_dir_all(dotgit_modules);
+                    }
+
+                    let _ = tx.send(format!("Submodule '{}' removed successfully", sub_name));
+                }
+                Ok(out) => {
+                    let err = String::from_utf8_lossy(&out.stderr).to_string();
+                    let clean_err = err.trim().replace('\n', " ");
+                    let _ = tx.send(format!(
+                        "Failed to remove submodule directory from git: {}",
+                        clean_err
+                    ));
+                }
+                Err(e) => {
+                    let _ = tx.send(format!("Failed to run git rm for submodule: {}", e));
+                }
+            }
+        });
+    }
+
+    pub fn cancel_submodule_delete(&mut self) {
+        self.submodule_delete_target = None;
+        self.mode = Mode::Detail;
+    }
 }
