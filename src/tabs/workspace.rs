@@ -246,7 +246,10 @@ impl WorkspaceTab {
                         }
                         return true;
                     }
-                    KeyCode::Char('a') | KeyCode::Char('A') if app.is_uncommitted_selected() => {
+                    KeyCode::Char('a') | KeyCode::Char('A')
+                        if app.is_uncommitted_selected()
+                            && detail_focus != DetailSection::Conflicts =>
+                    {
                         if detail_focus == DetailSection::Unstaged {
                             app.stage_all_changes();
                         } else if detail_focus == DetailSection::Staged {
@@ -277,7 +280,10 @@ impl WorkspaceTab {
                         app.start_commit();
                         return true;
                     }
-                    KeyCode::Char('C') if app.is_uncommitted_selected() => {
+                    KeyCode::Char('C')
+                        if app.is_uncommitted_selected()
+                            && detail_focus != DetailSection::Conflicts =>
+                    {
                         app.start_commit_amend();
                         return true;
                     }

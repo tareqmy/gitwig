@@ -4858,3 +4858,69 @@ fn test_submodule_tui_flows() {
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_workspace_conflicts_shortcuts() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config {
+        items: vec!["a_repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+        ..Default::default()
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_conflicts.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+    app.detail_focus = DetailSection::Conflicts;
+
+    let mut changes = crate::repo::WorktreeChanges::default();
+    changes.conflicted.push(crate::repo::FileEntry {
+        path: "dummy.txt".to_string(),
+        label: "C",
+    });
+    let info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        summary: crate::repo::RepoSummary { modified: 1, ..Default::default() },
+        changes,
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.commit_list.selection = 0; // Selected uncommitted commit
+
+    assert!(app.is_uncommitted_selected());
+
+    // Press 'A' in Conflicts panel -> Mode::MergeAbortConfirm
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('A')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::MergeAbortConfirm);
+
+    // Cancel abort merge
+    app.mode = Mode::Detail;
+
+    // Press 'C' in Conflicts panel -> Mode::MergeContinueConfirm
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('C')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::MergeContinueConfirm);
+}
+
