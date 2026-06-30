@@ -42,9 +42,29 @@ pub fn log(level: &str, msg: &str) {
             let log_dir = home.join(".gitwig");
             let _ = std::fs::create_dir_all(&log_dir);
             let log_path = log_dir.join("gitwig.log");
+
+            // Rotate log if it exceeds 5 MB
+            if let Ok(metadata) = std::fs::metadata(&log_path) {
+                if metadata.len() > 5 * 1024 * 1024 {
+                    let backup_path = log_dir.join("gitwig.log.1");
+                    let _ = std::fs::rename(&log_path, &backup_path);
+                }
+            }
+
             if let Ok(mut file) =
                 std::fs::OpenOptions::new().create(true).append(true).open(&log_path)
             {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Ok(meta) = std::fs::metadata(&log_path) {
+                        let mut perms = meta.permissions();
+                        if perms.mode() & 0o777 != 0o600 {
+                            perms.set_mode(0o600);
+                            let _ = std::fs::set_permissions(&log_path, perms);
+                        }
+                    }
+                }
                 use std::io::Write;
                 let _ = writeln!(file, "{}", log_msg);
             }
