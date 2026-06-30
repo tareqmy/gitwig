@@ -606,6 +606,11 @@ fn apply_line_patch_inner(
     use std::io::Write;
     use std::process::{Command, Stdio};
 
+    let path_check = std::path::Path::new(file_path);
+    if path_check.is_absolute() || path_check.components().any(|c| c == std::path::Component::ParentDir) {
+        return Err("Path escapes repository root".to_string());
+    }
+
     if hunk.is_empty() {
         return Err("Empty hunk".to_string());
     }
@@ -775,6 +780,11 @@ fn apply_hunk_patch(
 ) -> Result<(), String> {
     use std::io::Write;
     use std::process::{Command, Stdio};
+
+    let path_check = std::path::Path::new(file_path);
+    if path_check.is_absolute() || path_check.components().any(|c| c == std::path::Component::ParentDir) {
+        return Err("Path escapes repository root".to_string());
+    }
 
     let mut patch = String::new();
     patch.push_str(&format!("diff --git a/{} b/{}\n", file_path, file_path));
