@@ -1195,71 +1195,91 @@ where
     <B as ratatui::backend::Backend>::Error: 'static,
 {
     loop {
-        while let Ok(msg) = app.rx.try_recv() {
-            if let Some(repo_path) = msg.strip_prefix("REFRESH_REPO:") {
-                let canon_target =
-                    std::fs::canonicalize(repo_path).unwrap_or_else(|_| PathBuf::from(repo_path));
-                if let Some(idx) = app.config.items.iter().position(|item| {
-                    let canon_item =
-                        std::fs::canonicalize(item).unwrap_or_else(|_| PathBuf::from(item));
-                    canon_item == canon_target
-                }) {
-                    app.statuses[idx] = repo::inspect_summary(&app.config.items[idx]);
-                    if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
-                        if resolved == &canon_target {
-                            app.resync_detail();
+        while let Ok(raw_msg) = app.rx.try_recv() {
+            let (repo_path, msg) = if let Some(pos) = raw_msg.find("|||") {
+                (Some(raw_msg[..pos].to_string()), raw_msg[pos + 3..].to_string())
+            } else {
+                (None, raw_msg)
+            };
+
+            let is_relevant = if let Some(ref path_str) = repo_path {
+                if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
+                    resolved.to_string_lossy() == *path_str
+                } else {
+                    false
+                }
+            } else {
+                true
+            };
+
+            if is_relevant {
+                if let Some(repo_path) = msg.strip_prefix("REFRESH_REPO:") {
+                    let canon_target =
+                        std::fs::canonicalize(repo_path).unwrap_or_else(|_| PathBuf::from(repo_path));
+                    if let Some(idx) = app.config.items.iter().position(|item| {
+                        let canon_item =
+                            std::fs::canonicalize(item).unwrap_or_else(|_| PathBuf::from(item));
+                        canon_item == canon_target
+                    }) {
+                        app.statuses[idx] = repo::inspect_summary(&app.config.items[idx]);
+                        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
+                            if resolved == &canon_target {
+                                app.resync_detail();
+                            }
                         }
                     }
-                }
-            } else if let Some(latest_version) = msg.strip_prefix("UPDATE_CHECK:") {
-                let current_version = env!("CARGO_PKG_VERSION");
-                if is_newer_version(current_version, latest_version) {
-                    app.update_available = Some(latest_version.to_string());
-                    app.previous_mode = Some(app.mode);
-                    app.mode = Mode::UpdateConfirm;
-                }
-            } else if let Some(success_msg) = msg.strip_prefix("UPDATE_SUCCESS:") {
-                app.fetching = false;
-                app.status_message = Some(success_msg.to_string());
-            } else if let Some(err_msg) = msg.strip_prefix("UPDATE_ERROR:") {
-                app.fetching = false;
-                app.set_error(err_msg.to_string());
-            } else if let Some(dest_path) = msg.strip_prefix("CLONE_SUCCESS:") {
-                app.fetching = false;
-                app.status_message = Some("Cloning completed successfully".to_string());
-                app.add_repo_path(dest_path.to_string());
-            } else if let Some(tags_data) = msg.strip_prefix("REMOTE_TAGS:") {
-                let tags = repo::deserialize_tags(tags_data);
-                if let Some(repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
-                    info.remote_tags = repo::TabData::Loaded(tags);
-                    info.remote_tags_loaded = true;
-                }
-                app.fetching = false;
-            } else if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
-                app.set_error(err_msg.to_string());
-                app.fetching = false;
-            } else {
-                let success_fetch = msg.starts_with("Fetched remote ");
-                let is_err = msg.starts_with("Fetch failed:")
-                    || msg.starts_with("Pull failed:")
-                    || msg.starts_with("Push failed:")
-                    || msg.starts_with("Failed to")
-                    || msg.contains("failed");
-
-                if is_err {
-                    let has_conflict = msg.contains("conflict") || msg.contains("CONFLICT");
-                    app.set_error(msg);
-                    if has_conflict {
-                        app.detail_focus = DetailSection::Conflicts;
+                } else if let Some(latest_version) = msg.strip_prefix("UPDATE_CHECK:") {
+                    let current_version = env!("CARGO_PKG_VERSION");
+                    if is_newer_version(current_version, latest_version) {
+                        app.update_available = Some(latest_version.to_string());
+                        app.previous_mode = Some(app.mode);
+                        app.mode = Mode::UpdateConfirm;
                     }
+                } else if let Some(success_msg) = msg.strip_prefix("UPDATE_SUCCESS:") {
+                    app.fetching = false;
+                    app.status_message = Some(success_msg.to_string());
+                } else if let Some(err_msg) = msg.strip_prefix("UPDATE_ERROR:") {
+                    app.fetching = false;
+                    app.set_error(err_msg.to_string());
+                } else if let Some(dest_path) = msg.strip_prefix("CLONE_SUCCESS:") {
+                    app.fetching = false;
+                    app.status_message = Some("Cloning completed successfully".to_string());
+                    app.add_repo_path(dest_path.to_string());
+                } else if let Some(tags_data) = msg.strip_prefix("REMOTE_TAGS:") {
+                    let tags = repo::deserialize_tags(tags_data);
+                    if let Some(repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
+                        info.remote_tags = repo::TabData::Loaded(tags);
+                        info.remote_tags_loaded = true;
+                    }
+                    app.fetching = false;
+                } else if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
+                    app.set_error(err_msg.to_string());
+                    app.fetching = false;
                 } else {
-                    app.status_message = Some(msg);
+                    let success_fetch = msg.starts_with("Fetched remote ");
+                    let is_err = msg.starts_with("Fetch failed:")
+                        || msg.starts_with("Pull failed:")
+                        || msg.starts_with("Push failed:")
+                        || msg.starts_with("Failed to")
+                        || msg.contains("failed");
+
+                    if is_err {
+                        let has_conflict = msg.contains("conflict") || msg.contains("CONFLICT");
+                        app.set_error(msg);
+                        if has_conflict {
+                            app.detail_focus = DetailSection::Conflicts;
+                        }
+                    } else {
+                        app.status_message = Some(msg);
+                    }
+                    app.fetching = false;
+                    app.resync_detail();
+                    if success_fetch {
+                        app.fetch_remote_tags(false);
+                    }
                 }
+            } else {
                 app.fetching = false;
-                app.resync_detail();
-                if success_fetch {
-                    app.fetch_remote_tags(false);
-                }
             }
         }
 

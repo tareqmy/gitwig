@@ -1,5 +1,17 @@
 use super::*;
 
+#[derive(Clone)]
+struct RepoSender {
+    tx: std::sync::mpsc::Sender<String>,
+    path: std::path::PathBuf,
+}
+
+impl RepoSender {
+    fn send(&self, msg: String) -> Result<(), std::sync::mpsc::SendError<String>> {
+        self.tx.send(format!("{}|||{}", self.path.to_string_lossy(), msg))
+    }
+}
+
 impl App {
     /// Spawns a background thread to pull the upstream remote branch into the selected local branch.
     /// Can only pull if the selected local branch is the currently checked-out branch.
@@ -24,7 +36,7 @@ impl App {
 
                 let repo_path = resolved.clone();
                 let branch_name = branch_info.name.clone();
-                let tx = self.tx.clone();
+                let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
@@ -135,7 +147,7 @@ impl App {
             self.status_message =
                 Some(format!("Pushing '{}' to '{}'...", branch_name, remote_name));
 
-            let tx = self.tx.clone();
+            let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
             std::thread::spawn(move || {
                 let res = (|| -> Result<String, Box<dyn std::error::Error>> {
                     let safe_remote = safe_ref(&remote_name)?;
@@ -463,7 +475,7 @@ impl App {
                 self.fetching = true;
                 self.status_message =
                     Some(format!("Pushing tag '{}' to '{}'...", tag_name, remote_name));
-                let tx = self.tx.clone();
+                let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
                 std::thread::spawn(move || {
                     let safe_remote = match safe_ref(&remote_name) {
                         Ok(r) => r,
@@ -645,7 +657,7 @@ impl App {
 
                         self.fetching = true;
                         self.status_message = Some(format!("Deleting remote branch '{}' on '{}'...", target_branch, remote));
-                        let tx = self.tx.clone();
+                        let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
                         std::thread::spawn(move || {
                             let res = (|| -> Result<(), Box<dyn std::error::Error>> {
@@ -755,7 +767,7 @@ impl App {
 
                 let repo_path = resolved.clone();
                 let target_name = branch_name.clone();
-                let tx = self.tx.clone();
+                let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
@@ -849,7 +861,7 @@ impl App {
 
                 let repo_path = resolved.clone();
                 let target_name = branch_name.clone();
-                let tx = self.tx.clone();
+                let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
@@ -1027,7 +1039,7 @@ impl App {
             if let Some(remote) = remote {
                 let repo_path = resolved.clone();
                 let remote_name = remote.name.clone();
-                let tx = self.tx.clone();
+                let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
                 if show_progress {
                     self.fetching = true;
                     self.status_message = Some(format!("Fetching tags from '{}'...", remote_name));
@@ -1057,7 +1069,7 @@ impl App {
 
             let repo_path = resolved.clone();
             let remote_name = remote_name.to_string();
-            let tx = self.tx.clone();
+            let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
             std::thread::spawn(move || {
                 let res = (|| -> Result<String, Box<dyn std::error::Error>> {
@@ -1172,7 +1184,7 @@ impl App {
             self.fetching = true;
             self.status_message =
                 Some(format!("Pushing '{}' to '{}'...", branch_name, remote_name));
-            let tx = self.tx.clone();
+            let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
             std::thread::spawn(move || {
                 let safe_remote = match safe_ref(&remote_name) {
                     Ok(r) => r,
@@ -1225,7 +1237,7 @@ impl App {
             self.fetching = true;
             self.status_message =
                 Some(format!("Pushing tag '{}' to '{}'...", tag_name, remote_name));
-            let tx = self.tx.clone();
+            let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
             std::thread::spawn(move || {
                 let safe_remote = match safe_ref(&remote_name) {
                     Ok(r) => r,
@@ -1272,7 +1284,7 @@ impl App {
             let remote_name = remote_name.to_string();
             self.fetching = true;
             self.status_message = Some(format!("Pushing all tags to '{}'...", remote_name));
-            let tx = self.tx.clone();
+            let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
             std::thread::spawn(move || {
                 let safe_remote = match safe_ref(&remote_name) {
                     Ok(r) => r,
@@ -1312,7 +1324,7 @@ impl App {
         };
         let tag_name = tag_name.to_string();
         let remote_name = remote_name.to_string();
-        let tx = self.tx.clone();
+        let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
         self.fetching = true;
         self.status_message = Some(format!("Deleting remote tag '{}'...", tag_name));
         std::thread::spawn(move || {
@@ -1596,7 +1608,7 @@ impl App {
         self.status_message = Some(format!("Adding submodule '{}'...", path));
         self.mode = Mode::Detail;
 
-        let tx = self.tx.clone();
+        let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
         std::thread::spawn(move || {
             let trimmed_url = url.trim().to_lowercase();
@@ -1646,7 +1658,7 @@ impl App {
         self.status_message = Some(format!("Removing submodule '{}'...", sub_name));
         self.mode = Mode::Detail;
 
-        let tx = self.tx.clone();
+        let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
         std::thread::spawn(move || {
             let safe_sub = match safe_ref(&sub_name) {
