@@ -100,7 +100,38 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Per Repository rule**
 - [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
 
-## Phase 9: Intelligent AI Integrations (Optional/Configurable)
+## Phase 9: Homepage Enhancements
+> Full details and implementation priority table: see `.agent/homepage_feature_suggestions.md`
+
+### Visual Enhancements
+- [ ] **Repo Health / State Indicators:** Show repo HEAD state as a badge on each card (`⚠ MERGE_HEAD`, `🚧 REBASING`, `⚡ CHERRY-PICK`, `✓ CLEAN`).
+- [ ] **Last Activity Timestamp:** Display relative time of the last commit on each card (e.g., `2h ago`, `3d ago`).
+- [ ] **Compact / Dense View Toggle:** Press `v` to switch between 4-row cards and a 1-row compact list — useful for large repo collections.
+- [ ] **Color-coded Divergence Badge:** Color the `↑N ↓M` ahead/behind indicator red/yellow/green based on how out-of-sync the branch is.
+
+### Organisation & Navigation
+- [ ] **Label / Group Collapsing:** `←`/`→` or `Space` on a label group header to collapse/expand repos in that group.
+- [ ] **Fuzzy Jump-to-Repo Overlay:** `/`-triggered floating popup with ranked fuzzy matches across all repo names for instant navigation.
+- [ ] **Recently Opened MRU Stack:** Persist most-recently-used repo history across sessions; surface in a dedicated `Recent` group.
+- [ ] **Favorite / Star Repos:** Semantic ★ bookmark separate from positional pin; starred repos float to a dedicated section.
+
+### At-a-Glance Stats
+- [ ] **Global Summary Header Bar:** 1–2 row header showing aggregate counts (`N repos • M dirty • P ahead • Q stale`).
+- [ ] **Uncommitted Work Warning Badge:** Visually highlight cards with *both* staged and unstaged changes simultaneously.
+- [ ] **Background Auto-Refresh (Live Dashboard):** Extend `poll_interval` to auto-refresh all repo statuses in the background.
+
+### Power-User Workflows
+- [ ] **Multi-select with `Space`:** Select multiple repos and batch-operate (fetch, delete entries, open in terminal).
+- [ ] **Bulk Fetch All (`F`):** Fetch all tracked repos concurrently from the home screen; show per-card progress.
+- [ ] **Open in Terminal (`t`):** Spawn a new shell `cd`-ed into the selected repo path.
+- [ ] **Copy Path to Clipboard (`y`):** Yank the selected repo's absolute path to the system clipboard.
+- [ ] **Per-Repo Note on Card:** Display a one-line user-defined note below the branch line (ties into "Per Repository rule").
+
+### Polish & UX
+- [ ] **Animated Fetch Spinner:** Replace static status indicators with a Braille spinner while a background fetch is active for that repo.
+- [ ] **Empty State Onboarding Prompt:** Welcoming centred panel when zero repos are tracked, listing key shortcuts to get started.
+
+## Phase 10: Intelligent AI Integrations (Optional/Configurable)
 - [ ] **Semantic Commit Generator:** Press a key (e.g., `⌃G`) in the Commit popup to generate conventional commit messages from staged diffs using Gemini/Ollama/OpenAI APIs.
 - [ ] **Diff Summarizer:** Highlight a large diff/hunk and get a brief explanation of what the change does.
 - [ ] **Smart Conflict Explainer:** Provides a natural-language description of merge conflicts, highlighting the logical differences between "Ours" and "Theirs".
