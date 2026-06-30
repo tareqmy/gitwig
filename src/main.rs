@@ -66,6 +66,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    // Verify system 'git' is present on PATH before entering TUI
+    if let Err(e) = std::process::Command::new("git").arg("--version").output() {
+        eprintln!("Error: 'git' command-line tool not found on PATH.");
+        eprintln!("Gitwig requires a system installation of 'git' for network operations, staging, and diffing.");
+        eprintln!("Detailed error: {:?}", e);
+        std::process::exit(1);
+    }
+
     // Install a panic hook to clean up the terminal state on crash
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {

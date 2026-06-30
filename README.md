@@ -11,6 +11,13 @@
 
 ## 🚀 Installation & Running
 
+### Prerequisites
+
+**Gitwig** requires the following external tools to be installed on your system:
+- **`git`**: A system installation of `git` is required in your `PATH` for operations like staging, diffing, pushing, pulling, and network syncing.
+- **`ssh`**: Required if you use SSH-based Git remotes for network operations.
+- **`fzf`**: (Optional) Used for interactive repository discovery when adding items via the TUI.
+
 ### Installation
 
 #### Via Shell Script (macOS / Linux)
