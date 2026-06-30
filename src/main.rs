@@ -111,8 +111,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // Load configuration plus the path we should persist edits to.
-    let (config, config_path) = load_config(cli_path)?;
-    let app = App::new(config, config_path);
+    let (config, config_path, warning) = load_config(cli_path)?;
+    let mut app = App::new(config, config_path);
+    if let Some(warn) = warning {
+        app.status_message = Some(warn);
+    }
 
     // Run the application logic
     let res = run(&mut terminal, app);

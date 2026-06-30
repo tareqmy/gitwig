@@ -350,6 +350,62 @@ fn home_gitwig_dir() -> PathBuf {
     dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")).join(".gitwig")
 }
 
+fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<String>) {
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let corrupt_path = path.with_extension(format!("toml.corrupt-{}", ts));
+    let rename_result = fs::rename(path, &corrupt_path);
+
+    let fallback = Config {
+        items: vec![],
+        poll_interval_ms: default_poll_interval_ms(),
+        max_commits: default_max_commits(),
+        graph_max_commits: default_graph_max_commits(),
+        detail_cache_ttl_secs: default_detail_cache_ttl_secs(),
+        tab_ttl_secs: default_tab_ttl_secs(),
+        page_size: default_page_size(),
+        sort_by: default_sort_by(),
+        visits: default_visits(),
+        labels: std::collections::HashMap::new(),
+        repo_configs: std::collections::HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme_name: default_theme_name(),
+        theme: default_theme(),
+        fzf: default_fzf(),
+        git_app: default_git_app(),
+        compatibility_mode: true,
+        resync_on_tab_change: false,
+        enable_commit_signatures: false,
+    };
+
+    // Attempt to save the fallback back to the original path.
+    let _ = save_config(&fallback, path);
+
+    let msg = match rename_result {
+        Ok(_) => format!(
+            "Config corrupt! Moved to {} and reset to defaults",
+            corrupt_path.file_name().unwrap_or_default().to_string_lossy()
+        ),
+        Err(e) => format!("Config corrupt! Reset to defaults (failed to rename: {})", e),
+    };
+    (fallback, Some(msg))
+}
+
+fn load_and_parse_config(path: &Path) -> (Config, Option<String>) {
+    match fs::read_to_string(path) {
+        Ok(contents) => {
+            match toml::from_str::<Config>(&contents) {
+                Ok(config) => (config, None),
+                Err(err) => handle_parse_error(path, err.into()),
+            }
+        }
+        Err(err) => handle_parse_error(path, err.into()),
+    }
+}
+
 /// Loads the configuration, ensuring `~/.gitwig/` always exists.
 ///
 /// Resolution order:
@@ -364,13 +420,12 @@ fn home_gitwig_dir() -> PathBuf {
 ///    `~/.gitwig/config.toml` so the next run is an ordinary case 2.
 ///
 /// # Returns
-/// `Ok((Config, PathBuf))` — the parsed config plus its write-back path.
-pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<dyn Error>> {
+/// `Ok((Config, PathBuf, Option<String>))` — the parsed config, its write-back path, and an optional recovery warning.
+pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf, Option<String>), Box<dyn Error>> {
     // ── 1. CLI override ───────────────────────────────────────────────────
     if let Some(path) = cli_path {
         if path.exists() {
-            let contents = fs::read_to_string(&path)?;
-            let mut config: Config = toml::from_str(&contents)?;
+            let (mut config, warning) = load_and_parse_config(&path);
 
             let themes_dir = path.parent().unwrap_or(&path).join("themes");
             fs::create_dir_all(&themes_dir)?;
@@ -378,9 +433,14 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
 
             let theme_path = themes_dir.join(format!("{}.theme", config.theme_name));
             if theme_path.exists() {
-                let theme_contents = fs::read_to_string(&theme_path)?;
-                if let Ok(theme) = toml::from_str::<ThemeConfig>(&theme_contents) {
-                    config.theme = theme;
+                if let Ok(theme_contents) = fs::read_to_string(&theme_path) {
+                    if let Ok(theme) = toml::from_str::<ThemeConfig>(&theme_contents) {
+                        config.theme = theme;
+                    } else {
+                        config.theme = default_theme();
+                    }
+                } else {
+                    config.theme = default_theme();
                 }
             } else {
                 let legacy_theme_path = path.with_file_name("theme.toml");
@@ -389,11 +449,12 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                     let _ = fs::remove_file(&legacy_theme_path);
                 }
 
-                let theme_serialized = toml::to_string_pretty(&config.theme)?;
-                fs::write(&theme_path, theme_serialized)?;
+                if let Ok(theme_serialized) = toml::to_string_pretty(&config.theme) {
+                    let _ = fs::write(&theme_path, theme_serialized);
+                }
             }
 
-            return Ok((config, path));
+            return Ok((config, path, warning));
         }
         let fallback_theme = default_theme();
         let fallback_theme_name = default_theme_name();
@@ -429,6 +490,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 enable_commit_signatures: false,
             },
             path,
+            None,
         ));
     }
 
@@ -442,14 +504,19 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
 
     // ── 2. Canonical file already present ─────────────────────────────────
     if canonical.exists() {
-        let contents = fs::read_to_string(&canonical)?;
-        let mut config: Config = toml::from_str(&contents)?;
+        let (mut config, warning) = load_and_parse_config(&canonical);
 
         let theme_path = themes_dir.join(format!("{}.theme", config.theme_name));
         if theme_path.exists() {
-            let theme_contents = fs::read_to_string(&theme_path)?;
-            let theme: ThemeConfig = toml::from_str(&theme_contents)?;
-            config.theme = theme;
+            if let Ok(theme_contents) = fs::read_to_string(&theme_path) {
+                if let Ok(theme) = toml::from_str::<ThemeConfig>(&theme_contents) {
+                    config.theme = theme;
+                } else {
+                    config.theme = default_theme();
+                }
+            } else {
+                config.theme = default_theme();
+            }
         } else {
             let legacy_theme_path = gitwig_dir.join("theme.toml");
             if legacy_theme_path.exists() {
@@ -457,24 +524,30 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 let _ = fs::remove_file(&legacy_theme_path);
             }
 
-            let theme_serialized = toml::to_string_pretty(&config.theme)?;
-            fs::write(&theme_path, theme_serialized)?;
+            if let Ok(theme_serialized) = toml::to_string_pretty(&config.theme) {
+                let _ = fs::write(&theme_path, theme_serialized);
+            }
         }
 
-        return Ok((config, canonical));
+        return Ok((config, canonical, warning));
     }
 
     // ── 3. First run: migrate an existing config into ~/.gitwig/ ──────────
     if let Some(source) = find_legacy_config() {
         fs::copy(&source, &canonical)?;
-        let contents = fs::read_to_string(&canonical)?;
-        let mut config: Config = toml::from_str(&contents)?;
+        let (mut config, warning) = load_and_parse_config(&canonical);
 
         let theme_path = themes_dir.join(format!("{}.theme", config.theme_name));
         if theme_path.exists() {
-            let theme_contents = fs::read_to_string(&theme_path)?;
-            let theme: ThemeConfig = toml::from_str(&theme_contents)?;
-            config.theme = theme;
+            if let Ok(theme_contents) = fs::read_to_string(&theme_path) {
+                if let Ok(theme) = toml::from_str::<ThemeConfig>(&theme_contents) {
+                    config.theme = theme;
+                } else {
+                    config.theme = default_theme();
+                }
+            } else {
+                config.theme = default_theme();
+            }
         } else {
             let legacy_theme_path = gitwig_dir.join("theme.toml");
             if legacy_theme_path.exists() {
@@ -482,11 +555,12 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
                 let _ = fs::remove_file(&legacy_theme_path);
             }
 
-            let theme_serialized = toml::to_string_pretty(&config.theme)?;
-            fs::write(&theme_path, theme_serialized)?;
+            if let Ok(theme_serialized) = toml::to_string_pretty(&config.theme) {
+                let _ = fs::write(&theme_path, theme_serialized);
+            }
         }
 
-        return Ok((config, canonical));
+        return Ok((config, canonical, warning));
     }
 
     // ── 4. No config anywhere: write a default and use it ─────────────────
@@ -518,10 +592,11 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf), Box<d
     save_config(&fallback, &canonical)?;
 
     let theme_path = themes_dir.join(format!("{}.theme", fallback.theme_name));
-    let theme_serialized = toml::to_string_pretty(&fallback.theme)?;
-    fs::write(&theme_path, theme_serialized)?;
+    if let Ok(theme_serialized) = toml::to_string_pretty(&fallback.theme) {
+        let _ = fs::write(&theme_path, theme_serialized);
+    }
 
-    Ok((fallback, canonical))
+    Ok((fallback, canonical, None))
 }
 
 /// Writes the popular themes to the themes directory if they don't already exist.
@@ -637,10 +712,40 @@ pub fn save_config(config: &Config, path: &Path) -> Result<(), Box<dyn Error>> {
     if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
             fs::create_dir_all(parent)?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Ok(meta) = fs::metadata(parent) {
+                    let mut perms = meta.permissions();
+                    perms.set_mode(0o700);
+                    let _ = fs::set_permissions(parent, perms);
+                }
+            }
         }
     }
     let serialized = toml::to_string_pretty(config)?;
-    fs::write(path, serialized)?;
+
+    // Write atomically: write to a .tmp file first, then rename.
+    let tmp_path = path.with_extension("toml.tmp");
+    if let Err(e) = fs::write(&tmp_path, serialized) {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(e.into());
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = fs::metadata(&tmp_path) {
+            let mut perms = meta.permissions();
+            perms.set_mode(0o600);
+            let _ = fs::set_permissions(&tmp_path, perms);
+        }
+    }
+
+    if let Err(e) = fs::rename(&tmp_path, path) {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(e.into());
+    }
     Ok(())
 }
 
@@ -660,7 +765,7 @@ mod tests {
         let theme_path = themes_dir.join("default.theme");
 
         // 1. Initial load when files do not exist (should write themes/default.theme but not config.toml in CLI mode)
-        let (config, path) = load_config(Some(config_path.clone())).unwrap();
+        let (config, path, _) = load_config(Some(config_path.clone())).unwrap();
         assert_eq!(path, config_path);
         assert!(!config_path.exists());
         assert!(theme_path.exists());
@@ -690,7 +795,7 @@ success = "green"
 border_type = "double"
 "#;
         fs::write(&theme_path, custom_theme).unwrap();
-        let (loaded_config, _) = load_config(Some(config_path.clone())).unwrap();
+        let (loaded_config, _, _) = load_config(Some(config_path.clone())).unwrap();
         assert_eq!(loaded_config.theme.accent, "magenta");
         assert_eq!(loaded_config.theme.border_type, "double");
 
@@ -725,6 +830,37 @@ border_type = "double"
         // Read one theme to verify content
         let contents = fs::read_to_string(test_dir.join("oceanic.theme")).unwrap();
         assert!(contents.contains("accent = \"lightcyan\""));
+
+        let _ = fs::remove_dir_all(&test_dir);
+    }
+
+    #[test]
+    fn test_corrupt_config_recovery() {
+        let unique_id =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let test_dir = std::env::temp_dir().join(format!("gitwig_test_corrupt_{}", unique_id));
+        fs::create_dir_all(&test_dir).unwrap();
+        let config_path = test_dir.join("config.toml");
+
+        // Write a corrupt/invalid TOML file
+        fs::write(&config_path, "items = [").unwrap();
+
+        // Load config (should move to .corrupt-<ts>, create default config and return warning)
+        let (config, path, warning) = load_config(Some(config_path.clone())).unwrap();
+        assert_eq!(path, config_path);
+        assert!(config_path.exists());
+        assert!(warning.is_some());
+        assert!(warning.unwrap().contains("Config corrupt!"));
+
+        // Verify loaded config is default
+        assert!(config.items.is_empty());
+
+        // Verify that a corrupt backup file was created in the same directory
+        let files = fs::read_dir(&test_dir).unwrap();
+        let corrupt_exists = files
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name().to_string_lossy().contains("config.toml.corrupt-"));
+        assert!(corrupt_exists);
 
         let _ = fs::remove_dir_all(&test_dir);
     }
