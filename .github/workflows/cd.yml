@@ -32,14 +32,14 @@ jobs:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-14
           - target: aarch64-apple-darwin
-            os: macos-latest
+            os: macos-14
           - target: x86_64-pc-windows-msvc
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install musl-tools (musl target only)
         if: matrix.target == 'x86_64-unknown-linux-musl'
@@ -91,7 +91,7 @@ jobs:
     name: Publish to Crates.io
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check Token Presence
         id: check-token
         run: |
