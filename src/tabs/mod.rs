@@ -72,6 +72,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::CycleTabForward, key) {
         app.inspect_full_diff = false;
         app.detail_tab = (app.detail_tab + 1) % 9;
+        app.commit_list.selection = 0;
         app.set_default_focus_for_tab();
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
@@ -82,6 +83,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::CycleTabBackward, key) {
         app.inspect_full_diff = false;
         app.detail_tab = if app.detail_tab == 0 { 8 } else { app.detail_tab - 1 };
+        app.commit_list.selection = 0;
         app.set_default_focus_for_tab();
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
@@ -92,6 +94,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::GoToTab1, key) {
         app.inspect_full_diff = false;
         app.detail_tab = 0;
+        app.commit_list.selection = 0;
         app.detail_focus = DetailSection::Commits;
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
@@ -102,6 +105,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::GoToTab2, key) {
         app.inspect_full_diff = false;
         app.detail_tab = 1;
+        app.commit_list.selection = 0;
         app.detail_focus = DetailSection::Files;
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
@@ -112,6 +116,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::GoToTab3, key) {
         app.inspect_full_diff = false;
         app.detail_tab = 2;
+        app.commit_list.selection = 0;
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
         }
@@ -121,6 +126,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::GoToTab4, key) {
         app.inspect_full_diff = false;
         app.detail_tab = 3;
+        app.commit_list.selection = 0;
         app.detail_focus = DetailSection::LocalBranches;
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
@@ -131,6 +137,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::GoToTab5, key) {
         app.inspect_full_diff = false;
         app.detail_tab = 4;
+        app.commit_list.selection = 0;
         app.detail_focus = DetailSection::LocalTags;
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
@@ -141,6 +148,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::GoToTab6, key) {
         app.inspect_full_diff = false;
         app.detail_tab = 5;
+        app.commit_list.selection = 0;
         app.detail_focus = DetailSection::Remotes;
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
@@ -151,6 +159,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::GoToTab7, key) {
         app.inspect_full_diff = false;
         app.detail_tab = 6;
+        app.commit_list.selection = 0;
         app.detail_focus = DetailSection::Stashes;
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
@@ -161,6 +170,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::GoToTab8, key) {
         app.inspect_full_diff = false;
         app.detail_tab = 7;
+        app.commit_list.selection = 0;
         app.detail_focus = DetailSection::Worktrees;
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
@@ -171,6 +181,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::GoToTab9, key) {
         app.inspect_full_diff = false;
         app.detail_tab = 8;
+        app.commit_list.selection = 0;
         app.detail_focus = DetailSection::Submodules;
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();

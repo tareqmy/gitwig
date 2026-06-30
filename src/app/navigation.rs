@@ -422,6 +422,7 @@ impl App {
             self.file_tree.file_list_selection = 0;
             self.file_tree.file_content_scroll = 0;
             self.file_tree.expanded_folders.clear();
+            self.commit_list.selection = 0;
             self.detail_tab = 0;
             self.graph_scroll = 0;
             self.inspect_full_diff = false;

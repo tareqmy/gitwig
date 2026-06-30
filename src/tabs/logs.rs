@@ -45,6 +45,7 @@ impl LogsTab {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
                 app.in_logs_ui = false;
                 app.commit_list.search_query = None;
+                app.commit_list.selection = 0;
                 app.mode = Mode::Detail;
             }
             _ => {}

@@ -10,6 +10,7 @@ impl LogSearchPopup {
             Mode::LogsSearchInput => match code {
                 KeyCode::Esc => {
                     app.commit_list.search_query = None;
+                    app.commit_list.selection = 0;
                     app.mode = Mode::Logs;
                 }
                 KeyCode::Enter => {
@@ -19,6 +20,7 @@ impl LogSearchPopup {
                     } else {
                         app.commit_list.search_query = Some(query);
                     }
+                    app.commit_list.selection = 0;
                     app.mode = Mode::Logs;
                 }
                 KeyCode::Backspace => {

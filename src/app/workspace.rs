@@ -907,6 +907,7 @@ impl App {
 
     pub fn cancel_commit_search(&mut self) {
         self.commit_list.search_query = None;
+        self.commit_list.selection = 0;
         self.clamp_commit_selection();
         self.status_list.file_selection = 0;
         self.diff.diff_scroll = 0;
