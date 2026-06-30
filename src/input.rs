@@ -205,6 +205,22 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         | Mode::RemoteDeleteConfirm
         | Mode::SubmoduleDeleteConfirm
         | Mode::UpdateConfirm => {
+            let is_destructive = matches!(
+                app.mode,
+                Mode::BranchDeleteConfirm
+                    | Mode::DiscardChangesConfirm
+                    | Mode::TagDeleteConfirm
+                    | Mode::StashDeleteConfirm
+                    | Mode::RemoteDeleteConfirm
+                    | Mode::SubmoduleDeleteConfirm
+                    | Mode::MergeAbortConfirm
+            );
+
+            if is_destructive && key.code == KeyCode::Enter {
+                app.queue.push(crate::queue::InternalEvent::ConfirmNo);
+                return true;
+            }
+
             let ev = crossterm::event::Event::Key(key);
             if app
                 .confirm_popup

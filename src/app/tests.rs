@@ -2188,8 +2188,10 @@ fn test_workspace_all_changes_shortcuts() {
     assert_eq!(app.mode, Mode::DiscardChangesConfirm);
     assert_eq!(app.discard_target.as_ref().unwrap().0, "All Changes");
 
-    // Cancel discard all
-    app.cancel_discard_changes();
+    // Press Enter to verify it cancels (destructive dialog safety)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(handled);
+    app.drain_queue();
     assert_eq!(app.mode, Mode::Detail);
 }
 
