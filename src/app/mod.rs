@@ -1495,56 +1495,16 @@ where
 
             if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
                 let max_depth = app.config.fzf.max_depth;
-                let fd_excludes = app
-                    .config
-                    .fzf
-                    .excludes
-                    .iter()
-                    .map(|x| format!("--exclude '{}'", x))
-                    .collect::<Vec<String>>()
-                    .join(" ");
-                let find_prunes = app
-                    .config
-                    .fzf
-                    .excludes
-                    .iter()
-                    .map(|x| format!("-path '*/{}'", x))
-                    .collect::<Vec<String>>()
-                    .join(" -o ");
-                let find_prune_clause = if find_prunes.is_empty() {
-                    "".to_string()
-                } else {
-                    format!("\\( {} \\) -prune -o ", find_prunes)
-                };
-
+                let git_only = app.config.fzf.git_only;
+                let excludes = app.config.fzf.excludes.clone();
                 let expanded_start_dir = crate::repo::expand_tilde(&app.config.fzf.start_dir);
-                let start_dir_str = expanded_start_dir.to_string_lossy().into_owned();
-                let start_dir = start_dir_str.replace('\'', "'\\''");
 
-                let cmd = if app.config.fzf.git_only {
-                    format!(
-                        "if ! command -v fzf >/dev/null 2>&1; then exit 127; fi; (command -v fd >/dev/null 2>&1 && fd -H '^\\.git$' '{}' --max-depth {} {} 2>/dev/null | xargs -I {{}} dirname {{}} || find '{}' -maxdepth {} {} -name .git -type d 2>/dev/null | xargs -I {{}} dirname {{}}) | fzf",
-                        start_dir,
-                        max_depth + 1,
-                        fd_excludes,
-                        start_dir,
-                        max_depth + 1,
-                        find_prune_clause
-                    )
-                } else {
-                    format!(
-                        "if ! command -v fzf >/dev/null 2>&1; then exit 127; fi; (command -v fd >/dev/null 2>&1 && fd . '{}' --type d --max-depth {} {} 2>/dev/null || find '{}' -maxdepth {} {} -type d -print 2>/dev/null) | fzf",
-                        start_dir, max_depth, fd_excludes, start_dir, max_depth, find_prune_clause
-                    )
-                };
-
-                let output = std::process::Command::new("sh")
-                    .arg("-c")
-                    .arg(&cmd)
-                    .stdin(std::process::Stdio::inherit())
-                    .stderr(std::process::Stdio::inherit())
-                    .stdout(std::process::Stdio::piped())
-                    .output();
+                let output = run_fzf_picker(
+                    &expanded_start_dir,
+                    git_only,
+                    max_depth,
+                    &excludes,
+                );
 
                 let _ = crossterm::terminal::enable_raw_mode();
                 let _ = crossterm::execute!(
@@ -1555,21 +1515,17 @@ where
                 let _ = terminal.clear();
 
                 match output {
-                    Ok(out) => {
-                        if out.status.success() {
-                            let selected = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                            if !selected.is_empty() {
-                                app.add_repo_path(selected);
-                            }
-                        } else if out.status.code() == Some(127) {
-                            app.set_error("fzf is not installed. Please install fzf.".to_string());
-                        }
+                    Ok(Some(selected)) => {
+                        app.add_repo_path(selected);
                     }
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                        app.set_error("fzf is not installed. Please install fzf.".to_string());
-                    }
+                    Ok(None) => {}
                     Err(e) => {
-                        app.set_error(format!("Could not run fzf: {}", e));
+                        let err_str = e.to_string();
+                        if err_str.contains("not found") || err_str.contains("No such file") {
+                            app.set_error("fzf is not installed. Please install fzf.".to_string());
+                        } else {
+                            app.set_error(format!("Could not run fzf: {}", e));
+                        }
                     }
                 }
             }
@@ -1590,44 +1546,15 @@ where
 
             if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
                 let max_depth = app.config.fzf.max_depth;
-                let fd_excludes = app
-                    .config
-                    .fzf
-                    .excludes
-                    .iter()
-                    .map(|x| format!("--exclude '{}'", x))
-                    .collect::<Vec<String>>()
-                    .join(" ");
-                let find_prunes = app
-                    .config
-                    .fzf
-                    .excludes
-                    .iter()
-                    .map(|x| format!("-path '*/{}'", x))
-                    .collect::<Vec<String>>()
-                    .join(" -o ");
-                let find_prune_clause = if find_prunes.is_empty() {
-                    "".to_string()
-                } else {
-                    format!("\\( {} \\) -prune -o ", find_prunes)
-                };
-
+                let excludes = app.config.fzf.excludes.clone();
                 let expanded_start_dir = crate::repo::expand_tilde(&app.config.fzf.start_dir);
-                let start_dir_str = expanded_start_dir.to_string_lossy().into_owned();
-                let start_dir = start_dir_str.replace('\'', "'\\''");
 
-                let cmd = format!(
-                    "if ! command -v fzf >/dev/null 2>&1; then exit 127; fi; (command -v fd >/dev/null 2>&1 && fd . '{}' --type d --max-depth {} {} 2>/dev/null || find '{}' -maxdepth {} {} -type d -print 2>/dev/null) | fzf",
-                    start_dir, max_depth, fd_excludes, start_dir, max_depth, find_prune_clause
+                let output = run_fzf_picker(
+                    &expanded_start_dir,
+                    false, // bulk search is git_only = false
+                    max_depth,
+                    &excludes,
                 );
-
-                let output = std::process::Command::new("sh")
-                    .arg("-c")
-                    .arg(&cmd)
-                    .stdin(std::process::Stdio::inherit())
-                    .stderr(std::process::Stdio::inherit())
-                    .stdout(std::process::Stdio::piped())
-                    .output();
 
                 let _ = crossterm::terminal::enable_raw_mode();
                 let _ = crossterm::execute!(
@@ -1638,21 +1565,17 @@ where
                 let _ = terminal.clear();
 
                 match output {
-                    Ok(out) => {
-                        if out.status.success() {
-                            let selected = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                            if !selected.is_empty() {
-                                app.bulk_add_path(selected);
-                            }
-                        } else if out.status.code() == Some(127) {
-                            app.set_error("fzf is not installed. Please install fzf.".to_string());
-                        }
+                    Ok(Some(selected)) => {
+                        app.bulk_add_path(selected);
                     }
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                        app.set_error("fzf is not installed. Please install fzf.".to_string());
-                    }
+                    Ok(None) => {}
                     Err(e) => {
-                        app.set_error(format!("Could not run fzf: {}", e));
+                        let err_str = e.to_string();
+                        if err_str.contains("not found") || err_str.contains("No such file") {
+                            app.set_error("fzf is not installed. Please install fzf.".to_string());
+                        } else {
+                            app.set_error(format!("Could not run fzf: {}", e));
+                        }
                     }
                 }
             }
@@ -1944,4 +1867,119 @@ fn is_newer_version(current: &str, latest: &str) -> bool {
         }
     }
     lat_parts.len() > cur_parts.len()
+}
+
+fn run_fzf_picker(
+    start_dir: &std::path::Path,
+    git_only: bool,
+    max_depth: usize,
+    excludes: &[String],
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let mut use_fd = false;
+    if let Ok(output) = std::process::Command::new("fd").arg("--version").output() {
+        if output.status.success() {
+            use_fd = true;
+        }
+    }
+
+    let mut paths = Vec::new();
+
+    if use_fd {
+        let mut cmd = std::process::Command::new("fd");
+        if git_only {
+            cmd.arg("-H").arg(r"^\.git$");
+        } else {
+            cmd.arg(".").arg("--type").arg("d");
+        }
+        cmd.arg("--max-depth").arg((max_depth + if git_only { 1 } else { 0 }).to_string());
+        for excl in excludes {
+            cmd.arg("--exclude").arg(excl);
+        }
+        cmd.arg(start_dir);
+
+        let output = cmd.output()?;
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                let p = line.trim();
+                if !p.is_empty() {
+                    if git_only {
+                        if let Some(parent) = std::path::Path::new(p).parent() {
+                            paths.push(parent.to_string_lossy().to_string());
+                        }
+                    } else {
+                        paths.push(p.to_string());
+                    }
+                }
+            }
+        }
+    } else {
+        let mut cmd = std::process::Command::new("find");
+        cmd.arg(start_dir);
+        cmd.arg("-maxdepth").arg((max_depth + if git_only { 1 } else { 0 }).to_string());
+
+        if !excludes.is_empty() {
+            cmd.arg("(");
+            for (i, excl) in excludes.iter().enumerate() {
+                if i > 0 {
+                    cmd.arg("-o");
+                }
+                cmd.arg("-path").arg(format!("*/{}", excl));
+            }
+            cmd.arg(")");
+            cmd.arg("-prune");
+            cmd.arg("-o");
+        }
+
+        if git_only {
+            cmd.arg("-name").arg(".git").arg("-type").arg("d").arg("-print");
+        } else {
+            cmd.arg("-type").arg("d").arg("-print");
+        }
+
+        let output = cmd.output()?;
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                let p = line.trim();
+                if !p.is_empty() {
+                    if git_only {
+                        if let Some(parent) = std::path::Path::new(p).parent() {
+                            paths.push(parent.to_string_lossy().to_string());
+                        }
+                    } else {
+                        paths.push(p.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    if paths.is_empty() {
+        return Ok(None);
+    }
+
+    // Now spawn fzf and pipe paths to its stdin
+    let mut fzf_cmd = std::process::Command::new("fzf");
+    let mut child = fzf_cmd
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::inherit())
+        .spawn()?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        use std::io::Write;
+        for path in paths {
+            let _ = writeln!(stdin, "{}", path);
+        }
+    }
+
+    let output = child.wait_with_output()?;
+    if output.status.success() {
+        let selected = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !selected.is_empty() {
+            return Ok(Some(selected));
+        }
+    }
+    Ok(None)
 }
