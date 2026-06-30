@@ -129,9 +129,9 @@ asciinema play resources/preview.cast
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
 | `Esc` / `q`          | Detail          | Return to the list                |
-| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Workspace → Files → Graph → Branches → Tags → Remotes → Stashes → Overview) |
+| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Workspace → Files → Graph → Branches → Tags → Remotes → Stashes → Worktrees → Overview) |
 | `w` / `W`            | Detail          | Cycle panel focus forward (w) / backward (W) |
-| `1` - `8`            | Detail          | Jump directly to tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), or Overview (8) |
+| `1` - `9`            | Detail          | Jump directly to tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), Worktrees (8), or Overview (9) |
 | `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
 | `PgUp` / `PgDn`      | Detail / Normal / Settings | Scroll list/diff/tree/settings by configured `page_size` |
@@ -214,15 +214,16 @@ Items support `~` and `~/...` expansion, so `~/code/gitwig` resolves to your hom
 
 ## 🔍 Detail view
 
-Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports eight tabs for git repositories: **Details**, **Files**, **Graph**, **Branches**, **Tags**, **Remotes**, **Stashes**, and **Overview**.
-- Press `1` to switch to the **Details** tab.
+Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports nine tabs for git repositories: **Workspace**, **Files**, **Graph**, **Branches**, **Tags**, **Remotes**, **Stashes**, **Worktrees**, and **Overview**.
+- Press `1` to switch to the **Workspace** tab.
 - Press `2` to switch to the **Files** tab.
 - Press `3` to switch to the **Graph** tab.
 - Press `4` to switch to the **Branches** tab.
 - Press `5` to switch to the **Tags** tab.
 - Press `6` to switch to the **Remotes** tab.
 - Press `7` to switch to the **Stashes** tab.
-- Press `8` to switch to the **Overview** tab.
+- Press `8` to switch to the **Worktrees** tab.
+- Press `9` to switch to the **Overview** tab.
 - Alternatively, press `Tab` / `Shift+Tab` to cycle forward/backward through the tabs.
 - You can also click on the tab headers directly with the mouse to switch tabs.
 Press `Esc` or `q` to return to the repository list.
@@ -287,6 +288,15 @@ Pressing `s` / `S` inside the **Workspace** tab opens the dedicated **Stashing U
   - Press `s` to save the stash. This opens a text prompt to input an optional stash message/name (where stashing options can also be toggled with `Ctrl+U` and `Ctrl+I`).
   - Press `Esc` / `q` / `Q` to cancel and return to the Workspace view.
 
+### Worktrees Tab
+
+The **Worktrees** tab lists all Git worktrees linked to the repository.
+- Press `a` to add a new worktree. You will be prompted to enter a base branch/commit name, followed by the destination path.
+- Press `l` to toggle lock status on the selected worktree (adds/removes lock reason).
+- Press `d` to remove the selected worktree. You can choose to either remove only the Git metadata or delete the folder from disk entirely.
+- Press `p` to prune stale worktree metadata.
+- Press `Enter` to open the selected worktree (registers it to the Home screen cards list if not present, and opens it).
+
 ### Overview Tab
 
 The **Overview** tab displays key repository details including resolved paths, branch upstream tracking info, configured remotes, and general status counts.
@@ -294,13 +304,14 @@ The **Overview** tab displays key repository details including resolved paths, b
 ### Navigation & Interaction
 
 You can navigate and interact with these panels in the following ways:
-- **Cycle Focus:** In the Details, Files, Branches, Tags, and Stashes tabs, press `w` / `W` to cycle panel focus:
+- **Cycle Focus:** In the Workspace, Files, Branches, Tags, Stashes, and Worktrees tabs, press `w` / `W` to cycle panel focus:
   - **Workspace tab:** `Commits` → `Staged` → `Unstaged` → `StagingDetails`.
   - **Files tab:** `Files` (left tree list) ↔ `FileContent` (right preview panel).
   - **Branches tab:** `Local Branches` ↔ `Remote Branches`.
   - **Tags tab:** `Local Tags` ↔ `Remote Tags`.
   - **Stashes tab:** `Stashes` → `Stashed Files` → `StagingDetails`.
-  Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Workspace tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab).
+  - **Worktrees tab:** `Worktrees` (main table).
+  Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Workspace tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab, `Worktrees` on Worktrees tab).
 - **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels, stashed files list, files list, and the files tab content preview panel) to focus it immediately.
 - **Resize Split Panels:** Left-click and drag the vertical or horizontal boundary splitter lines between panels to resize them dynamically. This is supported in:
   - **Workspace / Inspect:** Main vertical split (commits vs details), bottom horizontal split (left list vs right diff), and left vertical split (staged vs unstaged or commit details vs files list).

@@ -732,7 +732,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
     let mut entries = Vec::new();
     let entries_data = match app.detail_tab {
         0 => {
-            let mut v = vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Cycle Focus", "w/W")];
+            let mut v = vec![("Home", "⎋/q"), ("Tabs", "Tab/1-9"), ("Cycle Focus", "w/W")];
             if app.detail_focus == DetailSection::CommitDetails {
                 v.push(("Scroll Info", "↑↓"));
                 v.push(("Inspect", "→"));
@@ -808,7 +808,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         1 => {
             let mut v = vec![
                 ("Home", "⎋/q"),
-                ("Tabs", "Tab/1-8"),
+                ("Tabs", "Tab/1-9"),
                 ("Cycle Focus", "w/W"),
                 ("Navigate/Scroll", "↑↓"),
                 ("Page", "⇟/⇞"),
@@ -831,7 +831,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         }
         2 => vec![
             ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-8"),
+            ("Tabs", "Tab/1-9"),
             ("Scroll", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
@@ -841,7 +841,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         3 => {
             let mut v = vec![
                 ("Home", "⎋/q"),
-                ("Tabs", "Tab/1-8"),
+                ("Tabs", "Tab/1-9"),
                 ("Cycle Focus", "w/W"),
                 ("Checkout", "↵"),
                 ("Create", "c"),
@@ -865,7 +865,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         }
         4 => vec![
             ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-8"),
+            ("Tabs", "Tab/1-9"),
             ("Checkout", "↵"),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
@@ -879,7 +879,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         ],
         5 => vec![
             ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-8"),
+            ("Tabs", "Tab/1-9"),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
@@ -892,7 +892,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         6 => {
             let mut v = vec![
                 ("Home", "⎋/q"),
-                ("Tabs", "Tab/1-8"),
+                ("Tabs", "Tab/1-9"),
                 ("Cycle Focus", "w/W"),
                 ("Navigate", "↑↓"),
                 ("Page", "⇟/⇞"),
@@ -909,12 +909,24 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         }
         7 => vec![
             ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-8"),
+            ("Tabs", "Tab/1-9"),
+            ("Navigate", "↑↓"),
+            ("Add", "a"),
+            ("Delete", "d"),
+            ("Lock/Unlock", "l"),
+            ("Prune", "p"),
+            ("Open", "↵"),
+            ("Resync", "R"),
+            ("Help", "?"),
+        ],
+        8 => vec![
+            ("Home", "⎋/q"),
+            ("Tabs", "Tab/1-9"),
             ("Set Repo Theme", "s"),
             ("Resync", "R"),
             ("Help", "?"),
         ],
-        _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-8"), ("Resync", "R"), ("Help", "?")],
+        _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-9"), ("Resync", "R"), ("Help", "?")],
     };
     for (i, (label, key)) in entries_data.iter().enumerate() {
         let mut spans = Vec::new();

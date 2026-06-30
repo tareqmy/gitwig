@@ -64,7 +64,8 @@ pub fn get_detail_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("5", "Go to Tags tab"),
                 ("6", "Go to Remotes tab"),
                 ("7", "Go to Stashes tab"),
-                ("8", "Go to Overview tab"),
+                ("8", "Go to Worktrees tab"),
+                ("9", "Go to Overview tab"),
             ],
         ),
         (
@@ -111,10 +112,13 @@ pub fn get_detail_help_lines(app: &App) -> Vec<Line<'_>> {
             ],
         ),
         (
-            "Remotes & Stashes Tab",
+            "Remotes, Stashes & Worktrees Tabs",
             vec![
-                ("a", "Apply selected stash"),
-                ("d", "Delete selected stash"),
+                ("a", "Apply stash / Add worktree"),
+                ("d", "Delete stash / Remove worktree"),
+                ("l", "Toggle lock status (Worktrees tab only)"),
+                ("p", "Prune worktree metadata (Worktrees tab only)"),
+                ("↵ [Enter]", "Open worktree in new context (Worktrees tab only)"),
                 ("f / F", "Fetch selected remote (Remotes tab)"),
             ],
         ),

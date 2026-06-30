@@ -96,7 +96,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Check version updates and notify the user and the option to update
 - [x] Keybindings
 - [ ] **Per Repository rule**
-- [ ] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
+- [x] **Git Worktrees:** Tab/view to list, create, and remove Git worktrees.
 - [ ] **Git Submodules:** Detect, list, initialize, and update submodules.
 - [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
 
