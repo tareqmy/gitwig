@@ -385,6 +385,48 @@ pub fn unstage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
     Ok(())
 }
 
+pub fn sanitize_text(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == 0x1B {
+            // Escape character: let's skip the sequence
+            i += 1;
+            if i < bytes.len() && bytes[i] == b'[' {
+                i += 1;
+                while i < bytes.len() {
+                    let c = bytes[i];
+                    i += 1;
+                    // ANSI escape sequences end with letters (A-Z, a-z)
+                    if c.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            } else {
+                // Single ESC character or other VT100: skip it
+                while i < bytes.len() {
+                    let c = bytes[i];
+                    i += 1;
+                    if c == b' ' || c.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+        } else {
+            let c = bytes[i];
+            // Replace non-printable control characters except \n, \r, \t
+            if c < 0x20 && c != b'\n' && c != b'\r' && c != b'\t' {
+                result.push(' ');
+            } else {
+                result.push(c as char);
+            }
+            i += 1;
+        }
+    }
+    result
+}
+
 fn git_command() -> std::process::Command {
     let mut cmd = std::process::Command::new("git");
     cmd.env("GIT_TERMINAL_PROMPT", "0");
@@ -1023,11 +1065,11 @@ fn collect_commits(
             commits.push(CommitEntry {
                 id: cached.id.clone(),
                 oid: oid_str,
-                author: cached.author.clone(),
+                author: sanitize_text(&cached.author),
                 when,
                 date: cached.date.clone(),
-                summary: cached.summary.clone(),
-                message: cached.message.clone(),
+                summary: sanitize_text(&cached.summary),
+                message: sanitize_text(&cached.message),
                 refs,
                 files,
                 signature_status: sig_status,
@@ -1035,15 +1077,15 @@ fn collect_commits(
         } else if let Ok(commit) = repo.find_commit(oid) {
             let short_id = format!("{:.7}", commit.id());
             let summary =
-                commit.summary().ok().flatten().unwrap_or("(no commit message)").to_string();
+                sanitize_text(commit.summary().ok().flatten().unwrap_or("(no commit message)"));
             let author = commit.author();
             let author_name = author.name().unwrap_or("?");
             let author_email = author.email().unwrap_or("?");
-            let author_str = format!("{} <{}>", author_name, author_email);
+            let author_str = sanitize_text(&format!("{} <{}>", author_name, author_email));
             let time_secs = commit.time().seconds();
             let when = format_relative_time(time_secs);
             let date = format_utc_date(time_secs);
-            let message = commit.message().unwrap_or("(no commit message)").to_string();
+            let message = sanitize_text(commit.message().unwrap_or("(no commit message)"));
 
             let cached = CachedCommit {
                 id: short_id.clone(),
@@ -1133,12 +1175,12 @@ pub fn get_file_history(repo_path: &Path, file_path: &str) -> Result<Vec<FileRev
             let author = commit.author();
             let author_name = author.name().unwrap_or("?");
             let author_email = author.email().unwrap_or("?");
-            let author_str = format!("{} <{}>", author_name, author_email);
+            let author_str = sanitize_text(&format!("{} <{}>", author_name, author_email));
             let time_secs = commit.time().seconds();
             let when = format_relative_time(time_secs);
             let date = format_utc_date(time_secs);
             let summary =
-                commit.summary().ok().flatten().unwrap_or("(no commit message)").to_string();
+                sanitize_text(commit.summary().ok().flatten().unwrap_or("(no commit message)"));
 
             revisions.push(FileRevision {
                 commit_oid: oid.to_string(),
@@ -1262,10 +1304,10 @@ fn collect_info(
         if let Ok(commit) = head.peel_to_commit() {
             let short_id = format!("{:.7}", commit.id());
             let summary_text =
-                commit.summary().ok().flatten().unwrap_or("(no commit message)").to_string();
+                sanitize_text(commit.summary().ok().flatten().unwrap_or("(no commit message)"));
             let author = commit.author();
             let author_str =
-                format!("{} <{}>", author.name().unwrap_or("?"), author.email().unwrap_or("?"));
+                sanitize_text(&format!("{} <{}>", author.name().unwrap_or("?"), author.email().unwrap_or("?")));
             let when = format_relative_time(commit.time().seconds());
             info.head =
                 Some(HeadInfo { short_id, summary: summary_text, author: author_str, when });
@@ -1385,10 +1427,10 @@ pub fn load_tab_branches(
                     }
                 }
                 local_branches.push(BranchInfo {
-                    name: name.to_string(),
+                    name: sanitize_text(name),
                     is_head,
                     short_sha,
-                    short_message,
+                    short_message: sanitize_text(&short_message),
                 });
             }
         }
@@ -1411,10 +1453,10 @@ pub fn load_tab_branches(
                         }
                     }
                     remote_branches.push(BranchInfo {
-                        name: name.to_string(),
+                        name: sanitize_text(name),
                         is_head,
                         short_sha,
-                        short_message,
+                        short_message: sanitize_text(&short_message),
                     });
                 }
             }
@@ -1449,10 +1491,10 @@ pub fn load_tab_tags(
                     }
                 }
                 local_tags.push(BranchInfo {
-                    name: tag.to_string(),
+                    name: sanitize_text(tag),
                     is_head: false,
                     short_sha,
-                    short_message,
+                    short_message: sanitize_text(&short_message),
                 });
             }
         }
@@ -1502,7 +1544,7 @@ pub fn load_tab_stashes(repo_path: &Path) -> Result<Vec<StashInfo>, String> {
         if let Ok(commit) = repo.find_commit(oid) {
             files = commit_changed_files(&repo, &commit);
         }
-        stashes.push(StashInfo { index, message, commit_id: oid.to_string(), files });
+        stashes.push(StashInfo { index, message: sanitize_text(&message), commit_id: oid.to_string(), files });
     }
     Ok(stashes)
 }
@@ -2209,12 +2251,15 @@ pub fn get_remote_tags(
                     short_message = "(not fetched)".to_string();
                 }
 
+                let sanitized_tag = sanitize_text(tag_name);
+                let sanitized_msg = sanitize_text(&short_message);
+
                 if is_peeled {
-                    tags_map.insert(tag_name.to_string(), (short_sha.to_string(), short_message));
+                    tags_map.insert(sanitized_tag, (short_sha.to_string(), sanitized_msg));
                 } else {
                     tags_map
-                        .entry(tag_name.to_string())
-                        .or_insert_with(|| (short_sha.to_string(), short_message));
+                        .entry(sanitized_tag)
+                        .or_insert_with(|| (short_sha.to_string(), sanitized_msg));
                 }
             }
         }
