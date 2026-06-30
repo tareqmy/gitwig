@@ -1492,7 +1492,7 @@ fn confirm_delete_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec<Stat
             Span::raw("Cancel"),
             Span::raw(" "),
             Span::styled("[", muted_style()),
-            Span::styled("n/⎋", accent_style()),
+            Span::styled("n/⎋/↵", accent_style()),
             Span::styled("]", muted_style()),
         ]),
     ];

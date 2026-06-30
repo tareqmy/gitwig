@@ -153,7 +153,7 @@ impl HomeTab {
             },
             Mode::ConfirmDelete => match code {
                 KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_delete(),
-                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.close_dialog(),
+                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc | KeyCode::Enter => app.close_dialog(),
                 _ => {}
             },
             _ => {}
