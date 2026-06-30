@@ -647,21 +647,60 @@ impl App {
     pub fn confirm_branch_delete(&mut self) {
         if let Some((branch_name, is_remote)) = self.branch_action_target.take() {
             if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
-                let res = if is_remote {
-                    repo::delete_remote_branch(resolved, &branch_name)
-                } else {
-                    repo::delete_local_branch(resolved, &branch_name)
-                };
+                let repo_path = resolved.clone();
+                let b_name = branch_name.clone();
+                if is_remote {
+                    if let Some(pos) = b_name.find('/') {
+                        let remote = b_name[..pos].to_string();
+                        let target_branch = b_name[pos + 1..].to_string();
 
-                match res {
-                    Ok(()) => {
-                        self.status_message = Some(format!("Deleted branch '{}'", branch_name));
-                        self.branch_list.local_branch_selection = 0;
-                        self.branch_list.remote_branch_selection = 0;
-                        self.resync_detail();
+                        self.fetching = true;
+                        self.status_message = Some(format!("Deleting remote branch '{}' on '{}'...", target_branch, remote));
+                        let tx = self.tx.clone();
+
+                        std::thread::spawn(move || {
+                            let res = (|| -> Result<(), Box<dyn std::error::Error>> {
+                                let safe_remote = safe_ref(&remote)?;
+                                let safe_target = safe_ref(&target_branch)?;
+                                let mut cmd = git_command();
+                                cmd.arg("push")
+                                    .arg(safe_remote)
+                                    .arg("--delete")
+                                    .arg(safe_target)
+                                    .current_dir(&repo_path);
+                                let output = cmd.output()?;
+                                if !output.status.success() {
+                                    let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                                    return Err(format!("git push failed: {}", err).into());
+                                }
+                                repo::delete_remote_branch(&repo_path, &b_name)?;
+                                Ok(())
+                            })();
+
+                            match res {
+                                Ok(()) => {
+                                    let _ = tx.send(format!("Deleted remote branch '{}'", b_name));
+                                }
+                                Err(e) => {
+                                    let _ = tx.send(format!("Failed to delete remote branch: {}", e));
+                                }
+                            }
+                        });
+                    } else {
+                        self.status_message = Some("Invalid remote branch name".to_string());
                     }
-                    Err(e) => {
-                        self.status_message = Some(format!("Failed to delete branch: {}", e));
+                } else {
+                    let res = repo::delete_local_branch(&repo_path, &b_name);
+                    match res {
+                        Ok(()) => {
+                            self.status_message = Some(format!("Deleted branch '{}'", b_name));
+                            self.branch_list.local_branch_selection = 0;
+                            self.branch_list.remote_branch_selection = 0;
+                            self.resync_detail();
+                        }
+                        Err(e) => {
+                            self.status_message = Some(format!("Failed to delete branch: {}", e));
+                        }
                     }
                 }
             }

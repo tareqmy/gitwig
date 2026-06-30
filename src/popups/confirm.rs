@@ -37,7 +37,7 @@ pub fn draw_branch_delete_popup(f: &mut Frame, target: &Option<(String, bool)>, 
         None => ("", false),
     };
 
-    let type_label = if is_remote { "remote-tracking branch" } else { "branch" };
+    let type_label = if is_remote { "remote branch (from the remote server)" } else { "branch" };
     let content = vec![
         Line::from(vec![
             Span::styled("Are you sure you want to delete the ", primary_style()),
