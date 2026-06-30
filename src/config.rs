@@ -428,8 +428,8 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf, Option
             let (mut config, warning) = load_and_parse_config(&path);
 
             let themes_dir = path.parent().unwrap_or(&path).join("themes");
-            fs::create_dir_all(&themes_dir)?;
-            write_popular_themes(&themes_dir)?;
+            let _ = fs::create_dir_all(&themes_dir);
+            let _ = write_popular_themes(&themes_dir);
 
             let theme_path = themes_dir.join(format!("{}.theme", config.theme_name));
             if theme_path.exists() {
@@ -460,11 +460,12 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf, Option
         let fallback_theme_name = default_theme_name();
 
         let themes_dir = path.parent().unwrap_or(&path).join("themes");
-        fs::create_dir_all(&themes_dir)?;
-        write_popular_themes(&themes_dir)?;
+        let _ = fs::create_dir_all(&themes_dir);
+        let _ = write_popular_themes(&themes_dir);
         let theme_path = themes_dir.join(format!("{}.theme", fallback_theme_name));
-        let theme_serialized = toml::to_string_pretty(&fallback_theme)?;
-        fs::write(&theme_path, theme_serialized)?;
+        if let Ok(theme_serialized) = toml::to_string_pretty(&fallback_theme) {
+            let _ = fs::write(&theme_path, theme_serialized);
+        }
 
         return Ok((
             Config {
@@ -496,7 +497,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf, Option
 
     // ── Always ensure ~/.gitwig/ exists ───────────────────────────────────
     let gitwig_dir = home_gitwig_dir();
-    fs::create_dir_all(&gitwig_dir)?;
+    let _ = fs::create_dir_all(&gitwig_dir);
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -508,7 +509,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf, Option
     }
     let canonical = gitwig_dir.join("config.toml");
     let themes_dir = gitwig_dir.join("themes");
-    fs::create_dir_all(&themes_dir)?;
+    let _ = fs::create_dir_all(&themes_dir);
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -518,7 +519,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf, Option
             let _ = fs::set_permissions(&themes_dir, perms);
         }
     }
-    write_popular_themes(&themes_dir)?;
+    let _ = write_popular_themes(&themes_dir);
 
     // ── 2. Canonical file already present ─────────────────────────────────
     if canonical.exists() {
