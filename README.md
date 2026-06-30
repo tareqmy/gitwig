@@ -36,6 +36,21 @@ export GITHUB_TOKEN="your_github_pat"
 curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh
 ```
 
+#### Via PowerShell (Windows)
+
+For a quick installation on Windows, run the following command in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/tareqmy/gitwig/master/install.ps1 | iex
+```
+
+*Note: If the repository is private, set your GitHub token first:*
+```powershell
+$env:GITHUB_TOKEN="your_github_pat"
+irm https://raw.githubusercontent.com/tareqmy/gitwig/master/install.ps1 | iex
+```
+
+
 #### Via Cargo
 
 You can install **Gitwig** directly from [crates.io](https://crates.io/crates/gitwig):
@@ -63,6 +78,13 @@ If you installed Gitwig via the shell script, you can uninstall it at any time u
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/uninstall.sh | sh
 ```
+
+If you installed Gitwig via PowerShell on Windows, you can uninstall it at any time using:
+
+```powershell
+irm https://raw.githubusercontent.com/tareqmy/gitwig/master/uninstall.ps1 | iex
+```
+
 
 ### Running
 
