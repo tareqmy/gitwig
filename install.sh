@@ -122,11 +122,37 @@ resolve_version() {
                 if [ -n "${JSON:-}" ]; then
                     LATEST_RELEASE=$(echo "${JSON}" | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/' || true)
                 fi
+
+                # Second fallback: check tags API if releases/latest is empty or failed
+                if [ -z "${LATEST_RELEASE:-}" ] || echo "${LATEST_RELEASE:-}" | grep -iq "Not Found" || echo "${LATEST_RELEASE:-}" | grep -iq "rate limit" || echo "${LATEST_RELEASE:-}" | grep -iq "message"; then
+                    API_URL="${GITHUB_API_URL}/tags"
+                    if command -v curl >/dev/null 2>&1; then
+                        if [ -n "${GITHUB_TOKEN:-}" ]; then
+                            JSON=$(curl -fsSL -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL}" 2>/dev/null || true)
+                        else
+                            JSON=$(curl -fsSL "${API_URL}" 2>/dev/null || true)
+                        fi
+                    elif command -v wget >/dev/null 2>&1; then
+                        if [ -n "${GITHUB_TOKEN:-}" ]; then
+                            JSON=$(wget -qO- --header="Authorization: token ${GITHUB_TOKEN}" "${API_URL}" 2>/dev/null || true)
+                        else
+                            JSON=$(wget -qO- "${API_URL}" 2>/dev/null || true)
+                        fi
+                    fi
+                    if [ -n "${JSON:-}" ]; then
+                        LATEST_RELEASE=$(echo "${JSON}" | grep '"name":' | head -n 1 | sed -E 's/.*"name": "([^"]+)".*/\1/' || true)
+                    fi
+                fi
             fi
         fi
 
+        # Clean up any potential error JSON message parsed as version
+        if echo "${LATEST_RELEASE:-}" | grep -iq "Not Found" || echo "${LATEST_RELEASE:-}" | grep -iq "rate limit" || echo "${LATEST_RELEASE:-}" | grep -iq "message"; then
+            LATEST_RELEASE=""
+        fi
+
         if [ -z "${LATEST_RELEASE:-}" ]; then
-            error "Could not auto-detect latest version. If this is a private repository, please set GITHUB_TOKEN. Otherwise, run: VERSION=vX.Y.Z ./install.sh"
+            error "Could not auto-detect latest version (this can happen due to network issues or GitHub API rate limits). Please specify the version manually, for example: VERSION=v2.3.1 ./install.sh"
         fi
         VERSION="${LATEST_RELEASE}"
     fi
