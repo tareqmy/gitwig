@@ -33,6 +33,24 @@ impl App {
         recent_repos.sort_by(|a, b| b.0.cmp(&a.0));
         recent_repos.truncate(5);
 
+        let mut starred_repos = Vec::new();
+        for (actual_index, item) in filtered.iter() {
+            if self.config.starred.contains(*item) {
+                starred_repos.push((*actual_index, (*item).clone()));
+            }
+        }
+        starred_repos.sort_by(|a, b| {
+            let name_a = std::path::Path::new(&a.1)
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&a.1);
+            let name_b = std::path::Path::new(&b.1)
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&b.1);
+            name_a.cmp(name_b)
+        });
+
         let has_any_labels = filtered.iter().any(|(_, item)| {
             self.config
                 .labels
@@ -40,7 +58,7 @@ impl App {
                 .is_some_and(|lbls| !lbls.is_empty())
         });
 
-        if !has_any_labels && recent_repos.is_empty() {
+        if !has_any_labels && recent_repos.is_empty() && starred_repos.is_empty() {
             return filtered
                 .into_iter()
                 .map(|(actual_index, path)| HomeRow::Repo {
@@ -66,6 +84,24 @@ impl App {
                         actual_index,
                         path: path.clone(),
                         primary_label: "Recent".to_string(),
+                    });
+                }
+            }
+        }
+
+        if !starred_repos.is_empty() {
+            let collapsed = self.collapsed_groups.contains("Starred");
+            rows.push(HomeRow::GroupHeader {
+                name: "Starred".to_string(),
+                count: starred_repos.len(),
+                collapsed,
+            });
+            if !collapsed {
+                for &(actual_index, ref path) in &starred_repos {
+                    rows.push(HomeRow::Repo {
+                        actual_index,
+                        path: path.clone(),
+                        primary_label: "Starred".to_string(),
                     });
                 }
             }
@@ -450,6 +486,33 @@ impl App {
 
         let filtered = self.get_filtered_items();
         if let Some(pos) = filtered.iter().position(|(_, x)| *x == &selected_item) {
+            self.selected_index = pos;
+        }
+
+        let msg = self.status_message.as_deref().unwrap_or("Saved").to_string();
+        self.persist(&msg);
+    }
+
+    pub fn toggle_star_selected(&mut self) {
+        let Some(selected_item) = self.get_selected_item().cloned() else {
+            return;
+        };
+        if self.config.starred.contains(&selected_item) {
+            self.config.starred.remove(&selected_item);
+            self.status_message = Some("Removed star from repository".to_string());
+        } else {
+            self.config.starred.insert(selected_item.clone());
+            self.status_message = Some("Starred repository".to_string());
+        }
+
+        self.sort_items_in_place();
+
+        // Keep the selection on the starred repo
+        let rows = self.get_home_rows();
+        if let Some(pos) = rows.iter().position(|r| match r {
+            HomeRow::Repo { path, .. } => path == &selected_item,
+            _ => false,
+        }) {
             self.selected_index = pos;
         }
 

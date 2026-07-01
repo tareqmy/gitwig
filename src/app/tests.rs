@@ -5263,3 +5263,39 @@ fn test_mru_group_flow() {
         panic!("Expected Recent group header");
     }
 }
+
+#[test]
+fn test_starred_group_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let config = Config {
+        items: vec![
+            "/path/to/alpha".to_string(),
+            "/path/to/beta".to_string(),
+            "/path/to/gamma".to_string(),
+        ],
+        ..Default::default()
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_star.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    assert_eq!(app.get_home_rows().len(), 3);
+
+    app.selected_index = 1;
+    let handled = crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Char('*'), KeyModifiers::empty()),
+        10,
+    );
+    assert!(handled);
+    assert!(app.config.starred.contains("/path/to/beta"));
+
+    let rows = app.get_home_rows();
+    assert_eq!(rows.len(), 5);
+    if let HomeRow::GroupHeader { name, count, .. } = &rows[0] {
+        assert_eq!(name, "Starred");
+        assert_eq!(*count, 1);
+    } else {
+        panic!("Expected Starred group header");
+    }
+}

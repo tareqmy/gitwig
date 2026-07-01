@@ -27,6 +27,10 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
         Span::raw("Pinned repository"),
     ]));
     lines.push(Line::from(vec![
+        Span::styled(format!("  {:<12}", app.sym("star")), Style::default().fg(Color::Yellow)),
+        Span::raw("Starred / Favorite repository"),
+    ]));
+    lines.push(Line::from(vec![
         Span::styled(
             format!("  {:<12}", app.sym("bullet_filled").to_string() + " clean"),
             Style::default().fg(SUCCESS()),

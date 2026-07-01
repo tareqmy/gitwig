@@ -129,6 +129,7 @@ impl Default for Config {
             repo_configs: std::collections::HashMap::new(),
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
+            starred: std::collections::HashSet::new(),
             theme_name: default_theme_name(),
             theme: default_theme(),
             fzf: default_fzf(),
@@ -269,6 +270,9 @@ pub struct Config {
     /// List of pinned repository paths.
     #[serde(default)]
     pub pinned: std::collections::HashSet<String>,
+    /// List of starred repository paths.
+    #[serde(default)]
+    pub starred: std::collections::HashSet<String>,
     /// Theme configurations for styling the terminal TUI.
     #[serde(skip)]
     pub theme: ThemeConfig,
@@ -404,6 +408,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         repo_configs: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
+        starred: std::collections::HashSet::new(),
         theme_name: default_theme_name(),
         theme: default_theme(),
         fzf: default_fzf(),
@@ -532,6 +537,7 @@ pub fn load_config(
                 repo_configs: std::collections::HashMap::new(),
                 sort_reverse: false,
                 pinned: std::collections::HashSet::new(),
+                starred: std::collections::HashSet::new(),
                 theme_name: fallback_theme_name,
                 theme: fallback_theme,
                 fzf: default_fzf(),
@@ -653,6 +659,7 @@ pub fn load_config(
         repo_configs: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
+        starred: std::collections::HashSet::new(),
         theme_name: default_theme_name(),
         theme: default_theme(),
         fzf: default_fzf(),

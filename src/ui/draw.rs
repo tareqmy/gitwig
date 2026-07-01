@@ -451,6 +451,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                 let pending_delete = is_selected && matches!(app.mode, Mode::ConfirmDelete);
                 let pending_edit = is_selected && matches!(app.mode, Mode::Editing);
                 let is_pinned = app.config.pinned.contains(item);
+                let is_starred = app.config.starred.contains(item);
 
                 // Selected/pending cards use an accent color; unselected cards use
                 // the terminal's default foreground (dimmed) so they stay legible
@@ -563,6 +564,14 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                             ));
                         }
                     }
+                    let is_starred = app.config.starred.contains(item);
+                    if is_starred {
+                        left_spans.push(Span::raw(" "));
+                        left_spans.push(Span::styled(
+                            app.sym("star").trim(),
+                            if is_selected { Style::default().fg(ratatui::style::Color::Yellow).add_modifier(Modifier::BOLD) } else { Style::default().fg(ratatui::style::Color::Yellow) },
+                        ));
+                    }
                     if is_pinned {
                         left_spans.push(Span::raw(" "));
                         left_spans.push(Span::styled(
@@ -630,7 +639,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
 
                     let name_cols = Layout::default()
                         .direction(Direction::Horizontal)
-                        .constraints([Constraint::Min(0), Constraint::Length(4)])
+                        .constraints([Constraint::Min(0), Constraint::Length(8)])
                         .split(rows[0]);
 
                     let mut spans = vec![Span::styled(mark, mark_style)];
@@ -687,13 +696,22 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     let name_line = Line::from(spans);
                     f.render_widget(Paragraph::new(name_line), name_cols[0]);
 
+                    let mut right_spans = Vec::new();
+                    if is_starred {
+                        right_spans.push(Span::styled(
+                            format!("{} ", app.sym("star").trim()),
+                            Style::default().fg(ratatui::style::Color::Yellow),
+                        ));
+                    }
                     if is_pinned {
-                        let pin_line = Line::from(Span::styled(
+                        right_spans.push(Span::styled(
                             app.sym("pinned").trim(),
                             Style::default().fg(WARNING()),
-                        ))
-                        .alignment(Alignment::Right);
-                        f.render_widget(Paragraph::new(pin_line), name_cols[1]);
+                        ));
+                    }
+                    if !right_spans.is_empty() {
+                        let icon_line = Line::from(right_spans).alignment(Alignment::Right);
+                        f.render_widget(Paragraph::new(icon_line), name_cols[1]);
                     }
 
                     // Row 1: Left column (branch name) and Right column (status section)
