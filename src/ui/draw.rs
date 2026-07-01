@@ -16,7 +16,7 @@ use ratatui::widgets::{Block, BorderType, Borders, Padding, Paragraph};
 use crate::app::{App, ITEM_HEIGHT, Mode};
 use crate::components::cmd_bar::StatusEntry;
 use crate::config::SortOrder;
-use crate::repo::{ItemStatus, RepoSummary};
+use crate::repo::{ItemStatus, RepoState, RepoSummary};
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 // Colors are kept minimal so the app works on both dark and light terminal
@@ -444,6 +444,34 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             ));
         }
         spans.push(Span::styled(repo_name, text_style));
+        if let ItemStatus::GitRepo(Some(summary)) = status {
+            let (state_str, state_style) = match summary.state {
+                RepoState::Merge => {
+                    (" ⚠ MERGE_HEAD", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD))
+                }
+                RepoState::Rebase => {
+                    (" 🚧 REBASING", Style::default().fg(WARNING()).add_modifier(Modifier::BOLD))
+                }
+                RepoState::CherryPick => {
+                    (" ⚡ CHERRY-PICK", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
+                }
+                RepoState::Revert => {
+                    (" ⚡ REVERTING", Style::default().fg(WARNING()).add_modifier(Modifier::BOLD))
+                }
+                RepoState::Bisect => (
+                    " 🔍 BISECTING",
+                    Style::default()
+                        .fg(ratatui::style::Color::Magenta)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                RepoState::ApplyMailbox => (
+                    " 📬 APPLYING",
+                    Style::default().fg(ratatui::style::Color::Cyan).add_modifier(Modifier::BOLD),
+                ),
+                RepoState::Clean => (" ✓ CLEAN", muted_style()),
+            };
+            spans.push(Span::styled(state_str, state_style));
+        }
         if let Some(lbls) = app.config.labels.get(item) {
             for lbl in lbls {
                 spans.push(Span::raw(" "));

@@ -32,6 +32,18 @@ pub enum ItemStatus {
     GitRepo(Option<RepoSummary>),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RepoState {
+    #[default]
+    Clean,
+    Merge,
+    Revert,
+    CherryPick,
+    Bisect,
+    Rebase,
+    ApplyMailbox,
+}
+
 /// Compact summary used to draw the per-card indicator. Also embedded in
 /// `RepoInfo` so the Detail view doesn't re-collect the same data.
 #[derive(Debug, Default, Clone)]
@@ -45,6 +57,7 @@ pub struct RepoSummary {
     pub conflicted: usize,
     pub ahead: usize,
     pub behind: usize,
+    pub state: RepoState,
 }
 
 impl RepoSummary {
@@ -1818,6 +1831,21 @@ fn collect_summary(repo: &Repository) -> RepoSummary {
     }
     populate_worktree(repo, &mut s);
     populate_ahead_behind(repo, &mut s);
+    s.state = match repo.state() {
+        git2::RepositoryState::Clean => RepoState::Clean,
+        git2::RepositoryState::Merge => RepoState::Merge,
+        git2::RepositoryState::Revert | git2::RepositoryState::RevertSequence => RepoState::Revert,
+        git2::RepositoryState::CherryPick | git2::RepositoryState::CherryPickSequence => {
+            RepoState::CherryPick
+        }
+        git2::RepositoryState::Bisect => RepoState::Bisect,
+        git2::RepositoryState::Rebase
+        | git2::RepositoryState::RebaseInteractive
+        | git2::RepositoryState::RebaseMerge => RepoState::Rebase,
+        git2::RepositoryState::ApplyMailbox | git2::RepositoryState::ApplyMailboxOrRebase => {
+            RepoState::ApplyMailbox
+        }
+    };
     s
 }
 

@@ -107,7 +107,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 > Full details and implementation priority table: see `.agent/homepage_feature_suggestions.md`
 
 ### Visual Enhancements
-- [ ] **Repo Health / State Indicators:** Show repo HEAD state as a badge on each card (`⚠ MERGE_HEAD`, `🚧 REBASING`, `⚡ CHERRY-PICK`, `✓ CLEAN`).
+- [x] **Repo Health / State Indicators:** Show repo HEAD state as a badge on each card (`⚠ MERGE_HEAD`, `🚧 REBASING`, `⚡ CHERRY-PICK`, `✓ CLEAN`).
 - [ ] **Last Activity Timestamp:** Display relative time of the last commit on each card (e.g., `2h ago`, `3d ago`).
 - [ ] **Compact / Dense View Toggle:** Press `v` to switch between 4-row cards and a 1-row compact list — useful for large repo collections.
 - [ ] **Color-coded Divergence Badge:** Color the `↑N ↓M` ahead/behind indicator red/yellow/green based on how out-of-sync the branch is.
