@@ -16,7 +16,7 @@ use ratatui::widgets::{Block, BorderType, Borders, Padding, Paragraph};
 use crate::app::{App, ITEM_HEIGHT, Mode};
 use crate::components::cmd_bar::StatusEntry;
 use crate::config::SortOrder;
-use crate::repo::{ItemStatus, RepoState, RepoSummary};
+use crate::repo::{ItemStatus, RepoState, RepoSummary, format_relative_time};
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 // Colors are kept minimal so the app works on both dark and light terminal
@@ -497,17 +497,25 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             .constraints([Constraint::Min(0), Constraint::Length(STATUS_ZONE_WIDTH)])
             .split(rows[1]);
 
-        let branch = match status {
-            ItemStatus::GitRepo(Some(s)) => s.branch.clone(),
-            _ => None,
-        };
-        let branch_line = match branch {
-            Some(b) => Line::from(vec![
-                Span::raw(UNSELECTED_INDENT), // align with item text
-                Span::styled(format!("{} ", app.sym("branch")), muted_style()),
-                Span::styled(b, Style::default().fg(ACCENT())),
-            ]),
-            None => Line::from(""),
+        let branch_line = match status {
+            ItemStatus::GitRepo(Some(s)) => {
+                if let Some(b) = &s.branch {
+                    let mut parts = vec![
+                        Span::raw(UNSELECTED_INDENT),
+                        Span::styled(format!("{} ", app.sym("branch")), muted_style()),
+                        Span::styled(b.clone(), Style::default().fg(ACCENT())),
+                    ];
+                    if let Some(time) = s.last_commit_time {
+                        parts.push(Span::raw(" ("));
+                        parts.push(Span::styled(format_relative_time(time), muted_style()));
+                        parts.push(Span::raw(")"));
+                    }
+                    Line::from(parts)
+                } else {
+                    Line::from("")
+                }
+            }
+            _ => Line::from(""),
         };
         f.render_widget(Paragraph::new(branch_line), row1_cols[0]);
 

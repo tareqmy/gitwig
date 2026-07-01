@@ -3410,6 +3410,7 @@ fn test_tag_fetch_attempt_and_dismiss_flow() {
             ahead: 0,
             behind: 0,
             state: crate::repo::RepoState::Clean,
+            last_commit_time: None,
         },
         changes: crate::repo::WorktreeChanges {
             staged: vec![],

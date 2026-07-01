@@ -58,6 +58,7 @@ pub struct RepoSummary {
     pub ahead: usize,
     pub behind: usize,
     pub state: RepoState,
+    pub last_commit_time: Option<i64>,
 }
 
 impl RepoSummary {
@@ -1828,6 +1829,9 @@ fn collect_summary(repo: &Repository) -> RepoSummary {
     // git2 0.21: head() + shorthand() = Result<&str, Error>.
     if let Ok(head) = repo.head() {
         s.branch = head.shorthand().ok().map(String::from);
+        if let Ok(commit) = head.peel_to_commit() {
+            s.last_commit_time = Some(commit.time().seconds());
+        }
     }
     populate_worktree(repo, &mut s);
     populate_ahead_behind(repo, &mut s);
@@ -1917,7 +1921,7 @@ fn upstream_short_name(repo: &Repository, head_name: &str) -> Option<String> {
 }
 
 /// Format a unix-epoch timestamp as a relative time string ("3 days ago").
-fn format_relative_time(secs: i64) -> String {
+pub fn format_relative_time(secs: i64) -> String {
     if secs <= 0 {
         return "unknown".to_string();
     }
