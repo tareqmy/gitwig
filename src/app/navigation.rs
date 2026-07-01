@@ -625,7 +625,20 @@ impl App {
     /// clamping selection indices to their new totals.
     /// Resync the selected item's filesystem/git state inside the Detail view asynchronously.
     pub fn resync_detail(&mut self) {
-        if let Some(item) = self.get_selected_item().cloned() {
+        let path_opt = if let Some(detail) = &self.current_detail {
+            match detail {
+                repo::ItemDetail::Repo { resolved, .. }
+                | repo::ItemDetail::Missing { resolved, .. }
+                | repo::ItemDetail::Directory { resolved, .. }
+                | repo::ItemDetail::Error { resolved, .. } => {
+                    Some(resolved.to_string_lossy().to_string())
+                }
+            }
+        } else {
+            self.get_selected_item().cloned()
+        };
+
+        if let Some(item) = path_opt {
             crate::debug_log::info("Resyncing repository details");
             let path = std::path::PathBuf::from(&item);
             repo::invalidate_ref_map_cache(&path);
