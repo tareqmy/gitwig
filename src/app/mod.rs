@@ -1785,8 +1785,28 @@ where
         } else {
             available_height
         };
-        let visible_count =
-            (list_height / app.item_height()).min(app.get_items_len() as u16) as usize;
+        let rows = app.get_home_rows();
+        let mut accumulated_height = 0;
+        let mut visible_count = 0;
+        for row in rows.iter().skip(app.scroll_top) {
+            let h = match row {
+                crate::app::HomeRow::GroupHeader { .. } => {
+                    if app.config.compact_view { 1 } else { 2 }
+                }
+                crate::app::HomeRow::Repo { .. } => {
+                    if app.config.compact_view { 1 } else { 4 }
+                }
+            };
+            if accumulated_height + h <= list_height {
+                accumulated_height += h;
+                visible_count += 1;
+            } else {
+                break;
+            }
+        }
+        if visible_count == 0 && !rows.is_empty() {
+            visible_count = 1;
+        }
         app.clamp_scroll(visible_count);
         app.clamp_help_scroll(area.height as usize);
         app.clamp_legend_scroll();

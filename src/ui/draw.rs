@@ -381,7 +381,22 @@ fn content_and_status_chunks(inner_area: Rect, status_height: u16) -> (Rect, Rec
 /// Within the content area, split into N item rows + a flex spacer so the
 /// list is top-aligned and never pushes against the status bar.
 fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect> {
-    let mut constraints = vec![Constraint::Length(app.item_height()); visible_count];
+    let rows = app.get_home_rows();
+    let upper = (app.scroll_top + visible_count).min(rows.len());
+    let visible_rows = &rows[app.scroll_top..upper];
+
+    let mut constraints = Vec::new();
+    for row in visible_rows {
+        let h = match row {
+            crate::app::HomeRow::GroupHeader { .. } => {
+                if app.config.compact_view { 1 } else { 2 }
+            }
+            crate::app::HomeRow::Repo { .. } => {
+                if app.config.compact_view { 1 } else { 4 }
+            }
+        };
+        constraints.push(Constraint::Length(h));
+    }
     constraints.push(Constraint::Min(0));
 
     let chunks: Vec<Rect> = Layout::default()
@@ -389,7 +404,6 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
         .constraints(constraints)
         .split(content_area)
         .to_vec();
-    // Drop the trailing spacer.
     chunks[..visible_count].to_vec()
 }
 
@@ -432,9 +446,12 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                 } else {
                     muted_style().add_modifier(Modifier::BOLD)
                 };
-                let border_style =
-                    if is_selected { Style::default().fg(ACCENT()) } else { muted_style() };
-                let block = Block::default().borders(Borders::BOTTOM).border_style(border_style);
+                let mut block = Block::default();
+                if !app.config.compact_view {
+                    let border_style =
+                        if is_selected { Style::default().fg(ACCENT()) } else { muted_style() };
+                    block = block.borders(Borders::BOTTOM).border_style(border_style);
+                }
 
                 let p = Paragraph::new(Line::from(vec![
                     Span::styled(

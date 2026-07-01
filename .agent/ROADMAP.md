@@ -115,10 +115,10 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] In workspace show the whole file in the diff, since it does not have anything to compare with.
 
 ### Organisation & Navigation
-- [ ] **Label / Group Collapsing:** `←`/`→` or `Space` on a label group header to collapse/expand repos in that group.
-- [ ] **Fuzzy Jump-to-Repo Overlay:** `/`-triggered floating popup with ranked fuzzy matches across all repo names for instant navigation.
-- [ ] **Recently Opened MRU Stack:** Persist most-recently-used repo history across sessions; surface in a dedicated `Recent` group.
-- [ ] **Favorite / Star Repos:** Semantic ★ bookmark separate from positional pin; starred repos float to a dedicated section.
+- [x] Label / Group Collapsing: `←`/`→` or `Space` on a label group header to collapse/expand repos in that group.
+- [x] Fuzzy Jump-to-Repo Overlay: `/`-triggered floating popup with ranked fuzzy matches across all repo names for instant navigation.
+- [x] Recently Opened MRU Stack: Persist most-recently-used repo history across sessions; surface in a dedicated `Recent` group.
+- [x] Favorite / Star Repos: Semantic ★ bookmark separate from positional pin; starred repos float to a dedicated section.
 
 ### At-a-Glance Stats
 - [ ] **Global Summary Header Bar:** 1–2 row header showing aggregate counts (`N repos • M dirty • P ahead • Q stale`).
