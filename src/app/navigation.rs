@@ -3101,7 +3101,7 @@ impl App {
         matches.into_iter().map(|(_, idx, path, name)| (idx, path, name)).collect()
     }
 
-    pub fn jump_to_repo(&mut self, original_index: usize, visible_count: usize) {
+    pub fn jump_to_repo(&mut self, original_index: usize) {
         if let Some(path) = self.config.items.get(original_index) {
             if let Some(lbls) = self.config.labels.get(path) {
                 for label in lbls {
@@ -3121,10 +3121,81 @@ impl App {
             }) {
                 self.selected_index = pos;
 
-                if self.selected_index < self.scroll_top {
-                    self.scroll_top = self.selected_index;
-                } else if self.selected_index >= self.scroll_top + visible_count {
-                    self.scroll_top = self.selected_index.saturating_sub(visible_count.saturating_sub(1));
+                // Calculate list_height dynamically from terminal size
+                let list_height = if let Ok(size) = crossterm::terminal::size() {
+                    let inner_vertical_margin = 2;
+                    let inner_height = (size.1 as usize).saturating_sub(inner_vertical_margin);
+                    let available_height = inner_height.saturating_sub(self.status_height() as usize);
+                    if self.config.compact_view {
+                        available_height.saturating_sub(1)
+                    } else {
+                        available_height
+                    }
+                } else {
+                    20
+                };
+
+                // Check if the selected row is already visible starting from scroll_top
+                let mut accumulated = 0;
+                let mut is_visible = false;
+                if pos >= self.scroll_top {
+                    for idx in self.scroll_top..=pos {
+                        let h = match &rows[idx] {
+                            HomeRow::GroupHeader { .. } => {
+                                if self.config.compact_view { 1 } else { 2 }
+                            }
+                            HomeRow::Repo { .. } => {
+                                if self.config.compact_view { 1 } else { 4 }
+                            }
+                        };
+                        accumulated += h;
+                    }
+                    if accumulated <= list_height {
+                        is_visible = true;
+                    }
+                }
+
+                if !is_visible {
+                    if pos < self.scroll_top {
+                        self.scroll_top = pos;
+                    } else {
+                        // Scroll down to make it visible at the bottom of the viewport
+                        let mut acc_height = 0;
+                        let mut temp_scroll = pos;
+                        while temp_scroll > 0 {
+                            let h = match &rows[temp_scroll] {
+                                HomeRow::GroupHeader { .. } => {
+                                    if self.config.compact_view { 1 } else { 2 }
+                                }
+                                HomeRow::Repo { .. } => {
+                                    if self.config.compact_view { 1 } else { 4 }
+                                }
+                            };
+                            if acc_height + h <= list_height {
+                                acc_height += h;
+                                temp_scroll -= 1;
+                            } else {
+                                break;
+                            }
+                        }
+                        if temp_scroll == 0 {
+                            let h = match &rows[0] {
+                                HomeRow::GroupHeader { .. } => {
+                                    if self.config.compact_view { 1 } else { 2 }
+                                }
+                                HomeRow::Repo { .. } => {
+                                    if self.config.compact_view { 1 } else { 4 }
+                                }
+                            };
+                            if acc_height + h <= list_height {
+                                self.scroll_top = 0;
+                            } else {
+                                self.scroll_top = 1;
+                            }
+                        } else {
+                            self.scroll_top = temp_scroll + 1;
+                        }
+                    }
                 }
             }
         }
