@@ -1238,8 +1238,6 @@ where
                     let current_version = env!("CARGO_PKG_VERSION");
                     if is_newer_version(current_version, latest_version) {
                         app.update_available = Some(latest_version.to_string());
-                        app.previous_mode = Some(app.mode);
-                        app.mode = Mode::UpdateConfirm;
                     }
                 } else if let Some(success_msg) = msg.strip_prefix("UPDATE_SUCCESS:") {
                     app.fetching = false;
@@ -1880,7 +1878,7 @@ impl App {
     pub fn trigger_self_update(&mut self) {
         self.fetching = true;
         self.status_message = Some("Updating Gitwig...".to_string());
-        self.mode = self.previous_mode.take().unwrap_or(Mode::Normal);
+        self.mode = self.previous_mode.take().unwrap_or(self.mode);
 
         let version = self.update_available.clone();
         let tx = self.tx.clone();

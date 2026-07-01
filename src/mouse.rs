@@ -26,6 +26,26 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
 
     let pos = Position { x: mouse.column, y: mouse.row };
 
+    if is_click && pos.y == 0 {
+        if let Some(ref latest) = app.update_available {
+            let (mut width, _) = crossterm::terminal::size().unwrap_or((80, 24));
+            if width == 0 {
+                width = 80;
+            }
+            let len_version = format!(" v{} ", env!("CARGO_PKG_VERSION")).chars().count();
+            let len_badge = format!("[Update to v{}]", latest).chars().count();
+            let len_total = len_version + len_badge + 1;
+
+            let start_x = (width as usize).saturating_sub(len_total + 2);
+            let end_x = (width as usize).saturating_sub(len_version + 2);
+
+            if (pos.x as usize) >= start_x && (pos.x as usize) <= end_x {
+                app.trigger_self_update();
+                return;
+            }
+        }
+    }
+
     let areas = app.detail_areas;
 
     // Handle splitter dragging

@@ -257,12 +257,6 @@ pub fn draw(
         crate::popups::import::draw_import_popup(f, area, app);
     }
 
-    if matches!(app.mode, Mode::UpdateConfirm) {
-        if let Some(ref latest) = app.update_available {
-            crate::popups::confirm::draw_update_confirm_popup(f, latest, area);
-        }
-    }
-
     if let Some(ref err) = app.error_message {
         crate::popups::error::draw_error_popup(f, app, area, err);
     } else if app.fetching {
@@ -322,11 +316,19 @@ fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
         );
     }
 
-    block = block.title(
-        Line::from(format!(" v{} ", env!("CARGO_PKG_VERSION")))
-            .style(muted_style())
-            .alignment(Alignment::Right),
-    );
+    let mut right_spans =
+        vec![Span::styled(format!(" v{} ", env!("CARGO_PKG_VERSION")), muted_style())];
+    if let Some(ref latest) = app.update_available {
+        right_spans.insert(0, Span::raw(" "));
+        right_spans.insert(
+            0,
+            Span::styled(
+                format!("[Update to v{}]", latest),
+                Style::default().fg(ratatui::style::Color::LightGreen).add_modifier(Modifier::BOLD),
+            ),
+        );
+    }
+    block = block.title(Line::from(right_spans).alignment(Alignment::Right));
     f.render_widget(block, area);
 }
 
