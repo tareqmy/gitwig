@@ -496,7 +496,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             if rect.contains(pos) {
                 if is_click {
                     let click_x = pos.x - rect.x;
-                    let use_short = rect.width < 124;
+                    let use_short = rect.width < 146;
                     let tabs_data = [
                         ("Workspace", "W", 0),
                         ("Files", "F", 1),
@@ -505,8 +505,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         ("Tags", "T", 4),
                         ("Remotes", "R", 5),
                         ("Stashes", "S", 6),
-                        ("Worktrees", "K", 7),
-                        ("Submodules", "M", 8),
+                        ("Worktrees", "W", 7),
+                        ("Submodules", "S", 8),
                     ];
                     let mut current_offset = 2;
                     for &(long_name, short_name, tab_index) in &tabs_data {

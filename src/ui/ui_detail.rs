@@ -397,11 +397,11 @@ pub fn draw(
             ("Tags", "T", 5),
             ("Remotes", "R", 6),
             ("Stashes", "S", 7),
-            ("Worktrees", "K", 8),
-            ("Submodules", "M", 9),
+            ("Worktrees", "W", 8),
+            ("Submodules", "S", 9),
         ];
 
-        let use_short = tab_area.width < 124;
+        let use_short = tab_area.width < 146;
         let mut spans = vec![Span::raw("  ")];
         for (i, &(long_name, short_name, index)) in tabs_data.iter().enumerate() {
             if i > 0 {
