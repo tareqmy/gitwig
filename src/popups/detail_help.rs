@@ -225,13 +225,13 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
 }
 
 pub fn get_detail_help_lines_len(app: &App, width: u16) -> usize {
-    let popup_width = (width * 60) / 100;
+    let popup_width = (width * 80) / 100;
     let usable_width = popup_width.saturating_sub(4) as usize;
     get_detail_help_lines(app, usable_width).len()
 }
 
 pub fn draw_detail_help_overlay(f: &mut Frame, app: &App, area: Rect, scroll: usize) {
-    let popup_area = centered_rect(60, 55, area);
+    let popup_area = centered_rect(80, 55, area);
     f.render_widget(Clear, popup_area);
 
     let usable_width = popup_area.width.saturating_sub(4) as usize;
