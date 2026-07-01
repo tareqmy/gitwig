@@ -344,6 +344,8 @@ pub struct App {
     pub fetching: bool,
     /// Store the latest version if an update is available.
     pub update_available: Option<String>,
+    /// Whether the update check was triggered manually.
+    pub update_check_manual: bool,
     /// Stored previous mode to restore after confirmation/popups.
     pub previous_mode: Option<Mode>,
     /// Row selection index for the repository settings popup.
@@ -999,6 +1001,7 @@ impl App {
             rx,
             fetching: false,
             update_available: None,
+            update_check_manual: false,
             previous_mode: None,
             repo_settings_selected_index: 0,
             repo_settings_editing: false,
@@ -1147,42 +1150,7 @@ impl App {
 
         #[cfg(not(test))]
         {
-            let tx_clone = app.tx.clone();
-            std::thread::spawn(move || {
-                let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                    let output = std::process::Command::new("curl")
-                        .arg("--max-time")
-                        .arg("5")
-                        .arg("-fsSL")
-                        .arg("https://raw.githubusercontent.com/tareqmy/gitwig/master/.version")
-                        .output();
-                    if let Ok(out) = output {
-                        if out.status.success() {
-                            let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                            if !version.is_empty() {
-                                return Ok(version);
-                            }
-                        }
-                    }
-                    let output = std::process::Command::new("wget")
-                        .arg("--timeout=5")
-                        .arg("-qO-")
-                        .arg("https://raw.githubusercontent.com/tareqmy/gitwig/master/.version")
-                        .output();
-                    if let Ok(out) = output {
-                        if out.status.success() {
-                            let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                            if !version.is_empty() {
-                                return Ok(version);
-                            }
-                        }
-                    }
-                    Err("Failed to query update version".into())
-                })();
-                if let Ok(latest_version) = res {
-                    let _ = tx_clone.send(format!("UPDATE_CHECK:{}", latest_version));
-                }
-            });
+            app.trigger_update_check_internal(false);
         }
 
         app.resolve_repo_themes();
@@ -1238,7 +1206,19 @@ where
                     let current_version = env!("CARGO_PKG_VERSION");
                     if is_newer_version(current_version, latest_version) {
                         app.update_available = Some(latest_version.to_string());
+                        if app.update_check_manual {
+                            app.status_message =
+                                Some(format!("Update available: v{}", latest_version));
+                        }
+                    } else if app.update_check_manual {
+                        app.status_message = Some("Gitwig is up to date".to_string());
                     }
+                    app.update_check_manual = false;
+                } else if msg.starts_with("UPDATE_CHECK_FAILED:") {
+                    if app.update_check_manual {
+                        app.status_message = Some("Failed to check for updates".to_string());
+                    }
+                    app.update_check_manual = false;
                 } else if let Some(success_msg) = msg.strip_prefix("UPDATE_SUCCESS:") {
                     app.fetching = false;
                     app.status_message = Some(success_msg.to_string());
@@ -1875,6 +1855,55 @@ fn copy_to_clipboard(text: &str) -> Result<(), String> {
 }
 
 impl App {
+    pub fn trigger_update_check(&mut self) {
+        self.trigger_update_check_internal(true);
+    }
+
+    pub fn trigger_update_check_internal(&mut self, manual: bool) {
+        self.update_check_manual = manual;
+        if manual {
+            self.status_message = Some("Checking for updates...".to_string());
+        }
+        let tx_clone = self.tx.clone();
+        std::thread::spawn(move || {
+            let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                let output = std::process::Command::new("curl")
+                    .arg("--max-time")
+                    .arg("5")
+                    .arg("-fsSL")
+                    .arg("https://raw.githubusercontent.com/tareqmy/gitwig/master/.version")
+                    .output();
+                if let Ok(out) = output {
+                    if out.status.success() {
+                        let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                        if !version.is_empty() {
+                            return Ok(version);
+                        }
+                    }
+                }
+                let output = std::process::Command::new("wget")
+                    .arg("--timeout=5")
+                    .arg("-qO-")
+                    .arg("https://raw.githubusercontent.com/tareqmy/gitwig/master/.version")
+                    .output();
+                if let Ok(out) = output {
+                    if out.status.success() {
+                        let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                        if !version.is_empty() {
+                            return Ok(version);
+                        }
+                    }
+                }
+                Err("Failed to query update version".into())
+            })();
+            if let Ok(latest_version) = res {
+                let _ = tx_clone.send(format!("UPDATE_CHECK:{}", latest_version));
+            } else {
+                let _ = tx_clone.send("UPDATE_CHECK_FAILED:".to_string());
+            }
+        });
+    }
+
     pub fn trigger_self_update(&mut self) {
         self.fetching = true;
         self.status_message = Some("Updating Gitwig...".to_string());

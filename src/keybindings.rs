@@ -33,6 +33,7 @@ pub enum Action {
     HomeOpenGitApp,
     HomeSearchRepo,
     HomeOpenDetail,
+    HomeCheckUpdate,
 
     // Detail / Workspace Tab Navigation
     CloseDetail,
@@ -97,6 +98,7 @@ impl Action {
             52 => Some(Action::GoToTab7),
             53 => Some(Action::GoToTab8),
             54 => Some(Action::GoToTab9),
+            57 => Some(Action::HomeCheckUpdate),
             _ => None,
         }
     }
@@ -133,6 +135,7 @@ pub struct HomeKeybindings {
     pub open_git_app: Option<Vec<String>>,
     pub search_repo: Option<Vec<String>>,
     pub open_detail: Option<Vec<String>>,
+    pub check_update: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -287,6 +290,7 @@ impl KeybindingsConfig {
                 open_git_app: Some(vec!["g".to_string()]),
                 search_repo: Some(vec!["f".to_string()]),
                 open_detail: Some(vec!["enter".to_string(), "right".to_string()]),
+                check_update: Some(vec!["u".to_string()]),
             },
             navigation: NavigationKeybindings {
                 close_detail: Some(vec!["esc".to_string(), "q".to_string(), "Q".to_string()]),
@@ -344,6 +348,7 @@ impl KeybindingsConfig {
             Action::HomeOpenGitApp => self.home.open_git_app.as_ref(),
             Action::HomeSearchRepo => self.home.search_repo.as_ref(),
             Action::HomeOpenDetail => self.home.open_detail.as_ref(),
+            Action::HomeCheckUpdate => self.home.check_update.as_ref(),
 
             // Navigation
             Action::CloseDetail => self.navigation.close_detail.as_ref(),
@@ -472,6 +477,7 @@ impl KeybindingsConfig {
             Action::HomeOpenGitApp => self.home.open_git_app = keys_opt,
             Action::HomeSearchRepo => self.home.search_repo = keys_opt,
             Action::HomeOpenDetail => self.home.open_detail = keys_opt,
+            Action::HomeCheckUpdate => self.home.check_update = keys_opt,
             Action::CloseDetail => self.navigation.close_detail = keys_opt,
             Action::DetailHelp => self.navigation.detail_help = keys_opt,
             Action::CycleFocusForward => self.navigation.cycle_focus_forward = keys_opt,

@@ -98,7 +98,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Git Worktrees: Tab/view to list, create, and remove Git worktrees.
 - [x] Git Submodules: Detect, list, initialize, and update submodules.
 - [ ] If network action is done from schedule without user explicitly triggering it, need to show that network action is happenning somewhere, definitely not a popup for implicit network call.
-- [ ] **Self Update:** Shortcut to trigger update check, check on start, show badge beside version when update available
+- [x] Self Update: Shortcut to trigger update check, check on start, show badge beside version when update available
 - [x] Editor Support: Option to open file from file tab with custom terminal editor from settings
 - [ ] **Per Repository rule**
 - [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.

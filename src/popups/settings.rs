@@ -19,7 +19,7 @@ const FZF_SETTING_INDICES: &[usize] = &[11, 5, 4, 10, 8];
 const THEME_SETTING_INDICES: &[usize] = &[3];
 const KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
-    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
+    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 57,
 ];
 
 fn index_to_action(idx: usize) -> Option<crate::keybindings::Action> {
@@ -133,6 +133,7 @@ fn get_label(global_idx: usize) -> &'static str {
         36 => "Home: Open Git App",
         37 => "Home: Search Repository",
         38 => "Home: Open Details",
+        57 => "Home: Check Updates",
         39 => "Detail: Close View",
         40 => "Detail: Help",
         41 => "Detail: Cycle Focus Fwd",
@@ -204,6 +205,7 @@ fn get_desc(global_idx: usize) -> &'static str {
         36 => "Launches the configured external Git CLI utility (e.g. lazygit).",
         37 => "Searches repository list by path or folder name.",
         38 => "Opens the detailed Workspace/History view for the selected repository.",
+        57 => "Checks for application updates manually from the home page.",
         39 => "Clones/closes repository detail view and returns to Home.",
         40 => "Opens the detail view help/shortcuts overlay.",
         41 => "Cycles focus forward between active panel widgets.",
@@ -226,7 +228,7 @@ fn get_desc(global_idx: usize) -> &'static str {
 
 pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
     let is_selected = app.settings_selected_index == global_idx;
-    if (14..=54).contains(&global_idx) {
+    if KEYBINDINGS_SETTING_INDICES.contains(&global_idx) {
         if is_selected && app.settings_editing {
             format!("{}█", app.input_buffer)
         } else if let Some(action) = index_to_action(global_idx) {

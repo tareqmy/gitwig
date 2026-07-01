@@ -68,6 +68,7 @@ pub fn get_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("s", "Open options/settings page"),
                 ("l", "Edit labels of selected item"),
                 ("d", "Open debug logs panel"),
+                ("u", "Check for application updates manually"),
                 ("⌫ [Backspace]", "Erase character while typing"),
             ],
         ),

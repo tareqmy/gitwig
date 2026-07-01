@@ -5028,3 +5028,14 @@ fn test_update_click_trigger() {
     assert!(app.fetching);
     assert_eq!(app.status_message.as_deref(), Some("Updating Gitwig..."));
 }
+
+#[test]
+fn test_manual_update_check_flow() {
+    let config = Config::default();
+    let mut app = App::new(config, std::path::PathBuf::from("dummy_path.toml"));
+    assert!(!app.update_check_manual);
+
+    app.trigger_update_check();
+    assert!(app.update_check_manual);
+    assert_eq!(app.status_message.as_deref(), Some("Checking for updates..."));
+}
