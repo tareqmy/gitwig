@@ -1473,6 +1473,7 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
         (&app.config.git_app, "g"),
         (&sort_key_label, "o/O"),
         ("Find", "f"),
+        ("Jump Picker", "/"),
         ("Add", "a"),
         ("Bulk Add", "A"),
         ("Import", "i"),
