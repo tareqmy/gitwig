@@ -1773,8 +1773,13 @@ where
         let inner_area = area.inner(Margin { vertical: 1, horizontal: 1 });
 
         let available_height = inner_area.height.saturating_sub(app.status_height());
+        let list_height = if app.config.compact_view {
+            available_height.saturating_sub(1)
+        } else {
+            available_height
+        };
         let visible_count =
-            (available_height / app.item_height()).min(app.get_items_len() as u16) as usize;
+            (list_height / app.item_height()).min(app.get_items_len() as u16) as usize;
         app.clamp_scroll(visible_count);
         app.clamp_help_scroll(area.height as usize);
         app.clamp_legend_scroll();

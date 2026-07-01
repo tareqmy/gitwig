@@ -234,7 +234,21 @@ pub fn draw(
             draw_empty_state(f, content_area);
         }
     } else {
-        let list_chunks = item_chunks(content_area, visible_count, app);
+        let (header_area, list_area) = if app.config.compact_view {
+            let parts = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(1), Constraint::Min(0)])
+                .split(content_area);
+            (Some(parts[0]), parts[1])
+        } else {
+            (None, content_area)
+        };
+
+        if let Some(hdr) = header_area {
+            draw_compact_headers(f, hdr, app);
+        }
+
+        let list_chunks = item_chunks(list_area, visible_count, app);
         *main_areas = list_chunks.clone();
         draw_items(f, app, &list_chunks);
     }
@@ -375,6 +389,27 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
     chunks[..visible_count].to_vec()
 }
 
+fn draw_compact_headers(f: &mut Frame, area: Rect, _app: &App) {
+    let cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Min(0),
+            Constraint::Length(28),
+            Constraint::Length(STATUS_ZONE_WIDTH),
+        ])
+        .split(area);
+
+    let header_style = muted_style().add_modifier(Modifier::BOLD);
+
+    let col_repo = Line::from(vec![Span::raw("   "), Span::styled("REPOSITORY", header_style)]);
+    let col_branch = Line::from(Span::styled("ACTIVE BRANCH", header_style));
+    let col_status = Line::from(Span::styled("STATUS", header_style)).alignment(Alignment::Right);
+
+    f.render_widget(Paragraph::new(col_repo), cols[0]);
+    f.render_widget(Paragraph::new(col_branch), cols[1]);
+    f.render_widget(Paragraph::new(col_status), cols[2]);
+}
+
 fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
     let filtered_items = app.get_filtered_items();
     let upper = (app.scroll_top + chunks.len()).min(filtered_items.len());
@@ -418,19 +453,6 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         let is_git = matches!(status, ItemStatus::GitRepo(_));
 
         if app.config.compact_view {
-            let row_style = if is_selected {
-                Style::default().bg(ACCENT()).fg(ratatui::style::Color::Black)
-            } else if is_pinned {
-                Style::default().fg(WARNING())
-            } else {
-                Style::default()
-            };
-
-            // Draw selection background block
-            if is_selected {
-                f.render_widget(Block::default().style(row_style), chunks[i]);
-            }
-
             let cols = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([
@@ -441,13 +463,12 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                 .split(chunks[i]);
 
             // 1. Repo name and labels
-            let mut left_spans =
-                vec![Span::styled(mark, if is_selected { row_style } else { mark_style })];
+            let mut left_spans = vec![Span::styled(mark, mark_style)];
             if is_git {
                 left_spans.push(Span::styled(
                     app.sym("git_repo"),
                     if is_selected {
-                        row_style
+                        primary_style().add_modifier(Modifier::BOLD)
                     } else {
                         muted_style().add_modifier(Modifier::BOLD)
                     },
@@ -455,7 +476,11 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             }
             left_spans.push(Span::styled(
                 repo_name,
-                if is_selected { row_style.add_modifier(Modifier::BOLD) } else { text_style },
+                if is_selected {
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
+                } else {
+                    text_style
+                },
             ));
             if let ItemStatus::GitRepo(Some(summary)) = status {
                 let (state_str, state_style) = match summary.state {
@@ -491,7 +516,11 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                 };
                 left_spans.push(Span::styled(
                     state_str,
-                    if is_selected { row_style } else { state_style },
+                    if is_selected {
+                        state_style.remove_modifier(Modifier::DIM).add_modifier(Modifier::BOLD)
+                    } else {
+                        state_style
+                    },
                 ));
             }
             if let Some(lbls) = app.config.labels.get(item) {
@@ -500,7 +529,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     left_spans.push(Span::styled(
                         format!("[{}]", lbl),
                         if is_selected {
-                            row_style
+                            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
                         } else {
                             Style::default().fg(ACCENT()).add_modifier(Modifier::DIM)
                         },
@@ -511,7 +540,11 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                 left_spans.push(Span::raw(" "));
                 left_spans.push(Span::styled(
                     app.sym("pinned").trim(),
-                    if is_selected { row_style } else { Style::default().fg(WARNING()) },
+                    if is_selected {
+                        Style::default().fg(WARNING()).add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(WARNING())
+                    },
                 ));
             }
             f.render_widget(Paragraph::new(Line::from(left_spans)), cols[0]);
@@ -523,12 +556,16 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                         let mut parts = vec![
                             Span::styled(
                                 format!("{} ", app.sym("branch")),
-                                if is_selected { row_style } else { muted_style() },
+                                if is_selected {
+                                    primary_style().add_modifier(Modifier::BOLD)
+                                } else {
+                                    muted_style()
+                                },
                             ),
                             Span::styled(
                                 b.clone(),
                                 if is_selected {
-                                    row_style.add_modifier(Modifier::BOLD)
+                                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
                                 } else {
                                     Style::default().fg(ACCENT())
                                 },
@@ -537,7 +574,11 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                         if let Some(time) = s.last_commit_time {
                             parts.push(Span::styled(
                                 format!(" ({})", format_relative_time(time)),
-                                if is_selected { row_style } else { muted_style() },
+                                if is_selected {
+                                    primary_style().add_modifier(Modifier::BOLD)
+                                } else {
+                                    muted_style()
+                                },
                             ));
                         }
                         Line::from(parts)
@@ -551,15 +592,6 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
 
             // 3. Status indicator line
             let status_line = status_indicator_line(app, status).alignment(Alignment::Right);
-            let status_line = if is_selected {
-                let mut mapped_spans = Vec::new();
-                for span in &status_line.spans {
-                    mapped_spans.push(Span::styled(span.content.to_string(), row_style));
-                }
-                Line::from(mapped_spans).alignment(Alignment::Right)
-            } else {
-                status_line
-            };
             f.render_widget(Paragraph::new(status_line), cols[2]);
         } else {
             let border_type =
