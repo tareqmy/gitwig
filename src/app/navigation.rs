@@ -22,6 +22,17 @@ impl App {
 
     pub fn get_home_rows(&self) -> Vec<HomeRow> {
         let filtered = self.get_filtered_items();
+        let mut recent_repos = Vec::new();
+        for (actual_index, item) in filtered.iter() {
+            if let Some(&time) = self.config.visits.get(*item) {
+                if time > 0 {
+                    recent_repos.push((time, *actual_index, (*item).clone()));
+                }
+            }
+        }
+        recent_repos.sort_by(|a, b| b.0.cmp(&a.0));
+        recent_repos.truncate(5);
+
         let has_any_labels = filtered.iter().any(|(_, item)| {
             self.config
                 .labels
@@ -29,7 +40,7 @@ impl App {
                 .is_some_and(|lbls| !lbls.is_empty())
         });
 
-        if !has_any_labels {
+        if !has_any_labels && recent_repos.is_empty() {
             return filtered
                 .into_iter()
                 .map(|(actual_index, path)| HomeRow::Repo {
@@ -40,48 +51,78 @@ impl App {
                 .collect();
         }
 
-        let mut groups: std::collections::HashMap<String, Vec<(usize, &String)>> =
-            std::collections::HashMap::new();
-        for (actual_index, item) in filtered {
-            let label = self
-                .config
-                .labels
-                .get(item)
-                .and_then(|lbls| lbls.first().cloned())
-                .unwrap_or_else(|| "Unlabeled".to_string());
-            groups.entry(label).or_default().push((actual_index, item));
-        }
-
-        let mut group_names: Vec<String> = groups.keys().cloned().collect();
-        group_names.sort_by(|a, b| {
-            if a == "Unlabeled" {
-                std::cmp::Ordering::Greater
-            } else if b == "Unlabeled" {
-                std::cmp::Ordering::Less
-            } else {
-                a.cmp(b)
-            }
-        });
-
         let mut rows = Vec::new();
-        for name in group_names {
-            let repos = &groups[&name];
-            let collapsed = self.collapsed_groups.contains(&name);
+
+        if !recent_repos.is_empty() {
+            let collapsed = self.collapsed_groups.contains("Recent");
             rows.push(HomeRow::GroupHeader {
-                name: name.clone(),
-                count: repos.len(),
+                name: "Recent".to_string(),
+                count: recent_repos.len(),
                 collapsed,
             });
             if !collapsed {
-                for &(actual_index, path) in repos {
+                for &(_, actual_index, ref path) in &recent_repos {
                     rows.push(HomeRow::Repo {
                         actual_index,
                         path: path.clone(),
-                        primary_label: name.clone(),
+                        primary_label: "Recent".to_string(),
                     });
                 }
             }
         }
+
+        if has_any_labels {
+            let mut groups: std::collections::HashMap<String, Vec<(usize, &String)>> =
+                std::collections::HashMap::new();
+            for (actual_index, item) in filtered {
+                let label = self
+                    .config
+                    .labels
+                    .get(item)
+                    .and_then(|lbls| lbls.first().cloned())
+                    .unwrap_or_else(|| "Unlabeled".to_string());
+                groups.entry(label).or_default().push((actual_index, item));
+            }
+
+            let mut group_names: Vec<String> = groups.keys().cloned().collect();
+            group_names.sort_by(|a, b| {
+                if a == "Unlabeled" {
+                    std::cmp::Ordering::Greater
+                } else if b == "Unlabeled" {
+                    std::cmp::Ordering::Less
+                } else {
+                    a.cmp(b)
+                }
+            });
+
+            for name in group_names {
+                let repos = &groups[&name];
+                let collapsed = self.collapsed_groups.contains(&name);
+                rows.push(HomeRow::GroupHeader {
+                    name: name.clone(),
+                    count: repos.len(),
+                    collapsed,
+                });
+                if !collapsed {
+                    for &(actual_index, path) in repos {
+                        rows.push(HomeRow::Repo {
+                            actual_index,
+                            path: path.clone(),
+                            primary_label: name.clone(),
+                        });
+                    }
+                }
+            }
+        } else {
+            for (actual_index, path) in filtered {
+                rows.push(HomeRow::Repo {
+                    actual_index,
+                    path: path.clone(),
+                    primary_label: String::new(),
+                });
+            }
+        }
+
         rows
     }
 

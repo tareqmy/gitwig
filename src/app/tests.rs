@@ -5234,3 +5234,32 @@ fn test_repo_jump_flow() {
     assert_eq!(app.mode, Mode::Normal);
     assert_eq!(app.selected_index, 2);
 }
+
+#[test]
+fn test_mru_group_flow() {
+    let config = Config {
+        items: vec![
+            "/path/to/alpha".to_string(),
+            "/path/to/beta".to_string(),
+            "/path/to/gamma".to_string(),
+        ],
+        ..Default::default()
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_mru.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    assert_eq!(app.get_home_rows().len(), 3);
+
+    app.selected_index = 1;
+    app.open_detail();
+
+    let rows = app.get_home_rows();
+    assert_eq!(rows.len(), 5);
+    if let HomeRow::GroupHeader { name, count, .. } = &rows[0] {
+        assert_eq!(name, "Recent");
+        assert_eq!(*count, 1);
+    } else {
+        panic!("Expected Recent group header");
+    }
+}
