@@ -121,8 +121,8 @@ asciinema play resources/preview.cast
 - **Favorite / Star Repositories**: Bookmark important repositories with `*` separate from pinned items.
 - **Compact View Toggle**: Press `v` to toggle between standard 4-row cards and a dense 1-row view.
 - **Label / Group Collapsing**: Organize repositories on the home page with collapsible label headers.
-- **Full-Screen Detail View**: Press `Enter` to open a multi-tab inspection interface (Workspace, Files tree with preview, Graph log, Branches, Tags, Remotes, Stashes, Worktrees, Submodules).
-- **Mode-Aware Status Bar**: Shows contextual shortcuts dynamically with support for collapsed/expanded view (`.`).
+- **Full-Screen Detail View**: Press `Enter` to open a multi-tab inspection interface (Workspace, Files tree with preview, Graph log, Branches, Tags, Remotes, Stashes, Worktrees, Submodules). Tab headers dynamically fallback to their first character under restricted widths to prevent overflow.
+- **Mode-Aware Status Bar**: Shows contextual shortcuts dynamically with support for collapsed/expanded view (`.`). When expanded, it dynamically wraps the shortcut items and calculates the exact number of rows needed based on terminal width.
 
 ---
 
@@ -159,7 +159,7 @@ asciinema play resources/preview.cast
 | `.`                  | Normal / Detail | Toggle status bar between collapsed and expanded view |
 | `Enter`              | Normal / Commits list | Open Detail view for selected item / Inspect selected commit |
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
-| `ctrl+q`             | Normal          | Quit                              |
+| `ctrl+q`             | Global / Anywhere | Quit application from anywhere    |
 | `Esc`                | Normal          | Clear active repository search filter |
 | `Enter`              | Editing         | Save the typed text and persist   |
 | `Esc`                | Editing         | Cancel without saving             |
