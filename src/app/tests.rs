@@ -4434,6 +4434,46 @@ fn test_file_history_view_flow() {
 }
 
 #[test]
+fn test_files_tab_editor_shortcut() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let mut config = Config::default();
+    config.items = vec![];
+    let mut app = App::new(config, std::path::PathBuf::from("config.toml"));
+
+    app.detail_focus = DetailSection::Files;
+    app.detail_tab = 1;
+    app.mode = Mode::Detail;
+
+    app.file_tree.visible_files.push(crate::app::FileTreeItem {
+        name: "Cargo.toml".to_string(),
+        full_path: "Cargo.toml".to_string(),
+        is_dir: false,
+        depth: 0,
+        is_expanded: false,
+    });
+    app.file_tree.file_list_selection = 0;
+
+    let mock_info = crate::repo::RepoInfo { ..crate::repo::RepoInfo::default() };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(mock_info),
+    });
+
+    // Simulate key event 'e'
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('e')), 1);
+    assert!(handled);
+    assert_eq!(app.pending_editor_file, Some("Cargo.toml".to_string()));
+
+    // Reset and simulate key event 'o'
+    app.pending_editor_file = None;
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('o')), 1);
+    assert!(handled);
+    assert_eq!(app.pending_editor_file, Some("Cargo.toml".to_string()));
+}
+
+#[test]
 fn test_repository_labels_flow() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());

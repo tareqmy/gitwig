@@ -135,12 +135,19 @@ impl Default for Config {
             resync_on_tab_change: false,
             enable_commit_signatures: false,
             ssh_strict_host_checking: false,
+            editor: default_editor(),
         }
     }
 }
 
 fn default_ssh_strict_host_checking() -> bool {
     false
+}
+
+fn default_editor() -> String {
+    std::env::var("EDITOR").or_else(|_| std::env::var("VISUAL")).unwrap_or_else(|_| {
+        if cfg!(target_os = "windows") { "notepad".to_string() } else { "vim".to_string() }
+    })
 }
 
 fn default_accent() -> String {
@@ -283,6 +290,9 @@ pub struct Config {
     /// Whether to enforce strict SSH host key checking (StrictHostKeyChecking=yes)
     #[serde(default = "default_ssh_strict_host_checking")]
     pub ssh_strict_host_checking: bool,
+    /// Custom terminal editor to open files with.
+    #[serde(default = "default_editor")]
+    pub editor: String,
 }
 
 impl Config {
@@ -396,6 +406,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         resync_on_tab_change: false,
         enable_commit_signatures: false,
         ssh_strict_host_checking: false,
+        editor: default_editor(),
     };
 
     // Attempt to save the fallback back to the original path.
@@ -522,6 +533,7 @@ pub fn load_config(
                 resync_on_tab_change: false,
                 enable_commit_signatures: false,
                 ssh_strict_host_checking: false,
+                editor: default_editor(),
             },
             path,
             None,
@@ -641,6 +653,7 @@ pub fn load_config(
         resync_on_tab_change: false,
         enable_commit_signatures: false,
         ssh_strict_host_checking: false,
+        editor: default_editor(),
     };
     save_config(&fallback, &canonical)?;
 

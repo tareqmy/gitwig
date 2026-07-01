@@ -10,6 +10,15 @@ impl FilesTab {
         let detail_focus = app.detail_focus;
         let ev = crossterm::event::Event::Key(key);
 
+        if code == KeyCode::Char('e') || code == KeyCode::Char('o') {
+            if let Some(item) = app.file_tree.visible_files.get(app.file_tree.file_list_selection) {
+                if !item.is_dir {
+                    app.pending_editor_file = Some(item.full_path.clone());
+                    return true;
+                }
+            }
+        }
+
         if detail_focus == DetailSection::Files {
             if code == KeyCode::Char('H') {
                 app.open_file_history();

@@ -1919,6 +1919,10 @@ impl App {
                 }
                 self.persist("SSH Strict Host Checking updated");
             }
+            56 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.editor.clone();
+            }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {
                     self.settings_editing = true;
@@ -2038,6 +2042,17 @@ impl App {
                     }
                 } else {
                     self.status_message = Some("Preferred Git Client cannot be empty".to_string());
+                }
+            }
+            56 => {
+                let trimmed_editor = trimmed.to_string();
+                if !trimmed_editor.is_empty() {
+                    self.config.editor = trimmed_editor;
+                    self.persist("Editor Command updated");
+                    self.settings_editing = false;
+                    self.commit_popup.input_buffer.clear();
+                } else {
+                    self.status_message = Some("Editor Command cannot be empty".to_string());
                 }
             }
             idx if idx >= 14 => {

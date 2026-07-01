@@ -92,6 +92,7 @@ pub fn get_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("⇧P", "Push branch (Branches) / Push all tags (Tags)"),
                 ("f / F", "Fetch remote (Branches / Tags / Remotes tabs)"),
                 ("⇧H", "Show file history (Files tab)"),
+                ("e / o", "Open file in editor (Files tab)"),
             ],
         ),
         (

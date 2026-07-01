@@ -362,6 +362,8 @@ pub struct App {
     pub pending_bulk_fzf: bool,
     /// Whether fzf files search launch is pending.
     pub pending_files_fzf: bool,
+    /// Whether terminal editor launch is pending with a file path.
+    pub pending_editor_file: Option<String>,
     /// Whether interactive rebase is pending.
     pub pending_interactive_rebase: Option<(PathBuf, String)>,
     /// Whether we are currently viewing logs UI.
@@ -1006,6 +1008,7 @@ impl App {
             pending_fzf: false,
             pending_bulk_fzf: false,
             pending_files_fzf: false,
+            pending_editor_file: None,
             pending_interactive_rebase: None,
             in_logs_ui: false,
             repo_theme_cache: std::collections::HashMap::new(),
@@ -1683,6 +1686,56 @@ where
                         }
                         Err(e) => {
                             app.status_message = Some(format!("Could not run fzf: {}", e));
+                        }
+                    }
+                }
+            } else {
+                app.status_message = Some("Not inside a repository".to_string());
+            }
+        }
+
+        if let Some(file_rel_path) = app.pending_editor_file.take() {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
+                let repo_path = resolved.clone();
+                let file_path = repo_path.join(&file_rel_path);
+                let editor = app.config.editor.clone();
+
+                let raw_res = crossterm::terminal::disable_raw_mode();
+                let exec_res = crossterm::execute!(
+                    std::io::stdout(),
+                    crossterm::terminal::LeaveAlternateScreen,
+                    crossterm::event::DisableMouseCapture
+                );
+                let cursor_res = terminal.show_cursor();
+
+                if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+                    let status = std::process::Command::new(&editor)
+                        .arg(&file_path)
+                        .current_dir(&repo_path)
+                        .status();
+
+                    let _ = crossterm::terminal::enable_raw_mode();
+                    let _ = crossterm::execute!(
+                        std::io::stdout(),
+                        crossterm::terminal::EnterAlternateScreen,
+                        crossterm::event::EnableMouseCapture
+                    );
+                    let _ = terminal.clear();
+
+                    match status {
+                        Ok(s) if s.success() => {
+                            app.status_message = Some(format!("Returned from {}", editor));
+                            app.refresh_selected_status();
+                        }
+                        Ok(_) => {
+                            app.status_message = Some(format!("{} exited with error", editor));
+                            app.refresh_selected_status();
+                        }
+                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                            app.set_error(format!("{} is not found in the system", editor));
+                        }
+                        Err(e) => {
+                            app.set_error(format!("Could not run {}: {}", editor, e));
                         }
                     }
                 }

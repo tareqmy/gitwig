@@ -97,6 +97,7 @@ pub fn get_detail_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("← / → or < / >", "Collapse/Expand folder"),
                 ("f", "Fuzzy find files"),
                 ("⇧H [Shift+H]", "Show file history"),
+                ("e / o", "Open file in terminal editor"),
             ],
         ),
         (
