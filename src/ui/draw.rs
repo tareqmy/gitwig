@@ -432,18 +432,18 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                 } else {
                     muted_style().add_modifier(Modifier::BOLD)
                 };
-                let border_style = if is_selected { Style::default().fg(ACCENT()) } else { muted_style() };
-                let block = Block::default()
-                    .borders(Borders::BOTTOM)
-                    .border_style(border_style);
-                
+                let border_style =
+                    if is_selected { Style::default().fg(ACCENT()) } else { muted_style() };
+                let block = Block::default().borders(Borders::BOTTOM).border_style(border_style);
+
                 let p = Paragraph::new(Line::from(vec![
                     Span::styled(
                         if is_selected { app.sym("selection_mark") } else { UNSELECTED_INDENT },
-                        if is_selected { Style::default().fg(ACCENT()) } else { Style::default() }
+                        if is_selected { Style::default().fg(ACCENT()) } else { Style::default() },
                     ),
                     Span::styled(header_text, style),
-                ])).block(block);
+                ]))
+                .block(block);
                 f.render_widget(p, chunks[i]);
             }
             crate::app::HomeRow::Repo { actual_index, path: item, .. } => {
@@ -494,8 +494,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                         .split(chunks[i]);
 
                     // 1. Repo name and labels
-                    let mut left_spans =
-                        vec![Span::styled(mark, mark_style)];
+                    let mut left_spans = vec![Span::styled(mark, mark_style)];
                     if is_git {
                         left_spans.push(Span::styled(
                             app.sym("git_repo"),
@@ -548,7 +547,13 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                         };
                         left_spans.push(Span::styled(
                             state_str,
-                            if is_selected { state_style.remove_modifier(Modifier::DIM).add_modifier(Modifier::BOLD) } else { state_style },
+                            if is_selected {
+                                state_style
+                                    .remove_modifier(Modifier::DIM)
+                                    .add_modifier(Modifier::BOLD)
+                            } else {
+                                state_style
+                            },
                         ));
                     }
                     if let Some(lbls) = app.config.labels.get(item) {
@@ -569,14 +574,24 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                         left_spans.push(Span::raw(" "));
                         left_spans.push(Span::styled(
                             app.sym("star").trim(),
-                            if is_selected { Style::default().fg(ratatui::style::Color::Yellow).add_modifier(Modifier::BOLD) } else { Style::default().fg(ratatui::style::Color::Yellow) },
+                            if is_selected {
+                                Style::default()
+                                    .fg(ratatui::style::Color::Yellow)
+                                    .add_modifier(Modifier::BOLD)
+                            } else {
+                                Style::default().fg(ratatui::style::Color::Yellow)
+                            },
                         ));
                     }
                     if is_pinned {
                         left_spans.push(Span::raw(" "));
                         left_spans.push(Span::styled(
                             app.sym("pinned").trim(),
-                            if is_selected { Style::default().fg(WARNING()).add_modifier(Modifier::BOLD) } else { Style::default().fg(WARNING()) },
+                            if is_selected {
+                                Style::default().fg(WARNING()).add_modifier(Modifier::BOLD)
+                            } else {
+                                Style::default().fg(WARNING())
+                            },
                         ));
                     }
                     f.render_widget(Paragraph::new(Line::from(left_spans)), cols[0]);
@@ -588,12 +603,18 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                                 let mut parts = vec![
                                     Span::styled(
                                         format!("{} ", app.sym("branch")),
-                                        if is_selected { primary_style().add_modifier(Modifier::BOLD) } else { muted_style() },
+                                        if is_selected {
+                                            primary_style().add_modifier(Modifier::BOLD)
+                                        } else {
+                                            muted_style()
+                                        },
                                     ),
                                     Span::styled(
                                         b.clone(),
                                         if is_selected {
-                                            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
+                                            Style::default()
+                                                .fg(ACCENT())
+                                                .add_modifier(Modifier::BOLD)
                                         } else {
                                             Style::default().fg(ACCENT())
                                         },
@@ -602,7 +623,11 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                                 if let Some(time) = s.last_commit_time {
                                     parts.push(Span::styled(
                                         format!(" ({})", format_relative_time(time)),
-                                        if is_selected { primary_style().add_modifier(Modifier::BOLD) } else { muted_style() },
+                                        if is_selected {
+                                            primary_style().add_modifier(Modifier::BOLD)
+                                        } else {
+                                            muted_style()
+                                        },
                                     ));
                                 }
                                 Line::from(parts)
@@ -615,7 +640,8 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     f.render_widget(Paragraph::new(branch_line), cols[1]);
 
                     // 3. Status indicator line
-                    let status_line = status_indicator_line(app, status).alignment(Alignment::Right);
+                    let status_line =
+                        status_indicator_line(app, status).alignment(Alignment::Right);
                     f.render_widget(Paragraph::new(status_line), cols[2]);
                 } else {
                     let border_type =
@@ -730,7 +756,10 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                                 ];
                                 if let Some(time) = s.last_commit_time {
                                     parts.push(Span::raw(" ("));
-                                    parts.push(Span::styled(format_relative_time(time), muted_style()));
+                                    parts.push(Span::styled(
+                                        format_relative_time(time),
+                                        muted_style(),
+                                    ));
                                     parts.push(Span::raw(")"));
                                 }
                                 Line::from(parts)
@@ -742,7 +771,8 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     };
                     f.render_widget(Paragraph::new(branch_line), row1_cols[0]);
 
-                    let status_line = status_indicator_line(app, status).alignment(Alignment::Right);
+                    let status_line =
+                        status_indicator_line(app, status).alignment(Alignment::Right);
                     f.render_widget(Paragraph::new(status_line), row1_cols[1]);
                 }
             }
@@ -1171,14 +1201,13 @@ pub fn draw_repo_jump_popup(f: &mut Frame, app: &App, area: Rect) {
         .split(inner);
 
     // 1. Draw input box
-    let input_block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(muted_style())
-        .title(" Search Query ");
+    let input_block =
+        Block::default().borders(Borders::ALL).border_style(muted_style()).title(" Search Query ");
     let input_p = Paragraph::new(Line::from(vec![
         Span::raw("> "),
         Span::styled(app.input_buffer.clone(), primary_style()),
-    ])).block(input_block);
+    ]))
+    .block(input_block);
     f.render_widget(input_p, chunks[0]);
 
     // 2. Draw matches
@@ -1186,7 +1215,7 @@ pub fn draw_repo_jump_popup(f: &mut Frame, app: &App, area: Rect) {
     let list_items: Vec<ratatui::widgets::ListItem> = matches
         .iter()
         .enumerate()
-        .map(|(i, &(_, ref path, ref name))| {
+        .map(|(i, (_, path, name))| {
             let style = if i == app.repo_jump_selection {
                 accent_style().add_modifier(Modifier::BOLD | Modifier::REVERSED)
             } else {

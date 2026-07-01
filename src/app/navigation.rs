@@ -30,7 +30,7 @@ impl App {
                 }
             }
         }
-        recent_repos.sort_by(|a, b| b.0.cmp(&a.0));
+        recent_repos.sort_by_key(|b| std::cmp::Reverse(b.0));
         recent_repos.truncate(5);
 
         let mut starred_repos = Vec::new();
@@ -40,23 +40,16 @@ impl App {
             }
         }
         starred_repos.sort_by(|a, b| {
-            let name_a = std::path::Path::new(&a.1)
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or(&a.1);
-            let name_b = std::path::Path::new(&b.1)
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or(&b.1);
+            let name_a =
+                std::path::Path::new(&a.1).file_name().and_then(|s| s.to_str()).unwrap_or(&a.1);
+            let name_b =
+                std::path::Path::new(&b.1).file_name().and_then(|s| s.to_str()).unwrap_or(&b.1);
             name_a.cmp(name_b)
         });
 
-        let has_any_labels = filtered.iter().any(|(_, item)| {
-            self.config
-                .labels
-                .get(*item)
-                .is_some_and(|lbls| !lbls.is_empty())
-        });
+        let has_any_labels = filtered
+            .iter()
+            .any(|(_, item)| self.config.labels.get(*item).is_some_and(|lbls| !lbls.is_empty()));
 
         if !has_any_labels && recent_repos.is_empty() && starred_repos.is_empty() {
             return filtered
@@ -3070,10 +3063,8 @@ impl App {
 
         let mut matches = Vec::new();
         for (idx, path) in self.config.items.iter().enumerate() {
-            let name = std::path::Path::new(path)
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or(path);
+            let name =
+                std::path::Path::new(path).file_name().and_then(|s| s.to_str()).unwrap_or(path);
             let name_lower = name.to_lowercase();
             let path_lower = path.to_lowercase();
 
@@ -3100,10 +3091,7 @@ impl App {
 
         matches.sort_by(|a, b| b.0.cmp(&a.0).then(a.3.cmp(&b.3)));
 
-        matches
-            .into_iter()
-            .map(|(_, idx, path, name)| (idx, path, name))
-            .collect()
+        matches.into_iter().map(|(_, idx, path, name)| (idx, path, name)).collect()
     }
 
     pub fn jump_to_repo(&mut self, original_index: usize) {
