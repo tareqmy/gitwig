@@ -1791,10 +1791,18 @@ where
         for row in rows.iter().skip(app.scroll_top) {
             let h = match row {
                 crate::app::HomeRow::GroupHeader { .. } => {
-                    if app.config.compact_view { 1 } else { 2 }
+                    if app.config.compact_view {
+                        1
+                    } else {
+                        2
+                    }
                 }
                 crate::app::HomeRow::Repo { .. } => {
-                    if app.config.compact_view { 1 } else { 4 }
+                    if app.config.compact_view {
+                        1
+                    } else {
+                        4
+                    }
                 }
             };
             if accumulated_height + h <= list_height {

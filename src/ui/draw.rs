@@ -389,10 +389,18 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
     for row in visible_rows {
         let h = match row {
             crate::app::HomeRow::GroupHeader { .. } => {
-                if app.config.compact_view { 1 } else { 2 }
+                if app.config.compact_view {
+                    1
+                } else {
+                    2
+                }
             }
             crate::app::HomeRow::Repo { .. } => {
-                if app.config.compact_view { 1 } else { 4 }
+                if app.config.compact_view {
+                    1
+                } else {
+                    4
+                }
             }
         };
         constraints.push(Constraint::Length(h));

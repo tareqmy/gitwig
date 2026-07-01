@@ -103,14 +103,21 @@ impl App {
         if has_any_labels {
             let mut groups: std::collections::HashMap<String, Vec<(usize, &String)>> =
                 std::collections::HashMap::new();
-            for (actual_index, item) in filtered {
-                let label = self
-                    .config
-                    .labels
-                    .get(item)
-                    .and_then(|lbls| lbls.first().cloned())
-                    .unwrap_or_else(|| "Unlabeled".to_string());
-                groups.entry(label).or_default().push((actual_index, item));
+            for &(actual_index, item) in &filtered {
+                if let Some(lbls) = self.config.labels.get(item) {
+                    if !lbls.is_empty() {
+                        for label in lbls {
+                            groups.entry(label.clone()).or_default().push((actual_index, item));
+                        }
+                    } else {
+                        groups
+                            .entry("Unlabeled".to_string())
+                            .or_default()
+                            .push((actual_index, item));
+                    }
+                } else {
+                    groups.entry("Unlabeled".to_string()).or_default().push((actual_index, item));
+                }
             }
 
             let mut group_names: Vec<String> = groups.keys().cloned().collect();
@@ -143,7 +150,7 @@ impl App {
                 }
             }
         } else {
-            for (actual_index, path) in filtered {
+            for &(actual_index, path) in &filtered {
                 rows.push(HomeRow::Repo {
                     actual_index,
                     path: path.clone(),

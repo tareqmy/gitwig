@@ -5299,3 +5299,27 @@ fn test_starred_group_flow() {
         panic!("Expected Starred group header");
     }
 }
+
+#[test]
+fn test_multiple_labels_grouping() {
+    let mut config = Config { items: vec!["/path/to/alpha".to_string()], ..Default::default() };
+    config
+        .labels
+        .insert("/path/to/alpha".to_string(), vec!["labelA".to_string(), "labelB".to_string()]);
+    let temp_path = std::env::temp_dir().join("gitwig_test_multi_label.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let app = App::new(config, temp_path);
+
+    let rows = app.get_home_rows();
+    assert_eq!(rows.len(), 4);
+    if let HomeRow::GroupHeader { name, .. } = &rows[0] {
+        assert_eq!(name, "labelA");
+    } else {
+        panic!("Expected labelA group header");
+    }
+    if let HomeRow::GroupHeader { name, .. } = &rows[2] {
+        assert_eq!(name, "labelB");
+    } else {
+        panic!("Expected labelB group header");
+    }
+}
