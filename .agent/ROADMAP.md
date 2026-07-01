@@ -102,6 +102,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Editor Support: Option to open file from file tab with custom terminal editor from settings
 - [ ] **Per Repository rule**
 - [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
+- [ ] Remove temporary the installation scripts from the base directory.
 
 ## Phase 9: Homepage Enhancements
 > Full details and implementation priority table: see `.agent/homepage_feature_suggestions.md`
