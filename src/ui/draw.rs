@@ -547,6 +547,17 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             }
             crate::app::HomeRow::Repo { actual_index, path: item, .. } => {
                 let actual_index = *actual_index;
+                let fallback = ItemStatus::Missing;
+                let status = app.statuses.get(actual_index).unwrap_or(&fallback);
+                let is_git = matches!(status, ItemStatus::GitRepo(_));
+
+                let mut is_partial = false;
+                if let ItemStatus::GitRepo(Some(summary)) = status {
+                    if summary.staged > 0 && (summary.modified > 0 || summary.untracked > 0) {
+                        is_partial = true;
+                    }
+                }
+
                 let pending_delete = is_selected && matches!(app.mode, Mode::ConfirmDelete);
                 let pending_edit = is_selected && matches!(app.mode, Mode::Editing);
                 let is_pinned = app.config.pinned.contains(item);
@@ -561,6 +572,8 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     Style::default().fg(WARNING())
                 } else if is_selected {
                     Style::default().fg(ACCENT())
+                } else if is_partial {
+                    Style::default().fg(WARNING())
                 } else if is_pinned {
                     Style::default().fg(WARNING())
                 } else {
@@ -577,10 +590,6 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     .file_name()
                     .and_then(|s| s.to_str())
                     .unwrap_or(item.as_str());
-
-                let fallback = ItemStatus::Missing;
-                let status = app.statuses.get(actual_index).unwrap_or(&fallback);
-                let is_git = matches!(status, ItemStatus::GitRepo(_));
 
                 if app.config.compact_view {
                     let cols = Layout::default()
@@ -654,6 +663,12 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                                 state_style
                             },
                         ));
+                        if summary.staged > 0 && (summary.modified > 0 || summary.untracked > 0) {
+                            left_spans.push(Span::styled(
+                                " ⚠ PARTIAL",
+                                Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
+                            ));
+                        }
                     }
                     if let Some(lbls) = app.config.labels.get(item) {
                         for lbl in lbls {
@@ -808,6 +823,12 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                             RepoState::Clean => (" ✓ CLEAN", muted_style()),
                         };
                         spans.push(Span::styled(state_str, state_style));
+                        if summary.staged > 0 && (summary.modified > 0 || summary.untracked > 0) {
+                            spans.push(Span::styled(
+                                " ⚠ PARTIAL",
+                                Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
+                            ));
+                        }
                     }
                     if let Some(lbls) = app.config.labels.get(item) {
                         for lbl in lbls {
@@ -1937,5 +1958,49 @@ mod tests {
         assert!(trimmed.contains("1 dirty"), "Buffer contents: {}", trimmed);
         assert!(trimmed.contains("1 ahead"), "Buffer contents: {}", trimmed);
         assert!(trimmed.contains("1 stale"), "Buffer contents: {}", trimmed);
+    }
+
+    #[test]
+    fn test_draw_partial_uncommitted_badge() {
+        let config = Config {
+            items: vec!["/path/to/repo_a".to_string()],
+            ..Default::default()
+        };
+        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+
+        // Has both staged and unstaged (modified) changes -> should show PARTIAL badge
+        let summary_partial = RepoSummary {
+            branch: Some("main".to_string()),
+            staged: 1,
+            modified: 1,
+            untracked: 0,
+            conflicted: 0,
+            ahead: 0,
+            behind: 0,
+            state: RepoState::Clean,
+            last_commit_time: None,
+        };
+
+        app.statuses = vec![ItemStatus::GitRepo(Some(summary_partial))];
+
+        let backend = ratatui::backend::TestBackend::new(80, 5);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let chunks = vec![Rect::new(0, 0, 80, 4)];
+                draw_items(f, &app, &chunks);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        let mut found_partial = false;
+        for y in 0..5 {
+            let row_text: String = (0..80).map(|x| buffer[(x, y)].symbol()).collect();
+            if row_text.contains("PARTIAL") {
+                found_partial = true;
+                break;
+            }
+        }
+        assert!(found_partial, "Expected to find PARTIAL badge in card rendering");
     }
 }
