@@ -4538,10 +4538,8 @@ fn test_repository_labels_flow() {
     app.repo_search_query = None;
 
     // Simulate bounding box for home rows (Row 0: GroupHeader "work" (height 2), Row 1: Repo 1 (height 4))
-    app.main_areas = vec![
-        ratatui::layout::Rect::new(0, 0, 50, 2),
-        ratatui::layout::Rect::new(0, 2, 50, 4),
-    ];
+    app.main_areas =
+        vec![ratatui::layout::Rect::new(0, 0, 50, 2), ratatui::layout::Rect::new(0, 2, 50, 4)];
 
     // Click on the second label "[rust]" (ranges from x=17 to 23, relative row y=1, which is absolute row y=3)
     let click_event = MouseEvent {
@@ -5328,10 +5326,7 @@ fn test_multiple_labels_grouping() {
 
 #[test]
 fn test_background_auto_refresh() {
-    let config = Config {
-        items: vec!["/path/to/repo_a".to_string()],
-        ..Default::default()
-    };
+    let config = Config { items: vec!["/path/to/repo_a".to_string()], ..Default::default() };
     let temp_path = std::env::temp_dir().join("gitwig_test_bg_refresh.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);

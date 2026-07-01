@@ -1,7 +1,8 @@
 //! Rendering for the main list + status bar + help overlay.
 //!
 //! All drawing reads from `&App`; nothing here mutates state. Adding a new
-//! keybinding means updating `HELP_LINES` here AND the status text below,
+//! keybinding means updating the help line list helpers (under `src/popups/help.rs`
+//! or `src/popups/detail_help.rs`) AND the status bar text (under `src/components/cmd_bar.rs`),
 //! so the help overlay and the bottom bar stay aligned.
 //!
 //! Visual conventions live in the `theme` block at the top — keep visual
@@ -572,9 +573,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     Style::default().fg(WARNING())
                 } else if is_selected {
                     Style::default().fg(ACCENT())
-                } else if is_partial {
-                    Style::default().fg(WARNING())
-                } else if is_pinned {
+                } else if is_partial || is_pinned {
                     Style::default().fg(WARNING())
                 } else {
                     muted_style()
@@ -1962,10 +1961,7 @@ mod tests {
 
     #[test]
     fn test_draw_partial_uncommitted_badge() {
-        let config = Config {
-            items: vec!["/path/to/repo_a".to_string()],
-            ..Default::default()
-        };
+        let config = Config { items: vec!["/path/to/repo_a".to_string()], ..Default::default() };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
 
         // Has both staged and unstaged (modified) changes -> should show PARTIAL badge

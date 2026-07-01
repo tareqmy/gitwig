@@ -361,20 +361,18 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         };
 
                         match row {
-                            crate::app::HomeRow::Repo { actual_index: original_index, path: item, .. } => {
+                            crate::app::HomeRow::Repo {
+                                actual_index: original_index,
+                                path: item,
+                                ..
+                            } => {
                                 let original_index = *original_index;
-                                let rect_y = if app.config.compact_view {
-                                    rect.y
-                                } else {
-                                    rect.y + 1
-                                };
+                                let rect_y =
+                                    if app.config.compact_view { rect.y } else { rect.y + 1 };
 
                                 if pos.y == rect_y {
-                                    let mut current_x = if app.config.compact_view {
-                                        rect.x
-                                    } else {
-                                        rect.x + 2
-                                    };
+                                    let mut current_x =
+                                        if app.config.compact_view { rect.x } else { rect.x + 2 };
 
                                     let mark = if actual_index == app.selected_index {
                                         app.sym("selection_mark")
@@ -384,8 +382,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                     current_x += mark.chars().count() as u16;
 
                                     let fallback = crate::repo::ItemStatus::Missing;
-                                    let status = app.statuses.get(original_index).unwrap_or(&fallback);
-                                    let is_git = matches!(status, crate::repo::ItemStatus::GitRepo(_));
+                                    let status =
+                                        app.statuses.get(original_index).unwrap_or(&fallback);
+                                    let is_git =
+                                        matches!(status, crate::repo::ItemStatus::GitRepo(_));
                                     if is_git {
                                         current_x += app.sym("git_repo").chars().count() as u16;
                                     }
@@ -396,7 +396,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                         .unwrap_or(item.as_str());
                                     current_x += repo_name.chars().count() as u16;
 
-                                    if let crate::repo::ItemStatus::GitRepo(Some(summary)) = status {
+                                    if let crate::repo::ItemStatus::GitRepo(Some(summary)) = status
+                                    {
                                         let state_str = match summary.state {
                                             crate::repo::RepoState::Merge => " ⚠ MERGE_HEAD",
                                             crate::repo::RepoState::Rebase => " 🚧 REBASING",
@@ -408,7 +409,9 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                         };
                                         current_x += state_str.chars().count() as u16;
 
-                                        if summary.staged > 0 && (summary.modified > 0 || summary.untracked > 0) {
+                                        if summary.staged > 0
+                                            && (summary.modified > 0 || summary.untracked > 0)
+                                        {
                                             current_x += " ⚠ PARTIAL".chars().count() as u16;
                                         }
                                     }

@@ -3156,7 +3156,8 @@ impl App {
                 let list_height = if let Ok(size) = crossterm::terminal::size() {
                     let inner_vertical_margin = 2;
                     let inner_height = (size.1 as usize).saturating_sub(inner_vertical_margin);
-                    let available_height = inner_height.saturating_sub(self.status_height() as usize);
+                    let available_height =
+                        inner_height.saturating_sub(self.status_height() as usize);
                     let mut lh = if self.config.compact_view {
                         available_height.saturating_sub(1)
                     } else {
@@ -3177,10 +3178,18 @@ impl App {
                     for idx in self.scroll_top..=pos {
                         let h = match &rows[idx] {
                             HomeRow::GroupHeader { .. } => {
-                                if self.config.compact_view { 1 } else { 2 }
+                                if self.config.compact_view {
+                                    1
+                                } else {
+                                    2
+                                }
                             }
                             HomeRow::Repo { .. } => {
-                                if self.config.compact_view { 1 } else { 4 }
+                                if self.config.compact_view {
+                                    1
+                                } else {
+                                    4
+                                }
                             }
                         };
                         accumulated += h;
@@ -3200,10 +3209,18 @@ impl App {
                         while temp_scroll > 0 {
                             let h = match &rows[temp_scroll] {
                                 HomeRow::GroupHeader { .. } => {
-                                    if self.config.compact_view { 1 } else { 2 }
+                                    if self.config.compact_view {
+                                        1
+                                    } else {
+                                        2
+                                    }
                                 }
                                 HomeRow::Repo { .. } => {
-                                    if self.config.compact_view { 1 } else { 4 }
+                                    if self.config.compact_view {
+                                        1
+                                    } else {
+                                        4
+                                    }
                                 }
                             };
                             if acc_height + h <= list_height {
@@ -3216,10 +3233,18 @@ impl App {
                         if temp_scroll == 0 {
                             let h = match &rows[0] {
                                 HomeRow::GroupHeader { .. } => {
-                                    if self.config.compact_view { 1 } else { 2 }
+                                    if self.config.compact_view {
+                                        1
+                                    } else {
+                                        2
+                                    }
                                 }
                                 HomeRow::Repo { .. } => {
-                                    if self.config.compact_view { 1 } else { 4 }
+                                    if self.config.compact_view {
+                                        1
+                                    } else {
+                                        4
+                                    }
                                 }
                             };
                             if acc_height + h <= list_height {

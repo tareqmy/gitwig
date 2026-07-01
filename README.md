@@ -111,13 +111,18 @@ asciinema play resources/preview.cast
 
 ## ✨ Features
 
-- Fullscreen terminal UI using `ratatui` and `crossterm`
-- Config-driven layout using `config.toml`
-- Add / edit / delete items directly from the UI — changes persist back to the config file
-- Per-item status indicators — see at a glance whether each item is a git repo, a plain directory, or missing
-- Press `Enter` on any item to open a full-screen Detail view with branch, HEAD commit, remotes, and working-tree status (for git repos) or a clear "plain directory" / "missing" report otherwise
-- Bordered items displayed inside a main border
-- Mode-aware status bar that always shows the relevant shortcuts
+- **Fullscreen Terminal UI**: Designed using `ratatui` and `crossterm` with modern visual styling.
+- **Config-Driven Layout**: Driven by `config.toml` for persistence and custom configurations.
+- **In-App Card Management**: Add, edit, delete, and label items directly from the UI with automatic disk persistence.
+- **Global Summary Header Bar**: High-level dashboard stats showing aggregate counts of repos, dirty repos, ahead counts, and stale repos.
+- **Background Auto-Refresh**: Non-blocking background status checking every 10 seconds to keep your repo cards live and up-to-date.
+- **Uncommitted Work Warning Badge**: Highlights repositories with a `⚠ PARTIAL` badge when staged and unstaged changes coexist simultaneously.
+- **Fuzzy Jump Picker**: Instantly jump to any repository by name using the `/` overlay.
+- **Favorite / Star Repositories**: Bookmark important repositories with `*` separate from pinned items.
+- **Compact View Toggle**: Press `v` to toggle between standard 4-row cards and a dense 1-row view.
+- **Label / Group Collapsing**: Organize repositories on the home page with collapsible label headers.
+- **Full-Screen Detail View**: Press `Enter` to open a multi-tab inspection interface (Workspace, Files tree with preview, Graph log, Branches, Tags, Remotes, Stashes, Worktrees, Submodules).
+- **Mode-Aware Status Bar**: Shows contextual shortcuts dynamically with support for collapsed/expanded view (`.`).
 
 ---
 
@@ -136,15 +141,21 @@ asciinema play resources/preview.cast
 | `R`                  | Normal          | Refresh status of selected item   |
 | `f`                  | Normal          | Enter repository search mode      |
 | `p`                  | Normal          | Toggle pin status of selected item |
+| `*`                  | Normal          | Toggle Favorite / Star status of selected item |
+| `/`                  | Normal          | Open fuzzy Jump-to-Repo picker overlay |
 | `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes) |
 | `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed) |
 | `g`                  | Normal          | Launch the preferred Git client for selected repository (configurable in settings, default is gitui) |
 | `s`                  | Normal          | Open options/settings page        |
 | `d`                  | Normal          | Open debug logs panel             |
-| `v`                  | Normal          | Show about popup / creator profile |
+| `V`                  | Normal          | Show about popup / creator profile |
+| `v`                  | Normal          | Toggle between standard cards and compact 1-row view |
+| `h`                  | Normal          | Show signs & symbols legend popup |
+| `u`                  | Normal          | Check for application updates manually |
+| `.`                  | Normal / Detail | Toggle status bar between collapsed and expanded view |
 | `Enter`              | Normal / Commits list | Open Detail view for selected item / Inspect selected commit |
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
-| `⎋` / `q`            | Normal          | Quit                              |
+| `ctrl+q`             | Normal          | Quit                              |
 | `Esc`                | Normal          | Clear active repository search filter |
 | `Enter`              | Editing         | Save the typed text and persist   |
 | `Esc`                | Editing         | Cancel without saving             |
@@ -240,9 +251,15 @@ For git repositories the indicator also shows compact counts for any non-zero va
 | `N↑`   | N commits ahead of upstream (needs push) | Bold |
 | `N↓`   | N commits behind upstream (needs pull/fetch) | Yellow |
 
-When all counts are zero the indicator shows `● clean`. When the branch has no configured upstream, only the worktree counts appear (no `↑`/`↓`). Press `?` at any time to see the legend inside the app.
+When all counts are zero the indicator shows `● clean`. When the branch has no configured upstream, only the worktree counts appear (no `↑`/`↓`). Press `?` or `h` at any time to see the legend inside the app.
 
-Items support `~` and `~/...` expansion, so `~/code/gitwig` resolves to your home directory. Statuses are recomputed only when you add, edit, or delete an item — they are not polled in the background. Press `r` to manually refresh the selected item's status if you've changed the filesystem outside the app (e.g. `git init` in a directory that was previously `○ dir`); the status bar briefly flashes `Refreshed` so you know the check ran.
+### ⚠ Staging Divergence (`⚠ PARTIAL`)
+When a repository has **both** staged changes and unstaged changes (modified or untracked) coexisting simultaneously, Gitwig will display a yellow `⚠ PARTIAL` warning badge next to the repository name on its card.
+
+### Auto-Refresh & Manual Refresh
+Items support `~` and `~/...` expansion, so `~/code/gitwig` resolves to your home directory. 
+
+Gitwig automatically refreshes all repository statuses in the background every **10 seconds** using non-blocking background threads, ensuring the home dashboard is always live and up-to-date. You can also press **`R`** to manually refresh the selected item's status immediately (e.g. after running a git command externally); the status bar briefly flashes `Refreshed` to confirm.
 
 ## 🔍 Detail view
 
