@@ -47,6 +47,8 @@ impl HomeTab {
                     app.repo_search_query = None;
                     app.selected_index = 0;
                     app.scroll_top = 0;
+                } else if !app.multi_selected.is_empty() && code == KeyCode::Esc {
+                    app.multi_selected.clear();
                 } else if app.is_bound(Action::Close, key) {
                     return false;
                 } else if app.is_bound(Action::HomeMoveDown, key) {

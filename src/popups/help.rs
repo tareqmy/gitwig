@@ -70,7 +70,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("⇟ [PgDn]", "Jump one page down"),
                 ("Home", "Go to top / scroll to top"),
                 ("End", "Go to bottom / scroll to bottom"),
-                ("⎋ [Esc]", "Cancel input, close dialog, or leave detail view"),
+                ("⎋ [Esc]", "Cancel input, close dialog, clear search, cancel selections, or leave detail view"),
                 ("?", "Toggle this help overlay"),
                 ("V", "Show about popup / creator profile"),
                 ("h", "Show signs & symbols legend popup"),

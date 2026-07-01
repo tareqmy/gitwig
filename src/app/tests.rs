@@ -4032,6 +4032,27 @@ fn test_help_overlay_wrapping() {
 }
 
 #[test]
+fn test_cancel_selections() {
+    let config = Config {
+        items: vec!["/path/to/repo1".to_string(), "/path/to/repo2".to_string()],
+        ..Config::default()
+    };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    app.multi_selected.insert("/path/to/repo1".to_string());
+    app.multi_selected.insert("/path/to/repo2".to_string());
+
+    assert_eq!(app.multi_selected.len(), 2);
+
+    let key = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, key, 1);
+    assert!(handled);
+    assert!(app.multi_selected.is_empty());
+}
+
+#[test]
 fn test_cherry_pick_destination_branches() {
     let config = Config {
         items: vec![],
