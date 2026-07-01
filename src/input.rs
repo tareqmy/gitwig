@@ -22,6 +22,10 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     crate::debug_log::info(format!("Key pressed: {:?}", key.code));
     let code = key.code;
 
+    if app.is_bound(crate::keybindings::Action::Close, key) {
+        return false;
+    }
+
     if app.error_message.is_some() {
         if matches!(
             code,
