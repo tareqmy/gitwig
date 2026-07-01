@@ -4537,15 +4537,17 @@ fn test_repository_labels_flow() {
     use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
     app.repo_search_query = None;
 
-    // Simulate bounding box for repo1 card (starts at y=0, height=4)
-    let rect = ratatui::layout::Rect::new(0, 0, 50, 4);
-    app.main_areas = vec![rect];
+    // Simulate bounding box for home rows (Row 0: GroupHeader "work" (height 2), Row 1: Repo 1 (height 4))
+    app.main_areas = vec![
+        ratatui::layout::Rect::new(0, 0, 50, 2),
+        ratatui::layout::Rect::new(0, 2, 50, 4),
+    ];
 
-    // Click on the second label "[rust]" (ranges from x=17 to 23, y=1)
+    // Click on the second label "[rust]" (ranges from x=17 to 23, relative row y=1, which is absolute row y=3)
     let click_event = MouseEvent {
         kind: MouseEventKind::Down(MouseButton::Left),
         column: 19,
-        row: 1,
+        row: 3,
         modifiers: KeyModifiers::empty(),
     };
 

@@ -350,56 +350,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             for (i, rect) in app.main_areas.iter().enumerate() {
                 if rect.contains(pos) {
                     let actual_index = i + app.scroll_top;
-                    if actual_index < app.get_items_len() {
-                        if pos.y == rect.y + 1 {
-                            let filtered_items = app.get_filtered_items();
-                            if let Some(&(original_index, item)) = filtered_items.get(actual_index)
-                            {
-                                let mut current_x = rect.x + 2;
-
-                                let mark = if actual_index == app.selected_index {
-                                    app.sym("selection_mark")
-                                } else {
-                                    "  "
-                                };
-                                current_x += mark.chars().count() as u16;
-
-                                let fallback = crate::repo::ItemStatus::Missing;
-                                let status = app.statuses.get(original_index).unwrap_or(&fallback);
-                                let is_git = matches!(status, crate::repo::ItemStatus::GitRepo(_));
-                                if is_git {
-                                    current_x += app.sym("git_repo").chars().count() as u16;
-                                }
-
-                                let repo_name = std::path::Path::new(item)
-                                    .file_name()
-                                    .and_then(|s| s.to_str())
-                                    .unwrap_or(item.as_str());
-                                current_x += repo_name.chars().count() as u16;
-
-                                if let Some(lbls) = app.config.labels.get(item) {
-                                    for lbl in lbls {
-                                        current_x += 1;
-
-                                        let label_width = lbl.chars().count() as u16 + 2;
-                                        let label_start = current_x;
-                                        let label_end = current_x + label_width;
-
-                                        if pos.x >= label_start && pos.x < label_end {
-                                            crate::debug_log::info(format!(
-                                                "Clicked label: {}",
-                                                lbl
-                                            ));
-                                            app.repo_search_query = Some(lbl.clone());
-                                            app.selected_index = 0;
-                                            app.scroll_top = 0;
-                                            return;
-                                        }
-                                        current_x = label_end;
-                                    }
-                                }
-                            }
-                        }
+                    let rows = app.get_home_rows();
+                    if let Some(row) = rows.get(actual_index) {
                         let now = std::time::Instant::now();
                         let is_double_click = if let Some((last_time, last_idx)) = app.last_click {
                             last_idx == actual_index
@@ -408,13 +360,107 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                             false
                         };
 
-                        if is_double_click {
-                            app.selected_index = actual_index;
-                            app.open_detail();
-                            app.last_click = None;
-                        } else {
-                            app.selected_index = actual_index;
-                            app.last_click = Some((now, actual_index));
+                        match row {
+                            crate::app::HomeRow::Repo { actual_index: original_index, path: item, .. } => {
+                                let original_index = *original_index;
+                                let rect_y = if app.config.compact_view {
+                                    rect.y
+                                } else {
+                                    rect.y + 1
+                                };
+
+                                if pos.y == rect_y {
+                                    let mut current_x = if app.config.compact_view {
+                                        rect.x
+                                    } else {
+                                        rect.x + 2
+                                    };
+
+                                    let mark = if actual_index == app.selected_index {
+                                        app.sym("selection_mark")
+                                    } else {
+                                        "  "
+                                    };
+                                    current_x += mark.chars().count() as u16;
+
+                                    let fallback = crate::repo::ItemStatus::Missing;
+                                    let status = app.statuses.get(original_index).unwrap_or(&fallback);
+                                    let is_git = matches!(status, crate::repo::ItemStatus::GitRepo(_));
+                                    if is_git {
+                                        current_x += app.sym("git_repo").chars().count() as u16;
+                                    }
+
+                                    let repo_name = std::path::Path::new(item.as_str())
+                                        .file_name()
+                                        .and_then(|s| s.to_str())
+                                        .unwrap_or(item.as_str());
+                                    current_x += repo_name.chars().count() as u16;
+
+                                    if let crate::repo::ItemStatus::GitRepo(Some(summary)) = status {
+                                        let state_str = match summary.state {
+                                            crate::repo::RepoState::Merge => " ⚠ MERGE_HEAD",
+                                            crate::repo::RepoState::Rebase => " 🚧 REBASING",
+                                            crate::repo::RepoState::CherryPick => " ⚡ CHERRY-PICK",
+                                            crate::repo::RepoState::Revert => " ⚡ REVERTING",
+                                            crate::repo::RepoState::Bisect => " 🔍 BISECTING",
+                                            crate::repo::RepoState::ApplyMailbox => " 📬 APPLYING",
+                                            crate::repo::RepoState::Clean => " ✓ CLEAN",
+                                        };
+                                        current_x += state_str.chars().count() as u16;
+
+                                        if summary.staged > 0 && (summary.modified > 0 || summary.untracked > 0) {
+                                            current_x += " ⚠ PARTIAL".chars().count() as u16;
+                                        }
+                                    }
+
+                                    if let Some(lbls) = app.config.labels.get(item.as_str()) {
+                                        for lbl in lbls {
+                                            current_x += 1;
+
+                                            let label_width = lbl.chars().count() as u16 + 2;
+                                            let label_start = current_x;
+                                            let label_end = current_x + label_width;
+
+                                            if pos.x >= label_start && pos.x < label_end {
+                                                crate::debug_log::info(format!(
+                                                    "Clicked label: {}",
+                                                    lbl
+                                                ));
+                                                app.repo_search_query = Some(lbl.clone());
+                                                app.selected_index = 0;
+                                                app.scroll_top = 0;
+                                                return;
+                                            }
+                                            current_x = label_end;
+                                        }
+                                    }
+                                }
+
+                                if is_double_click {
+                                    app.selected_index = actual_index;
+                                    app.open_detail();
+                                    app.last_click = None;
+                                } else {
+                                    app.selected_index = actual_index;
+                                    app.last_click = Some((now, actual_index));
+                                }
+                            }
+                            crate::app::HomeRow::GroupHeader { name, collapsed, .. } => {
+                                let collapsed = *collapsed;
+                                if is_double_click {
+                                    let name = name.clone();
+                                    if collapsed {
+                                        app.collapsed_groups.remove(&name);
+                                    } else {
+                                        app.collapsed_groups.insert(name);
+                                    }
+                                    app.clamp_selection();
+                                    app.last_click = None;
+                                } else {
+                                    app.selected_index = actual_index;
+                                    app.last_click = Some((now, actual_index));
+                                }
+                            }
                         }
                     }
                     return;
