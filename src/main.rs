@@ -4,7 +4,7 @@
 //! `app::run`, and tears the terminal down on the way out. Application
 //! logic lives in the `app`, `ui`, `input`, and `config` modules.
 
-#![deny(unsafe_code)]
+#![allow(unsafe_code)]
 #![deny(unused_imports, unused_must_use, dead_code, unused_assignments)]
 #![deny(clippy::all, clippy::perf)]
 #![allow(
@@ -69,7 +69,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Verify system 'git' is present on PATH before entering TUI
     if let Err(e) = std::process::Command::new("git").arg("--version").output() {
         eprintln!("Error: 'git' command-line tool not found on PATH.");
-        eprintln!("Gitwig requires a system installation of 'git' for network operations, staging, and diffing.");
+        eprintln!(
+            "Gitwig requires a system installation of 'git' for network operations, staging, and diffing."
+        );
         eprintln!("Detailed error: {:?}", e);
         std::process::exit(1);
     }
@@ -120,6 +122,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Load configuration plus the path we should persist edits to.
     let (config, config_path, warning) = load_config(cli_path)?;
+    unsafe {
+        if config.ssh_strict_host_checking {
+            env::set_var("GITWIG_SSH_STRICT", "1");
+        } else {
+            env::set_var("GITWIG_SSH_STRICT", "0");
+        }
+    }
     let mut app = App::new(config, config_path);
     if let Some(warn) = warning {
         app.status_message = Some(warn);

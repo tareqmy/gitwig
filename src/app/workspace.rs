@@ -79,7 +79,7 @@ impl App {
                         // 2. Perform cherry-pick
                         let output = std::process::Command::new("git")
                             .env("GIT_TERMINAL_PROMPT", "0")
-                            .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                            .env("GIT_SSH_COMMAND", crate::config::ssh_command_val())
                             .arg("cherry-pick")
                             .arg(&commit_oid)
                             .current_dir(&repo_path)
@@ -147,7 +147,7 @@ impl App {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
                         let output = std::process::Command::new("git")
                             .env("GIT_TERMINAL_PROMPT", "0")
-                            .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                            .env("GIT_SSH_COMMAND", crate::config::ssh_command_val())
                             .arg("revert")
                             .arg("--no-edit")
                             .arg(&commit_oid)

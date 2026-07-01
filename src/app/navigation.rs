@@ -561,8 +561,7 @@ impl App {
             let submodules_len =
                 if let repo::TabData::Loaded(subs) = &info.submodules { subs.len() } else { 0 };
 
-            let commit_files_len =
-                self.get_selected_commit().map(|c| c.files.len()).unwrap_or(0);
+            let commit_files_len = self.get_selected_commit().map(|c| c.files.len()).unwrap_or(0);
 
             info_lengths = Some((
                 commits_len,
@@ -1909,6 +1908,17 @@ impl App {
                 self.config.resync_on_tab_change = !self.config.resync_on_tab_change;
                 self.persist("Resync on Tab Change updated");
             }
+            55 => {
+                self.config.ssh_strict_host_checking = !self.config.ssh_strict_host_checking;
+                unsafe {
+                    if self.config.ssh_strict_host_checking {
+                        std::env::set_var("GITWIG_SSH_STRICT", "1");
+                    } else {
+                        std::env::set_var("GITWIG_SSH_STRICT", "0");
+                    }
+                }
+                self.persist("SSH Strict Host Checking updated");
+            }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {
                     self.settings_editing = true;
@@ -2016,10 +2026,16 @@ impl App {
             9 => {
                 let trimmed_app = trimmed.to_string();
                 if !trimmed_app.is_empty() {
-                    self.config.git_app = trimmed_app;
-                    self.persist("Preferred Git Client updated");
-                    self.settings_editing = false;
-                    self.commit_popup.input_buffer.clear();
+                    let allowed = ["git", "gitui", "lazygit"];
+                    if allowed.contains(&trimmed_app.as_str()) {
+                        self.config.git_app = trimmed_app;
+                        self.persist("Preferred Git Client updated");
+                        self.settings_editing = false;
+                        self.commit_popup.input_buffer.clear();
+                    } else {
+                        self.status_message =
+                            Some("Invalid client! Allowed values: git, gitui, lazygit".to_string());
+                    }
                 } else {
                     self.status_message = Some("Preferred Git Client cannot be empty".to_string());
                 }
@@ -2804,7 +2820,7 @@ impl App {
 fn git_command() -> std::process::Command {
     let mut cmd = std::process::Command::new("git");
     cmd.env("GIT_TERMINAL_PROMPT", "0");
-    cmd.env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+    cmd.env("GIT_SSH_COMMAND", crate::config::ssh_command_val());
     cmd.env("GIT_ALLOW_PROTOCOL", "https:ssh:git:file");
     cmd.env("GIT_PROTOCOL_FROM_USER", "0");
     cmd

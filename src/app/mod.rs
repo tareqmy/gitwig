@@ -1217,8 +1217,8 @@ where
 
             if is_relevant {
                 if let Some(repo_path) = msg.strip_prefix("REFRESH_REPO:") {
-                    let canon_target =
-                        std::fs::canonicalize(repo_path).unwrap_or_else(|_| PathBuf::from(repo_path));
+                    let canon_target = std::fs::canonicalize(repo_path)
+                        .unwrap_or_else(|_| PathBuf::from(repo_path));
                     if let Some(idx) = app.config.items.iter().position(|item| {
                         let canon_item =
                             std::fs::canonicalize(item).unwrap_or_else(|_| PathBuf::from(item));
@@ -1465,7 +1465,7 @@ where
             if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
                 let status = std::process::Command::new("git")
                     .env("GIT_TERMINAL_PROMPT", "0")
-                    .env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new")
+                    .env("GIT_SSH_COMMAND", crate::config::ssh_command_val())
                     .arg("rebase")
                     .arg("-i")
                     .arg(&target)
@@ -1522,12 +1522,7 @@ where
                 let excludes = app.config.fzf.excludes.clone();
                 let expanded_start_dir = crate::repo::expand_tilde(&app.config.fzf.start_dir);
 
-                let output = run_fzf_picker(
-                    &expanded_start_dir,
-                    git_only,
-                    max_depth,
-                    &excludes,
-                );
+                let output = run_fzf_picker(&expanded_start_dir, git_only, max_depth, &excludes);
 
                 let _ = crossterm::terminal::enable_raw_mode();
                 let _ = crossterm::execute!(
@@ -1828,27 +1823,109 @@ impl App {
         self.status_message = Some("Updating Gitwig...".to_string());
         self.mode = self.previous_mode.take().unwrap_or(Mode::Normal);
 
+        let version = self.update_available.clone();
         let tx = self.tx.clone();
         std::thread::spawn(move || {
             let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                // First try curl
-                let output = std::process::Command::new("sh")
-                    .arg("-c")
-                    .arg("curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh")
-                    .output();
+                use sha2::{Digest, Sha256};
+                use std::fs::File;
+                use std::io::Read;
 
-                if let Ok(ref out) = output {
-                    if out.status.success() {
-                        return Ok("Gitwig updated successfully! Please restart the application."
-                            .to_string());
+                let target_ref = match version {
+                    Some(ref v) => {
+                        if v.starts_with('v') {
+                            v.clone()
+                        } else {
+                            format!("v{}", v)
+                        }
                     }
+                    None => "master".to_string(),
+                };
+
+                let temp_dir = std::env::temp_dir();
+                let unique_id = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos();
+                let script_path = temp_dir.join(format!("gitwig_install_{}.sh", unique_id));
+                let sha_path = temp_dir.join(format!("gitwig_install_{}.sh.sha256", unique_id));
+
+                let script_url = format!(
+                    "https://raw.githubusercontent.com/tareqmy/gitwig/{}/install.sh",
+                    target_ref
+                );
+                let sha_url = format!(
+                    "https://raw.githubusercontent.com/tareqmy/gitwig/{}/install.sh.sha256",
+                    target_ref
+                );
+
+                // Helper to download via curl or wget
+                let download =
+                    |url: &str, dest: &std::path::Path| -> Result<(), Box<dyn std::error::Error>> {
+                        let curl_res = std::process::Command::new("curl")
+                            .arg("-fsSL")
+                            .arg("-o")
+                            .arg(dest)
+                            .arg(url)
+                            .output();
+                        if let Ok(out) = curl_res {
+                            if out.status.success() {
+                                return Ok(());
+                            }
+                        }
+                        let wget_res = std::process::Command::new("wget")
+                            .arg("-q")
+                            .arg("-O")
+                            .arg(dest)
+                            .arg(url)
+                            .output();
+                        match wget_res {
+                            Ok(out) if out.status.success() => Ok(()),
+                            _ => Err(format!("Failed to download {}", url).into()),
+                        }
+                    };
+
+                // Download files
+                download(&script_url, &script_path)?;
+                download(&sha_url, &sha_path)?;
+
+                // Compute SHA-256 of downloaded script
+                let mut file = File::open(&script_path)?;
+                let mut hasher = Sha256::new();
+                let mut buffer = [0; 1024];
+                loop {
+                    let count = file.read(&mut buffer)?;
+                    if count == 0 {
+                        break;
+                    }
+                    hasher.update(&buffer[..count]);
+                }
+                let computed_hash = format!("{:02x}", hasher.finalize());
+
+                // Read expected hash
+                let mut sha_content = String::new();
+                File::open(&sha_path)?.read_to_string(&mut sha_content)?;
+                let expected_hash = sha_content
+                    .split_whitespace()
+                    .next()
+                    .ok_or_else(|| "Empty checksum file".to_string())?
+                    .trim();
+
+                if computed_hash != expected_hash {
+                    let _ = std::fs::remove_file(&script_path);
+                    let _ = std::fs::remove_file(&sha_path);
+                    return Err(format!(
+                        "Checksum verification failed!\nExpected: {}\nGot: {}",
+                        expected_hash, computed_hash
+                    )
+                    .into());
                 }
 
-                // Fallback to wget
-                let output = std::process::Command::new("sh")
-                    .arg("-c")
-                    .arg("wget -qO- https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh")
-                    .output();
+                // Execute the verified script
+                let output = std::process::Command::new("sh").arg(&script_path).output();
+
+                let _ = std::fs::remove_file(&script_path);
+                let _ = std::fs::remove_file(&sha_path);
 
                 match output {
                     Ok(out) => {

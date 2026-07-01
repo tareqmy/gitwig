@@ -13,7 +13,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
 
-const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13];
+const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13, 55];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6];
 const FZF_SETTING_INDICES: &[usize] = &[11, 5, 4, 10, 8];
 const THEME_SETTING_INDICES: &[usize] = &[3];
@@ -106,6 +106,7 @@ fn get_label(global_idx: usize) -> &'static str {
         11 => "Use FZF",
         12 => "Compatibility Mode",
         13 => "Resync on Tab Change",
+        55 => "SSH Strict Host Checking",
         14 => "Toggle Status Bar",
         15 => "Help",
         16 => "Quit / Close Dialog",
@@ -172,6 +173,9 @@ fn get_desc(global_idx: usize) -> &'static str {
         }
         13 => {
             "Whether to automatically refresh repository details from disk when switching tabs inside a repository."
+        }
+        55 => {
+            "Enforce strict SSH host key verification (StrictHostKeyChecking=yes) instead of automatically accepting new keys."
         }
         14 => "Toggles the status bar between collapsed and expanded view.",
         15 => "Opens the global help overlay.",
@@ -304,6 +308,7 @@ fn get_val_str(app: &App, global_idx: usize) -> String {
             11 => app.config.fzf.enabled.to_string(),
             12 => app.config.compatibility_mode.to_string(),
             13 => app.config.resync_on_tab_change.to_string(),
+            55 => app.config.ssh_strict_host_checking.to_string(),
             _ => String::new(),
         }
     }

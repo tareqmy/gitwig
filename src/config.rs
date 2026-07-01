@@ -51,6 +51,14 @@ fn default_git_app() -> String {
     "gitui".to_string()
 }
 
+pub fn ssh_command_val() -> &'static str {
+    if std::env::var("GITWIG_SSH_STRICT").map(|v| v == "1").unwrap_or(false) {
+        "ssh -o StrictHostKeyChecking=yes"
+    } else {
+        "ssh -o StrictHostKeyChecking=accept-new"
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct ThemeConfig {
     #[serde(default = "default_accent")]
@@ -126,8 +134,13 @@ impl Default for Config {
             compatibility_mode: true,
             resync_on_tab_change: false,
             enable_commit_signatures: false,
+            ssh_strict_host_checking: false,
         }
     }
+}
+
+fn default_ssh_strict_host_checking() -> bool {
+    false
 }
 
 fn default_accent() -> String {
@@ -267,6 +280,9 @@ pub struct Config {
     /// Whether to enable commit GPG/SSH signatures collection (spawns a git shell process).
     #[serde(default = "default_enable_commit_signatures")]
     pub enable_commit_signatures: bool,
+    /// Whether to enforce strict SSH host key checking (StrictHostKeyChecking=yes)
+    #[serde(default = "default_ssh_strict_host_checking")]
+    pub ssh_strict_host_checking: bool,
 }
 
 impl Config {
@@ -379,6 +395,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         compatibility_mode: true,
         resync_on_tab_change: false,
         enable_commit_signatures: false,
+        ssh_strict_host_checking: false,
     };
 
     // Attempt to save the fallback back to the original path.
@@ -396,12 +413,25 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
 
 fn load_and_parse_config(path: &Path) -> (Config, Option<String>) {
     match fs::read_to_string(path) {
-        Ok(contents) => {
-            match toml::from_str::<Config>(&contents) {
-                Ok(config) => (config, None),
-                Err(err) => handle_parse_error(path, err.into()),
+        Ok(contents) => match toml::from_str::<Config>(&contents) {
+            Ok(mut config) => {
+                let allowed = ["git", "gitui", "lazygit"];
+                if !allowed.contains(&config.git_app.as_str()) {
+                    let old_val = config.git_app.clone();
+                    config.git_app = "gitui".to_string();
+                    (
+                        config,
+                        Some(format!(
+                            "Invalid preferred Git client '{}' reset to 'gitui'",
+                            old_val
+                        )),
+                    )
+                } else {
+                    (config, None)
+                }
             }
-        }
+            Err(err) => handle_parse_error(path, err.into()),
+        },
         Err(err) => handle_parse_error(path, err.into()),
     }
 }
@@ -421,7 +451,9 @@ fn load_and_parse_config(path: &Path) -> (Config, Option<String>) {
 ///
 /// # Returns
 /// `Ok((Config, PathBuf, Option<String>))` — the parsed config, its write-back path, and an optional recovery warning.
-pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf, Option<String>), Box<dyn Error>> {
+pub fn load_config(
+    cli_path: Option<PathBuf>,
+) -> Result<(Config, PathBuf, Option<String>), Box<dyn Error>> {
     // ── 1. CLI override ───────────────────────────────────────────────────
     if let Some(path) = cli_path {
         if path.exists() {
@@ -489,6 +521,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf, Option
                 compatibility_mode: true,
                 resync_on_tab_change: false,
                 enable_commit_signatures: false,
+                ssh_strict_host_checking: false,
             },
             path,
             None,
@@ -607,6 +640,7 @@ pub fn load_config(cli_path: Option<PathBuf>) -> Result<(Config, PathBuf, Option
         compatibility_mode: true,
         resync_on_tab_change: false,
         enable_commit_signatures: false,
+        ssh_strict_host_checking: false,
     };
     save_config(&fallback, &canonical)?;
 
@@ -772,11 +806,21 @@ pub fn save_config(config: &Config, path: &Path) -> Result<(), Box<dyn Error>> {
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static TEST_DIR_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    fn get_unique_id() -> String {
+        let count = TEST_DIR_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let pid = std::process::id();
+        let nanos =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        format!("{}_{}_{}", pid, nanos, count)
+    }
 
     #[test]
     fn test_theme_separation_load_and_save() {
-        let unique_id =
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let unique_id = get_unique_id();
         let test_dir = std::env::temp_dir().join(format!("gitwig_test_theme_{}", unique_id));
         fs::create_dir_all(&test_dir).unwrap();
         let config_path = test_dir.join("config.toml");
@@ -830,8 +874,7 @@ border_type = "double"
 
     #[test]
     fn test_write_popular_themes_creates_files() {
-        let unique_id =
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let unique_id = get_unique_id();
         let test_dir =
             std::env::temp_dir().join(format!("gitwig_test_popular_themes_{}", unique_id));
         fs::create_dir_all(&test_dir).unwrap();
@@ -855,8 +898,7 @@ border_type = "double"
 
     #[test]
     fn test_corrupt_config_recovery() {
-        let unique_id =
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let unique_id = get_unique_id();
         let test_dir = std::env::temp_dir().join(format!("gitwig_test_corrupt_{}", unique_id));
         fs::create_dir_all(&test_dir).unwrap();
         let config_path = test_dir.join("config.toml");
@@ -880,6 +922,45 @@ border_type = "double"
             .filter_map(Result::ok)
             .any(|entry| entry.file_name().to_string_lossy().contains("config.toml.corrupt-"));
         assert!(corrupt_exists);
+
+        let _ = fs::remove_dir_all(&test_dir);
+    }
+
+    #[test]
+    fn test_git_app_validation_recovery() {
+        let unique_id = get_unique_id();
+        let test_dir = std::env::temp_dir().join(format!("gitwig_test_git_app_{}", unique_id));
+        fs::create_dir_all(&test_dir).unwrap();
+        let config_path = test_dir.join("config.toml");
+
+        let config_toml = r#"
+items = []
+poll_interval_ms = 1000
+max_commits = 100
+graph_max_commits = 100
+detail_cache_ttl_secs = 60
+tab_ttl_secs = 60
+page_size = 50
+sort_by = "alphabetical"
+visits = {}
+labels = {}
+repo_configs = {}
+sort_reverse = false
+pinned = []
+theme_name = "default"
+fzf = { excludes = [], max_depth = 5, start_dir = "~" }
+git_app = "malicious_binary"
+compatibility_mode = true
+resync_on_tab_change = false
+enable_commit_signatures = false
+"#;
+        fs::write(&config_path, config_toml).unwrap();
+
+        let (config, path, warning) = load_config(Some(config_path.clone())).unwrap();
+        assert_eq!(path, config_path);
+        assert_eq!(config.git_app, "gitui");
+        assert!(warning.is_some());
+        assert!(warning.unwrap().contains("Invalid preferred Git client"));
 
         let _ = fs::remove_dir_all(&test_dir);
     }

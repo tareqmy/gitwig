@@ -4896,10 +4896,7 @@ fn test_workspace_conflicts_shortcuts() {
     app.detail_focus = DetailSection::Conflicts;
 
     let mut changes = crate::repo::WorktreeChanges::default();
-    changes.conflicted.push(crate::repo::FileEntry {
-        path: "dummy.txt".to_string(),
-        label: "C",
-    });
+    changes.conflicted.push(crate::repo::FileEntry { path: "dummy.txt".to_string(), label: "C" });
     let info = crate::repo::RepoInfo {
         branch: Some("main".to_string()),
         summary: crate::repo::RepoSummary { modified: 1, ..Default::default() },
@@ -4925,4 +4922,3 @@ fn test_workspace_conflicts_shortcuts() {
     assert!(handled);
     assert_eq!(app.mode, Mode::MergeContinueConfirm);
 }
-

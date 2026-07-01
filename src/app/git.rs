@@ -46,10 +46,7 @@ impl App {
                         }
 
                         let _safe_branch = safe_ref(&branch_name)?;
-                        let output = git_command()
-                            .arg("pull")
-                            .current_dir(&repo_path)
-                            .output()?;
+                        let output = git_command().arg("pull").current_dir(&repo_path).output()?;
 
                         if output.status.success() {
                             Ok(format!("Pulled successfully for '{}'", branch_name))
@@ -656,7 +653,10 @@ impl App {
                         let target_branch = b_name[pos + 1..].to_string();
 
                         self.fetching = true;
-                        self.status_message = Some(format!("Deleting remote branch '{}' on '{}'...", target_branch, remote));
+                        self.status_message = Some(format!(
+                            "Deleting remote branch '{}' on '{}'...",
+                            target_branch, remote
+                        ));
                         let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
                         std::thread::spawn(move || {
@@ -671,7 +671,8 @@ impl App {
                                     .current_dir(&repo_path);
                                 let output = cmd.output()?;
                                 if !output.status.success() {
-                                    let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                                    let err =
+                                        String::from_utf8_lossy(&output.stderr).trim().to_string();
                                     return Err(format!("git push failed: {}", err).into());
                                 }
                                 repo::delete_remote_branch(&repo_path, &b_name)?;
@@ -683,7 +684,8 @@ impl App {
                                     let _ = tx.send(format!("Deleted remote branch '{}'", b_name));
                                 }
                                 Err(e) => {
-                                    let _ = tx.send(format!("Failed to delete remote branch: {}", e));
+                                    let _ =
+                                        tx.send(format!("Failed to delete remote branch: {}", e));
                                 }
                             }
                         });
@@ -1201,11 +1203,7 @@ impl App {
                     }
                 };
                 let mut cmd = git_command();
-                cmd.arg("push")
-                    .arg("-u")
-                    .arg(safe_remote)
-                    .arg(safe_branch)
-                    .current_dir(&repo_path);
+                cmd.arg("push").arg("-u").arg(safe_remote).arg(safe_branch).current_dir(&repo_path);
                 let output = match cmd.output() {
                     Ok(o) => o,
                     Err(e) => {
@@ -1351,7 +1349,11 @@ impl App {
     pub fn confirm_stash_delete(&mut self) {
         if let Some((target_commit_id, target_msg)) = self.stash_action_target.take() {
             if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-                if let Some(stash) = info.stashes.iter().find(|s| s.commit_id == target_commit_id && s.message == target_msg) {
+                if let Some(stash) = info
+                    .stashes
+                    .iter()
+                    .find(|s| s.commit_id == target_commit_id && s.message == target_msg)
+                {
                     let index_to_delete = stash.index;
                     match repo::delete_stash(resolved, index_to_delete) {
                         Ok(()) => {
@@ -1366,7 +1368,8 @@ impl App {
                         }
                     }
                 } else {
-                    self.status_message = Some("Failed to delete stash: Stash no longer exists".to_string());
+                    self.status_message =
+                        Some("Failed to delete stash: Stash no longer exists".to_string());
                 }
             }
         }
@@ -1391,7 +1394,11 @@ impl App {
     pub fn confirm_stash_apply(&mut self) {
         if let Some((target_commit_id, target_msg)) = self.stash_action_target.take() {
             if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-                if let Some(stash) = info.stashes.iter().find(|s| s.commit_id == target_commit_id && s.message == target_msg) {
+                if let Some(stash) = info
+                    .stashes
+                    .iter()
+                    .find(|s| s.commit_id == target_commit_id && s.message == target_msg)
+                {
                     let index_to_apply = stash.index;
                     match repo::apply_stash(resolved, index_to_apply) {
                         Ok(()) => {
@@ -1417,7 +1424,8 @@ impl App {
                         }
                     }
                 } else {
-                    self.status_message = Some("Failed to apply stash: Stash no longer exists".to_string());
+                    self.status_message =
+                        Some("Failed to apply stash: Stash no longer exists".to_string());
                 }
             }
         }
@@ -1735,7 +1743,7 @@ impl App {
 fn git_command() -> std::process::Command {
     let mut cmd = std::process::Command::new("git");
     cmd.env("GIT_TERMINAL_PROMPT", "0");
-    cmd.env("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=accept-new");
+    cmd.env("GIT_SSH_COMMAND", crate::config::ssh_command_val());
     cmd.env("GIT_ALLOW_PROTOCOL", "https:ssh:git:file");
     cmd.env("GIT_PROTOCOL_FROM_USER", "0");
     cmd
