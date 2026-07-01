@@ -227,12 +227,12 @@ pub fn draw(
     } else if app.mode == Mode::DebugLogs {
         crate::popups::debug::draw_debug_logs(f, app, content_area);
     } else if app.config.items.is_empty() {
-        draw_empty_state(f, content_area);
+        draw_empty_state(f, content_area, app);
     } else if app.get_items_len() == 0 {
         if let Some(ref query) = app.repo_search_query {
             draw_search_empty_state(f, content_area, query);
         } else {
-            draw_empty_state(f, content_area);
+            draw_empty_state(f, content_area, app);
         }
     } else {
         let layout_parts = Layout::default()
@@ -412,14 +412,13 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
                 if app.config.compact_view {
                     1
                 } else {
-                    let has_note = app.config.repo_configs.get(path)
+                    let has_note = app
+                        .config
+                        .repo_configs
+                        .get(path)
                         .and_then(|cfg| cfg.note.as_ref())
                         .is_some();
-                    if has_note {
-                        5
-                    } else {
-                        4
-                    }
+                    if has_note { 5 } else { 4 }
                 }
             }
         };
@@ -926,7 +925,10 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                             Line::from(vec![
                                 Span::raw(UNSELECTED_INDENT),
                                 Span::styled("✎ ", muted_style()),
-                                Span::styled(note.clone(), muted_style().add_modifier(Modifier::ITALIC)),
+                                Span::styled(
+                                    note.clone(),
+                                    muted_style().add_modifier(Modifier::ITALIC),
+                                ),
                             ])
                         } else {
                             Line::from("")
@@ -942,50 +944,78 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
 }
 
 /// Renders a centered empty-state message when no items are in the list.
-fn draw_empty_state(f: &mut Frame, area: Rect) {
-    // Vertical: push content to the upper-middle third of the area.
-    let vert = Layout::default()
+fn draw_empty_state(f: &mut Frame, area: Rect, app: &App) {
+    let popup_area = crate::ui::layout::centered_rect_fixed(70, 16, area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(accent_style())
+        .title(
+            Line::from(vec![
+                Span::raw(" "),
+                Span::styled("Gitwig Onboarding", primary_style().add_modifier(Modifier::BOLD)),
+                Span::raw(" "),
+            ])
+            .alignment(Alignment::Center),
+        )
+        .padding(Padding::vertical(1));
+
+    let inner = block.inner(popup_area);
+    f.render_widget(ratatui::widgets::Clear, popup_area);
+    f.render_widget(block, popup_area);
+
+    let layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(25), Constraint::Min(0), Constraint::Percentage(40)])
-        .split(area);
+        .constraints([
+            Constraint::Length(1), // Header title
+            Constraint::Length(1), // Description
+            Constraint::Length(1), // Spacer
+            Constraint::Length(7), // Shortcuts
+            Constraint::Length(1), // Spacer
+            Constraint::Length(1), // Tip
+        ])
+        .split(inner);
 
-    let lines = vec![
-        Line::from(vec![Span::styled("No repositories tracked yet.", primary_style())]),
-        Line::from(""),
+    let is_compat = app.config.compatibility_mode;
+    let welcome_glyph = if is_compat { "Welcome to Gitwig!" } else { "Welcome to Gitwig! 🌿" };
+    let header =
+        Line::from(Span::styled(welcome_glyph, primary_style().add_modifier(Modifier::BOLD)))
+            .alignment(Alignment::Center);
+    f.render_widget(Paragraph::new(header), layout[0]);
+
+    let desc = Line::from(Span::styled(
+        "Get started by tracking your first Git repository.",
+        muted_style(),
+    ))
+    .alignment(Alignment::Center);
+    f.render_widget(Paragraph::new(desc), layout[1]);
+
+    let format_shortcut = |key: &str, desc: &str| -> Line<'static> {
         Line::from(vec![
-            Span::raw("Press  "),
-            Span::styled("a", accent_style()),
-            Span::raw("  to add a repository or directory path"),
-        ]),
-        Line::from(vec![
-            Span::raw("Press  "),
-            Span::styled("e", accent_style()),
-            Span::raw("  to edit the selected item"),
-        ]),
-        Line::from(vec![
-            Span::raw("Press  "),
-            Span::styled("d", accent_style()),
-            Span::raw("  to delete the selected item"),
-        ]),
-        Line::from(vec![
-            Span::raw("Press  "),
-            Span::styled("?", accent_style()),
-            Span::raw("  to see all shortcuts"),
-        ]),
-        Line::from(vec![
-            Span::raw("Press  "),
-            Span::styled("q", accent_style()),
-            Span::raw("  to quit"),
-        ]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Tip: ", muted_style()),
-            Span::styled("paths support ~ expansion  (e.g. ~/code/my-project)", muted_style()),
-        ]),
+            Span::raw("   "),
+            Span::styled(format!("{:>4}", key), accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled("  ⟩  ", muted_style()),
+            Span::raw(desc.to_string()),
+        ])
+    };
+
+    let shortcut_lines = vec![
+        format_shortcut("a", "Add a new local repository path"),
+        format_shortcut("A", "Bulk add repositories in a directory"),
+        format_shortcut("i", "Import a remote repository URL"),
+        format_shortcut("?", "Open full shortcuts help reference"),
+        format_shortcut("s", "Configure global settings"),
+        format_shortcut("q", "Quit the application"),
     ];
+    f.render_widget(Paragraph::new(shortcut_lines), layout[3]);
 
-    let para = Paragraph::new(lines).alignment(Alignment::Center);
-    f.render_widget(para, vert[1]);
+    let tip = Line::from(vec![
+        Span::styled("Tip: ", primary_style().fg(WARNING())),
+        Span::styled("paths support ~ expansion (e.g. ~/projects/my-repo)", muted_style()),
+    ])
+    .alignment(Alignment::Center);
+    f.render_widget(Paragraph::new(tip), layout[5]);
 }
 
 /// Renders a centered empty-state message when search matches no repositories.
@@ -1018,8 +1048,17 @@ fn draw_search_empty_state(f: &mut Frame, area: Rect, query: &str) {
 /// counts are shown so the indicator stays compact for the common case.
 fn status_indicator_line(app: &App, status: &ItemStatus, item: &str) -> Line<'static> {
     if app.bulk_fetching.contains(item) {
+        let millis = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        let index = ((millis / 80) % 10) as usize;
+        let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][index];
         return Line::from(vec![
-            Span::styled("↻ ", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{} ", spinner),
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+            ),
             Span::styled("fetching...", Style::default().fg(ACCENT())),
         ]);
     }

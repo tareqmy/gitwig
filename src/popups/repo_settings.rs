@@ -83,7 +83,10 @@ impl RepoSettingsPopup {
                     app.repo_settings_input.pop();
                     return true;
                 }
-                KeyCode::Char(c) if app.repo_settings_selected_index == 4 || app.repo_settings_selected_index == 5 => {
+                KeyCode::Char(c)
+                    if app.repo_settings_selected_index == 4
+                        || app.repo_settings_selected_index == 5 =>
+                {
                     app.repo_settings_input.push(c);
                     return true;
                 }

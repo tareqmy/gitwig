@@ -68,13 +68,31 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 );
             }
             Mode::Editing => {
-                draw_input_status(f, area, "Edit", &app.input_buffer, app.config.compatibility_mode);
+                draw_input_status(
+                    f,
+                    area,
+                    "Edit",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
             }
             Mode::LabelInput => {
-                draw_input_status(f, area, "Labels", &app.input_buffer, app.config.compatibility_mode);
+                draw_input_status(
+                    f,
+                    area,
+                    "Labels",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
             }
             Mode::RepoSearchInput => {
-                draw_input_status(f, area, "Find", &app.input_buffer, app.config.compatibility_mode);
+                draw_input_status(
+                    f,
+                    area,
+                    "Find",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
             }
             Mode::BranchCreateInput => {
                 draw_input_status(

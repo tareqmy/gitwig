@@ -134,8 +134,8 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Per-Repo Note on Card: Display a one-line user-defined note below the branch line (ties into "Per Repository rule").
 
 ### Polish & UX
-- [ ] **Animated Fetch Spinner:** Replace static status indicators with a Braille spinner while a background fetch is active for that repo.
-- [ ] **Empty State Onboarding Prompt:** Welcoming centred panel when zero repos are tracked, listing key shortcuts to get started.
+- [x] Animated Fetch Spinner: Replace static status indicators with a Braille spinner while a background fetch is active for that repo.
+- [x] Empty State Onboarding Prompt: Welcoming centred panel when zero repos are tracked, listing key shortcuts to get started.
 
 ## Phase 10: Intelligent AI Integrations (Optional/Configurable)
 - [ ] **Semantic Commit Generator:** Press a key (e.g., `⌃G`) in the Commit popup to generate conventional commit messages from staged diffs using Gemini/Ollama/OpenAI APIs.

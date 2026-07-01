@@ -17,7 +17,7 @@ use ratatui::widgets::{
 fn wrap_text(text: &str, max_width: usize) -> Vec<String> {
     let mut lines = Vec::new();
     let mut current_line = String::new();
-    
+
     for word in text.split_whitespace() {
         if current_line.is_empty() {
             current_line.push_str(word);
@@ -211,10 +211,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                     ]));
                 } else {
                     let indent = " ".repeat(4 + max_key_width + 3);
-                    lines.push(Line::from(vec![
-                        Span::raw(indent),
-                        Span::raw(desc_line),
-                    ]));
+                    lines.push(Line::from(vec![Span::raw(indent), Span::raw(desc_line)]));
                 }
             }
         }

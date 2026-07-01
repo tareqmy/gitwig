@@ -16,7 +16,7 @@ use ratatui::widgets::{
 fn wrap_text(text: &str, max_width: usize) -> Vec<String> {
     let mut lines = Vec::new();
     let mut current_line = String::new();
-    
+
     for word in text.split_whitespace() {
         if current_line.is_empty() {
             current_line.push_str(word);
@@ -70,7 +70,10 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("⇟ [PgDn]", "Jump one page down"),
                 ("Home", "Go to top / scroll to top"),
                 ("End", "Go to bottom / scroll to bottom"),
-                ("⎋ [Esc]", "Cancel input, close dialog, clear search, cancel selections, or leave detail view"),
+                (
+                    "⎋ [Esc]",
+                    "Cancel input, close dialog, clear search, cancel selections, or leave detail view",
+                ),
                 ("?", "Toggle this help overlay"),
                 ("V", "Show about popup / creator profile"),
                 ("h", "Show signs & symbols legend popup"),
@@ -183,10 +186,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                     ]));
                 } else {
                     let indent = " ".repeat(4 + max_key_width + 3);
-                    lines.push(Line::from(vec![
-                        Span::raw(indent),
-                        Span::raw(desc_line),
-                    ]));
+                    lines.push(Line::from(vec![Span::raw(indent), Span::raw(desc_line)]));
                 }
             }
         }
@@ -226,9 +226,7 @@ pub fn draw_help_overlay(f: &mut Frame, app: &App, area: Rect, scroll: usize) {
     let scroll = scroll.min(max_scroll);
 
     let lines_len = lines.len();
-    let help = Paragraph::new(lines)
-        .block(help_block)
-        .scroll((scroll as u16, 0));
+    let help = Paragraph::new(lines).block(help_block).scroll((scroll as u16, 0));
 
     // Clear wipes the underlying cells so the list doesn't bleed through.
     f.render_widget(Clear, popup_area);

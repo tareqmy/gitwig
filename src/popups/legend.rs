@@ -42,9 +42,7 @@ fn pad_right_visual(s: &str, width: usize) -> String {
 
 fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
-    let pad = |s: &str| -> String {
-        pad_right_visual(s, 12)
-    };
+    let pad = |s: &str| -> String { pad_right_visual(s, 12) };
 
     // Section 1: Status Indicators
     lines.push(Line::from(Span::styled(
@@ -133,7 +131,10 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
         Span::raw("No active git state/operation"),
     ]));
     lines.push(Line::from(vec![
-        Span::styled(format!("  {}", pad("⚠ MERGE")), Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            format!("  {}", pad("⚠ MERGE")),
+            Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+        ),
         Span::raw("Active Merge session (conflicts)"),
     ]));
     lines.push(Line::from(vec![

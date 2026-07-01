@@ -1228,7 +1228,8 @@ where
                 if let Some(idx) = app.config.items.iter().position(|item| item == success_path) {
                     app.statuses[idx] = repo::inspect_summary(&app.config.items[idx]);
                 }
-                app.bulk_fetch_results.insert(success_path.to_string(), Ok("Fetched successfully".to_string()));
+                app.bulk_fetch_results
+                    .insert(success_path.to_string(), Ok("Fetched successfully".to_string()));
                 if app.bulk_fetching.is_empty() {
                     app.status_message = Some("Bulk fetch completed successfully".to_string());
                 }
@@ -1575,13 +1576,11 @@ where
 
                 if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
                     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-                    
+
                     for item in &paths_to_open {
                         let path = repo::expand_tilde(item);
                         println!("\r\nOpening terminal in: {}", path.display());
-                        let _ = std::process::Command::new(&shell)
-                            .current_dir(&path)
-                            .status();
+                        let _ = std::process::Command::new(&shell).current_dir(&path).status();
                     }
 
                     let _ = crossterm::terminal::enable_raw_mode();
@@ -1965,7 +1964,12 @@ where
             app.fetch_progress = 0;
         }
 
-        if event::poll(std::time::Duration::from_millis(app.config.poll_interval_ms))? {
+        let poll_dur = if !app.bulk_fetching.is_empty() || app.fetching {
+            std::time::Duration::from_millis(80)
+        } else {
+            std::time::Duration::from_millis(app.config.poll_interval_ms)
+        };
+        if event::poll(poll_dur)? {
             match event::read()? {
                 Event::Key(key) => {
                     if key.kind == crossterm::event::KeyEventKind::Press

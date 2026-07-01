@@ -1202,20 +1202,21 @@ impl App {
                     let path_str = item.clone();
                     self.bulk_fetching.insert(path_str.clone());
                     self.bulk_fetch_results.remove(&path_str);
-                    
+
                     let tx = self.tx.clone();
                     std::thread::spawn(move || {
                         let output = std::process::Command::new("git")
                             .arg("fetch")
                             .current_dir(&path_buf)
                             .output();
-                        
+
                         let msg = match output {
                             Ok(out) if out.status.success() => {
                                 format!("BULK_FETCH_SUCCESS:{}", path_str)
                             }
                             Ok(out) => {
-                                let err_msg = String::from_utf8_lossy(&out.stderr).trim().to_string();
+                                let err_msg =
+                                    String::from_utf8_lossy(&out.stderr).trim().to_string();
                                 format!("BULK_FETCH_ERROR:{}|||{}", path_str, err_msg)
                             }
                             Err(e) => {
@@ -1227,9 +1228,10 @@ impl App {
                 }
             }
         }
-        
+
         if !self.bulk_fetching.is_empty() {
-            self.status_message = Some(format!("Fetching {} repositories concurrently...", self.bulk_fetching.len()));
+            self.status_message =
+                Some(format!("Fetching {} repositories concurrently...", self.bulk_fetching.len()));
         }
     }
 
