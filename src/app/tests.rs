@@ -4761,6 +4761,32 @@ fn test_repo_settings_flow() {
     let repo_cfg = app.config.repo_configs.get("/path/to/custom_repo").unwrap();
     assert_eq!(repo_cfg.editor, Some("code".to_string()));
 
+    // Down to 5 (User Note)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 1);
+    assert!(handled);
+    assert_eq!(app.repo_settings_selected_index, 5);
+
+    // Enter to edit note
+    let handled = crate::input::handle_key(&mut app, enter_press, 1);
+    assert!(handled);
+    assert!(app.repo_settings_editing);
+
+    // Type "my note"
+    for c in "my note".chars() {
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char(c)), 1);
+        assert!(handled);
+    }
+    assert_eq!(app.repo_settings_input, "my note");
+
+    // Enter to confirm note
+    let handled = crate::input::handle_key(&mut app, enter_press, 1);
+    assert!(handled);
+    assert!(!app.repo_settings_editing);
+
+    // Verify configured note is set to Some("my note")
+    let repo_cfg = app.config.repo_configs.get("/path/to/custom_repo").unwrap();
+    assert_eq!(repo_cfg.note, Some("my note".to_string()));
+
     // Clean up
     let _ = std::fs::remove_file(config_path);
 }

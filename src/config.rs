@@ -85,6 +85,8 @@ pub struct RepoConfig {
     pub resync_on_tab_change: Option<bool>,
     #[serde(default)]
     pub editor: Option<String>,
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]

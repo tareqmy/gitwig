@@ -408,11 +408,18 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
                     2
                 }
             }
-            crate::app::HomeRow::Repo { .. } => {
+            crate::app::HomeRow::Repo { path, .. } => {
                 if app.config.compact_view {
                     1
                 } else {
-                    4
+                    let has_note = app.config.repo_configs.get(path)
+                        .and_then(|cfg| cfg.note.as_ref())
+                        .is_some();
+                    if has_note {
+                        5
+                    } else {
+                        4
+                    }
                 }
             }
         };
@@ -773,7 +780,11 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
 
                     let rows = Layout::default()
                         .direction(Direction::Vertical)
-                        .constraints([Constraint::Length(1), Constraint::Min(0)])
+                        .constraints([
+                            Constraint::Length(1),
+                            Constraint::Length(1),
+                            Constraint::Min(0),
+                        ])
                         .split(inner);
 
                     let name_cols = Layout::default()
@@ -893,6 +904,21 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     let status_line =
                         status_indicator_line(app, status).alignment(Alignment::Right);
                     f.render_widget(Paragraph::new(status_line), row1_cols[1]);
+
+                    let note_line = if let Some(repo_cfg) = app.config.repo_configs.get(item) {
+                        if let Some(ref note) = repo_cfg.note {
+                            Line::from(vec![
+                                Span::raw(UNSELECTED_INDENT),
+                                Span::styled("✎ ", muted_style()),
+                                Span::styled(note.clone(), muted_style().add_modifier(Modifier::ITALIC)),
+                            ])
+                        } else {
+                            Line::from("")
+                        }
+                    } else {
+                        Line::from("")
+                    };
+                    f.render_widget(Paragraph::new(note_line), rows[2]);
                 }
             }
         }
