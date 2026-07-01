@@ -40,11 +40,17 @@ impl App {
             }
         }
         starred_repos.sort_by(|a, b| {
-            let name_a =
-                std::path::Path::new(&a.1).file_name().and_then(|s| s.to_str()).unwrap_or(&a.1);
-            let name_b =
-                std::path::Path::new(&b.1).file_name().and_then(|s| s.to_str()).unwrap_or(&b.1);
-            name_a.cmp(name_b)
+            let name_a = std::path::Path::new(&a.1)
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&a.1)
+                .to_lowercase();
+            let name_b = std::path::Path::new(&b.1)
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&b.1)
+                .to_lowercase();
+            name_a.cmp(&name_b)
         });
 
         let has_any_labels = filtered
@@ -127,7 +133,7 @@ impl App {
                 } else if b == "Unlabeled" {
                     std::cmp::Ordering::Less
                 } else {
-                    a.cmp(b)
+                    a.to_lowercase().cmp(&b.to_lowercase())
                 }
             });
 
@@ -388,7 +394,19 @@ impl App {
             SortOrder::Alphabetical => {
                 let mut z: Vec<(String, ItemStatus)> =
                     self.config.items.drain(..).zip(self.statuses.drain(..)).collect();
-                z.sort_by(|a, b| a.0.cmp(&b.0));
+                z.sort_by(|a, b| {
+                    let name_a = std::path::Path::new(&a.0)
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or(&a.0)
+                        .to_lowercase();
+                    let name_b = std::path::Path::new(&b.0)
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or(&b.0)
+                        .to_lowercase();
+                    name_a.cmp(&name_b)
+                });
                 if self.config.sort_reverse {
                     z.reverse();
                 }
