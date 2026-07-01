@@ -138,7 +138,25 @@ impl App {
     }
 
     pub fn confirm_delete(&mut self) {
-        if let Some(orig_idx) = self.get_selected_item_index() {
+        if !self.multi_selected.is_empty() {
+            let to_remove = self.multi_selected.clone();
+            self.multi_selected.clear();
+
+            for item in to_remove {
+                if let Some(pos) = self.config.items.iter().position(|x| x == &item) {
+                    self.config.items.remove(pos);
+                    if pos < self.statuses.len() {
+                        self.statuses.remove(pos);
+                    }
+                }
+                if let Some(pos) = self.original_items.iter().position(|x| x == &item) {
+                    self.original_items.remove(pos);
+                }
+                self.config.visits.remove(&item);
+                self.config.pinned.remove(&item);
+            }
+            self.persist("Deleted selected repositories");
+        } else if let Some(orig_idx) = self.get_selected_item_index() {
             if orig_idx < self.config.items.len() {
                 let item = self.config.items.remove(orig_idx);
                 if orig_idx < self.statuses.len() {

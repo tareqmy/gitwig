@@ -619,8 +619,16 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                             },
                         ));
                     }
+                    let mut name_prefix = String::new();
+                    if !app.multi_selected.is_empty() {
+                        if app.multi_selected.contains(item) {
+                            name_prefix.push_str("[x] ");
+                        } else {
+                            name_prefix.push_str("[ ] ");
+                        }
+                    }
                     left_spans.push(Span::styled(
-                        repo_name,
+                        format!("{}{}", name_prefix, repo_name),
                         if is_selected {
                             Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
                         } else {
@@ -799,7 +807,15 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                             muted_style().add_modifier(Modifier::BOLD),
                         ));
                     }
-                    spans.push(Span::styled(repo_name, text_style));
+                    let mut name_prefix = String::new();
+                    if !app.multi_selected.is_empty() {
+                        if app.multi_selected.contains(item) {
+                            name_prefix.push_str("[x] ");
+                        } else {
+                            name_prefix.push_str("[ ] ");
+                        }
+                    }
+                    spans.push(Span::styled(format!("{}{}", name_prefix, repo_name), text_style));
                     if let ItemStatus::GitRepo(Some(summary)) = status {
                         let (state_str, state_style) = match summary.state {
                             RepoState::Merge => (

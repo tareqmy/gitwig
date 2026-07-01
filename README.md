@@ -143,6 +143,7 @@ asciinema play resources/preview.cast
 | `f`                  | Normal          | Enter repository search mode      |
 | `p`                  | Normal          | Toggle pin status of selected item |
 | `*`                  | Normal          | Toggle Favorite / Star status of selected item |
+| `Space`              | Normal          | Toggle selection of item for batch operations (fetch, delete, terminal) |
 | `y`                  | Normal          | Yank absolute path of selected item to clipboard |
 | `/`                  | Normal          | Open fuzzy Jump-to-Repo picker overlay |
 | `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes) |

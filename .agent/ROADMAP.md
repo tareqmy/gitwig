@@ -127,7 +127,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] **Background Auto-Refresh (Live Dashboard):** Extend `poll_interval` to auto-refresh all repo statuses in the background.
 
 ### Power-User Workflows
-- [ ] **Multi-select with `Space`:** Select multiple repos and batch-operate (fetch, delete entries, open in terminal).
+- [x] **Multi-select with `Space`:** Select multiple repos and batch-operate (fetch, delete entries, open in terminal).
 - [x] **Bulk Fetch All (`F`):** Fetch all tracked repos concurrently from the home screen; show per-card progress.
 - [x] **Open in Terminal (`t`):** Spawn a new shell `cd`-ed into the selected repo path.
 - [x] **Copy Path to Clipboard (`y`):** Yank the selected repo's absolute path to the system clipboard.

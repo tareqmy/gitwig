@@ -383,6 +383,8 @@ pub struct App {
     pub bulk_fetching: std::collections::HashSet<String>,
     /// Results of the latest bulk fetch (path -> Ok(msg) or Err(err)).
     pub bulk_fetch_results: std::collections::HashMap<String, Result<String, String>>,
+    /// Repository paths currently selected for batch operations.
+    pub multi_selected: std::collections::HashSet<String>,
     /// Whether we are currently viewing logs UI.
     pub in_logs_ui: bool,
     /// Cached resolved ThemeConfigs for repositories.
@@ -1041,6 +1043,7 @@ impl App {
             pending_interactive_rebase: None,
             bulk_fetching: std::collections::HashSet::new(),
             bulk_fetch_results: std::collections::HashMap::new(),
+            multi_selected: std::collections::HashSet::new(),
             in_logs_ui: false,
             repo_theme_cache: std::collections::HashMap::new(),
             inspect_full_diff: false,
@@ -1552,9 +1555,16 @@ where
 
         if app.pending_terminal {
             app.pending_terminal = false;
-            if let Some(item) = app.config.items.get(app.selected_index) {
-                let path = repo::expand_tilde(item);
 
+            let mut paths_to_open = Vec::new();
+            if !app.multi_selected.is_empty() {
+                paths_to_open = app.multi_selected.iter().cloned().collect::<Vec<_>>();
+                app.multi_selected.clear();
+            } else if let Some(item) = app.config.items.get(app.selected_index) {
+                paths_to_open.push(item.clone());
+            }
+
+            if !paths_to_open.is_empty() {
                 let raw_res = crossterm::terminal::disable_raw_mode();
                 let exec_res = crossterm::execute!(
                     std::io::stdout(),
@@ -1565,9 +1575,14 @@ where
 
                 if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
                     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-                    let status = std::process::Command::new(&shell)
-                        .current_dir(&path)
-                        .status();
+                    
+                    for item in &paths_to_open {
+                        let path = repo::expand_tilde(item);
+                        println!("\r\nOpening terminal in: {}", path.display());
+                        let _ = std::process::Command::new(&shell)
+                            .current_dir(&path)
+                            .status();
+                    }
 
                     let _ = crossterm::terminal::enable_raw_mode();
                     let _ = crossterm::execute!(
@@ -1577,15 +1592,8 @@ where
                     );
                     let _ = terminal.clear();
 
-                    match status {
-                        Ok(_) => {
-                            app.status_message = Some("Returned from terminal".to_string());
-                            app.refresh_selected_status();
-                        }
-                        Err(e) => {
-                            app.set_error(format!("Could not spawn shell {}: {}", shell, e));
-                        }
-                    }
+                    app.status_message = Some("Returned from terminal".to_string());
+                    app.refresh_selected_status();
                 }
             }
         }

@@ -128,6 +128,15 @@ impl HomeTab {
                     app.pending_terminal = true;
                 } else if code == KeyCode::Char('F') {
                     app.bulk_fetch_all();
+                } else if code == KeyCode::Char(' ') {
+                    if let Some(path) = app.get_selected_item() {
+                        let path_str = path.clone();
+                        if app.multi_selected.contains(&path_str) {
+                            app.multi_selected.remove(&path_str);
+                        } else {
+                            app.multi_selected.insert(path_str);
+                        }
+                    }
                 }
             }
             Mode::RepoSearchInput => match code {

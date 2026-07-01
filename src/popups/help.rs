@@ -69,6 +69,7 @@ pub fn get_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("v", "Toggle between standard cards and compact 1-row view"),
                 ("p", "Toggle pin status of selected item"),
                 ("*", "Toggle Favorite / Star status of selected item"),
+                ("Space", "Toggle selection of item for batch operations"),
                 ("y", "Yank absolute path of selected item to clipboard"),
                 ("/", "Open fuzzy Jump-to-Repo picker overlay"),
                 ("← / → / Space / Enter", "Collapse/expand label group (on group header)"),
