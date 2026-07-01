@@ -1698,7 +1698,13 @@ where
             if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
                 let repo_path = resolved.clone();
                 let file_path = repo_path.join(&file_rel_path);
-                let editor = app.config.editor.clone();
+                let repo_path_str = repo_path.to_string_lossy().to_string();
+                let editor = app
+                    .config
+                    .repo_configs
+                    .get(&repo_path_str)
+                    .and_then(|c| c.editor.clone())
+                    .unwrap_or_else(|| app.config.editor.clone());
 
                 let raw_res = crossterm::terminal::disable_raw_mode();
                 let exec_res = crossterm::execute!(

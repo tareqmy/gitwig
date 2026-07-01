@@ -224,9 +224,9 @@ fn get_desc(global_idx: usize) -> &'static str {
     }
 }
 
-fn get_val_str(app: &App, global_idx: usize) -> String {
+pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
     let is_selected = app.settings_selected_index == global_idx;
-    if global_idx >= 14 {
+    if (14..=54).contains(&global_idx) {
         if is_selected && app.settings_editing {
             format!("{}█", app.input_buffer)
         } else if let Some(action) = index_to_action(global_idx) {

@@ -25,27 +25,44 @@ impl RepoSettingsPopup {
                     return true;
                 }
                 KeyCode::Enter => {
-                    let val_opt = if app.repo_settings_input.is_empty() {
-                        None
-                    } else if let Ok(val) = app.repo_settings_input.parse::<usize>() {
-                        Some(val)
-                    } else {
-                        app.repo_settings_editing = false;
-                        return true;
-                    };
-
                     let mut repo_cfg =
                         app.config.repo_configs.get(&repo_path).cloned().unwrap_or_default();
                     match app.repo_settings_selected_index {
                         1 => {
+                            let val_opt = if app.repo_settings_input.is_empty() {
+                                None
+                            } else if let Ok(val) = app.repo_settings_input.parse::<usize>() {
+                                Some(val)
+                            } else {
+                                app.repo_settings_editing = false;
+                                return true;
+                            };
                             repo_cfg.page_size = val_opt;
                             app.config.repo_configs.insert(repo_path, repo_cfg);
                             app.persist("Repository page size updated");
                         }
                         2 => {
+                            let val_opt = if app.repo_settings_input.is_empty() {
+                                None
+                            } else if let Ok(val) = app.repo_settings_input.parse::<usize>() {
+                                Some(val)
+                            } else {
+                                app.repo_settings_editing = false;
+                                return true;
+                            };
                             repo_cfg.max_commits = val_opt;
                             app.config.repo_configs.insert(repo_path, repo_cfg);
                             app.persist("Repository max commits updated");
+                        }
+                        4 => {
+                            let val_opt = if app.repo_settings_input.trim().is_empty() {
+                                None
+                            } else {
+                                Some(app.repo_settings_input.trim().to_string())
+                            };
+                            repo_cfg.editor = val_opt;
+                            app.config.repo_configs.insert(repo_path, repo_cfg);
+                            app.persist("Repository editor updated");
                         }
                         _ => {}
                     }
@@ -54,6 +71,10 @@ impl RepoSettingsPopup {
                 }
                 KeyCode::Backspace => {
                     app.repo_settings_input.pop();
+                    return true;
+                }
+                KeyCode::Char(c) if app.repo_settings_selected_index == 4 => {
+                    app.repo_settings_input.push(c);
                     return true;
                 }
                 KeyCode::Char(c) if c.is_ascii_digit() => {
@@ -72,14 +93,14 @@ impl RepoSettingsPopup {
             }
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                 app.repo_settings_selected_index = if app.repo_settings_selected_index == 0 {
-                    3
+                    4
                 } else {
                     app.repo_settings_selected_index - 1
                 };
                 return true;
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                app.repo_settings_selected_index = (app.repo_settings_selected_index + 1) % 4;
+                app.repo_settings_selected_index = (app.repo_settings_selected_index + 1) % 5;
                 return true;
             }
             KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
@@ -107,6 +128,12 @@ impl RepoSettingsPopup {
                             app.config.repo_configs.get(&repo_path).cloned().unwrap_or_default();
                         app.repo_settings_input =
                             repo_cfg.max_commits.map(|v| v.to_string()).unwrap_or_default();
+                        app.repo_settings_editing = true;
+                    }
+                    4 => {
+                        let repo_cfg =
+                            app.config.repo_configs.get(&repo_path).cloned().unwrap_or_default();
+                        app.repo_settings_input = repo_cfg.editor.clone().unwrap_or_default();
                         app.repo_settings_editing = true;
                     }
                     _ => {}
@@ -179,7 +206,7 @@ impl RepoSettingsPopup {
 
     pub fn draw(f: &mut Frame, app: &App, area: Rect) {
         let popup_width = 54;
-        let popup_height = 14;
+        let popup_height = 15;
         let popup_area = crate::ui::layout::centered_rect_fixed(popup_width, popup_height, area);
 
         let block = Block::default()
@@ -206,7 +233,7 @@ impl RepoSettingsPopup {
                 Constraint::Length(1), // Spacer
                 Constraint::Length(1), // Repository Name
                 Constraint::Length(1), // Spacer
-                Constraint::Min(4),    // Settings items list
+                Constraint::Min(5),    // Settings items list (increased from 4 to 5)
                 Constraint::Length(1), // Spacer
                 Constraint::Length(1), // Shortcuts instructions
             ])
@@ -327,19 +354,44 @@ impl RepoSettingsPopup {
         };
         let resync_line = build_line(3, "Resync on Tab Change:", resync_val, false);
 
-        let settings_lines = vec![theme_line, page_size_line, max_commits_line, resync_line];
+        // Row 4: Editor Command
+        let editor_val = repo_cfg.editor.clone().unwrap_or_else(|| "default".to_string());
+        let editor_line = build_line(
+            4,
+            "Editor Command:",
+            if app.repo_settings_selected_index == 4 && app.repo_settings_editing {
+                &app.repo_settings_input
+            } else {
+                &editor_val
+            },
+            app.repo_settings_selected_index == 4 && app.repo_settings_editing,
+        );
+
+        let settings_lines =
+            vec![theme_line, page_size_line, max_commits_line, resync_line, editor_line];
         f.render_widget(Paragraph::new(settings_lines), chunks[3]);
 
         // Shortcuts helper bar
         let helper_line = if app.repo_settings_editing {
-            Line::from(vec![
-                Span::styled(" [Digits] ", accent_style()),
-                Span::styled("Type  ", muted_style()),
-                Span::styled(" [Enter] ", accent_style()),
-                Span::styled("Confirm  ", muted_style()),
-                Span::styled(" [Esc] ", accent_style()),
-                Span::styled("Cancel", muted_style()),
-            ])
+            if app.repo_settings_selected_index == 4 {
+                Line::from(vec![
+                    Span::styled(" [Text] ", accent_style()),
+                    Span::styled("Type  ", muted_style()),
+                    Span::styled(" [Enter] ", accent_style()),
+                    Span::styled("Confirm  ", muted_style()),
+                    Span::styled(" [Esc] ", accent_style()),
+                    Span::styled("Cancel", muted_style()),
+                ])
+            } else {
+                Line::from(vec![
+                    Span::styled(" [Digits] ", accent_style()),
+                    Span::styled("Type  ", muted_style()),
+                    Span::styled(" [Enter] ", accent_style()),
+                    Span::styled("Confirm  ", muted_style()),
+                    Span::styled(" [Esc] ", accent_style()),
+                    Span::styled("Cancel", muted_style()),
+                ])
+            }
         } else {
             Line::from(vec![
                 Span::styled(" [↑/↓/j/k] ", accent_style()),

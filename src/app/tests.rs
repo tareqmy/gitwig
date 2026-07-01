@@ -4652,6 +4652,44 @@ fn test_repo_settings_flow() {
     let repo_cfg = app.config.repo_configs.get("/path/to/custom_repo").unwrap();
     assert_eq!(repo_cfg.page_size, Some(15));
 
+    // Go down to Editor Command (index 4)
+    // Currently on index 1.
+    // Down to 2
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 1);
+    assert!(handled);
+    assert_eq!(app.repo_settings_selected_index, 2);
+
+    // Down to 3
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 1);
+    assert!(handled);
+    assert_eq!(app.repo_settings_selected_index, 3);
+
+    // Down to 4
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 1);
+    assert!(handled);
+    assert_eq!(app.repo_settings_selected_index, 4);
+
+    // Enter to edit
+    let handled = crate::input::handle_key(&mut app, enter_press, 1);
+    assert!(handled);
+    assert!(app.repo_settings_editing);
+
+    // Type "code"
+    for c in "code".chars() {
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char(c)), 1);
+        assert!(handled);
+    }
+    assert_eq!(app.repo_settings_input, "code");
+
+    // Enter to confirm
+    let handled = crate::input::handle_key(&mut app, enter_press, 1);
+    assert!(handled);
+    assert!(!app.repo_settings_editing);
+
+    // Verify configured editor in config is set to Some("code")
+    let repo_cfg = app.config.repo_configs.get("/path/to/custom_repo").unwrap();
+    assert_eq!(repo_cfg.editor, Some("code".to_string()));
+
     // Clean up
     let _ = std::fs::remove_file(config_path);
 }

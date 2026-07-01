@@ -83,6 +83,8 @@ pub struct RepoConfig {
     pub max_commits: Option<usize>,
     #[serde(default)]
     pub resync_on_tab_change: Option<bool>,
+    #[serde(default)]
+    pub editor: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]

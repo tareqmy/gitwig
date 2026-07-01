@@ -1286,4 +1286,30 @@ mod tests {
         let w = wrap_excludes("", 20);
         assert_eq!(w, vec![""]);
     }
+
+    #[test]
+    fn test_settings_val_str() {
+        let config = Config {
+            editor: "vim".to_string(),
+            ssh_strict_host_checking: true,
+            ..Default::default()
+        };
+        let mut app = App::new(config, PathBuf::from("dummy.toml"));
+
+        // Setting index 55: SSH Strict Host Checking
+        let val_ssh = crate::popups::settings::get_val_str(&app, 55);
+        assert_eq!(val_ssh, "true");
+
+        // Setting index 56: Editor Command
+        app.settings_selected_index = 56;
+        app.settings_editing = false;
+        let val_editor = crate::popups::settings::get_val_str(&app, 56);
+        assert_eq!(val_editor, "vim");
+
+        // During editing
+        app.settings_editing = true;
+        app.input_buffer = "nano".to_string();
+        let val_editor_edit = crate::popups::settings::get_val_str(&app, 56);
+        assert_eq!(val_editor_edit, "nano█");
+    }
 }
