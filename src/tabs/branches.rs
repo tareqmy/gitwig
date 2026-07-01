@@ -56,6 +56,7 @@ impl BranchesTab {
                 } else {
                     app.remote_branch_up();
                 }
+                return true;
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
                 if detail_focus == DetailSection::LocalBranches {
@@ -63,6 +64,7 @@ impl BranchesTab {
                 } else {
                     app.remote_branch_down();
                 }
+                return true;
             }
             KeyCode::PageUp => {
                 if detail_focus == DetailSection::LocalBranches {
@@ -70,6 +72,7 @@ impl BranchesTab {
                 } else {
                     app.remote_branch_page_up(app.get_current_page_size());
                 }
+                return true;
             }
             KeyCode::PageDown => {
                 if detail_focus == DetailSection::LocalBranches {
@@ -77,6 +80,7 @@ impl BranchesTab {
                 } else {
                     app.remote_branch_page_down(app.get_current_page_size());
                 }
+                return true;
             }
             KeyCode::Home => {
                 if detail_focus == DetailSection::LocalBranches {
@@ -84,6 +88,7 @@ impl BranchesTab {
                 } else {
                     app.remote_branch_to_top();
                 }
+                return true;
             }
             KeyCode::End => {
                 if detail_focus == DetailSection::LocalBranches {
@@ -91,6 +96,7 @@ impl BranchesTab {
                 } else {
                     app.remote_branch_to_bottom();
                 }
+                return true;
             }
             _ => {}
         }
