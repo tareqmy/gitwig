@@ -124,6 +124,8 @@ impl HomeTab {
                     app.open_detail();
                 } else if code == KeyCode::Char('y') || code == KeyCode::Char('Y') {
                     app.yank_selected_repo_path();
+                } else if code == KeyCode::Char('t') || code == KeyCode::Char('T') {
+                    app.pending_terminal = true;
                 }
             }
             Mode::RepoSearchInput => match code {

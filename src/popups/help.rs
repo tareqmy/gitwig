@@ -72,6 +72,7 @@ pub fn get_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("/", "Open fuzzy Jump-to-Repo picker overlay"),
                 ("← / → / Space / Enter", "Collapse/expand label group (on group header)"),
                 ("g", "Launch preferred Git client for selected repository"),
+                ("t", "Spawn a new shell (Terminal) in the selected repository"),
                 ("s", "Open options/settings page"),
                 ("l", "Edit labels of selected item"),
                 ("d", "Open debug logs panel"),

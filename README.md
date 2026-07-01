@@ -147,6 +147,7 @@ asciinema play resources/preview.cast
 | `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes) |
 | `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed) |
 | `g`                  | Normal          | Launch the preferred Git client for selected repository (configurable in settings, default is gitui) |
+| `t`                  | Normal          | Spawn a new shell (Terminal) in the selected repository's directory |
 | `s`                  | Normal          | Open options/settings page        |
 | `d`                  | Normal          | Open debug logs panel             |
 | `V`                  | Normal          | Show about popup / creator profile |

@@ -1471,6 +1471,7 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
         ("Jump", "Home/End"),
         ("Detail", "↵/→"),
         (&app.config.git_app, "g"),
+        ("Terminal", "t"),
         (&sort_key_label, "o/O"),
         ("Find", "f"),
         ("Jump Picker", "/"),

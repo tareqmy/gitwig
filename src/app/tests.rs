@@ -3887,6 +3887,42 @@ fn test_yank_selected_repo_path() {
 }
 
 #[test]
+fn test_pending_terminal_trigger() {
+    let config = Config {
+        items: vec!["/dummy/repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+        ..Default::default()
+    };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    app.selected_index = 0;
+
+    let key = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('t'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, key, 1);
+    assert!(handled);
+    assert!(app.pending_terminal);
+}
+
+#[test]
 fn test_cherry_pick_destination_branches() {
     let config = Config {
         items: vec![],

@@ -367,6 +367,8 @@ pub struct App {
     pub keybindings: crate::keybindings::KeybindingsConfig,
     /// Whether external Git application launch is pending.
     pub pending_git_app: bool,
+    /// Whether terminal launch is pending.
+    pub pending_terminal: bool,
     /// Whether fzf search launch is pending.
     pub pending_fzf: bool,
     /// Whether bulk fzf search launch is pending.
@@ -1027,6 +1029,7 @@ impl App {
             repo_settings_input: String::new(),
             keybindings,
             pending_git_app: false,
+            pending_terminal: false,
             pending_fzf: false,
             pending_bulk_fzf: false,
             pending_files_fzf: false,
@@ -1511,6 +1514,46 @@ where
                         }
                         Err(e) => {
                             app.set_error(format!("Could not run {}: {}", git_app_name, e));
+                        }
+                    }
+                }
+            }
+        }
+
+        if app.pending_terminal {
+            app.pending_terminal = false;
+            if let Some(item) = app.config.items.get(app.selected_index) {
+                let path = repo::expand_tilde(item);
+
+                let raw_res = crossterm::terminal::disable_raw_mode();
+                let exec_res = crossterm::execute!(
+                    std::io::stdout(),
+                    crossterm::terminal::LeaveAlternateScreen,
+                    crossterm::event::DisableMouseCapture
+                );
+                let cursor_res = terminal.show_cursor();
+
+                if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+                    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+                    let status = std::process::Command::new(&shell)
+                        .current_dir(&path)
+                        .status();
+
+                    let _ = crossterm::terminal::enable_raw_mode();
+                    let _ = crossterm::execute!(
+                        std::io::stdout(),
+                        crossterm::terminal::EnterAlternateScreen,
+                        crossterm::event::EnableMouseCapture
+                    );
+                    let _ = terminal.clear();
+
+                    match status {
+                        Ok(_) => {
+                            app.status_message = Some("Returned from terminal".to_string());
+                            app.refresh_selected_status();
+                        }
+                        Err(e) => {
+                            app.set_error(format!("Could not spawn shell {}: {}", shell, e));
                         }
                     }
                 }
