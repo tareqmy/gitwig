@@ -1465,7 +1465,7 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
         ("Compact", "v"),
         ("Legend", "h"),
         ("Help", "?"),
-        ("Quit", "⎋/q"),
+        ("Quit", "ctrl+q"),
     ];
     let mut entries = Vec::new();
     for (i, (label, key)) in entries_data.iter().enumerate() {

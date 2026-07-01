@@ -271,7 +271,7 @@ impl KeybindingsConfig {
             global: GlobalKeybindings {
                 toggle_status_bar: Some(vec![".".to_string()]),
                 help: Some(vec!["?".to_string()]),
-                close: Some(vec!["esc".to_string(), "q".to_string()]),
+                close: Some(vec!["ctrl-q".to_string()]),
             },
             home: HomeKeybindings {
                 move_down: Some(vec!["j".to_string(), "down".to_string()]),
@@ -527,6 +527,16 @@ impl KeybindingsConfig {
                 if let Ok(mut cfg) = toml::from_str::<KeybindingsConfig>(&contents) {
                     let mut migrated = false;
                     let defaults = Self::default_config();
+
+                    if let Some(close_keys) = &cfg.global.close {
+                        if close_keys.contains(&"esc".to_string())
+                            && close_keys.contains(&"q".to_string())
+                            && close_keys.len() == 2
+                        {
+                            cfg.global.close = Some(vec!["ctrl-q".to_string()]);
+                            migrated = true;
+                        }
+                    }
 
                     if cfg.home.toggle_compact_view.is_none() {
                         cfg.home.toggle_compact_view = defaults.home.toggle_compact_view.clone();

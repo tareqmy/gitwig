@@ -1,10 +1,7 @@
 [global]
 toggle_status_bar = ["."]
 help = ["?"]
-close = [
-    "esc",
-    "q",
-]
+close = ["ctrl-q"]
 
 [home]
 move_down = [
