@@ -2014,45 +2014,46 @@ fn run_fzf_picker(
             }
         }
     } else {
-        let mut cmd = std::process::Command::new("find");
-        cmd.arg(start_dir);
-        cmd.arg("-maxdepth").arg((max_depth + if git_only { 1 } else { 0 }).to_string());
-
-        if !excludes.is_empty() {
-            cmd.arg("(");
-            for (i, excl) in excludes.iter().enumerate() {
-                if i > 0 {
-                    cmd.arg("-o");
-                }
-                cmd.arg("-path").arg(format!("*/{}", excl));
+        fn walk_dir(
+            dir: &std::path::Path,
+            current_depth: usize,
+            max_depth: usize,
+            git_only: bool,
+            excludes: &[String],
+            paths: &mut Vec<String>,
+        ) {
+            if current_depth > max_depth {
+                return;
             }
-            cmd.arg(")");
-            cmd.arg("-prune");
-            cmd.arg("-o");
-        }
 
-        if git_only {
-            cmd.arg("-name").arg(".git").arg("-type").arg("d").arg("-print");
-        } else {
-            cmd.arg("-type").arg("d").arg("-print");
-        }
-
-        let output = cmd.output()?;
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            for line in stdout.lines() {
-                let p = line.trim();
-                if !p.is_empty() {
-                    if git_only {
-                        if let Some(parent) = std::path::Path::new(p).parent() {
-                            paths.push(parent.to_string_lossy().to_string());
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                            if excludes.iter().any(|excl| name == excl) {
+                                continue;
+                            }
+                            if name == ".git" {
+                                if git_only {
+                                    if let Some(parent) = path.parent() {
+                                        paths.push(parent.to_string_lossy().to_string());
+                                    }
+                                }
+                                continue;
+                            }
                         }
-                    } else {
-                        paths.push(p.to_string());
+                        if !git_only {
+                            paths.push(path.to_string_lossy().to_string());
+                        }
+                        walk_dir(&path, current_depth + 1, max_depth, git_only, excludes, paths);
                     }
                 }
             }
         }
+
+        let effective_max_depth = max_depth + if git_only { 1 } else { 0 };
+        walk_dir(start_dir, 1, effective_max_depth, git_only, excludes, &mut paths);
     }
 
     if paths.is_empty() {
