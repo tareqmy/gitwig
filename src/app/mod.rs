@@ -156,6 +156,8 @@ pub enum Mode {
     SubmoduleDeleteConfirm,
     /// Showing the signs and symbols legend popup.
     Legend,
+    /// Floating popup with ranked fuzzy matches for repository navigation.
+    RepoJump,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -319,6 +321,7 @@ pub struct App {
     pub help_scroll: usize,
     pub legend_scroll: usize,
     pub collapsed_groups: std::collections::HashSet<String>,
+    pub repo_jump_selection: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
     pub detail_areas: DetailAreas,
     /// Main panel item bounding boxes recorded after each draw, used for mouse hit-testing.
@@ -996,6 +999,7 @@ impl App {
             help_scroll: 0,
             legend_scroll: 0,
             collapsed_groups: std::collections::HashSet::new(),
+            repo_jump_selection: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
 

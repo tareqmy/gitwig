@@ -271,6 +271,10 @@ pub fn draw(
         crate::popups::repo_settings::RepoSettingsPopup::draw(f, app, area);
     }
 
+    if matches!(app.mode, Mode::RepoJump) {
+        draw_repo_jump_popup(f, app, area);
+    }
+
     if matches!(app.mode, Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput) {
         crate::popups::import::draw_import_popup(f, area, app);
     }
@@ -1118,6 +1122,83 @@ pub(crate) fn get_process_stats(app: &App) -> (f64, f64) {
 #[cfg(not(unix))]
 pub(crate) fn get_process_stats(_app: &App) -> (f64, f64) {
     (0.0, 0.0)
+}
+
+pub fn draw_repo_jump_popup(f: &mut Frame, app: &App, area: Rect) {
+    let popup_area = crate::ui::layout::centered_rect(60, 50, area);
+    f.render_widget(ratatui::widgets::Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Jump to Repository", primary_style().add_modifier(Modifier::BOLD)),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::horizontal(1));
+
+    let inner = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3), // Input box
+            Constraint::Min(1),    // Match list
+            Constraint::Length(1), // Hint
+        ])
+        .split(inner);
+
+    // 1. Draw input box
+    let input_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(muted_style())
+        .title(" Search Query ");
+    let input_p = Paragraph::new(Line::from(vec![
+        Span::raw("> "),
+        Span::styled(app.input_buffer.clone(), primary_style()),
+    ])).block(input_block);
+    f.render_widget(input_p, chunks[0]);
+
+    // 2. Draw matches
+    let matches = app.get_jump_matches();
+    let list_items: Vec<ratatui::widgets::ListItem> = matches
+        .iter()
+        .enumerate()
+        .map(|(i, &(_, ref path, ref name))| {
+            let style = if i == app.repo_jump_selection {
+                accent_style().add_modifier(Modifier::BOLD | Modifier::REVERSED)
+            } else {
+                primary_style()
+            };
+            ratatui::widgets::ListItem::new(Line::from(vec![
+                Span::raw("  "),
+                Span::styled(name.clone(), style),
+                Span::raw("   "),
+                Span::styled(path.clone(), muted_style()),
+            ]))
+        })
+        .collect();
+
+    let mut list_state = ratatui::widgets::ListState::default();
+    if !matches.is_empty() {
+        list_state.select(Some(app.repo_jump_selection));
+    }
+    f.render_stateful_widget(ratatui::widgets::List::new(list_items), chunks[1], &mut list_state);
+
+    // 3. Draw hint
+    let hint = Line::from(vec![
+        Span::styled("Type to filter  ", muted_style()),
+        Span::styled("↑↓ navigate  ", muted_style()),
+        Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" jump  ", muted_style()),
+        Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" cancel", muted_style()),
+    ]);
+    f.render_widget(Paragraph::new(hint), chunks[2]);
 }
 
 #[cfg(test)]

@@ -108,6 +108,10 @@ impl HomeTab {
                     app.import_name.clear();
                 } else if app.is_bound(Action::HomeOpenGitApp, key) {
                     app.pending_git_app = true;
+                } else if code == KeyCode::Char('/') {
+                    app.input_buffer.clear();
+                    app.repo_jump_selection = 0;
+                    app.mode = Mode::RepoJump;
                 } else if app.is_bound(Action::HomeSearchRepo, key) {
                     app.input_buffer.clear();
                     if let Some(ref q) = app.repo_search_query {

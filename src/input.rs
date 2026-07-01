@@ -61,6 +61,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::TagCreateInput
             | Mode::StashCreateInput
             | Mode::RepoSearchInput
+            | Mode::RepoJump
             | Mode::ImportUrlInput
             | Mode::ImportDestInput
             | Mode::ImportNameInput
@@ -329,6 +330,44 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             {
                 return true;
             }
+        }
+        Mode::RepoJump => {
+            let matches = app.get_jump_matches();
+            match code {
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.mode = Mode::Normal;
+                }
+                KeyCode::Up => {
+                    if !matches.is_empty() {
+                        app.repo_jump_selection = app.repo_jump_selection.saturating_sub(1);
+                    }
+                }
+                KeyCode::Down => {
+                    if !matches.is_empty() && app.repo_jump_selection + 1 < matches.len() {
+                        app.repo_jump_selection += 1;
+                    }
+                }
+                KeyCode::Enter => {
+                    if !matches.is_empty() && app.repo_jump_selection < matches.len() {
+                        let original_index = matches[app.repo_jump_selection].0;
+                        app.jump_to_repo(original_index);
+                    } else {
+                        app.input_buffer.clear();
+                        app.mode = Mode::Normal;
+                    }
+                }
+                KeyCode::Backspace => {
+                    app.input_buffer.pop();
+                    app.repo_jump_selection = 0;
+                }
+                KeyCode::Char(c) => {
+                    app.input_buffer.push(c);
+                    app.repo_jump_selection = 0;
+                }
+                _ => {}
+            }
+            return true;
         }
     }
     true

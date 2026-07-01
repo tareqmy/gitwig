@@ -735,6 +735,27 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             }
             draw_status_layout(f, area, Some(msg_spans), entries, app);
         }
+        Mode::RepoJump => {
+            let msg_spans = vec![
+                Span::raw("Jump to repository: type query to search, select, then press "),
+                Span::styled("Enter", accent_style()),
+            ];
+            let entries_data = [("Select Match", "↑/↓"), ("Confirm", "Enter"), ("Cancel", "Esc")];
+            let mut entries = Vec::new();
+            for (i, (label, key)) in entries_data.iter().enumerate() {
+                let mut spans = Vec::new();
+                if i > 0 {
+                    spans.push(Span::styled(" ", muted_style()));
+                }
+                spans.push(Span::raw((*label).to_string()));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("[", muted_style()));
+                spans.push(Span::styled((*key).to_string(), accent_style()));
+                spans.push(Span::styled("]", muted_style()));
+                entries.push(StatusEntry::new(spans));
+            }
+            draw_status_layout(f, area, Some(msg_spans), entries, app);
+        }
     }
 }
 
@@ -1220,6 +1241,7 @@ fn commit_input_confirm_entries(
 
 fn get_mode_badge(mode: &Mode) -> Span<'static> {
     let (label, color) = match mode {
+        Mode::RepoJump => ("JUMP", Color::Red),
         Mode::Normal => ("NORMAL", Color::Blue),
         Mode::Detail => ("DETAIL", Color::Magenta),
         Mode::Overview => ("OVERVIEW", Color::Magenta),

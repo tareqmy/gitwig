@@ -2944,6 +2944,85 @@ impl App {
     pub fn legend_scroll_to_bottom(&mut self) {
         self.legend_scroll = usize::MAX;
     }
+
+    pub fn get_jump_matches(&self) -> Vec<(usize, String, String)> {
+        let query = self.input_buffer.to_lowercase();
+        if query.is_empty() {
+            return self
+                .config
+                .items
+                .iter()
+                .enumerate()
+                .map(|(idx, path)| {
+                    let name = std::path::Path::new(path)
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or(path)
+                        .to_string();
+                    (idx, path.clone(), name)
+                })
+                .collect();
+        }
+
+        let mut matches = Vec::new();
+        for (idx, path) in self.config.items.iter().enumerate() {
+            let name = std::path::Path::new(path)
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or(path);
+            let name_lower = name.to_lowercase();
+            let path_lower = path.to_lowercase();
+
+            if name_lower.contains(&query) {
+                let score = 1000 - (name_lower.len() - query.len());
+                matches.push((score, idx, path.clone(), name.to_string()));
+            } else if path_lower.contains(&query) {
+                let score = 500 - (path_lower.len() - query.len());
+                matches.push((score, idx, path.clone(), name.to_string()));
+            } else {
+                let mut name_chars = name_lower.chars();
+                let mut matched = true;
+                for qc in query.chars() {
+                    if !name_chars.any(|nc| nc == qc) {
+                        matched = false;
+                        break;
+                    }
+                }
+                if matched {
+                    matches.push((100, idx, path.clone(), name.to_string()));
+                }
+            }
+        }
+
+        matches.sort_by(|a, b| b.0.cmp(&a.0).then(a.3.cmp(&b.3)));
+
+        matches
+            .into_iter()
+            .map(|(_, idx, path, name)| (idx, path, name))
+            .collect()
+    }
+
+    pub fn jump_to_repo(&mut self, original_index: usize) {
+        if let Some(path) = self.config.items.get(original_index) {
+            let label = self
+                .config
+                .labels
+                .get(path)
+                .and_then(|lbls| lbls.first().cloned())
+                .unwrap_or_else(|| "Unlabeled".to_string());
+            self.collapsed_groups.remove(&label);
+
+            let rows = self.get_home_rows();
+            if let Some(pos) = rows.iter().position(|r| match r {
+                HomeRow::Repo { actual_index, .. } => *actual_index == original_index,
+                _ => false,
+            }) {
+                self.selected_index = pos;
+            }
+        }
+        self.input_buffer.clear();
+        self.mode = Mode::Normal;
+    }
 }
 
 fn git_command() -> std::process::Command {

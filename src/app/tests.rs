@@ -5186,3 +5186,51 @@ fn test_legend_popup_flow() {
     assert!(handled);
     assert_eq!(app.legend_scroll, 0);
 }
+
+#[test]
+fn test_repo_jump_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let config = Config {
+        items: vec![
+            "/path/to/alpha".to_string(),
+            "/path/to/beta".to_string(),
+            "/path/to/gamma".to_string(),
+        ],
+        ..Default::default()
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_repo_jump.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    assert_eq!(app.mode, Mode::Normal);
+
+    let handled = crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Char('/'), KeyModifiers::empty()),
+        10,
+    );
+    assert!(handled);
+    assert_eq!(app.mode, Mode::RepoJump);
+    assert_eq!(app.repo_jump_selection, 0);
+
+    let handled = crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
+        10,
+    );
+    assert!(handled);
+    assert_eq!(app.input_buffer, "g");
+
+    let matches = app.get_jump_matches();
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].2, "gamma");
+
+    let handled = crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        10,
+    );
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Normal);
+    assert_eq!(app.selected_index, 2);
+}
