@@ -122,6 +122,8 @@ impl HomeTab {
                     app.mode = Mode::RepoSearchInput;
                 } else if app.is_bound(Action::HomeOpenDetail, key) {
                     app.open_detail();
+                } else if code == KeyCode::Char('y') || code == KeyCode::Char('Y') {
+                    app.yank_selected_repo_path();
                 }
             }
             Mode::RepoSearchInput => match code {

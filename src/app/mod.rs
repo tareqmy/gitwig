@@ -1917,7 +1917,7 @@ fn is_tool_installed(name: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn copy_to_clipboard(text: &str) -> Result<(), String> {
+pub(crate) fn copy_to_clipboard(text: &str) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         use std::io::Write;

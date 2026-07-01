@@ -3032,6 +3032,24 @@ impl App {
         }
     }
 
+    pub fn yank_selected_repo_path(&mut self) {
+        if let Some(path) = self.get_selected_item() {
+            let expanded = crate::repo::expand_tilde(path);
+            let abs_path = match std::fs::canonicalize(&expanded) {
+                Ok(p) => p.to_string_lossy().to_string(),
+                Err(_) => expanded.to_string_lossy().to_string(),
+            };
+            match crate::app::copy_to_clipboard(&abs_path) {
+                Ok(()) => {
+                    self.status_message = Some(format!("Copied path '{}' to clipboard", abs_path));
+                }
+                Err(e) => {
+                    self.status_message = Some(format!("Failed to copy to clipboard: {}", e));
+                }
+            }
+        }
+    }
+
     pub fn help_scroll_up(&mut self) {
         self.help_scroll = self.help_scroll.saturating_sub(1);
     }

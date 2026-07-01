@@ -3854,6 +3854,39 @@ fn test_yank_selected_commit_hash() {
 }
 
 #[test]
+fn test_yank_selected_repo_path() {
+    let config = Config {
+        items: vec!["/dummy/repo".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+        ..Default::default()
+    };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    app.selected_index = 0;
+
+    app.yank_selected_repo_path();
+    assert!(app.status_message.is_some());
+    let msg = app.status_message.as_ref().unwrap();
+    assert!(msg.contains("Copied path") || msg.contains("Failed to copy"));
+}
+
+#[test]
 fn test_cherry_pick_destination_branches() {
     let config = Config {
         items: vec![],

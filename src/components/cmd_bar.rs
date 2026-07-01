@@ -1483,6 +1483,7 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
         ("Refresh", "R"),
         ("Pin", "p"),
         ("Star", "*"),
+        ("Yank Path", "y"),
         ("Check Update", "u"),
         ("Debug Logs", "d"),
         ("About", "V"),
