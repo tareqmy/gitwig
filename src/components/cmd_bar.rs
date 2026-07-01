@@ -51,7 +51,139 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         return;
     }
 
-    match &app.mode {
+    if let Some((msg_spans, entries)) = get_status_layout_components(app) {
+        draw_status_layout(f, area, msg_spans, entries, app);
+    } else {
+        match &app.mode {
+            Mode::Adding => {
+                draw_input_status(f, area, "Add", &app.input_buffer, app.config.compatibility_mode);
+            }
+            Mode::BulkAddInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Bulk Add (Tab for FZF)",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::Editing => {
+                draw_input_status(f, area, "Edit", &app.input_buffer, app.config.compatibility_mode);
+            }
+            Mode::LabelInput => {
+                draw_input_status(f, area, "Labels", &app.input_buffer, app.config.compatibility_mode);
+            }
+            Mode::RepoSearchInput => {
+                draw_input_status(f, area, "Find", &app.input_buffer, app.config.compatibility_mode);
+            }
+            Mode::BranchCreateInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Create Branch",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::TagCreateInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Create Tag",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::StashCreateInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Stash Changes",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::WorktreeAddBranchInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Add Worktree (Branch/Commit)",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::WorktreeAddPathInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Add Worktree (Path)",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::WorktreeLockReasonInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Lock Worktree (Reason)",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::WorktreeRemoveConfirm => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Remove Worktree (1: Metadata only, 2: Delete folder & metadata)",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::SubmoduleAddUrlInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Add Submodule (URL)",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::SubmoduleAddPathInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Add Submodule (Path)",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::LogsSearchInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Search Logs",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::CommitSearchInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Search Commits",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            _ => {}
+        }
+    }
+}
+
+pub(crate) fn get_status_layout_components(
+    app: &App,
+) -> Option<(Option<Vec<Span<'static>>>, Vec<StatusEntry>)> {
+    let comps = match &app.mode {
         Mode::Settings => {
             let msg_spans = if let Some(msg) = &app.status_message {
                 vec![Span::styled(format!("{} ", msg), accent_style())]
@@ -109,32 +241,11 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 }
                 entries
             };
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
+            (Some(msg_spans), entries)
         }
         Mode::Normal => {
             let (msg_spans, entries) = normal_status_entries(app);
-            draw_status_layout(f, area, msg_spans, entries, app);
-        }
-        Mode::Adding => {
-            draw_input_status(f, area, "Add", &app.input_buffer, app.config.compatibility_mode);
-        }
-        Mode::BulkAddInput => {
-            draw_input_status(
-                f,
-                area,
-                "Bulk Add (Tab for FZF)",
-                &app.input_buffer,
-                app.config.compatibility_mode,
-            );
-        }
-        Mode::Editing => {
-            draw_input_status(f, area, "Edit", &app.input_buffer, app.config.compatibility_mode);
-        }
-        Mode::LabelInput => {
-            draw_input_status(f, area, "Labels", &app.input_buffer, app.config.compatibility_mode);
-        }
-        Mode::RepoSearchInput => {
-            draw_input_status(f, area, "Find", &app.input_buffer, app.config.compatibility_mode);
+            (msg_spans, entries)
         }
         Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput => {
             let msg_spans = vec![Span::styled(
@@ -155,24 +266,24 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 spans.push(Span::styled("]", muted_style()));
                 entries.push(StatusEntry::new(spans));
             }
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
+            (Some(msg_spans), entries)
         }
         Mode::ConfirmDelete => {
             let target = app.get_selected_item().map(|s| s.as_str()).unwrap_or("");
             let (msg_spans, entries) = confirm_delete_entries(target);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::Help => {
             let (msg_spans, entries) = help_dismiss_entries();
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::About => {
             let (msg_spans, entries) = about_dismiss_entries();
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::Legend => {
             let (msg_spans, entries) = legend_dismiss_entries();
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::RepoSettings => {
             let msg_spans = vec![
@@ -203,11 +314,11 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 spans.push(Span::styled("]", muted_style()));
                 entries.push(StatusEntry::new(spans));
             }
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
+            (Some(msg_spans), entries)
         }
         Mode::Detail | Mode::RemoteAddNameInput | Mode::RemoteAddUrlInput => {
             let (msg_spans, entries) = detail_dismiss_entries(app);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::Overview => {
             let mut entries = Vec::new();
@@ -224,12 +335,11 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 spans.push(Span::styled("]", muted_style()));
                 entries.push(StatusEntry::new(spans));
             }
-            draw_status_layout(f, area, None, entries, app);
+            (None, entries)
         }
-
         Mode::DetailHelp => {
             let (msg_spans, entries) = detail_help_entries();
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::CommitInput => {
             let (msg_spans, entries) = if app.commit_popup.editing {
@@ -237,88 +347,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             } else {
                 commit_input_confirm_entries(app.commit_popup.amend)
             };
-            draw_status_layout(f, area, msg_spans, entries, app);
-        }
-        Mode::BranchCreateInput => {
-            draw_input_status(
-                f,
-                area,
-                "Create Branch",
-                &app.input_buffer,
-                app.config.compatibility_mode,
-            );
-        }
-        Mode::TagCreateInput => {
-            draw_input_status(
-                f,
-                area,
-                "Create Tag",
-                &app.input_buffer,
-                app.config.compatibility_mode,
-            );
-        }
-        Mode::StashCreateInput => {
-            draw_input_status(
-                f,
-                area,
-                "Stash Changes",
-                &app.input_buffer,
-                app.config.compatibility_mode,
-            );
-        }
-        Mode::WorktreeAddBranchInput => {
-            draw_input_status(
-                f,
-                area,
-                "Add Worktree (Branch/Commit)",
-                &app.input_buffer,
-                app.config.compatibility_mode,
-            );
-        }
-        Mode::WorktreeAddPathInput => {
-            draw_input_status(
-                f,
-                area,
-                "Add Worktree (Path)",
-                &app.input_buffer,
-                app.config.compatibility_mode,
-            );
-        }
-        Mode::WorktreeLockReasonInput => {
-            draw_input_status(
-                f,
-                area,
-                "Lock Worktree (Reason)",
-                &app.input_buffer,
-                app.config.compatibility_mode,
-            );
-        }
-        Mode::WorktreeRemoveConfirm => {
-            draw_input_status(
-                f,
-                area,
-                "Remove Worktree (1: Metadata only, 2: Delete folder & metadata)",
-                &app.input_buffer,
-                app.config.compatibility_mode,
-            );
-        }
-        Mode::SubmoduleAddUrlInput => {
-            draw_input_status(
-                f,
-                area,
-                "Add Submodule (URL)",
-                &app.input_buffer,
-                app.config.compatibility_mode,
-            );
-        }
-        Mode::SubmoduleAddPathInput => {
-            draw_input_status(
-                f,
-                area,
-                "Add Submodule (Path)",
-                &app.input_buffer,
-                app.config.compatibility_mode,
-            );
+            (msg_spans, entries)
         }
         Mode::StashingUI => {
             let mut entries = Vec::new();
@@ -341,7 +370,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 spans.push(Span::styled("]", muted_style()));
                 entries.push(StatusEntry::new(spans));
             }
-            draw_status_layout(f, area, None, entries, app);
+            (None, entries)
         }
         Mode::BranchDeleteConfirm => {
             let (target, is_remote) = app
@@ -350,7 +379,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 .map(|(name, remote)| (name.as_str(), *remote))
                 .unwrap_or(("", false));
             let (msg_spans, entries) = confirm_branch_delete_entries(target, is_remote);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::BranchCheckoutConfirm => {
             let (target, is_remote) = app
@@ -359,18 +388,18 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 .map(|(name, remote)| (name.as_str(), *remote))
                 .unwrap_or(("", false));
             let (msg_spans, entries) = confirm_branch_checkout_entries(target, is_remote);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::TagCheckoutConfirm => {
             let target = app.tag_checkout_target.as_deref().unwrap_or("");
             let (msg_spans, entries) = confirm_tag_checkout_entries(target);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::BranchPushConfirm => {
             let target =
                 app.branch_action_target.as_ref().map(|(name, _)| name.as_str()).unwrap_or("");
             let (msg_spans, entries) = confirm_branch_push_entries(target);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::BranchMergeConfirm => {
             let (target, is_remote) = app
@@ -379,7 +408,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 .map(|(name, remote)| (name.as_str(), *remote))
                 .unwrap_or(("", false));
             let (msg_spans, entries) = confirm_branch_merge_entries(target, is_remote);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::BranchRebaseConfirm => {
             let (target, is_remote) = app
@@ -388,7 +417,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 .map(|(name, remote)| (name.as_str(), *remote))
                 .unwrap_or(("", false));
             let (msg_spans, entries) = confirm_branch_rebase_entries(target, is_remote);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::BranchInteractiveRebaseConfirm => {
             let (target, is_remote) = app
@@ -397,7 +426,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 .map(|(name, remote)| (name.as_str(), *remote))
                 .unwrap_or(("", false));
             let (msg_spans, entries) = confirm_branch_interactive_rebase_entries(target, is_remote);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::TagDeleteConfirm => {
             let (target, is_on_remote) = app
@@ -406,21 +435,21 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 .map(|(name, is_on_remote)| (name.as_str(), *is_on_remote))
                 .unwrap_or(("", false));
             let (msg_spans, entries) = confirm_tag_delete_entries(target, is_on_remote);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::SubmoduleDeleteConfirm => {
             let target = app.submodule_delete_target.as_deref().unwrap_or("");
             let (msg_spans, entries) = confirm_submodule_delete_entries(target);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::TagPushConfirm => {
             let target = app.tag_push_target.as_deref().unwrap_or("");
             let (msg_spans, entries) = confirm_tag_push_entries(target);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::TagPushAllConfirm => {
             let (msg_spans, entries) = confirm_tag_push_all_entries();
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::StashDeleteConfirm => {
             let target = match &app.current_detail {
@@ -432,7 +461,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 _ => "".to_string(),
             };
             let (msg_spans, entries) = confirm_stash_delete_entries(&target);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::StashApplyConfirm => {
             let target = match &app.current_detail {
@@ -445,7 +474,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             };
             let (msg_spans, entries) =
                 confirm_stash_apply_entries(&target, app.stash_apply_delete_after);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::CherryPickConfirm => {
             let (target, summary) = app
@@ -485,7 +514,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     Span::styled("]", muted_style()),
                 ]),
             ];
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
+            (Some(msg_spans), entries)
         }
         Mode::RevertConfirm => {
             let (target, summary) = app
@@ -517,11 +546,11 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     Span::styled("]", muted_style()),
                 ]),
             ];
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
+            (Some(msg_spans), entries)
         }
         Mode::RemotePicker => {
             let (msg_spans, entries) = remote_picker_status_entries();
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::SearchColumnPicker => {
             let msg_spans = vec![
@@ -546,16 +575,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 spans.push(Span::styled("]", muted_style()));
                 entries.push(StatusEntry::new(spans));
             }
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
-        }
-        Mode::LogsSearchInput => {
-            draw_input_status(
-                f,
-                area,
-                "Search Logs",
-                &app.input_buffer,
-                app.config.compatibility_mode,
-            );
+            (Some(msg_spans), entries)
         }
         Mode::Logs => {
             let msg_spans = vec![
@@ -587,16 +607,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 spans.push(Span::styled("]", muted_style()));
                 entries.push(StatusEntry::new(spans));
             }
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
-        }
-        Mode::CommitSearchInput => {
-            draw_input_status(
-                f,
-                area,
-                "Search Commits",
-                &app.input_buffer,
-                app.config.compatibility_mode,
-            );
+            (Some(msg_spans), entries)
         }
         Mode::DiscardChangesConfirm => {
             let (target, staged) = app
@@ -605,7 +616,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 .map(|(name, staged)| (name.as_str(), *staged))
                 .unwrap_or(("", false));
             let (msg_spans, entries) = confirm_discard_changes_entries(target, staged);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::MergeAbortConfirm => {
             let msg_spans = vec![Span::styled(
@@ -629,7 +640,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     Span::styled("]", muted_style()),
                 ]),
             ];
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
+            (Some(msg_spans), entries)
         }
         Mode::MergeContinueConfirm => {
             let msg_spans = vec![
@@ -653,11 +664,11 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 spans.push(Span::styled("]", muted_style()));
                 entries.push(StatusEntry::new(spans));
             }
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
+            (Some(msg_spans), entries)
         }
         Mode::Inspect => {
             let (msg_spans, entries) = inspect_dismiss_entries(app);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::FileHistory => {
             let msg_spans = vec![Span::styled(
@@ -686,7 +697,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 spans.push(Span::styled("]", muted_style()));
                 entries.push(StatusEntry::new(spans));
             }
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
+            (Some(msg_spans), entries)
         }
         Mode::DebugLogs => {
             let msg_spans = vec![Span::styled(
@@ -707,12 +718,12 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 spans.push(Span::styled("]", muted_style()));
                 entries.push(StatusEntry::new(spans));
             }
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
+            (Some(msg_spans), entries)
         }
         Mode::RemoteDeleteConfirm => {
             let target = app.remote_action_target.as_deref().unwrap_or("");
             let (msg_spans, entries) = confirm_remote_delete_entries(target);
-            draw_status_layout(f, area, msg_spans, entries, app);
+            (msg_spans, entries)
         }
         Mode::UpdateConfirm => {
             let msg_spans = vec![Span::styled(
@@ -733,7 +744,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 spans.push(Span::styled("]", muted_style()));
                 entries.push(StatusEntry::new(spans));
             }
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
+            (Some(msg_spans), entries)
         }
         Mode::RepoJump => {
             let msg_spans = vec![
@@ -754,9 +765,118 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 spans.push(Span::styled("]", muted_style()));
                 entries.push(StatusEntry::new(spans));
             }
-            draw_status_layout(f, area, Some(msg_spans), entries, app);
+            (Some(msg_spans), entries)
+        }
+        _ => return None,
+    };
+    Some(comps)
+}
+
+pub fn calculate_status_rows(app: &App, width: u16) -> u16 {
+    if !app.status_expanded {
+        return 1;
+    }
+
+    let is_merging =
+        if let Some(crate::repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
+            crate::repo::is_merging(resolved)
+        } else if let Some(selected_item) = app.get_selected_item() {
+            let path = crate::repo::expand_tilde(selected_item);
+            crate::repo::is_merging(&path)
+        } else {
+            false
+        };
+
+    let (message_spans, entries) = if app.loading_repo_path.is_some() {
+        let msg_spans = vec![Span::styled(
+            "Loading Repository...  ",
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+        )];
+        let entries_data = [("Cancel", "Esc")];
+        let mut entries = Vec::new();
+        for (i, (label, key)) in entries_data.iter().enumerate() {
+            let mut spans = Vec::new();
+            if i > 0 {
+                spans.push(Span::styled(" ", muted_style()));
+            }
+            spans.push(Span::raw((*label).to_string()));
+            spans.push(Span::raw(" "));
+            spans.push(Span::styled("[", muted_style()));
+            spans.push(Span::styled((*key).to_string(), accent_style()));
+            spans.push(Span::styled("]", muted_style()));
+            entries.push(StatusEntry::new(spans));
+        }
+        (Some(msg_spans), entries)
+    } else if let Some(comps) = get_status_layout_components(app) {
+        comps
+    } else {
+        return 1;
+    };
+
+    let left_width = width.saturating_sub(28) as usize;
+    if left_width == 0 {
+        return 1;
+    }
+
+    let mut tokens: Vec<String> = Vec::new();
+
+    let badge = get_mode_badge(&app.mode);
+    let mode_sep = if app.config.compatibility_mode { " > " } else { " ⟩ " };
+    tokens.push(format!("{}{}", badge.content, mode_sep));
+
+    if is_merging {
+        tokens.push("[ ⚡ MERGING ] ".to_string());
+    }
+
+    if let Some(msg) = message_spans {
+        let msg_text = msg.iter().map(|s| s.content.as_ref()).collect::<Vec<_>>().join("");
+        for word in msg_text.split_whitespace() {
+            tokens.push(word.to_string());
         }
     }
+
+    let separator = if app.config.compatibility_mode { " > " } else { " ⟩ " };
+    let mut first = true;
+    for entry in entries {
+        if !first {
+            tokens.push(separator.to_string());
+        }
+        first = false;
+
+        let mut entry_str = String::new();
+        let mut start = 0;
+        if !entry.spans.is_empty() && entry.spans[0].content.trim().is_empty() {
+            start = 1;
+        }
+        for span in &entry.spans[start..] {
+            entry_str.push_str(&span.content);
+        }
+        tokens.push(entry_str);
+    }
+
+    tokens.push(" Less [.]".to_string());
+
+    let mut rows = 1;
+    let mut current_line_len = 0;
+
+    for (i, token) in tokens.iter().enumerate() {
+        let token_len = token.chars().count();
+        if i == 0 {
+            current_line_len = token_len;
+        } else {
+            let has_space_prefix = token.starts_with(' ');
+            let space_needed = if has_space_prefix { 0 } else { 1 };
+
+            if current_line_len + space_needed + token_len > left_width {
+                rows += 1;
+                current_line_len = token_len;
+            } else {
+                current_line_len += space_needed + token_len;
+            }
+        }
+    }
+
+    rows as u16
 }
 
 pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {

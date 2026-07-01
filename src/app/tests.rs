@@ -4005,6 +4005,22 @@ fn test_multi_select_toggle() {
 }
 
 #[test]
+fn test_dynamic_status_height() {
+    let config = Config::default();
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+
+    assert_eq!(app.status_height(), 1);
+
+    app.status_expanded = true;
+
+    let rows_small = crate::components::cmd_bar::calculate_status_rows(&app, 40);
+    let rows_large = crate::components::cmd_bar::calculate_status_rows(&app, 200);
+
+    assert!(rows_small > rows_large);
+    assert!(rows_small >= 2);
+}
+
+#[test]
 fn test_cherry_pick_destination_branches() {
     let config = Config {
         items: vec![],

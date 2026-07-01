@@ -13,7 +13,16 @@ impl App {
     }
 
     pub fn status_height(&self) -> u16 {
-        if self.status_expanded { 3 } else { 1 }
+        if self.status_expanded {
+            let width = if let Ok(size) = crossterm::terminal::size() {
+                size.0
+            } else {
+                80
+            };
+            crate::components::cmd_bar::calculate_status_rows(self, width)
+        } else {
+            1
+        }
     }
 
     pub fn toggle_status_expanded(&mut self) {
