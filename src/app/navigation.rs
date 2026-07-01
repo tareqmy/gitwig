@@ -3101,15 +3101,18 @@ impl App {
         matches.into_iter().map(|(_, idx, path, name)| (idx, path, name)).collect()
     }
 
-    pub fn jump_to_repo(&mut self, original_index: usize) {
+    pub fn jump_to_repo(&mut self, original_index: usize, visible_count: usize) {
         if let Some(path) = self.config.items.get(original_index) {
-            let label = self
-                .config
-                .labels
-                .get(path)
-                .and_then(|lbls| lbls.first().cloned())
-                .unwrap_or_else(|| "Unlabeled".to_string());
-            self.collapsed_groups.remove(&label);
+            if let Some(lbls) = self.config.labels.get(path) {
+                for label in lbls {
+                    self.collapsed_groups.remove(label);
+                }
+            } else {
+                self.collapsed_groups.remove("Unlabeled");
+            }
+            // Starred and Recent groups should be expanded too
+            self.collapsed_groups.remove("Starred");
+            self.collapsed_groups.remove("Recent");
 
             let rows = self.get_home_rows();
             if let Some(pos) = rows.iter().position(|r| match r {
@@ -3117,6 +3120,12 @@ impl App {
                 _ => false,
             }) {
                 self.selected_index = pos;
+
+                if self.selected_index < self.scroll_top {
+                    self.scroll_top = self.selected_index;
+                } else if self.selected_index >= self.scroll_top + visible_count {
+                    self.scroll_top = self.selected_index.saturating_sub(visible_count.saturating_sub(1));
+                }
             }
         }
         self.input_buffer.clear();

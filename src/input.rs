@@ -351,7 +351,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Enter => {
                     if !matches.is_empty() && app.repo_jump_selection < matches.len() {
                         let original_index = matches[app.repo_jump_selection].0;
-                        app.jump_to_repo(original_index);
+                        app.jump_to_repo(original_index, visible_count);
                     } else {
                         app.input_buffer.clear();
                         app.mode = Mode::Normal;
