@@ -318,6 +318,7 @@ pub struct App {
     /// Scroll offset for the help overlays.
     pub help_scroll: usize,
     pub legend_scroll: usize,
+    pub collapsed_groups: std::collections::HashSet<String>,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
     pub detail_areas: DetailAreas,
     /// Main panel item bounding boxes recorded after each draw, used for mouse hit-testing.
@@ -511,6 +512,7 @@ enum LogsNavDirection {
 mod actions;
 mod git;
 mod navigation;
+pub use navigation::HomeRow;
 #[cfg(test)]
 mod tests;
 mod workspace;
@@ -993,6 +995,7 @@ impl App {
             commit_input_scroll: 0,
             help_scroll: 0,
             legend_scroll: 0,
+            collapsed_groups: std::collections::HashSet::new(),
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
 

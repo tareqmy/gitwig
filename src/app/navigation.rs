@@ -1,5 +1,11 @@
 use super::*;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum HomeRow {
+    GroupHeader { name: String, count: usize, collapsed: bool },
+    Repo { actual_index: usize, path: String, primary_label: String },
+}
+
 impl App {
     pub fn set_error(&mut self, msg: String) {
         crate::debug_log::error(&msg);
@@ -12,6 +18,71 @@ impl App {
 
     pub fn toggle_status_expanded(&mut self) {
         self.status_expanded = !self.status_expanded;
+    }
+
+    pub fn get_home_rows(&self) -> Vec<HomeRow> {
+        let filtered = self.get_filtered_items();
+        let has_any_labels = filtered.iter().any(|(_, item)| {
+            self.config
+                .labels
+                .get(*item)
+                .is_some_and(|lbls| !lbls.is_empty())
+        });
+
+        if !has_any_labels {
+            return filtered
+                .into_iter()
+                .map(|(actual_index, path)| HomeRow::Repo {
+                    actual_index,
+                    path: path.clone(),
+                    primary_label: String::new(),
+                })
+                .collect();
+        }
+
+        let mut groups: std::collections::HashMap<String, Vec<(usize, &String)>> =
+            std::collections::HashMap::new();
+        for (actual_index, item) in filtered {
+            let label = self
+                .config
+                .labels
+                .get(item)
+                .and_then(|lbls| lbls.first().cloned())
+                .unwrap_or_else(|| "Unlabeled".to_string());
+            groups.entry(label).or_default().push((actual_index, item));
+        }
+
+        let mut group_names: Vec<String> = groups.keys().cloned().collect();
+        group_names.sort_by(|a, b| {
+            if a == "Unlabeled" {
+                std::cmp::Ordering::Greater
+            } else if b == "Unlabeled" {
+                std::cmp::Ordering::Less
+            } else {
+                a.cmp(b)
+            }
+        });
+
+        let mut rows = Vec::new();
+        for name in group_names {
+            let repos = &groups[&name];
+            let collapsed = self.collapsed_groups.contains(&name);
+            rows.push(HomeRow::GroupHeader {
+                name: name.clone(),
+                count: repos.len(),
+                collapsed,
+            });
+            if !collapsed {
+                for &(actual_index, path) in repos {
+                    rows.push(HomeRow::Repo {
+                        actual_index,
+                        path: path.clone(),
+                        primary_label: name.clone(),
+                    });
+                }
+            }
+        }
+        rows
     }
 
     pub fn get_filtered_items(&self) -> Vec<(usize, &String)> {
@@ -42,16 +113,16 @@ impl App {
     }
 
     pub fn get_items_len(&self) -> usize {
-        if self.repo_search_query.is_some() {
-            self.get_filtered_items().len()
-        } else {
-            self.config.items.len()
-        }
+        self.get_home_rows().len()
     }
 
     pub fn get_selected_item(&self) -> Option<&String> {
-        let orig_idx = self.get_selected_item_index()?;
-        self.config.items.get(orig_idx)
+        let rows = self.get_home_rows();
+        let row = rows.get(self.selected_index)?;
+        match row {
+            HomeRow::Repo { actual_index, .. } => self.config.items.get(*actual_index),
+            HomeRow::GroupHeader { .. } => None,
+        }
     }
 
     pub fn get_current_page_size(&self) -> usize {
@@ -76,7 +147,12 @@ impl App {
     }
 
     pub fn get_selected_item_index(&self) -> Option<usize> {
-        self.get_filtered_items().get(self.selected_index).map(|(orig_idx, _)| *orig_idx)
+        let rows = self.get_home_rows();
+        let row = rows.get(self.selected_index)?;
+        match row {
+            HomeRow::Repo { actual_index, .. } => Some(*actual_index),
+            HomeRow::GroupHeader { .. } => None,
+        }
     }
 
     /// Ensure `selected_index` is a valid index into `config.items` (or filtered items).

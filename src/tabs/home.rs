@@ -9,6 +9,40 @@ impl HomeTab {
         match &app.mode {
             Mode::Normal => {
                 use crate::keybindings::Action;
+                let rows = app.get_home_rows();
+                if let Some(crate::app::HomeRow::GroupHeader { name, collapsed, .. }) =
+                    rows.get(app.selected_index)
+                {
+                    let name = name.clone();
+                    let collapsed = *collapsed;
+                    match code {
+                        KeyCode::Left => {
+                            if !collapsed {
+                                app.collapsed_groups.insert(name);
+                                app.clamp_selection();
+                            }
+                            return true;
+                        }
+                        KeyCode::Right => {
+                            if collapsed {
+                                app.collapsed_groups.remove(&name);
+                                app.clamp_selection();
+                            }
+                            return true;
+                        }
+                        KeyCode::Char(' ') | KeyCode::Enter => {
+                            if collapsed {
+                                app.collapsed_groups.remove(&name);
+                            } else {
+                                app.collapsed_groups.insert(name);
+                            }
+                            app.clamp_selection();
+                            return true;
+                        }
+                        _ => {}
+                    }
+                }
+
                 if app.repo_search_query.is_some() && code == KeyCode::Esc {
                     app.repo_search_query = None;
                     app.selected_index = 0;
