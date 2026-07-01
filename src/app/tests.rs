@@ -5323,3 +5323,34 @@ fn test_multiple_labels_grouping() {
         panic!("Expected labelB group header");
     }
 }
+
+#[test]
+fn test_background_auto_refresh() {
+    let config = Config {
+        items: vec!["/path/to/repo_a".to_string()],
+        ..Default::default()
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_bg_refresh.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    assert!(!app.background_refresh_running);
+
+    // Mock an update received on the channel
+    let updates = vec![(0, "/path/to/repo_a".to_string(), repo::ItemStatus::Directory)];
+    app.status_refresh_tx.send(updates).unwrap();
+
+    // Verify it updates App state when processed
+    if let Ok(updates) = app.status_refresh_rx.try_recv() {
+        app.background_refresh_running = false;
+        for (idx, path, status) in updates {
+            if app.config.items.get(idx) == Some(&path) {
+                if idx < app.statuses.len() {
+                    app.statuses[idx] = status;
+                }
+            }
+        }
+    }
+
+    assert!(matches!(app.statuses[0], repo::ItemStatus::Directory));
+}

@@ -487,6 +487,10 @@ pub struct App {
     pub submodule_delete_target: Option<String>,
     pub cpu_tracker: std::sync::Mutex<Option<(f64, std::time::Instant, f64, f64)>>,
     pub watcher: Option<notify::RecommendedWatcher>,
+    pub status_refresh_tx: std::sync::mpsc::Sender<Vec<(usize, String, ItemStatus)>>,
+    pub status_refresh_rx: std::sync::mpsc::Receiver<Vec<(usize, String, ItemStatus)>>,
+    pub last_background_refresh: std::time::Instant,
+    pub background_refresh_running: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -962,6 +966,7 @@ impl App {
         let (tx, rx) = std::sync::mpsc::channel();
         let (detail_tx, detail_rx) = std::sync::mpsc::channel();
         let (tab_tx, tab_rx) = std::sync::mpsc::channel();
+        let (status_refresh_tx, status_refresh_rx) = std::sync::mpsc::channel();
         let queue = crate::queue::Queue::default();
         let mut app = Self {
             queue: queue.clone(),
@@ -1100,6 +1105,10 @@ impl App {
             submodule_delete_target: None,
             cpu_tracker: std::sync::Mutex::new(None),
             watcher: None,
+            status_refresh_tx,
+            status_refresh_rx,
+            last_background_refresh: std::time::Instant::now(),
+            background_refresh_running: false,
         };
 
         if app.config.sort_by != SortOrder::Custom {
@@ -1183,6 +1192,24 @@ where
     <B as ratatui::backend::Backend>::Error: 'static,
 {
     loop {
+        // Trigger background status auto-refresh if 10 seconds have elapsed
+        if !app.background_refresh_running
+            && !app.config.items.is_empty()
+            && app.last_background_refresh.elapsed() >= std::time::Duration::from_secs(10)
+        {
+            app.background_refresh_running = true;
+            app.last_background_refresh = std::time::Instant::now();
+            let paths = app.config.items.clone();
+            let tx = app.status_refresh_tx.clone();
+            std::thread::spawn(move || {
+                let mut updates = Vec::new();
+                for (idx, path) in paths.into_iter().enumerate() {
+                    let status = repo::inspect_summary(&path);
+                    updates.push((idx, path, status));
+                }
+                let _ = tx.send(updates);
+            });
+        }
         while let Ok(raw_msg) = app.rx.try_recv() {
             let (repo_path, msg) = if let Some(pos) = raw_msg.find("|||") {
                 (Some(raw_msg[..pos].to_string()), raw_msg[pos + 3..].to_string())
@@ -1336,6 +1363,17 @@ where
                 app.apply_detail_snapshot(detail);
                 if is_currently_loading {
                     app.loading_repo_path = None;
+                }
+            }
+        }
+
+        while let Ok(updates) = app.status_refresh_rx.try_recv() {
+            app.background_refresh_running = false;
+            for (idx, path, status) in updates {
+                if app.config.items.get(idx) == Some(&path) {
+                    if idx < app.statuses.len() {
+                        app.statuses[idx] = status;
+                    }
                 }
             }
         }
