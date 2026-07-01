@@ -2039,11 +2039,11 @@ impl App {
                 let sha_path = temp_dir.join(format!("gitwig_install_{}.sh.sha256", unique_id));
 
                 let script_url = format!(
-                    "https://raw.githubusercontent.com/tareqmy/gitwig/{}/install.sh",
+                    "https://raw.githubusercontent.com/tareqmy/gitwig/{}/scripts/install.sh",
                     target_ref
                 );
                 let sha_url = format!(
-                    "https://raw.githubusercontent.com/tareqmy/gitwig/{}/install.sh.sha256",
+                    "https://raw.githubusercontent.com/tareqmy/gitwig/{}/scripts/install.sh.sha256",
                     target_ref
                 );
 

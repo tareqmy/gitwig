@@ -1,6 +1,6 @@
 # Gitwig Installer for Windows
 # Supported Platforms: Windows (x86_64)
-# Usage: irm https://raw.githubusercontent.com/tareqmy/gitwig/master/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/tareqmy/gitwig/master/scripts/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 

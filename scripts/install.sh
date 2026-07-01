@@ -2,7 +2,7 @@
 
 # Gitwig Installer Script
 # Supported Platforms: macOS, Linux (x86_64, arm64)
-# Usage: curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/scripts/install.sh | sh
 
 set -eu
 
