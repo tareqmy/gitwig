@@ -4438,8 +4438,7 @@ fn test_files_tab_editor_shortcut() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
 
-    let mut config = Config::default();
-    config.items = vec![];
+    let config = Config { items: vec![], ..Default::default() };
     let mut app = App::new(config, std::path::PathBuf::from("config.toml"));
 
     app.detail_focus = DetailSection::Files;

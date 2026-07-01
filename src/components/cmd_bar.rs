@@ -836,6 +836,11 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                     v.push(("Full Screen", "→"));
                 }
             }
+            if let Some(item) = app.file_tree.visible_files.get(app.file_tree.file_list_selection) {
+                if !item.is_dir {
+                    v.push(("Open in Editor", "e/o"));
+                }
+            }
             v.push(("Resync", "R"));
             v.push(("Help", "?"));
             v

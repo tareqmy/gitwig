@@ -1124,6 +1124,43 @@ mod tests {
         assert!(entry_labels_f1.iter().any(|label| label.contains("Fuzzy Find [f]")));
         assert!(entry_labels_f1.iter().any(|label| label.contains("Expand/Collapse [←/→]")));
         assert!(entry_labels_f1.iter().any(|label| label.contains("History [⇧H]")));
+        assert!(!entry_labels_f1.iter().any(|label| label.contains("Open in Editor [e/o]")));
+
+        // Add a file tree item that is a directory
+        app.file_tree.visible_files.push(crate::app::FileTreeItem {
+            name: "src".to_string(),
+            full_path: "src".to_string(),
+            is_dir: true,
+            depth: 0,
+            is_expanded: true,
+        });
+        app.file_tree.file_list_selection = 0;
+        let (_, entries_f1_dir) = detail_dismiss_entries(&app);
+        let entry_labels_f1_dir: Vec<String> = entries_f1_dir
+            .iter()
+            .map(|entry| {
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
+            })
+            .collect();
+        assert!(!entry_labels_f1_dir.iter().any(|label| label.contains("Open in Editor [e/o]")));
+
+        // Add a file tree item that is a file
+        app.file_tree.visible_files.push(crate::app::FileTreeItem {
+            name: "main.rs".to_string(),
+            full_path: "src/main.rs".to_string(),
+            is_dir: false,
+            depth: 1,
+            is_expanded: false,
+        });
+        app.file_tree.file_list_selection = 1;
+        let (_, entries_f1_file) = detail_dismiss_entries(&app);
+        let entry_labels_f1_file: Vec<String> = entries_f1_file
+            .iter()
+            .map(|entry| {
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
+            })
+            .collect();
+        assert!(entry_labels_f1_file.iter().any(|label| label.contains("Open in Editor [e/o]")));
 
         // Tab 1: Files - FileContent Focus
         app.detail_focus = DetailSection::FileContent;
@@ -1138,6 +1175,7 @@ mod tests {
         assert!(!entry_labels_f2.iter().any(|label| label.contains("Expand/Collapse [←/→]")));
         assert!(!entry_labels_f2.iter().any(|label| label.contains("History [⇧H]")));
         assert!(entry_labels_f2.iter().any(|label| label.contains("Full Screen [→]")));
+        assert!(entry_labels_f2.iter().any(|label| label.contains("Open in Editor [e/o]")));
 
         app.inspect_full_diff = true;
         let (_, entries_f2_full) = detail_dismiss_entries(&app);
