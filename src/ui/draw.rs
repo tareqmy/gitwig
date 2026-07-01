@@ -782,6 +782,20 @@ fn repo_indicator_line(app: &App, summary: &RepoSummary) -> Line<'static> {
         spans.push(Span::styled("clean", muted_style()));
         return Line::from(spans);
     }
+    let ahead_style = if summary.ahead <= 3 {
+        Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)
+    } else if summary.ahead <= 10 {
+        Style::default().fg(WARNING()).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)
+    };
+
+    let behind_style = if summary.behind <= 5 {
+        Style::default().fg(WARNING()).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)
+    };
+
     // Each (count, symbol, style) is rendered only if count > 0. The
     // ordering matches the Detail view's worktree section for consistency.
     let parts = [
@@ -789,8 +803,8 @@ fn repo_indicator_line(app: &App, summary: &RepoSummary) -> Line<'static> {
         (summary.modified, "!", Style::default().fg(WARNING())),
         (summary.untracked, "?", muted_style()),
         (summary.conflicted, app.sym("action").trim(), Style::default().fg(DANGER())),
-        (summary.ahead, app.sym("up"), primary_style()),
-        (summary.behind, app.sym("down"), Style::default().fg(WARNING())),
+        (summary.ahead, app.sym("up"), ahead_style),
+        (summary.behind, app.sym("down"), behind_style),
     ];
     for (count, symbol, style) in parts {
         if count > 0 {
@@ -1515,5 +1529,76 @@ mod tests {
         app.input_buffer = "nano".to_string();
         let val_editor_edit = crate::popups::settings::get_val_str(&app, 56);
         assert_eq!(val_editor_edit, "nano█");
+    }
+
+    #[test]
+    fn test_repo_indicator_line_divergence() {
+        let config = Config::default();
+        let app = App::new(config, PathBuf::from("dummy.toml"));
+
+        // Case 1: Ahead <= 3 (Green)
+        let summary1 = RepoSummary {
+            ahead: 2,
+            behind: 0,
+            staged: 0,
+            modified: 0,
+            untracked: 0,
+            conflicted: 0,
+            branch: None,
+            state: RepoState::Clean,
+            last_commit_time: None,
+        };
+        let line1 = repo_indicator_line(&app, &summary1);
+        let ahead_span = line1.spans.iter().find(|s| s.content.contains(app.sym("up"))).unwrap();
+        assert_eq!(ahead_span.style.fg, Some(SUCCESS()));
+
+        // Case 2: Ahead <= 10 (Yellow)
+        let summary2 = RepoSummary {
+            ahead: 7,
+            behind: 0,
+            staged: 0,
+            modified: 0,
+            untracked: 0,
+            conflicted: 0,
+            branch: None,
+            state: RepoState::Clean,
+            last_commit_time: None,
+        };
+        let line2 = repo_indicator_line(&app, &summary2);
+        let ahead_span2 = line2.spans.iter().find(|s| s.content.contains(app.sym("up"))).unwrap();
+        assert_eq!(ahead_span2.style.fg, Some(WARNING()));
+
+        // Case 3: Behind <= 5 (Yellow)
+        let summary3 = RepoSummary {
+            ahead: 0,
+            behind: 3,
+            staged: 0,
+            modified: 0,
+            untracked: 0,
+            conflicted: 0,
+            branch: None,
+            state: RepoState::Clean,
+            last_commit_time: None,
+        };
+        let line3 = repo_indicator_line(&app, &summary3);
+        let behind_span = line3.spans.iter().find(|s| s.content.contains(app.sym("down"))).unwrap();
+        assert_eq!(behind_span.style.fg, Some(WARNING()));
+
+        // Case 4: Behind > 5 (Red)
+        let summary4 = RepoSummary {
+            ahead: 0,
+            behind: 8,
+            staged: 0,
+            modified: 0,
+            untracked: 0,
+            conflicted: 0,
+            branch: None,
+            state: RepoState::Clean,
+            last_commit_time: None,
+        };
+        let line4 = repo_indicator_line(&app, &summary4);
+        let behind_span2 =
+            line4.spans.iter().find(|s| s.content.contains(app.sym("down"))).unwrap();
+        assert_eq!(behind_span2.style.fg, Some(DANGER()));
     }
 }
