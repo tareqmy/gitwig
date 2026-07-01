@@ -34,6 +34,7 @@ pub enum Action {
     HomeSearchRepo,
     HomeOpenDetail,
     HomeCheckUpdate,
+    HomeToggleCompactView,
 
     // Detail / Workspace Tab Navigation
     CloseDetail,
@@ -98,6 +99,7 @@ impl Action {
             52 => Some(Action::GoToTab7),
             53 => Some(Action::GoToTab8),
             54 => Some(Action::GoToTab9),
+            55 => Some(Action::HomeToggleCompactView),
             57 => Some(Action::HomeCheckUpdate),
             _ => None,
         }
@@ -136,6 +138,7 @@ pub struct HomeKeybindings {
     pub search_repo: Option<Vec<String>>,
     pub open_detail: Option<Vec<String>>,
     pub check_update: Option<Vec<String>>,
+    pub toggle_compact_view: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -280,7 +283,7 @@ impl KeybindingsConfig {
                 delete_repo: Some(vec!["D".to_string()]),
                 open_debug_logs: Some(vec!["d".to_string()]),
                 edit_labels: Some(vec!["l".to_string()]),
-                about: Some(vec!["v".to_string(), "V".to_string()]),
+                about: Some(vec!["V".to_string()]),
                 refresh: Some(vec!["R".to_string()]),
                 cycle_sort: Some(vec!["o".to_string()]),
                 toggle_sort_reverse: Some(vec!["O".to_string()]),
@@ -291,6 +294,7 @@ impl KeybindingsConfig {
                 search_repo: Some(vec!["f".to_string()]),
                 open_detail: Some(vec!["enter".to_string(), "right".to_string()]),
                 check_update: Some(vec!["u".to_string()]),
+                toggle_compact_view: Some(vec!["v".to_string()]),
             },
             navigation: NavigationKeybindings {
                 close_detail: Some(vec!["esc".to_string(), "q".to_string(), "Q".to_string()]),
@@ -349,6 +353,7 @@ impl KeybindingsConfig {
             Action::HomeSearchRepo => self.home.search_repo.as_ref(),
             Action::HomeOpenDetail => self.home.open_detail.as_ref(),
             Action::HomeCheckUpdate => self.home.check_update.as_ref(),
+            Action::HomeToggleCompactView => self.home.toggle_compact_view.as_ref(),
 
             // Navigation
             Action::CloseDetail => self.navigation.close_detail.as_ref(),
@@ -428,6 +433,8 @@ impl KeybindingsConfig {
             Action::HomeOpenGitApp,
             Action::HomeSearchRepo,
             Action::HomeOpenDetail,
+            Action::HomeCheckUpdate,
+            Action::HomeToggleCompactView,
         ];
 
         for action in &home_actions {
@@ -478,6 +485,7 @@ impl KeybindingsConfig {
             Action::HomeSearchRepo => self.home.search_repo = keys_opt,
             Action::HomeOpenDetail => self.home.open_detail = keys_opt,
             Action::HomeCheckUpdate => self.home.check_update = keys_opt,
+            Action::HomeToggleCompactView => self.home.toggle_compact_view = keys_opt,
             Action::CloseDetail => self.navigation.close_detail = keys_opt,
             Action::DetailHelp => self.navigation.detail_help = keys_opt,
             Action::CycleFocusForward => self.navigation.cycle_focus_forward = keys_opt,

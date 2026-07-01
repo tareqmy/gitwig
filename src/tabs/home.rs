@@ -45,6 +45,9 @@ impl HomeTab {
                     app.open_help();
                 } else if app.is_bound(Action::HomeAbout, key) {
                     app.open_about();
+                } else if app.is_bound(Action::HomeToggleCompactView, key) {
+                    app.config.compact_view = !app.config.compact_view;
+                    let _ = crate::config::save_config(&app.config, &app.config_path);
                 } else if app.is_bound(Action::HomeRefresh, key) {
                     app.refresh_selected_status();
                 } else if app.is_bound(Action::HomeCycleSort, key) {

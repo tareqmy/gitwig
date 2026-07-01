@@ -1770,7 +1770,7 @@ where
 
         let available_height = inner_area.height.saturating_sub(app.status_height());
         let visible_count =
-            (available_height / ITEM_HEIGHT).min(app.get_items_len() as u16) as usize;
+            (available_height / app.item_height()).min(app.get_items_len() as u16) as usize;
         app.clamp_scroll(visible_count);
         app.clamp_help_scroll(area.height as usize);
 
@@ -1891,6 +1891,10 @@ fn copy_to_clipboard(text: &str) -> Result<(), String> {
 }
 
 impl App {
+    pub fn item_height(&self) -> u16 {
+        if self.config.compact_view { 1 } else { ITEM_HEIGHT }
+    }
+
     pub fn increment_implicit_network(&mut self) {
         self.implicit_network_count = self.implicit_network_count.saturating_add(1);
     }

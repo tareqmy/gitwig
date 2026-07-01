@@ -13,7 +13,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Padding, Paragraph};
 
-use crate::app::{App, ITEM_HEIGHT, Mode};
+use crate::app::{App, Mode};
 use crate::components::cmd_bar::StatusEntry;
 use crate::config::SortOrder;
 use crate::repo::{ItemStatus, RepoState, RepoSummary, format_relative_time};
@@ -234,7 +234,7 @@ pub fn draw(
             draw_empty_state(f, content_area);
         }
     } else {
-        let list_chunks = item_chunks(content_area, visible_count);
+        let list_chunks = item_chunks(content_area, visible_count, app);
         *main_areas = list_chunks.clone();
         draw_items(f, app, &list_chunks);
     }
@@ -357,8 +357,8 @@ fn content_and_status_chunks(inner_area: Rect, status_height: u16) -> (Rect, Rec
 
 /// Within the content area, split into N item rows + a flex spacer so the
 /// list is top-aligned and never pushes against the status bar.
-fn item_chunks(content_area: Rect, visible_count: usize) -> Vec<Rect> {
-    let mut constraints = vec![Constraint::Length(ITEM_HEIGHT); visible_count];
+fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect> {
+    let mut constraints = vec![Constraint::Length(app.item_height()); visible_count];
     constraints.push(Constraint::Min(0));
 
     let chunks: Vec<Rect> = Layout::default()
@@ -403,30 +403,6 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
             (UNSELECTED_INDENT, Style::default(), Style::default())
         };
 
-        let border_type = if is_selected { BorderType::LightDoubleDashed } else { CARD_BORDER() };
-
-        // Render the border block; split its inner rect into two rows:
-        //   row 0 — item path (left) + status indicator (right)
-        //   row 1 — branch name (left-aligned, muted)
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_type(border_type)
-            .border_style(border_style)
-            .padding(Padding::horizontal(1));
-        let inner = block.inner(chunks[i]);
-        f.render_widget(block, chunks[i]);
-
-        let rows = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(1), Constraint::Min(0)])
-            .split(inner);
-
-        // Row 0: repo name + pin sign
-        let name_cols = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Min(0), Constraint::Length(4)])
-            .split(rows[0]);
-
         let repo_name = std::path::Path::new(item)
             .file_name()
             .and_then(|s| s.to_str())
@@ -436,91 +412,269 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
         let status = app.statuses.get(actual_index).unwrap_or(&fallback);
         let is_git = matches!(status, ItemStatus::GitRepo(_));
 
-        let mut spans = vec![Span::styled(mark, mark_style)];
-        if is_git {
-            spans.push(Span::styled(
-                app.sym("git_repo"),
-                muted_style().add_modifier(Modifier::BOLD),
-            ));
-        }
-        spans.push(Span::styled(repo_name, text_style));
-        if let ItemStatus::GitRepo(Some(summary)) = status {
-            let (state_str, state_style) = match summary.state {
-                RepoState::Merge => {
-                    (" ⚠ MERGE_HEAD", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD))
-                }
-                RepoState::Rebase => {
-                    (" 🚧 REBASING", Style::default().fg(WARNING()).add_modifier(Modifier::BOLD))
-                }
-                RepoState::CherryPick => {
-                    (" ⚡ CHERRY-PICK", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
-                }
-                RepoState::Revert => {
-                    (" ⚡ REVERTING", Style::default().fg(WARNING()).add_modifier(Modifier::BOLD))
-                }
-                RepoState::Bisect => (
-                    " 🔍 BISECTING",
-                    Style::default()
-                        .fg(ratatui::style::Color::Magenta)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                RepoState::ApplyMailbox => (
-                    " 📬 APPLYING",
-                    Style::default().fg(ratatui::style::Color::Cyan).add_modifier(Modifier::BOLD),
-                ),
-                RepoState::Clean => (" ✓ CLEAN", muted_style()),
+        if app.config.compact_view {
+            let row_style = if is_selected {
+                Style::default().bg(ACCENT()).fg(ratatui::style::Color::Black)
+            } else if is_pinned {
+                Style::default().fg(WARNING())
+            } else {
+                Style::default()
             };
-            spans.push(Span::styled(state_str, state_style));
-        }
-        if let Some(lbls) = app.config.labels.get(item) {
-            for lbl in lbls {
-                spans.push(Span::raw(" "));
-                spans.push(Span::styled(
-                    format!("[{}]", lbl),
-                    Style::default().fg(ACCENT()).add_modifier(Modifier::DIM),
+
+            // Draw selection background block
+            if is_selected {
+                f.render_widget(Block::default().style(row_style), chunks[i]);
+            }
+
+            let cols = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Min(0),
+                    Constraint::Length(28),
+                    Constraint::Length(STATUS_ZONE_WIDTH),
+                ])
+                .split(chunks[i]);
+
+            // 1. Repo name and labels
+            let mut left_spans =
+                vec![Span::styled(mark, if is_selected { row_style } else { mark_style })];
+            if is_git {
+                left_spans.push(Span::styled(
+                    app.sym("git_repo"),
+                    if is_selected {
+                        row_style
+                    } else {
+                        muted_style().add_modifier(Modifier::BOLD)
+                    },
                 ));
             }
-        }
-        let name_line = Line::from(spans);
-        f.render_widget(Paragraph::new(name_line), name_cols[0]);
-
-        if is_pinned {
-            let pin_line =
-                Line::from(Span::styled(app.sym("pinned").trim(), Style::default().fg(WARNING())))
-                    .alignment(Alignment::Right);
-            f.render_widget(Paragraph::new(pin_line), name_cols[1]);
-        }
-
-        // Row 1: Left column (branch name) and Right column (status section)
-        let row1_cols = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Min(0), Constraint::Length(STATUS_ZONE_WIDTH)])
-            .split(rows[1]);
-
-        let branch_line = match status {
-            ItemStatus::GitRepo(Some(s)) => {
-                if let Some(b) = &s.branch {
-                    let mut parts = vec![
-                        Span::raw(UNSELECTED_INDENT),
-                        Span::styled(format!("{} ", app.sym("branch")), muted_style()),
-                        Span::styled(b.clone(), Style::default().fg(ACCENT())),
-                    ];
-                    if let Some(time) = s.last_commit_time {
-                        parts.push(Span::raw(" ("));
-                        parts.push(Span::styled(format_relative_time(time), muted_style()));
-                        parts.push(Span::raw(")"));
-                    }
-                    Line::from(parts)
-                } else {
-                    Line::from("")
+            left_spans.push(Span::styled(
+                repo_name,
+                if is_selected { row_style.add_modifier(Modifier::BOLD) } else { text_style },
+            ));
+            if let ItemStatus::GitRepo(Some(summary)) = status {
+                let (state_str, state_style) = match summary.state {
+                    RepoState::Merge => (
+                        " ⚠ MERGE_HEAD",
+                        Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+                    ),
+                    RepoState::Rebase => (
+                        " 🚧 REBASING",
+                        Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
+                    ),
+                    RepoState::CherryPick => (
+                        " ⚡ CHERRY-PICK",
+                        Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+                    ),
+                    RepoState::Revert => (
+                        " ⚡ REVERTING",
+                        Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
+                    ),
+                    RepoState::Bisect => (
+                        " 🔍 BISECTING",
+                        Style::default()
+                            .fg(ratatui::style::Color::Magenta)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    RepoState::ApplyMailbox => (
+                        " 📬 APPLYING",
+                        Style::default()
+                            .fg(ratatui::style::Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    RepoState::Clean => (" ✓ CLEAN", muted_style()),
+                };
+                left_spans.push(Span::styled(
+                    state_str,
+                    if is_selected { row_style } else { state_style },
+                ));
+            }
+            if let Some(lbls) = app.config.labels.get(item) {
+                for lbl in lbls {
+                    left_spans.push(Span::raw(" "));
+                    left_spans.push(Span::styled(
+                        format!("[{}]", lbl),
+                        if is_selected {
+                            row_style
+                        } else {
+                            Style::default().fg(ACCENT()).add_modifier(Modifier::DIM)
+                        },
+                    ));
                 }
             }
-            _ => Line::from(""),
-        };
-        f.render_widget(Paragraph::new(branch_line), row1_cols[0]);
+            if is_pinned {
+                left_spans.push(Span::raw(" "));
+                left_spans.push(Span::styled(
+                    app.sym("pinned").trim(),
+                    if is_selected { row_style } else { Style::default().fg(WARNING()) },
+                ));
+            }
+            f.render_widget(Paragraph::new(Line::from(left_spans)), cols[0]);
 
-        let status_line = status_indicator_line(app, status).alignment(Alignment::Right);
-        f.render_widget(Paragraph::new(status_line), row1_cols[1]);
+            // 2. Branch and relative time
+            let branch_line = match status {
+                ItemStatus::GitRepo(Some(s)) => {
+                    if let Some(b) = &s.branch {
+                        let mut parts = vec![
+                            Span::styled(
+                                format!("{} ", app.sym("branch")),
+                                if is_selected { row_style } else { muted_style() },
+                            ),
+                            Span::styled(
+                                b.clone(),
+                                if is_selected {
+                                    row_style.add_modifier(Modifier::BOLD)
+                                } else {
+                                    Style::default().fg(ACCENT())
+                                },
+                            ),
+                        ];
+                        if let Some(time) = s.last_commit_time {
+                            parts.push(Span::styled(
+                                format!(" ({})", format_relative_time(time)),
+                                if is_selected { row_style } else { muted_style() },
+                            ));
+                        }
+                        Line::from(parts)
+                    } else {
+                        Line::from("")
+                    }
+                }
+                _ => Line::from(""),
+            };
+            f.render_widget(Paragraph::new(branch_line), cols[1]);
+
+            // 3. Status indicator line
+            let status_line = status_indicator_line(app, status).alignment(Alignment::Right);
+            let status_line = if is_selected {
+                let mut mapped_spans = Vec::new();
+                for span in &status_line.spans {
+                    mapped_spans.push(Span::styled(span.content.to_string(), row_style));
+                }
+                Line::from(mapped_spans).alignment(Alignment::Right)
+            } else {
+                status_line
+            };
+            f.render_widget(Paragraph::new(status_line), cols[2]);
+        } else {
+            let border_type =
+                if is_selected { BorderType::LightDoubleDashed } else { CARD_BORDER() };
+
+            // Render the border block; split its inner rect into two rows:
+            //   row 0 — item path (left) + status indicator (right)
+            //   row 1 — branch name (left-aligned, muted)
+            let block = Block::default()
+                .borders(Borders::ALL)
+                .border_type(border_type)
+                .border_style(border_style)
+                .padding(Padding::horizontal(1));
+            let inner = block.inner(chunks[i]);
+            f.render_widget(block, chunks[i]);
+
+            let rows = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(1), Constraint::Min(0)])
+                .split(inner);
+
+            let name_cols = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Min(0), Constraint::Length(4)])
+                .split(rows[0]);
+
+            let mut spans = vec![Span::styled(mark, mark_style)];
+            if is_git {
+                spans.push(Span::styled(
+                    app.sym("git_repo"),
+                    muted_style().add_modifier(Modifier::BOLD),
+                ));
+            }
+            spans.push(Span::styled(repo_name, text_style));
+            if let ItemStatus::GitRepo(Some(summary)) = status {
+                let (state_str, state_style) = match summary.state {
+                    RepoState::Merge => (
+                        " ⚠ MERGE_HEAD",
+                        Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+                    ),
+                    RepoState::Rebase => (
+                        " 🚧 REBASING",
+                        Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
+                    ),
+                    RepoState::CherryPick => (
+                        " ⚡ CHERRY-PICK",
+                        Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+                    ),
+                    RepoState::Revert => (
+                        " ⚡ REVERTING",
+                        Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
+                    ),
+                    RepoState::Bisect => (
+                        " 🔍 BISECTING",
+                        Style::default()
+                            .fg(ratatui::style::Color::Magenta)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    RepoState::ApplyMailbox => (
+                        " 📬 APPLYING",
+                        Style::default()
+                            .fg(ratatui::style::Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    RepoState::Clean => (" ✓ CLEAN", muted_style()),
+                };
+                spans.push(Span::styled(state_str, state_style));
+            }
+            if let Some(lbls) = app.config.labels.get(item) {
+                for lbl in lbls {
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled(
+                        format!("[{}]", lbl),
+                        Style::default().fg(ACCENT()).add_modifier(Modifier::DIM),
+                    ));
+                }
+            }
+            let name_line = Line::from(spans);
+            f.render_widget(Paragraph::new(name_line), name_cols[0]);
+
+            if is_pinned {
+                let pin_line = Line::from(Span::styled(
+                    app.sym("pinned").trim(),
+                    Style::default().fg(WARNING()),
+                ))
+                .alignment(Alignment::Right);
+                f.render_widget(Paragraph::new(pin_line), name_cols[1]);
+            }
+
+            // Row 1: Left column (branch name) and Right column (status section)
+            let row1_cols = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Min(0), Constraint::Length(STATUS_ZONE_WIDTH)])
+                .split(rows[1]);
+
+            let branch_line = match status {
+                ItemStatus::GitRepo(Some(s)) => {
+                    if let Some(b) = &s.branch {
+                        let mut parts = vec![
+                            Span::raw(UNSELECTED_INDENT),
+                            Span::styled(format!("{} ", app.sym("branch")), muted_style()),
+                            Span::styled(b.clone(), Style::default().fg(ACCENT())),
+                        ];
+                        if let Some(time) = s.last_commit_time {
+                            parts.push(Span::raw(" ("));
+                            parts.push(Span::styled(format_relative_time(time), muted_style()));
+                            parts.push(Span::raw(")"));
+                        }
+                        Line::from(parts)
+                    } else {
+                        Line::from("")
+                    }
+                }
+                _ => Line::from(""),
+            };
+            f.render_widget(Paragraph::new(branch_line), row1_cols[0]);
+
+            let status_line = status_indicator_line(app, status).alignment(Alignment::Right);
+            f.render_widget(Paragraph::new(status_line), row1_cols[1]);
+        }
     }
 }
 

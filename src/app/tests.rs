@@ -5064,3 +5064,36 @@ fn test_implicit_network_count() {
     app.decrement_implicit_network();
     assert_eq!(app.implicit_network_count, 0);
 }
+
+#[test]
+fn test_compact_view_toggle() {
+    struct TestDirGuard {
+        path: PathBuf,
+    }
+    impl Drop for TestDirGuard {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    let temp_dir = std::env::temp_dir().join("gitwig_test_config_compact_toggle_dir");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let _guard = TestDirGuard { path: temp_dir.clone() };
+
+    let config = Config::default();
+    let temp_path = temp_dir.join("config.toml");
+    let mut app = App::new(config, temp_path);
+    assert!(!app.config.compact_view);
+
+    // Simulate event toggle
+    let event = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('v'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let _ = crate::tabs::HomeTab::handle_event(&mut app, event, 10);
+    assert!(app.config.compact_view);
+
+    let _ = crate::tabs::HomeTab::handle_event(&mut app, event, 10);
+    assert!(!app.config.compact_view);
+}

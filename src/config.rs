@@ -138,6 +138,7 @@ impl Default for Config {
             enable_commit_signatures: false,
             ssh_strict_host_checking: false,
             editor: default_editor(),
+            compact_view: false,
         }
     }
 }
@@ -295,6 +296,9 @@ pub struct Config {
     /// Custom terminal editor to open files with.
     #[serde(default = "default_editor")]
     pub editor: String,
+    /// Whether to show the compact (1-row) list on the home page.
+    #[serde(default)]
+    pub compact_view: bool,
 }
 
 impl Config {
@@ -409,6 +413,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         enable_commit_signatures: false,
         ssh_strict_host_checking: false,
         editor: default_editor(),
+        compact_view: false,
     };
 
     // Attempt to save the fallback back to the original path.
@@ -536,6 +541,7 @@ pub fn load_config(
                 enable_commit_signatures: false,
                 ssh_strict_host_checking: false,
                 editor: default_editor(),
+                compact_view: false,
             },
             path,
             None,
@@ -656,6 +662,7 @@ pub fn load_config(
         enable_commit_signatures: false,
         ssh_strict_host_checking: false,
         editor: default_editor(),
+        compact_view: false,
     };
     save_config(&fallback, &canonical)?;
 
