@@ -148,58 +148,6 @@ pub fn get_help_lines(app: &App) -> Vec<Line<'_>> {
         }
     }
 
-    // Status Indicators section
-    lines.push(Line::from(""));
-    let title_style = if is_compat {
-        Style::default().add_modifier(Modifier::BOLD)
-    } else {
-        primary_style().add_modifier(Modifier::BOLD)
-    };
-    let prefix = if is_compat { "=== " } else { "■ " };
-    lines.push(Line::from(vec![
-        Span::raw("  "),
-        Span::styled(prefix, if is_compat { Style::default() } else { accent_style() }),
-        Span::styled("STATUS INDICATORS", title_style),
-    ]));
-
-    let mut pad_symbol = |sym: &str, color: Color, label: &'static str, desc: &'static str| {
-        lines.push(Line::from(vec![
-            Span::raw("    "),
-            Span::styled(sym.to_string(), Style::default().fg(color)),
-            Span::raw(" "),
-            Span::styled(format!("{:<8}", label), muted_style()),
-            Span::raw(desc),
-        ]));
-    };
-
-    pad_symbol(app.sym("bullet_filled"), SUCCESS(), "git", "Directory is a git repository");
-    pad_symbol(app.sym("bullet_empty"), WARNING(), "dir", "Directory exists but is not a git repo");
-    pad_symbol(app.sym("close"), DANGER(), "missing", "Path does not exist or is not a directory");
-
-    // Repo state suffixes section
-    lines.push(Line::from(""));
-    lines.push(Line::from(vec![
-        Span::raw("  "),
-        Span::styled(prefix, if is_compat { Style::default() } else { accent_style() }),
-        Span::styled("REPO STATE SUFFIXES", title_style),
-    ]));
-
-    let mut pad_suffix = |sym: &str, style: Style, desc: &'static str| {
-        lines.push(Line::from(vec![
-            Span::raw("    "),
-            Span::styled(format!("N{}", sym), style),
-            Span::raw("        "),
-            Span::raw(desc),
-        ]));
-    };
-
-    pad_suffix("+", Style::default().fg(ACCENT()), "files staged for commit");
-    pad_suffix("!", Style::default().fg(WARNING()), "files modified but not staged");
-    pad_suffix("?", muted_style(), "untracked files");
-    pad_suffix(app.sym("up"), primary_style(), "commits ahead of upstream (need push)");
-    pad_suffix(app.sym("down"), Style::default().fg(WARNING()), "commits behind upstream");
-
-    lines.push(Line::from(""));
     lines
 }
 

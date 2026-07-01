@@ -23,11 +23,29 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
     )));
     lines.push(Line::from(""));
     lines.push(Line::from(vec![
+        Span::styled(format!("  {:<12}", app.sym("pinned")), Style::default().fg(SUCCESS())),
+        Span::raw("Pinned repository"),
+    ]));
+    lines.push(Line::from(vec![
         Span::styled(
             format!("  {:<12}", app.sym("bullet_filled").to_string() + " clean"),
             Style::default().fg(SUCCESS()),
         ),
         Span::raw("Repo in sync (no changes)"),
+    ]));
+    lines.push(Line::from(vec![
+        Span::styled(
+            format!("  {:<12}", app.sym("bullet_empty").to_string() + " dir"),
+            Style::default().fg(WARNING()),
+        ),
+        Span::raw("Directory exists but is not a git repo"),
+    ]));
+    lines.push(Line::from(vec![
+        Span::styled(
+            format!("  {:<12}", app.sym("close").to_string() + " missing"),
+            Style::default().fg(DANGER()),
+        ),
+        Span::raw("Path does not exist or is not a directory"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
