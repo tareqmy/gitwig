@@ -13,8 +13,38 @@ pub fn get_legend_lines_len(app: &App) -> usize {
     get_legend_lines(app).len()
 }
 
+fn is_double_width(c: char) -> bool {
+    let val = c as u32;
+    (0x1F300..=0x1FBF0).contains(&val)
+        || (0x2600..=0x27BF).contains(&val)
+        || (0x4E00..=0x9FFF).contains(&val)
+        || (0x3000..=0x303F).contains(&val)
+        || (0x25A0..=0x25FF).contains(&val)
+}
+
+fn visual_width(s: &str) -> usize {
+    let mut w = 0;
+    for c in s.chars() {
+        if is_double_width(c) {
+            w += 2;
+        } else {
+            w += 1;
+        }
+    }
+    w
+}
+
+fn pad_right_visual(s: &str, width: usize) -> String {
+    let vw = visual_width(s);
+    let pad = width.saturating_sub(vw);
+    format!("{}{}", s, " ".repeat(pad))
+}
+
 fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
+    let pad = |s: &str| -> String {
+        pad_right_visual(s, 12)
+    };
 
     // Section 1: Status Indicators
     lines.push(Line::from(Span::styled(
@@ -23,63 +53,66 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
     )));
     lines.push(Line::from(""));
     lines.push(Line::from(vec![
-        Span::styled(format!("  {:<12}", app.sym("pinned")), Style::default().fg(SUCCESS())),
+        Span::styled(format!("  {}", pad(app.sym("pinned"))), Style::default().fg(SUCCESS())),
         Span::raw("Pinned repository"),
     ]));
     lines.push(Line::from(vec![
-        Span::styled(format!("  {:<12}", app.sym("star")), Style::default().fg(Color::Yellow)),
+        Span::styled(format!("  {}", pad(app.sym("star"))), Style::default().fg(Color::Yellow)),
         Span::raw("Starred / Favorite repository"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            format!("  {:<12}", app.sym("bullet_filled").to_string() + " clean"),
+            format!("  {}", pad(&(app.sym("bullet_filled").to_string() + " clean"))),
             Style::default().fg(SUCCESS()),
         ),
         Span::raw("Repo in sync (no changes)"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            format!("  {:<12}", app.sym("bullet_empty").to_string() + " dir"),
+            format!("  {}", pad(&(app.sym("bullet_empty").to_string() + " dir"))),
             Style::default().fg(WARNING()),
         ),
         Span::raw("Directory exists but is not a git repo"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            format!("  {:<12}", app.sym("close").to_string() + " missing"),
+            format!("  {}", pad(&(app.sym("close").to_string() + " missing"))),
             Style::default().fg(DANGER()),
         ),
         Span::raw("Path does not exist or is not a directory"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            "  N+          ",
+            format!("  {}", pad("N+")),
             Style::default().fg(accent_style().fg.unwrap_or(Color::Cyan)),
         ),
         Span::raw("N Staged changes"),
     ]));
     lines.push(Line::from(vec![
-        Span::styled("  N!          ", Style::default().fg(WARNING())),
+        Span::styled(format!("  {}", pad("N!")), Style::default().fg(WARNING())),
         Span::raw("N Modified changes"),
     ]));
     lines.push(Line::from(vec![
-        Span::styled("  N?          ", muted_style()),
+        Span::styled(format!("  {}", pad("N?")), muted_style()),
         Span::raw("N Untracked files"),
     ]));
     lines.push(Line::from(vec![
-        Span::styled(format!("  N{:<11}", app.sym("action").trim()), Style::default().fg(DANGER())),
+        Span::styled(
+            format!("  {}", pad(&(format!("N{}", app.sym("action").trim())))),
+            Style::default().fg(DANGER()),
+        ),
         Span::raw("N Conflicted files"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            format!("  N{:<11}", app.sym("up")),
+            format!("  {}", pad(&(format!("N{}", app.sym("up"))))),
             Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("N Commits ahead of remote"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            format!("  N{:<11}", app.sym("down")),
+            format!("  {}", pad(&(format!("N{}", app.sym("down"))))),
             Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("N Commits behind remote"),
@@ -96,23 +129,23 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
     )));
     lines.push(Line::from(""));
     lines.push(Line::from(vec![
-        Span::styled("  ✓ CLEAN     ", muted_style()),
+        Span::styled(format!("  {}", pad("✓ CLEAN")), muted_style()),
         Span::raw("No active git state/operation"),
     ]));
     lines.push(Line::from(vec![
-        Span::styled("  ⚠ MERGE     ", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
+        Span::styled(format!("  {}", pad("⚠ MERGE")), Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
         Span::raw("Active Merge session (conflicts)"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            "  🚧 REBASE    ",
+            format!("  {}", pad("🚧 REBASE")),
             Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("Active Interactive/Normal Rebase"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            "  ⚡ CHERRY    ",
+            format!("  {}", pad("⚡ CHERRY")),
             Style::default()
                 .fg(accent_style().fg.unwrap_or(Color::Cyan))
                 .add_modifier(Modifier::BOLD),
@@ -121,21 +154,21 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            "  ⚡ REVERT    ",
+            format!("  {}", pad("⚡ REVERT")),
             Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("Active Revert operation"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            "  🔍 BISECT    ",
+            format!("  {}", pad("🔍 BISECT")),
             Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
         ),
         Span::raw("Active Bisect session"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            "  📬 APPLY     ",
+            format!("  {}", pad("📬 APPLY")),
             Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
         ),
         Span::raw("Applying patches (mailbox)"),
