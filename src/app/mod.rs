@@ -317,6 +317,7 @@ pub struct App {
     /// Selected file index in the Stashes tab stashed files list.
     /// Scroll offset for the help overlays.
     pub help_scroll: usize,
+    pub legend_scroll: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
     pub detail_areas: DetailAreas,
     /// Main panel item bounding boxes recorded after each draw, used for mouse hit-testing.
@@ -991,6 +992,7 @@ impl App {
 
             commit_input_scroll: 0,
             help_scroll: 0,
+            legend_scroll: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
 
@@ -1775,6 +1777,7 @@ where
             (available_height / app.item_height()).min(app.get_items_len() as u16) as usize;
         app.clamp_scroll(visible_count);
         app.clamp_help_scroll(area.height as usize);
+        app.clamp_legend_scroll();
 
         app.trigger_tab_load_if_needed(app.detail_tab);
 

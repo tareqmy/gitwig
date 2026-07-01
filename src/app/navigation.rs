@@ -112,6 +112,16 @@ impl App {
         }
     }
 
+    /// Clamp the legend scroll value so it doesn't go out of bounds.
+    pub fn clamp_legend_scroll(&mut self) {
+        let lines_len = crate::popups::legend::get_legend_lines_len(self);
+        let inner_height = 14;
+        let max_scroll = lines_len.saturating_sub(inner_height);
+        if self.legend_scroll > max_scroll {
+            self.legend_scroll = max_scroll;
+        }
+    }
+
     pub fn move_down(&mut self, visible_count: usize) {
         let len = self.get_items_len();
         if self.selected_index + 1 < len {
@@ -2833,6 +2843,30 @@ impl App {
 
     pub fn help_scroll_to_bottom(&mut self) {
         self.help_scroll = usize::MAX;
+    }
+
+    pub fn legend_scroll_up(&mut self) {
+        self.legend_scroll = self.legend_scroll.saturating_sub(1);
+    }
+
+    pub fn legend_scroll_down(&mut self) {
+        self.legend_scroll = self.legend_scroll.saturating_add(1);
+    }
+
+    pub fn legend_scroll_page_up(&mut self, amount: usize) {
+        self.legend_scroll = self.legend_scroll.saturating_sub(amount);
+    }
+
+    pub fn legend_scroll_page_down(&mut self, amount: usize) {
+        self.legend_scroll = self.legend_scroll.saturating_add(amount);
+    }
+
+    pub fn legend_scroll_to_top(&mut self) {
+        self.legend_scroll = 0;
+    }
+
+    pub fn legend_scroll_to_bottom(&mut self) {
+        self.legend_scroll = usize::MAX;
     }
 }
 

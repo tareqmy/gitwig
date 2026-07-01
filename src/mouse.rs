@@ -323,6 +323,15 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         return;
     }
 
+    if app.mode == Mode::Legend {
+        if is_scroll_up {
+            app.legend_scroll_up();
+        } else if is_scroll_down {
+            app.legend_scroll_down();
+        }
+        return;
+    }
+
     if app.mode == Mode::Overview {
         return;
     }

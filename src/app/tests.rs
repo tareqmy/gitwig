@@ -5134,4 +5134,55 @@ fn test_legend_popup_flow() {
     let handled = crate::input::handle_key(&mut app, close_event, 10);
     assert!(handled);
     assert_eq!(app.mode, Mode::Normal);
+
+    // Open it again
+    let _ = crate::tabs::HomeTab::handle_event(&mut app, open_event, 10);
+    assert_eq!(app.mode, Mode::Legend);
+    assert_eq!(app.legend_scroll, 0);
+
+    // Scroll Down key
+    let down_event = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, down_event, 10);
+    assert!(handled);
+    assert_eq!(app.legend_scroll, 1);
+
+    // Scroll Up key
+    let up_event = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, up_event, 10);
+    assert!(handled);
+    assert_eq!(app.legend_scroll, 0);
+
+    // PageDown
+    let pgdn_event = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::PageDown,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, pgdn_event, 10);
+    assert!(handled);
+    assert!(app.legend_scroll > 0);
+
+    // End (Scrolls to bottom)
+    let end_event = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::End,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, end_event, 10);
+    assert!(handled);
+    let max_scroll = app.legend_scroll;
+    assert!(max_scroll > 0);
+
+    // Home (Scrolls to top)
+    let home_event = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, home_event, 10);
+    assert!(handled);
+    assert_eq!(app.legend_scroll, 0);
 }
