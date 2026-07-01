@@ -31,6 +31,10 @@ impl App {
                     return;
                 }
 
+                crate::debug_log::info(format!(
+                    "Network Action: Pulling branch '{}'",
+                    branch_info.name
+                ));
                 self.fetching = true;
                 self.status_message = Some("Pulling...".to_string());
 
@@ -140,6 +144,7 @@ impl App {
                 }
             };
 
+            crate::debug_log::info(format!("Network Action: Pushing branch '{}'", branch_name));
             self.fetching = true;
             self.status_message =
                 Some(format!("Pushing '{}' to '{}'...", branch_name, remote_name));
@@ -1042,9 +1047,15 @@ impl App {
                 let repo_path = resolved.clone();
                 let remote_name = remote.name.clone();
                 let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
+                crate::debug_log::info(format!(
+                    "Network Action: Fetching remote tags from '{}' (show_progress={})",
+                    remote_name, show_progress
+                ));
                 if show_progress {
                     self.fetching = true;
                     self.status_message = Some(format!("Fetching tags from '{}'...", remote_name));
+                } else {
+                    self.increment_implicit_network();
                 }
                 std::thread::spawn(move || match repo::get_remote_tags(&repo_path, &remote_name) {
                     Ok(tags) => {
@@ -1066,6 +1077,7 @@ impl App {
             return;
         }
         if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+            crate::debug_log::info(format!("Network Action: Fetching remote '{}'", remote_name));
             self.fetching = true;
             self.status_message = Some(format!("Fetching remote '{}'...", remote_name));
 
@@ -1183,6 +1195,10 @@ impl App {
             let repo_path = resolved.clone();
             let branch_name = branch_name.to_string();
             let remote_name = remote_name.to_string();
+            crate::debug_log::info(format!(
+                "Network Action: Pushing branch '{}' to '{}'",
+                branch_name, remote_name
+            ));
             self.fetching = true;
             self.status_message =
                 Some(format!("Pushing '{}' to '{}'...", branch_name, remote_name));
@@ -1232,6 +1248,10 @@ impl App {
             let repo_path = resolved.clone();
             let tag_name = tag_name.to_string();
             let remote_name = remote_name.to_string();
+            crate::debug_log::info(format!(
+                "Network Action: Pushing tag '{}' to '{}'",
+                tag_name, remote_name
+            ));
             self.fetching = true;
             self.status_message =
                 Some(format!("Pushing tag '{}' to '{}'...", tag_name, remote_name));
@@ -1280,6 +1300,10 @@ impl App {
         if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
             let repo_path = resolved.clone();
             let remote_name = remote_name.to_string();
+            crate::debug_log::info(format!(
+                "Network Action: Pushing all tags to '{}'",
+                remote_name
+            ));
             self.fetching = true;
             self.status_message = Some(format!("Pushing all tags to '{}'...", remote_name));
             let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };

@@ -346,6 +346,8 @@ pub struct App {
     pub update_available: Option<String>,
     /// Whether the update check was triggered manually.
     pub update_check_manual: bool,
+    /// Number of active background (implicit) network actions.
+    pub implicit_network_count: usize,
     /// Stored previous mode to restore after confirmation/popups.
     pub previous_mode: Option<Mode>,
     /// Row selection index for the repository settings popup.
@@ -1002,6 +1004,7 @@ impl App {
             fetching: false,
             update_available: None,
             update_check_manual: false,
+            implicit_network_count: 0,
             previous_mode: None,
             repo_settings_selected_index: 0,
             repo_settings_editing: false,
@@ -1213,10 +1216,16 @@ where
                     } else if app.update_check_manual {
                         app.status_message = Some("Gitwig is up to date".to_string());
                     }
+                    if !app.update_check_manual {
+                        app.decrement_implicit_network();
+                    }
                     app.update_check_manual = false;
                 } else if msg.starts_with("UPDATE_CHECK_FAILED:") {
                     if app.update_check_manual {
                         app.status_message = Some("Failed to check for updates".to_string());
+                    }
+                    if !app.update_check_manual {
+                        app.decrement_implicit_network();
                     }
                     app.update_check_manual = false;
                 } else if let Some(success_msg) = msg.strip_prefix("UPDATE_SUCCESS:") {
@@ -1226,19 +1235,36 @@ where
                     app.fetching = false;
                     app.set_error(err_msg.to_string());
                 } else if let Some(dest_path) = msg.strip_prefix("CLONE_SUCCESS:") {
+                    crate::debug_log::info(format!(
+                        "Network Action: Cloning succeeded to {}",
+                        dest_path
+                    ));
                     app.fetching = false;
                     app.status_message = Some("Cloning completed successfully".to_string());
                     app.add_repo_path(dest_path.to_string());
                 } else if let Some(tags_data) = msg.strip_prefix("REMOTE_TAGS:") {
+                    crate::debug_log::info("Network Action: Fetching remote tags succeeded");
                     let tags = repo::deserialize_tags(tags_data);
                     if let Some(repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
                         info.remote_tags = repo::TabData::Loaded(tags);
                         info.remote_tags_loaded = true;
                     }
-                    app.fetching = false;
+                    if app.fetching {
+                        app.fetching = false;
+                    } else {
+                        app.decrement_implicit_network();
+                    }
                 } else if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
-                    app.set_error(err_msg.to_string());
-                    app.fetching = false;
+                    crate::debug_log::warn(format!(
+                        "Network Action: Fetching remote tags failed: {}",
+                        err_msg
+                    ));
+                    if app.fetching {
+                        app.set_error(err_msg.to_string());
+                        app.fetching = false;
+                    } else {
+                        app.decrement_implicit_network();
+                    }
                 } else {
                     let success_fetch = msg.starts_with("Fetched remote ");
                     let is_err = msg.starts_with("Fetch failed:")
@@ -1249,11 +1275,19 @@ where
 
                     if is_err {
                         let has_conflict = msg.contains("conflict") || msg.contains("CONFLICT");
+                        crate::debug_log::error(format!(
+                            "Network Action: Operation failed: {}",
+                            msg
+                        ));
                         app.set_error(msg);
                         if has_conflict {
                             app.detail_focus = DetailSection::Conflicts;
                         }
                     } else {
+                        crate::debug_log::info(format!(
+                            "Network Action: Operation succeeded: {}",
+                            msg
+                        ));
                         app.status_message = Some(msg);
                     }
                     app.fetching = false;
@@ -1752,13 +1786,15 @@ where
         app.main_areas = main_areas;
 
         // Transient feedback disappears after one frame, unless we are fetching.
-        if app.fetching {
-            if app.status_message.is_none() {
+        if app.fetching || app.implicit_network_count > 0 {
+            if app.fetching && app.status_message.is_none() {
                 app.status_message = Some("Executing Git operation...".to_string());
             }
             app.fetch_progress = (app.fetch_progress + 5) % 105;
         } else {
-            app.status_message = None;
+            if !app.fetching {
+                app.status_message = None;
+            }
             app.fetch_progress = 0;
         }
 
@@ -1855,14 +1891,25 @@ fn copy_to_clipboard(text: &str) -> Result<(), String> {
 }
 
 impl App {
+    pub fn increment_implicit_network(&mut self) {
+        self.implicit_network_count = self.implicit_network_count.saturating_add(1);
+    }
+
+    pub fn decrement_implicit_network(&mut self) {
+        self.implicit_network_count = self.implicit_network_count.saturating_sub(1);
+    }
+
     pub fn trigger_update_check(&mut self) {
         self.trigger_update_check_internal(true);
     }
 
     pub fn trigger_update_check_internal(&mut self, manual: bool) {
+        crate::debug_log::info(format!("Network Action: Checking for updates (manual={})", manual));
         self.update_check_manual = manual;
         if manual {
             self.status_message = Some("Checking for updates...".to_string());
+        } else {
+            self.increment_implicit_network();
         }
         let tx_clone = self.tx.clone();
         std::thread::spawn(move || {
@@ -1897,14 +1944,20 @@ impl App {
                 Err("Failed to query update version".into())
             })();
             if let Ok(latest_version) = res {
+                crate::debug_log::info(format!(
+                    "Network Action: Update check succeeded. Latest version: v{}",
+                    latest_version
+                ));
                 let _ = tx_clone.send(format!("UPDATE_CHECK:{}", latest_version));
             } else {
+                crate::debug_log::warn("Network Action: Update check failed");
                 let _ = tx_clone.send("UPDATE_CHECK_FAILED:".to_string());
             }
         });
     }
 
     pub fn trigger_self_update(&mut self) {
+        crate::debug_log::info("Network Action: Triggering self-update");
         self.fetching = true;
         self.status_message = Some("Updating Gitwig...".to_string());
         self.mode = self.previous_mode.take().unwrap_or(self.mode);

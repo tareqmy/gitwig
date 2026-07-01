@@ -2275,6 +2275,10 @@ impl App {
         }
         let dest_str = dest_path.to_string_lossy().to_string();
 
+        crate::debug_log::info(format!(
+            "Network Action: Cloning remote repository {} to {}",
+            url, dest_str
+        ));
         self.fetching = true;
         self.status_message = Some(format!("Cloning {}...", url));
         self.mode = Mode::Normal;

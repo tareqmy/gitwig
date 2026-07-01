@@ -5039,3 +5039,26 @@ fn test_manual_update_check_flow() {
     assert!(app.update_check_manual);
     assert_eq!(app.status_message.as_deref(), Some("Checking for updates..."));
 }
+
+#[test]
+fn test_implicit_network_count() {
+    let config = Config::default();
+    let mut app = App::new(config, std::path::PathBuf::from("dummy_path.toml"));
+    assert_eq!(app.implicit_network_count, 0);
+
+    app.increment_implicit_network();
+    assert_eq!(app.implicit_network_count, 1);
+
+    app.increment_implicit_network();
+    assert_eq!(app.implicit_network_count, 2);
+
+    app.decrement_implicit_network();
+    assert_eq!(app.implicit_network_count, 1);
+
+    app.decrement_implicit_network();
+    assert_eq!(app.implicit_network_count, 0);
+
+    // Make sure it saturates
+    app.decrement_implicit_network();
+    assert_eq!(app.implicit_network_count, 0);
+}

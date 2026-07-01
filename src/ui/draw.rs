@@ -328,6 +328,18 @@ fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
             ),
         );
     }
+    if app.implicit_network_count > 0 {
+        let spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+        let idx = ((app.fetch_progress / 10) % 10) as usize;
+        right_spans.insert(0, Span::raw(" "));
+        right_spans.insert(
+            0,
+            Span::styled(
+                spinner_chars[idx],
+                Style::default().fg(ratatui::style::Color::Cyan).add_modifier(Modifier::BOLD),
+            ),
+        );
+    }
     block = block.title(Line::from(right_spans).alignment(Alignment::Right));
     f.render_widget(block, area);
 }
