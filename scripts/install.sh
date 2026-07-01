@@ -152,7 +152,7 @@ resolve_version() {
         fi
 
         if [ -z "${LATEST_RELEASE:-}" ]; then
-            error "Could not auto-detect latest version (this can happen due to network issues or GitHub API rate limits). Please specify the version manually, for example: VERSION=v2.3.2 ./install.sh"
+            error "Could not auto-detect latest version (this can happen due to network issues or GitHub API rate limits). Please specify the version manually, for example: VERSION=v2.3.3 ./install.sh"
         fi
         VERSION="${LATEST_RELEASE}"
     fi
