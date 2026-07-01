@@ -3157,11 +3157,15 @@ impl App {
                     let inner_vertical_margin = 2;
                     let inner_height = (size.1 as usize).saturating_sub(inner_vertical_margin);
                     let available_height = inner_height.saturating_sub(self.status_height() as usize);
-                    if self.config.compact_view {
+                    let mut lh = if self.config.compact_view {
                         available_height.saturating_sub(1)
                     } else {
                         available_height
+                    };
+                    if !self.config.items.is_empty() {
+                        lh = lh.saturating_sub(2);
                     }
+                    lh
                 } else {
                     20
                 };

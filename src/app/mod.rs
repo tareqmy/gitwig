@@ -1780,11 +1780,14 @@ where
         let inner_area = area.inner(Margin { vertical: 1, horizontal: 1 });
 
         let available_height = inner_area.height.saturating_sub(app.status_height());
-        let list_height = if app.config.compact_view {
+        let mut list_height = if app.config.compact_view {
             available_height.saturating_sub(1)
         } else {
             available_height
         };
+        if !app.config.items.is_empty() {
+            list_height = list_height.saturating_sub(2);
+        }
         let rows = app.get_home_rows();
         let mut accumulated_height = 0;
         let mut visible_count = 0;

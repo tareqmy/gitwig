@@ -234,14 +234,26 @@ pub fn draw(
             draw_empty_state(f, content_area);
         }
     } else {
+        let layout_parts = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // Global summary bar
+                Constraint::Length(1), // Spacer
+                Constraint::Min(0),    // Rest of content
+            ])
+            .split(content_area);
+
+        draw_global_summary_bar(f, layout_parts[0], app);
+        let list_area_parent = layout_parts[2];
+
         let (header_area, list_area) = if app.config.compact_view {
             let parts = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Length(1), Constraint::Min(0)])
-                .split(content_area);
+                .split(list_area_parent);
             (Some(parts[0]), parts[1])
         } else {
-            (None, content_area)
+            (None, list_area_parent)
         };
 
         if let Some(hdr) = header_area {
@@ -413,6 +425,68 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
         .split(content_area)
         .to_vec();
     chunks[..visible_count].to_vec()
+}
+
+fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
+    let mut total_repos = 0;
+    let mut dirty_count = 0;
+    let mut ahead_count = 0;
+    let mut stale_count = 0;
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let stale_threshold = 30 * 24 * 60 * 60; // 30 days
+
+    for status in &app.statuses {
+        match status {
+            ItemStatus::GitRepo(Some(summary)) => {
+                total_repos += 1;
+                if !summary.is_clean() {
+                    dirty_count += 1;
+                }
+                if summary.ahead > 0 {
+                    ahead_count += 1;
+                }
+                if let Some(t) = summary.last_commit_time {
+                    if now - t > stale_threshold {
+                        stale_count += 1;
+                    }
+                }
+            }
+            ItemStatus::GitRepo(None) => {
+                total_repos += 1;
+            }
+            _ => {}
+        }
+    }
+
+    let dot = Span::styled("  •  ", muted_style());
+    let mut spans = vec![
+        Span::styled(format!(" {} ", total_repos), primary_style().fg(ACCENT())),
+        Span::styled("repos", muted_style()),
+    ];
+
+    spans.push(dot.clone());
+    let dirty_color = if dirty_count > 0 { WARNING() } else { SUCCESS() };
+    spans.push(Span::styled(format!(" {} ", dirty_count), primary_style().fg(dirty_color)));
+    spans.push(Span::styled("dirty", muted_style()));
+
+    spans.push(dot.clone());
+    spans.push(Span::styled(
+        format!(" {} ", ahead_count),
+        primary_style().fg(if ahead_count > 0 { ACCENT() } else { ratatui::style::Color::Gray }),
+    ));
+    spans.push(Span::styled("ahead", muted_style()));
+
+    spans.push(dot);
+    let stale_color = if stale_count > 0 { DANGER() } else { SUCCESS() };
+    spans.push(Span::styled(format!(" {} ", stale_count), primary_style().fg(stale_color)));
+    spans.push(Span::styled("stale", muted_style()));
+
+    let line = Line::from(spans).alignment(Alignment::Center);
+    f.render_widget(Paragraph::new(line), area);
 }
 
 fn draw_compact_headers(f: &mut Frame, area: Rect, _app: &App) {
@@ -1803,5 +1877,65 @@ mod tests {
         let behind_span2 =
             line4.spans.iter().find(|s| s.content.contains(app.sym("down"))).unwrap();
         assert_eq!(behind_span2.style.fg, Some(DANGER()));
+    }
+
+    #[test]
+    fn test_draw_global_summary_bar() {
+        let config = Config {
+            items: vec!["/path/to/repo_a".to_string(), "/path/to/repo_b".to_string()],
+            ..Default::default()
+        };
+        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+
+        let summary_clean = RepoSummary {
+            branch: Some("main".to_string()),
+            staged: 0,
+            modified: 0,
+            untracked: 0,
+            conflicted: 0,
+            ahead: 0,
+            behind: 0,
+            state: RepoState::Clean,
+            last_commit_time: Some(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64,
+            ),
+        };
+
+        let summary_dirty = RepoSummary {
+            branch: Some("main".to_string()),
+            staged: 1,
+            modified: 0,
+            untracked: 0,
+            conflicted: 0,
+            ahead: 2,
+            behind: 0,
+            state: RepoState::Clean,
+            last_commit_time: Some(0), // very stale
+        };
+
+        app.statuses = vec![
+            ItemStatus::GitRepo(Some(summary_clean)),
+            ItemStatus::GitRepo(Some(summary_dirty)),
+        ];
+
+        let backend = ratatui::backend::TestBackend::new(80, 1);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                draw_global_summary_bar(f, Rect::new(0, 0, 80, 1), &app);
+            })
+            .unwrap();
+
+        // Verify correct rendering of stats in the buffer
+        let buffer = terminal.backend().buffer();
+        let text: String = (0..80).map(|x| buffer[(x, 0)].symbol()).collect();
+        let trimmed = text.trim();
+        assert!(trimmed.contains("2 repos"), "Buffer contents: {}", trimmed);
+        assert!(trimmed.contains("1 dirty"), "Buffer contents: {}", trimmed);
+        assert!(trimmed.contains("1 ahead"), "Buffer contents: {}", trimmed);
+        assert!(trimmed.contains("1 stale"), "Buffer contents: {}", trimmed);
     }
 }
