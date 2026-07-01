@@ -268,8 +268,14 @@ impl App {
     /// Clamp the help scroll value so it doesn't go out of bounds.
     pub fn clamp_help_scroll(&mut self, height: usize) {
         let (percent_y, lines_len) = match self.mode {
-            Mode::Help => (70, crate::popups::help::get_help_lines_len(self)),
-            Mode::DetailHelp => (55, crate::popups::detail_help::get_detail_help_lines_len(self)),
+            Mode::Help => {
+                let width = crossterm::terminal::size().map(|s| s.0).unwrap_or(80);
+                (70, crate::popups::help::get_help_lines_len(self, width))
+            }
+            Mode::DetailHelp => {
+                let width = crossterm::terminal::size().map(|s| s.0).unwrap_or(80);
+                (55, crate::popups::detail_help::get_detail_help_lines_len(self, width))
+            }
             _ => return,
         };
         let popup_height = (height * percent_y) / 100;

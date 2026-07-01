@@ -13,7 +13,31 @@ use ratatui::widgets::{
     Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph, Wrap,
 };
 
-pub fn get_help_lines(app: &App) -> Vec<Line<'_>> {
+fn wrap_text(text: &str, max_width: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut current_line = String::new();
+    
+    for word in text.split_whitespace() {
+        if current_line.is_empty() {
+            current_line.push_str(word);
+        } else if current_line.chars().count() + 1 + word.chars().count() <= max_width {
+            current_line.push(' ');
+            current_line.push_str(word);
+        } else {
+            lines.push(current_line);
+            current_line = word.to_string();
+        }
+    }
+    if !current_line.is_empty() {
+        lines.push(current_line);
+    }
+    if lines.is_empty() {
+        lines.push(String::new());
+    }
+    lines
+}
+
+pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     let mut lines = Vec::new();
     let is_compat = app.config.compatibility_mode;
 
@@ -126,6 +150,8 @@ pub fn get_help_lines(app: &App) -> Vec<Line<'_>> {
         }
     }
 
+    let desc_width = usable_width.saturating_sub(4 + max_key_width + 3);
+
     // Render Categories
     for (cat_title, keys) in categories {
         lines.push(Line::from(""));
@@ -146,26 +172,40 @@ pub fn get_help_lines(app: &App) -> Vec<Line<'_>> {
         for (key, desc) in keys {
             let k_str = format_key(key);
             let padded_key = format!("{:>width$}", k_str, width = max_key_width);
-            lines.push(Line::from(vec![
-                Span::raw("    "),
-                Span::styled(padded_key, accent_style()),
-                Span::raw("   "),
-                Span::raw(desc.to_string()),
-            ]));
+            let desc_lines = wrap_text(desc, desc_width);
+            for (idx, desc_line) in desc_lines.into_iter().enumerate() {
+                if idx == 0 {
+                    lines.push(Line::from(vec![
+                        Span::raw("    "),
+                        Span::styled(padded_key.clone(), accent_style()),
+                        Span::raw("   "),
+                        Span::raw(desc_line),
+                    ]));
+                } else {
+                    let indent = " ".repeat(4 + max_key_width + 3);
+                    lines.push(Line::from(vec![
+                        Span::raw(indent),
+                        Span::raw(desc_line),
+                    ]));
+                }
+            }
         }
     }
 
     lines
 }
 
-pub fn get_help_lines_len(app: &App) -> usize {
-    get_help_lines(app).len()
+pub fn get_help_lines_len(app: &App, width: u16) -> usize {
+    let popup_width = (width * 60) / 100;
+    let usable_width = popup_width.saturating_sub(4) as usize;
+    get_help_lines(app, usable_width).len()
 }
 
 pub fn draw_help_overlay(f: &mut Frame, app: &App, area: Rect, scroll: usize) {
     let popup_area = centered_rect(60, 70, area);
+    let usable_width = popup_area.width.saturating_sub(4) as usize;
 
-    let lines = get_help_lines(app);
+    let lines = get_help_lines(app, usable_width);
 
     let help_block = Block::default()
         .borders(Borders::ALL)
@@ -188,7 +228,6 @@ pub fn draw_help_overlay(f: &mut Frame, app: &App, area: Rect, scroll: usize) {
     let lines_len = lines.len();
     let help = Paragraph::new(lines)
         .block(help_block)
-        .wrap(Wrap { trim: false })
         .scroll((scroll as u16, 0));
 
     // Clear wipes the underlying cells so the list doesn't bleed through.

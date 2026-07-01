@@ -4021,6 +4021,17 @@ fn test_dynamic_status_height() {
 }
 
 #[test]
+fn test_help_overlay_wrapping() {
+    let config = Config::default();
+    let app = App::new(config, PathBuf::from("dummy_path.toml"));
+
+    let lines_narrow = crate::popups::help::get_help_lines(&app, 40);
+    let lines_wide = crate::popups::help::get_help_lines(&app, 150);
+
+    assert!(lines_narrow.len() > lines_wide.len());
+}
+
+#[test]
 fn test_cherry_pick_destination_branches() {
     let config = Config {
         items: vec![],
