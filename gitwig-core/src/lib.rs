@@ -2023,6 +2023,7 @@ fn get_worktree_diff_inner(
     opts.pathspec(file_path);
     opts.include_untracked(true);
     opts.recurse_untracked_dirs(true);
+    opts.show_untracked_content(true);
 
     let diff = if staged {
         // Staged: diff HEAD tree (or empty tree for new repos) → index.
