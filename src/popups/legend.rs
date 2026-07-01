@@ -10,7 +10,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 pub fn draw_legend_popup(f: &mut Frame, area: Rect, app: &App) {
-    let popup_area = centered_rect_fixed(72, 20, area);
+    let popup_area = centered_rect_fixed(80, 20, area);
     f.render_widget(Clear, popup_area);
 
     let block = Block::default()

@@ -524,7 +524,40 @@ impl KeybindingsConfig {
         let keybindings_path = config_dir.join("keybindings.toml");
         if keybindings_path.exists() {
             if let Ok(contents) = std::fs::read_to_string(&keybindings_path) {
-                if let Ok(cfg) = toml::from_str::<KeybindingsConfig>(&contents) {
+                if let Ok(mut cfg) = toml::from_str::<KeybindingsConfig>(&contents) {
+                    let mut migrated = false;
+                    let defaults = Self::default_config();
+
+                    if cfg.home.toggle_compact_view.is_none() {
+                        cfg.home.toggle_compact_view = defaults.home.toggle_compact_view.clone();
+                        migrated = true;
+                    }
+                    if cfg.home.symbols_help.is_none() {
+                        cfg.home.symbols_help = defaults.home.symbols_help.clone();
+                        migrated = true;
+                    }
+                    if cfg.home.check_update.is_none() {
+                        cfg.home.check_update = defaults.home.check_update.clone();
+                        migrated = true;
+                    }
+
+                    // Conflict resolution:
+                    // If toggle_compact_view contains "v", make sure about does not contain "v".
+                    if let Some(keys) = &cfg.home.toggle_compact_view {
+                        if keys.contains(&"v".to_string()) {
+                            if let Some(about_keys) = &mut cfg.home.about {
+                                if about_keys.contains(&"v".to_string()) {
+                                    about_keys.retain(|k| k != "v");
+                                    migrated = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if migrated {
+                        let _ = cfg.save(config_dir);
+                    }
+
                     cfg.check_conflicts();
                     return cfg;
                 }

@@ -3340,14 +3340,14 @@ fn test_about_popup_flow() {
     assert_eq!(app.mode, Mode::Normal);
 
     // Test key inputs via handle_key
-    // 1. In Normal mode, pressing 'v' should open about popup
+    // 1. In Normal mode, pressing 'V' should open about popup
     app.mode = Mode::Normal;
-    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('v')), 10);
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('V')), 10);
     assert!(handled);
     assert_eq!(app.mode, Mode::About);
 
-    // 2. In About mode, pressing 'v' should close it
-    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('v')), 10);
+    // 2. In About mode, pressing 'V' should close it
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('V')), 10);
     assert!(handled);
     assert_eq!(app.mode, Mode::Normal);
 
@@ -3361,8 +3361,8 @@ fn test_about_popup_flow() {
     assert!(handled);
     assert_eq!(app.mode, Mode::Normal);
 
-    // 5. In Normal mode, pressing 'v' then closing with 'q'
-    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('v')), 10);
+    // 5. In Normal mode, pressing 'V' then closing with 'q'
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('V')), 10);
     assert!(handled);
     assert_eq!(app.mode, Mode::About);
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('q')), 10);

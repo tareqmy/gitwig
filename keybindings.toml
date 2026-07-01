@@ -25,10 +25,8 @@ edit_repo = ["e"]
 delete_repo = ["D"]
 open_debug_logs = ["d"]
 edit_labels = ["l"]
-about = [
-    "v",
-    "V",
-]
+about = ["V"]
+symbols_help = ["h"]
 refresh = ["R"]
 cycle_sort = ["o"]
 toggle_sort_reverse = ["O"]
@@ -41,6 +39,8 @@ open_detail = [
     "enter",
     "right",
 ]
+check_update = ["u"]
+toggle_compact_view = ["v"]
 
 [navigation]
 close_detail = [
