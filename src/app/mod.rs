@@ -154,6 +154,8 @@ pub enum Mode {
     SubmoduleAddPathInput,
     /// Confirming deletion of a submodule.
     SubmoduleDeleteConfirm,
+    /// Showing the signs and symbols legend popup.
+    Legend,
 }
 
 /// Which panel in the detail view currently has keyboard focus.

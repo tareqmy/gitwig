@@ -249,6 +249,10 @@ pub fn draw(
         crate::popups::about::draw_about_popup(f, area, app);
     }
 
+    if matches!(app.mode, Mode::Legend) {
+        crate::popups::legend::draw_legend_popup(f, area, app);
+    }
+
     if matches!(app.mode, Mode::RepoSettings) {
         crate::popups::repo_settings::RepoSettingsPopup::draw(f, app, area);
     }
@@ -277,6 +281,7 @@ fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
             | Mode::ConfirmDelete
             | Mode::Help
             | Mode::About
+            | Mode::Legend
             | Mode::BulkAddInput
     );
 

@@ -11,6 +11,7 @@ pub mod error;
 pub mod help;
 pub mod import;
 pub mod inspect;
+pub mod legend;
 pub mod loading;
 pub mod log_search;
 pub mod remote_picker;

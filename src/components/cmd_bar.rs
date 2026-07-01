@@ -170,6 +170,10 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             let (msg_spans, entries) = about_dismiss_entries();
             draw_status_layout(f, area, msg_spans, entries, app);
         }
+        Mode::Legend => {
+            let (msg_spans, entries) = legend_dismiss_entries();
+            draw_status_layout(f, area, msg_spans, entries, app);
+        }
         Mode::RepoSettings => {
             let msg_spans = vec![
                 Span::styled(
@@ -1225,6 +1229,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         Mode::Settings => ("SETTINGS", Color::Green),
         Mode::Help | Mode::DetailHelp => ("HELP", Color::Rgb(150, 150, 150)),
         Mode::About => ("ABOUT", Color::Rgb(150, 150, 150)),
+        Mode::Legend => ("LEGEND", Color::Rgb(150, 150, 150)),
         Mode::RepoSettings => ("REPO SETTINGS", Color::Rgb(135, 0, 135)),
         Mode::Adding
         | Mode::BulkAddInput
@@ -1920,6 +1925,17 @@ fn about_dismiss_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
         Span::raw(" "),
         Span::styled("[", muted_style()),
         Span::styled("v/⎋/q", accent_style()),
+        Span::styled("]", muted_style()),
+    ])];
+    (None, entries)
+}
+
+fn legend_dismiss_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let entries = vec![StatusEntry::new(vec![
+        Span::raw("Close Legend"),
+        Span::raw(" "),
+        Span::styled("[", muted_style()),
+        Span::styled("h/⎋/q", accent_style()),
         Span::styled("]", muted_style()),
     ])];
     (None, entries)

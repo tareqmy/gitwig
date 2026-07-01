@@ -121,6 +121,11 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
+        Mode::Legend => {
+            if crate::popups::legend::LegendPopup::handle_event(app, key) {
+                return true;
+            }
+        }
         Mode::Detail => {
             if crate::tabs::route_detail_event(app, key) {
                 return true;

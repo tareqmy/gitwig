@@ -45,6 +45,8 @@ impl HomeTab {
                     app.open_help();
                 } else if app.is_bound(Action::HomeAbout, key) {
                     app.open_about();
+                } else if app.is_bound(Action::HomeSymbolsHelp, key) {
+                    app.mode = Mode::Legend;
                 } else if app.is_bound(Action::HomeToggleCompactView, key) {
                     app.config.compact_view = !app.config.compact_view;
                     let _ = crate::config::save_config(&app.config, &app.config_path);

@@ -49,6 +49,7 @@ pub fn get_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("⎋ [Esc]", "Cancel input, close dialog, leave detail view, or quit"),
                 ("?", "Toggle this help overlay"),
                 ("V", "Show about popup / creator profile"),
+                ("h", "Show signs & symbols legend popup"),
                 ("q", "Quit (also closes detail view)"),
             ],
         ),

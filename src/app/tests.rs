@@ -5097,3 +5097,41 @@ fn test_compact_view_toggle() {
     let _ = crate::tabs::HomeTab::handle_event(&mut app, event, 10);
     assert!(!app.config.compact_view);
 }
+
+#[test]
+fn test_legend_popup_flow() {
+    let config = Config::default();
+    let temp_dir = std::env::temp_dir().join("gitwig_test_config_legend_dir");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    struct TestDirGuard {
+        path: PathBuf,
+    }
+    impl Drop for TestDirGuard {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+    let _guard = TestDirGuard { path: temp_dir.clone() };
+    let temp_path = temp_dir.join("config.toml");
+    let mut app = App::new(config, temp_path);
+
+    assert_eq!(app.mode, Mode::Normal);
+
+    // Press h to open legend
+    let open_event = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('h'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let _ = crate::tabs::HomeTab::handle_event(&mut app, open_event, 10);
+    assert_eq!(app.mode, Mode::Legend);
+
+    // Press Esc to close
+    let close_event = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, close_event, 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Normal);
+}
