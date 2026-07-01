@@ -379,6 +379,10 @@ pub struct App {
     pub pending_editor_file: Option<String>,
     /// Whether interactive rebase is pending.
     pub pending_interactive_rebase: Option<(PathBuf, String)>,
+    /// Repository paths currently being fetched in bulk.
+    pub bulk_fetching: std::collections::HashSet<String>,
+    /// Results of the latest bulk fetch (path -> Ok(msg) or Err(err)).
+    pub bulk_fetch_results: std::collections::HashMap<String, Result<String, String>>,
     /// Whether we are currently viewing logs UI.
     pub in_logs_ui: bool,
     /// Cached resolved ThemeConfigs for repositories.
@@ -1035,6 +1039,8 @@ impl App {
             pending_files_fzf: false,
             pending_editor_file: None,
             pending_interactive_rebase: None,
+            bulk_fetching: std::collections::HashSet::new(),
+            bulk_fetch_results: std::collections::HashMap::new(),
             in_logs_ui: false,
             repo_theme_cache: std::collections::HashMap::new(),
             inspect_full_diff: false,
@@ -1214,6 +1220,30 @@ where
             });
         }
         while let Ok(raw_msg) = app.rx.try_recv() {
+            if let Some(success_path) = raw_msg.strip_prefix("BULK_FETCH_SUCCESS:") {
+                app.bulk_fetching.remove(success_path);
+                if let Some(idx) = app.config.items.iter().position(|item| item == success_path) {
+                    app.statuses[idx] = repo::inspect_summary(&app.config.items[idx]);
+                }
+                app.bulk_fetch_results.insert(success_path.to_string(), Ok("Fetched successfully".to_string()));
+                if app.bulk_fetching.is_empty() {
+                    app.status_message = Some("Bulk fetch completed successfully".to_string());
+                }
+                continue;
+            }
+            if let Some(error_data) = raw_msg.strip_prefix("BULK_FETCH_ERROR:") {
+                if let Some(pos) = error_data.find("|||") {
+                    let err_path = &error_data[..pos];
+                    let err_msg = &error_data[pos + 3..];
+                    app.bulk_fetching.remove(err_path);
+                    app.bulk_fetch_results.insert(err_path.to_string(), Err(err_msg.to_string()));
+                }
+                if app.bulk_fetching.is_empty() {
+                    app.status_message = Some("Bulk fetch completed".to_string());
+                }
+                continue;
+            }
+
             let (repo_path, msg) = if let Some(pos) = raw_msg.find("|||") {
                 (Some(raw_msg[..pos].to_string()), raw_msg[pos + 3..].to_string())
             } else {

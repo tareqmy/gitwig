@@ -1186,6 +1186,53 @@ impl App {
             Some("Operation dismissed (may still be running in background)".to_string());
     }
 
+    pub fn bulk_fetch_all(&mut self) {
+        if !self.bulk_fetching.is_empty() {
+            return;
+        }
+
+        let items = self.config.items.clone();
+        for (idx, item) in items.iter().enumerate() {
+            let status = self.statuses.get(idx);
+            let is_git = matches!(status, Some(repo::ItemStatus::GitRepo(_)));
+            if is_git {
+                let path = repo::expand_tilde(item);
+                let path_buf = PathBuf::from(&path);
+                if path_buf.exists() {
+                    let path_str = item.clone();
+                    self.bulk_fetching.insert(path_str.clone());
+                    self.bulk_fetch_results.remove(&path_str);
+                    
+                    let tx = self.tx.clone();
+                    std::thread::spawn(move || {
+                        let output = std::process::Command::new("git")
+                            .arg("fetch")
+                            .current_dir(&path_buf)
+                            .output();
+                        
+                        let msg = match output {
+                            Ok(out) if out.status.success() => {
+                                format!("BULK_FETCH_SUCCESS:{}", path_str)
+                            }
+                            Ok(out) => {
+                                let err_msg = String::from_utf8_lossy(&out.stderr).trim().to_string();
+                                format!("BULK_FETCH_ERROR:{}|||{}", path_str, err_msg)
+                            }
+                            Err(e) => {
+                                format!("BULK_FETCH_ERROR:{}|||{}", path_str, e)
+                            }
+                        };
+                        let _ = tx.send(msg);
+                    });
+                }
+            }
+        }
+        
+        if !self.bulk_fetching.is_empty() {
+            self.status_message = Some(format!("Fetching {} repositories concurrently...", self.bulk_fetching.len()));
+        }
+    }
+
     /// Push a branch to a specific remote by name (bypasses upstream detection).
     fn execute_branch_push_to(&mut self, branch_name: &str, remote_name: &str) {
         if self.fetching {

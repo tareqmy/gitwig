@@ -3923,6 +3923,48 @@ fn test_pending_terminal_trigger() {
 }
 
 #[test]
+fn test_bulk_fetch_all_trigger() {
+    let temp_dir = std::env::temp_dir();
+    let repo_path = temp_dir.join("gitwig_test_bulk_fetch_repo");
+    let _ = std::fs::create_dir_all(&repo_path);
+
+    let config = Config {
+        items: vec![repo_path.to_string_lossy().to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        fzf: FzfConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+        ..Default::default()
+    };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    app.statuses = vec![repo::ItemStatus::GitRepo(None)];
+
+    let key = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('F'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, key, 1);
+    assert!(handled);
+    assert!(!app.bulk_fetching.is_empty());
+
+    let _ = std::fs::remove_dir_all(repo_path);
+}
+
+#[test]
 fn test_cherry_pick_destination_branches() {
     let config = Config {
         items: vec![],

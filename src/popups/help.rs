@@ -64,6 +64,7 @@ pub fn get_help_lines(app: &App) -> Vec<Line<'_>> {
                 ("D", "Delete selected item"),
                 ("f", "Enter repository search mode"),
                 ("R", "Refresh status of selected item"),
+                ("F", "Bulk fetch all tracked repositories concurrently"),
                 ("o / O", "Cycle sorting mode / Toggle reverse sorting"),
                 ("v", "Toggle between standard cards and compact 1-row view"),
                 ("p", "Toggle pin status of selected item"),

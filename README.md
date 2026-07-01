@@ -139,6 +139,7 @@ asciinema play resources/preview.cast
 | `D`                  | Normal          | Delete the selected item (asks)   |
 | `l`                  | Normal          | Edit labels of the selected item  |
 | `R`                  | Normal          | Refresh status of selected item   |
+| `F`                  | Normal          | Bulk fetch all tracked repositories concurrently |
 | `f`                  | Normal          | Enter repository search mode      |
 | `p`                  | Normal          | Toggle pin status of selected item |
 | `*`                  | Normal          | Toggle Favorite / Star status of selected item |

@@ -761,7 +761,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
 
                     // 3. Status indicator line
                     let status_line =
-                        status_indicator_line(app, status).alignment(Alignment::Right);
+                        status_indicator_line(app, status, item).alignment(Alignment::Right);
                     f.render_widget(Paragraph::new(status_line), cols[2]);
                 } else {
                     let border_type =
@@ -902,7 +902,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     f.render_widget(Paragraph::new(branch_line), row1_cols[0]);
 
                     let status_line =
-                        status_indicator_line(app, status).alignment(Alignment::Right);
+                        status_indicator_line(app, status, item).alignment(Alignment::Right);
                     f.render_widget(Paragraph::new(status_line), row1_cols[1]);
 
                     let note_line = if let Some(repo_cfg) = app.config.repo_configs.get(item) {
@@ -1000,7 +1000,26 @@ fn draw_search_empty_state(f: &mut Frame, area: Rect, query: &str) {
 /// compact set of `N+` (staged), `N!` (modified), `N?` (untracked),
 /// `N↑` (commits ahead), `N↓` (commits behind) suffixes. Only non-zero
 /// counts are shown so the indicator stays compact for the common case.
-fn status_indicator_line(app: &App, status: &ItemStatus) -> Line<'static> {
+fn status_indicator_line(app: &App, status: &ItemStatus, item: &str) -> Line<'static> {
+    if app.bulk_fetching.contains(item) {
+        return Line::from(vec![
+            Span::styled("↻ ", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
+            Span::styled("fetching...", Style::default().fg(ACCENT())),
+        ]);
+    }
+    if let Some(res) = app.bulk_fetch_results.get(item) {
+        return match res {
+            Ok(_) => Line::from(vec![
+                Span::styled("✓ ", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
+                Span::styled("done", Style::default().fg(SUCCESS())),
+            ]),
+            Err(_) => Line::from(vec![
+                Span::styled("✗ ", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
+                Span::styled("failed", Style::default().fg(DANGER())),
+            ]),
+        };
+    }
+
     match status {
         ItemStatus::Missing => Line::from(vec![
             Span::styled(app.sym("close"), Style::default().fg(DANGER())),

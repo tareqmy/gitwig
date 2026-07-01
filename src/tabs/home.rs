@@ -126,6 +126,8 @@ impl HomeTab {
                     app.yank_selected_repo_path();
                 } else if code == KeyCode::Char('t') || code == KeyCode::Char('T') {
                     app.pending_terminal = true;
+                } else if code == KeyCode::Char('F') {
+                    app.bulk_fetch_all();
                 }
             }
             Mode::RepoSearchInput => match code {
