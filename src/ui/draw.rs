@@ -168,6 +168,10 @@ pub fn draw(
             | Mode::RemoteDeleteConfirm
             | Mode::RepoSettings
             | Mode::Overview
+            | Mode::BranchSearchInput
+            | Mode::FileSearchInput
+            | Mode::CommitFuzzySearch
+            | Mode::TagSearchInput
     ) || (app.mode == Mode::UpdateConfirm && app.current_detail.is_some())
     {
         if let Some(detail) = &app.current_detail {
