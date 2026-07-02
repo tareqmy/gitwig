@@ -61,6 +61,7 @@ The crate is organized so each file has a single clear responsibility. Keep it t
 
 ## Keeping Docs In Sync
 - **Whenever you change code, update the relevant documentation, help pages, legends, status bar, and shortcuts in the same task.** All files, READMEs, help overlays, status bars, and legends must be fully up to date.
+- **Installer Checksums:** If you modify any installation or uninstallation script in the `scripts/` directory (e.g., `install.sh`, `install.ps1`, `uninstall.sh`, `uninstall.ps1`), you **MUST** recalculate its SHA-256 checksum and overwrite the corresponding `.sha256` file in the same commit. This prevents TUI self-update verification failures.
 - `GEMINI.md` — update when the tech stack, architectural patterns, or development workflow change.
 - `.agent/ROADMAP.md` — check off items as they ship; add new ones as scope shifts; never leave a completed feature unchecked.
 - `.agent/INSTRUCTIONS.md` — update when codebase conventions, framework guidance, or working rules change.
