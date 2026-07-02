@@ -1,11 +1,11 @@
-# 🌿 Gitwig — A Terminal Git TUI
+# 🌿 Gitwig — Terminal Git UI & SourceTree Alternative (Built in Rust)
 
 <p align="center">
-  <img src="resources/icon.png" width="180" height="180" alt="Gitwig Logo" />
+  <img src="resources/icon.png" width="180" height="180" alt="Gitwig Terminal Git UI Logo" />
 </p>
 
 
-**Gitwig** (from **Git** + **Twig**, representing the branches of a repository) is a lightweight terminal-based Git UI, designed as a fast and minimal alternative to GUI tools like SourceTree. Built with Rust and `ratatui`, Gitwig presents your Git-related items in a clean, bordered layout directly in the terminal.
+**Gitwig** (derived from **Git** + **Twig**, representing repository branches) is a lightweight, keyboard-driven **Terminal Git UI** (TUI) designed as a fast, minimal alternative to desktop Git GUI clients like **SourceTree** and terminal clients like **lazygit**. Built with Rust and `ratatui`, Gitwig presents all your Git repositories, worktrees, stashes, and branches in a clean, interactive bordered layout directly inside your terminal window.
 
 ---
 
