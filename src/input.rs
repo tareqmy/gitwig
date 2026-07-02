@@ -71,6 +71,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::FileSearchInput
             | Mode::CommitFuzzySearch
             | Mode::TagSearchInput
+            | Mode::WorkspaceSearchInput
             | Mode::ImportUrlInput
             | Mode::ImportDestInput
             | Mode::ImportNameInput
@@ -589,6 +590,76 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char(c) => {
                     app.input_buffer.push(c);
                     app.tag_search_selection = 0;
+                }
+                _ => {}
+            }
+            return true;
+        }
+        Mode::WorkspaceSearchInput => {
+            let matches = app.get_workspace_search_matches();
+            match code {
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.mode = app.previous_mode.unwrap_or(Mode::Detail);
+                }
+                KeyCode::Up => {
+                    if !matches.is_empty() {
+                        app.workspace_search_selection =
+                            app.workspace_search_selection.saturating_sub(1);
+                    }
+                }
+                KeyCode::Down => {
+                    if !matches.is_empty() && app.workspace_search_selection + 1 < matches.len() {
+                        app.workspace_search_selection += 1;
+                    }
+                }
+                KeyCode::Enter => {
+                    if !matches.is_empty() && app.workspace_search_selection < matches.len() {
+                        let (bucket, original_idx, _, _) =
+                            matches[app.workspace_search_selection].clone();
+                        match bucket {
+                            0 => {
+                                app.detail_focus = DetailSection::Staged;
+                                app.status_list.staging_file_selection = original_idx;
+                                app.refresh_staging_diff();
+                            }
+                            1 => {
+                                app.detail_focus = DetailSection::Unstaged;
+                                app.status_list.file_selection = original_idx;
+                                app.refresh_file_diff();
+                            }
+                            2 => {
+                                app.detail_focus = DetailSection::Unstaged;
+                                if let Some(crate::repo::ItemDetail::Repo { info, .. }) =
+                                    &app.current_detail
+                                {
+                                    app.status_list.file_selection =
+                                        info.changes.unstaged.len() + original_idx;
+                                } else {
+                                    app.status_list.file_selection = original_idx;
+                                }
+                                app.refresh_file_diff();
+                            }
+                            _ => {
+                                app.detail_focus = DetailSection::Conflicts;
+                                app.status_list.conflict_file_selection = original_idx;
+                                app.refresh_staging_diff();
+                            }
+                        }
+                        app.input_buffer.clear();
+                        app.mode = app.previous_mode.unwrap_or(Mode::Detail);
+                    } else {
+                        app.input_buffer.clear();
+                        app.mode = app.previous_mode.unwrap_or(Mode::Detail);
+                    }
+                }
+                KeyCode::Backspace => {
+                    app.input_buffer.pop();
+                    app.workspace_search_selection = 0;
+                }
+                KeyCode::Char(c) => {
+                    app.input_buffer.push(c);
+                    app.workspace_search_selection = 0;
                 }
                 _ => {}
             }
