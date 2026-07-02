@@ -169,6 +169,8 @@ pub enum Mode {
     RepoScanPicker,
     /// Floating popup for fuzzy branch search.
     BranchSearchInput,
+    /// Floating popup for fuzzy file search fallback.
+    FileSearchInput,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -378,6 +380,7 @@ pub struct App {
     pub repo_scan_active: bool,
     pub repo_scan_count: usize,
     pub branch_search_selection: usize,
+    pub file_search_selection: usize,
     /// Row selection index for the repository settings popup.
     pub repo_settings_selected_index: usize,
     /// Whether we are currently text-editing a repository setting.
@@ -1059,6 +1062,7 @@ impl App {
             repo_scan_active: false,
             repo_scan_count: 0,
             branch_search_selection: 0,
+            file_search_selection: 0,
             repo_settings_selected_index: 0,
             repo_settings_editing: false,
             repo_settings_input: String::new(),

@@ -299,6 +299,10 @@ pub fn draw(
         draw_branch_search_popup(f, app, area);
     }
 
+    if matches!(app.mode, Mode::FileSearchInput) {
+        draw_file_search_popup(f, app, area);
+    }
+
     if matches!(app.mode, Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput) {
         crate::popups::import::draw_import_popup(f, area, app);
     }
@@ -1689,6 +1693,80 @@ pub fn draw_branch_search_popup(f: &mut Frame, app: &App, area: Rect) {
         Span::styled("↑↓ navigate  ", muted_style()),
         Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(" checkout  ", muted_style()),
+        Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" cancel", muted_style()),
+    ]);
+    f.render_widget(Paragraph::new(hint), chunks[2]);
+}
+
+pub fn draw_file_search_popup(f: &mut Frame, app: &App, area: Rect) {
+    let popup_area = crate::ui::layout::centered_rect(80, 60, area);
+    f.render_widget(ratatui::widgets::Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Fuzzy File Search", primary_style().add_modifier(Modifier::BOLD)),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::horizontal(1));
+
+    let inner = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3), // Input box
+            Constraint::Min(1),    // Match list
+            Constraint::Length(1), // Hint
+        ])
+        .split(inner);
+
+    // 1. Draw input box
+    let input_block =
+        Block::default().borders(Borders::ALL).border_style(muted_style()).title(" Search File ");
+    let input_p = Paragraph::new(Line::from(vec![
+        Span::raw("> "),
+        Span::styled(app.input_buffer.clone(), primary_style()),
+    ]))
+    .block(input_block);
+    f.render_widget(input_p, chunks[0]);
+
+    // 2. Draw matches
+    let matches = app.get_file_search_matches();
+    let list_items: Vec<ratatui::widgets::ListItem> = matches
+        .iter()
+        .enumerate()
+        .map(|(i, path)| {
+            let style = if i == app.file_search_selection {
+                accent_style().add_modifier(Modifier::BOLD | Modifier::REVERSED)
+            } else {
+                primary_style()
+            };
+            ratatui::widgets::ListItem::new(Line::from(vec![
+                Span::raw("  "),
+                Span::styled(path.clone(), style),
+            ]))
+        })
+        .collect();
+
+    let mut list_state = ratatui::widgets::ListState::default();
+    if !matches.is_empty() {
+        list_state.select(Some(app.file_search_selection));
+    }
+    f.render_stateful_widget(ratatui::widgets::List::new(list_items), chunks[1], &mut list_state);
+
+    // 3. Draw hint
+    let hint = Line::from(vec![
+        Span::styled("Type to filter  ", muted_style()),
+        Span::styled("↑↓ navigate  ", muted_style()),
+        Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" select  ", muted_style()),
         Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(" cancel", muted_style()),
     ]);

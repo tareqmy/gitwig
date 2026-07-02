@@ -6,7 +6,7 @@
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app::{App, Mode};
+use crate::app::{App, DetailSection, Mode};
 use crate::components::Component;
 
 /// Dispatch a key press. Returns `false` if the user requested quit.
@@ -68,6 +68,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::RepoJump
             | Mode::RepoScanPicker
             | Mode::BranchSearchInput
+            | Mode::FileSearchInput
             | Mode::ImportUrlInput
             | Mode::ImportDestInput
             | Mode::ImportNameInput
@@ -448,6 +449,65 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char(c) => {
                     app.input_buffer.push(c);
                     app.branch_search_selection = 0;
+                }
+                _ => {}
+            }
+            return true;
+        }
+        Mode::FileSearchInput => {
+            let matches = app.get_file_search_matches();
+            match code {
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.mode = app.previous_mode.unwrap_or(Mode::Detail);
+                }
+                KeyCode::Up => {
+                    if !matches.is_empty() {
+                        app.file_search_selection = app.file_search_selection.saturating_sub(1);
+                    }
+                }
+                KeyCode::Down => {
+                    if !matches.is_empty() && app.file_search_selection + 1 < matches.len() {
+                        app.file_search_selection += 1;
+                    }
+                }
+                KeyCode::Enter => {
+                    if !matches.is_empty() && app.file_search_selection < matches.len() {
+                        let selected = matches[app.file_search_selection].clone();
+                        let parts: Vec<&str> = selected.split('/').collect();
+                        let mut accumulated = String::new();
+                        for part in parts.iter().take(parts.len().saturating_sub(1)) {
+                            if !accumulated.is_empty() {
+                                accumulated.push('/');
+                            }
+                            accumulated.push_str(part);
+                            app.file_tree.expanded_folders.insert(accumulated.clone());
+                        }
+                        app.rebuild_visible_files();
+                        if let Some(pos) = app
+                            .file_tree
+                            .visible_files
+                            .iter()
+                            .position(|item| item.full_path == selected)
+                        {
+                            app.file_tree.file_list_selection = pos;
+                            app.file_tree.file_content_scroll = 0;
+                            app.detail_focus = DetailSection::Files;
+                        }
+                        app.input_buffer.clear();
+                        app.mode = app.previous_mode.unwrap_or(Mode::Detail);
+                    } else {
+                        app.input_buffer.clear();
+                        app.mode = app.previous_mode.unwrap_or(Mode::Detail);
+                    }
+                }
+                KeyCode::Backspace => {
+                    app.input_buffer.pop();
+                    app.file_search_selection = 0;
+                }
+                KeyCode::Char(c) => {
+                    app.input_buffer.push(c);
+                    app.file_search_selection = 0;
                 }
                 _ => {}
             }

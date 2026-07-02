@@ -323,4 +323,51 @@ impl App {
         }
         results
     }
+
+    pub fn start_file_search(&mut self) {
+        self.file_search_selection = 0;
+        self.input_buffer.clear();
+        self.previous_mode = Some(self.mode);
+        self.mode = Mode::FileSearchInput;
+    }
+
+    pub fn get_file_search_matches(&self) -> Vec<String> {
+        let mut results = Vec::new();
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let query = self.input_buffer.to_lowercase();
+            let all_files = if let repo::TabData::Loaded(files) = &info.files {
+                files.clone()
+            } else {
+                Vec::new()
+            };
+
+            if query.is_empty() {
+                return all_files;
+            }
+
+            let mut matches = Vec::new();
+            for file in all_files {
+                let file_lower = file.to_lowercase();
+                if file_lower.contains(&query) {
+                    let score = 1000 - (file_lower.len() - query.len());
+                    matches.push((score, file));
+                } else {
+                    let mut file_chars = file_lower.chars();
+                    let mut matched = true;
+                    for qc in query.chars() {
+                        if !file_chars.any(|nc| nc == qc) {
+                            matched = false;
+                            break;
+                        }
+                    }
+                    if matched {
+                        matches.push((100, file));
+                    }
+                }
+            }
+            matches.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+            results = matches.into_iter().map(|(_, file)| file).collect();
+        }
+        results
+    }
 }

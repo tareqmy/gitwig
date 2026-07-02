@@ -24,9 +24,13 @@ impl FilesTab {
                 app.open_file_history();
                 return true;
             }
-            // 'f' launches FZF file picker
+            // 'f' launches FZF file picker or native fallback
             if code == KeyCode::Char('f') {
-                app.pending_files_fzf = true;
+                if app.config.fzf.enabled && app.is_fzf_installed() {
+                    app.pending_files_fzf = true;
+                } else {
+                    app.start_file_search();
+                }
                 return true;
             }
             // '>'/'.' expand folder, '<'/',' collapse folder
