@@ -183,22 +183,24 @@ asciinema play resources/preview.cast
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
 | `PgUp` / `PgDn`      | Detail / Normal / Settings | Scroll list/diff/tree/settings by configured `page_size` |
 | `Home` / `End`       | Detail / Normal / Settings | Jump to top / bottom of list/diff/tree/settings |
-| `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), checkout tag (Tags tab), or Inspect commit |
+| `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), checkout tag (Tags tab), open worktree in new context (Worktrees tab), or Inspect commit |
 | `f` / `F`            | Detail          | Fetch remote repository (Branches / Tags / Remotes tabs) |
-| `p`                  | Detail          | Pull selected local branch from remote (Branches tab) or Push selected tag (Tags tab; asks confirmation) |
+| `p`                  | Detail          | Pull selected local branch from remote (Branches tab), Push selected tag (Tags tab; asks confirmation), or Prune stale worktree metadata (Worktrees tab) |
 | `Shift+P`            | Detail          | Push selected local branch to remote (Branches tab) or Push all tags (Tags tab; asks confirmation) |
 | `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) or Local/Remote tag (Tags tab) |
 | `←` / `→` or `<` / `>` or `,` / `.` | Detail | Collapse/Expand directory (Files tab) |
 | `f`                  | Detail          | Fuzzy find files (Files tab)      |
+| `e` / `o`            | Detail          | Open selected file in configured terminal editor (Files tab)      |
 | `Shift+H`            | Detail          | View selected file's commit/revision history (Files tab) |
 | `c`                  | Detail          | Open commit prompt (Workspace tab or Inspect view), or Create branch from HEAD (Branches tab) |
-| `a`                  | Detail          | Stage All (Workspace tab Unstaged focus) / Unstage All (Workspace tab Staged focus) or Apply stash (Stashes tab) |
+| `a`                  | Detail          | Stage All (Workspace tab Unstaged focus) / Unstage All (Workspace tab Staged focus), Apply stash (Stashes tab), or Add worktree (Worktrees tab) |
 | `x`                  | Detail          | Discard selected file changes (Workspace tab or Inspect view; asks confirmation) |
 | `X`                  | Detail          | Discard all changes in repository (Workspace tab or Inspect view; asks confirmation) |
 | `i`                  | Detail          | Interactive rebase from selected commit (Workspace tab commits list) |
-| `l`                  | Detail          | Open Logs view (Full screen commits list; Workspace tab commits list focus) |
-| `D`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), or stash (Stashes tab; asks confirmation) |
-| `s`                  | Detail          | Open Stashing UI overlay (Workspace tab) or Prompt to save stash (Stashing UI / Stashes tab) |
+| `G`                  | Detail          | Load more commits (Workspace commits list / Logs view)            |
+| `l`                  | Detail          | Open Logs view (Workspace tab commits list focus) or Toggle lock status (Worktrees tab; asks reason/unlocks) |
+| `D`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), stash (Stashes tab; asks confirmation), or remove worktree (Worktrees tab; asks confirmation) |
+| `s`                  | Detail          | Open Stashing UI overlay (Workspace tab), Prompt to save stash (Stashing UI / Stashes tab), or Open theme picker (Overview overlay) |
 | `u`                  | Detail          | Toggle "Stash untracked files" option (Stashing UI)               |
 | `i`                  | Detail          | Toggle "Keep index" option (Stashing UI)                         |
 | `Ctrl+U`             | Input (Stash)   | Toggle "Stash untracked files" option (Stash Create popup)       |
@@ -239,26 +241,48 @@ The selected item is marked with a left-edge `▌` accent, a colored border, and
 
 ## 📂 Item status indicators
 
-Each card shows a colored symbol on the right reflecting the item's filesystem state:
+Each repository card shows icons and badges reflecting its state:
 
-- `● git` — the item is a directory containing a `.git` entry (a git repository, worktree, or submodule).
-- `○ dir` — the item is a directory, but not a git repository.
-- `✕ missing` — the item is not a directory on this machine (doesn't exist, is a file, or isn't accessible).
+### General Icons
+- `📌` (or `[P]`) — Pinned repository.
+- `★` (or `*`) — Starred / favorite repository.
+- `● git` (or `G  clean`) — Clean Git repository.
+- `○ dir` (or `o dir`) — Directory exists but is not a git repository.
+- `✕ missing` (or `x missing`) — Path does not exist or is not a directory.
 
-For git repositories the indicator also shows compact counts for any non-zero values:
+### Compact Status Suffixes
+For git repositories, the status indicator shows compact counts for any non-zero values:
 
 | Suffix | Meaning | Colour |
 | ------ | ------- | ------ |
 | `N+`   | N files staged for commit | Cyan |
 | `N!`   | N files modified but not staged | Yellow |
 | `N?`   | N untracked files | Muted |
-| `N↑`   | N commits ahead of upstream (needs push) | Bold |
-| `N↓`   | N commits behind upstream (needs pull/fetch) | Yellow |
+| `N✕`   | N conflicted files | Red / Danger |
+| `N↑`   | N commits ahead of upstream (needs push) | Bold Green |
+| `N↓`   | N commits behind upstream (needs pull/fetch) | Bold Yellow |
 
-When all counts are zero the indicator shows `● clean`. When the branch has no configured upstream, only the worktree counts appear (no `↑`/`↓`). Press `?` or `h` at any time to see the legend inside the app.
+When all counts are zero, the indicator shows `● clean`. Press `?` or `h` at any time to see the legend inside the app.
 
 ### ⚠ Staging Divergence (`⚠ PARTIAL`)
 When a repository has **both** staged changes and unstaged changes (modified or untracked) coexisting simultaneously, Gitwig will display a yellow `⚠ PARTIAL` warning badge next to the repository name on its card.
+
+### Active Repository State Badges
+When a repository has an active Git operation or special state, Gitwig displays a colored status badge:
+- `✓ CLEAN` — No active Git state/operation.
+- `⚠ MERGE` — Active Merge session (contains conflicts).
+- `🚧 REBASE` — Active Interactive/Normal Rebase.
+- `⚡ CHERRY` — Active Cherry-pick operation.
+- `⚡ REVERT` — Active Revert operation.
+- `🔍 BISECT` — Active Bisect session.
+- `📬 APPLY` — Applying patches (mailbox).
+
+### Global Summary Header Bar
+The high-level dashboard stats at the top of the homepage show:
+- **repos**: Total number of configured repositories.
+- **dirty**: Repositories with uncommitted/unstaged changes.
+- **ahead**: Repositories with local commits ahead of their remote tracking branch.
+- **stale**: Repositories where the last commit is older than 30 days.
 
 ### Auto-Refresh & Manual Refresh
 Items support `~` and `~/...` expansion, so `~/code/gitwig` resolves to your home directory. 
