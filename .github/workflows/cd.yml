@@ -157,26 +157,30 @@ jobs:
     needs: publish-release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Homebrew Tap
-        uses: actions/checkout@v7
-        with:
-          repository: tareqmy/homebrew-gitwig
-          token: ${{ secrets.TAP_GITHUB_TOKEN }}
-          path: homebrew-gitwig
-
       - name: Calculate Hash and Update Formula
         run: |
           VERSION="${{ github.ref_name }}"
           VERSION_NUM="${VERSION#v}"
+          
+          # Clone the tap repository manually using the token
+          git clone "https://x-access-token:${{ secrets.TAP_GITHUB_TOKEN }}@github.com/tareqmy/homebrew-gitwig.git" homebrew-gitwig || {
+            echo "Clone failed (possibly empty repository). Initializing new local repository..."
+            mkdir homebrew-gitwig
+            cd homebrew-gitwig
+            git init
+            git checkout -b main
+            git remote add origin "https://x-access-token:${{ secrets.TAP_GITHUB_TOKEN }}@github.com/tareqmy/homebrew-gitwig.git"
+            cd ..
+          }
           
           # Fetch files to calculate sha256 checksums
           curl -LO "https://github.com/tareqmy/gitwig/releases/download/${VERSION}/gitwig-${VERSION}-x86_64-apple-darwin.tar.gz"
           curl -LO "https://github.com/tareqmy/gitwig/releases/download/${VERSION}/gitwig-${VERSION}-aarch64-apple-darwin.tar.gz"
           curl -LO "https://github.com/tareqmy/gitwig/releases/download/${VERSION}/gitwig-${VERSION}-x86_64-unknown-linux-musl.tar.gz"
           
-          INTEL_SHA=\$(sha256sum gitwig-\${VERSION}-x86_64-apple-darwin.tar.gz | cut -d' ' -f1)
-          ARM_SHA=\$(sha256sum gitwig-\${VERSION}-aarch64-apple-darwin.tar.gz | cut -d' ' -f1)
-          LINUX_SHA=\$(sha256sum gitwig-\${VERSION}-x86_64-unknown-linux-musl.tar.gz | cut -d' ' -f1)
+          INTEL_SHA=$(sha256sum gitwig-${VERSION}-x86_64-apple-darwin.tar.gz | cut -d' ' -f1)
+          ARM_SHA=$(sha256sum gitwig-${VERSION}-aarch64-apple-darwin.tar.gz | cut -d' ' -f1)
+          LINUX_SHA=$(sha256sum gitwig-${VERSION}-x86_64-unknown-linux-musl.tar.gz | cut -d' ' -f1)
           
           mkdir -p homebrew-gitwig/Formula
           
@@ -185,20 +189,20 @@ jobs:
           class Gitwig < Formula
             desc "Rust-based Terminal User Interface (TUI) for Git"
             homepage "https://github.com/tareqmy/gitwig"
-            version "\${VERSION_NUM}"
+            version "${VERSION_NUM}"
 
             if OS.mac?
               if Hardware::CPU.intel?
                 url "https://github.com/tareqmy/gitwig/releases/download/v#{version}/gitwig-v#{version}-x86_64-apple-darwin.tar.gz"
-                sha256 "\${INTEL_SHA}"
+                sha256 "${INTEL_SHA}"
               elsif Hardware::CPU.arm?
                 url "https://github.com/tareqmy/gitwig/releases/download/v#{version}/gitwig-v#{version}-aarch64-apple-darwin.tar.gz"
-                sha256 "\${ARM_SHA}"
+                sha256 "${ARM_SHA}"
               end
             elsif OS.linux?
               if Hardware::CPU.intel?
                 url "https://github.com/tareqmy/gitwig/releases/download/v#{version}/gitwig-v#{version}-x86_64-unknown-linux-musl.tar.gz"
-                sha256 "\${LINUX_SHA}"
+                sha256 "${LINUX_SHA}"
               end
             end
 
@@ -216,5 +220,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Formula/gitwig.rb
-          git commit -m "Update gitwig to \${VERSION}" || echo "No changes to commit"
-          git push origin main || echo "No changes to push"
+          git commit -m "Update gitwig to ${VERSION}" || echo "No changes to commit"
+          git push origin main || git push origin master || echo "No changes to push"
