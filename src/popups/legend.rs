@@ -175,6 +175,36 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
         Span::raw("Applying patches (mailbox)"),
     ]));
 
+    // Separator
+    lines.push(Line::from(""));
+    lines.push(Line::from(""));
+
+    // Section 3: Global Summary Header (Homepage)
+    lines.push(Line::from(Span::styled(
+        "Global Summary Header (Homepage)",
+        primary_style().add_modifier(Modifier::BOLD),
+    )));
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![
+        Span::styled(format!("  {}", pad("repos")), muted_style()),
+        Span::raw("Total number of configured repositories"),
+    ]));
+    lines.push(Line::from(vec![
+        Span::styled(format!("  {}", pad("dirty")), Style::default().fg(WARNING())),
+        Span::raw("Repositories with uncommitted/unstaged changes"),
+    ]));
+    lines.push(Line::from(vec![
+        Span::styled(
+            format!("  {}", pad("ahead")),
+            Style::default().fg(accent_style().fg.unwrap_or(Color::Cyan)),
+        ),
+        Span::raw("Repositories with local commits ahead of remote"),
+    ]));
+    lines.push(Line::from(vec![
+        Span::styled(format!("  {}", pad("stale")), Style::default().fg(DANGER())),
+        Span::raw("Repositories where the last commit is older than 30 days"),
+    ]));
+
     lines
 }
 
