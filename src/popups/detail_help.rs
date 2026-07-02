@@ -121,7 +121,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
             "Files Tab",
             vec![
                 ("← / → or < / >", "Collapse/Expand folder"),
-                ("f", "Fuzzy find files"),
+                ("/", "Fuzzy find files"),
                 ("⇧H [Shift+H]", "Show file history"),
                 ("e / o", "Open file in terminal editor"),
             ],
@@ -136,7 +136,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("r", "Rebase current branch onto selected branch / Interactive rebase"),
                 ("p", "Pull branch (Branches) / Push tag (Tags)"),
                 ("⇧P [Shift+P]", "Push branch (Branches) / Push all tags (Tags)"),
-                ("/ / f", "Fuzzy search branches / tags"),
+                ("/", "Fuzzy search branches / tags"),
                 ("F", "Fetch remote (Branches / Tags tabs)"),
             ],
         ),

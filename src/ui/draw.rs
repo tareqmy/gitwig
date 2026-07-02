@@ -2303,7 +2303,7 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(entry_labels_f1.iter().any(|label| label.contains("Fuzzy Find [f]")));
+        assert!(entry_labels_f1.iter().any(|label| label.contains("Fuzzy Find [/]")));
         assert!(entry_labels_f1.iter().any(|label| label.contains("Expand/Collapse [←/→]")));
         assert!(entry_labels_f1.iter().any(|label| label.contains("History [⇧H]")));
         assert!(!entry_labels_f1.iter().any(|label| label.contains("Open in Editor [e/o]")));
@@ -2382,7 +2382,8 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(entry_labels_b1.iter().any(|label| label.contains("Fetch [f/F]")));
+        assert!(entry_labels_b1.iter().any(|label| label.contains("Fuzzy Search [/]")));
+        assert!(entry_labels_b1.iter().any(|label| label.contains("Fetch [F]")));
         assert!(entry_labels_b1.iter().any(|label| label.contains("Pull [p]")));
         assert!(entry_labels_b1.iter().any(|label| label.contains("Push [⇧P]")));
 
@@ -2433,7 +2434,8 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(entry_labels_tags.iter().any(|label| label.contains("Fetch [f/F]")));
+        assert!(entry_labels_tags.iter().any(|label| label.contains("Fuzzy Search [/]")));
+        assert!(entry_labels_tags.iter().any(|label| label.contains("Fetch [F]")));
     }
 
     #[test]

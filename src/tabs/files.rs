@@ -24,8 +24,8 @@ impl FilesTab {
                 app.open_file_history();
                 return true;
             }
-            // 'f' launches FZF file picker or native fallback
-            if code == KeyCode::Char('f') {
+            // '/' launches FZF file picker or native fallback
+            if code == KeyCode::Char('/') {
                 if app.config.fzf.enabled && app.is_fzf_installed() {
                     app.pending_files_fzf = true;
                 } else {

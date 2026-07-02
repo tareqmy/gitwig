@@ -1053,6 +1053,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 v.push(("Navigate/Scroll", "↑↓"));
                 v.push(("Page", "⇟/⇞"));
                 v.push(("Jump", "Home/End"));
+                v.push(("Fuzzy Search", "/"));
                 if app.is_uncommitted_selected() {
                     v.push(("Stage/Unstage", "↵"));
                     if app.detail_focus == DetailSection::Unstaged {
@@ -1069,6 +1070,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 v.push(("Navigate/Scroll", "↑↓"));
                 v.push(("Page", "⇟/⇞"));
                 v.push(("Jump", "Home/End"));
+                v.push(("Fuzzy Search", "/"));
                 if app.is_uncommitted_selected() {
                     v.push(("Accept Ours", "o"));
                     v.push(("Accept Theirs", "t"));
@@ -1096,7 +1098,8 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 v.push(("Interactive Rebase", "i"));
                 v.push(("Cherry-pick", "p"));
                 v.push(("Revert", "v"));
-                v.push(("Search/Columns", "f"));
+                v.push(("Fuzzy Search", "/"));
+                v.push(("Search Columns", "f"));
                 v.push(("Logs UI", "l"));
                 v.push(("Load More", "G"));
                 v.push(("Yank Hash", "y"));
@@ -1126,7 +1129,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ];
             if app.detail_focus == DetailSection::Files {
                 v.push(("Expand/Collapse", "←/→"));
-                v.push(("Fuzzy Find", "f"));
+                v.push(("Fuzzy Find", "/"));
                 v.push(("History", "⇧H"));
             } else if app.detail_focus == DetailSection::FileContent {
                 if app.inspect_full_diff {
@@ -1166,7 +1169,8 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 ("Interactive Rebase", "i"),
             ];
             if app.detail_focus == DetailSection::LocalBranches {
-                v.push(("Fetch", "f/F"));
+                v.push(("Fuzzy Search", "/"));
+                v.push(("Fetch", "F"));
                 v.push(("Pull", "p"));
                 v.push(("Push", "⇧P"));
             }
@@ -1185,7 +1189,8 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
-            ("Fetch", "f/F"),
+            ("Fuzzy Search", "/"),
+            ("Fetch", "F"),
             ("Push", "p"),
             ("Push All", "⇧P"),
             ("Delete", "D"),

@@ -9,7 +9,7 @@ impl BranchesTab {
         let code = key.code;
         let detail_focus = app.detail_focus;
         match code {
-            KeyCode::Char('/') | KeyCode::Char('f') => {
+            KeyCode::Char('/') => {
                 app.start_branch_search();
                 return true;
             }

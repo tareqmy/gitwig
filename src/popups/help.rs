@@ -129,7 +129,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("s", "Stash changes (Workspace changes or Stashes tab)"),
                 ("p", "Pull branch (Branches) / Push tag (Tags)"),
                 ("⇧P", "Push branch (Branches) / Push all tags (Tags)"),
-                ("/ / f", "Fuzzy search files / branches / tags"),
+                ("/", "Fuzzy search files / branches / tags"),
                 ("F", "Fetch remote (Branches / Tags / Remotes tabs)"),
                 ("⇧H", "Show file history (Files tab)"),
                 ("e / o", "Open file in editor (Files tab)"),

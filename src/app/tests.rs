@@ -2499,7 +2499,7 @@ fn test_files_fzf_shortcut_triggers_pending() {
     assert!(!app.pending_files_fzf);
 
     // Pressing 'f' triggers pending_files_fzf when in files tab
-    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('f')), 10);
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('/')), 10);
     assert!(handled);
     assert!(app.pending_files_fzf);
 }
@@ -5780,7 +5780,7 @@ fn test_file_search_flow() {
 
     let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
 
-    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('f')), 1);
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('/')), 1);
     assert!(handled);
     assert_eq!(app.mode, Mode::FileSearchInput);
 

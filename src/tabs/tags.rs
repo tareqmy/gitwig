@@ -7,12 +7,9 @@ pub struct TagsTab;
 impl TagsTab {
     pub fn handle_event(app: &mut App, key: KeyEvent) -> bool {
         let code = key.code;
-        match code {
-            KeyCode::Char('/') | KeyCode::Char('f') => {
-                app.start_tag_search();
-                return true;
-            }
-            _ => {}
+        if code == KeyCode::Char('/') {
+            app.start_tag_search();
+            return true;
         }
         let ev = crossterm::event::Event::Key(key);
         if app
