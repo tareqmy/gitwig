@@ -103,6 +103,8 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Reflog Viewer: A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
 - [x] Remove temporary installation scripts from the base directory.
 - [x] Windows Installer (MSI) via WiX Toolset: Define WiX configuration (`wix/main.wxs`, EULA `wix/License.rtf`, and MSVC runtime merge module `wix/Microsoft_VC142_CRT_x64.msm`) to build Windows installers (`.msi`) using `cargo-wix` to support Windows distribution.
+- [ ] **Homebrew Tap Distribution:** Create and maintain a custom Homebrew tap (`homebrew-gitwig`) distributing pre-built macOS and Linux archives, and integrate formula updates into the CD release workflow.
+- [ ] **Chocolatey Package Distribution:** Build and maintain a Chocolatey package for Windows, pushing `.nupkg` packages to the community feed, and automate release updates in the CD pipeline.
 - [ ] **Per Repository rule**
 
 ## Phase 9: Homepage Enhancements
