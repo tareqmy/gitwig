@@ -115,7 +115,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("↵ [Enter] / → [Right]", "Open detail view / Stage file"),
                 ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
                 ("w / W", "Cycle panel focus forward (w) / backward (W)"),
-                ("/", "Fuzzy search commits / changes / branches / tags / repos"),
+                ("/", "Fuzzy search commits / branches / tags / repos"),
                 ("R", "Resync active tab (Detail)"),
             ],
         ),

@@ -175,8 +175,6 @@ pub enum Mode {
     CommitFuzzySearch,
     /// Floating popup for fuzzy tag search.
     TagSearchInput,
-    /// Floating popup for fuzzy workspace changes search.
-    WorkspaceSearchInput,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -389,7 +387,6 @@ pub struct App {
     pub file_search_selection: usize,
     pub commit_search_selection: usize,
     pub tag_search_selection: usize,
-    pub workspace_search_selection: usize,
     /// Row selection index for the repository settings popup.
     pub repo_settings_selected_index: usize,
     /// Whether we are currently text-editing a repository setting.
@@ -1074,7 +1071,6 @@ impl App {
             file_search_selection: 0,
             commit_search_selection: 0,
             tag_search_selection: 0,
-            workspace_search_selection: 0,
             repo_settings_selected_index: 0,
             repo_settings_editing: false,
             repo_settings_input: String::new(),

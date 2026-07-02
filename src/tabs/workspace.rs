@@ -125,10 +125,6 @@ impl WorkspaceTab {
             // ── Staged / Unstaged / Conflicts panels ───────────────────────────
             DetailSection::Staged | DetailSection::Unstaged | DetailSection::Conflicts => {
                 match code {
-                    KeyCode::Char('/') => {
-                        app.start_workspace_search();
-                        return true;
-                    }
                     KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                         if detail_focus == DetailSection::Conflicts {
                             app.conflict_file_up();

@@ -110,7 +110,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("X", "Discard all changes in repository"),
                 ("s", "Stash uncommitted changes"),
                 ("v", "Show repository Overview (from any tab)"),
-                ("/", "Fuzzy search commits (History) / changes (Staging panels)"),
+                ("/", "Fuzzy search commits (History panel)"),
                 ("f", "Open search logs picker"),
                 ("l", "Open Logs view (Full screen commits list)"),
                 ("G", "Load more commits (Workspace / Logs view)"),
