@@ -1931,7 +1931,13 @@ where
                 let cursor_res = terminal.show_cursor();
 
                 if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
-                    let mut child_cmd = std::process::Command::new("fzf");
+                    let mut child_cmd = if cfg!(target_os = "windows") {
+                        let mut c = std::process::Command::new("cmd");
+                        c.arg("/c").arg("fzf");
+                        c
+                    } else {
+                        std::process::Command::new("fzf")
+                    };
                     child_cmd.arg("--prompt").arg("Select file> ");
                     let child = child_cmd
                         .current_dir(&repo_path)
@@ -2488,7 +2494,14 @@ fn run_fzf_picker(
     excludes: &[String],
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let mut use_fd = false;
-    if let Ok(output) = std::process::Command::new("fd").arg("--version").output() {
+    let mut check_cmd = if cfg!(target_os = "windows") {
+        let mut c = std::process::Command::new("cmd");
+        c.arg("/c").arg("fd");
+        c
+    } else {
+        std::process::Command::new("fd")
+    };
+    if let Ok(output) = check_cmd.arg("--version").output() {
         if output.status.success() {
             use_fd = true;
         }
@@ -2497,7 +2510,13 @@ fn run_fzf_picker(
     let mut paths = Vec::new();
 
     if use_fd {
-        let mut cmd = std::process::Command::new("fd");
+        let mut cmd = if cfg!(target_os = "windows") {
+            let mut c = std::process::Command::new("cmd");
+            c.arg("/c").arg("fd");
+            c
+        } else {
+            std::process::Command::new("fd")
+        };
         if git_only {
             cmd.arg("-H").arg(r"^\.git$");
         } else {
@@ -2573,7 +2592,13 @@ fn run_fzf_picker(
     }
 
     // Now spawn fzf and pipe paths to its stdin
-    let mut fzf_cmd = std::process::Command::new("fzf");
+    let mut fzf_cmd = if cfg!(target_os = "windows") {
+        let mut c = std::process::Command::new("cmd");
+        c.arg("/c").arg("fzf");
+        c
+    } else {
+        std::process::Command::new("fzf")
+    };
     let mut child = fzf_cmd
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())

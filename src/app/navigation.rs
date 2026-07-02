@@ -393,8 +393,14 @@ impl App {
         if let Some(forced) = self.force_fzf_missing {
             return !forced;
         }
-        std::process::Command::new("fzf")
-            .arg("--version")
+        let mut cmd = if cfg!(target_os = "windows") {
+            let mut c = std::process::Command::new("cmd");
+            c.arg("/c").arg("fzf");
+            c
+        } else {
+            std::process::Command::new("fzf")
+        };
+        cmd.arg("--version")
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status()
