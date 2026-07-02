@@ -151,3 +151,70 @@ jobs:
           echo "Waiting 15 seconds for crates.io index to update..."
           sleep 15
           cargo publish --token "${{ secrets.CARGO_REGISTRY_TOKEN }}"
+
+  publish-homebrew:
+    name: Publish to Homebrew Tap
+    needs: publish-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Homebrew Tap
+        uses: actions/checkout@v7
+        with:
+          repository: tareqmy/homebrew-gitwig
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
+          path: homebrew-gitwig
+
+      - name: Calculate Hash and Update Formula
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION_NUM="${VERSION#v}"
+          
+          # Fetch files to calculate sha256 checksums
+          curl -LO "https://github.com/tareqmy/gitwig/releases/download/${VERSION}/gitwig-${VERSION}-x86_64-apple-darwin.tar.gz"
+          curl -LO "https://github.com/tareqmy/gitwig/releases/download/${VERSION}/gitwig-${VERSION}-aarch64-apple-darwin.tar.gz"
+          curl -LO "https://github.com/tareqmy/gitwig/releases/download/${VERSION}/gitwig-${VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          
+          INTEL_SHA=\$(sha256sum gitwig-\${VERSION}-x86_64-apple-darwin.tar.gz | cut -d' ' -f1)
+          ARM_SHA=\$(sha256sum gitwig-\${VERSION}-aarch64-apple-darwin.tar.gz | cut -d' ' -f1)
+          LINUX_SHA=\$(sha256sum gitwig-\${VERSION}-x86_64-unknown-linux-musl.tar.gz | cut -d' ' -f1)
+          
+          mkdir -p homebrew-gitwig/Formula
+          
+          # Re-write the formula with new versions and hashes
+          cat <<EOF > homebrew-gitwig/Formula/gitwig.rb
+          class Gitwig < Formula
+            desc "Rust-based Terminal User Interface (TUI) for Git"
+            homepage "https://github.com/tareqmy/gitwig"
+            version "\${VERSION_NUM}"
+
+            if OS.mac?
+              if Hardware::CPU.intel?
+                url "https://github.com/tareqmy/gitwig/releases/download/v#{version}/gitwig-v#{version}-x86_64-apple-darwin.tar.gz"
+                sha256 "\${INTEL_SHA}"
+              elsif Hardware::CPU.arm?
+                url "https://github.com/tareqmy/gitwig/releases/download/v#{version}/gitwig-v#{version}-aarch64-apple-darwin.tar.gz"
+                sha256 "\${ARM_SHA}"
+              end
+            elsif OS.linux?
+              if Hardware::CPU.intel?
+                url "https://github.com/tareqmy/gitwig/releases/download/v#{version}/gitwig-v#{version}-x86_64-unknown-linux-musl.tar.gz"
+                sha256 "\${LINUX_SHA}"
+              end
+            end
+
+            def install
+              bin.install "gitwig"
+            end
+
+            test do
+              assert_match "gitwig", shell_output("#{bin}/gitwig --version")
+            end
+          end
+          EOF
+          
+          cd homebrew-gitwig
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/gitwig.rb
+          git commit -m "Update gitwig to \${VERSION}" || echo "No changes to commit"
+          git push origin main || echo "No changes to push"
