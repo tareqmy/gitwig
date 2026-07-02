@@ -1551,8 +1551,14 @@ where
 
                 if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
                     let git_app_name = &app.config.git_app;
-                    let status =
-                        std::process::Command::new(git_app_name).current_dir(&path).status();
+                    let mut cmd = if cfg!(target_os = "windows") {
+                        let mut c = std::process::Command::new("cmd");
+                        c.arg("/c").arg(git_app_name);
+                        c
+                    } else {
+                        std::process::Command::new(git_app_name)
+                    };
+                    let status = cmd.current_dir(&path).status();
 
                     let _ = crossterm::terminal::enable_raw_mode();
                     let _ = crossterm::execute!(
@@ -2035,10 +2041,14 @@ where
                 let cursor_res = terminal.show_cursor();
 
                 if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
-                    let status = std::process::Command::new(&editor)
-                        .arg(&file_path)
-                        .current_dir(&repo_path)
-                        .status();
+                    let mut cmd = if cfg!(target_os = "windows") {
+                        let mut c = std::process::Command::new("cmd");
+                        c.arg("/c").arg(&editor);
+                        c
+                    } else {
+                        std::process::Command::new(&editor)
+                    };
+                    let status = cmd.arg(&file_path).current_dir(&repo_path).status();
 
                     let _ = crossterm::terminal::enable_raw_mode();
                     let _ = crossterm::execute!(
