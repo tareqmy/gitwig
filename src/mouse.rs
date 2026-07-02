@@ -1,4 +1,4 @@
-use crate::app::{App, DetailSection, Mode, Splitter};
+use crate::app::{App, DetailSection, GlobalFilter, Mode, Splitter};
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Position;
 
@@ -347,6 +347,114 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
 
     if app.mode == Mode::Normal {
         if is_click {
+            if let Some(summary_rect) = app.global_summary_area {
+                if summary_rect.contains(pos) {
+                    let mut total_repos = 0;
+                    let mut dirty_count = 0;
+                    let mut ahead_count = 0;
+                    let mut stale_count = 0;
+
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs() as i64)
+                        .unwrap_or(0);
+                    let stale_threshold = 30 * 24 * 60 * 60; // 30 days
+
+                    for status in &app.statuses {
+                        match status {
+                            crate::repo::ItemStatus::GitRepo(Some(summary)) => {
+                                total_repos += 1;
+                                if !summary.is_clean() {
+                                    dirty_count += 1;
+                                }
+                                if summary.ahead > 0 {
+                                    ahead_count += 1;
+                                }
+                                if let Some(t) = summary.last_commit_time {
+                                    if now - t > stale_threshold {
+                                        stale_count += 1;
+                                    }
+                                }
+                            }
+                            crate::repo::ItemStatus::GitRepo(None) => {
+                                total_repos += 1;
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    let repos_width = format!(" {} ", total_repos).len() + 5;
+                    let dirty_width = format!(" {} ", dirty_count).len() + 5;
+                    let ahead_width = format!(" {} ", ahead_count).len() + 5;
+                    let stale_width = format!(" {} ", stale_count).len() + 5;
+                    let spacer_width = 5;
+
+                    let total_width = repos_width
+                        + spacer_width
+                        + dirty_width
+                        + spacer_width
+                        + ahead_width
+                        + spacer_width
+                        + stale_width;
+
+                    let start_x = summary_rect.x
+                        + (summary_rect.width.saturating_sub(total_width as u16) / 2);
+                    if pos.x >= start_x && pos.x < start_x + total_width as u16 {
+                        let click_offset = (pos.x - start_x) as usize;
+                        if click_offset < repos_width {
+                            app.global_filter = None;
+                            app.selected_index = 0;
+                            app.scroll_top = 0;
+                            return;
+                        } else if click_offset < repos_width + spacer_width {
+                            // Spacer click
+                        } else if click_offset < repos_width + spacer_width + dirty_width {
+                            if app.global_filter == Some(GlobalFilter::Dirty) {
+                                app.global_filter = None;
+                            } else {
+                                app.global_filter = Some(GlobalFilter::Dirty);
+                            }
+                            app.selected_index = 0;
+                            app.scroll_top = 0;
+                            return;
+                        } else if click_offset
+                            < repos_width + spacer_width + dirty_width + spacer_width
+                        {
+                            // Spacer click
+                        } else if click_offset
+                            < repos_width + spacer_width + dirty_width + spacer_width + ahead_width
+                        {
+                            if app.global_filter == Some(GlobalFilter::Ahead) {
+                                app.global_filter = None;
+                            } else {
+                                app.global_filter = Some(GlobalFilter::Ahead);
+                            }
+                            app.selected_index = 0;
+                            app.scroll_top = 0;
+                            return;
+                        } else if click_offset
+                            < repos_width
+                                + spacer_width
+                                + dirty_width
+                                + spacer_width
+                                + ahead_width
+                                + spacer_width
+                        {
+                            // Spacer click
+                        } else {
+                            if app.global_filter == Some(GlobalFilter::Stale) {
+                                app.global_filter = None;
+                            } else {
+                                app.global_filter = Some(GlobalFilter::Stale);
+                            }
+                            app.selected_index = 0;
+                            app.scroll_top = 0;
+                            return;
+                        }
+                    }
+                }
+            }
+
             for (i, rect) in app.main_areas.iter().enumerate() {
                 if rect.contains(pos) {
                     let actual_index = i + app.scroll_top;

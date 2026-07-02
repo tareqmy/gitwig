@@ -43,8 +43,11 @@ impl HomeTab {
                     }
                 }
 
-                if app.repo_search_query.is_some() && code == KeyCode::Esc {
+                if (app.repo_search_query.is_some() || app.global_filter.is_some())
+                    && code == KeyCode::Esc
+                {
                     app.repo_search_query = None;
+                    app.global_filter = None;
                     app.selected_index = 0;
                     app.scroll_top = 0;
                 } else if !app.multi_selected.is_empty() && code == KeyCode::Esc {

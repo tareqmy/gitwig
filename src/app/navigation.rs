@@ -176,20 +176,64 @@ impl App {
     }
 
     pub fn get_filtered_items(&self) -> Vec<(usize, &String)> {
-        if let Some(ref query) = self.repo_search_query {
-            let query_lower = query.to_lowercase();
+        let base_items: Vec<(usize, &String)> = if let Some(filter) = self.global_filter {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            let stale_threshold = 30 * 24 * 60 * 60; // 30 days
+
             self.config
                 .items
                 .iter()
                 .enumerate()
-                .filter(|(_, item)| {
+                .filter(|&(idx, _)| {
+                    let status = self.statuses.get(idx);
+                    match filter {
+                        GlobalFilter::Dirty => {
+                            if let Some(crate::repo::ItemStatus::GitRepo(Some(summary))) = status {
+                                !summary.is_clean()
+                            } else {
+                                false
+                            }
+                        }
+                        GlobalFilter::Ahead => {
+                            if let Some(crate::repo::ItemStatus::GitRepo(Some(summary))) = status {
+                                summary.ahead > 0
+                            } else {
+                                false
+                            }
+                        }
+                        GlobalFilter::Stale => {
+                            if let Some(crate::repo::ItemStatus::GitRepo(Some(summary))) = status {
+                                if let Some(t) = summary.last_commit_time {
+                                    now - t > stale_threshold
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        }
+                    }
+                })
+                .collect()
+        } else {
+            self.config.items.iter().enumerate().collect()
+        };
+
+        if let Some(ref query) = self.repo_search_query {
+            let query_lower = query.to_lowercase();
+            base_items
+                .into_iter()
+                .filter(|&(_, item)| {
                     let file_name = std::path::Path::new(item)
                         .file_name()
                         .and_then(|s| s.to_str())
                         .unwrap_or(item.as_str())
                         .to_lowercase();
                     let full_path = item.to_lowercase();
-                    let label_match = self.config.labels.get(*item).is_some_and(|lbls| {
+                    let label_match = self.config.labels.get(item).is_some_and(|lbls| {
                         lbls.iter().any(|lbl| lbl.to_lowercase().contains(&query_lower))
                     });
                     file_name.contains(&query_lower)
@@ -198,7 +242,7 @@ impl App {
                 })
                 .collect()
         } else {
-            self.config.items.iter().enumerate().collect()
+            base_items
         }
     }
 

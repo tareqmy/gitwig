@@ -5610,3 +5610,76 @@ fn test_show_grouping_toggle_and_rendering() {
     assert_eq!(rows_flat.len(), 1);
     assert!(matches!(rows_flat[0], HomeRow::Repo { .. }));
 }
+
+#[test]
+fn test_global_summary_filtering() {
+    let config = Config {
+        items: vec![
+            "/path/to/repo_a".to_string(),
+            "/path/to/repo_b".to_string(),
+            "/path/to/repo_c".to_string(),
+        ],
+        ..Default::default()
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_global_summary.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    let summary_clean = crate::repo::RepoSummary {
+        branch: Some("main".to_string()),
+        staged: 0,
+        modified: 0,
+        untracked: 0,
+        conflicted: 0,
+        ahead: 0,
+        behind: 0,
+        state: crate::repo::RepoState::Clean,
+        last_commit_time: Some(
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64,
+        ),
+    };
+
+    let summary_dirty = crate::repo::RepoSummary {
+        branch: Some("main".to_string()),
+        staged: 1,
+        modified: 0,
+        untracked: 0,
+        conflicted: 0,
+        ahead: 2,
+        behind: 0,
+        state: crate::repo::RepoState::Clean,
+        last_commit_time: Some(0), // very stale
+    };
+
+    app.statuses = vec![
+        crate::repo::ItemStatus::GitRepo(Some(summary_clean)),
+        crate::repo::ItemStatus::GitRepo(Some(summary_dirty)),
+        crate::repo::ItemStatus::Missing,
+    ];
+
+    // Filter by Dirty
+    app.global_filter = Some(GlobalFilter::Dirty);
+    let dirty_items = app.get_filtered_items();
+    assert_eq!(dirty_items.len(), 1);
+    assert_eq!(dirty_items[0].0, 1); // Only repo_b (dirty)
+
+    // Filter by Ahead
+    app.global_filter = Some(GlobalFilter::Ahead);
+    let ahead_items = app.get_filtered_items();
+    assert_eq!(ahead_items.len(), 1);
+    assert_eq!(ahead_items[0].0, 1); // Only repo_b (ahead)
+
+    // Filter by Stale
+    app.global_filter = Some(GlobalFilter::Stale);
+    let stale_items = app.get_filtered_items();
+    assert_eq!(stale_items.len(), 1);
+    assert_eq!(stale_items[0].0, 1); // Only repo_b (stale)
+
+    // Test Esc key clearing
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1);
+    assert!(handled);
+    assert_eq!(app.global_filter, None);
+}

@@ -46,7 +46,9 @@ pub fn draw(
     visible_count: usize,
     detail_areas: &mut crate::ui_detail::DetailAreas,
     main_areas: &mut Vec<Rect>,
+    global_summary_area: &mut Option<Rect>,
 ) {
+    *global_summary_area = None;
     let mut swapped_theme = None;
     if let Some(repo_path) = app.get_selected_item() {
         if matches!(
@@ -245,6 +247,7 @@ pub fn draw(
             .split(content_area);
 
         draw_global_summary_bar(f, layout_parts[0], app);
+        *global_summary_area = Some(layout_parts[0]);
         let list_area_parent = layout_parts[2];
 
         let (header_area, list_area) = if app.config.compact_view {
@@ -470,27 +473,68 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
     }
 
     let dot = Span::styled("  •  ", muted_style());
+    let repos_style = if app.global_filter.is_none() {
+        primary_style().fg(ACCENT()).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
+    } else {
+        primary_style().fg(ACCENT())
+    };
+    let repos_label_style = if app.global_filter.is_none() {
+        primary_style().add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
+    } else {
+        muted_style()
+    };
     let mut spans = vec![
-        Span::styled(format!(" {} ", total_repos), primary_style().fg(ACCENT())),
-        Span::styled("repos", muted_style()),
+        Span::styled(format!(" {} ", total_repos), repos_style),
+        Span::styled("repos", repos_label_style),
     ];
 
     spans.push(dot.clone());
+    let is_dirty_active = app.global_filter == Some(crate::app::GlobalFilter::Dirty);
     let dirty_color = if dirty_count > 0 { WARNING() } else { SUCCESS() };
-    spans.push(Span::styled(format!(" {} ", dirty_count), primary_style().fg(dirty_color)));
-    spans.push(Span::styled("dirty", muted_style()));
+    let dirty_style = if is_dirty_active {
+        primary_style().fg(dirty_color).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
+    } else {
+        primary_style().fg(dirty_color)
+    };
+    let dirty_label_style = if is_dirty_active {
+        primary_style().fg(dirty_color).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
+    } else {
+        muted_style()
+    };
+    spans.push(Span::styled(format!(" {} ", dirty_count), dirty_style));
+    spans.push(Span::styled("dirty", dirty_label_style));
 
     spans.push(dot.clone());
-    spans.push(Span::styled(
-        format!(" {} ", ahead_count),
-        primary_style().fg(if ahead_count > 0 { ACCENT() } else { ratatui::style::Color::Gray }),
-    ));
-    spans.push(Span::styled("ahead", muted_style()));
+    let is_ahead_active = app.global_filter == Some(crate::app::GlobalFilter::Ahead);
+    let ahead_color = if ahead_count > 0 { ACCENT() } else { ratatui::style::Color::Gray };
+    let ahead_style = if is_ahead_active {
+        primary_style().fg(ahead_color).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
+    } else {
+        primary_style().fg(ahead_color)
+    };
+    let ahead_label_style = if is_ahead_active {
+        primary_style().fg(ahead_color).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
+    } else {
+        muted_style()
+    };
+    spans.push(Span::styled(format!(" {} ", ahead_count), ahead_style));
+    spans.push(Span::styled("ahead", ahead_label_style));
 
     spans.push(dot);
+    let is_stale_active = app.global_filter == Some(crate::app::GlobalFilter::Stale);
     let stale_color = if stale_count > 0 { DANGER() } else { SUCCESS() };
-    spans.push(Span::styled(format!(" {} ", stale_count), primary_style().fg(stale_color)));
-    spans.push(Span::styled("stale", muted_style()));
+    let stale_style = if is_stale_active {
+        primary_style().fg(stale_color).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
+    } else {
+        primary_style().fg(stale_color)
+    };
+    let stale_label_style = if is_stale_active {
+        primary_style().fg(stale_color).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
+    } else {
+        muted_style()
+    };
+    spans.push(Span::styled(format!(" {} ", stale_count), stale_style));
+    spans.push(Span::styled("stale", stale_label_style));
 
     let line = Line::from(spans).alignment(Alignment::Center);
     f.render_widget(Paragraph::new(line), area);

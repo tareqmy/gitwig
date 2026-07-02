@@ -34,6 +34,13 @@ pub enum RemotePickerAction {
     FetchRemote,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum GlobalFilter {
+    Dirty,
+    Ahead,
+    Stale,
+}
+
 /// Interaction modes for the item list.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Mode {
@@ -326,6 +333,8 @@ pub struct App {
     pub detail_areas: DetailAreas,
     /// Main panel item bounding boxes recorded after each draw, used for mouse hit-testing.
     pub main_areas: Vec<Rect>,
+    pub global_filter: Option<GlobalFilter>,
+    pub global_summary_area: Option<Rect>,
 
     pub status_list: crate::components::status_list::StatusListComponent,
 
@@ -1015,6 +1024,8 @@ impl App {
             repo_jump_selection: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
+            global_filter: None,
+            global_summary_area: None,
 
             status_list: crate::components::status_list::StatusListComponent::new(queue.clone()),
 
@@ -2089,11 +2100,22 @@ where
         // Capture panel rects from the draw pass for mouse hit-testing.
         let mut detail_areas = DetailAreas::default();
         let mut main_areas = Vec::new();
+        let mut global_summary_area = None;
         terminal.draw(|f| {
-            ui::draw(f, &app, area, inner_area, visible_count, &mut detail_areas, &mut main_areas)
+            ui::draw(
+                f,
+                &app,
+                area,
+                inner_area,
+                visible_count,
+                &mut detail_areas,
+                &mut main_areas,
+                &mut global_summary_area,
+            )
         })?;
         app.detail_areas = detail_areas;
         app.main_areas = main_areas;
+        app.global_summary_area = global_summary_area;
 
         // Transient feedback disappears after one frame, unless we are fetching.
         if app.fetching || app.implicit_network_count > 0 {
