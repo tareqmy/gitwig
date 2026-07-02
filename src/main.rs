@@ -23,7 +23,9 @@ use std::{env, error::Error, io, path::PathBuf};
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{
+        EnterAlternateScreen, LeaveAlternateScreen, SetTitle, disable_raw_mode, enable_raw_mode,
+    },
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
 
@@ -110,6 +112,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
 
+    // Push terminal title stack
+    print!("\x1b[22;0t");
+    let _ = io::Write::flush(&mut stdout);
+
     // Switch to alternate screen buffer and enable mouse support
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
 
@@ -122,6 +128,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Load configuration plus the path we should persist edits to.
     let (config, config_path, warning) = load_config(cli_path)?;
+
+    // Set the terminal title based on compatibility mode configuration
+    if config.compatibility_mode {
+        let _ = execute!(io::stdout(), SetTitle("[Gitwig]"));
+    } else {
+        let _ = execute!(io::stdout(), SetTitle("🌿 Gitwig"));
+    }
     unsafe {
         if config.ssh_strict_host_checking {
             env::set_var("GITWIG_SSH_STRICT", "1");
@@ -141,6 +154,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
     terminal.show_cursor()?;
+
+    // Restore original terminal window title
+    print!("\x1b[23;0t");
+    let _ = io::Write::flush(&mut io::stdout());
 
     // Log any error returned from app logic
     if let Err(err) = res {

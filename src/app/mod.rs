@@ -1577,10 +1577,154 @@ where
                 if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
                     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
 
+                    // Helpers to translate active ACCENT color to ANSI codes
+                    let accent_color = crate::ui::style::ACCENT();
+                    let ansi_normal = match accent_color {
+                        ratatui::style::Color::Black => "\x1b[30m",
+                        ratatui::style::Color::Red => "\x1b[31m",
+                        ratatui::style::Color::Green => "\x1b[32m",
+                        ratatui::style::Color::Yellow => "\x1b[33m",
+                        ratatui::style::Color::Blue => "\x1b[34m",
+                        ratatui::style::Color::Magenta => "\x1b[35m",
+                        ratatui::style::Color::Cyan => "\x1b[36m",
+                        ratatui::style::Color::Gray => "\x1b[37m",
+                        ratatui::style::Color::DarkGray => "\x1b[90m",
+                        ratatui::style::Color::LightRed => "\x1b[91m",
+                        ratatui::style::Color::LightGreen => "\x1b[92m",
+                        ratatui::style::Color::LightYellow => "\x1b[93m",
+                        ratatui::style::Color::LightBlue => "\x1b[94m",
+                        ratatui::style::Color::LightMagenta => "\x1b[95m",
+                        ratatui::style::Color::LightCyan => "\x1b[96m",
+                        ratatui::style::Color::White => "\x1b[97m",
+                        _ => "\x1b[36m",
+                    };
+                    let ansi_bold = match accent_color {
+                        ratatui::style::Color::Black => "\x1b[1;30m",
+                        ratatui::style::Color::Red => "\x1b[1;31m",
+                        ratatui::style::Color::Green => "\x1b[1;32m",
+                        ratatui::style::Color::Yellow => "\x1b[1;33m",
+                        ratatui::style::Color::Blue => "\x1b[1;34m",
+                        ratatui::style::Color::Magenta => "\x1b[1;35m",
+                        ratatui::style::Color::Cyan => "\x1b[1;36m",
+                        ratatui::style::Color::Gray => "\x1b[1;37m",
+                        ratatui::style::Color::DarkGray => "\x1b[1;90m",
+                        ratatui::style::Color::LightRed => "\x1b[1;91m",
+                        ratatui::style::Color::LightGreen => "\x1b[1;92m",
+                        ratatui::style::Color::LightYellow => "\x1b[1;93m",
+                        ratatui::style::Color::LightBlue => "\x1b[1;94m",
+                        ratatui::style::Color::LightMagenta => "\x1b[1;95m",
+                        ratatui::style::Color::LightCyan => "\x1b[1;96m",
+                        ratatui::style::Color::White => "\x1b[1;97m",
+                        _ => "\x1b[1;36m",
+                    };
+
                     for item in &paths_to_open {
                         let path = repo::expand_tilde(item);
-                        println!("\r\nOpening terminal in: {}", path.display());
-                        let _ = std::process::Command::new(&shell).current_dir(&path).status();
+                        let repo_name =
+                            path.file_name().and_then(|n| n.to_str()).unwrap_or("repository");
+
+                        // Update terminal title for the subshell
+                        if app.config.compatibility_mode {
+                            let _ = crossterm::execute!(
+                                std::io::stdout(),
+                                crossterm::terminal::SetTitle(format!(
+                                    "[Gitwig] Shell ({})",
+                                    repo_name
+                                ))
+                            );
+                        } else {
+                            let _ = crossterm::execute!(
+                                std::io::stdout(),
+                                crossterm::terminal::SetTitle(format!(
+                                    "🌿 Gitwig Shell ({})",
+                                    repo_name
+                                ))
+                            );
+                        }
+
+                        // Determine borders and branding based on compatibility mode
+                        let banner_width = 80;
+                        let inner_width = banner_width - 6; // 74 chars
+                        let (top_border, left_border, right_border, bottom_border, gitwig_prefix) =
+                            if app.config.compatibility_mode {
+                                (
+                                    "-".repeat(banner_width),
+                                    "|",
+                                    "|",
+                                    "-".repeat(banner_width),
+                                    "[Gitwig]",
+                                )
+                            } else {
+                                (
+                                    "┌".to_string() + &"─".repeat(banner_width - 2) + "┐",
+                                    "│",
+                                    "│",
+                                    "└".to_string() + &"─".repeat(banner_width - 2) + "┘",
+                                    "🌿 Gitwig",
+                                )
+                            };
+
+                        println!();
+                        println!("{}{}\x1b[0m", ansi_normal, top_border);
+
+                        let line1_text = format!(
+                            "{} Subshell — Type 'exit' or press Ctrl+D to return to Gitwig",
+                            gitwig_prefix
+                        );
+                        let padding1 = inner_width.saturating_sub(line1_text.chars().count());
+                        println!(
+                            "{}{}\x1b[0m  {}{}\x1b[0m{}  {}{}\x1b[0m",
+                            ansi_normal,
+                            left_border,
+                            ansi_bold,
+                            line1_text,
+                            " ".repeat(padding1),
+                            ansi_normal,
+                            right_border
+                        );
+
+                        let line2_text = format!("Workspace: {}", path.display());
+                        let line2_chars: Vec<char> = line2_text.chars().collect();
+                        let display_path = if line2_chars.len() > inner_width {
+                            let keep_len = inner_width - 15;
+                            let truncated: String =
+                                line2_chars[line2_chars.len() - keep_len..].iter().collect();
+                            format!("Workspace: ...{}", truncated)
+                        } else {
+                            line2_text
+                        };
+                        let padding2 = inner_width.saturating_sub(display_path.chars().count());
+                        println!(
+                            "{}{}\x1b[0m  \x1b[2m{}\x1b[0m{}  {}{}\x1b[0m",
+                            ansi_normal,
+                            left_border,
+                            display_path,
+                            " ".repeat(padding2),
+                            ansi_normal,
+                            right_border
+                        );
+
+                        println!("{}{}\x1b[0m", ansi_normal, bottom_border);
+                        println!();
+
+                        let _ = std::process::Command::new(&shell)
+                            .current_dir(&path)
+                            .env("GITWIG", "1")
+                            .env("GITWIG_SHELL", "1")
+                            .status();
+                    }
+
+                    // Restore Gitwig terminal title
+                    if app.config.compatibility_mode {
+                        let _ = crossterm::execute!(
+                            std::io::stdout(),
+                            crossterm::terminal::SetTitle("[Gitwig]")
+                        );
+                    } else {
+                        let _ = crossterm::execute!(
+                            std::io::stdout(),
+                            crossterm::terminal::SetTitle("🌿 Gitwig")
+                        );
                     }
 
                     let _ = crossterm::terminal::enable_raw_mode();
