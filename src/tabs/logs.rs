@@ -12,6 +12,10 @@ impl LogsTab {
             KeyCode::PageDown => app.detail_commit_page_down(app.get_current_page_size()),
             KeyCode::Home => app.detail_commit_to_top(),
             KeyCode::End => app.detail_commit_to_bottom(),
+            KeyCode::Char('/') => {
+                app.start_commit_fuzzy_search();
+                return true;
+            }
             KeyCode::Char('f') => {
                 app.search_column_selection = 0;
                 app.mode = Mode::SearchColumnPicker;

@@ -69,6 +69,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::RepoScanPicker
             | Mode::BranchSearchInput
             | Mode::FileSearchInput
+            | Mode::CommitFuzzySearch
             | Mode::ImportUrlInput
             | Mode::ImportDestInput
             | Mode::ImportNameInput
@@ -508,6 +509,46 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char(c) => {
                     app.input_buffer.push(c);
                     app.file_search_selection = 0;
+                }
+                _ => {}
+            }
+            return true;
+        }
+        Mode::CommitFuzzySearch => {
+            let matches = app.get_commit_fuzzy_matches();
+            match code {
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.mode = app.previous_mode.unwrap_or(Mode::Logs);
+                }
+                KeyCode::Up => {
+                    if !matches.is_empty() {
+                        app.commit_search_selection = app.commit_search_selection.saturating_sub(1);
+                    }
+                }
+                KeyCode::Down => {
+                    if !matches.is_empty() && app.commit_search_selection + 1 < matches.len() {
+                        app.commit_search_selection += 1;
+                    }
+                }
+                KeyCode::Enter => {
+                    if !matches.is_empty() && app.commit_search_selection < matches.len() {
+                        let original_index = matches[app.commit_search_selection].0;
+                        app.commit_list.selection = original_index;
+                        app.input_buffer.clear();
+                        app.mode = app.previous_mode.unwrap_or(Mode::Logs);
+                    } else {
+                        app.input_buffer.clear();
+                        app.mode = app.previous_mode.unwrap_or(Mode::Logs);
+                    }
+                }
+                KeyCode::Backspace => {
+                    app.input_buffer.pop();
+                    app.commit_search_selection = 0;
+                }
+                KeyCode::Char(c) => {
+                    app.input_buffer.push(c);
+                    app.commit_search_selection = 0;
                 }
                 _ => {}
             }

@@ -370,4 +370,63 @@ impl App {
         }
         results
     }
+
+    pub fn start_commit_fuzzy_search(&mut self) {
+        self.commit_search_selection = 0;
+        self.input_buffer.clear();
+        self.previous_mode = Some(self.mode);
+        self.mode = Mode::CommitFuzzySearch;
+    }
+
+    pub fn get_commit_fuzzy_matches(&self) -> Vec<(usize, String, String, String)> {
+        let mut results = Vec::new();
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let query = self.input_buffer.to_lowercase();
+
+            if query.is_empty() {
+                return info
+                    .commits
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, c)| (idx, c.id.clone(), c.author.clone(), c.summary.clone()))
+                    .collect();
+            }
+
+            let mut matches = Vec::new();
+            for (idx, c) in info.commits.iter().enumerate() {
+                let summary_lower = c.summary.to_lowercase();
+                let author_lower = c.author.to_lowercase();
+                let id_lower = c.id.to_lowercase();
+
+                if summary_lower.contains(&query) {
+                    let score = 1000 - (summary_lower.len() - query.len());
+                    matches.push((score, idx, c.id.clone(), c.author.clone(), c.summary.clone()));
+                } else if author_lower.contains(&query) {
+                    let score = 500 - (author_lower.len() - query.len());
+                    matches.push((score, idx, c.id.clone(), c.author.clone(), c.summary.clone()));
+                } else if id_lower.contains(&query) {
+                    let score = 500 - (id_lower.len() - query.len());
+                    matches.push((score, idx, c.id.clone(), c.author.clone(), c.summary.clone()));
+                } else {
+                    let mut summary_chars = summary_lower.chars();
+                    let mut matched = true;
+                    for qc in query.chars() {
+                        if !summary_chars.any(|nc| nc == qc) {
+                            matched = false;
+                            break;
+                        }
+                    }
+                    if matched {
+                        matches.push((100, idx, c.id.clone(), c.author.clone(), c.summary.clone()));
+                    }
+                }
+            }
+            matches.sort_by(|a, b| b.0.cmp(&a.0).then(a.4.cmp(&b.4)));
+            results = matches
+                .into_iter()
+                .map(|(_, idx, sha, author, summary)| (idx, sha, author, summary))
+                .collect();
+        }
+        results
+    }
 }
