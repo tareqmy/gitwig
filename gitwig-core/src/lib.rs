@@ -3932,4 +3932,87 @@ mod tests {
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);
     }
+
+    #[test]
+    fn test_core_helpers_comprehensive() {
+        // 1. format_relative_time
+        assert_eq!(format_relative_time(0), "unknown");
+        assert_eq!(format_relative_time(-100), "unknown");
+
+        let now_sec = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+        assert_eq!(format_relative_time(now_sec - 10), "10 seconds ago");
+        assert_eq!(format_relative_time(now_sec - 120), "2 minutes ago");
+        assert_eq!(format_relative_time(now_sec - 7200), "2 hours ago");
+        assert_eq!(format_relative_time(now_sec - 86400 * 2), "2 days ago");
+        assert_eq!(format_relative_time(now_sec - 86400 * 60), "2 months ago");
+        assert_eq!(format_relative_time(now_sec - 86400 * 730), "2 years ago");
+
+        // 2. format_utc_date
+        assert_eq!(format_utc_date(0), "unknown");
+        assert_eq!(format_utc_date(-1), "unknown");
+        let date_str = format_utc_date(1700000000);
+        assert!(date_str.contains("2023-11-14"));
+
+        // 3. expand_tilde
+        assert_eq!(expand_tilde("path"), PathBuf::from("path"));
+        let tilde_path = expand_tilde("~/path");
+        assert!(tilde_path.is_absolute() || tilde_path.to_string_lossy().contains("path"));
+
+        // 4. sanitize_text
+        assert_eq!(sanitize_text("hello\nworld\r\t\x01"), "hello\nworld\r\t ");
+        assert_eq!(sanitize_text("hello\x1B[31mworld\x1B B"), "helloworldB");
+
+        // 5. safe_sha_slice
+        assert_eq!(safe_sha_slice("12345", 10), "12345");
+        assert_eq!(safe_sha_slice("12345", 3), "123");
+
+        // 6. safe_ref
+        assert_eq!(safe_ref("  refs/heads/main  "), Ok("refs/heads/main"));
+        assert!(safe_ref("-invalid").is_err());
+        assert!(safe_ref("   ").is_err());
+
+        // 7. RepoSummary helpers
+        let mut status = RepoSummary::default();
+        assert!(status.is_clean());
+        assert!(status.is_synced());
+        assert!(status.unchanged());
+
+        status.modified = 1;
+        assert!(!status.is_clean());
+        assert!(!status.unchanged());
+
+        status.modified = 0;
+        status.ahead = 1;
+        assert!(!status.is_synced());
+        assert!(!status.unchanged());
+
+        // 8. TabData helpers
+        let data_not_loaded: TabData<Vec<i32>> = TabData::NotLoaded;
+        assert!(data_not_loaded.is_not_loaded());
+        assert!(!data_not_loaded.is_loading());
+        assert!(!data_not_loaded.is_loaded());
+        assert_eq!(data_not_loaded.len(), 0);
+        assert!(data_not_loaded.is_empty());
+        assert!(data_not_loaded.as_ref().is_none());
+        assert!(data_not_loaded.first().is_none());
+        assert!(data_not_loaded.get(0).is_none());
+        assert_eq!(data_not_loaded.iter().count(), 0);
+        assert_eq!(data_not_loaded.as_slice().len(), 0);
+
+        let data_loading: TabData<Vec<i32>> = TabData::Loading;
+        assert!(!data_loading.is_not_loaded());
+        assert!(data_loading.is_loading());
+
+        let data_loaded = TabData::Loaded(vec![10, 20]);
+        assert!(!data_loaded.is_not_loaded());
+        assert!(!data_loaded.is_loading());
+        assert!(data_loaded.is_loaded());
+        assert_eq!(data_loaded.len(), 2);
+        assert!(!data_loaded.is_empty());
+        assert_eq!(data_loaded.as_ref().unwrap(), &vec![10, 20]);
+        assert_eq!(data_loaded.first().unwrap(), &10);
+        assert_eq!(data_loaded.get(1).unwrap(), &20);
+        assert_eq!(data_loaded.iter().count(), 2);
+        assert_eq!(data_loaded.as_slice(), &[10, 20]);
+    }
 }

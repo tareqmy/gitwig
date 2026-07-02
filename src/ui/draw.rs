@@ -2661,12 +2661,106 @@ mod tests {
                 count: 1,
             }]);
 
+        // Add staged/unstaged/conflicted/untracked file changes
+        mock_info.changes.staged =
+            vec![crate::repo::FileEntry { path: "staged_file.rs".to_string(), label: "A" }];
+        mock_info.changes.unstaged =
+            vec![crate::repo::FileEntry { path: "unstaged_file.rs".to_string(), label: "M" }];
+        mock_info.changes.conflicted =
+            vec![crate::repo::FileEntry { path: "conflicted_file.rs".to_string(), label: "U" }];
+        mock_info.changes.untracked =
+            vec![crate::repo::FileEntry { path: "untracked_file.rs".to_string(), label: "?" }];
+
+        // Add local/remote branches, tags, and remotes
+        mock_info.local_branches = crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "main".to_string(),
+            is_head: true,
+            short_sha: "abc1234".to_string(),
+            short_message: "feat: commit 1".to_string(),
+        }]);
+        mock_info.remote_branches = crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "origin/main".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "feat: commit 1".to_string(),
+        }]);
+        mock_info.local_tags = crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "v1.0.0".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "feat: commit 1".to_string(),
+        }]);
+        mock_info.remote_tags = crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "v1.0.0".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "feat: commit 1".to_string(),
+        }]);
+        mock_info.remotes = crate::repo::TabData::Loaded(vec![crate::repo::RemoteInfo {
+            name: "origin".to_string(),
+            url: "http://url".to_string(),
+            push_url: Some("http://url".to_string()),
+            refspecs: vec![],
+        }]);
+
+        // Add rich commits & graph commits
+        mock_info.commits = vec![
+            crate::repo::CommitEntry {
+                id: "abc1234".to_string(),
+                oid: "abc1234abc1234abc1234abc1234abc1234abc1234".to_string(),
+                author: "Author 1".to_string(),
+                when: "10 mins ago".to_string(),
+                date: "2026-07-02".to_string(),
+                summary: "feat: commit 1".to_string(),
+                message: "feat: commit 1\n\nbody".to_string(),
+                refs: vec!["HEAD".to_string(), "main".to_string()],
+                files: vec![],
+                signature_status: "G".to_string(),
+            },
+            crate::repo::CommitEntry {
+                id: "def5678".to_string(),
+                oid: "def5678def5678def5678def5678def5678def5678".to_string(),
+                author: "Author 2".to_string(),
+                when: "20 mins ago".to_string(),
+                date: "2026-07-02".to_string(),
+                summary: "feat: commit 2".to_string(),
+                message: "feat: commit 2\n\nbody".to_string(),
+                refs: vec![],
+                files: vec![],
+                signature_status: "N".to_string(),
+            },
+        ];
+        mock_info.graph_lines = crate::repo::TabData::Loaded(vec![
+            crate::repo::GraphLine {
+                graph: "*".to_string(),
+                commit: Some(crate::repo::GraphCommit {
+                    oid: "abc1234".to_string(),
+                    decoration: " (HEAD -> main)".to_string(),
+                    summary: "feat: commit 1".to_string(),
+                    author: "Author 1".to_string(),
+                    date: "2026-07-02".to_string(),
+                    signature_status: "G".to_string(),
+                }),
+            },
+            crate::repo::GraphLine {
+                graph: "|*".to_string(),
+                commit: Some(crate::repo::GraphCommit {
+                    oid: "def5678".to_string(),
+                    decoration: "".to_string(),
+                    summary: "feat: commit 2".to_string(),
+                    author: "Author 2".to_string(),
+                    date: "2026-07-02".to_string(),
+                    signature_status: "N".to_string(),
+                }),
+            },
+        ]);
+
         let config = Config { items: vec![repo_path_str], ..Default::default() };
         let mut app = App::new(config, temp_repo_path.join("dummy_path.toml"));
 
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: temp_repo_path.clone(),
-            info: Box::new(mock_info),
+            info: Box::new(mock_info.clone()),
         });
 
         app.file_tree.visible_files = vec![crate::app::FileTreeItem {
@@ -2716,6 +2810,61 @@ mod tests {
                 .unwrap();
             let buffer = terminal.backend().buffer();
             assert!(buffer.area.width > 0);
+        }
+
+        // 1b. Render detail tabs in other TabData states (NotLoaded, Loading, Error)
+        let tab_data_states: Vec<crate::repo::TabData<()>> = vec![
+            crate::repo::TabData::NotLoaded,
+            crate::repo::TabData::Loading,
+            crate::repo::TabData::Error("Mock Error Msg".to_string()),
+        ];
+        for state in &tab_data_states {
+            macro_rules! map_state {
+                ($s:expr) => {
+                    match $s {
+                        crate::repo::TabData::NotLoaded => crate::repo::TabData::NotLoaded,
+                        crate::repo::TabData::Loading => crate::repo::TabData::Loading,
+                        crate::repo::TabData::Error(e) => crate::repo::TabData::Error(e.clone()),
+                        _ => crate::repo::TabData::NotLoaded,
+                    }
+                };
+            }
+            mock_info.remotes = map_state!(state);
+            mock_info.graph_lines = map_state!(state);
+            mock_info.local_branches = map_state!(state);
+            mock_info.remote_branches = map_state!(state);
+            mock_info.local_tags = map_state!(state);
+            mock_info.remote_tags = map_state!(state);
+            mock_info.files = map_state!(state);
+            mock_info.stashes = map_state!(state);
+            mock_info.worktrees = map_state!(state);
+            mock_info.submodules = map_state!(state);
+            mock_info.reflog = map_state!(state);
+            mock_info.committer_stats = map_state!(state);
+
+            app.current_detail = Some(crate::repo::ItemDetail::Repo {
+                resolved: temp_repo_path.clone(),
+                info: Box::new(mock_info.clone()),
+            });
+
+            for tab in 0..10 {
+                app.detail_tab = tab;
+                terminal
+                    .draw(|f| {
+                        let size = f.area();
+                        super::draw(
+                            f,
+                            &app,
+                            size,
+                            size,
+                            1,
+                            &mut detail_areas,
+                            &mut main_areas,
+                            &mut global_summary_area,
+                        );
+                    })
+                    .unwrap();
+            }
         }
 
         // 2. Render all modes

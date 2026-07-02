@@ -6355,3 +6355,2032 @@ fn test_workspace_tab_events() {
         }
     }
 }
+
+#[test]
+fn test_other_detail_tabs_event_handlers() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_other_tabs_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        local_branches: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "main".to_string(),
+            is_head: true,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit msg".to_string(),
+        }]),
+        remote_branches: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "origin/main".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit msg".to_string(),
+        }]),
+        remotes: crate::repo::TabData::Loaded(vec![
+            crate::repo::RemoteInfo {
+                name: "origin".to_string(),
+                url: "url".to_string(),
+                push_url: None,
+                refspecs: vec![],
+            },
+            crate::repo::RemoteInfo {
+                name: "upstream".to_string(),
+                url: "url2".to_string(),
+                push_url: None,
+                refspecs: vec![],
+            },
+        ]),
+        stashes: crate::repo::TabData::Loaded(vec![crate::repo::StashInfo {
+            index: 0,
+            message: "wip".to_string(),
+            commit_id: "abc1234".to_string(),
+            files: vec![],
+        }]),
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    // 1. BranchesTab
+    let branch_keys = vec![
+        crossterm::event::KeyCode::Char('/'),
+        crossterm::event::KeyCode::Char('c'),
+        crossterm::event::KeyCode::Char('D'),
+        crossterm::event::KeyCode::Char('m'),
+        crossterm::event::KeyCode::Char('r'),
+        crossterm::event::KeyCode::Char('i'),
+        crossterm::event::KeyCode::Char('P'),
+        crossterm::event::KeyCode::Char('p'),
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyCode::Left,
+        crossterm::event::KeyCode::Right,
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyCode::PageUp,
+        crossterm::event::KeyCode::PageDown,
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyCode::End,
+    ];
+    app.detail_focus = DetailSection::LocalBranches;
+    for key_code in branch_keys {
+        let key =
+            crossterm::event::KeyEvent::new(key_code, crossterm::event::KeyModifiers::empty());
+        let _ = crate::tabs::branches::BranchesTab::handle_event(&mut app, key);
+    }
+    app.detail_focus = DetailSection::RemoteBranches;
+    let branch_nav_keys = vec![
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyCode::PageUp,
+        crossterm::event::KeyCode::PageDown,
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyCode::End,
+    ];
+    for key_code in branch_nav_keys {
+        let key =
+            crossterm::event::KeyEvent::new(key_code, crossterm::event::KeyModifiers::empty());
+        let _ = crate::tabs::branches::BranchesTab::handle_event(&mut app, key);
+    }
+
+    // 2. StashesTab
+    let stash_keys = vec![
+        crossterm::event::KeyCode::Char('D'),
+        crossterm::event::KeyCode::Char('a'),
+        crossterm::event::KeyCode::Char('s'),
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyCode::PageUp,
+        crossterm::event::KeyCode::PageDown,
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyCode::End,
+    ];
+    let stash_focuses =
+        vec![DetailSection::Stashes, DetailSection::StashedFiles, DetailSection::StagingDetails];
+    for focus in stash_focuses {
+        app.detail_focus = focus;
+        for key_code in &stash_keys {
+            let key =
+                crossterm::event::KeyEvent::new(*key_code, crossterm::event::KeyModifiers::empty());
+            let _ = crate::tabs::stashes::StashesTab::handle_event(&mut app, key);
+        }
+    }
+
+    // 3. RemotesTab
+    let remote_keys = vec![
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyCode::PageUp,
+        crossterm::event::KeyCode::PageDown,
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyCode::End,
+        crossterm::event::KeyCode::Char('f'),
+        crossterm::event::KeyCode::Char('a'),
+        crossterm::event::KeyCode::Char('D'),
+    ];
+    for key_code in remote_keys {
+        let key =
+            crossterm::event::KeyEvent::new(key_code, crossterm::event::KeyModifiers::empty());
+        let _ = crate::tabs::remotes::RemotesTab::handle_event(&mut app, key);
+    }
+
+    // 4. FilesTab
+    app.file_tree.visible_files = vec![crate::app::FileTreeItem {
+        name: "test.rs".to_string(),
+        full_path: "test.rs".to_string(),
+        is_dir: false,
+        depth: 0,
+        is_expanded: false,
+    }];
+    let file_keys = vec![
+        crossterm::event::KeyCode::Char('e'),
+        crossterm::event::KeyCode::Char('H'),
+        crossterm::event::KeyCode::Char('/'),
+        crossterm::event::KeyCode::Char('>'),
+        crossterm::event::KeyCode::Char('<'),
+    ];
+    app.detail_focus = DetailSection::Files;
+    for key_code in file_keys {
+        let key =
+            crossterm::event::KeyEvent::new(key_code, crossterm::event::KeyModifiers::empty());
+        let _ = crate::tabs::files::FilesTab::handle_event(&mut app, key);
+    }
+    app.detail_focus = DetailSection::FileContent;
+    let file_content_keys = vec![
+        crossterm::event::KeyCode::Right,
+        crossterm::event::KeyCode::Left,
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyCode::PageUp,
+        crossterm::event::KeyCode::PageDown,
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyCode::End,
+    ];
+    for key_code in file_content_keys {
+        let key =
+            crossterm::event::KeyEvent::new(key_code, crossterm::event::KeyModifiers::empty());
+        let _ = crate::tabs::files::FilesTab::handle_event(&mut app, key);
+    }
+
+    // 5. FileHistoryTab
+    app.file_history_revisions = vec![crate::repo::FileRevision {
+        commit_oid: "abc1234abc1234abc1234abc1234abc1234abc1234".to_string(),
+        author: "Author".to_string(),
+        when: "10 mins ago".to_string(),
+        date: "2026-07-02".to_string(),
+        summary: "feat: summary".to_string(),
+    }];
+    let hist_keys = vec![
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyCode::Tab,
+        crossterm::event::KeyCode::Left,
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyCode::End,
+    ];
+    app.file_history_focus = 0;
+    app.file_history_selection = 0;
+    for key_code in hist_keys {
+        let key =
+            crossterm::event::KeyEvent::new(key_code, crossterm::event::KeyModifiers::empty());
+        let _ = crate::tabs::file_history::FileHistoryTab::handle_event(&mut app, key);
+    }
+}
+
+#[test]
+fn test_workspace_actions_direct() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_workspace_direct_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        local_branches: crate::repo::TabData::Loaded(vec![
+            crate::repo::BranchInfo {
+                name: "main".to_string(),
+                is_head: true,
+                short_sha: "abc1234".to_string(),
+                short_message: "commit 1".to_string(),
+            },
+            crate::repo::BranchInfo {
+                name: "feature".to_string(),
+                is_head: false,
+                short_sha: "def5678".to_string(),
+                short_message: "commit 2".to_string(),
+            },
+        ]),
+        commits: vec![
+            crate::repo::CommitEntry {
+                id: "abc1234".to_string(),
+                oid: "abc1234abc1234abc1234abc1234abc1234abc1234".to_string(),
+                author: "Author".to_string(),
+                when: "10 mins ago".to_string(),
+                date: "2026-07-02".to_string(),
+                summary: "feat: summary 1".to_string(),
+                message: "feat: summary 1\n\nbody".to_string(),
+                refs: vec![],
+                files: vec![],
+                signature_status: "G".to_string(),
+            },
+            crate::repo::CommitEntry {
+                id: "def5678".to_string(),
+                oid: "def5678def5678def5678def5678def5678def5678".to_string(),
+                author: "Author".to_string(),
+                when: "20 mins ago".to_string(),
+                date: "2026-07-02".to_string(),
+                summary: "feat: summary 2".to_string(),
+                message: "feat: summary 2\n\nbody".to_string(),
+                refs: vec![],
+                files: vec![],
+                signature_status: "N".to_string(),
+            },
+        ],
+        changes: crate::repo::WorktreeChanges {
+            staged: vec![crate::repo::FileEntry { path: "staged_file.rs".to_string(), label: "A" }],
+            unstaged: vec![crate::repo::FileEntry {
+                path: "unstaged_file.rs".to_string(),
+                label: "M",
+            }],
+            conflicted: vec![crate::repo::FileEntry {
+                path: "conflicted_file.rs".to_string(),
+                label: "U",
+            }],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    // Test cherry pick triggers
+    app.commit_list.selection = 1; // Select the commit
+    app.request_cherry_pick();
+    assert_eq!(app.mode, Mode::CherryPickConfirm);
+    assert_eq!(app.cherry_pick_dest_branches, vec!["feature".to_string()]);
+
+    app.cancel_cherry_pick();
+    assert_eq!(app.mode, Mode::Detail);
+
+    app.request_cherry_pick();
+    app.confirm_cherry_pick();
+    assert_eq!(app.mode, Mode::Detail);
+
+    // Test revert triggers
+    app.commit_list.selection = 1;
+    app.request_revert();
+    assert_eq!(app.mode, Mode::RevertConfirm);
+
+    app.cancel_revert();
+    assert_eq!(app.mode, Mode::Detail);
+
+    app.request_revert();
+    app.confirm_revert();
+    assert_eq!(app.mode, Mode::Detail);
+
+    // Test helper empty checks
+    assert!(!app.is_staged_empty());
+    assert!(!app.is_unstaged_empty());
+    assert!(!app.is_conflicted_empty());
+
+    // Test discard logic
+    app.request_discard_all_changes();
+    assert_eq!(app.mode, Mode::DiscardChangesConfirm);
+    app.cancel_discard_changes();
+    assert_eq!(app.mode, Mode::Detail);
+
+    app.detail_focus = DetailSection::Unstaged;
+    app.request_discard_changes();
+    assert_eq!(app.mode, Mode::DiscardChangesConfirm);
+    app.confirm_discard_changes();
+    assert_eq!(app.mode, Mode::Detail);
+
+    // Test commit states
+    app.cancel_commit_search();
+    app.cancel_commit();
+    app.commit_git_changes();
+}
+
+#[test]
+fn test_workspace_diff_actions_direct() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_workspace_diff_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+
+    let mock_info = crate::repo::RepoInfo {
+        changes: crate::repo::WorktreeChanges {
+            staged: vec![crate::repo::FileEntry { path: "staged_file.rs".to_string(), label: "A" }],
+            unstaged: vec![crate::repo::FileEntry {
+                path: "unstaged_file.rs".to_string(),
+                label: "M",
+            }],
+            conflicted: vec![crate::repo::FileEntry {
+                path: "conflicted_file.rs".to_string(),
+                label: "U",
+            }],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    // Populate mock file diff with hunks
+    app.diff.file_diff = vec![
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::Header,
+            content: "@@ -1,3 +1,4 @@".to_string(),
+        },
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::Context,
+            content: " fn main() {".to_string(),
+        },
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::Added,
+            content: "+    println!(\"hello\");".to_string(),
+        },
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::Header,
+            content: "@@ -10,3 +10,4 @@".to_string(),
+        },
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::Removed,
+            content: "-    println!(\"old\");".to_string(),
+        },
+    ];
+
+    // Toggle diff line mode
+    app.toggle_diff_line_mode();
+    assert!(app.diff.diff_line_mode);
+    app.toggle_diff_line_mode();
+    assert!(!app.diff.diff_line_mode);
+
+    // Test stage/unstage/discard hunks
+    app.detail_focus = DetailSection::Unstaged;
+    app.stage_selected_hunk();
+
+    app.detail_focus = DetailSection::Staged;
+    app.unstage_selected_hunk();
+
+    app.detail_focus = DetailSection::Unstaged;
+    app.discard_selected_hunk();
+
+    // Test stage/unstage/discard lines
+    app.diff.diff_line_mode = true;
+    app.diff.diff_line_selection = 2;
+
+    app.detail_focus = DetailSection::Unstaged;
+    app.stage_selected_line();
+
+    app.detail_focus = DetailSection::Staged;
+    app.unstage_selected_line();
+
+    app.detail_focus = DetailSection::Unstaged;
+    app.discard_selected_line();
+
+    // Test conflicts
+    app.detail_focus = DetailSection::Conflicts;
+    app.diff.file_diff = vec![
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::ConflictSeparator,
+            content: "<<<<<<< OURS".to_string(),
+        },
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::ConflictOurs,
+            content: "ours".to_string(),
+        },
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::ConflictSeparator,
+            content: "=======".to_string(),
+        },
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::ConflictTheirs,
+            content: "theirs".to_string(),
+        },
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::ConflictSeparator,
+            content: ">>>>>>> THEIRS".to_string(),
+        },
+    ];
+
+    app.resolve_conflict_ours();
+    app.resolve_conflict_theirs();
+    app.mark_conflict_resolved();
+}
+
+#[test]
+fn test_drain_queue_comprehensive() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_drain_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+
+    let mock_info = crate::repo::RepoInfo {
+        changes: crate::repo::WorktreeChanges {
+            staged: vec![crate::repo::FileEntry { path: "staged_file.rs".to_string(), label: "A" }],
+            unstaged: vec![crate::repo::FileEntry {
+                path: "unstaged_file.rs".to_string(),
+                label: "M",
+            }],
+            conflicted: vec![crate::repo::FileEntry {
+                path: "conflicted_file.rs".to_string(),
+                label: "U",
+            }],
+            ..Default::default()
+        },
+        commits: vec![crate::repo::CommitEntry {
+            id: "abc1234".to_string(),
+            oid: "abc1234abc1234abc1234abc1234abc1234abc1234".to_string(),
+            author: "Author".to_string(),
+            when: "10 mins ago".to_string(),
+            date: "2026-07-02".to_string(),
+            summary: "feat: summary".to_string(),
+            message: "feat: summary\n\nbody".to_string(),
+            refs: vec![],
+            files: vec![],
+            signature_status: "G".to_string(),
+        }],
+        local_branches: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "main".to_string(),
+            is_head: true,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit 1".to_string(),
+        }]),
+        remote_branches: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "origin/main".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit 1".to_string(),
+        }]),
+        remotes: crate::repo::TabData::Loaded(vec![crate::repo::RemoteInfo {
+            name: "origin".to_string(),
+            url: "url".to_string(),
+            push_url: None,
+            refspecs: vec![],
+        }]),
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    let events = vec![
+        crate::queue::InternalEvent::ClosePopup,
+        crate::queue::InternalEvent::ConfirmYes,
+        crate::queue::InternalEvent::ConfirmNo,
+        crate::queue::InternalEvent::InputChar('a'),
+        crate::queue::InternalEvent::InputBackspace,
+        crate::queue::InternalEvent::InputEnter,
+        crate::queue::InternalEvent::InputEsc,
+        crate::queue::InternalEvent::Commit,
+        crate::queue::InternalEvent::SearchColumnPicker,
+        crate::queue::InternalEvent::StartCommit,
+        crate::queue::InternalEvent::StartCommitAmend,
+        crate::queue::InternalEvent::StartTagCreate,
+        crate::queue::InternalEvent::RunInteractiveRebase,
+        crate::queue::InternalEvent::RequestCherryPick,
+        crate::queue::InternalEvent::YankSelectedCommitHash,
+        crate::queue::InternalEvent::RequestRevert,
+        crate::queue::InternalEvent::InspectCommit,
+        crate::queue::InternalEvent::CommitSelectionUp,
+        crate::queue::InternalEvent::CommitSelectionDown,
+        crate::queue::InternalEvent::CommitSelectionPageUp,
+        crate::queue::InternalEvent::CommitSelectionPageDown,
+        crate::queue::InternalEvent::CommitSelectionTop,
+        crate::queue::InternalEvent::CommitSelectionBottom,
+        crate::queue::InternalEvent::LoadMoreCommits,
+        crate::queue::InternalEvent::CommitDetailsUp,
+        crate::queue::InternalEvent::CommitDetailsDown,
+        crate::queue::InternalEvent::StagingFileUp,
+        crate::queue::InternalEvent::StagingFileDown,
+        crate::queue::InternalEvent::ConflictFileUp,
+        crate::queue::InternalEvent::ConflictFileDown,
+        crate::queue::InternalEvent::StageSelectedFile,
+        crate::queue::InternalEvent::UnstageSelectedFile,
+        crate::queue::InternalEvent::ResolveConflictOurs,
+        crate::queue::InternalEvent::ResolveConflictTheirs,
+        crate::queue::InternalEvent::MarkConflictResolved,
+        crate::queue::InternalEvent::MergeAbortConfirm,
+        crate::queue::InternalEvent::MergeContinueConfirm,
+        crate::queue::InternalEvent::StageSelectedHunk,
+        crate::queue::InternalEvent::UnstageSelectedHunk,
+        crate::queue::InternalEvent::StageAllChanges,
+        crate::queue::InternalEvent::UnstageAllChanges,
+        crate::queue::InternalEvent::RequestDiscardChanges,
+        crate::queue::InternalEvent::RequestDiscardAllChanges,
+        crate::queue::InternalEvent::StartStashCreate,
+        crate::queue::InternalEvent::DiffScrollUp,
+        crate::queue::InternalEvent::DiffScrollDown,
+        crate::queue::InternalEvent::DiffScrollPageUp,
+        crate::queue::InternalEvent::DiffScrollPageDown,
+        crate::queue::InternalEvent::DiffScrollTop,
+        crate::queue::InternalEvent::DiffScrollBottom,
+        crate::queue::InternalEvent::FileTreeUp,
+        crate::queue::InternalEvent::FileTreeDown,
+        crate::queue::InternalEvent::FileTreePageUp,
+        crate::queue::InternalEvent::FileTreePageDown,
+        crate::queue::InternalEvent::FileTreeTop,
+        crate::queue::InternalEvent::FileTreeBottom,
+        crate::queue::InternalEvent::FileContentUp,
+        crate::queue::InternalEvent::FileContentDown,
+        crate::queue::InternalEvent::FileContentPageUp,
+        crate::queue::InternalEvent::FileContentPageDown,
+        crate::queue::InternalEvent::FileContentTop,
+        crate::queue::InternalEvent::FileContentBottom,
+        crate::queue::InternalEvent::ToggleFolderExpanded,
+        crate::queue::InternalEvent::CollapseAllFolders,
+        crate::queue::InternalEvent::RequestDiscardFile,
+        crate::queue::InternalEvent::LocalBranchUp,
+        crate::queue::InternalEvent::LocalBranchDown,
+        crate::queue::InternalEvent::LocalBranchPageUp,
+        crate::queue::InternalEvent::LocalBranchPageDown,
+        crate::queue::InternalEvent::LocalBranchTop,
+        crate::queue::InternalEvent::LocalBranchBottom,
+        crate::queue::InternalEvent::RemoteBranchUp,
+        crate::queue::InternalEvent::RemoteBranchDown,
+        crate::queue::InternalEvent::RemoteBranchPageUp,
+        crate::queue::InternalEvent::RemoteBranchPageDown,
+        crate::queue::InternalEvent::RemoteBranchTop,
+        crate::queue::InternalEvent::RemoteBranchBottom,
+        crate::queue::InternalEvent::CheckoutBranch,
+        crate::queue::InternalEvent::RequestDeleteBranch,
+        crate::queue::InternalEvent::StartBranchCreate,
+        crate::queue::InternalEvent::StartBranchMerge,
+        crate::queue::InternalEvent::StartBranchRebase,
+        crate::queue::InternalEvent::RequestBranchPush,
+        crate::queue::InternalEvent::FetchRemote,
+        crate::queue::InternalEvent::StartRemoteAdd,
+        crate::queue::InternalEvent::RequestDeleteRemote,
+        crate::queue::InternalEvent::TagUp,
+        crate::queue::InternalEvent::TagDown,
+        crate::queue::InternalEvent::TagPageUp,
+        crate::queue::InternalEvent::TagPageDown,
+        crate::queue::InternalEvent::TagTop,
+        crate::queue::InternalEvent::TagBottom,
+        crate::queue::InternalEvent::CheckoutTag,
+        crate::queue::InternalEvent::RequestDeleteTag,
+        crate::queue::InternalEvent::RequestPushTag,
+        crate::queue::InternalEvent::RequestPushAllTags,
+        crate::queue::InternalEvent::FetchRemoteTags,
+        crate::queue::InternalEvent::StashUp,
+        crate::queue::InternalEvent::StashDown,
+        crate::queue::InternalEvent::StashPageUp,
+        crate::queue::InternalEvent::StashPageDown,
+        crate::queue::InternalEvent::StashTop,
+        crate::queue::InternalEvent::StashBottom,
+        crate::queue::InternalEvent::StashFileUp,
+        crate::queue::InternalEvent::StashFileDown,
+        crate::queue::InternalEvent::StashFilePageUp,
+        crate::queue::InternalEvent::StashFilePageDown,
+        crate::queue::InternalEvent::StashFileTop,
+        crate::queue::InternalEvent::StashFileBottom,
+        crate::queue::InternalEvent::RequestDeleteStash,
+        crate::queue::InternalEvent::RequestApplyStash,
+    ];
+
+    for ev in events {
+        app.queue.push(ev);
+        app.drain_queue();
+    }
+}
+
+#[test]
+fn test_navigation_actions_direct() {
+    let config = Config { items: vec!["/path/to/repo_a".to_string()], ..Default::default() };
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_nav_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+
+    let mock_info = crate::repo::RepoInfo {
+        local_branches: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "main".to_string(),
+            is_head: true,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit 1".to_string(),
+        }]),
+        remote_branches: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "origin/main".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit 1".to_string(),
+        }]),
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    app.set_error("msg".to_string());
+    assert_eq!(app.status_height(), 1);
+    app.toggle_status_expanded();
+    assert_eq!(app.status_height(), 3);
+
+    let _rows = app.get_home_rows();
+    app.clamp_selection();
+    app.clamp_scroll(10);
+    app.clamp_help_scroll(10);
+    app.clamp_legend_scroll();
+
+    app.move_down(10);
+    app.move_up();
+    app.page_down(10);
+    app.page_up(10);
+    app.move_to_top();
+    app.move_to_bottom(10);
+
+    app.open_help();
+    app.open_about();
+
+    app.cycle_sort_order();
+    app.toggle_sort_reverse();
+    app.toggle_pin_selected();
+    app.toggle_star_selected();
+
+    app.cycle_detail_focus(false);
+    app.cycle_detail_focus(true);
+
+    app.local_branch_up();
+    app.local_branch_down();
+    app.local_branch_page_up(5);
+    app.local_branch_page_down(5);
+    app.local_branch_to_top();
+    app.local_branch_to_bottom();
+
+    app.remote_branch_up();
+    app.remote_branch_down();
+    app.remote_branch_page_up(5);
+    app.remote_branch_page_down(5);
+    app.remote_branch_to_top();
+    app.remote_branch_to_bottom();
+
+    app.file_list_up();
+    app.file_list_down();
+    app.file_list_page_up(5);
+    app.file_list_page_down(5);
+    app.file_list_to_top();
+    app.file_list_to_bottom();
+}
+
+#[test]
+fn test_settings_popup_events_comprehensive() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_settings_comp_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Settings;
+    app.settings_theme_list = vec!["default".to_string(), "monokai".to_string()];
+
+    // 1. Draw settings page for all categories, focus, and editing states
+    let backend = ratatui::backend::TestBackend::new(120, 40);
+    let mut terminal = ratatui::Terminal::new(backend).unwrap();
+    for &idx in &[0, 15, 30, 45, 60] {
+        for &focus_sidebar in &[true, false] {
+            for &editing in &[true, false] {
+                app.settings_selected_index = idx;
+                app.settings_focus_sidebar = focus_sidebar;
+                app.settings_editing = editing;
+                terminal
+                    .draw(|f| {
+                        let area = f.area();
+                        crate::popups::settings::draw_settings_page(f, &app, area);
+                    })
+                    .unwrap();
+            }
+        }
+    }
+
+    // 2. Handle keys when NOT editing
+    app.settings_editing = false;
+    let keys = vec![
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyCode::Char('q'),
+        crossterm::event::KeyCode::Left,
+        crossterm::event::KeyCode::Right,
+        crossterm::event::KeyCode::Char('w'),
+        crossterm::event::KeyCode::Char('1'),
+        crossterm::event::KeyCode::Char('2'),
+        crossterm::event::KeyCode::Char('3'),
+        crossterm::event::KeyCode::Char('4'),
+        crossterm::event::KeyCode::Char('5'),
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyCode::PageUp,
+        crossterm::event::KeyCode::PageDown,
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyCode::End,
+        crossterm::event::KeyCode::Enter,
+    ];
+
+    app.settings_focus_sidebar = true;
+    for key_code in &keys {
+        let key =
+            crossterm::event::KeyEvent::new(*key_code, crossterm::event::KeyModifiers::empty());
+        crate::popups::settings::SettingsPopup::handle_event(&mut app, key);
+    }
+
+    app.settings_focus_sidebar = false;
+    for key_code in &keys {
+        let key =
+            crossterm::event::KeyEvent::new(*key_code, crossterm::event::KeyModifiers::empty());
+        crate::popups::settings::SettingsPopup::handle_event(&mut app, key);
+    }
+
+    // 3. Handle keys when editing (other index)
+    app.settings_editing = true;
+    app.settings_selected_index = 1; // Not 3
+    let edit_keys = vec![
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyCode::Backspace,
+        crossterm::event::KeyCode::Char('x'),
+    ];
+    for key_code in &edit_keys {
+        let key =
+            crossterm::event::KeyEvent::new(*key_code, crossterm::event::KeyModifiers::empty());
+        crate::popups::settings::SettingsPopup::handle_event(&mut app, key);
+    }
+
+    // 4. Handle keys when editing theme (index 3)
+    app.settings_editing = true;
+    app.settings_selected_index = 3;
+    let theme_keys = vec![
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyCode::PageUp,
+        crossterm::event::KeyCode::PageDown,
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyCode::End,
+    ];
+    for key_code in &theme_keys {
+        let key =
+            crossterm::event::KeyEvent::new(*key_code, crossterm::event::KeyModifiers::empty());
+        crate::popups::settings::SettingsPopup::handle_event(&mut app, key);
+    }
+
+    // 5. Test get_val_str for all setting indices
+    for idx in 0..=65 {
+        app.settings_selected_index = idx;
+        app.settings_editing = false;
+        let _ = crate::popups::settings::get_val_str(&app, idx);
+
+        app.settings_editing = true;
+        let _ = crate::popups::settings::get_val_str(&app, idx);
+    }
+
+    // 6. Test toggle_or_edit_setting for all indices
+    let test_indices = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 55, 56, 58];
+    for idx in test_indices {
+        app.settings_selected_index = idx;
+        app.settings_editing = false;
+        app.toggle_or_edit_setting();
+    }
+}
+
+#[test]
+fn test_settings_commit_flow() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_settings_commit_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+
+    let indices = vec![0, 3, 4, 5, 6, 7, 8, 9, 56];
+
+    // Test valid inputs
+    for idx in &indices {
+        app.settings_selected_index = *idx;
+        app.settings_editing = true;
+        app.settings_theme_list = vec!["default".to_string()];
+        app.settings_theme_index = 0;
+        app.input_buffer = match idx {
+            0 => "100".to_string(),
+            3 => "default".to_string(),
+            4 => "5".to_string(),
+            5 => "/start".to_string(),
+            6 => "1000".to_string(),
+            7 => "50".to_string(),
+            8 => "exclude1,exclude2".to_string(),
+            9 => "gitui".to_string(),
+            56 => "vim".to_string(),
+            _ => "".to_string(),
+        };
+        app.commit_settings_edit();
+        assert!(!app.settings_editing);
+    }
+
+    // Test invalid inputs
+    for idx in &indices {
+        app.settings_selected_index = *idx;
+        app.settings_editing = true;
+        app.input_buffer = "invalid_value".to_string();
+        app.commit_settings_edit();
+        // For non-integers, it should fail parsing and stay editing
+        if [0, 4, 6, 7].contains(idx) {
+            assert!(app.settings_editing);
+        }
+    }
+
+    // Test cancel edit
+    app.settings_editing = true;
+    app.cancel_settings_edit();
+    assert!(!app.settings_editing);
+}
+
+#[test]
+fn test_git_actions_direct() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_git_direct_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        local_branches: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "main".to_string(),
+            is_head: true,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit 1".to_string(),
+        }]),
+        remote_branches: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "origin/main".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit 1".to_string(),
+        }]),
+        local_tags: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "v1.0.0".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit 1".to_string(),
+        }]),
+        remote_tags: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "v1.0.0".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit 1".to_string(),
+        }]),
+        remotes: crate::repo::TabData::Loaded(vec![crate::repo::RemoteInfo {
+            name: "origin".to_string(),
+            url: "url".to_string(),
+            push_url: None,
+            refspecs: vec![],
+        }]),
+        stashes: crate::repo::TabData::Loaded(vec![crate::repo::StashInfo {
+            index: 0,
+            message: "wip".to_string(),
+            commit_id: "abc1234".to_string(),
+            files: vec![],
+        }]),
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    // Run action/request sequence
+    app.pull_selected_branch();
+
+    app.branch_action_target = Some(("main".to_string(), false));
+    app.request_branch_push();
+    app.confirm_branch_push();
+    app.request_branch_push();
+    app.cancel_branch_push();
+
+    app.branch_action_target = Some(("main".to_string(), false));
+    app.request_branch_checkout();
+    app.confirm_branch_checkout();
+    app.request_branch_checkout();
+    app.cancel_branch_checkout();
+
+    app.start_tag_create();
+    app.commit_tag_create();
+
+    app.start_stash_create();
+    app.commit_stash_create();
+
+    app.start_remote_add();
+    app.commit_remote_add_name();
+    app.commit_remote_add_url();
+
+    app.remote_action_target = Some("origin".to_string());
+    app.request_remote_delete();
+    app.confirm_remote_delete();
+
+    app.tag_delete_target = Some(("v1.0.0".to_string(), false));
+    app.request_tag_delete();
+    app.confirm_tag_delete();
+    app.request_tag_delete();
+    app.cancel_tag_delete();
+
+    app.tag_push_target = Some("v1.0.0".to_string());
+    app.request_tag_push();
+    app.confirm_tag_push();
+    app.request_tag_push();
+    app.cancel_tag_push();
+
+    app.request_tag_push_all();
+    app.confirm_tag_push_all();
+    app.request_tag_push_all();
+    app.cancel_tag_push_all();
+
+    app.start_branch_create();
+    app.commit_branch_create();
+    app.start_branch_create();
+    app.cancel_branch_create();
+
+    app.branch_action_target = Some(("main".to_string(), false));
+    app.request_branch_delete();
+    app.confirm_branch_delete();
+    app.request_branch_delete();
+    app.cancel_branch_delete();
+
+    app.branch_action_target = Some(("main".to_string(), false));
+    app.request_branch_merge();
+    app.confirm_branch_merge();
+    app.request_branch_merge();
+    app.cancel_branch_merge();
+
+    app.branch_action_target = Some(("main".to_string(), false));
+    app.request_branch_rebase();
+    app.confirm_branch_rebase();
+    app.request_branch_rebase();
+    app.cancel_branch_rebase();
+
+    app.branch_action_target = Some(("main".to_string(), false));
+    app.request_branch_interactive_rebase();
+    app.confirm_branch_interactive_rebase();
+    app.request_branch_interactive_rebase();
+    app.cancel_branch_interactive_rebase();
+
+    app.run_interactive_rebase();
+    app.confirm_abort_merge();
+    app.confirm_continue_merge();
+
+    app.confirm_remote_picker();
+    app.cancel_remote_picker();
+}
+
+#[test]
+fn test_app_helpers_mod_rs() {
+    let temp_dir = std::env::temp_dir().join("gitwig_test_watcher_repo");
+    let git_dir = temp_dir.join(".git");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&git_dir).unwrap();
+
+    let config =
+        Config { items: vec![temp_dir.to_string_lossy().to_string()], ..Default::default() };
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_helpers_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+
+    app.resolve_repo_themes();
+    app.setup_watcher();
+    assert_eq!(app.item_height(), 4);
+
+    app.config.compact_view = true;
+    assert_eq!(app.item_height(), 1);
+
+    app.increment_implicit_network();
+    assert_eq!(app.implicit_network_count, 1);
+    app.decrement_implicit_network();
+    assert_eq!(app.implicit_network_count, 0);
+
+    assert!(!app.is_msi_install());
+    app.trigger_self_update();
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_all_scroll_helpers() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_scrolls_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        local_branches: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "main".to_string(),
+            is_head: true,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit 1".to_string(),
+        }]),
+        remote_branches: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "origin/main".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit 1".to_string(),
+        }]),
+        local_tags: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "v1.0.0".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit 1".to_string(),
+        }]),
+        remote_tags: crate::repo::TabData::Loaded(vec![crate::repo::BranchInfo {
+            name: "v1.0.0".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "commit 1".to_string(),
+        }]),
+        remotes: crate::repo::TabData::Loaded(vec![crate::repo::RemoteInfo {
+            name: "origin".to_string(),
+            url: "url".to_string(),
+            push_url: None,
+            refspecs: vec![],
+        }]),
+        stashes: crate::repo::TabData::Loaded(vec![crate::repo::StashInfo {
+            index: 0,
+            message: "wip".to_string(),
+            commit_id: "abc1234".to_string(),
+            files: vec![],
+        }]),
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    app.local_branch_up();
+    app.local_branch_down();
+    app.local_branch_page_up(5);
+    app.local_branch_page_down(5);
+
+    app.remote_branch_up();
+    app.remote_branch_down();
+    app.remote_branch_page_up(5);
+    app.remote_branch_page_down(5);
+
+    app.file_list_up();
+    app.file_list_down();
+    app.file_list_page_up(5);
+    app.file_list_page_down(5);
+
+    app.local_tag_up();
+    app.local_tag_down();
+    app.local_tag_page_up(5);
+    app.local_tag_page_down(5);
+
+    app.remote_up();
+    app.remote_down();
+    app.remote_page_up(5);
+    app.remote_page_down(5);
+
+    app.stash_up();
+    app.stash_down();
+    app.stash_page_up(5);
+    app.stash_page_down(5);
+
+    app.detail_commit_up();
+    app.detail_commit_down();
+    app.detail_commit_page_up(5);
+    app.detail_commit_page_down(5);
+
+    app.detail_file_up();
+    app.detail_file_down();
+
+    app.staging_file_up();
+    app.staging_file_down();
+
+    app.conflict_file_up();
+    app.conflict_file_down();
+
+    app.diff_hunk_up();
+    app.diff_hunk_down();
+
+    app.diff_line_up();
+    app.diff_line_down();
+
+    app.file_content_scroll_up();
+    app.file_content_scroll_down();
+    app.file_content_scroll_page_up(5);
+    app.file_content_scroll_page_down(5);
+
+    app.graph_scroll_up();
+    app.graph_scroll_down();
+    app.graph_scroll_page_up(5);
+    app.graph_scroll_page_down(5);
+
+    app.commit_details_scroll_up();
+    app.commit_details_scroll_down();
+
+    app.commit_input_scroll_up();
+    app.commit_input_scroll_down();
+
+    app.remote_picker_up();
+    app.remote_picker_down();
+}
+
+#[test]
+fn test_inspect_popup_events_comprehensive() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_inspect_comp_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Inspect;
+
+    let mut mock_info = crate::repo::RepoInfo::default();
+    mock_info.changes.staged =
+        vec![crate::repo::FileEntry { path: "staged.rs".to_string(), label: "A" }];
+    mock_info.changes.unstaged =
+        vec![crate::repo::FileEntry { path: "unstaged.rs".to_string(), label: "M" }];
+    mock_info.changes.conflicted =
+        vec![crate::repo::FileEntry { path: "conflict.rs".to_string(), label: "U" }];
+    mock_info.commits = vec![crate::repo::CommitEntry {
+        id: "abc1234".to_string(),
+        oid: "abc1234abc1234abc1234abc1234abc1234abc1234".to_string(),
+        author: "Author".to_string(),
+        when: "now".to_string(),
+        date: "2026-07-02".to_string(),
+        summary: "feat: commit".to_string(),
+        message: "message".to_string(),
+        refs: vec![],
+        files: vec![],
+        signature_status: "N".to_string(),
+    }];
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    let sections = vec![
+        DetailSection::Staged,
+        DetailSection::Unstaged,
+        DetailSection::Conflicts,
+        DetailSection::StagingDetails,
+        DetailSection::ConflictDiff,
+        DetailSection::CommitDetails,
+        DetailSection::Commits,
+    ];
+
+    let keycodes = vec![
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyCode::Char('q'),
+        crossterm::event::KeyCode::Char('?'),
+        crossterm::event::KeyCode::Char('w'),
+        crossterm::event::KeyCode::Tab,
+        crossterm::event::KeyCode::Char('W'),
+        crossterm::event::KeyCode::Right,
+        crossterm::event::KeyCode::Left,
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyCode::PageUp,
+        crossterm::event::KeyCode::PageDown,
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyCode::End,
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyCode::Delete,
+        crossterm::event::KeyCode::Char('x'),
+        crossterm::event::KeyCode::Char('X'),
+        crossterm::event::KeyCode::Char('a'),
+        crossterm::event::KeyCode::Char('l'),
+        crossterm::event::KeyCode::Char('o'),
+        crossterm::event::KeyCode::Char('t'),
+        crossterm::event::KeyCode::Char('r'),
+        crossterm::event::KeyCode::Char('A'),
+        crossterm::event::KeyCode::Char('C'),
+        crossterm::event::KeyCode::Char('c'),
+    ];
+
+    for sect in &sections {
+        for keycode in &keycodes {
+            app.detail_focus = *sect;
+            let key =
+                crossterm::event::KeyEvent::new(*keycode, crossterm::event::KeyModifiers::empty());
+            crate::popups::inspect::InspectPopup::handle_event(&mut app, key);
+        }
+    }
+}
+
+#[test]
+fn test_repo_settings_comprehensive() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let temp_dir = std::env::temp_dir();
+    let config_path = temp_dir.join("gitwig_test_repo_settings_comp.toml");
+    let _guard = TestFileGuard { path: config_path.clone() };
+
+    let config = Config { items: vec!["/path/to/custom_repo".to_string()], ..Default::default() };
+    let mut app = App::new(config, config_path);
+    app.mode = Mode::RepoSettings;
+    app.selected_index = 0;
+
+    // 1. Test draw
+    let backend = ratatui::backend::TestBackend::new(100, 30);
+    let mut terminal = ratatui::Terminal::new(backend).unwrap();
+    terminal
+        .draw(|f| {
+            let area = f.area();
+            crate::popups::repo_settings::RepoSettingsPopup::draw(f, &app, area);
+        })
+        .unwrap();
+
+    // 2. Test handle_event keys when not editing
+    let keys = vec![
+        KeyCode::Esc,
+        KeyCode::Char('q'),
+        KeyCode::Up,
+        KeyCode::Down,
+        KeyCode::Left,
+        KeyCode::Right,
+        KeyCode::Enter,
+        KeyCode::Char(' '),
+    ];
+
+    for k in keys {
+        crate::popups::repo_settings::RepoSettingsPopup::handle_event(&mut app, key_event(k));
+    }
+
+    // 3. Test handle_event keys when editing (numeric and text)
+    app.repo_settings_editing = true;
+    app.repo_settings_selected_index = 1; // page_size
+    crate::popups::repo_settings::RepoSettingsPopup::handle_event(
+        &mut app,
+        key_event(KeyCode::Char('8')),
+    );
+    crate::popups::repo_settings::RepoSettingsPopup::handle_event(
+        &mut app,
+        key_event(KeyCode::Backspace),
+    );
+    crate::popups::repo_settings::RepoSettingsPopup::handle_event(
+        &mut app,
+        key_event(KeyCode::Enter),
+    );
+
+    app.repo_settings_editing = true;
+    app.repo_settings_selected_index = 4; // editor
+    crate::popups::repo_settings::RepoSettingsPopup::handle_event(
+        &mut app,
+        key_event(KeyCode::Char('n')),
+    );
+    crate::popups::repo_settings::RepoSettingsPopup::handle_event(
+        &mut app,
+        key_event(KeyCode::Esc),
+    );
+
+    // 4. Test change_setting Left/Right for themes and compact toggle
+    app.repo_settings_editing = false;
+    app.repo_settings_selected_index = 0; // theme
+    crate::popups::repo_settings::RepoSettingsPopup::handle_event(
+        &mut app,
+        key_event(KeyCode::Left),
+    );
+    crate::popups::repo_settings::RepoSettingsPopup::handle_event(
+        &mut app,
+        key_event(KeyCode::Right),
+    );
+
+    app.repo_settings_selected_index = 3; // compact_view
+    crate::popups::repo_settings::RepoSettingsPopup::handle_event(
+        &mut app,
+        key_event(KeyCode::Left),
+    );
+    crate::popups::repo_settings::RepoSettingsPopup::handle_event(
+        &mut app,
+        key_event(KeyCode::Right),
+    );
+}
+
+#[test]
+fn test_ui_detail_non_repos() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_ui_detail_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let app = App::new(config, temp_config_path);
+
+    let backend = ratatui::backend::TestBackend::new(100, 30);
+    let mut terminal = ratatui::Terminal::new(backend).unwrap();
+
+    let details = vec![
+        crate::repo::ItemDetail::Missing { resolved: PathBuf::from("/missing/path") },
+        crate::repo::ItemDetail::Directory { resolved: PathBuf::from("/directory/path") },
+        crate::repo::ItemDetail::Error {
+            resolved: PathBuf::from("/error/path"),
+            message: "Error msg".to_string(),
+        },
+    ];
+
+    let mut detail_areas = crate::ui_detail::DetailAreas::default();
+
+    for detail in &details {
+        terminal
+            .draw(|f| {
+                let size = f.area();
+                crate::ui_detail::draw(
+                    f,
+                    "dummy_item",
+                    detail,
+                    &app.mode,
+                    &app.detail_focus,
+                    app.last_staging_focus,
+                    0,
+                    &None,
+                    0,
+                    &[],
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    &[],
+                    0,
+                    0,
+                    0,
+                    &mut detail_areas,
+                    "",
+                    false,
+                    &None,
+                    &None,
+                    &None,
+                    &None,
+                    &None,
+                    false,
+                    false,
+                    0,
+                    50,
+                    50,
+                    50,
+                    50,
+                    50,
+                    50,
+                    50,
+                    50,
+                    &app,
+                    size,
+                );
+            })
+            .unwrap();
+    }
+}
+
+#[test]
+fn test_commit_popups_comprehensive() {
+    use crate::components::{Component, DrawableComponent};
+    use crate::popups::commit::{CommitPopup, GenericInputPopup};
+    use crate::queue::Queue;
+    use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+
+    let queue = Queue::default();
+    let mut commit_popup = CommitPopup::new(queue.clone());
+
+    // Test drawable
+    let backend = ratatui::backend::TestBackend::new(80, 24);
+    let mut terminal = ratatui::Terminal::new(backend).unwrap();
+    terminal
+        .draw(|f| {
+            let area = f.area();
+            let _ = commit_popup.draw(f, area);
+        })
+        .unwrap();
+
+    // Test events while editing
+    let keys_editing = vec![
+        KeyEvent::new(KeyCode::Esc, KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL),
+        KeyEvent::new(KeyCode::Char('a'), KeyModifiers::CONTROL),
+        KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
+        KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL),
+        KeyEvent::new(KeyCode::Char('x'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Backspace, KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Up, KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Down, KeyModifiers::empty()),
+    ];
+
+    for key in keys_editing {
+        commit_popup.editing = true;
+        let _ = commit_popup.event(&Event::Key(key));
+    }
+
+    // Test events while NOT editing
+    let keys_not_editing = vec![
+        KeyEvent::new(KeyCode::Esc, KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('e'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char(' '), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('d'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Up, KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Down, KeyModifiers::empty()),
+    ];
+
+    for key in keys_not_editing {
+        commit_popup.editing = false;
+        let _ = commit_popup.event(&Event::Key(key));
+    }
+
+    // Test GenericInputPopup
+    let mut generic_popup = GenericInputPopup::new(queue.clone());
+    terminal
+        .draw(|f| {
+            let area = f.area();
+            let _ = generic_popup.draw(f, area);
+        })
+        .unwrap();
+
+    let generic_keys = vec![
+        KeyEvent::new(KeyCode::Esc, KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Backspace, KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('x'), KeyModifiers::empty()),
+    ];
+
+    for key in generic_keys {
+        let _ = generic_popup.event(&Event::Key(key));
+    }
+}
+
+#[test]
+fn test_loading_screens_comprehensive() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_loading_comp.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let app = App::new(config, temp_config_path);
+
+    let backend = ratatui::backend::TestBackend::new(100, 30);
+    let mut terminal = ratatui::Terminal::new(backend).unwrap();
+
+    // 1. Test draw_loading_screen
+    let mut app = app;
+    app.loading_repo_path = Some("/path/to/loading/repo".to_string());
+    terminal
+        .draw(|f| {
+            let area = f.area();
+            crate::popups::loading::draw_loading_screen(f, area, &app);
+        })
+        .unwrap();
+
+    // 2. Test draw_progress_popup (normal spinner)
+    app.loading_repo_path = None;
+    app.fetching = true;
+    app.fetch_progress = 45;
+    app.status_message = Some("Fetching tags...".to_string());
+    app.config.compatibility_mode = false;
+    terminal
+        .draw(|f| {
+            let area = f.area();
+            crate::popups::loading::draw_progress_popup(f, area, &app);
+        })
+        .unwrap();
+
+    // 3. Test draw_progress_popup (compatibility spinner)
+    app.config.compatibility_mode = true;
+    terminal
+        .draw(|f| {
+            let area = f.area();
+            crate::popups::loading::draw_progress_popup(f, area, &app);
+        })
+        .unwrap();
+}
+
+#[test]
+fn test_workspace_tab_events_comprehensive() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_workspace_comp.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+
+    let mut mock_info = crate::repo::RepoInfo::default();
+    mock_info.changes.staged =
+        vec![crate::repo::FileEntry { path: "staged.rs".to_string(), label: "A" }];
+    mock_info.changes.unstaged =
+        vec![crate::repo::FileEntry { path: "unstaged.rs".to_string(), label: "M" }];
+    mock_info.changes.conflicted =
+        vec![crate::repo::FileEntry { path: "conflict.rs".to_string(), label: "U" }];
+    mock_info.commits = vec![crate::repo::CommitEntry {
+        id: "abc1234".to_string(),
+        oid: "abc1234abc1234abc1234abc1234abc1234abc1234".to_string(),
+        author: "Author".to_string(),
+        when: "now".to_string(),
+        date: "2026-07-02".to_string(),
+        summary: "feat: commit".to_string(),
+        message: "message".to_string(),
+        refs: vec![],
+        files: vec![],
+        signature_status: "N".to_string(),
+    }];
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    let sections = vec![
+        DetailSection::Commits,
+        DetailSection::Staged,
+        DetailSection::Unstaged,
+        DetailSection::Conflicts,
+        DetailSection::StagingDetails,
+        DetailSection::ConflictDiff,
+    ];
+
+    let keycodes = vec![
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyCode::Left,
+        crossterm::event::KeyCode::Right,
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyCode::PageUp,
+        crossterm::event::KeyCode::PageDown,
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyCode::End,
+        crossterm::event::KeyCode::Char('G'),
+        crossterm::event::KeyCode::Char('/'),
+        crossterm::event::KeyCode::Char('f'),
+        crossterm::event::KeyCode::Char('l'),
+        crossterm::event::KeyCode::Char('c'),
+        crossterm::event::KeyCode::Char('C'),
+        crossterm::event::KeyCode::Char('t'),
+        crossterm::event::KeyCode::Char('b'),
+        crossterm::event::KeyCode::Char('i'),
+        crossterm::event::KeyCode::Char('p'),
+        crossterm::event::KeyCode::Char('v'),
+        crossterm::event::KeyCode::Char('y'),
+        crossterm::event::KeyCode::Char('s'),
+        crossterm::event::KeyCode::Char('a'),
+        crossterm::event::KeyCode::Char('x'),
+        crossterm::event::KeyCode::Char('X'),
+    ];
+
+    for sect in &sections {
+        for keycode in &keycodes {
+            app.detail_focus = *sect;
+            let key =
+                crossterm::event::KeyEvent::new(*keycode, crossterm::event::KeyModifiers::empty());
+            crate::tabs::workspace::WorkspaceTab::handle_event(&mut app, key);
+        }
+    }
+}
+
+#[test]
+fn test_app_helper_functions_comprehensive() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_helpers_comp.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+
+    // 1. clipboard
+    let _ = crate::app::copy_to_clipboard("test clipboard content");
+
+    // 2. is_tool_installed
+    let _ = crate::app::is_tool_installed("git");
+    let _ = crate::app::is_tool_installed("non_existent_tool_123");
+
+    // 3. App getters
+    assert!(!app.is_msi_install());
+    assert_eq!(app.item_height(), 4);
+
+    // 4. Implicit network counters
+    app.increment_implicit_network();
+    assert_eq!(app.implicit_network_count, 1);
+    app.decrement_implicit_network();
+    assert_eq!(app.implicit_network_count, 0);
+
+    // 5. Update triggers (verify no panic)
+    app.trigger_update_check();
+    app.trigger_self_update();
+}
+
+#[test]
+fn test_drain_queue_confirmations_comprehensive() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_drain_conf.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+
+    let mock_info = crate::repo::RepoInfo {
+        changes: crate::repo::WorktreeChanges {
+            staged: vec![crate::repo::FileEntry { path: "staged_file.rs".to_string(), label: "A" }],
+            unstaged: vec![crate::repo::FileEntry {
+                path: "unstaged_file.rs".to_string(),
+                label: "M",
+            }],
+            conflicted: vec![crate::repo::FileEntry {
+                path: "conflicted_file.rs".to_string(),
+                label: "U",
+            }],
+            ..Default::default()
+        },
+        commits: vec![crate::repo::CommitEntry {
+            id: "abc1234".to_string(),
+            oid: "abc1234abc1234abc1234abc1234abc1234abc1234".to_string(),
+            author: "Author".to_string(),
+            when: "10 mins ago".to_string(),
+            date: "2026-07-02".to_string(),
+            summary: "feat: summary".to_string(),
+            message: "feat: summary\n\nbody".to_string(),
+            refs: vec![],
+            files: vec![],
+            signature_status: "G".to_string(),
+        }],
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    // Populate all target variables
+    app.branch_action_target = Some(("main".to_string(), false));
+    app.tag_action_target_oid = Some("abc1234abc1234abc1234abc1234abc1234abc1234".to_string());
+    app.tag_delete_target = Some(("v1.0.0".to_string(), false));
+    app.tag_checkout_target = Some("v1.0.0".to_string());
+    app.tag_push_target = Some("v1.0.0".to_string());
+    app.discard_target = Some(("staged_file.rs".to_string(), true));
+    app.cherry_pick_target = Some(("abc1234".to_string(), "commit".to_string()));
+    app.revert_target = Some(("abc1234".to_string(), "commit".to_string()));
+    app.stash_action_target = Some(("stash@{0}".to_string(), "stash message".to_string()));
+    app.remote_action_target = Some("origin".to_string());
+    app.submodule_delete_target = Some("submodule_a".to_string());
+
+    let confirm_modes = vec![
+        Mode::BranchDeleteConfirm,
+        Mode::BranchPushConfirm,
+        Mode::BranchMergeConfirm,
+        Mode::MergeAbortConfirm,
+        Mode::MergeContinueConfirm,
+        Mode::BranchRebaseConfirm,
+        Mode::BranchInteractiveRebaseConfirm,
+        Mode::DiscardChangesConfirm,
+        Mode::RevertConfirm,
+        Mode::TagDeleteConfirm,
+        Mode::TagPushConfirm,
+        Mode::TagPushAllConfirm,
+        Mode::StashDeleteConfirm,
+        Mode::BranchCheckoutConfirm,
+        Mode::TagCheckoutConfirm,
+        Mode::RemoteDeleteConfirm,
+        Mode::UpdateConfirm,
+        Mode::SubmoduleDeleteConfirm,
+    ];
+
+    for mode in &confirm_modes {
+        app.mode = *mode;
+        app.queue.push(crate::queue::InternalEvent::ConfirmYes);
+        app.drain_queue();
+
+        app.mode = *mode;
+        app.queue.push(crate::queue::InternalEvent::ConfirmNo);
+        app.drain_queue();
+    }
+
+    let input_modes = vec![
+        Mode::BranchCreateInput,
+        Mode::TagCreateInput,
+        Mode::StashCreateInput,
+        Mode::RemoteAddNameInput,
+        Mode::RemoteAddUrlInput,
+        Mode::WorktreeAddBranchInput,
+        Mode::WorktreeAddPathInput,
+        Mode::WorktreeLockReasonInput,
+        Mode::WorktreeRemoveConfirm,
+        Mode::SubmoduleAddUrlInput,
+        Mode::SubmoduleAddPathInput,
+    ];
+
+    for mode in &input_modes {
+        app.mode = *mode;
+        app.queue.push(crate::queue::InternalEvent::InputEnter);
+        app.drain_queue();
+
+        app.mode = *mode;
+        app.queue.push(crate::queue::InternalEvent::InputEsc);
+        app.drain_queue();
+    }
+}
+
+#[test]
+fn test_file_history_comprehensive() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_file_hist_comp.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+
+    let backend = ratatui::backend::TestBackend::new(100, 30);
+    let mut terminal = ratatui::Terminal::new(backend).unwrap();
+
+    // 1. Draw with empty history
+    app.file_history_path = "src/main.rs".to_string();
+    app.file_history_revisions.clear();
+    terminal
+        .draw(|f| {
+            let area = f.area();
+            crate::tabs::file_history::FileHistoryTab::draw_file_history(f, &app, area);
+        })
+        .unwrap();
+
+    // 2. Draw with populated history
+    app.file_history_revisions = vec![
+        crate::repo::FileRevision {
+            commit_oid: "abc1234abc1234abc1234abc1234abc1234abc1234".to_string(),
+            author: "Author".to_string(),
+            when: "now".to_string(),
+            date: "2026-07-02".to_string(),
+            summary: "feat: summary".to_string(),
+        },
+        crate::repo::FileRevision {
+            commit_oid: "def5678def5678def5678def5678def5678def5678".to_string(),
+            author: "Author2".to_string(),
+            when: "yesterday".to_string(),
+            date: "2026-07-01".to_string(),
+            summary: "fix: bug".to_string(),
+        },
+    ];
+    app.file_history_selection = 0;
+    app.file_history_focus = 0; // revisions focused
+    terminal
+        .draw(|f| {
+            let area = f.area();
+            crate::tabs::file_history::FileHistoryTab::draw_file_history(f, &app, area);
+        })
+        .unwrap();
+
+    // 3. Draw with diff focused
+    app.file_history_focus = 1; // diff focused
+    terminal
+        .draw(|f| {
+            let area = f.area();
+            crate::tabs::file_history::FileHistoryTab::draw_file_history(f, &app, area);
+        })
+        .unwrap();
+
+    // 4. Test handle_event
+    let keycodes = vec![
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyCode::Tab,
+        crossterm::event::KeyCode::Left,
+        crossterm::event::KeyCode::Right,
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyCode::End,
+        crossterm::event::KeyCode::PageUp,
+        crossterm::event::KeyCode::PageDown,
+    ];
+
+    // Revisions list empty
+    app.file_history_revisions.clear();
+    for &kc in &keycodes {
+        for focus in &[0, 1] {
+            app.file_history_focus = *focus;
+            let key = crossterm::event::KeyEvent::new(kc, crossterm::event::KeyModifiers::empty());
+            crate::tabs::file_history::FileHistoryTab::handle_event(&mut app, key);
+        }
+    }
+
+    // Revisions list populated
+    app.file_history_revisions = vec![
+        crate::repo::FileRevision {
+            commit_oid: "abc1234abc1234abc1234abc1234abc1234abc1234".to_string(),
+            author: "Author".to_string(),
+            when: "now".to_string(),
+            date: "2026-07-02".to_string(),
+            summary: "feat: summary".to_string(),
+        },
+        crate::repo::FileRevision {
+            commit_oid: "def5678def5678def5678def5678def5678def5678".to_string(),
+            author: "Author2".to_string(),
+            when: "yesterday".to_string(),
+            date: "2026-07-01".to_string(),
+            summary: "fix: bug".to_string(),
+        },
+    ];
+    for &kc in &keycodes {
+        for focus in &[0, 1] {
+            app.file_history_focus = *focus;
+            app.file_history_selection = 0;
+            let key = crossterm::event::KeyEvent::new(kc, crossterm::event::KeyModifiers::empty());
+            crate::tabs::file_history::FileHistoryTab::handle_event(&mut app, key);
+        }
+    }
+}
+
+#[test]
+fn test_style_helpers_comprehensive() {
+    use crate::ui::style::{format_border_type, format_color, parse_border_type, parse_color};
+    use ratatui::style::Color;
+    use ratatui::widgets::BorderType;
+
+    // Test parse/format colors
+    let colors = vec![
+        (Color::Black, "black"),
+        (Color::Red, "red"),
+        (Color::Green, "green"),
+        (Color::Yellow, "yellow"),
+        (Color::Blue, "blue"),
+        (Color::Magenta, "magenta"),
+        (Color::Cyan, "cyan"),
+        (Color::Gray, "gray"),
+        (Color::DarkGray, "darkgray"),
+        (Color::LightRed, "lightred"),
+        (Color::LightGreen, "lightgreen"),
+        (Color::LightYellow, "lightyellow"),
+        (Color::LightBlue, "lightblue"),
+        (Color::LightMagenta, "lightmagenta"),
+        (Color::LightCyan, "lightcyan"),
+        (Color::White, "white"),
+    ];
+
+    for (color, name) in colors {
+        assert_eq!(parse_color(name), color);
+        assert_eq!(format_color(color), name);
+    }
+    // Unknown fallback
+    assert_eq!(parse_color("unknown"), Color::Cyan);
+    assert_eq!(format_color(Color::Indexed(123)), "cyan");
+
+    // Test parse/format borders
+    let borders = vec![
+        (BorderType::Plain, "plain"),
+        (BorderType::Rounded, "rounded"),
+        (BorderType::Double, "double"),
+        (BorderType::Thick, "thick"),
+    ];
+
+    for (border, name) in borders {
+        assert_eq!(parse_border_type(name), border);
+        assert_eq!(format_border_type(border), name);
+    }
+    // Unknown fallback
+    assert_eq!(parse_border_type("unknown"), BorderType::Rounded);
+    assert_eq!(format_border_type(BorderType::QuadrantOutside), "rounded");
+}
+
+#[test]
+fn test_highlight_code_line() {
+    let line = crate::ui::syntax::highlight_code_line("fn main() {}");
+    assert_eq!(line.to_string(), "fn main() {}");
+}
+
+#[test]
+fn test_log_search_popup_comprehensive() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_log_search.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+
+    let keycodes = vec![
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyCode::Backspace,
+        crossterm::event::KeyCode::Char('x'),
+    ];
+
+    // 1. LogsSearchInput (empty query)
+    app.mode = Mode::LogsSearchInput;
+    app.input_buffer.clear();
+    for &kc in &keycodes {
+        let key = crossterm::event::KeyEvent::new(kc, crossterm::event::KeyModifiers::empty());
+        crate::popups::log_search::LogSearchPopup::handle_event(&mut app, key);
+    }
+
+    // 2. LogsSearchInput (non-empty query)
+    app.mode = Mode::LogsSearchInput;
+    app.input_buffer = "query".to_string();
+    for &kc in &keycodes {
+        let key = crossterm::event::KeyEvent::new(kc, crossterm::event::KeyModifiers::empty());
+        crate::popups::log_search::LogSearchPopup::handle_event(&mut app, key);
+    }
+
+    // 3. CommitSearchInput
+    app.mode = Mode::CommitSearchInput;
+    app.input_buffer = "query".to_string();
+    for &kc in &keycodes {
+        let key = crossterm::event::KeyEvent::new(kc, crossterm::event::KeyModifiers::empty());
+        crate::popups::log_search::LogSearchPopup::handle_event(&mut app, key);
+    }
+
+    // 4. Default mode fallback
+    app.mode = Mode::Normal;
+    let key = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    crate::popups::log_search::LogSearchPopup::handle_event(&mut app, key);
+}
+
+#[test]
+fn test_route_detail_events_comprehensive() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_route_detail.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+
+    let keycodes = vec![
+        crossterm::event::KeyCode::Char('v'),
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyCode::Char('q'),
+        crossterm::event::KeyCode::Char('?'),
+        crossterm::event::KeyCode::Tab,
+        crossterm::event::KeyCode::BackTab,
+        crossterm::event::KeyCode::Char('r'),
+        crossterm::event::KeyCode::Char(']'),
+        crossterm::event::KeyCode::Char('['),
+        crossterm::event::KeyCode::Char('1'),
+        crossterm::event::KeyCode::Char('2'),
+        crossterm::event::KeyCode::Char('3'),
+        crossterm::event::KeyCode::Char('4'),
+        crossterm::event::KeyCode::Char('5'),
+        crossterm::event::KeyCode::Char('6'),
+        crossterm::event::KeyCode::Char('7'),
+        crossterm::event::KeyCode::Char('8'),
+        crossterm::event::KeyCode::Char('9'),
+        crossterm::event::KeyCode::Char('0'),
+    ];
+
+    // Setup mock item detail repo
+    let mock_info = crate::repo::RepoInfo::default();
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    for &kc in &keycodes {
+        // Test with inspect_full_diff = true
+        app.inspect_full_diff = true;
+        app.commit_list.search_query = Some("test".to_string());
+        let key = crossterm::event::KeyEvent::new(kc, crossterm::event::KeyModifiers::empty());
+        crate::tabs::route_detail_event(&mut app, key);
+
+        // Test with inspect_full_diff = false
+        app.inspect_full_diff = false;
+        app.commit_list.search_query = None;
+        crate::tabs::route_detail_event(&mut app, key);
+    }
+}
+
+#[test]
+fn test_logs_tab_comprehensive() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_logs_tab_comp.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+
+    let keycodes = vec![
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyCode::Char('k'),
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyCode::Char('j'),
+        crossterm::event::KeyCode::PageUp,
+        crossterm::event::KeyCode::PageDown,
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyCode::End,
+        crossterm::event::KeyCode::Char('/'),
+        crossterm::event::KeyCode::Char('f'),
+        crossterm::event::KeyCode::Char('G'),
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyCode::Char('q'),
+        crossterm::event::KeyCode::Char('Q'),
+        crossterm::event::KeyCode::Char('x'),
+    ];
+
+    let mock_info = crate::repo::RepoInfo::default();
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    for &kc in &keycodes {
+        // Test with uncommitted selected = true
+        app.commit_list.selection = 0; // index 0 is uncommitted
+        app.commit_list.limit = 100;
+        let key = crossterm::event::KeyEvent::new(kc, crossterm::event::KeyModifiers::empty());
+        crate::tabs::logs::LogsTab::handle_event(&mut app, key);
+
+        // Test with uncommitted selected = false
+        app.commit_list.selection = 1;
+        crate::tabs::logs::LogsTab::handle_event(&mut app, key);
+    }
+}
