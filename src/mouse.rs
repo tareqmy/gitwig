@@ -498,15 +498,15 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     let click_x = pos.x - rect.x;
                     let use_short = rect.width < 146;
                     let tabs_data = [
-                        ("Workspace", "W", 0),
-                        ("Files", "F", 1),
-                        ("Graph", "G", 2),
-                        ("Branches", "B", 3),
-                        ("Tags", "T", 4),
-                        ("Remotes", "R", 5),
-                        ("Stashes", "S", 6),
-                        ("Worktrees", "W", 7),
-                        ("Submodules", "S", 8),
+                        ("Workspace", "Wo", 0),
+                        ("Files", "Fi", 1),
+                        ("Graph", "Gr", 2),
+                        ("Branches", "Br", 3),
+                        ("Tags", "Ta", 4),
+                        ("Remotes", "Re", 5),
+                        ("Stashes", "St", 6),
+                        ("Worktrees", "Wt", 7),
+                        ("Submodules", "Su", 8),
                     ];
                     let mut current_offset = 2;
                     for &(long_name, short_name, tab_index) in &tabs_data {

@@ -390,15 +390,15 @@ pub fn draw(
 
     if let Some(tab_area) = tab_bar_area {
         let tabs_data = [
-            ("Workspace", "W", 1),
-            ("Files", "F", 2),
-            ("Graph", "G", 3),
-            ("Branches", "B", 4),
-            ("Tags", "T", 5),
-            ("Remotes", "R", 6),
-            ("Stashes", "S", 7),
-            ("Worktrees", "W", 8),
-            ("Submodules", "S", 9),
+            ("Workspace", "WS", 1),
+            ("Files", "Fi", 2),
+            ("Graph", "Gr", 3),
+            ("Branches", "Br", 4),
+            ("Tags", "Tg", 5),
+            ("Remotes", "Rm", 6),
+            ("Stashes", "St", 7),
+            ("Worktrees", "WT", 8),
+            ("Submodules", "SM", 9),
         ];
 
         let use_short = tab_area.width < 146;
