@@ -359,10 +359,15 @@ fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
         vec![Span::styled(format!(" v{} ", env!("CARGO_PKG_VERSION")), muted_style())];
     if let Some(ref latest) = app.update_available {
         right_spans.insert(0, Span::raw(" "));
+        let badge_text = if app.is_msi_install() {
+            format!("[New version v{}]", latest)
+        } else {
+            format!("[Update to v{}]", latest)
+        };
         right_spans.insert(
             0,
             Span::styled(
-                format!("[Update to v{}]", latest),
+                badge_text,
                 Style::default().fg(ratatui::style::Color::LightGreen).add_modifier(Modifier::BOLD),
             ),
         );

@@ -2262,6 +2262,19 @@ pub(crate) fn copy_to_clipboard(text: &str) -> Result<(), String> {
 }
 
 impl App {
+    pub fn is_msi_install(&self) -> bool {
+        #[cfg(target_os = "windows")]
+        {
+            if let Ok(exe_path) = std::env::current_exe() {
+                let path_str = exe_path.to_string_lossy().to_lowercase();
+                if path_str.contains("program files") || path_str.contains("programfiles") {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     pub fn item_height(&self) -> u16 {
         if self.config.compact_view { 1 } else { ITEM_HEIGHT }
     }
@@ -2332,6 +2345,17 @@ impl App {
     }
 
     pub fn trigger_self_update(&mut self) {
+        if self.is_msi_install() {
+            self.error_message = Some(
+                "Self-update is disabled for system-wide MSI installations.\n\n\
+                 Please download the latest MSI package from:\n\
+                 https://github.com/tareqmy/gitwig/releases"
+                    .to_string(),
+            );
+            self.mode = self.previous_mode.take().unwrap_or(self.mode);
+            return;
+        }
+
         crate::debug_log::info("Network Action: Triggering self-update");
         self.fetching = true;
         self.status_message = Some("Updating Gitwig...".to_string());

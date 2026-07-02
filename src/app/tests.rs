@@ -5241,7 +5241,11 @@ fn test_update_click_trigger() {
         width = 80;
     }
     let len_version = format!(" v{} ", env!("CARGO_PKG_VERSION")).chars().count();
-    let len_badge = format!("[Update to v{}]", "2.2.6").chars().count();
+    let len_badge = if app.is_msi_install() {
+        format!("[New version v{}]", "2.2.6").chars().count()
+    } else {
+        format!("[Update to v{}]", "2.2.6").chars().count()
+    };
     let target_column = (width as usize).saturating_sub(len_version + len_badge / 2 + 2) as u16;
 
     let click_event = MouseEvent {

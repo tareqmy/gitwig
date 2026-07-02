@@ -744,11 +744,17 @@ pub(crate) fn get_status_layout_components(
             (msg_spans, entries)
         }
         Mode::UpdateConfirm => {
+            let is_msi = app.is_msi_install();
+            let title = if is_msi { "New Version Available  " } else { "Update Available  " };
             let msg_spans = vec![Span::styled(
-                "Update Available  ",
+                title,
                 Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
             )];
-            let entries_data = [("Confirm Update", "y"), ("Cancel", "n/Esc")];
+            let entries_data = if is_msi {
+                [("Show Info", "y"), ("Cancel", "n/Esc")]
+            } else {
+                [("Confirm Update", "y"), ("Cancel", "n/Esc")]
+            };
             let mut entries = Vec::new();
             for (i, (label, key)) in entries_data.iter().enumerate() {
                 let mut spans = Vec::new();
