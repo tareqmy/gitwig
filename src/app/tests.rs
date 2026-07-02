@@ -5834,3 +5834,524 @@ fn test_tag_search_flow() {
     assert!(handled);
     assert_eq!(app.mode, Mode::Detail);
 }
+
+#[test]
+fn test_all_tab_events_direct() {
+    use crate::tabs::logs::LogsTab;
+    use crate::tabs::{
+        BranchesTab, FileHistoryTab, FilesTab, GraphTab, RemotesTab, StashesTab, TagsTab,
+        WorkspaceTab,
+    };
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let config = Config::default();
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_tabs_direct.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Setup detail info
+    let mock_info = repo::RepoInfo {
+        branch: Some("main".to_string()),
+        local_branches: repo::TabData::Loaded(vec![repo::BranchInfo {
+            name: "main".to_string(),
+            is_head: true,
+            ..Default::default()
+        }]),
+        stashes: repo::TabData::Loaded(vec![repo::StashInfo { index: 0, ..Default::default() }]),
+        worktrees: repo::TabData::Loaded(vec![repo::WorktreeInfo { ..Default::default() }]),
+        submodules: repo::TabData::Loaded(vec![repo::SubmoduleInfo { ..Default::default() }]),
+        reflog: repo::TabData::Loaded(vec![repo::ReflogEntry {
+            index: 0,
+            target_oid: "abc1234".to_string(),
+            selector: "reflog@{0}".to_string(),
+            command: "commit".to_string(),
+            message: "feat: summary".to_string(),
+            when: "10 mins ago".to_string(),
+            date: "2026-07-02".to_string(),
+        }]),
+        ..Default::default()
+    };
+
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("dummy"),
+        info: Box::new(mock_info),
+    });
+
+    let keys = vec![
+        KeyEvent::new(KeyCode::Up, KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Down, KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('k'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('j'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('D'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('o'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('e'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('f'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('/'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('F'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty()),
+        KeyEvent::new(KeyCode::Esc, KeyModifiers::empty()),
+    ];
+
+    for key in &keys {
+        let _ = WorkspaceTab::handle_event(&mut app, *key);
+        let _ = FilesTab::handle_event(&mut app, *key);
+        let _ = GraphTab::handle_event(&mut app, *key);
+        let _ = BranchesTab::handle_event(&mut app, *key);
+        let _ = TagsTab::handle_event(&mut app, *key);
+        let _ = RemotesTab::handle_event(&mut app, *key);
+        let _ = StashesTab::handle_event(&mut app, *key);
+        let _ = FileHistoryTab::handle_event(&mut app, *key);
+        let _ = LogsTab::handle_event(&mut app, *key);
+        let _ = crate::tabs::route_detail_event(&mut app, *key);
+    }
+
+    for tab in 7..10 {
+        app.detail_tab = tab;
+        for key in &keys {
+            let _ = crate::tabs::route_detail_event(&mut app, *key);
+        }
+    }
+}
+
+#[test]
+fn test_all_git_actions_on_real_repo() {
+    // Create a real temp repository
+    let uuid =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let temp_repo_path = std::env::temp_dir().join(format!("gitwig_test_actions_repo_{}", uuid));
+    let _ = std::fs::create_dir_all(&temp_repo_path);
+
+    // Initialize Git repo
+    let repo = git2::Repository::init(&temp_repo_path).unwrap();
+
+    // Configure user
+    let mut config_git = repo.config().unwrap();
+    config_git.set_str("user.name", "Test User").unwrap();
+    config_git.set_str("user.email", "test@test.com").unwrap();
+
+    // Create a file and commit it
+    let file1_path = temp_repo_path.join("file1.rs");
+    std::fs::write(&file1_path, "fn main() {}\n").unwrap();
+
+    let mut index = repo.index().unwrap();
+    index.add_path(std::path::Path::new("file1.rs")).unwrap();
+    index.write().unwrap();
+
+    let oid = index.write_tree().unwrap();
+    let tree = repo.find_tree(oid).unwrap();
+    let signature = repo.signature().unwrap();
+    repo.commit(Some("HEAD"), &signature, &signature, "Initial commit", &tree, &[]).unwrap();
+
+    // Create a config and App pointing to this real repo
+    let config =
+        Config { items: vec![temp_repo_path.to_str().unwrap().to_string()], ..Default::default() };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    app.mode = Mode::Detail;
+
+    let mock_info =
+        match crate::repo::inspect_detail(temp_repo_path.to_str().unwrap(), 100, 1000, false) {
+            crate::repo::ItemDetail::Repo { info, .. } => *info,
+            _ => crate::repo::RepoInfo::default(),
+        };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: temp_repo_path.clone(),
+        info: Box::new(mock_info),
+    });
+
+    // Call various action methods!
+    app.fetching = false;
+    app.input_buffer = "test_branch".to_string();
+    app.commit_branch_create();
+
+    app.fetching = false;
+    app.input_buffer = "test_tag".to_string();
+    app.commit_tag_create();
+
+    app.fetching = false;
+    app.tag_delete_target = Some(("test_tag".to_string(), false));
+    app.confirm_tag_delete();
+
+    app.fetching = false;
+    app.branch_action_target = Some(("test_branch".to_string(), false));
+    app.confirm_branch_delete();
+
+    // Stashing
+    std::fs::write(&file1_path, "fn main() {\n    // dirty\n}\n").unwrap();
+    app.fetching = false;
+    app.input_buffer = "my_stash".to_string();
+    app.commit_stash_create();
+
+    // Stash apply / delete
+    app.fetching = false;
+    app.stash_action_target = Some(("stash@{0}".to_string(), "my_stash".to_string()));
+    app.confirm_stash_apply();
+    app.fetching = false;
+    app.stash_action_target = Some(("stash@{0}".to_string(), "my_stash".to_string()));
+    app.confirm_stash_delete();
+
+    // Tag checkout
+    app.fetching = false;
+    app.tag_checkout_target = Some("test_tag".to_string());
+    app.confirm_tag_checkout();
+
+    // Fetch, pull, push
+    app.fetching = false;
+    app.fetch_remote("origin");
+    app.fetching = false;
+    app.fetch_remote_tags(false);
+    app.fetching = false;
+    app.pull_selected_branch();
+    app.fetching = false;
+    app.branch_action_target = Some(("main".to_string(), false));
+    app.confirm_branch_push();
+
+    // Worktree actions
+    app.fetching = false;
+    app.input_buffer = "feature".to_string();
+    app.commit_worktree_add_branch();
+    app.fetching = false;
+    app.input_buffer = temp_repo_path.join("wt-test").to_str().unwrap().to_string();
+    app.commit_worktree_add_path();
+    app.fetching = false;
+    app.input_buffer = "lock reason".to_string();
+    app.fetching = false;
+    app.commit_worktree_lock_reason();
+    app.fetching = false;
+    app.commit_worktree_remove();
+
+    // Submodule actions
+    app.fetching = false;
+    app.input_buffer = "http://submodule-url".to_string();
+    app.commit_submodule_add_url();
+    app.fetching = false;
+    app.input_buffer = "sub-test".to_string();
+    app.commit_submodule_add_path();
+    app.fetching = false;
+    app.submodule_delete_target = Some("sub-test".to_string());
+    app.confirm_submodule_delete();
+    app.fetching = false;
+    app.cancel_submodule_delete();
+
+    // Wait a little bit for background thread completions to process messages
+    std::thread::sleep(std::time::Duration::from_millis(200));
+
+    // Clean channels in the test to ensure execution coverage
+    while app.rx.try_recv().is_ok() {}
+    while app.detail_rx.try_recv().is_ok() {}
+    while app.status_refresh_rx.try_recv().is_ok() {}
+    while app.tab_rx.try_recv().is_ok() {}
+
+    // Cleanup
+    let _ = std::fs::remove_dir_all(&temp_repo_path);
+}
+
+#[test]
+fn test_inspect_popup_events() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_inspect_popup_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Inspect;
+
+    // Mock uncommitted files
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        changes: crate::repo::WorktreeChanges {
+            staged: vec![crate::repo::FileEntry { path: "staged_file.rs".to_string(), label: "A" }],
+            unstaged: vec![crate::repo::FileEntry {
+                path: "unstaged_file.rs".to_string(),
+                label: "M",
+            }],
+            conflicted: vec![crate::repo::FileEntry {
+                path: "conflicted_file.rs".to_string(),
+                label: "U",
+            }],
+            ..Default::default()
+        },
+        commits: vec![crate::repo::CommitEntry {
+            id: "abc1234".to_string(),
+            oid: "abc1234abc1234abc1234abc1234abc1234abc1234".to_string(),
+            author: "Author".to_string(),
+            when: "10 mins ago".to_string(),
+            date: "2026-07-02".to_string(),
+            summary: "feat: summary".to_string(),
+            message: "feat: summary\n\nbody".to_string(),
+            refs: vec![],
+            files: vec![],
+            signature_status: "G".to_string(),
+        }],
+        ..Default::default()
+    };
+
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    // Test tab transition key events
+    app.detail_focus = DetailSection::Staged;
+
+    let keys = vec![
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('w'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('W'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Right,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Left,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Up,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Down,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::PageUp,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::PageDown,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Home,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::End,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('j'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('k'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('u'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('U'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('d'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('c'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('a'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('s'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('S'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('p'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('P'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('r'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('R'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('q'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+    ];
+
+    for key in &keys {
+        let _ = crate::popups::inspect::InspectPopup::handle_event(&mut app, *key);
+    }
+
+    // Now test with committed selection
+    app.detail_tab = 1; // Commits tab
+    app.detail_focus = DetailSection::StagingDetails;
+    for key in &keys {
+        let _ = crate::popups::inspect::InspectPopup::handle_event(&mut app, *key);
+    }
+}
+
+#[test]
+fn test_workspace_tab_events() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_workspace_tab_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        changes: crate::repo::WorktreeChanges {
+            staged: vec![crate::repo::FileEntry { path: "staged_file.rs".to_string(), label: "A" }],
+            unstaged: vec![crate::repo::FileEntry {
+                path: "unstaged_file.rs".to_string(),
+                label: "M",
+            }],
+            conflicted: vec![crate::repo::FileEntry {
+                path: "conflicted_file.rs".to_string(),
+                label: "U",
+            }],
+            ..Default::default()
+        },
+        commits: vec![crate::repo::CommitEntry {
+            id: "abc1234".to_string(),
+            oid: "abc1234abc1234abc1234abc1234abc1234abc1234".to_string(),
+            author: "Author".to_string(),
+            when: "10 mins ago".to_string(),
+            date: "2026-07-02".to_string(),
+            summary: "feat: summary".to_string(),
+            message: "feat: summary\n\nbody".to_string(),
+            refs: vec![],
+            files: vec![],
+            signature_status: "G".to_string(),
+        }],
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    let focuses = vec![
+        DetailSection::Commits,
+        DetailSection::Staged,
+        DetailSection::Unstaged,
+        DetailSection::Conflicts,
+        DetailSection::FileContent,
+    ];
+
+    let keys = vec![
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Up,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Down,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::PageUp,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::PageDown,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Home,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::End,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('G'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('/'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('f'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('l'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('c'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('C'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('t'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('b'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('i'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('p'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('v'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('y'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('s'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('S'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('d'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('r'),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char(' '),
+            crossterm::event::KeyModifiers::empty(),
+        ),
+    ];
+
+    for focus in focuses {
+        app.detail_focus = focus;
+        for key in &keys {
+            let _ = crate::tabs::workspace::WorkspaceTab::handle_event(&mut app, *key);
+        }
+    }
+}

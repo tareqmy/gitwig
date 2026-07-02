@@ -2578,4 +2578,337 @@ mod tests {
         }
         assert!(found_partial, "Expected to find PARTIAL badge in card rendering");
     }
+
+    #[test]
+    fn test_actual_rendering_all_modes_and_tabs() {
+        // Create a unique temporary directory
+        let uuid =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let temp_repo_path = std::env::temp_dir().join(format!("gitwig_test_render_repo_{}", uuid));
+        let _ = std::fs::create_dir_all(&temp_repo_path);
+
+        // Initialize Git repo
+        let repo = git2::Repository::init(&temp_repo_path).unwrap();
+
+        // Configure user
+        let mut config_git = repo.config().unwrap();
+        config_git.set_str("user.name", "Test User").unwrap();
+        config_git.set_str("user.email", "test@test.com").unwrap();
+
+        // Create committed file
+        let file1_path = temp_repo_path.join("file1.rs");
+        std::fs::write(&file1_path, "fn main() {\n    // initial version\n}\n").unwrap();
+
+        // Stage and commit
+        let mut index = repo.index().unwrap();
+        index.add_path(std::path::Path::new("file1.rs")).unwrap();
+        index.write().unwrap();
+
+        let oid = index.write_tree().unwrap();
+        let tree = repo.find_tree(oid).unwrap();
+        let signature = repo.signature().unwrap();
+        repo.commit(Some("HEAD"), &signature, &signature, "Initial commit", &tree, &[]).unwrap();
+
+        // Modify file1.rs to create unstaged changes
+        std::fs::write(&file1_path, "fn main() {\n    println!(\"Modified\");\n}\n").unwrap();
+
+        // Create untracked file
+        let file2_path = temp_repo_path.join("untracked.rs");
+        std::fs::write(&file2_path, "// untracked file content\n").unwrap();
+
+        let repo_path_str = temp_repo_path.to_str().unwrap().to_string();
+        let detail = crate::repo::inspect_detail(&repo_path_str, 100, 1000, false);
+
+        let mut mock_info = match detail {
+            crate::repo::ItemDetail::Repo { info, .. } => *info,
+            _ => crate::repo::RepoInfo::default(),
+        };
+
+        // Enrich mock_info with mock stashes, worktrees, submodules, etc. so they render nicely too
+        mock_info.stashes = crate::repo::TabData::Loaded(vec![crate::repo::StashInfo {
+            index: 0,
+            message: "stash msg".to_string(),
+            commit_id: "abc1234".to_string(),
+            files: vec![],
+        }]);
+        mock_info.worktrees = crate::repo::TabData::Loaded(vec![crate::repo::WorktreeInfo {
+            name: "wt".to_string(),
+            path: temp_repo_path.join("wt"),
+            branch: Some("feature".to_string()),
+            is_locked: false,
+            lock_reason: None,
+        }]);
+        mock_info.submodules = crate::repo::TabData::Loaded(vec![crate::repo::SubmoduleInfo {
+            name: "sub".to_string(),
+            path: temp_repo_path.join("sub"),
+            url: "http://url".to_string(),
+            head_id: Some("abc1234".to_string()),
+            ..Default::default()
+        }]);
+        mock_info.reflog = crate::repo::TabData::Loaded(vec![crate::repo::ReflogEntry {
+            index: 0,
+            target_oid: "abc1234".to_string(),
+            selector: "reflog@{0}".to_string(),
+            command: "commit".to_string(),
+            message: "feat: summary".to_string(),
+            when: "10 mins ago".to_string(),
+            date: "2026-07-02".to_string(),
+        }]);
+        mock_info.committer_stats =
+            crate::repo::TabData::Loaded(vec![crate::repo::CommitterStat {
+                name: "Author".to_string(),
+                email: "author@author.com".to_string(),
+                count: 1,
+            }]);
+
+        let config = Config { items: vec![repo_path_str], ..Default::default() };
+        let mut app = App::new(config, temp_repo_path.join("dummy_path.toml"));
+
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: temp_repo_path.clone(),
+            info: Box::new(mock_info),
+        });
+
+        app.file_tree.visible_files = vec![crate::app::FileTreeItem {
+            name: "file1.rs".to_string(),
+            full_path: "file1.rs".to_string(),
+            is_dir: false,
+            depth: 0,
+            is_expanded: false,
+        }];
+
+        // Populate action/confirm targets
+        app.branch_action_target = Some(("feature".to_string(), false));
+        app.tag_delete_target = Some(("v1.0.0".to_string(), false));
+        app.tag_push_target = Some("v1.0.0".to_string());
+        app.discard_target = Some(("staged_file.rs".to_string(), false));
+        app.cherry_pick_target = Some(("abc1234".to_string(), "feat: commit".to_string()));
+        app.revert_target = Some(("abc1234".to_string(), "feat: commit".to_string()));
+        app.stash_action_target = Some(("stash@{0}".to_string(), "wip".to_string()));
+        app.remote_action_target = Some("origin".to_string());
+        app.submodule_delete_target = Some("sub".to_string());
+
+        let backend = ratatui::backend::TestBackend::new(120, 40);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+
+        let mut detail_areas = crate::ui_detail::DetailAreas::default();
+        let mut main_areas = Vec::new();
+        let mut global_summary_area = None;
+
+        // 1. Loop through all detail tabs
+        app.mode = Mode::Detail;
+        for tab in 0..10 {
+            app.detail_tab = tab;
+            terminal
+                .draw(|f| {
+                    let size = f.area();
+                    super::draw(
+                        f,
+                        &app,
+                        size,
+                        size,
+                        1,
+                        &mut detail_areas,
+                        &mut main_areas,
+                        &mut global_summary_area,
+                    );
+                })
+                .unwrap();
+            let buffer = terminal.backend().buffer();
+            assert!(buffer.area.width > 0);
+        }
+
+        // 2. Render all modes
+        let other_modes = vec![
+            Mode::Normal,
+            Mode::Adding,
+            Mode::Editing,
+            Mode::Overview,
+            Mode::RepoSettings,
+            Mode::RepoJump,
+            Mode::RepoScanPicker,
+            Mode::BranchSearchInput,
+            Mode::FileSearchInput,
+            Mode::CommitFuzzySearch,
+            Mode::TagSearchInput,
+            Mode::FileHistory,
+            Mode::Settings,
+            Mode::DebugLogs,
+            Mode::Help,
+            Mode::About,
+            Mode::Legend,
+            Mode::ConfirmDelete,
+            Mode::DetailHelp,
+            Mode::CommitInput,
+            Mode::BranchCreateInput,
+            Mode::TagCreateInput,
+            Mode::BranchDeleteConfirm,
+            Mode::BranchPushConfirm,
+            Mode::TagDeleteConfirm,
+            Mode::TagPushConfirm,
+            Mode::TagPushAllConfirm,
+            Mode::StashDeleteConfirm,
+            Mode::StashApplyConfirm,
+            Mode::StashCreateInput,
+            Mode::StashingUI,
+            Mode::RemotePicker,
+            Mode::BranchMergeConfirm,
+            Mode::BranchRebaseConfirm,
+            Mode::BranchInteractiveRebaseConfirm,
+            Mode::DiscardChangesConfirm,
+            Mode::Inspect,
+            Mode::ImportUrlInput,
+            Mode::ImportDestInput,
+            Mode::ImportNameInput,
+            Mode::BulkAddInput,
+            Mode::SearchColumnPicker,
+            Mode::RemoteAddNameInput,
+            Mode::RemoteAddUrlInput,
+            Mode::RemoteDeleteConfirm,
+            Mode::Logs,
+            Mode::LogsSearchInput,
+            Mode::BranchCheckoutConfirm,
+            Mode::TagCheckoutConfirm,
+            Mode::RepoSearchInput,
+            Mode::MergeAbortConfirm,
+            Mode::MergeContinueConfirm,
+            Mode::CherryPickConfirm,
+            Mode::RevertConfirm,
+            Mode::LabelInput,
+            Mode::UpdateConfirm,
+            Mode::WorktreeAddBranchInput,
+            Mode::WorktreeAddPathInput,
+            Mode::WorktreeLockReasonInput,
+            Mode::WorktreeRemoveConfirm,
+            Mode::SubmoduleAddUrlInput,
+            Mode::SubmoduleAddPathInput,
+            Mode::SubmoduleDeleteConfirm,
+        ];
+
+        for mode in &other_modes {
+            app.mode = *mode;
+            terminal
+                .draw(|f| {
+                    let size = f.area();
+                    super::draw(
+                        f,
+                        &app,
+                        size,
+                        size,
+                        1,
+                        &mut detail_areas,
+                        &mut main_areas,
+                        &mut global_summary_area,
+                    );
+                })
+                .unwrap();
+            let buffer = terminal.backend().buffer();
+            assert!(buffer.area.width > 0);
+        }
+
+        // Draw loading popup
+        app.fetching = true;
+        terminal
+            .draw(|f| {
+                let size = f.area();
+                super::draw(
+                    f,
+                    &app,
+                    size,
+                    size,
+                    1,
+                    &mut detail_areas,
+                    &mut main_areas,
+                    &mut global_summary_area,
+                );
+            })
+            .unwrap();
+        app.fetching = false;
+
+        // Draw error popup
+        app.error_message = Some("An error occurred".to_string());
+        terminal
+            .draw(|f| {
+                let size = f.area();
+                super::draw(
+                    f,
+                    &app,
+                    size,
+                    size,
+                    1,
+                    &mut detail_areas,
+                    &mut main_areas,
+                    &mut global_summary_area,
+                );
+            })
+            .unwrap();
+        app.error_message = None;
+
+        // 3. Dispatch mock events to handle_key for all modes and detail focuses
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let dummy_keys = vec![
+            KeyEvent::new(KeyCode::Up, KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Down, KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('k'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('j'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Esc, KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Backspace, KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('/'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('F'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('o'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('e'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('p'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('r'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('u'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Tab, KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::BackTab, KeyModifiers::empty()),
+        ];
+
+        // Loop through tab focuses for Detail mode
+        app.mode = Mode::Detail;
+        for tab in 0..10 {
+            app.detail_tab = tab;
+            let focuses = vec![
+                DetailSection::Staged,
+                DetailSection::Unstaged,
+                DetailSection::Conflicts,
+                DetailSection::CommitDetails,
+                DetailSection::StagingDetails,
+                DetailSection::ConflictDiff,
+                DetailSection::Commits,
+                DetailSection::FileContent,
+                DetailSection::LocalBranches,
+                DetailSection::RemoteBranches,
+                DetailSection::LocalTags,
+                DetailSection::RemoteTags,
+                DetailSection::Remotes,
+                DetailSection::Stashes,
+                DetailSection::StashedFiles,
+                DetailSection::Worktrees,
+                DetailSection::Submodules,
+                DetailSection::Reflog,
+            ];
+            for focus in focuses {
+                app.detail_focus = focus;
+                for key in &dummy_keys {
+                    let _ = crate::input::handle_key(&mut app, *key, 1);
+                }
+            }
+        }
+
+        // Other modes event dispatch
+        for mode in &other_modes {
+            app.mode = *mode;
+            for key in &dummy_keys {
+                let _ = crate::input::handle_key(&mut app, *key, 1);
+            }
+        }
+        let _ = std::fs::remove_dir_all(&temp_repo_path);
+    }
 }
