@@ -142,6 +142,7 @@ impl Default for Config {
             ssh_strict_host_checking: false,
             editor: default_editor(),
             compact_view: false,
+            show_grouping: true,
         }
     }
 }
@@ -211,6 +212,9 @@ fn default_fzf_enabled() -> bool {
     true
 }
 fn default_compatibility_mode() -> bool {
+    true
+}
+fn default_show_grouping() -> bool {
     true
 }
 fn default_resync_on_tab_change() -> bool {
@@ -305,6 +309,9 @@ pub struct Config {
     /// Whether to show the compact (1-row) list on the home page.
     #[serde(default)]
     pub compact_view: bool,
+    /// Whether to enable repository grouping on the home page.
+    #[serde(default = "default_show_grouping")]
+    pub show_grouping: bool,
 }
 
 impl Config {
@@ -421,6 +428,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         ssh_strict_host_checking: false,
         editor: default_editor(),
         compact_view: false,
+        show_grouping: true,
     };
 
     // Attempt to save the fallback back to the original path.
@@ -550,6 +558,7 @@ pub fn load_config(
                 ssh_strict_host_checking: false,
                 editor: default_editor(),
                 compact_view: false,
+                show_grouping: true,
             },
             path,
             None,
@@ -672,6 +681,7 @@ pub fn load_config(
         ssh_strict_host_checking: false,
         editor: default_editor(),
         compact_view: false,
+        show_grouping: true,
     };
     save_config(&fallback, &canonical)?;
 

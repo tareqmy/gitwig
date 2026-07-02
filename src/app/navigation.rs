@@ -62,7 +62,9 @@ impl App {
             .iter()
             .any(|(_, item)| self.config.labels.get(*item).is_some_and(|lbls| !lbls.is_empty()));
 
-        if !has_any_labels && recent_repos.is_empty() && starred_repos.is_empty() {
+        if !self.config.show_grouping
+            || (!has_any_labels && recent_repos.is_empty() && starred_repos.is_empty())
+        {
             return filtered
                 .into_iter()
                 .map(|(actual_index, path)| HomeRow::Repo {
@@ -2139,6 +2141,10 @@ impl App {
             13 => {
                 self.config.resync_on_tab_change = !self.config.resync_on_tab_change;
                 self.persist("Resync on Tab Change updated");
+            }
+            58 => {
+                self.config.show_grouping = !self.config.show_grouping;
+                self.persist("Show Grouping updated");
             }
             55 => {
                 self.config.ssh_strict_host_checking = !self.config.ssh_strict_host_checking;

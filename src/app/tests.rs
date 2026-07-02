@@ -5576,3 +5576,37 @@ fn test_background_auto_refresh() {
 
     assert!(matches!(app.statuses[0], repo::ItemStatus::Directory));
 }
+
+#[test]
+fn test_show_grouping_toggle_and_rendering() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let mut config = Config {
+        items: vec!["/path/to/repo_a".to_string()],
+        show_grouping: true,
+        ..Default::default()
+    };
+    config.labels.insert("/path/to/repo_a".to_string(), vec!["labelA".to_string()]);
+    let temp_path = std::env::temp_dir().join("gitwig_test_show_grouping.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Initial state: grouped view should contain the GroupHeader
+    let rows_grouped = app.get_home_rows();
+    assert!(rows_grouped.len() > 1);
+    assert!(matches!(rows_grouped[0], HomeRow::GroupHeader { .. }));
+
+    // Simulate opening settings and toggling index 58
+    app.mode = Mode::Settings;
+    app.settings_selected_index = 58;
+    app.settings_focus_sidebar = false;
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 1);
+    assert!(handled);
+    assert!(!app.config.show_grouping);
+
+    // Now, rows should be a flat list (only Repo rows, no GroupHeader)
+    let rows_flat = app.get_home_rows();
+    assert_eq!(rows_flat.len(), 1);
+    assert!(matches!(rows_flat[0], HomeRow::Repo { .. }));
+}
