@@ -121,7 +121,7 @@ asciinema play resources/preview.cast
 - **Favorite / Star Repositories**: Bookmark important repositories with `*` separate from pinned items.
 - **Compact View Toggle**: Press `v` to toggle between standard 4-row cards and a dense 1-row view.
 - **Label / Group Collapsing**: Organize repositories on the home page with collapsible label headers.
-- **Full-Screen Detail View**: Press `Enter` to open a multi-tab inspection interface (Workspace, Files tree with preview, Graph log, Branches, Tags, Remotes, Stashes, Worktrees, Submodules). Tab headers dynamically fallback to their first character under restricted widths to prevent overflow.
+- **Full-Screen Detail View**: Press `Enter` to open a multi-tab inspection interface (Workspace, Files tree with preview, Graph log, Branches, Tags, Remotes, Stashes, Worktrees, Submodules, Reflog). Tab headers dynamically fallback to their first character under restricted widths to prevent overflow.
 - **Mode-Aware Status Bar**: Shows contextual shortcuts dynamically with support for collapsed/expanded view (`.`). When expanded, it dynamically wraps the shortcut items and calculates the exact number of rows needed based on terminal width.
 
 ---
@@ -175,15 +175,15 @@ asciinema play resources/preview.cast
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
 | `Esc` / `q`          | Detail          | Return to the list                |
-| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Workspace → Files → Graph → Branches → Tags → Remotes → Stashes → Worktrees → Submodules) |
+| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Workspace → Files → Graph → Branches → Tags → Remotes → Stashes → Worktrees → Submodules → Reflog) |
 | `w` / `W`            | Detail          | Cycle panel focus forward (w) / backward (W) |
-| `1` - `9`            | Detail          | Jump directly to tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), Worktrees (8), or Submodules (9) |
+| `1` - `9` and `0`    | Detail          | Jump directly to tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), Worktrees (8), Submodules (9), or Reflog (0) |
 | `v` / `V`            | Detail          | Toggle full-screen repository Overview overlay |
 | `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
 | `PgUp` / `PgDn`      | Detail / Normal / Settings | Scroll list/diff/tree/settings by configured `page_size` |
 | `Home` / `End`       | Detail / Normal / Settings | Jump to top / bottom of list/diff/tree/settings |
-| `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), checkout tag (Tags tab), open worktree in new context (Worktrees tab), or Inspect commit |
+| `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), checkout tag (Tags tab), open worktree in new context (Worktrees tab), checkout commit (Reflog tab), or Inspect commit |
 | `f` / `F`            | Detail          | Fetch remote repository (Branches / Tags / Remotes tabs) |
 | `p`                  | Detail          | Pull selected local branch from remote (Branches tab), Push selected tag (Tags tab; asks confirmation), or Prune stale worktree metadata (Worktrees tab) |
 | `Shift+P`            | Detail          | Push selected local branch to remote (Branches tab) or Push all tags (Tags tab; asks confirmation) |
@@ -291,7 +291,7 @@ Gitwig automatically refreshes all repository statuses in the background every *
 
 ## 🔍 Detail view
 
-Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports nine tabs for git repositories: **Workspace**, **Files**, **Graph**, **Branches**, **Tags**, **Remotes**, **Stashes**, **Worktrees**, and **Submodules**.
+Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports ten tabs for git repositories: **Workspace**, **Files**, **Graph**, **Branches**, **Tags**, **Remotes**, **Stashes**, **Worktrees**, **Submodules**, and **Reflog**.
 - Press `1` to switch to the **Workspace** tab.
 - Press `2` to switch to the **Files** tab.
 - Press `3` to switch to the **Graph** tab.
@@ -301,6 +301,7 @@ Press `Enter` on a selected item to open a full-screen Detail view. The detail v
 - Press `7` to switch to the **Stashes** tab.
 - Press `8` to switch to the **Worktrees** tab.
 - Press `9` to switch to the **Submodules** tab.
+- Press `0` to switch to the **Reflog** tab.
 - Press `v` from any tab to toggle the repository **Overview** full-screen overlay.
 - Alternatively, press `Tab` / `Shift+Tab` to cycle forward/backward through the tabs.
 - You can also click on the tab headers directly with the mouse to switch tabs.
@@ -384,6 +385,16 @@ The **Submodules** tab lists all git submodules defined in the repository:
 - **Commit (HEAD):** The actual checked-out commit SHA in the submodule directory.
 - **URL:** The remote source URL of the submodule.
 
+### Reflog Tab
+
+The **Reflog** tab lists HEAD reflog entries for the repository, enabling easy recovery of lost commits and branches:
+- **Selector:** The reflog reference index (e.g. `HEAD@{0}`).
+- **Commit OID:** Shortened commit target hash.
+- **Action:** The action type (e.g. `checkout`, `commit`, `rebase`, `reset`), highlighted based on the action.
+- **Message:** The action details and commit message.
+- **Time / Date:** Relative age and absolute UTC date of the operation.
+- **Checkout Commit:** Press `Enter` or `Space` on any entry to checkout that commit hash.
+
 ### Overview Overlay
 
 Pressing `v` from any repository detail tab displays the **Overview** overlay, showing resolved paths, tracking info, and committer statistics. Press `Esc`, `q`, or `v` to return to your workspace. Press `s` inside the Overview overlay to open the Repository Settings page.
@@ -391,7 +402,7 @@ Pressing `v` from any repository detail tab displays the **Overview** overlay, s
 ### Navigation & Interaction
 
 You can navigate and interact with these panels in the following ways:
-- **Cycle Focus:** In the Workspace, Files, Branches, Tags, Stashes, Worktrees, and Submodules tabs, press `w` / `W` to cycle panel focus:
+- **Cycle Focus:** In the Workspace, Files, Branches, Tags, Stashes, Worktrees, Submodules, and Reflog tabs, press `w` / `W` to cycle panel focus:
   - **Workspace tab:** `Commits` → `Staged` → `Unstaged` → `StagingDetails`.
   - **Files tab:** `Files` (left tree list) ↔ `FileContent` (right preview panel).
   - **Branches tab:** `Local Branches` ↔ `Remote Branches`.
@@ -399,7 +410,8 @@ You can navigate and interact with these panels in the following ways:
   - **Stashes tab:** `Stashes` → `Stashed Files` → `StagingDetails`.
   - **Worktrees tab:** `Worktrees` (main table).
   - **Submodules tab:** `Submodules` (main table).
-  Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Workspace tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab, `Worktrees` on Worktrees tab, `Submodules` on Submodules tab).
+  - **Reflog tab:** `Reflog` (main table).
+  Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Workspace tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab, `Worktrees` on Worktrees tab, `Submodules` on Submodules tab, `Reflog` on Reflog tab).
 - **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels, stashed files list, files list, and the files tab content preview panel) to focus it immediately.
 - **Resize Split Panels:** Left-click and drag the vertical or horizontal boundary splitter lines between panels to resize them dynamically. This is supported in:
   - **Workspace / Inspect:** Main vertical split (commits vs details), bottom horizontal split (left list vs right diff), and left vertical split (staged vs unstaged or commit details vs files list).
