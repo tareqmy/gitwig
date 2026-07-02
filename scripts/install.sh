@@ -263,56 +263,6 @@ download_and_extract() {
     chmod +x "${INSTALL_DIR}/gitwig"
 }
 
-# Check and install fzf dependency
-check_and_install_fzf() {
-    if command -v fzf >/dev/null 2>&1; then
-        info "fzf is already installed."
-        return 0
-    fi
-
-    info "fzf is not installed. Gitwig requires fzf for repository picking."
-    
-    # Prompt the user if running interactively
-    if [ -t 0 ] && [ -t 1 ]; then
-        printf "Would you like to install fzf now? [Y/n] "
-        read -r ANSWER
-        case "${ANSWER}" in
-            [nN]|[nN][oO])
-                warn "Skipping fzf installation. Some Gitwig features may not function correctly."
-                return 0
-                ;;
-        esac
-    else
-        info "Installing fzf automatically..."
-    fi
-
-    # Try installing using package managers
-    if [ "${OS}" = "Darwin" ]; then
-        if command -v brew >/dev/null 2>&1; then
-            info "Installing fzf via Homebrew..."
-            brew install fzf
-        else
-            warn "Homebrew not found. Please install fzf manually: https://github.com/junegunn/fzf"
-        fi
-    elif [ "${OS}" = "Linux" ]; then
-        if command -v apt-get >/dev/null 2>&1; then
-            info "Installing fzf via apt-get..."
-            sudo apt-get update && sudo apt-get install -y fzf
-        elif command -v pacman >/dev/null 2>&1; then
-            info "Installing fzf via pacman..."
-            sudo pacman -S --noconfirm fzf
-        elif command -v dnf >/dev/null 2>&1; then
-            info "Installing fzf via dnf..."
-            sudo dnf install -y fzf
-        elif command -v yum >/dev/null 2>&1; then
-            info "Installing fzf via yum..."
-            sudo yum install -y fzf
-        else
-            warn "No supported package manager found. Please install fzf manually: https://github.com/junegunn/fzf"
-        fi
-    fi
-}
-
 # Check Path and notify user
 verify_path() {
     case ":${PATH}:" in
@@ -333,7 +283,6 @@ detect_platform
 resolve_version
 select_install_dir
 download_and_extract
-check_and_install_fzf
 verify_path
 
 # Quick test run

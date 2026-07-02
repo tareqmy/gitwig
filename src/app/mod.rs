@@ -401,12 +401,6 @@ pub struct App {
     pub pending_git_app: bool,
     /// Whether terminal launch is pending.
     pub pending_terminal: bool,
-    /// Whether fzf search launch is pending.
-    pub pending_fzf: bool,
-    /// Whether bulk fzf search launch is pending.
-    pub pending_bulk_fzf: bool,
-    /// Whether fzf files search launch is pending.
-    pub pending_files_fzf: bool,
     /// Whether terminal editor launch is pending with a file path.
     pub pending_editor_file: Option<String>,
     /// Whether interactive rebase is pending.
@@ -503,7 +497,6 @@ pub struct App {
     pub remote_add_url: String,
     pub remote_action_target: Option<String>,
     pub last_staging_focus: DetailSection,
-    pub force_fzf_missing: Option<bool>,
     pub loading_repo_path: Option<String>,
     pub detail_tx: std::sync::mpsc::Sender<(String, repo::ItemDetail)>,
     pub detail_rx: std::sync::mpsc::Receiver<(String, repo::ItemDetail)>,
@@ -1079,9 +1072,6 @@ impl App {
             keybindings,
             pending_git_app: false,
             pending_terminal: false,
-            pending_fzf: false,
-            pending_bulk_fzf: false,
-            pending_files_fzf: false,
             pending_editor_file: None,
             pending_interactive_rebase: None,
             bulk_fetching: std::collections::HashSet::new(),
@@ -1136,7 +1126,6 @@ impl App {
             remote_add_url: String::new(),
             remote_action_target: None,
             last_staging_focus: DetailSection::Staged,
-            force_fzf_missing: None,
             loading_repo_path: None,
             detail_tx,
             detail_rx,
@@ -1197,17 +1186,9 @@ impl App {
             // 2. Perform updates or auto-detections
             let gitui_installed = is_tool_installed("gitui");
             let lazygit_installed = is_tool_installed("lazygit");
-            let fzf_installed = is_tool_installed("fzf");
-
             if app.config.git_app == "gitui" && !gitui_installed && lazygit_installed {
                 app.config.git_app = "lazygit".to_string();
                 crate::debug_log::info("Auto-configured git_app to lazygit as gitui was not found");
-            }
-
-            if app.config.fzf.enabled && !fzf_installed {
-                crate::debug_log::warn(
-                    "fzf is enabled in configuration but not found in your system PATH.",
-                );
             }
 
             // 3. Write new version file
@@ -1876,199 +1857,6 @@ where
                 app.refresh_detail();
             }
         }
-
-        if app.pending_fzf {
-            app.pending_fzf = false;
-
-            let raw_res = crossterm::terminal::disable_raw_mode();
-            let exec_res = crossterm::execute!(
-                std::io::stdout(),
-                crossterm::terminal::LeaveAlternateScreen,
-                crossterm::event::DisableMouseCapture
-            );
-            let cursor_res = terminal.show_cursor();
-
-            if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
-                let max_depth = app.config.fzf.max_depth;
-                let git_only = app.config.fzf.git_only;
-                let excludes = app.config.fzf.excludes.clone();
-                let expanded_start_dir = crate::repo::expand_tilde(&app.config.fzf.start_dir);
-
-                let output = run_fzf_picker(&expanded_start_dir, git_only, max_depth, &excludes);
-
-                let _ = crossterm::terminal::enable_raw_mode();
-                let _ = crossterm::execute!(
-                    std::io::stdout(),
-                    crossterm::terminal::EnterAlternateScreen,
-                    crossterm::event::EnableMouseCapture
-                );
-                let _ = terminal.clear();
-
-                match output {
-                    Ok(Some(selected)) => {
-                        app.add_repo_path(selected);
-                    }
-                    Ok(None) => {}
-                    Err(e) => {
-                        let err_str = e.to_string();
-                        if err_str.contains("not found") || err_str.contains("No such file") {
-                            app.set_error("fzf is not installed. Please install fzf.".to_string());
-                        } else {
-                            app.set_error(format!("Could not run fzf: {}", e));
-                        }
-                    }
-                }
-            }
-        }
-
-        if app.pending_bulk_fzf {
-            app.pending_bulk_fzf = false;
-            app.input_buffer.clear();
-            app.mode = Mode::Normal;
-
-            let raw_res = crossterm::terminal::disable_raw_mode();
-            let exec_res = crossterm::execute!(
-                std::io::stdout(),
-                crossterm::terminal::LeaveAlternateScreen,
-                crossterm::event::DisableMouseCapture
-            );
-            let cursor_res = terminal.show_cursor();
-
-            if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
-                let max_depth = app.config.fzf.max_depth;
-                let excludes = app.config.fzf.excludes.clone();
-                let expanded_start_dir = crate::repo::expand_tilde(&app.config.fzf.start_dir);
-
-                let output = run_fzf_picker(
-                    &expanded_start_dir,
-                    false, // bulk search is git_only = false
-                    max_depth,
-                    &excludes,
-                );
-
-                let _ = crossterm::terminal::enable_raw_mode();
-                let _ = crossterm::execute!(
-                    std::io::stdout(),
-                    crossterm::terminal::EnterAlternateScreen,
-                    crossterm::event::EnableMouseCapture
-                );
-                let _ = terminal.clear();
-
-                match output {
-                    Ok(Some(selected)) => {
-                        app.bulk_add_path(selected);
-                    }
-                    Ok(None) => {}
-                    Err(e) => {
-                        let err_str = e.to_string();
-                        if err_str.contains("not found") || err_str.contains("No such file") {
-                            app.set_error("fzf is not installed. Please install fzf.".to_string());
-                        } else {
-                            app.set_error(format!("Could not run fzf: {}", e));
-                        }
-                    }
-                }
-            }
-        }
-
-        if app.pending_files_fzf {
-            app.pending_files_fzf = false;
-            if let Some(repo::ItemDetail::Repo { resolved, info }) = &app.current_detail {
-                let repo_path = resolved.clone();
-                let files = info.files.clone();
-
-                let raw_res = crossterm::terminal::disable_raw_mode();
-                let exec_res = crossterm::execute!(
-                    std::io::stdout(),
-                    crossterm::terminal::LeaveAlternateScreen,
-                    crossterm::event::DisableMouseCapture
-                );
-                let cursor_res = terminal.show_cursor();
-
-                if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
-                    let mut child_cmd = if cfg!(target_os = "windows") {
-                        let mut c = std::process::Command::new("cmd");
-                        c.arg("/c").arg("fzf");
-                        c
-                    } else {
-                        std::process::Command::new("fzf")
-                    };
-                    child_cmd.arg("--prompt").arg("Select file> ");
-                    let child = child_cmd
-                        .current_dir(&repo_path)
-                        .stdin(std::process::Stdio::piped())
-                        .stdout(std::process::Stdio::piped())
-                        .stderr(std::process::Stdio::inherit())
-                        .spawn();
-
-                    let output = match child {
-                        Ok(mut c) => {
-                            if let Some(mut stdin) = c.stdin.take() {
-                                use std::io::Write;
-                                for file in files.iter() {
-                                    let _ = writeln!(stdin, "{}", file);
-                                }
-                            }
-                            c.wait_with_output()
-                        }
-                        Err(e) => Err(e),
-                    };
-
-                    let _ = crossterm::terminal::enable_raw_mode();
-                    let _ = crossterm::execute!(
-                        std::io::stdout(),
-                        crossterm::terminal::EnterAlternateScreen,
-                        crossterm::event::EnableMouseCapture
-                    );
-                    let _ = terminal.clear();
-
-                    match output {
-                        Ok(out) => {
-                            if out.status.success() {
-                                let selected =
-                                    String::from_utf8_lossy(&out.stdout).trim().to_string();
-                                if !selected.is_empty() {
-                                    // Expand the parent directories of the selected file
-                                    let parts: Vec<&str> = selected.split('/').collect();
-                                    let mut accumulated = String::new();
-                                    for part in parts.iter().take(parts.len().saturating_sub(1)) {
-                                        if !accumulated.is_empty() {
-                                            accumulated.push('/');
-                                        }
-                                        accumulated.push_str(part);
-                                        app.file_tree.expanded_folders.insert(accumulated.clone());
-                                    }
-                                    app.rebuild_visible_files();
-                                    if let Some(pos) = app
-                                        .file_tree
-                                        .visible_files
-                                        .iter()
-                                        .position(|item| item.full_path == selected)
-                                    {
-                                        app.file_tree.file_list_selection = pos;
-                                        app.file_tree.file_content_scroll = 0;
-                                        app.detail_focus = DetailSection::Files;
-                                    }
-                                    app.status_message = Some(format!("Selected {}", selected));
-                                }
-                            } else if out.status.code() == Some(127) {
-                                app.status_message =
-                                    Some("fzf is not installed. Please install fzf.".to_string());
-                            }
-                        }
-                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                            app.status_message = Some("fzf is not installed".to_string());
-                        }
-                        Err(e) => {
-                            app.status_message = Some(format!("Could not run fzf: {}", e));
-                        }
-                    }
-                }
-            } else {
-                app.status_message = Some("Not inside a repository".to_string());
-            }
-        }
-
         if let Some(file_rel_path) = app.pending_editor_file.take() {
             if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
                 let repo_path = resolved.clone();
@@ -2568,141 +2356,6 @@ fn is_newer_version(current: &str, latest: &str) -> bool {
         }
     }
     lat_parts.len() > cur_parts.len()
-}
-
-fn run_fzf_picker(
-    start_dir: &std::path::Path,
-    git_only: bool,
-    max_depth: usize,
-    excludes: &[String],
-) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    let mut use_fd = false;
-    let mut check_cmd = if cfg!(target_os = "windows") {
-        let mut c = std::process::Command::new("cmd");
-        c.arg("/c").arg("fd");
-        c
-    } else {
-        std::process::Command::new("fd")
-    };
-    if let Ok(output) = check_cmd.arg("--version").output() {
-        if output.status.success() {
-            use_fd = true;
-        }
-    }
-
-    let mut paths = Vec::new();
-
-    if use_fd {
-        let mut cmd = if cfg!(target_os = "windows") {
-            let mut c = std::process::Command::new("cmd");
-            c.arg("/c").arg("fd");
-            c
-        } else {
-            std::process::Command::new("fd")
-        };
-        if git_only {
-            cmd.arg("-H").arg(r"^\.git$");
-        } else {
-            cmd.arg(".").arg("--type").arg("d");
-        }
-        cmd.arg("--max-depth").arg((max_depth + if git_only { 1 } else { 0 }).to_string());
-        for excl in excludes {
-            cmd.arg("--exclude").arg(excl);
-        }
-        cmd.arg(start_dir);
-
-        let output = cmd.output()?;
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            for line in stdout.lines() {
-                let p = line.trim();
-                if !p.is_empty() {
-                    if git_only {
-                        if let Some(parent) = std::path::Path::new(p).parent() {
-                            paths.push(parent.to_string_lossy().to_string());
-                        }
-                    } else {
-                        paths.push(p.to_string());
-                    }
-                }
-            }
-        }
-    } else {
-        fn walk_dir(
-            dir: &std::path::Path,
-            current_depth: usize,
-            max_depth: usize,
-            git_only: bool,
-            excludes: &[String],
-            paths: &mut Vec<String>,
-        ) {
-            if current_depth > max_depth {
-                return;
-            }
-
-            if let Ok(entries) = std::fs::read_dir(dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                            if excludes.iter().any(|excl| name == excl) {
-                                continue;
-                            }
-                            if name == ".git" {
-                                if git_only {
-                                    if let Some(parent) = path.parent() {
-                                        paths.push(parent.to_string_lossy().to_string());
-                                    }
-                                }
-                                continue;
-                            }
-                        }
-                        if !git_only {
-                            paths.push(path.to_string_lossy().to_string());
-                        }
-                        walk_dir(&path, current_depth + 1, max_depth, git_only, excludes, paths);
-                    }
-                }
-            }
-        }
-
-        let effective_max_depth = max_depth + if git_only { 1 } else { 0 };
-        walk_dir(start_dir, 1, effective_max_depth, git_only, excludes, &mut paths);
-    }
-
-    if paths.is_empty() {
-        return Ok(None);
-    }
-
-    // Now spawn fzf and pipe paths to its stdin
-    let mut fzf_cmd = if cfg!(target_os = "windows") {
-        let mut c = std::process::Command::new("cmd");
-        c.arg("/c").arg("fzf");
-        c
-    } else {
-        std::process::Command::new("fzf")
-    };
-    let mut child = fzf_cmd
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::inherit())
-        .spawn()?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        use std::io::Write;
-        for path in paths {
-            let _ = writeln!(stdin, "{}", path);
-        }
-    }
-
-    let output = child.wait_with_output()?;
-    if output.status.success() {
-        let selected = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if !selected.is_empty() {
-            return Ok(Some(selected));
-        }
-    }
-    Ok(None)
 }
 
 fn run_directory_scan(

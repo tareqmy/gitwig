@@ -62,7 +62,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 draw_input_status(
                     f,
                     area,
-                    "Bulk Add (Tab for FZF)",
+                    "Bulk Add (Tab for Scan)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
                 );
@@ -880,9 +880,7 @@ pub(crate) fn get_status_layout_components(
         }
         Mode::BulkAddScanPicker => {
             let msg_spans = vec![
-                Span::raw(
-                    "Scan and Bulk Add: type to filter/manual path, select, then press ",
-                ),
+                Span::raw("Scan and Bulk Add: type to filter/manual path, select, then press "),
                 Span::styled("Enter", accent_style()),
             ];
             let entries_data = [("Select Match", "↑/↓"), ("Confirm", "Enter"), ("Cancel", "Esc")];

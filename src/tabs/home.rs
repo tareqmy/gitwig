@@ -186,20 +186,10 @@ impl HomeTab {
                 KeyCode::Enter => app.commit_bulk_add(),
                 KeyCode::Backspace => app.input_backspace(),
                 KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                    if app.config.fzf.enabled {
-                        app.start_bulk_add();
-                    } else {
-                        app.error_message =
-                            Some("FZF is disabled in settings. Enable it first.".to_string());
-                    }
+                    app.start_bulk_add();
                 }
                 KeyCode::Tab => {
-                    if app.config.fzf.enabled {
-                        app.start_bulk_add();
-                    } else {
-                        app.error_message =
-                            Some("FZF is disabled in settings. Enable it first.".to_string());
-                    }
+                    app.start_bulk_add();
                 }
                 KeyCode::Char(c) => app.input_char(c),
                 _ => {}

@@ -389,24 +389,6 @@ impl App {
         }
     }
 
-    pub fn is_fzf_installed(&self) -> bool {
-        if let Some(forced) = self.force_fzf_missing {
-            return !forced;
-        }
-        let mut cmd = if cfg!(target_os = "windows") {
-            let mut c = std::process::Command::new("cmd");
-            c.arg("/c").arg("fzf");
-            c
-        } else {
-            std::process::Command::new("fzf")
-        };
-        cmd.arg("--version")
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .is_ok()
-    }
-
     pub fn open_help(&mut self) {
         self.help_scroll = 0;
         self.mode = Mode::Help;
@@ -2176,11 +2158,11 @@ impl App {
             }
             4 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.fzf.max_depth.to_string();
+                self.input_buffer = self.config.scan.max_depth.to_string();
             }
             5 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.fzf.start_dir.clone();
+                self.input_buffer = self.config.scan.start_dir.clone();
             }
             6 => {
                 self.settings_editing = true;
@@ -2192,19 +2174,15 @@ impl App {
             }
             8 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.fzf.excludes.join(",");
+                self.input_buffer = self.config.scan.excludes.join(",");
             }
             9 => {
                 self.settings_editing = true;
                 self.input_buffer = self.config.git_app.clone();
             }
             10 => {
-                self.config.fzf.git_only = !self.config.fzf.git_only;
-                self.persist("FZF Git Only updated");
-            }
-            11 => {
-                self.config.fzf.enabled = !self.config.fzf.enabled;
-                self.persist("Use FZF updated");
+                self.config.scan.git_only = !self.config.scan.git_only;
+                self.persist("Scan Git Only updated");
             }
             12 => {
                 self.config.compatibility_mode = !self.config.compatibility_mode;
@@ -2289,8 +2267,8 @@ impl App {
             }
             4 => {
                 if let Ok(val) = trimmed.parse::<usize>() {
-                    self.config.fzf.max_depth = val;
-                    self.persist("FZF max depth updated");
+                    self.config.scan.max_depth = val;
+                    self.persist("Scan max depth updated");
                     self.settings_editing = false;
                     self.commit_popup.input_buffer.clear();
                 } else {
@@ -2298,8 +2276,8 @@ impl App {
                 }
             }
             5 => {
-                self.config.fzf.start_dir = trimmed.to_string();
-                self.persist("FZF start directory updated");
+                self.config.scan.start_dir = trimmed.to_string();
+                self.persist("Scan start directory updated");
                 self.settings_editing = false;
                 self.commit_popup.input_buffer.clear();
             }
@@ -2328,12 +2306,12 @@ impl App {
                 }
             }
             8 => {
-                self.config.fzf.excludes = trimmed
+                self.config.scan.excludes = trimmed
                     .split(',')
                     .map(|s| s.trim().to_string())
                     .filter(|s| !s.is_empty())
                     .collect();
-                self.persist("FZF exclude folders updated");
+                self.persist("Scan exclude folders updated");
                 self.settings_editing = false;
                 self.commit_popup.input_buffer.clear();
             }
@@ -2451,15 +2429,7 @@ impl App {
 
     pub fn start_bulk_add(&mut self) {
         crate::debug_log::info("Initiating bulk repository add");
-        if !self.config.fzf.enabled {
-            self.start_bulk_repo_scan();
-        } else if !self.is_fzf_installed() {
-            self.start_bulk_repo_scan();
-            self.status_message =
-                Some("fzf is not installed. Falling back to native scan.".to_string());
-        } else {
-            self.pending_bulk_fzf = true;
-        }
+        self.start_bulk_repo_scan();
     }
 
     pub fn commit_bulk_add(&mut self) {
@@ -2496,7 +2466,7 @@ impl App {
         };
 
         let mut added_paths = Vec::new();
-        let git_only = self.config.fzf.git_only;
+        let git_only = self.config.scan.git_only;
 
         for entry_opt in entries {
             let entry = match entry_opt {

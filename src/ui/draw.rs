@@ -2047,7 +2047,7 @@ mod tests {
     use super::*;
     use crate::app::{App, DetailSection};
     use crate::components::cmd_bar::{detail_dismiss_entries, inspect_dismiss_entries};
-    use crate::config::{Config, FzfConfig, SortOrder, ThemeConfig};
+    use crate::config::{Config, ScanConfig, SortOrder, ThemeConfig};
     use crate::repo::{FileEntry, ItemDetail, RepoInfo};
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -2066,7 +2066,7 @@ mod tests {
             pinned: std::collections::HashSet::new(),
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
-            fzf: FzfConfig::default(),
+            scan: ScanConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,
@@ -2227,7 +2227,7 @@ mod tests {
             pinned: std::collections::HashSet::new(),
             theme: ThemeConfig::default(),
             theme_name: "default".to_string(),
-            fzf: FzfConfig::default(),
+            scan: ScanConfig::default(),
             git_app: "gitui".to_string(),
             compatibility_mode: false,
             detail_cache_ttl_secs: 30,

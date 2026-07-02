@@ -3,15 +3,7 @@ use super::*;
 impl App {
     pub fn start_add(&mut self) {
         crate::debug_log::info("Initiating repository add");
-        if !self.config.fzf.enabled {
-            self.start_repo_scan();
-        } else if !self.is_fzf_installed() {
-            self.start_repo_scan();
-            self.status_message =
-                Some("fzf is not installed. Falling back to native scan.".to_string());
-        } else {
-            self.pending_fzf = true;
-        }
+        self.start_repo_scan();
     }
 
     pub fn start_edit(&mut self) {
@@ -220,9 +212,9 @@ impl App {
         self.previous_mode = Some(self.mode);
         self.mode = Mode::RepoScanPicker;
 
-        let start_dir = repo::expand_tilde(&self.config.fzf.start_dir);
-        let max_depth = self.config.fzf.max_depth;
-        let excludes = self.config.fzf.excludes.clone();
+        let start_dir = repo::expand_tilde(&self.config.scan.start_dir);
+        let max_depth = self.config.scan.max_depth;
+        let excludes = self.config.scan.excludes.clone();
         let tx = self.tx.clone();
 
         run_directory_scan(start_dir, max_depth, excludes, tx, true);
@@ -237,9 +229,9 @@ impl App {
         self.previous_mode = Some(self.mode);
         self.mode = Mode::BulkAddScanPicker;
 
-        let start_dir = repo::expand_tilde(&self.config.fzf.start_dir);
-        let max_depth = self.config.fzf.max_depth;
-        let excludes = self.config.fzf.excludes.clone();
+        let start_dir = repo::expand_tilde(&self.config.scan.start_dir);
+        let max_depth = self.config.scan.max_depth;
+        let excludes = self.config.scan.excludes.clone();
         let tx = self.tx.clone();
 
         run_directory_scan(start_dir, max_depth, excludes, tx, false);

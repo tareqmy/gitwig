@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
 use super::*;
 
-use crate::config::{FzfConfig, RepoConfig, SortOrder, ThemeConfig};
+use crate::config::{RepoConfig, ScanConfig, SortOrder, ThemeConfig};
 use std::collections::HashMap;
 
 struct TestFileGuard {
@@ -30,7 +30,7 @@ fn test_stash_creation_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -116,7 +116,7 @@ fn test_network_action_progress_and_error_handling() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -182,7 +182,7 @@ fn test_remote_tags_progress_and_error_handling() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -245,7 +245,7 @@ fn test_remote_fetch_progress_and_error_handling() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -314,7 +314,7 @@ fn test_set_error_logging() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -352,7 +352,7 @@ fn test_sorting_logic() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -416,7 +416,7 @@ fn test_duplicate_prevention() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -513,7 +513,7 @@ fn test_bulk_add_folders() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -540,7 +540,7 @@ fn test_bulk_add_folders() {
     let mut app = App::new(config, config_path);
 
     // Case 1: git_only is enabled (default)
-    app.config.fzf.git_only = true;
+    app.config.scan.git_only = true;
     app.input_buffer = temp_dir.to_string_lossy().to_string();
     app.commit_bulk_add();
 
@@ -555,7 +555,7 @@ fn test_bulk_add_folders() {
     app.original_items.clear();
     app.statuses.clear();
 
-    app.config.fzf.git_only = false;
+    app.config.scan.git_only = false;
     app.input_buffer = temp_dir.to_string_lossy().to_string();
     app.commit_bulk_add();
 
@@ -583,7 +583,7 @@ fn test_pinning_and_sorting() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -669,7 +669,7 @@ fn test_commit_input_scroll() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -713,7 +713,7 @@ fn test_commit_popup_maximized_toggle() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -757,7 +757,7 @@ fn test_cherry_pick_and_revert_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -833,7 +833,7 @@ fn test_commit_amend_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -898,7 +898,7 @@ fn test_splitter_dragging() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -1172,7 +1172,7 @@ fn test_mouse_row_selection_in_detail_panels() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -1615,7 +1615,7 @@ fn test_settings_mode_navigation_and_editing() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -1709,57 +1709,53 @@ fn test_settings_mode_navigation_and_editing() {
     crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
     assert!(!app.settings_editing);
 
-    // Press '3' to jump directly to FZF category (index 11)
+    // Press '3' to jump directly to Scan category (index 5)
     crate::input::handle_key(&mut app, key_event(KeyCode::Char('3')), 10);
-    assert_eq!(app.settings_selected_index, 11);
-
-    // Navigate FZF category: 11 -> 5
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
     assert_eq!(app.settings_selected_index, 5);
 
-    // Edit FZF Start Dir
+    // Edit Scan Start Dir
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
     assert!(app.settings_editing);
     app.input_buffer = "/some/path".to_string();
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
     assert!(!app.settings_editing);
-    assert_eq!(app.config.fzf.start_dir, "/some/path");
+    assert_eq!(app.config.scan.start_dir, "/some/path");
 
-    // Go down to FZF Max Depth (index 4)
+    // Go down to Scan Max Depth (index 4)
     crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
     assert_eq!(app.settings_selected_index, 4);
 
-    // Edit FZF Max Depth
+    // Edit Scan Max Depth
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
     assert!(app.settings_editing);
     app.input_buffer = "3".to_string();
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
     assert!(!app.settings_editing);
-    assert_eq!(app.config.fzf.max_depth, 3);
+    assert_eq!(app.config.scan.max_depth, 3);
 
-    // Go down to FZF Git Only (index 10)
+    // Go down to Scan Git Only (index 10)
     crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
     assert_eq!(app.settings_selected_index, 10);
-    assert!(app.config.fzf.git_only);
+    assert!(app.config.scan.git_only);
 
-    // Toggle FZF Git Only
+    // Toggle Scan Git Only
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(!app.config.fzf.git_only);
+    assert!(!app.config.scan.git_only);
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(app.config.fzf.git_only);
+    assert!(app.config.scan.git_only);
 
-    // Go down to FZF Excludes (index 8)
+    // Go down to Scan Excludes (index 8)
     crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
     assert_eq!(app.settings_selected_index, 8);
 
-    // Edit FZF Excludes
+    // Edit Scan Excludes
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
     assert!(app.settings_editing);
     app.input_buffer = "target, node_modules ,.git".to_string();
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
     assert!(!app.settings_editing);
     assert_eq!(
-        app.config.fzf.excludes,
+        app.config.scan.excludes,
         vec!["target".to_string(), "node_modules".to_string(), ".git".to_string()]
     );
 
@@ -1828,23 +1824,15 @@ fn test_settings_mode_navigation_and_editing() {
     assert!(!app.settings_editing);
     assert_eq!(app.config.max_commits, 100);
 
-    // Test Use FZF (index 11) in Category 2
-    crate::input::handle_key(&mut app, key_event(KeyCode::Char('3')), 10);
-    assert_eq!(app.settings_selected_index, 11);
-    assert!(app.config.fzf.enabled);
-
-    // Toggle Use FZF
-    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(!app.config.fzf.enabled);
-    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(app.config.fzf.enabled);
-
     // PageUp, PageDown, Home, End testing within Category 2:
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('3')), 10);
+    assert_eq!(app.settings_selected_index, 5); // Category 2 start is 5
+
     crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
-    assert_eq!(app.settings_selected_index, 11); // Category 2 start is 11
+    assert_eq!(app.settings_selected_index, 5);
 
     crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
-    assert_eq!(app.settings_selected_index, 11);
+    assert_eq!(app.settings_selected_index, 5);
 
     crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
     assert_eq!(app.settings_selected_index, 8); // Category 2 end is 8
@@ -1877,7 +1865,7 @@ fn test_remote_add_delete_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -1955,7 +1943,7 @@ fn test_workspace_tab_right_arrow_inspect() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -2033,7 +2021,7 @@ fn test_commit_enter_key_inspect() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -2091,7 +2079,7 @@ fn test_inspect_commit_shortcut() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -2149,7 +2137,7 @@ fn test_workspace_all_changes_shortcuts() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -2211,7 +2199,7 @@ fn test_inspect_workspace_all_changes_shortcuts() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -2296,7 +2284,7 @@ fn test_workspace_all_changes_focus_transitions() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -2340,7 +2328,7 @@ fn test_workspace_tab_focus_cycle_skips_empty_panels() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -2441,7 +2429,7 @@ fn test_git_app_shortcut_triggers_pending() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -2464,7 +2452,7 @@ fn test_git_app_shortcut_triggers_pending() {
 }
 
 #[test]
-fn test_files_fzf_shortcut_triggers_pending() {
+fn test_files_search_shortcut_triggers_popup() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
     let config = Config {
@@ -2479,7 +2467,7 @@ fn test_files_fzf_shortcut_triggers_pending() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -2489,19 +2477,17 @@ fn test_files_fzf_shortcut_triggers_pending() {
         graph_max_commits: 1000,
         ..Default::default()
     };
-    let temp_path = std::env::temp_dir().join("gitwig_test_config_files_fzf.toml");
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_files_scan.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);
     app.mode = Mode::Detail;
     app.detail_tab = 1; // Files tab
     app.detail_focus = DetailSection::Files;
 
-    assert!(!app.pending_files_fzf);
-
-    // Pressing 'f' triggers pending_files_fzf when in files tab
+    // Pressing '/' triggers Mode::FileSearchInput when in files tab
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('/')), 10);
     assert!(handled);
-    assert!(app.pending_files_fzf);
+    assert_eq!(app.mode, Mode::FileSearchInput);
 }
 
 #[test]
@@ -2520,7 +2506,7 @@ fn test_logs_search_picker_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -2730,7 +2716,7 @@ fn test_detail_view_sync_on_tab_change_and_refresh() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -2830,7 +2816,7 @@ fn test_branch_and_tag_checkout_confirmation() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -2941,7 +2927,7 @@ fn test_repo_search_filtering() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3000,7 +2986,7 @@ fn test_normal_mode_right_arrow_detail() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3052,7 +3038,7 @@ fn test_inspect_full_screen_diff_toggle() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3109,7 +3095,7 @@ fn test_files_tab_full_screen_toggle() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3152,7 +3138,7 @@ fn test_files_tab_full_screen_toggle() {
 }
 
 #[test]
-fn test_fzf_missing_flow() {
+fn test_scan_flow() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
     let config = Config {
@@ -3167,7 +3153,7 @@ fn test_fzf_missing_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3177,17 +3163,14 @@ fn test_fzf_missing_flow() {
         graph_max_commits: 1000,
         ..Default::default()
     };
-    let temp_path = std::env::temp_dir().join("gitwig_test_config_fzf_missing.toml");
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_scan_flow.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);
 
-    // Case 1: fzf is missing
-    app.force_fzf_missing = Some(true);
     app.mode = Mode::Normal;
 
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
     assert!(handled);
-    assert!(!app.pending_fzf);
     assert_eq!(app.mode, Mode::RepoScanPicker);
     assert!(app.error_message.is_none());
 
@@ -3199,22 +3182,7 @@ fn test_fzf_missing_flow() {
     // A -> should fallback to BulkAddScanPicker
     let handled_bulk = crate::input::handle_key(&mut app, key_event(KeyCode::Char('A')), 10);
     assert!(handled_bulk);
-    assert!(!app.pending_bulk_fzf);
     assert_eq!(app.mode, Mode::BulkAddScanPicker);
-    assert!(app.error_message.is_none());
-
-    // Case 2: fzf is installed
-    app.force_fzf_missing = Some(false);
-    app.mode = Mode::Normal;
-    let handled_add = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
-    assert!(handled_add);
-    assert!(app.pending_fzf);
-    assert!(app.error_message.is_none());
-
-    app.mode = Mode::Normal;
-    let handled_bulk_add = crate::input::handle_key(&mut app, key_event(KeyCode::Char('A')), 10);
-    assert!(handled_bulk_add);
-    assert!(app.pending_bulk_fzf);
     assert!(app.error_message.is_none());
 }
 
@@ -3232,7 +3200,7 @@ fn test_initial_setup_and_migration() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3313,7 +3281,7 @@ fn test_about_popup_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3385,7 +3353,7 @@ fn test_tag_fetch_attempt_and_dismiss_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3497,7 +3465,7 @@ fn test_tag_push_all_confirmation_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3603,7 +3571,7 @@ fn test_detail_cache_ttl_behavior() {
         pinned: std::collections::HashSet::new(),
         theme_name: "default".to_string(),
         theme: ThemeConfig::default(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: true,
         detail_cache_ttl_secs: 30,
@@ -3671,7 +3639,7 @@ fn test_tab_ttl_behavior() {
         pinned: std::collections::HashSet::new(),
         theme_name: "default".to_string(),
         theme: ThemeConfig::default(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: true,
         resync_on_tab_change: false,
@@ -3742,7 +3710,7 @@ fn test_commit_popup_mouse_resize() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3812,7 +3780,7 @@ fn test_yank_selected_commit_hash() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3867,7 +3835,7 @@ fn test_yank_selected_repo_path() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3900,7 +3868,7 @@ fn test_pending_terminal_trigger() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3940,7 +3908,7 @@ fn test_bulk_fetch_all_trigger() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -3978,7 +3946,7 @@ fn test_multi_select_toggle() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -4066,7 +4034,7 @@ fn test_cherry_pick_destination_branches() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -4167,7 +4135,7 @@ fn test_graph_tab_scrolling() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -4244,7 +4212,7 @@ fn test_commit_popup_custom_keys() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -4321,7 +4289,7 @@ fn test_settings_panel_organization() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -4356,10 +4324,10 @@ fn test_settings_panel_organization() {
     assert!(handled);
     assert!(!app.settings_focus_sidebar);
 
-    // Press '3' -> jumps to FZF category first item (11)
+    // Press '3' -> jumps to Scan category first item (5)
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('3')), 10);
     assert!(handled);
-    assert_eq!(app.settings_selected_index, 11);
+    assert_eq!(app.settings_selected_index, 5);
     assert!(!app.settings_focus_sidebar);
 
     // Press '4' -> jumps to Theme category (3)
@@ -4385,7 +4353,7 @@ fn test_help_popup_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -4460,7 +4428,7 @@ fn test_detail_help_popup_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -4531,7 +4499,7 @@ fn test_max_commits_limit_setting() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -4579,7 +4547,7 @@ fn test_file_history_view_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -4690,7 +4658,7 @@ fn test_repository_labels_flow() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -5181,7 +5149,7 @@ fn test_workspace_conflicts_shortcuts() {
         pinned: std::collections::HashSet::new(),
         theme: ThemeConfig::default(),
         theme_name: "default".to_string(),
-        fzf: FzfConfig::default(),
+        scan: ScanConfig::default(),
         git_app: "gitui".to_string(),
         compatibility_mode: false,
         detail_cache_ttl_secs: 30,
@@ -5768,8 +5736,7 @@ fn test_branch_search_flow() {
 fn test_file_search_flow() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-    let config =
-        Config { fzf: FzfConfig { enabled: false, ..FzfConfig::default() }, ..Config::default() };
+    let config = Config { scan: ScanConfig::default(), ..Config::default() };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_file_search.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);

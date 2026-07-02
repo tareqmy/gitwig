@@ -18,7 +18,7 @@
 - **`ssh`**: Required if you use SSH-based Git remotes for network operations.
   > [!NOTE]
   > **SSH Host Key Policy:** To prevent connection hangs in the non-interactive TUI context, Gitwig executes git commands with `GIT_SSH_COMMAND` set to `ssh -o StrictHostKeyChecking=accept-new`. This automatically trusts and saves new host keys, while verifying existing ones to protect against MITM attacks. If you require a different SSH policy, make sure to add host keys to your `known_hosts` beforehand.
-- **`fzf`**: (Optional) Used for interactive repository discovery when adding items via the TUI.
+
 
 ### Installation
 
@@ -148,7 +148,7 @@ asciinema play resources/preview.cast
 | -------------------- | --------------- | --------------------------------- |
 | `↑` / `k`            | Normal          | Move selection up                 |
 | `↓` / `j`            | Normal          | Move selection down               |
-| `a`                  | Normal          | Add a new repository (via interactive fzf search) |
+| `a`                  | Normal          | Add a new repository (via directory scanner) |
 | `A`                  | Normal          | Bulk add folders in a directory   |
 | `i`                  | Normal          | Import remote repository          |
 | `e`                  | Normal          | Edit the selected item            |
@@ -507,7 +507,7 @@ compatibility_mode = false
 
 | Key | Type | Default | Description |
 | --- | ---- | ------- | ----------- |
-| `items` | `[String]` | `[]` | Paths shown in the main list. Managed by the in-app `a` (fzf search) / `e` / `d` shortcuts. |
+| `items` | `[String]` | `[]` | Paths shown in the main list. Managed by the in-app `a` (directory scan) / `e` / `d` shortcuts. |
 | `poll_interval_ms` | `Integer` | `100` | How long (ms) the event loop waits between input checks. Lower feels snappier; higher saves CPU. |
 | `max_commits` | `Integer` | `0` | Maximum commits to load in workspace view. Set to `0` for unlimited. |
 | `page_size` | `Integer` | `10` | Number of lines/items scrolled by Page Up / Page Down. |
@@ -515,9 +515,10 @@ compatibility_mode = false
 | `sort_reverse` | `Boolean` | `false` | Inverts the main list sorting direction (ascending vs. descending). Managed by `O`. |
 | `theme` | `String` | `"default"` | Active theme configuration name. Managed in Settings `s`. |
 | `compatibility_mode` | `Boolean` | `false` | Enable to use simple ASCII symbols instead of rich Unicode icons/emojis (prevents layout alignment issues in restricted terminals like RustRover's built-in terminal). |
-| `fzf.max_depth` | `Integer` | `3` | Maximum directory depth to search for git repositories during discovery. |
-| `fzf.start_dir` | `String` | `"$HOME"` | Starting directory for interactive repository discovery via FZF. |
-| `fzf.excludes` | `[String]` | `[".git", "node_modules", "target"]` | Directory names excluded from FZF discovery. |
+| `scan.max_depth` | `Integer` | `6` | Maximum directory depth to search for git repositories during discovery. |
+| `scan.start_dir` | `String` | `"$HOME"` | Starting directory for interactive repository discovery scanning. |
+| `scan.excludes` | `[String]` | `[]` | Directory names excluded from discovery scanning. |
+| `scan.git_only` | `Boolean` | `true` | Only scan folders that contain a .git directory. |
 
 Gitwig writes back to whichever file it loaded from, so edits made in the UI persist across runs.
 

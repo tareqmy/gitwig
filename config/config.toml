@@ -29,20 +29,17 @@ sort_reverse = false
 # Maps to config/themes/<theme_name>.theme (e.g. "default" -> config/themes/default.theme)
 theme = "default"
 
-# Configuration for interactive repository search (fzf).
-[fzf]
-# Maximum depth of directories fzf scans from root.
+# Configuration for interactive repository search and scanning.
+[scan]
+# Maximum depth of directories scanned from root.
 max_depth = 6
 
-# Starting directory for interactive repository discovery via FZF.
+# Starting directory for interactive repository discovery.
 start_dir = "~/"
 
-# Directory paths to prune/exclude from fzf scans to keep search fast.
+# Directory paths to prune/exclude from scans to keep search fast.
 excludes = []
 
-# If true, fzf repository discovery will filter and show only folders that contain a .git directory.
+# If true, repository discovery will filter and show only folders that contain a .git directory.
 git_only = true
-
-# If true, fzf is used for repository addition and bulk addition. If false, manual text input is used.
-enabled = true
 

@@ -15,7 +15,7 @@ use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wr
 
 const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13, 58, 55, 56];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6];
-const FZF_SETTING_INDICES: &[usize] = &[11, 5, 4, 10, 8];
+const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 10, 8];
 const THEME_SETTING_INDICES: &[usize] = &[3];
 const KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
@@ -30,7 +30,7 @@ fn get_category_indices(cat: usize) -> &'static [usize] {
     match cat {
         0 => GENERAL_SETTING_INDICES,
         1 => SORTING_SETTING_INDICES,
-        2 => FZF_SETTING_INDICES,
+        2 => SCAN_SETTING_INDICES,
         3 => THEME_SETTING_INDICES,
         4 => KEYBINDINGS_SETTING_INDICES,
         _ => &[],
@@ -41,7 +41,7 @@ fn get_category_name(cat: usize) -> &'static str {
     match cat {
         0 => "General Settings",
         1 => "Sorting & Limits",
-        2 => "FZF Discovery",
+        2 => "Scan Discovery",
         3 => "Theme & Style",
         4 => "Keybindings",
         _ => "",
@@ -75,7 +75,7 @@ fn get_active_category(selected_idx: usize) -> usize {
         0
     } else if SORTING_SETTING_INDICES.contains(&selected_idx) {
         1
-    } else if FZF_SETTING_INDICES.contains(&selected_idx) {
+    } else if SCAN_SETTING_INDICES.contains(&selected_idx) {
         2
     } else if THEME_SETTING_INDICES.contains(&selected_idx) {
         3
@@ -96,14 +96,13 @@ fn get_label(global_idx: usize) -> &'static str {
         1 => "Sort By",
         2 => "Sort Reverse",
         3 => "Theme Name",
-        4 => "FZF Max Depth",
-        5 => "FZF Start Dir",
+        4 => "Scan Max Depth",
+        5 => "Scan Start Dir",
         6 => "Max Commits",
         7 => "Page Size",
-        8 => "FZF Exclude Folders",
+        8 => "Scan Exclude Folders",
         9 => "Preferred Git Client",
-        10 => "FZF Git Only",
-        11 => "Use FZF",
+        10 => "Scan Git Only",
         12 => "Compatibility Mode",
         13 => "Resync on Tab Change",
         58 => "Show Grouping",
@@ -163,15 +162,12 @@ fn get_desc(global_idx: usize) -> &'static str {
         2 => "Reverse the order of repositories.",
         3 => "Active theme configuration name. Press Enter/Space to select from dropdown.",
         4 => "Maximum directory depth to search for git repositories.",
-        5 => "Starting directory for interactive repository discovery via FZF.",
+        5 => "Starting directory for interactive repository discovery scanning.",
         6 => "Maximum commits to load in workspace view. Set to 0 for unlimited.",
         7 => "Number of lines/items scrolled by Page Up / Page Down.",
-        8 => "Comma-separated list of folders/patterns to exclude from FZF search.",
+        8 => "Comma-separated list of folders/patterns to exclude from search scans.",
         9 => "External Git application triggered by 'g' key (e.g. gitui or lazygit).",
         10 => "Only scan folders that contain a .git directory.",
-        11 => {
-            "Whether to use FZF for repository discovery. If disabled, manual text input is used."
-        }
         12 => {
             "Use simple ASCII symbols instead of complex Unicode emojis/icons to avoid layout breakage in some terminals."
         }
@@ -276,14 +272,14 @@ pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
                 if is_selected && app.settings_editing {
                     format!("{}█", app.input_buffer)
                 } else {
-                    app.config.fzf.max_depth.to_string()
+                    app.config.scan.max_depth.to_string()
                 }
             }
             5 => {
                 if is_selected && app.settings_editing {
                     format!("{}█", app.input_buffer)
                 } else {
-                    app.config.fzf.start_dir.clone()
+                    app.config.scan.start_dir.clone()
                 }
             }
             6 => {
@@ -304,7 +300,7 @@ pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
                 if is_selected && app.settings_editing {
                     format!("{}█", app.input_buffer)
                 } else {
-                    app.config.fzf.excludes.join(",")
+                    app.config.scan.excludes.join(",")
                 }
             }
             9 => {
@@ -314,8 +310,7 @@ pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
                     app.config.git_app.clone()
                 }
             }
-            10 => app.config.fzf.git_only.to_string(),
-            11 => app.config.fzf.enabled.to_string(),
+            10 => app.config.scan.git_only.to_string(),
             12 => app.config.compatibility_mode.to_string(),
             13 => app.config.resync_on_tab_change.to_string(),
             58 => app.config.show_grouping.to_string(),
@@ -694,7 +689,7 @@ impl SettingsPopup {
                     app.settings_focus_sidebar = false;
                 }
                 KeyCode::Char('3') => {
-                    app.settings_selected_index = FZF_SETTING_INDICES[0];
+                    app.settings_selected_index = SCAN_SETTING_INDICES[0];
                     app.settings_focus_sidebar = false;
                 }
                 KeyCode::Char('4') => {

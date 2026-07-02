@@ -54,12 +54,12 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Stashing actions: apply and delete stash (Details / Stashes).
 - [x] Main page sorting (Alphabetical, Recent Visit, Latest Changes, Custom) and direction toggle (o / O).
 - [x] Commit amending support (a / A / Space in confirmation mode).
-- [x] Interactive fzf directory picker to add items (a).
+- [x] Interactive directory scanner picker to add items (a).
 - [x] Search and filter in history and file lists (commit search).
 - [x] Interactive Rebase.
 - [x] Custom themes and keybindings.
 - [x] Allow an option to revert a dirty file.
-- [x] In-app settings page (accessed with `s` shortcut) to edit and persist settings in `config.toml` (poll interval, sort mode, reverse sort, active theme, fzf max depth, and fzf start dir).
+- [x] In-app settings page (accessed with `s` shortcut) to edit and persist settings in `config.toml` (poll interval, sort mode, reverse sort, active theme, scan max depth, and scan start dir).
 - [x] Hunk-by-hunk diffs allow or decline.
 - [x] Line-by-line diffs allow or decline.
 - [x] Dynamic focus-aware status bar shortcuts showing only actions available to the focused panel.
@@ -73,7 +73,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Add a debug panel
 - [x] Git clone
 - [x] Bulk add repo option
-- [x] Optional usage of fzf
+- [x] Purged all usage and dependency of fzf from the app
 - [x] Git Remote add/delete option
 - [x] Ensure single character input to avoid multiple same commands being applied.
 - [x] About
@@ -90,7 +90,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Per-file history view
 - [x] Apply label for repositories: so that from the home page it can be viewed as a group
 - [x] Distribute application via a curl-to-sh script (`install.sh`).
-- [x] Add fzf as dependency
+- [x] Native folder/file scanner fallback
 - [x] Git logs pagination
 - [x] Per repository settings, theme
 - [x] Check version updates and notify the user and the option to update

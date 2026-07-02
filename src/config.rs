@@ -90,17 +90,15 @@ pub struct RepoConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
-pub struct FzfConfig {
-    #[serde(default = "default_fzf_max_depth")]
+pub struct ScanConfig {
+    #[serde(default = "default_scan_max_depth")]
     pub max_depth: usize,
-    #[serde(default = "default_fzf_excludes")]
+    #[serde(default = "default_scan_excludes")]
     pub excludes: Vec<String>,
-    #[serde(default = "default_fzf_start_dir")]
+    #[serde(default = "default_scan_start_dir")]
     pub start_dir: String,
-    #[serde(default = "default_fzf_git_only")]
+    #[serde(default = "default_scan_git_only")]
     pub git_only: bool,
-    #[serde(default = "default_fzf_enabled")]
-    pub enabled: bool,
 }
 
 impl Default for ThemeConfig {
@@ -109,9 +107,9 @@ impl Default for ThemeConfig {
     }
 }
 
-impl Default for FzfConfig {
+impl Default for ScanConfig {
     fn default() -> Self {
-        default_fzf()
+        default_scan()
     }
 }
 
@@ -134,7 +132,7 @@ impl Default for Config {
             starred: std::collections::HashSet::new(),
             theme_name: default_theme_name(),
             theme: default_theme(),
-            fzf: default_fzf(),
+            scan: default_scan(),
             git_app: default_git_app(),
             compatibility_mode: true,
             resync_on_tab_change: false,
@@ -187,14 +185,14 @@ fn default_theme_name() -> String {
     "default".to_string()
 }
 
-fn default_fzf_max_depth() -> usize {
+fn default_scan_max_depth() -> usize {
     6
 }
-fn default_fzf_excludes() -> Vec<String> {
+fn default_scan_excludes() -> Vec<String> {
     vec![]
 }
 
-fn default_fzf_start_dir() -> String {
+fn default_scan_start_dir() -> String {
     dirs::home_dir()
         .map(|p| {
             let mut s = p.to_string_lossy().into_owned();
@@ -205,11 +203,8 @@ fn default_fzf_start_dir() -> String {
         })
         .unwrap_or_else(|| "/".to_string())
 }
-fn default_fzf_git_only() -> bool {
+fn default_scan_git_only() -> bool {
     true
-}
-fn default_fzf_enabled() -> bool {
-    !cfg!(target_os = "windows")
 }
 fn default_compatibility_mode() -> bool {
     true
@@ -224,13 +219,12 @@ fn default_enable_commit_signatures() -> bool {
     false
 }
 
-fn default_fzf() -> FzfConfig {
-    FzfConfig {
-        max_depth: default_fzf_max_depth(),
-        excludes: default_fzf_excludes(),
-        start_dir: default_fzf_start_dir(),
-        git_only: default_fzf_git_only(),
-        enabled: default_fzf_enabled(),
+fn default_scan() -> ScanConfig {
+    ScanConfig {
+        max_depth: default_scan_max_depth(),
+        excludes: default_scan_excludes(),
+        start_dir: default_scan_start_dir(),
+        git_only: default_scan_git_only(),
     }
 }
 
@@ -285,9 +279,9 @@ pub struct Config {
     /// Active theme name selection.
     #[serde(rename = "theme", default = "default_theme_name")]
     pub theme_name: String,
-    /// Configuration for interactive repository discovery via fzf.
-    #[serde(default = "default_fzf")]
-    pub fzf: FzfConfig,
+    /// Configuration for repository discovery via scanning.
+    #[serde(alias = "fzf", rename = "scan", default = "default_scan")]
+    pub scan: ScanConfig,
     /// Preferred Git application (e.g. gitui or lazygit).
     #[serde(default = "default_git_app")]
     pub git_app: String,
@@ -420,7 +414,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         starred: std::collections::HashSet::new(),
         theme_name: default_theme_name(),
         theme: default_theme(),
-        fzf: default_fzf(),
+        scan: default_scan(),
         git_app: default_git_app(),
         compatibility_mode: true,
         resync_on_tab_change: false,
@@ -550,7 +544,7 @@ pub fn load_config(
                 starred: std::collections::HashSet::new(),
                 theme_name: fallback_theme_name,
                 theme: fallback_theme,
-                fzf: default_fzf(),
+                scan: default_scan(),
                 git_app: default_git_app(),
                 compatibility_mode: true,
                 resync_on_tab_change: false,
@@ -673,7 +667,7 @@ pub fn load_config(
         starred: std::collections::HashSet::new(),
         theme_name: default_theme_name(),
         theme: default_theme(),
-        fzf: default_fzf(),
+        scan: default_scan(),
         git_app: default_git_app(),
         compatibility_mode: true,
         resync_on_tab_change: false,
@@ -989,7 +983,7 @@ repo_configs = {}
 sort_reverse = false
 pinned = []
 theme_name = "default"
-fzf = { excludes = [], max_depth = 5, start_dir = "~" }
+scan = { excludes = [], max_depth = 5, start_dir = "~" }
 git_app = "malicious_binary"
 compatibility_mode = true
 resync_on_tab_change = false
