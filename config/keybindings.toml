@@ -4,14 +4,8 @@ help = ["?"]
 close = ["ctrl-q"]
 
 [home]
-move_down = [
-    "j",
-    "down",
-]
-move_up = [
-    "k",
-    "up",
-]
+move_down = ["j", "down"]
+move_up = ["k", "up"]
 page_down = ["pagedown"]
 page_up = ["pageup"]
 home = ["home"]
@@ -32,28 +26,18 @@ open_settings = ["s"]
 import_repo = ["i"]
 open_git_app = ["g"]
 search_repo = ["f"]
-open_detail = [
-    "enter",
-    "right",
-]
+open_detail = ["enter", "right"]
 check_update = ["u"]
 toggle_compact_view = ["v"]
 
 [navigation]
-close_detail = [
-    "esc",
-    "q",
-    "Q",
-]
+close_detail = ["esc", "q", "Q"]
 detail_help = ["?"]
 cycle_focus_forward = ["w"]
 cycle_focus_backward = ["W"]
 refresh_detail = ["R"]
 cycle_tab_forward = ["tab"]
-cycle_tab_backward = [
-    "backtab",
-    "shift-tab",
-]
+cycle_tab_backward = ["backtab", "shift-tab"]
 go_to_tab_1 = ["1"]
 go_to_tab_2 = ["2"]
 go_to_tab_3 = ["3"]

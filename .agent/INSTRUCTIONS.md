@@ -45,14 +45,22 @@ The crate is organized so each file has a single clear responsibility. Keep it t
 - `src/components/` — modular reusable widgets (e.g., `file_tree.rs`, `commit_list.rs`, `branch_list.rs`, `tag_list.rs`, `stash_list.rs`, `diff.rs`, `status_list.rs`).
 - `gitwig-core/` — workspace member crate. Handles all repository inspection (zero UI dependencies).
 
+### Code Reusage and Function Extraction
+- **Prioritize Code Reusage:** Reuse existing structs, helper functions, and components wherever possible. Do not duplicate rendering, input mapping, or Git parsing logic.
+- **Keep Functions Small and Readable:** If a function grows too large (e.g., past **~50 lines** or becomes complex with multiple nested match blocks), extract its logical subsections into smaller, well-named helper functions to maximize readability and ease of testing.
+
 ### When to split a file further
 - If any file grows past **~300 lines**, look for an extraction. Common split lines: a new mode that has its own state/rendering, a widget that has its own builder logic, a new config concern (e.g. theme, keybinding overrides).
 - A new view (e.g. a History panel) should get its own file under `src/ui/` (promote `ui.rs` to `ui/mod.rs` when this happens).
 - A new domain concept (e.g. `Repository`, `Branch`) should get its own module, not be jammed into `app.rs`.
 - Prefer adding a new module over expanding an existing one when the new code doesn't share state with what's already there.
 
+## Testing Mandate
+- **Always add test cases for new features and code changes.** Any new feature, action, or popup configuration must be accompanied by comprehensive tests in `src/app/tests.rs` or `src/ui/draw.rs` using headless rendering or temporary Git repository generators.
+- **Maintain high code coverage** at all times. Avoid any code additions that drop the overall test coverage.
+
 ## Keeping Docs In Sync
-- **Whenever you change code, update the relevant documentation in the same task.** The docs are the contract for future agents and contributors — stale docs are worse than no docs.
+- **Whenever you change code, update the relevant documentation, help pages, legends, status bar, and shortcuts in the same task.** All files, READMEs, help overlays, status bars, and legends must be fully up to date.
 - `GEMINI.md` — update when the tech stack, architectural patterns, or development workflow change.
 - `.agent/ROADMAP.md` — check off items as they ship; add new ones as scope shifts; never leave a completed feature unchecked.
 - `.agent/INSTRUCTIONS.md` — update when codebase conventions, framework guidance, or working rules change.

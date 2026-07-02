@@ -27,12 +27,13 @@ Gitwig is a Rust-based Terminal User Interface (TUI) for Git, aiming to provide 
   - `src/input.rs` (event routing dispatcher)
   - `src/config.rs` (TOML load/save)
   - `gitwig-core` workspace crate (all repository inspection, isolated from UI dependencies)
+  - **Code Reuse & Readability:** Code duplicate blocks should be refactored into reused helper functions; large/complex functions should be broken down into smaller components (under ~50 lines).
 
 ## Development Workflow
 - Follow the Roadmap in `.agent/ROADMAP.md`.
-- Ensure all new features are accompanied by tests.
+- Ensure all new features and code changes are accompanied by test cases.
 - Use `cargo fmt` and `cargo clippy` before every commit.
-- Keep documentation in lockstep with code — see `.agent/INSTRUCTIONS.md` for the rule.
+- Keep documentation, READMEs, help overlays, legends, and shortcuts in lockstep with code — see `.agent/INSTRUCTIONS.md` for the rule.
 
 ## Agent Resources
 Detailed instructions and roadmap for AI agents can be found in the `.agent/` directory.
