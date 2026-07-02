@@ -209,7 +209,7 @@ fn default_fzf_git_only() -> bool {
     true
 }
 fn default_fzf_enabled() -> bool {
-    true
+    !cfg!(target_os = "windows")
 }
 fn default_compatibility_mode() -> bool {
     true

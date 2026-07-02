@@ -66,6 +66,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::StashCreateInput
             | Mode::RepoSearchInput
             | Mode::RepoJump
+            | Mode::RepoScanPicker
             | Mode::ImportUrlInput
             | Mode::ImportDestInput
             | Mode::ImportNameInput
@@ -368,6 +369,45 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char(c) => {
                     app.input_buffer.push(c);
                     app.repo_jump_selection = 0;
+                }
+                _ => {}
+            }
+            return true;
+        }
+        Mode::RepoScanPicker => {
+            let matches = app.get_scan_matches();
+            match code {
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.mode = Mode::Normal;
+                }
+                KeyCode::Up => {
+                    if !matches.is_empty() {
+                        app.repo_scan_selection = app.repo_scan_selection.saturating_sub(1);
+                    }
+                }
+                KeyCode::Down => {
+                    if !matches.is_empty() && app.repo_scan_selection + 1 < matches.len() {
+                        app.repo_scan_selection += 1;
+                    }
+                }
+                KeyCode::Enter => {
+                    if !matches.is_empty() && app.repo_scan_selection < matches.len() {
+                        let path = matches[app.repo_scan_selection].1.clone();
+                        app.input_buffer = path;
+                        app.commit_add();
+                    } else {
+                        app.input_buffer.clear();
+                        app.mode = Mode::Normal;
+                    }
+                }
+                KeyCode::Backspace => {
+                    app.input_buffer.pop();
+                    app.repo_scan_selection = 0;
+                }
+                KeyCode::Char(c) => {
+                    app.input_buffer.push(c);
+                    app.repo_scan_selection = 0;
                 }
                 _ => {}
             }

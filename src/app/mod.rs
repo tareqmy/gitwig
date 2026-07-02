@@ -165,6 +165,8 @@ pub enum Mode {
     Legend,
     /// Floating popup with ranked fuzzy matches for repository navigation.
     RepoJump,
+    /// Floating popup for built-in repository scanning and selection.
+    RepoScanPicker,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -369,6 +371,10 @@ pub struct App {
     pub implicit_network_count: usize,
     /// Stored previous mode to restore after confirmation/popups.
     pub previous_mode: Option<Mode>,
+    pub scanned_repos: Vec<(String, String)>,
+    pub repo_scan_selection: usize,
+    pub repo_scan_active: bool,
+    pub repo_scan_count: usize,
     /// Row selection index for the repository settings popup.
     pub repo_settings_selected_index: usize,
     /// Whether we are currently text-editing a repository setting.
@@ -1045,6 +1051,10 @@ impl App {
             update_check_manual: false,
             implicit_network_count: 0,
             previous_mode: None,
+            scanned_repos: Vec::new(),
+            repo_scan_selection: 0,
+            repo_scan_active: false,
+            repo_scan_count: 0,
             repo_settings_selected_index: 0,
             repo_settings_editing: false,
             repo_settings_input: String::new(),
@@ -1239,6 +1249,27 @@ where
             });
         }
         while let Ok(raw_msg) = app.rx.try_recv() {
+            if let Some(repo_info) = raw_msg.strip_prefix("REPO_SCAN_FOUND:") {
+                if let Some(pos) = repo_info.find("|||") {
+                    let name = repo_info[..pos].to_string();
+                    let path = repo_info[pos + 3..].to_string();
+                    if !app.scanned_repos.iter().any(|(_, p)| p == &path) {
+                        app.scanned_repos.push((name, path));
+                    }
+                }
+                continue;
+            }
+            if raw_msg.starts_with("REPO_SCAN_COMPLETE:") {
+                app.repo_scan_active = false;
+                continue;
+            }
+            if let Some(count_str) = raw_msg.strip_prefix("REPO_SCAN_COUNT:") {
+                if let Ok(count) = count_str.parse::<usize>() {
+                    app.repo_scan_count = count;
+                }
+                continue;
+            }
+
             if let Some(success_path) = raw_msg.strip_prefix("BULK_FETCH_SUCCESS:") {
                 app.bulk_fetching.remove(success_path);
                 if let Some(idx) = app.config.items.iter().position(|item| item == success_path) {
@@ -2654,4 +2685,71 @@ fn run_fzf_picker(
         }
     }
     Ok(None)
+}
+
+fn run_directory_scan(
+    start_dir: std::path::PathBuf,
+    max_depth: usize,
+    excludes: Vec<String>,
+    tx: std::sync::mpsc::Sender<String>,
+) {
+    std::thread::spawn(move || {
+        let root = start_dir;
+        let mut count = 0;
+
+        fn scan(
+            dir: &std::path::Path,
+            depth: usize,
+            max_depth: usize,
+            excludes: &[String],
+            tx: &std::sync::mpsc::Sender<String>,
+            count: &mut usize,
+        ) {
+            *count += 1;
+            if (*count).is_multiple_of(50) {
+                let _ = tx.send(format!("REPO_SCAN_COUNT:{}", *count));
+            }
+
+            let git_dir = dir.join(".git");
+            if git_dir.exists() {
+                let name = dir
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| dir.to_string_lossy().into_owned());
+                let path = dir.to_string_lossy().into_owned();
+                let _ = tx.send(format!("REPO_SCAN_FOUND:{}|||{}", name, path));
+                return;
+            }
+
+            if depth >= max_depth {
+                return;
+            }
+
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    if let Ok(file_type) = entry.file_type() {
+                        if file_type.is_dir() {
+                            let path = entry.path();
+                            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                                if name.starts_with('.') && name != "." && name != ".." {
+                                    continue;
+                                }
+                                if excludes
+                                    .iter()
+                                    .any(|ex| name == ex || path.to_string_lossy().contains(ex))
+                                {
+                                    continue;
+                                }
+                            }
+                            scan(&path, depth + 1, max_depth, excludes, tx, count);
+                        }
+                    }
+                }
+            }
+        }
+
+        scan(&root, 0, max_depth, &excludes, &tx, &mut count);
+        let _ = tx.send(format!("REPO_SCAN_COUNT:{}", count));
+        let _ = tx.send("REPO_SCAN_COMPLETE:".to_string());
+    });
 }

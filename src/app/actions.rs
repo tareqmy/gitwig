@@ -4,13 +4,11 @@ impl App {
     pub fn start_add(&mut self) {
         crate::debug_log::info("Initiating repository add");
         if !self.config.fzf.enabled {
-            self.mode = Mode::Adding;
-            self.commit_popup.input_buffer.clear();
+            self.start_repo_scan();
         } else if !self.is_fzf_installed() {
-            self.mode = Mode::Adding;
-            self.commit_popup.input_buffer.clear();
+            self.start_repo_scan();
             self.status_message =
-                Some("fzf is not installed. Falling back to manual add.".to_string());
+                Some("fzf is not installed. Falling back to native scan.".to_string());
         } else {
             self.pending_fzf = true;
         }
@@ -211,5 +209,69 @@ impl App {
         }
         self.input_buffer.clear();
         self.mode = Mode::Normal;
+    }
+
+    pub fn start_repo_scan(&mut self) {
+        self.scanned_repos.clear();
+        self.repo_scan_selection = 0;
+        self.repo_scan_active = true;
+        self.repo_scan_count = 0;
+        self.input_buffer.clear();
+        self.previous_mode = Some(self.mode);
+        self.mode = Mode::RepoScanPicker;
+
+        let start_dir = repo::expand_tilde(&self.config.fzf.start_dir);
+        let max_depth = self.config.fzf.max_depth;
+        let excludes = self.config.fzf.excludes.clone();
+        let tx = self.tx.clone();
+
+        run_directory_scan(start_dir, max_depth, excludes, tx);
+    }
+
+    pub fn get_scan_matches(&self) -> Vec<(String, String)> {
+        let query = self.input_buffer.to_lowercase();
+        let mut results = Vec::new();
+
+        if !self.input_buffer.trim().is_empty() {
+            results.push((
+                format!("[Use manual path: {}]", self.input_buffer.trim()),
+                self.input_buffer.trim().to_string(),
+            ));
+        }
+
+        if query.is_empty() {
+            results.extend(self.scanned_repos.clone());
+            return results;
+        }
+
+        let mut matches = Vec::new();
+        for (name, path) in &self.scanned_repos {
+            let name_lower = name.to_lowercase();
+            let path_lower = path.to_lowercase();
+
+            if name_lower.contains(&query) {
+                let score = 1000 - (name_lower.len() - query.len());
+                matches.push((score, name.clone(), path.clone()));
+            } else if path_lower.contains(&query) {
+                let score = 500 - (path_lower.len() - query.len());
+                matches.push((score, name.clone(), path.clone()));
+            } else {
+                let mut name_chars = name_lower.chars();
+                let mut matched = true;
+                for qc in query.chars() {
+                    if !name_chars.any(|nc| nc == qc) {
+                        matched = false;
+                        break;
+                    }
+                }
+                if matched {
+                    matches.push((100, name.clone(), path.clone()));
+                }
+            }
+        }
+
+        matches.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+        results.extend(matches.into_iter().map(|(_, name, path)| (name, path)));
+        results
     }
 }

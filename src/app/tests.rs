@@ -3188,7 +3188,7 @@ fn test_fzf_missing_flow() {
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('a')), 10);
     assert!(handled);
     assert!(!app.pending_fzf);
-    assert_eq!(app.mode, Mode::Adding);
+    assert_eq!(app.mode, Mode::RepoScanPicker);
     assert!(app.error_message.is_none());
 
     // Esc should cancel Adding mode

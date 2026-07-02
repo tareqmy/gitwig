@@ -291,6 +291,10 @@ pub fn draw(
         draw_repo_jump_popup(f, app, area);
     }
 
+    if matches!(app.mode, Mode::RepoScanPicker) {
+        draw_repo_scan_popup(f, app, area);
+    }
+
     if matches!(app.mode, Mode::ImportUrlInput | Mode::ImportDestInput | Mode::ImportNameInput) {
         crate::popups::import::draw_import_popup(f, area, app);
     }
@@ -1510,6 +1514,99 @@ pub fn draw_repo_jump_popup(f: &mut Frame, app: &App, area: Rect) {
         Span::styled("↑↓ navigate  ", muted_style()),
         Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(" jump  ", muted_style()),
+        Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" cancel", muted_style()),
+    ]);
+    f.render_widget(Paragraph::new(hint), chunks[2]);
+}
+
+pub fn draw_repo_scan_popup(f: &mut Frame, app: &App, area: Rect) {
+    let popup_area = crate::ui::layout::centered_rect(70, 60, area);
+    f.render_widget(ratatui::widgets::Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let title_text = if app.repo_scan_active {
+        format!(" Scan & Add Repository (Discovered {}) ", app.scanned_repos.len())
+    } else {
+        format!(" Scan & Add Repository (Found {} total) ", app.scanned_repos.len())
+    };
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(border_style)
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled(title_text, primary_style().add_modifier(Modifier::BOLD)),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::horizontal(1));
+
+    let inner = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3), // Input box
+            Constraint::Min(1),    // Match list
+            Constraint::Length(1), // Progress / Hint
+        ])
+        .split(inner);
+
+    // 1. Draw input box
+    let input_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(muted_style())
+        .title(" Search Filter / Manual Path ");
+    let input_p = Paragraph::new(Line::from(vec![
+        Span::raw("> "),
+        Span::styled(app.input_buffer.clone(), primary_style()),
+    ]))
+    .block(input_block);
+    f.render_widget(input_p, chunks[0]);
+
+    // 2. Draw matches
+    let matches = app.get_scan_matches();
+    let list_items: Vec<ratatui::widgets::ListItem> = matches
+        .iter()
+        .enumerate()
+        .map(|(i, (name, path))| {
+            let style = if i == app.repo_scan_selection {
+                accent_style().add_modifier(Modifier::BOLD | Modifier::REVERSED)
+            } else {
+                primary_style()
+            };
+            ratatui::widgets::ListItem::new(Line::from(vec![
+                Span::raw("  "),
+                Span::styled(name.clone(), style),
+                Span::raw("   "),
+                Span::styled(path.clone(), muted_style()),
+            ]))
+        })
+        .collect();
+
+    let mut list_state = ratatui::widgets::ListState::default();
+    if !matches.is_empty() {
+        list_state.select(Some(app.repo_scan_selection));
+    }
+    f.render_stateful_widget(ratatui::widgets::List::new(list_items), chunks[1], &mut list_state);
+
+    // 3. Draw progress and hint
+    let status_text = if app.repo_scan_active {
+        let spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+        let idx = (app.repo_scan_count / 10) % spinner_chars.len();
+        format!("{} Scanning: {} folders visited...", spinner_chars[idx], app.repo_scan_count)
+    } else {
+        "✓ Scanning completed.".to_string()
+    };
+
+    let hint = Line::from(vec![
+        Span::styled(status_text, Style::default().fg(ratatui::style::Color::Cyan)),
+        Span::raw("  |  "),
+        Span::styled("Type to filter/manual path  ", muted_style()),
+        Span::styled("↑↓ navigate  ", muted_style()),
+        Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" add  ", muted_style()),
         Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(" cancel", muted_style()),
     ]);
