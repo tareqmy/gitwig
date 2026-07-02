@@ -101,7 +101,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Self-Update: Shortcut to trigger update check, check on start, show the badge beside the version when the update is available
 - [x] Editor Support: Option to open a file from the file tab with a custom terminal editor from settings
 - [ ] **Per Repository rule**
-- [ ] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
+- [x] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
 - [ ] Remove temporary installation scripts from the base directory.
 
 ## Phase 9: Homepage Enhancements
