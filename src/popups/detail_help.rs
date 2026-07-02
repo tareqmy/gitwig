@@ -110,6 +110,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("X", "Discard all changes in repository"),
                 ("s", "Stash uncommitted changes"),
                 ("v", "Show repository Overview (from any tab)"),
+                ("/", "Fuzzy search commits (History) / changes (Staging panels)"),
                 ("f", "Open search logs picker"),
                 ("l", "Open Logs view (Full screen commits list)"),
                 ("G", "Load more commits (Workspace / Logs view)"),
@@ -135,7 +136,8 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("r", "Rebase current branch onto selected branch / Interactive rebase"),
                 ("p", "Pull branch (Branches) / Push tag (Tags)"),
                 ("⇧P [Shift+P]", "Push branch (Branches) / Push all tags (Tags)"),
-                ("f / F", "Fetch remote (Branches / Tags tabs)"),
+                ("/ / f", "Fuzzy search branches / tags"),
+                ("F", "Fetch remote (Branches / Tags tabs)"),
             ],
         ),
         (
