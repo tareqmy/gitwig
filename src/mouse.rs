@@ -604,22 +604,36 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             if rect.contains(pos) {
                 if is_click {
                     let click_x = pos.x - rect.x;
-                    let use_short = rect.width < 146;
                     let tabs_data = [
-                        ("Workspace", "Wo", 0),
-                        ("Files", "Fi", 1),
-                        ("Graph", "Gr", 2),
-                        ("Branches", "Br", 3),
-                        ("Tags", "Ta", 4),
-                        ("Remotes", "Re", 5),
-                        ("Stashes", "St", 6),
-                        ("Worktrees", "Wt", 7),
-                        ("Submodules", "Su", 8),
-                        ("Reflog", "Rf", 9),
+                        ("Workspace", "WS", "W", 0),
+                        ("Files", "Fi", "F", 1),
+                        ("Graph", "Gr", "G", 2),
+                        ("Branches", "Br", "B", 3),
+                        ("Tags", "Tg", "T", 4),
+                        ("Remotes", "Rm", "R", 5),
+                        ("Stashes", "St", "S", 6),
+                        ("Worktrees", "WT", "W", 7),
+                        ("Submodules", "SM", "S", 8),
+                        ("Reflog", "Rf", "R", 9),
                     ];
+                    let width_long: usize =
+                        11 + tabs_data.iter().map(|t| t.0.len() + 8).sum::<usize>();
+                    let width_medium: usize =
+                        11 + tabs_data.iter().map(|t| t.1.len() + 8).sum::<usize>();
+                    let name_format = if rect.width as usize >= width_long {
+                        0
+                    } else if rect.width as usize >= width_medium {
+                        1
+                    } else {
+                        2
+                    };
                     let mut current_offset = 2;
-                    for &(long_name, short_name, tab_index) in &tabs_data {
-                        let name = if use_short { short_name } else { long_name };
+                    for &(long_name, medium_name, short_name, tab_index) in &tabs_data {
+                        let name = match name_format {
+                            0 => long_name,
+                            1 => medium_name,
+                            _ => short_name,
+                        };
                         let tab_width = name.len() + 8;
                         if click_x >= current_offset && click_x < current_offset + tab_width as u16
                         {

@@ -100,9 +100,9 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] If network action is done from schedule without a user explicitly triggering it, need to show that network action is happening somewhere, definitely not a popup for implicit network call.
 - [x] Self-Update: Shortcut to trigger update check, check on start, show the badge beside the version when the update is available
 - [x] Editor Support: Option to open a file from the file tab with a custom terminal editor from settings
+- [x] Reflog Viewer: A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
+- [x] Remove temporary installation scripts from the base directory.
 - [ ] **Per Repository rule**
-- [x] **Reflog Viewer:** A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
-- [ ] Remove temporary installation scripts from the base directory.
 
 ## Phase 9: Homepage Enhancements
 > Full details and implementation priority table: see `.agent/homepage_feature_suggestions.md`

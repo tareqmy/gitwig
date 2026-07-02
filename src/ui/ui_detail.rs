@@ -394,32 +394,51 @@ pub fn draw(
 
     if let Some(tab_area) = tab_bar_area {
         let tabs_data = [
-            ("Workspace", "WS", 1),
-            ("Files", "Fi", 2),
-            ("Graph", "Gr", 3),
-            ("Branches", "Br", 4),
-            ("Tags", "Tg", 5),
-            ("Remotes", "Rm", 6),
-            ("Stashes", "St", 7),
-            ("Worktrees", "WT", 8),
-            ("Submodules", "SM", 9),
-            ("Reflog", "Rf", 0),
+            ("Workspace", "WS", "W", 1, 0),
+            ("Files", "Fi", "F", 2, 1),
+            ("Graph", "Gr", "G", 3, 2),
+            ("Branches", "Br", "B", 4, 3),
+            ("Tags", "Tg", "T", 5, 4),
+            ("Remotes", "Rm", "R", 6, 5),
+            ("Stashes", "St", "S", 7, 6),
+            ("Worktrees", "WT", "W", 8, 7),
+            ("Submodules", "SM", "S", 9, 8),
+            ("Reflog", "Rf", "R", 0, 9),
         ];
 
-        let use_short = tab_area.width < 146;
+        let width_long: usize = 11 + tabs_data.iter().map(|t| t.0.len() + 8).sum::<usize>();
+        let width_medium: usize = 11 + tabs_data.iter().map(|t| t.1.len() + 8).sum::<usize>();
+
+        let name_format = if tab_area.width as usize >= width_long {
+            0
+        } else if tab_area.width as usize >= width_medium {
+            1
+        } else {
+            2
+        };
+
         let mut spans = vec![Span::raw("  ")];
-        for (i, &(long_name, short_name, index)) in tabs_data.iter().enumerate() {
+        for (i, &(long_name, medium_name, short_name, display_num, tab_idx)) in
+            tabs_data.iter().enumerate()
+        {
             if i > 0 {
                 spans.push(Span::raw(" "));
             }
-            let name = if use_short { short_name } else { long_name };
-            let bullet = if detail_tab == i { "┃" } else { "│" };
-            let style = if detail_tab == i {
+            let name = match name_format {
+                0 => long_name,
+                1 => medium_name,
+                _ => short_name,
+            };
+            let bullet = if detail_tab == tab_idx { "┃" } else { "│" };
+            let style = if detail_tab == tab_idx {
                 Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().add_modifier(Modifier::DIM | Modifier::UNDERLINED)
             };
-            spans.push(Span::styled(format!("{} {} [{}] {}", bullet, name, index, bullet), style));
+            spans.push(Span::styled(
+                format!("{} {} [{}] {}", bullet, name, display_num, bullet),
+                style,
+            ));
         }
         let tab_line = Line::from(spans);
         f.render_widget(Paragraph::new(tab_line), tab_area);
