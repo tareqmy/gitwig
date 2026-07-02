@@ -45,6 +45,7 @@ pub mod branch_list;
 pub mod commit_list;
 pub mod diff;
 pub mod file_tree;
+pub mod reflog_list;
 pub mod stash_list;
 pub mod status_list;
 pub mod submodule_list;

@@ -3684,8 +3684,8 @@ fn test_tab_ttl_behavior() {
     let mock_info = crate::repo::RepoInfo {
         commits: vec![],
         files: crate::repo::TabData::Loaded(vec!["file1.txt".to_string()]),
-        tab_loaded_at: [None; 9],
-        tab_loading: [false; 9],
+        tab_loaded_at: [None; 10],
+        tab_loading: [false; 10],
         ..crate::repo::RepoInfo::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
@@ -5682,4 +5682,56 @@ fn test_global_summary_filtering() {
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1);
     assert!(handled);
     assert_eq!(app.global_filter, None);
+}
+
+#[test]
+fn test_reflog_tui_flows() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let config = Config { items: vec!["/path/to/my_repo".to_string()], ..Default::default() };
+    let temp_dir = std::env::temp_dir();
+    let config_path = temp_dir.join("gitwig_test_reflog_config.toml");
+    let mut app = App::new(config, config_path.clone());
+    let _guard = TestFileGuard { path: config_path };
+    app.selected_index = 0;
+    app.mode = Mode::Detail;
+
+    let mut mock_info = repo::RepoInfo::default();
+    let mock_entry = repo::ReflogEntry {
+        index: 0,
+        target_oid: "abcdef1234567890abcdef1234567890abcdef12".to_string(),
+        selector: "HEAD@{0}".to_string(),
+        command: "checkout".to_string(),
+        message: "moving from main to develop".to_string(),
+        when: "2 minutes ago".to_string(),
+        date: "2026-07-02 06:45:19 UTC".to_string(),
+    };
+    mock_info.reflog = repo::TabData::Loaded(vec![mock_entry]);
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("/path/to/my_repo"),
+        info: Box::new(mock_info),
+    });
+
+    // Go to Reflog tab (tab 10 / index 9)
+    app.detail_tab = 9;
+    app.detail_focus = DetailSection::Reflog;
+    app.reflog_selection = 0;
+
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    // 1. Move selection down (should clamp to 0)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 1);
+    assert!(handled);
+    assert_eq!(app.reflog_selection, 0);
+
+    // 2. Press Enter to checkout target OID
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 1);
+    assert!(handled);
+    assert!(app.fetching);
+    assert!(
+        app.status_message
+            .as_ref()
+            .unwrap()
+            .contains("Checking out OID abcdef1234567890abcdef1234567890abcdef12")
+    );
 }

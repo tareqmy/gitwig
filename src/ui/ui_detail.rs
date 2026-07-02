@@ -133,6 +133,10 @@ pub struct DetailAreas {
     pub submodules: Option<Rect>,
     /// Inner area of submodules list.
     pub submodules_inner: Option<Rect>,
+    /// Bounding box of the reflog list.
+    pub reflog: Option<Rect>,
+    /// Inner area of the reflog list.
+    pub reflog_inner: Option<Rect>,
     /// Bounding box of the commit message popup.
     pub commit_popup: Option<Rect>,
     /// Bounding box of the parent area the commit popup was centered inside.
@@ -399,6 +403,7 @@ pub fn draw(
             ("Stashes", "St", 7),
             ("Worktrees", "WT", 8),
             ("Submodules", "SM", 9),
+            ("Reflog", "Rf", 0),
         ];
 
         let use_short = tab_area.width < 146;
@@ -673,13 +678,24 @@ pub fn draw(
                     app,
                     body_area,
                 );
-            } else {
+            } else if detail_tab == 8 {
                 // Render Submodules view (tab 9, index 8)
                 crate::components::submodule_list::draw_submodules_view(
                     f,
                     info,
                     *focus,
                     app.submodule_selection,
+                    areas,
+                    app,
+                    body_area,
+                );
+            } else {
+                // Render Reflog view (tab 10, index 9)
+                crate::components::reflog_list::draw_reflog_view(
+                    f,
+                    info,
+                    *focus,
+                    app.reflog_selection,
                     areas,
                     app,
                     body_area,

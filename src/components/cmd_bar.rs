@@ -1100,14 +1100,24 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         ],
         8 => vec![
             ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-9"),
+            ("Tabs", "Tab/0-9"),
             ("Navigate", "↑↓"),
             ("Add", "a"),
             ("Delete", "D"),
             ("Resync", "R"),
             ("Help", "?"),
         ],
-        _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/1-9"), ("Resync", "R"), ("Help", "?")],
+        9 => vec![
+            ("Home", "⎋/q"),
+            ("Tabs", "Tab/0-9"),
+            ("Navigate", "↑↓"),
+            ("Page", "⇟/⇞"),
+            ("Jump", "Home/End"),
+            ("Checkout Commit", "↵/Space"),
+            ("Resync", "R"),
+            ("Help", "?"),
+        ],
+        _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/0-9"), ("Resync", "R"), ("Help", "?")],
     };
     for (i, (label, key)) in entries_data.iter().enumerate() {
         let mut spans = Vec::new();

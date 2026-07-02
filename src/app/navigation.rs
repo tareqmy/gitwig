@@ -727,10 +727,12 @@ impl App {
                 info.stashes = repo::TabData::NotLoaded;
                 info.worktrees = repo::TabData::NotLoaded;
                 info.graph_lines = repo::TabData::NotLoaded;
+                info.submodules = repo::TabData::NotLoaded;
+                info.reflog = repo::TabData::NotLoaded;
                 info.committer_stats = repo::TabData::NotLoaded;
                 info.remote_tags_loaded = false;
                 info.remote_tags_attempted = false;
-                info.tab_loaded_at = [None; 9];
+                info.tab_loaded_at = [None; 10];
             }
 
             self.loading_repo_path = Some(item.clone());
@@ -810,6 +812,9 @@ impl App {
                         new_info.committer_stats = old_info.committer_stats.clone();
                         new_info.committer_stats_limit_reached =
                             old_info.committer_stats_limit_reached;
+                    }
+                    if new_info.reflog.is_not_loaded() {
+                        new_info.reflog = old_info.reflog.clone();
                     }
                     new_info.tab_loaded_at = old_info.tab_loaded_at;
                     new_info.tab_loading = old_info.tab_loading;
@@ -1148,6 +1153,23 @@ impl App {
                             path.to_string_lossy().to_string(),
                             tab_idx,
                             repo::TabPayload::Submodules(res),
+                        ));
+                    });
+                }
+            }
+            9 => {
+                let is_not_loaded = info.reflog.is_not_loaded();
+                if should_trigger(info, tab_idx, is_not_loaded) {
+                    info.tab_loading[tab_idx] = true;
+                    if is_not_loaded {
+                        info.reflog = repo::TabData::Loading;
+                    }
+                    std::thread::spawn(move || {
+                        let res = repo::load_tab_reflog(&path);
+                        let _ = tx.send((
+                            path.to_string_lossy().to_string(),
+                            tab_idx,
+                            repo::TabPayload::Reflog(res),
                         ));
                     });
                 }
@@ -2819,6 +2841,9 @@ impl App {
             }
             8 => {
                 self.detail_focus = DetailSection::Submodules;
+            }
+            9 => {
+                self.detail_focus = DetailSection::Reflog;
             }
             _ => {}
         }

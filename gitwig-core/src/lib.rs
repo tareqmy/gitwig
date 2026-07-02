@@ -201,6 +201,7 @@ pub enum TabPayload {
     Overview(Result<(Vec<CommitterStat>, bool), String>),
     Worktrees(Result<Vec<WorktreeInfo>, String>),
     Submodules(Result<Vec<SubmoduleInfo>, String>),
+    Reflog(Result<Vec<ReflogEntry>, String>),
 }
 
 #[derive(Debug, Default, Clone)]
@@ -237,14 +238,16 @@ pub struct RepoInfo {
     pub worktrees: TabData<Vec<WorktreeInfo>>,
     /// Configured submodules in the repository.
     pub submodules: TabData<Vec<SubmoduleInfo>>,
+    /// Available reflog entries.
+    pub reflog: TabData<Vec<ReflogEntry>>,
     /// Committer statistics.
     pub committer_stats: TabData<Vec<CommitterStat>>,
     /// Whether the committer statistics walk was capped by the limit.
     pub committer_stats_limit_reached: bool,
     /// Timestamps when each tab was loaded (index matches tab_idx)
-    pub tab_loaded_at: [Option<std::time::Instant>; 9],
+    pub tab_loaded_at: [Option<std::time::Instant>; 10],
     /// Whether each tab is currently loading in the background (index matches tab_idx)
-    pub tab_loading: [bool; 9],
+    pub tab_loading: [bool; 10],
 }
 
 #[derive(Debug, Clone)]
@@ -253,6 +256,17 @@ pub struct HeadInfo {
     pub summary: String,
     pub author: String,
     pub when: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ReflogEntry {
+    pub index: usize,
+    pub target_oid: String,
+    pub selector: String,
+    pub command: String,
+    pub message: String,
+    pub when: String,
+    pub date: String,
 }
 
 #[derive(Debug, Clone)]
@@ -1371,6 +1385,48 @@ fn collect_info(
     }
 
     Ok(info)
+}
+
+pub fn load_tab_reflog(repo_path: &Path) -> Result<Vec<ReflogEntry>, String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let reflog = repo.reflog("HEAD").map_err(|e| e.to_string())?;
+    let mut entries = Vec::new();
+    for (i, entry) in reflog.iter().enumerate() {
+        let target_oid = format!("{}", entry.id_new());
+        let selector = format!("HEAD@{{{}}}", i);
+        let msg = entry.message().ok().flatten().unwrap_or("").to_string();
+
+        let (command, message) = if let Some(pos) = msg.find(':') {
+            (msg[..pos].trim().to_string(), msg[pos + 1..].trim().to_string())
+        } else {
+            (String::new(), msg)
+        };
+
+        let sig = entry.committer();
+        let when_secs = sig.when().seconds();
+        let when = format_relative_time(when_secs);
+        let date = format_utc_date(when_secs);
+
+        entries.push(ReflogEntry { index: i, target_oid, selector, command, message, when, date });
+    }
+    Ok(entries)
+}
+
+pub fn checkout_commit(repo_path: &Path, commit_oid: &str) -> Result<(), git2::Error> {
+    let output = std::process::Command::new("git")
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_SSH_COMMAND", ssh_command_val())
+        .arg("checkout")
+        .arg(commit_oid)
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| git2::Error::from_str(&e.to_string()))?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(git2::Error::from_str(&err));
+    }
+    Ok(())
 }
 
 pub fn load_tab_files(repo_path: &Path) -> Result<Vec<String>, String> {

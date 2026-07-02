@@ -54,6 +54,7 @@ pub enum Action {
     GoToTab7,
     GoToTab8,
     GoToTab9,
+    GoToTab10,
 }
 
 impl Action {
@@ -103,6 +104,7 @@ impl Action {
             55 => Some(Action::HomeToggleCompactView),
             56 => Some(Action::HomeSymbolsHelp),
             57 => Some(Action::HomeCheckUpdate),
+            59 => Some(Action::GoToTab10),
             _ => None,
         }
     }
@@ -162,6 +164,7 @@ pub struct NavigationKeybindings {
     pub go_to_tab_7: Option<Vec<String>>,
     pub go_to_tab_8: Option<Vec<String>>,
     pub go_to_tab_9: Option<Vec<String>>,
+    pub go_to_tab_10: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -317,6 +320,7 @@ impl KeybindingsConfig {
                 go_to_tab_7: Some(vec!["7".to_string()]),
                 go_to_tab_8: Some(vec!["8".to_string()]),
                 go_to_tab_9: Some(vec!["9".to_string()]),
+                go_to_tab_10: Some(vec!["0".to_string()]),
             },
         }
     }
@@ -377,6 +381,7 @@ impl KeybindingsConfig {
             Action::GoToTab7 => self.navigation.go_to_tab_7.as_ref(),
             Action::GoToTab8 => self.navigation.go_to_tab_8.as_ref(),
             Action::GoToTab9 => self.navigation.go_to_tab_9.as_ref(),
+            Action::GoToTab10 => self.navigation.go_to_tab_10.as_ref(),
         };
 
         keys_opt.cloned().unwrap_or_default()
@@ -509,6 +514,7 @@ impl KeybindingsConfig {
             Action::GoToTab7 => self.navigation.go_to_tab_7 = keys_opt,
             Action::GoToTab8 => self.navigation.go_to_tab_8 = keys_opt,
             Action::GoToTab9 => self.navigation.go_to_tab_9 = keys_opt,
+            Action::GoToTab10 => self.navigation.go_to_tab_10 = keys_opt,
         }
     }
 

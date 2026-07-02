@@ -615,6 +615,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         ("Stashes", "St", 6),
                         ("Worktrees", "Wt", 7),
                         ("Submodules", "Su", 8),
+                        ("Reflog", "Rf", 9),
                     ];
                     let mut current_offset = 2;
                     for &(long_name, short_name, tab_index) in &tabs_data {
@@ -636,7 +637,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                 }
                                 6 => app.detail_focus = DetailSection::Stashes,
                                 7 => app.detail_focus = DetailSection::Worktrees,
-                                8 => app.detail_focus = DetailSection::Commits,
+                                8 => app.detail_focus = DetailSection::Submodules,
+                                9 => app.detail_focus = DetailSection::Reflog,
                                 _ => {}
                             }
                             if app.get_current_resync_on_tab_change() {

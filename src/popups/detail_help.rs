@@ -90,6 +90,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("7", "Go to Stashes tab"),
                 ("8", "Go to Worktrees tab"),
                 ("9", "Go to Submodules tab"),
+                ("0", "Go to Reflog tab"),
             ],
         ),
         (
@@ -157,6 +158,10 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("A", "Abort the merge"),
                 ("C", "Continue the merge"),
             ],
+        ),
+        (
+            "Reflog Tab",
+            vec![("↵ [Enter] / Space", "Checkout the commit OID of the selected reflog entry")],
         ),
         (
             "Mouse Interactions",

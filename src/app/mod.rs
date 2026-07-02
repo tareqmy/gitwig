@@ -189,6 +189,7 @@ pub enum DetailSection {
     StashedFiles,
     Worktrees,
     Submodules,
+    Reflog,
 }
 
 /// Resizable splitter identifier.
@@ -229,6 +230,7 @@ impl DetailSection {
             Self::StashedFiles => Self::StashedFiles,
             Self::Worktrees => Self::Worktrees,
             Self::Submodules => Self::Submodules,
+            Self::Reflog => Self::Reflog,
         }
     }
 
@@ -253,6 +255,7 @@ impl DetailSection {
             Self::StashedFiles => Self::StashedFiles,
             Self::Worktrees => Self::Worktrees,
             Self::Submodules => Self::Submodules,
+            Self::Reflog => Self::Reflog,
         }
     }
 }
@@ -494,6 +497,7 @@ pub struct App {
     pub file_history_focus: usize,
     pub worktree_selection: usize,
     pub submodule_selection: usize,
+    pub reflog_selection: usize,
     pub worktree_add_branch: String,
     pub worktree_add_path: String,
     pub worktree_lock_reason: String,
@@ -1118,6 +1122,7 @@ impl App {
             file_history_focus: 0,
             worktree_selection: 0,
             submodule_selection: 0,
+            reflog_selection: 0,
             worktree_add_branch: String::new(),
             worktree_add_path: String::new(),
             worktree_lock_reason: String::new(),
@@ -1314,6 +1319,13 @@ where
                         app.decrement_implicit_network();
                     }
                     app.update_check_manual = false;
+                } else if let Some(success_msg) = msg.strip_prefix("CHECKOUT_SUCCESS:") {
+                    app.fetching = false;
+                    app.status_message = Some(success_msg.to_string());
+                    app.resync_detail();
+                } else if let Some(err_msg) = msg.strip_prefix("CHECKOUT_ERROR:") {
+                    app.fetching = false;
+                    app.set_error(err_msg.to_string());
                 } else if let Some(success_msg) = msg.strip_prefix("UPDATE_SUCCESS:") {
                     app.fetching = false;
                     app.status_message = Some(success_msg.to_string());
@@ -1437,7 +1449,7 @@ where
                 if resolved_str == path {
                     crate::debug_log::info(format!("Paths match! Updating tab_idx={}", tab_idx));
                     tab_updated = true;
-                    if tab_idx < 9 {
+                    if tab_idx < 10 {
                         info.tab_loading[tab_idx] = false;
                         info.tab_loaded_at[tab_idx] = Some(std::time::Instant::now());
                     }
@@ -1497,6 +1509,12 @@ where
                         repo::TabPayload::Submodules(res) => {
                             info.submodules = match res {
                                 Ok(s) => repo::TabData::Loaded(s),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Reflog(res) => {
+                            info.reflog = match res {
+                                Ok(r) => repo::TabData::Loaded(r),
                                 Err(e) => repo::TabData::Error(e),
                             };
                         }
