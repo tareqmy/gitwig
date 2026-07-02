@@ -5739,3 +5739,27 @@ fn test_reflog_tui_flows() {
             .contains("Checking out OID abcdef1234567890abcdef1234567890abcdef12")
     );
 }
+
+#[test]
+fn test_branch_search_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let config = Config::default();
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_branch_search.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::Detail;
+    app.detail_tab = 3;
+    app.detail_focus = DetailSection::LocalBranches;
+
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('/')), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::BranchSearchInput);
+
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+}

@@ -67,6 +67,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::RepoSearchInput
             | Mode::RepoJump
             | Mode::RepoScanPicker
+            | Mode::BranchSearchInput
             | Mode::ImportUrlInput
             | Mode::ImportDestInput
             | Mode::ImportNameInput
@@ -408,6 +409,45 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char(c) => {
                     app.input_buffer.push(c);
                     app.repo_scan_selection = 0;
+                }
+                _ => {}
+            }
+            return true;
+        }
+        Mode::BranchSearchInput => {
+            let matches = app.get_branch_search_matches();
+            match code {
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.mode = app.previous_mode.unwrap_or(Mode::Detail);
+                }
+                KeyCode::Up => {
+                    if !matches.is_empty() {
+                        app.branch_search_selection = app.branch_search_selection.saturating_sub(1);
+                    }
+                }
+                KeyCode::Down => {
+                    if !matches.is_empty() && app.branch_search_selection + 1 < matches.len() {
+                        app.branch_search_selection += 1;
+                    }
+                }
+                KeyCode::Enter => {
+                    if !matches.is_empty() && app.branch_search_selection < matches.len() {
+                        let (branch_name, is_remote) = matches[app.branch_search_selection].clone();
+                        app.branch_action_target = Some((branch_name, is_remote));
+                        app.mode = Mode::BranchCheckoutConfirm;
+                    } else {
+                        app.input_buffer.clear();
+                        app.mode = app.previous_mode.unwrap_or(Mode::Detail);
+                    }
+                }
+                KeyCode::Backspace => {
+                    app.input_buffer.pop();
+                    app.branch_search_selection = 0;
+                }
+                KeyCode::Char(c) => {
+                    app.input_buffer.push(c);
+                    app.branch_search_selection = 0;
                 }
                 _ => {}
             }

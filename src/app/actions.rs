@@ -274,4 +274,53 @@ impl App {
         results.extend(matches.into_iter().map(|(_, name, path)| (name, path)));
         results
     }
+
+    pub fn start_branch_search(&mut self) {
+        self.branch_search_selection = 0;
+        self.input_buffer.clear();
+        self.previous_mode = Some(self.mode);
+        self.mode = Mode::BranchSearchInput;
+    }
+
+    pub fn get_branch_search_matches(&self) -> Vec<(String, bool)> {
+        let mut results = Vec::new();
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let query = self.input_buffer.to_lowercase();
+
+            let all_branches: Vec<(String, bool)> = info
+                .local_branches
+                .iter()
+                .map(|b| (b.name.clone(), false))
+                .chain(info.remote_branches.iter().map(|b| (b.name.clone(), true)))
+                .collect();
+
+            if query.is_empty() {
+                return all_branches;
+            }
+
+            let mut matches = Vec::new();
+            for (name, is_remote) in all_branches {
+                let name_lower = name.to_lowercase();
+                if name_lower.contains(&query) {
+                    let score = 1000 - (name_lower.len() - query.len());
+                    matches.push((score, name, is_remote));
+                } else {
+                    let mut name_chars = name_lower.chars();
+                    let mut matched = true;
+                    for qc in query.chars() {
+                        if !name_chars.any(|nc| nc == qc) {
+                            matched = false;
+                            break;
+                        }
+                    }
+                    if matched {
+                        matches.push((100, name, is_remote));
+                    }
+                }
+            }
+            matches.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+            results = matches.into_iter().map(|(_, name, is_remote)| (name, is_remote)).collect();
+        }
+        results
+    }
 }
