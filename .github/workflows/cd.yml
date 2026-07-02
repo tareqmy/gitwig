@@ -100,7 +100,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path "target/release" -Force
           Copy-Item "target/x86_64-pc-windows-msvc/release/gitwig.exe" -Destination "target/release/gitwig.exe" -Force
-          cargo wix --no-build
+          cargo wix --no-build -p gitwig
 
       - name: Upload Asset to Draft Release
         shell: bash
