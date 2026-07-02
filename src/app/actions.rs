@@ -429,4 +429,51 @@ impl App {
         }
         results
     }
+
+    pub fn start_tag_search(&mut self) {
+        self.tag_search_selection = 0;
+        self.input_buffer.clear();
+        self.previous_mode = Some(self.mode);
+        self.mode = Mode::TagSearchInput;
+    }
+
+    pub fn get_tag_search_matches(&self) -> Vec<String> {
+        let mut results = Vec::new();
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let query = self.input_buffer.to_lowercase();
+            let all_tags = if let repo::TabData::Loaded(tags) = &info.local_tags {
+                tags.iter().map(|t| t.name.clone()).collect()
+            } else {
+                Vec::new()
+            };
+
+            if query.is_empty() {
+                return all_tags;
+            }
+
+            let mut matches = Vec::new();
+            for tag in all_tags {
+                let tag_lower = tag.to_lowercase();
+                if tag_lower.contains(&query) {
+                    let score = 1000 - (tag_lower.len() - query.len());
+                    matches.push((score, tag));
+                } else {
+                    let mut tag_chars = tag_lower.chars();
+                    let mut matched = true;
+                    for qc in query.chars() {
+                        if !tag_chars.any(|nc| nc == qc) {
+                            matched = false;
+                            break;
+                        }
+                    }
+                    if matched {
+                        matches.push((100, tag));
+                    }
+                }
+            }
+            matches.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+            results = matches.into_iter().map(|(_, tag)| tag).collect();
+        }
+        results
+    }
 }

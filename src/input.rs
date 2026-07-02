@@ -70,6 +70,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::BranchSearchInput
             | Mode::FileSearchInput
             | Mode::CommitFuzzySearch
+            | Mode::TagSearchInput
             | Mode::ImportUrlInput
             | Mode::ImportDestInput
             | Mode::ImportNameInput
@@ -549,6 +550,45 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char(c) => {
                     app.input_buffer.push(c);
                     app.commit_search_selection = 0;
+                }
+                _ => {}
+            }
+            return true;
+        }
+        Mode::TagSearchInput => {
+            let matches = app.get_tag_search_matches();
+            match code {
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.mode = app.previous_mode.unwrap_or(Mode::Detail);
+                }
+                KeyCode::Up => {
+                    if !matches.is_empty() {
+                        app.tag_search_selection = app.tag_search_selection.saturating_sub(1);
+                    }
+                }
+                KeyCode::Down => {
+                    if !matches.is_empty() && app.tag_search_selection + 1 < matches.len() {
+                        app.tag_search_selection += 1;
+                    }
+                }
+                KeyCode::Enter => {
+                    if !matches.is_empty() && app.tag_search_selection < matches.len() {
+                        let tag_name = matches[app.tag_search_selection].clone();
+                        app.tag_checkout_target = Some(tag_name);
+                        app.mode = Mode::TagCheckoutConfirm;
+                    } else {
+                        app.input_buffer.clear();
+                        app.mode = app.previous_mode.unwrap_or(Mode::Detail);
+                    }
+                }
+                KeyCode::Backspace => {
+                    app.input_buffer.pop();
+                    app.tag_search_selection = 0;
+                }
+                KeyCode::Char(c) => {
+                    app.input_buffer.push(c);
+                    app.tag_search_selection = 0;
                 }
                 _ => {}
             }

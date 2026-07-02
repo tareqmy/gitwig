@@ -5810,3 +5810,27 @@ fn test_commit_fuzzy_search_flow() {
     assert!(handled);
     assert_eq!(app.mode, Mode::Logs);
 }
+
+#[test]
+fn test_tag_search_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let config = Config::default();
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_tag_search.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::Detail;
+    app.detail_tab = 4;
+    app.detail_focus = DetailSection::LocalTags;
+
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('/')), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::TagSearchInput);
+
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+}
