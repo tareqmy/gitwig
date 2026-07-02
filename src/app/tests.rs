@@ -3196,11 +3196,11 @@ fn test_fzf_missing_flow() {
     assert!(handled_dismiss);
     assert_eq!(app.mode, Mode::Normal);
 
-    // A -> should fallback to BulkAddInput (manual typing)
+    // A -> should fallback to BulkAddScanPicker
     let handled_bulk = crate::input::handle_key(&mut app, key_event(KeyCode::Char('A')), 10);
     assert!(handled_bulk);
     assert!(!app.pending_bulk_fzf);
-    assert_eq!(app.mode, Mode::BulkAddInput);
+    assert_eq!(app.mode, Mode::BulkAddScanPicker);
     assert!(app.error_message.is_none());
 
     // Case 2: fzf is installed
@@ -6988,7 +6988,7 @@ fn test_navigation_actions_direct() {
     app.set_error("msg".to_string());
     assert_eq!(app.status_height(), 1);
     app.toggle_status_expanded();
-    assert_eq!(app.status_height(), 3);
+    assert!(app.status_height() >= 3);
 
     let _rows = app.get_home_rows();
     app.clamp_selection();

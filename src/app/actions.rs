@@ -225,7 +225,24 @@ impl App {
         let excludes = self.config.fzf.excludes.clone();
         let tx = self.tx.clone();
 
-        run_directory_scan(start_dir, max_depth, excludes, tx);
+        run_directory_scan(start_dir, max_depth, excludes, tx, true);
+    }
+
+    pub fn start_bulk_repo_scan(&mut self) {
+        self.scanned_repos.clear();
+        self.repo_scan_selection = 0;
+        self.repo_scan_active = true;
+        self.repo_scan_count = 0;
+        self.input_buffer.clear();
+        self.previous_mode = Some(self.mode);
+        self.mode = Mode::BulkAddScanPicker;
+
+        let start_dir = repo::expand_tilde(&self.config.fzf.start_dir);
+        let max_depth = self.config.fzf.max_depth;
+        let excludes = self.config.fzf.excludes.clone();
+        let tx = self.tx.clone();
+
+        run_directory_scan(start_dir, max_depth, excludes, tx, false);
     }
 
     pub fn get_scan_matches(&self) -> Vec<(String, String)> {

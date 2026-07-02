@@ -878,6 +878,29 @@ pub(crate) fn get_status_layout_components(
             }
             (Some(msg_spans), entries)
         }
+        Mode::BulkAddScanPicker => {
+            let msg_spans = vec![
+                Span::raw(
+                    "Scan and Bulk Add: type to filter/manual path, select, then press ",
+                ),
+                Span::styled("Enter", accent_style()),
+            ];
+            let entries_data = [("Select Match", "↑/↓"), ("Confirm", "Enter"), ("Cancel", "Esc")];
+            let mut entries = Vec::new();
+            for (i, (label, key)) in entries_data.iter().enumerate() {
+                let mut spans = Vec::new();
+                if i > 0 {
+                    spans.push(Span::styled(" ", muted_style()));
+                }
+                spans.push(Span::raw((*label).to_string()));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("[", muted_style()));
+                spans.push(Span::styled((*key).to_string(), accent_style()));
+                spans.push(Span::styled("]", muted_style()));
+                entries.push(StatusEntry::new(spans));
+            }
+            (Some(msg_spans), entries)
+        }
         Mode::RepoJump => {
             let msg_spans = vec![
                 Span::raw("Jump to repository: type query to search, select, then press "),
@@ -1511,6 +1534,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         Mode::FileSearchInput => ("FILE SEARCH", Color::Rgb(0, 135, 175)),
         Mode::BranchSearchInput => ("BRANCH SEARCH", Color::Rgb(135, 0, 135)),
         Mode::RepoScanPicker => ("SCAN", Color::Cyan),
+        Mode::BulkAddScanPicker => ("BULK SCAN", Color::Cyan),
         Mode::RepoJump => ("JUMP", Color::Red),
         Mode::Normal => ("NORMAL", Color::Blue),
         Mode::Detail => ("DETAIL", Color::Magenta),

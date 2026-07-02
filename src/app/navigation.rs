@@ -2452,13 +2452,11 @@ impl App {
     pub fn start_bulk_add(&mut self) {
         crate::debug_log::info("Initiating bulk repository add");
         if !self.config.fzf.enabled {
-            self.mode = Mode::BulkAddInput;
-            self.commit_popup.input_buffer.clear();
+            self.start_bulk_repo_scan();
         } else if !self.is_fzf_installed() {
-            self.mode = Mode::BulkAddInput;
-            self.commit_popup.input_buffer.clear();
+            self.start_bulk_repo_scan();
             self.status_message =
-                Some("fzf is not installed. Falling back to manual bulk add.".to_string());
+                Some("fzf is not installed. Falling back to native scan.".to_string());
         } else {
             self.pending_bulk_fzf = true;
         }

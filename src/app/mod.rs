@@ -167,6 +167,8 @@ pub enum Mode {
     RepoJump,
     /// Floating popup for built-in repository scanning and selection.
     RepoScanPicker,
+    /// Floating popup for built-in directory scanning for bulk adding.
+    BulkAddScanPicker,
     /// Floating popup for fuzzy branch search.
     BranchSearchInput,
     /// Floating popup for fuzzy file search fallback.
@@ -2708,6 +2710,7 @@ fn run_directory_scan(
     max_depth: usize,
     excludes: Vec<String>,
     tx: std::sync::mpsc::Sender<String>,
+    git_only: bool,
 ) {
     std::thread::spawn(move || {
         let root = start_dir;
@@ -2720,6 +2723,7 @@ fn run_directory_scan(
             excludes: &[String],
             tx: &std::sync::mpsc::Sender<String>,
             count: &mut usize,
+            git_only: bool,
         ) {
             *count += 1;
             if (*count).is_multiple_of(50) {
@@ -2734,7 +2738,16 @@ fn run_directory_scan(
                     .unwrap_or_else(|| dir.to_string_lossy().into_owned());
                 let path = dir.to_string_lossy().into_owned();
                 let _ = tx.send(format!("REPO_SCAN_FOUND:{}|||{}", name, path));
-                return;
+                if git_only {
+                    return;
+                }
+            } else if !git_only {
+                let name = dir
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| dir.to_string_lossy().into_owned());
+                let path = dir.to_string_lossy().into_owned();
+                let _ = tx.send(format!("REPO_SCAN_FOUND:{}|||{}", name, path));
             }
 
             if depth >= max_depth {
@@ -2757,14 +2770,14 @@ fn run_directory_scan(
                                     continue;
                                 }
                             }
-                            scan(&path, depth + 1, max_depth, excludes, tx, count);
+                            scan(&path, depth + 1, max_depth, excludes, tx, count, git_only);
                         }
                     }
                 }
             }
         }
 
-        scan(&root, 0, max_depth, &excludes, &tx, &mut count);
+        scan(&root, 0, max_depth, &excludes, &tx, &mut count, git_only);
         let _ = tx.send(format!("REPO_SCAN_COUNT:{}", count));
         let _ = tx.send("REPO_SCAN_COMPLETE:".to_string());
     });
