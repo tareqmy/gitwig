@@ -2327,16 +2327,20 @@ impl App {
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_nanos();
-                let script_path = temp_dir.join(format!("gitwig_install_{}.sh", unique_id));
-                let sha_path = temp_dir.join(format!("gitwig_install_{}.sh.sha256", unique_id));
+                let is_windows = cfg!(target_os = "windows");
+                let script_name = if is_windows { "install.ps1" } else { "install.sh" };
+                let sha_name = if is_windows { "install.ps1.sha256" } else { "install.sh.sha256" };
+
+                let script_path = temp_dir.join(format!("gitwig_{}_{}", unique_id, script_name));
+                let sha_path = temp_dir.join(format!("gitwig_{}_{}", unique_id, sha_name));
 
                 let script_url = format!(
-                    "https://raw.githubusercontent.com/tareqmy/gitwig/{}/scripts/install.sh",
-                    target_ref
+                    "https://raw.githubusercontent.com/tareqmy/gitwig/{}/scripts/{}",
+                    target_ref, script_name
                 );
                 let sha_url = format!(
-                    "https://raw.githubusercontent.com/tareqmy/gitwig/{}/scripts/install.sh.sha256",
-                    target_ref
+                    "https://raw.githubusercontent.com/tareqmy/gitwig/{}/scripts/{}",
+                    target_ref, sha_name
                 );
 
                 // Helper to download via curl or wget
@@ -2402,7 +2406,17 @@ impl App {
                 }
 
                 // Execute the verified script
-                let output = std::process::Command::new("sh").arg(&script_path).output();
+                let output = if is_windows {
+                    std::process::Command::new("powershell")
+                        .arg("-NoProfile")
+                        .arg("-ExecutionPolicy")
+                        .arg("Bypass")
+                        .arg("-File")
+                        .arg(&script_path)
+                        .output()
+                } else {
+                    std::process::Command::new("sh").arg(&script_path).output()
+                };
 
                 let _ = std::fs::remove_file(&script_path);
                 let _ = std::fs::remove_file(&sha_path);
