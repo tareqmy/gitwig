@@ -2806,9 +2806,9 @@ pub fn continue_merge(repo_path: &Path) -> Result<(), String> {
 pub fn get_branch_upstream_remote(repo_path: &Path, branch_name: &str) -> Option<String> {
     let repo = Repository::open(repo_path).ok()?;
     let branch = repo.find_branch(branch_name, git2::BranchType::Local).ok()?;
-    let upstream = branch.upstream().ok()?;
-    let upstream_ref = upstream.get().name().ok()?;
-    let remote_buf = repo.branch_upstream_remote(upstream_ref).ok()?;
+    let _upstream = branch.upstream().ok()?;
+    let local_ref = branch.get().name().ok()?;
+    let remote_buf = repo.branch_upstream_remote(local_ref).ok()?;
     remote_buf.as_str().ok().map(|s| s.to_string())
 }
 
@@ -2821,9 +2821,9 @@ pub fn has_upstream_remote(repo_path: &Path, branch_name: &str) -> bool {
 pub fn get_branch_push_target(repo_path: &Path, branch_name: &str) -> Option<(String, bool)> {
     let repo = Repository::open(repo_path).ok()?;
     let branch = repo.find_branch(branch_name, git2::BranchType::Local).ok()?;
-    if let Ok(upstream) = branch.upstream() {
-        if let Ok(upstream_ref) = upstream.get().name() {
-            if let Ok(remote_buf) = repo.branch_upstream_remote(upstream_ref) {
+    if branch.upstream().is_ok() {
+        if let Ok(local_ref) = branch.get().name() {
+            if let Ok(remote_buf) = repo.branch_upstream_remote(local_ref) {
                 if let Ok(name) = remote_buf.as_str() {
                     return Some((name.to_string(), false));
                 }
@@ -3966,12 +3966,40 @@ mod tests {
         // Wait, get_branch_push_target returns None if no remotes are found and no upstream config.
         // Let's add a remote.
         remote_add(&temp_path, "origin", "https://github.com/example/repo.git").unwrap();
-        let target = get_branch_push_target(&temp_path, "master")
-            .or_else(|| get_branch_push_target(&temp_path, "main"));
+        let active_branch = if repo.find_branch("master", git2::BranchType::Local).is_ok() {
+            "master"
+        } else {
+            "main"
+        };
+        let target = get_branch_push_target(&temp_path, active_branch);
         assert!(target.is_some());
         let (remote_name, set_upstream) = target.unwrap();
         assert_eq!(remote_name, "origin");
         assert!(set_upstream);
+
+        // Configure tracking branch
+        let mut git_config = repo.config().unwrap();
+        git_config.set_str(&format!("branch.{}.remote", active_branch), "origin").unwrap();
+        git_config
+            .set_str(
+                &format!("branch.{}.merge", active_branch),
+                &format!("refs/heads/{}", active_branch),
+            )
+            .unwrap();
+
+        // Test has_upstream_remote and get_branch_upstream_remote
+        assert!(has_upstream_remote(&temp_path, active_branch));
+        assert_eq!(
+            get_branch_upstream_remote(&temp_path, active_branch),
+            Some("origin".to_string())
+        );
+
+        // Test push target with tracking branch configured
+        let target_tracking = get_branch_push_target(&temp_path, active_branch);
+        assert!(target_tracking.is_some());
+        let (remote_name_tr, set_upstream_tr) = target_tracking.unwrap();
+        assert_eq!(remote_name_tr, "origin");
+        assert!(!set_upstream_tr);
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);

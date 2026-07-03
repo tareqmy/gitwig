@@ -75,21 +75,19 @@ impl App {
     /// If no upstream is configured, it falls back to the first configured remote (typically origin)
     /// and sets upstream tracking (-u).
     /// Requests confirmation to push the selected local branch.
-    /// If multiple remotes exist and no upstream is configured, opens the remote picker first.
+    /// If multiple remotes exist, opens the remote picker first.
     pub fn request_branch_push(&mut self) {
         if self.fetching {
             return;
         }
-        if let Some(repo::ItemDetail::Repo { info, resolved }) = &self.current_detail {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if let Some(branch_info) =
                 info.local_branches.get(self.branch_list.local_branch_selection)
             {
                 let branch_name = branch_info.name.clone();
-                // Check if this branch already has a configured upstream remote.
-                let has_upstream = repo::has_upstream_remote(resolved, &branch_name);
 
-                if !has_upstream && info.remotes.len() > 1 {
-                    // Multiple remotes, no upstream — ask user to pick.
+                if info.remotes.len() > 1 {
+                    // Multiple remotes — ask user to pick.
                     self.branch_action_target = Some((branch_name, false));
                     self.remote_picker_action = Some(RemotePickerAction::PushBranch);
                     self.remote_picker_selection = 0;
