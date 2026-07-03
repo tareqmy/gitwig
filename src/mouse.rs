@@ -33,10 +33,10 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 width = 80;
             }
             let len_version = format!(" v{} ", env!("CARGO_PKG_VERSION")).chars().count();
-            let len_badge = if app.is_msi_install() {
-                format!("[New version v{}]", latest).chars().count()
-            } else {
+            let len_badge = if app.can_self_update() {
                 format!("[Update to v{}]", latest).chars().count()
+            } else {
+                format!("[New version v{}]", latest).chars().count()
             };
             let len_total = len_version + len_badge + 1;
 

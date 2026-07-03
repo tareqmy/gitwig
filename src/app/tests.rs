@@ -4901,6 +4901,16 @@ fn test_is_newer_version() {
 }
 
 #[test]
+fn test_cargo_install_detection() {
+    let config = Config::default();
+    let app = App::new(config, std::path::PathBuf::from("dummy.toml"));
+    // Normal test execution runs within target/debug/deps, so it is not a Cargo installation folder
+    assert!(!app.is_cargo_install());
+    assert!(!app.is_msi_install());
+    assert!(app.can_self_update());
+}
+
+#[test]
 fn test_repo_settings_fallbacks() {
     let mut repo_configs = std::collections::HashMap::new();
     let repo_cfg = RepoConfig {

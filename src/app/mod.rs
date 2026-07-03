@@ -2112,6 +2112,20 @@ impl App {
         false
     }
 
+    pub fn is_cargo_install(&self) -> bool {
+        if let Ok(exe_path) = std::env::current_exe() {
+            let path_str = exe_path.to_string_lossy().to_lowercase();
+            if path_str.contains(".cargo") && (path_str.contains("/bin") || path_str.contains("\\bin")) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn can_self_update(&self) -> bool {
+        !self.is_msi_install() && !self.is_cargo_install()
+    }
+
     pub fn item_height(&self) -> u16 {
         if self.config.compact_view { 1 } else { ITEM_HEIGHT }
     }
@@ -2187,6 +2201,17 @@ impl App {
                 "Self-update is disabled for system-wide Windows installations.\n\n\
                  Please update via Chocolatey or download the latest release from:\n\
                  https://github.com/tareqmy/gitwig/releases"
+                    .to_string(),
+            );
+            self.mode = self.previous_mode.take().unwrap_or(self.mode);
+            return;
+        }
+
+        if self.is_cargo_install() {
+            self.error_message = Some(
+                "Self-update is disabled for Cargo installations.\n\n\
+                 Please update by running:\n\
+                 cargo install gitwig"
                     .to_string(),
             );
             self.mode = self.previous_mode.take().unwrap_or(self.mode);
