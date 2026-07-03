@@ -261,13 +261,18 @@ download_and_extract() {
     info "Installing gitwig to ${INSTALL_DIR}..."
     mv "${BINARY_PATH}" "${INSTALL_DIR}/gitwig"
     chmod +x "${INSTALL_DIR}/gitwig"
+
+    # Create symlink for shortcut gtg
+    info "Creating symlink for shortcut 'gtg' in ${INSTALL_DIR}..."
+    rm -f "${INSTALL_DIR}/gtg"
+    ln -s "gitwig" "${INSTALL_DIR}/gtg"
 }
 
 # Check Path and notify user
 verify_path() {
     case ":${PATH}:" in
         *:${INSTALL_DIR}:*)
-            success "gitwig is installed and ready in your PATH!"
+            success "gitwig is installed and ready in your PATH (shortcut 'gtg' also available)!"
             ;;
         *)
             warn "Installation directory (${INSTALL_DIR}) is not in your PATH."

@@ -98,12 +98,18 @@ irm https://raw.githubusercontent.com/tareqmy/gitwig/master/scripts/uninstall.ps
 
 ### Running
 
+You can launch **Gitwig** using either the full name or the short command alias `gtg`:
+
 ```sh
 # Run with default config resolution
 gitwig
+# Or using the shortcut:
+gtg
 
 # Run with an explicit config path
 gitwig path/to/config.toml
+# Or:
+gtg path/to/config.toml
 ```
 
 ---

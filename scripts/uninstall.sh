@@ -62,6 +62,13 @@ if [ -t 0 ] && [ -t 1 ]; then
     esac
 fi
 
+# Remove gtg shortcut/symlink if it exists in the same directory as gitwig
+DIR_PATH=$(dirname "${BINARY_PATH}")
+if [ -L "${DIR_PATH}/gtg" ] || [ -f "${DIR_PATH}/gtg" ]; then
+    info "Removing shortcut 'gtg'..."
+    rm "${DIR_PATH}/gtg" 2>/dev/null || sudo rm "${DIR_PATH}/gtg" || true
+fi
+
 # Remove binary
 if rm "${BINARY_PATH}" 2>/dev/null; then
     success "Gitwig has been successfully uninstalled."

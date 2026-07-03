@@ -131,6 +131,11 @@ $dest_path = Join-Path $install_dir "gitwig.exe"
 Write-Info "Installing gitwig.exe to $dest_path..."
 Move-Item -Path $exe_path -Destination $dest_path -Force
 
+# Create gtg.exe shortcut copy
+$gtg_dest_path = Join-Path $install_dir "gtg.exe"
+Write-Info "Creating shortcut gtg.exe..."
+Copy-Item -Path $dest_path -Destination $gtg_dest_path -Force
+
 # Clean up
 Remove-Item -Path $tmp_dir -Recurse -Force
 
@@ -149,4 +154,5 @@ if ($path_parts -notcontains $install_dir) {
 Write-Success "Gitwig has been successfully installed!"
 Write-Host ""
 Write-Host -ForegroundColor Green "To start using Gitwig, please restart your terminal / PowerShell session and run:"
-Write-Host -ForegroundColor Green "    gitwig"
+Write-Host -ForegroundColor Green "    gitwig (or shortcut: gtg)"
+

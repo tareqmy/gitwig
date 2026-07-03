@@ -18,3 +18,4 @@ Install-ChocolateyZipPackage @packageArgs
 # Creates command shim in Choco bin directory pointing to extracted gitwig.exe
 $exePath = Join-Path $toolsDir "gitwig.exe"
 Install-BinFile -Name "gitwig" -Path $exePath
+Install-BinFile -Name "gtg" -Path $exePath

@@ -1,5 +1,6 @@
 [package]
 name = "gitwig"
+default-run = "gitwig"
 version = "2.3.17"
 edition = "2024"
 authors = ["tareqmy <tareq.y@gmail.com>"]
@@ -15,6 +16,14 @@ keywords = ["git", "cli", "terminal", "tui", "rust"]
 
 [workspace]
 members = [".", "gitwig-core"]
+
+[[bin]]
+name = "gitwig"
+path = "src/main.rs"
+
+[[bin]]
+name = "gtg"
+path = "src/main.rs"
 
 [dependencies]
 gitwig-core = { path = "gitwig-core", version = "2.3.17" }

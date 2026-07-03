@@ -12,10 +12,16 @@ function Write-Success ($msg) {
 
 $install_dir = Join-Path $env:USERPROFILE ".gitwig\bin"
 $exe_path = Join-Path $install_dir "gitwig.exe"
+$gtg_path = Join-Path $install_dir "gtg.exe"
 
 if (Test-Path $exe_path) {
     Write-Info "Removing gitwig.exe..."
     Remove-Item -Path $exe_path -Force
+}
+
+if (Test-Path $gtg_path) {
+    Write-Info "Removing gtg.exe..."
+    Remove-Item -Path $gtg_path -Force
 }
 
 # Remove directory if empty

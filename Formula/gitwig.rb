@@ -20,6 +20,7 @@ class Gitwig < Formula
 
   def install
     bin.install "gitwig"
+    bin.install_symlink "gitwig" => "gtg"
   end
 
   test do
