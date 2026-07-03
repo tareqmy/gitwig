@@ -283,11 +283,43 @@ pub fn draw_files_view(
             };
             let lines: Vec<Line> =
                 content_text.lines().map(crate::ui::syntax::highlight_code_line).collect();
-            let body = Paragraph::new(lines)
-                .block(right_block)
-                .wrap(Wrap { trim: false })
-                .scroll((file_content_scroll as u16, 0));
-            f.render_widget(body, chunks[1]);
+
+            if files_full_screen {
+                let inner_area = right_block.inner(chunks[1]);
+                f.render_widget(right_block, chunks[1]);
+
+                let max_line_digits = lines.len().to_string().len().max(3);
+                let line_no_width = (max_line_digits + 2) as u16;
+
+                let sub_chunks = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([Constraint::Length(line_no_width), Constraint::Min(0)])
+                    .split(inner_area);
+
+                let mut line_numbers = Vec::new();
+                for i in 1..=lines.len() {
+                    line_numbers.push(Line::from(vec![Span::styled(
+                        format!("{:>width$} │", i, width = max_line_digits),
+                        muted_style(),
+                    )]));
+                }
+
+                let line_numbers_body =
+                    Paragraph::new(line_numbers).scroll((file_content_scroll as u16, 0));
+
+                let body = Paragraph::new(lines)
+                    .wrap(Wrap { trim: false })
+                    .scroll((file_content_scroll as u16, 0));
+
+                f.render_widget(line_numbers_body, sub_chunks[0]);
+                f.render_widget(body, sub_chunks[1]);
+            } else {
+                let body = Paragraph::new(lines)
+                    .block(right_block)
+                    .wrap(Wrap { trim: false })
+                    .scroll((file_content_scroll as u16, 0));
+                f.render_widget(body, chunks[1]);
+            }
         }
     } else {
         // Fallback: render an empty block on the right
