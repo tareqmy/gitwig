@@ -208,6 +208,27 @@ impl HomeTab {
                 KeyCode::Char(c) => app.input_char(c),
                 _ => {}
             },
+            Mode::AddRepoLabelInput => match code {
+                KeyCode::Esc => app.cancel_input(),
+                KeyCode::Enter => app.commit_add_label_input(),
+                KeyCode::Backspace => app.input_backspace(),
+                KeyCode::Char(c) => app.input_char(c),
+                _ => {}
+            },
+            Mode::BulkAddRepoLabelInput => match code {
+                KeyCode::Esc => app.cancel_input(),
+                KeyCode::Enter => app.commit_bulk_add_label_input(),
+                KeyCode::Backspace => app.input_backspace(),
+                KeyCode::Char(c) => app.input_char(c),
+                _ => {}
+            },
+            Mode::CloneRepoLabelInput => match code {
+                KeyCode::Esc => app.commit_add_label_input(),
+                KeyCode::Enter => app.commit_add_label_input(),
+                KeyCode::Backspace => app.input_backspace(),
+                KeyCode::Char(c) => app.input_char(c),
+                _ => {}
+            },
             Mode::ConfirmDelete => match code {
                 KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_delete(),
                 KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc | KeyCode::Enter => {

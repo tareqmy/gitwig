@@ -2552,11 +2552,30 @@ impl App {
         self.commit_popup.input_buffer.clear();
         self.mode = Mode::Normal;
         if !trimmed.is_empty() {
-            self.bulk_add_path(trimmed);
+            self.bulk_add_path_with_labels(trimmed, vec![]);
         }
     }
 
+    pub fn commit_bulk_add_label_input(&mut self) {
+        let labels_str = self.input_buffer.trim().to_string();
+        let labels: Vec<String> = if labels_str.is_empty() {
+            Vec::new()
+        } else {
+            labels_str
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        };
+        let path = self.pending_bulk_add_repo.take().unwrap_or_default();
+        self.bulk_add_path_with_labels(path, labels);
+    }
+
     pub fn bulk_add_path(&mut self, path: String) {
+        self.bulk_add_path_with_labels(path, vec![]);
+    }
+
+    pub fn bulk_add_path_with_labels(&mut self, path: String, labels: Vec<String>) {
         let trimmed = path.trim().to_string();
         if trimmed.is_empty() {
             return;
@@ -2630,6 +2649,9 @@ impl App {
                 self.statuses.push(status);
                 self.config.items.push(trimmed_path.clone());
                 self.original_items.push(trimmed_path.clone());
+                if !labels.is_empty() {
+                    self.config.labels.insert(trimmed_path.clone(), labels.clone());
+                }
                 if first_new_path.is_none() {
                     first_new_path = Some(trimmed_path);
                 }

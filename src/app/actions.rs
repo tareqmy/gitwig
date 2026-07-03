@@ -22,6 +22,11 @@ impl App {
 
     pub fn commit_add(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
+        self.commit_add_with_labels(trimmed, vec![]);
+    }
+
+    pub fn commit_add_with_labels(&mut self, path: String, labels: Vec<String>) {
+        let trimmed = path.trim().to_string();
         if !trimmed.is_empty() {
             let new_expanded = repo::expand_tilde(&trimmed);
             let new_canonical = Self::canonical_path(&new_expanded);
@@ -43,6 +48,10 @@ impl App {
             self.config.items.push(trimmed.clone());
             self.original_items.push(trimmed.clone());
 
+            if !labels.is_empty() {
+                self.config.labels.insert(trimmed.clone(), labels);
+            }
+
             self.sort_items_in_place();
 
             self.repo_search_query = None;
@@ -55,6 +64,21 @@ impl App {
         }
         self.commit_popup.input_buffer.clear();
         self.mode = Mode::Normal;
+    }
+
+    pub fn commit_add_label_input(&mut self) {
+        let labels_str = self.input_buffer.trim().to_string();
+        let labels: Vec<String> = if labels_str.is_empty() {
+            Vec::new()
+        } else {
+            labels_str
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        };
+        let path = self.pending_add_repo.take().unwrap_or_default();
+        self.commit_add_with_labels(path, labels);
     }
 
     pub fn add_repo_path(&mut self, path: String) {

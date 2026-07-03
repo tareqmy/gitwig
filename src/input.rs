@@ -61,6 +61,9 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         Mode::Adding
             | Mode::Editing
             | Mode::LabelInput
+            | Mode::AddRepoLabelInput
+            | Mode::BulkAddRepoLabelInput
+            | Mode::CloneRepoLabelInput
             | Mode::BranchCreateInput
             | Mode::TagCreateInput
             | Mode::StashCreateInput
@@ -97,6 +100,9 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         | Mode::BulkAddInput
         | Mode::Editing
         | Mode::LabelInput
+        | Mode::AddRepoLabelInput
+        | Mode::BulkAddRepoLabelInput
+        | Mode::CloneRepoLabelInput
         | Mode::ConfirmDelete => {
             if !crate::tabs::HomeTab::handle_event(app, key, visible_count) {
                 return false;
@@ -432,8 +438,9 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Enter => {
                     if !matches.is_empty() && app.repo_scan_selection < matches.len() {
                         let path = matches[app.repo_scan_selection].1.clone();
-                        app.input_buffer = path;
-                        app.commit_add();
+                        app.pending_add_repo = Some(path);
+                        app.input_buffer.clear();
+                        app.mode = Mode::AddRepoLabelInput;
                     } else {
                         app.input_buffer.clear();
                         app.mode = Mode::Normal;
@@ -471,9 +478,9 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Enter => {
                     if !matches.is_empty() && app.repo_scan_selection < matches.len() {
                         let path = matches[app.repo_scan_selection].1.clone();
+                        app.pending_bulk_add_repo = Some(path);
                         app.input_buffer.clear();
-                        app.mode = Mode::Normal;
-                        app.bulk_add_path(path);
+                        app.mode = Mode::BulkAddRepoLabelInput;
                     } else {
                         app.input_buffer.clear();
                         app.mode = Mode::Normal;

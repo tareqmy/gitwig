@@ -570,6 +570,79 @@ fn test_bulk_add_folders() {
 }
 
 #[test]
+fn test_add_repo_with_labels_flow() {
+    let config = Config {
+        items: vec![],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        visits: HashMap::new(),
+        labels: std::collections::HashMap::new(),
+        sort_reverse: false,
+        pinned: std::collections::HashSet::new(),
+        theme: ThemeConfig::default(),
+        theme_name: "default".to_string(),
+        scan: ScanConfig::default(),
+        git_app: "gitui".to_string(),
+        compatibility_mode: false,
+        detail_cache_ttl_secs: 30,
+        enable_commit_signatures: false,
+        tab_ttl_secs: 60,
+        resync_on_tab_change: false,
+        graph_max_commits: 1000,
+        ..Default::default()
+    };
+    let temp_dir = std::env::temp_dir().join("gitwig_test_labels_flow");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let temp_path = temp_dir.join("config_labels_test.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Test 1: Single add with labels flow
+    app.pending_add_repo = Some("/path/to/my_new_repo".to_string());
+    app.input_buffer = "work, personal, rust".to_string();
+    app.mode = Mode::AddRepoLabelInput;
+    app.commit_add_label_input();
+
+    assert_eq!(app.config.items.len(), 1);
+    assert_eq!(app.config.items[0], "/path/to/my_new_repo");
+    let labels = app.config.labels.get("/path/to/my_new_repo").unwrap();
+    assert_eq!(labels, &vec!["work".to_string(), "personal".to_string(), "rust".to_string()]);
+    assert_eq!(app.mode, Mode::Normal);
+
+    // Test 2: Bulk add with labels flow
+    let bulk_sub_a = temp_dir.join("bulk_sub_a");
+    std::fs::create_dir_all(bulk_sub_a.join(".git")).unwrap();
+
+    app.pending_bulk_add_repo = Some(temp_dir.to_string_lossy().to_string());
+    app.input_buffer = "shared, source".to_string();
+    app.mode = Mode::BulkAddRepoLabelInput;
+    app.commit_bulk_add_label_input();
+
+    // Verify sub repo was added and has correct labels
+    let target_sub_path = temp_dir.join("bulk_sub_a").to_string_lossy().to_string();
+    assert!(app.config.items.iter().any(|x| x == &target_sub_path));
+    let labels_bulk = app.config.labels.get(&target_sub_path).unwrap();
+    assert_eq!(labels_bulk, &vec!["shared".to_string(), "source".to_string()]);
+
+    // Test 3: Clone add with labels flow
+    app.pending_add_repo = Some("/path/to/my_cloned_repo".to_string());
+    app.input_buffer = "cloned, external".to_string();
+    app.mode = Mode::CloneRepoLabelInput;
+    app.commit_add_label_input();
+
+    assert!(app.config.items.iter().any(|x| x == "/path/to/my_cloned_repo"));
+    let labels_clone = app.config.labels.get("/path/to/my_cloned_repo").unwrap();
+    assert_eq!(labels_clone, &vec!["cloned".to_string(), "external".to_string()]);
+    assert_eq!(app.mode, Mode::Normal);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
 fn test_pinning_and_sorting() {
     let config = Config {
         items: vec!["z_repo".to_string(), "a_repo".to_string(), "m_repo".to_string()],

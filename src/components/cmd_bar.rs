@@ -85,6 +85,33 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     app.config.compatibility_mode,
                 );
             }
+            Mode::AddRepoLabelInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Add Repository Labels (comma-separated, optional)",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::BulkAddRepoLabelInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Bulk Add Repository Labels (comma-separated, optional)",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::CloneRepoLabelInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Add Repository Labels (comma-separated, optional)",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
             Mode::RepoSearchInput => {
                 draw_input_status(
                     f,
@@ -1561,6 +1588,9 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         Mode::Adding
         | Mode::BulkAddInput
         | Mode::Editing
+        | Mode::AddRepoLabelInput
+        | Mode::BulkAddRepoLabelInput
+        | Mode::CloneRepoLabelInput
         | Mode::RepoSearchInput
         | Mode::ImportUrlInput
         | Mode::ImportDestInput

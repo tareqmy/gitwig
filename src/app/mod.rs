@@ -177,6 +177,12 @@ pub enum Mode {
     CommitFuzzySearch,
     /// Floating popup for fuzzy tag search.
     TagSearchInput,
+    /// Prompting for labels when adding a single repository.
+    AddRepoLabelInput,
+    /// Prompting for labels when bulk adding repositories.
+    BulkAddRepoLabelInput,
+    /// Prompting for labels when adding a cloned repository.
+    CloneRepoLabelInput,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -538,6 +544,8 @@ pub struct App {
     pub last_background_fetch_all: std::time::Instant,
     pub background_refresh_running: bool,
     pub graph_visible_height: std::cell::Cell<usize>,
+    pub pending_add_repo: Option<String>,
+    pub pending_bulk_add_repo: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -1187,6 +1195,8 @@ impl App {
             last_background_fetch_all: std::time::Instant::now(),
             background_refresh_running: false,
             graph_visible_height: std::cell::Cell::new(0),
+            pending_add_repo: None,
+            pending_bulk_add_repo: None,
         };
 
         if app.config.sort_by != SortOrder::Custom {
@@ -1415,7 +1425,9 @@ where
                     ));
                     app.fetching = false;
                     app.status_message = Some("Cloning completed successfully".to_string());
-                    app.add_repo_path(dest_path.to_string());
+                    app.pending_add_repo = Some(dest_path.to_string());
+                    app.input_buffer.clear();
+                    app.mode = Mode::CloneRepoLabelInput;
                 } else if let Some(tags_data) = msg.strip_prefix("REMOTE_TAGS:") {
                     crate::debug_log::info("Network Action: Fetching remote tags succeeded");
                     let tags = repo::deserialize_tags(tags_data);
