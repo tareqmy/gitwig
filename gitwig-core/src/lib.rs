@@ -1247,6 +1247,51 @@ pub fn get_file_history(repo_path: &Path, file_path: &str) -> Result<Vec<FileRev
     Ok(revisions)
 }
 
+#[derive(Debug, Clone)]
+pub struct BlameEntry {
+    pub line_no: usize,
+    pub commit_id: String,
+    pub author: String,
+    pub date: String,
+}
+
+pub fn get_file_blame(repo_path: &Path, file_path: &str) -> Result<Vec<BlameEntry>, String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let mut opts = git2::BlameOptions::new();
+    let blame = repo
+        .blame_file(std::path::Path::new(file_path), Some(&mut opts))
+        .map_err(|e| e.to_string())?;
+
+    let mut entries = Vec::new();
+    for i in 0..blame.len() {
+        if let Some(hunk) = blame.get_index(i) {
+            let commit_id = hunk.final_commit_id().to_string();
+            let short_id = if commit_id.len() >= 7 { &commit_id[..7] } else { &commit_id };
+
+            let mut author_name = "Unknown".to_string();
+            let mut date_str = "unknown".to_string();
+            if let Ok(commit) = repo.find_commit(hunk.final_commit_id()) {
+                author_name = commit.author().name().unwrap_or("Unknown").to_string();
+                date_str = format_utc_date(commit.time().seconds());
+            }
+
+            let start = hunk.final_start_line();
+            let count = hunk.lines_in_hunk();
+            for line_idx in 0..count {
+                entries.push(BlameEntry {
+                    line_no: start + line_idx,
+                    commit_id: short_id.to_string(),
+                    author: author_name.clone(),
+                    date: date_str.clone(),
+                });
+            }
+        }
+    }
+
+    entries.sort_by_key(|e| e.line_no);
+    Ok(entries)
+}
+
 fn collect_committer_stats(
     repo: &Repository,
     limit: usize,

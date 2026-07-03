@@ -8502,3 +8502,54 @@ fn test_workspace_tab_coverage_booster() {
         }
     }
 }
+
+#[test]
+fn test_files_tab_git_blame_toggle() {
+    use crate::tabs::FilesTab;
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_files_tab_blame.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+    app.detail_focus = DetailSection::FileContent;
+
+    // Initially show_blame is false, show_line_numbers is true
+    assert!(!app.file_tree.show_blame);
+    assert!(app.file_tree.show_line_numbers);
+
+    // Simulate pressing 'b' to toggle blame on
+    let key_b = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('b'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = FilesTab::handle_event(&mut app, key_b);
+    assert!(handled);
+    assert!(app.file_tree.show_blame);
+
+    // Simulate pressing 'B' to toggle blame off
+    let key_b_caps = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('B'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = FilesTab::handle_event(&mut app, key_b_caps);
+    assert!(handled);
+    assert!(!app.file_tree.show_blame);
+
+    // Simulate pressing 'n' to toggle line numbers off
+    let key_n = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('n'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = FilesTab::handle_event(&mut app, key_n);
+    assert!(handled);
+    assert!(!app.file_tree.show_line_numbers);
+
+    // Simulate pressing 'N' to toggle line numbers back on
+    let key_n_caps = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('N'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = FilesTab::handle_event(&mut app, key_n_caps);
+    assert!(handled);
+    assert!(app.file_tree.show_line_numbers);
+}

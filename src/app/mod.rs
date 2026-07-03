@@ -836,18 +836,32 @@ impl App {
                 crate::queue::InternalEvent::DiffScrollBottom => self.diff.diff_scroll_to_bottom(),
 
                 // FileTree
-                crate::queue::InternalEvent::FileTreeUp => self.file_list_up(),
-                crate::queue::InternalEvent::FileTreeDown => self.file_list_down(),
+                crate::queue::InternalEvent::FileTreeUp => {
+                    self.file_list_up();
+                    self.refresh_blame_if_shown();
+                }
+                crate::queue::InternalEvent::FileTreeDown => {
+                    self.file_list_down();
+                    self.refresh_blame_if_shown();
+                }
                 crate::queue::InternalEvent::FileTreePageUp => {
                     let p = self.get_current_page_size();
-                    self.file_list_page_up(p)
+                    self.file_list_page_up(p);
+                    self.refresh_blame_if_shown();
                 }
                 crate::queue::InternalEvent::FileTreePageDown => {
                     let p = self.get_current_page_size();
-                    self.file_list_page_down(p)
+                    self.file_list_page_down(p);
+                    self.refresh_blame_if_shown();
                 }
-                crate::queue::InternalEvent::FileTreeTop => self.file_list_to_top(),
-                crate::queue::InternalEvent::FileTreeBottom => self.file_list_to_bottom(),
+                crate::queue::InternalEvent::FileTreeTop => {
+                    self.file_list_to_top();
+                    self.refresh_blame_if_shown();
+                }
+                crate::queue::InternalEvent::FileTreeBottom => {
+                    self.file_list_to_bottom();
+                    self.refresh_blame_if_shown();
+                }
                 crate::queue::InternalEvent::FileContentUp => {
                     self.file_tree.file_content_scroll_up()
                 }
@@ -2152,6 +2166,37 @@ impl App {
             && !self.is_cargo_install()
             && !self.is_homebrew_install()
             && !self.is_chocolatey_install()
+    }
+
+    pub fn refresh_blame_if_shown(&mut self) {
+        if self.file_tree.show_blame {
+            self.load_blame_for_selected_file();
+        } else {
+            self.file_tree.file_blame = None;
+            self.file_tree.blamed_file_path = None;
+        }
+    }
+
+    pub fn load_blame_for_selected_file(&mut self) {
+        if let Some(item) =
+            self.file_tree.visible_files.get(self.file_tree.file_list_selection).cloned()
+        {
+            if !item.is_dir {
+                let repo_path = match &self.current_detail {
+                    Some(crate::repo::ItemDetail::Repo { resolved, .. }) => Some(resolved.clone()),
+                    _ => None,
+                };
+                if let Some(resolved) = repo_path {
+                    if let Ok(blame) = crate::repo::get_file_blame(&resolved, &item.full_path) {
+                        self.file_tree.file_blame = Some(blame);
+                        self.file_tree.blamed_file_path = Some(item.full_path);
+                        return;
+                    }
+                }
+            }
+        }
+        self.file_tree.file_blame = None;
+        self.file_tree.blamed_file_path = None;
     }
 
     pub fn item_height(&self) -> u16 {

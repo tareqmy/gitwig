@@ -6,6 +6,10 @@ pub struct FileTreeComponent {
     pub file_list_selection: usize,
     pub file_content_scroll: usize,
     pub file_list_state: std::cell::RefCell<ratatui::widgets::ListState>,
+    pub show_blame: bool,
+    pub file_blame: Option<Vec<crate::repo::BlameEntry>>,
+    pub blamed_file_path: Option<String>,
+    pub show_line_numbers: bool,
 }
 use crate::app::{App, DetailSection, Mode};
 use crate::components::commit_list::draw_commit_details_widget;
@@ -284,35 +288,90 @@ pub fn draw_files_view(
             let lines: Vec<Line> =
                 content_text.lines().map(crate::ui::syntax::highlight_code_line).collect();
 
-            if files_full_screen {
+            if files_full_screen && (app.file_tree.show_line_numbers || app.file_tree.show_blame) {
                 let inner_area = right_block.inner(chunks[1]);
                 f.render_widget(right_block, chunks[1]);
 
                 let max_line_digits = lines.len().to_string().len().max(3);
-                let line_no_width = (max_line_digits + 2) as u16;
+                let line_no_col_width = (max_line_digits + 2) as u16;
+
+                let mut constraints = Vec::new();
+                if app.file_tree.show_blame {
+                    constraints.push(Constraint::Length(28));
+                }
+                if app.file_tree.show_line_numbers {
+                    constraints.push(Constraint::Length(line_no_col_width));
+                }
+                constraints.push(Constraint::Min(0));
 
                 let sub_chunks = Layout::default()
                     .direction(Direction::Horizontal)
-                    .constraints([Constraint::Length(line_no_width), Constraint::Min(0)])
+                    .constraints(constraints)
                     .split(inner_area);
 
-                let mut line_numbers = Vec::new();
-                for i in 1..=lines.len() {
-                    line_numbers.push(Line::from(vec![Span::styled(
-                        format!("{:>width$} │", i, width = max_line_digits),
-                        muted_style(),
-                    )]));
+                let mut chunk_idx = 0;
+
+                if app.file_tree.show_blame {
+                    let mut blame_lines = Vec::new();
+                    for i in 1..=lines.len() {
+                        let mut spans = Vec::new();
+                        if let Some(ref blames) = app.file_tree.file_blame {
+                            if let Some(entry) = blames.iter().find(|e| e.line_no == i) {
+                                let first_name =
+                                    entry.author.split_whitespace().next().unwrap_or("");
+                                let author = if first_name.len() > 8 {
+                                    format!("{}...", &first_name[..5])
+                                } else {
+                                    format!("{:>8}", first_name)
+                                };
+                                spans.push(Span::styled(
+                                    format!("{:<7} ", entry.commit_id),
+                                    Style::default().fg(ACCENT()),
+                                ));
+                                spans.push(Span::styled(
+                                    format!("{:<8} ", author),
+                                    Style::default().fg(Color::DarkGray),
+                                ));
+                                spans.push(Span::styled(
+                                    format!("{} ", entry.date),
+                                    Style::default().fg(Color::DarkGray),
+                                ));
+                            } else {
+                                spans.push(Span::styled("        ".to_string(), muted_style()));
+                                spans.push(Span::styled("         ".to_string(), muted_style()));
+                                spans.push(Span::styled("           ".to_string(), muted_style()));
+                            }
+                        } else {
+                            spans.push(Span::styled("        ".to_string(), muted_style()));
+                            spans.push(Span::styled("         ".to_string(), muted_style()));
+                            spans.push(Span::styled("           ".to_string(), muted_style()));
+                        }
+                        blame_lines.push(Line::from(spans));
+                    }
+                    let blame_body =
+                        Paragraph::new(blame_lines).scroll((file_content_scroll as u16, 0));
+                    f.render_widget(blame_body, sub_chunks[chunk_idx]);
+                    chunk_idx += 1;
                 }
 
-                let line_numbers_body =
-                    Paragraph::new(line_numbers).scroll((file_content_scroll as u16, 0));
+                if app.file_tree.show_line_numbers {
+                    let mut line_no_lines = Vec::new();
+                    for i in 1..=lines.len() {
+                        line_no_lines.push(Line::from(vec![Span::styled(
+                            format!("{:>width$} │", i, width = max_line_digits),
+                            muted_style(),
+                        )]));
+                    }
+                    let line_no_body =
+                        Paragraph::new(line_no_lines).scroll((file_content_scroll as u16, 0));
+                    f.render_widget(line_no_body, sub_chunks[chunk_idx]);
+                    chunk_idx += 1;
+                }
 
                 let body = Paragraph::new(lines)
                     .wrap(Wrap { trim: false })
                     .scroll((file_content_scroll as u16, 0));
-
-                f.render_widget(line_numbers_body, sub_chunks[0]);
-                f.render_widget(body, sub_chunks[1]);
+                f.render_widget(body, sub_chunks[chunk_idx]);
             } else {
                 let body = Paragraph::new(lines)
                     .block(right_block)
@@ -526,7 +585,7 @@ impl FileTreeComponent {
 
 impl FileTreeComponent {
     pub fn new(queue: crate::queue::Queue) -> Self {
-        Self { queue, ..Default::default() }
+        Self { queue, show_line_numbers: true, ..Default::default() }
     }
 }
 

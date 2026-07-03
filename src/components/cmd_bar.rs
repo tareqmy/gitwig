@@ -1131,6 +1131,12 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             } else if app.detail_focus == DetailSection::FileContent {
                 if app.inspect_full_diff {
                     v.push(("Exit Full Screen", "←/⎋/q"));
+                    let line_no_label =
+                        if app.file_tree.show_line_numbers { "Hide Lines" } else { "Show Lines" };
+                    v.push((line_no_label, "n"));
+                    let blame_label =
+                        if app.file_tree.show_blame { "Hide Blame" } else { "Show Blame" };
+                    v.push((blame_label, "b"));
                 } else {
                     v.push(("Full Screen", "→"));
                 }

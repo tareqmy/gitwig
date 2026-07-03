@@ -10,6 +10,16 @@ impl FilesTab {
         let detail_focus = app.detail_focus;
         let ev = crossterm::event::Event::Key(key);
 
+        if code == KeyCode::Char('b') || code == KeyCode::Char('B') {
+            app.file_tree.show_blame = !app.file_tree.show_blame;
+            app.refresh_blame_if_shown();
+            return true;
+        }
+        if code == KeyCode::Char('n') || code == KeyCode::Char('N') {
+            app.file_tree.show_line_numbers = !app.file_tree.show_line_numbers;
+            return true;
+        }
+
         if code == KeyCode::Char('e') || code == KeyCode::Char('o') {
             if let Some(item) = app.file_tree.visible_files.get(app.file_tree.file_list_selection) {
                 if !item.is_dir {
