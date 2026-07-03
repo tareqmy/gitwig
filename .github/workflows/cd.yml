@@ -218,10 +218,10 @@ jobs:
           
           # Update the version in nuspec and the version & hash in install.ps1
           $nuspec = "dist/chocolatey/gitwig.nuspec"
-          (Get-Content $nuspec) -replace '2.3.14', $version | Set-Content $nuspec
+          (Get-Content $nuspec) -replace '2.3.15', $version | Set-Content $nuspec
           
           $install_script = "dist/chocolatey/tools/chocolateyinstall.ps1"
-          (Get-Content $install_script) -replace '2.3.14', $version -replace 'WINDOWS_ZIP_SHA256', $hash | Set-Content $install_script
+          (Get-Content $install_script) -replace '2.3.15', $version -replace 'WINDOWS_ZIP_SHA256', $hash | Set-Content $install_script
 
       - name: Pack and Push Package
         if: steps.check-token.outputs.skip == 'false'
