@@ -534,6 +534,7 @@ pub struct App {
     pub status_refresh_tx: std::sync::mpsc::Sender<Vec<(usize, String, ItemStatus)>>,
     pub status_refresh_rx: std::sync::mpsc::Receiver<Vec<(usize, String, ItemStatus)>>,
     pub last_background_refresh: std::time::Instant,
+    pub last_background_fetch_all: std::time::Instant,
     pub background_refresh_running: bool,
 }
 
@@ -1180,6 +1181,7 @@ impl App {
             status_refresh_tx,
             status_refresh_rx,
             last_background_refresh: std::time::Instant::now(),
+            last_background_fetch_all: std::time::Instant::now(),
             background_refresh_running: false,
         };
 
@@ -1274,6 +1276,17 @@ where
                 let _ = tx.send(updates);
             });
         }
+
+        // Trigger scheduled background fetch for all repositories
+        let auto_fetch_interval = app.config.auto_fetch_interval_mins;
+        if auto_fetch_interval > 0
+            && !app.config.items.is_empty()
+            && app.last_background_fetch_all.elapsed()
+                >= std::time::Duration::from_secs(auto_fetch_interval * 60)
+        {
+            app.last_background_fetch_all = std::time::Instant::now();
+            app.bulk_fetch_all_implicit();
+        }
         while let Ok(raw_msg) = app.rx.try_recv() {
             if let Some(repo_info) = raw_msg.strip_prefix("REPO_SCAN_FOUND:") {
                 if let Some(pos) = repo_info.find("|||") {
@@ -1306,6 +1319,7 @@ where
                 if app.bulk_fetching.is_empty() {
                     app.status_message = Some("Bulk fetch completed successfully".to_string());
                 }
+                app.decrement_implicit_network();
                 continue;
             }
             if let Some(error_data) = raw_msg.strip_prefix("BULK_FETCH_ERROR:") {
@@ -1318,6 +1332,7 @@ where
                 if app.bulk_fetching.is_empty() {
                     app.status_message = Some("Bulk fetch completed".to_string());
                 }
+                app.decrement_implicit_network();
                 continue;
             }
 
@@ -1421,7 +1436,6 @@ where
                         app.decrement_implicit_network();
                     }
                 } else {
-                    let success_fetch = msg.starts_with("Fetched remote ");
                     let is_err = msg.starts_with("Fetch failed:")
                         || msg.starts_with("Pull failed:")
                         || msg.starts_with("Push failed:")
@@ -1447,9 +1461,6 @@ where
                     }
                     app.fetching = false;
                     app.resync_detail();
-                    if success_fetch {
-                        app.fetch_remote_tags(false);
-                    }
                 }
             } else {
                 app.fetching = false;

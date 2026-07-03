@@ -13,7 +13,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
 
-const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13, 58, 55, 56];
+const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13, 58, 55, 56, 60];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 10, 8];
 const THEME_SETTING_INDICES: &[usize] = &[3];
@@ -108,6 +108,7 @@ fn get_label(global_idx: usize) -> &'static str {
         58 => "Show Grouping",
         55 => "SSH Strict Host Checking",
         56 => "Editor Command",
+        60 => "Auto-Fetch Interval (mins)",
         14 => "Toggle Status Bar",
         15 => "Help",
         16 => "Quit / Close Dialog",
@@ -181,6 +182,9 @@ fn get_desc(global_idx: usize) -> &'static str {
             "Enforce strict SSH host key verification (StrictHostKeyChecking=yes) instead of automatically accepting new keys."
         }
         56 => "Terminal text editor to open files with (e.g. vim, nano, or notepad).",
+        60 => {
+            "Time interval in minutes to automatically run git fetch in the background for all repositories. Set to 0 to disable."
+        }
         14 => "Toggles the status bar between collapsed and expanded view.",
         15 => "Opens the global help overlay.",
         16 => "Exits the application or closes the active settings/popup dialog.",
@@ -320,6 +324,13 @@ pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
                     format!("{}█", app.input_buffer)
                 } else {
                     app.config.editor.clone()
+                }
+            }
+            60 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.auto_fetch_interval_mins.to_string()
                 }
             }
             _ => String::new(),

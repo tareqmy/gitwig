@@ -1824,6 +1824,29 @@ fn test_settings_mode_navigation_and_editing() {
     assert!(!app.settings_editing);
     assert_eq!(app.config.max_commits, 100);
 
+    // Test Auto-Fetch Interval (index 60) in Category 0
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('1')), 10);
+    assert_eq!(app.settings_selected_index, 0);
+    // Move down through all items in Category 0:
+    // 0 -> 7 -> 9 -> 12 -> 13 -> 58 -> 55 -> 56 -> 60
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 7
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 9
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 12
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 13
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 58
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 55
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 56
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 60
+    assert_eq!(app.settings_selected_index, 60);
+
+    // Edit Auto-Fetch Interval
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+    app.input_buffer = "15".to_string();
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.auto_fetch_interval_mins, 15);
+
     // PageUp, PageDown, Home, End testing within Category 2:
     crate::input::handle_key(&mut app, key_event(KeyCode::Char('3')), 10);
     assert_eq!(app.settings_selected_index, 5); // Category 2 start is 5

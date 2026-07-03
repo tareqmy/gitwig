@@ -141,6 +141,7 @@ impl Default for Config {
             editor: default_editor(),
             compact_view: false,
             show_grouping: true,
+            auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
         }
     }
 }
@@ -217,6 +218,9 @@ fn default_resync_on_tab_change() -> bool {
 }
 fn default_enable_commit_signatures() -> bool {
     false
+}
+fn default_auto_fetch_interval_mins() -> u64 {
+    10
 }
 
 fn default_scan() -> ScanConfig {
@@ -306,6 +310,9 @@ pub struct Config {
     /// Whether to enable repository grouping on the home page.
     #[serde(default = "default_show_grouping")]
     pub show_grouping: bool,
+    /// Time interval in minutes to automatically run git fetch in the background for all repositories. Set to 0 to disable.
+    #[serde(default = "default_auto_fetch_interval_mins")]
+    pub auto_fetch_interval_mins: u64,
 }
 
 impl Config {
@@ -423,6 +430,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         editor: default_editor(),
         compact_view: false,
         show_grouping: true,
+        auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
     };
 
     // Attempt to save the fallback back to the original path.
@@ -553,6 +561,7 @@ pub fn load_config(
                 editor: default_editor(),
                 compact_view: false,
                 show_grouping: true,
+                auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
             },
             path,
             None,
@@ -676,6 +685,7 @@ pub fn load_config(
         editor: default_editor(),
         compact_view: false,
         show_grouping: true,
+        auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
     };
     save_config(&fallback, &canonical)?;
 
