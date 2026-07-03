@@ -337,6 +337,46 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     }
 
     if app.mode == Mode::Overview {
+        if is_click {
+            if let Some(rect) = areas.overview {
+                if rect.contains(pos) {
+                    app.overview_focus = crate::app::OverviewFocus::Overview;
+                    return;
+                }
+            }
+            if let Some(rect) = areas.stats {
+                if rect.contains(pos) {
+                    app.overview_focus = crate::app::OverviewFocus::Stats;
+                    return;
+                }
+            }
+        } else if is_scroll_up {
+            if let Some(rect) = areas.overview {
+                if rect.contains(pos) {
+                    app.overview_scroll = app.overview_scroll.saturating_sub(1);
+                    return;
+                }
+            }
+            if let Some(rect) = areas.stats {
+                if rect.contains(pos) {
+                    app.stats_scroll = app.stats_scroll.saturating_sub(1);
+                    return;
+                }
+            }
+        } else if is_scroll_down {
+            if let Some(rect) = areas.overview {
+                if rect.contains(pos) {
+                    app.overview_scroll = app.overview_scroll.saturating_add(1);
+                    return;
+                }
+            }
+            if let Some(rect) = areas.stats {
+                if rect.contains(pos) {
+                    app.stats_scroll = app.stats_scroll.saturating_add(1);
+                    return;
+                }
+            }
+        }
         return;
     }
 

@@ -103,6 +103,10 @@ pub struct DetailAreas {
     pub stashes_vertical_splitter: Option<Rect>,
     /// Bounding box of the horizontal splitter in overview tab.
     pub overview_horizontal_splitter: Option<Rect>,
+    /// Bounding box of the overview panel in Overview mode.
+    pub overview: Option<Rect>,
+    /// Bounding box of the stats panel in Overview mode.
+    pub stats: Option<Rect>,
     /// Inner area of commits list.
     pub commits_inner: Option<Rect>,
     /// Inner area of staged files list.
@@ -737,6 +741,7 @@ pub fn draw(
                     info,
                     overview_horizontal_split_pct,
                     areas,
+                    app,
                     body_area,
                 );
             }
@@ -1023,6 +1028,7 @@ fn draw_overview_tab(
     info: &RepoInfo,
     overview_horizontal_split_pct: u16,
     areas: &mut DetailAreas,
+    app: &crate::app::App,
     area: Rect,
 ) {
     f.render_widget(Clear, area);
@@ -1039,11 +1045,17 @@ fn draw_overview_tab(
     let split_col = area.x + chunks[0].width;
     areas.overview_horizontal_splitter =
         Some(Rect::new(split_col.saturating_sub(1), area.y, 2, area.height));
+    areas.overview = Some(chunks[0]);
+    areas.stats = Some(chunks[1]);
+
+    let left_focused = app.overview_focus == crate::app::OverviewFocus::Overview;
+    let left_border_style =
+        if left_focused { Style::default().fg(ACCENT()) } else { muted_style() };
 
     let left_block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER())
-        .border_style(muted_style())
+        .border_style(left_border_style)
         .title(Line::from(vec![
             Span::raw(" "),
             Span::styled("Overview", primary_style()),
@@ -1051,17 +1063,26 @@ fn draw_overview_tab(
         ]))
         .padding(Padding::horizontal(1));
 
-    let body_lines = build_repo_body(resolved, info);
-    let body = Paragraph::new(body_lines).block(left_block).wrap(Wrap { trim: false });
+    let left_inner_width = left_block.inner(chunks[0]).width as usize;
+    let body_lines = build_repo_body(resolved, info, left_inner_width);
+    let left_inner_height = left_block.inner(chunks[0]).height as usize;
+    let max_overview_scroll = body_lines.len().saturating_sub(left_inner_height);
+    let left_scroll = app.overview_scroll.min(max_overview_scroll);
+
+    let body = Paragraph::new(body_lines).block(left_block).scroll((left_scroll as u16, 0));
     f.render_widget(body, chunks[0]);
 
     let right_title =
         if info.committer_stats_limit_reached { "Stats (last 10k commits)" } else { "Stats" };
 
+    let right_focused = app.overview_focus == crate::app::OverviewFocus::Stats;
+    let right_border_style =
+        if right_focused { Style::default().fg(ACCENT()) } else { muted_style() };
+
     let right_block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER())
-        .border_style(muted_style())
+        .border_style(right_border_style)
         .title(Line::from(vec![
             Span::raw(" "),
             Span::styled(right_title, primary_style()),
@@ -1090,8 +1111,14 @@ fn draw_overview_tab(
         }
         repo::TabData::Loaded(_) => {
             let stats_lines = build_committer_stats_lines(info);
-            let stats_body =
-                Paragraph::new(stats_lines).block(right_block).wrap(Wrap { trim: false });
+            let right_inner_height = right_block.inner(chunks[1]).height as usize;
+            let max_stats_scroll = stats_lines.len().saturating_sub(right_inner_height);
+            let right_scroll = app.stats_scroll.min(max_stats_scroll);
+
+            let stats_body = Paragraph::new(stats_lines)
+                .block(right_block)
+                .wrap(Wrap { trim: false })
+                .scroll((right_scroll as u16, 0));
             f.render_widget(stats_body, chunks[1]);
         }
     }
@@ -1183,17 +1210,33 @@ fn build_body(app: &crate::app::App, detail: &ItemDetail) -> Vec<Line<'static>> 
             ]));
             lines
         }
-        ItemDetail::Repo { resolved, info } => build_repo_body(resolved, info),
+        ItemDetail::Repo { resolved, info } => build_repo_body(resolved, info, 80),
     }
 }
 
-fn build_repo_body(resolved: &std::path::Path, info: &RepoInfo) -> Vec<Line<'static>> {
+fn build_repo_body(
+    resolved: &std::path::Path,
+    info: &RepoInfo,
+    max_width: usize,
+) -> Vec<Line<'static>> {
     let mut lines: Vec<Line<'static>> = vec![];
 
     // ── General ───────────────────────────────────────────────────────────
     push_section_header(&mut lines, "General");
     lines.push(kind_line("●", SUCCESS(), "Git Repository", "(inspectable libgit2)"));
-    lines.push(field_line("Path", Span::raw(resolved.display().to_string())));
+
+    // Wrap Path field
+    let path_str = resolved.display().to_string();
+    let wrap_w = max_width.saturating_sub(12).max(10);
+    let wrapped_paths = crate::ui::draw::wrap_str(&path_str, wrap_w);
+    for (i, p) in wrapped_paths.iter().enumerate() {
+        if i == 0 {
+            lines.push(field_line("Path", Span::raw(p.clone())));
+        } else {
+            lines.push(Line::from(vec![Span::raw(" ".repeat(12)), Span::raw(p.clone())]));
+        }
+    }
+
     let branch = info.branch.clone().unwrap_or_else(|| "(detached HEAD)".to_string());
     lines.push(field_line("Branch", Span::styled(branch, accent_style())));
 
@@ -1204,7 +1247,21 @@ fn build_repo_body(resolved: &std::path::Path, info: &RepoInfo) -> Vec<Line<'sta
             "Hash",
             Span::styled(head.short_id.clone(), Style::default().fg(WARNING())),
         ));
-        lines.push(field_line("Message", Span::styled(head.summary.clone(), primary_style())));
+
+        // Wrap HEAD Commit Message
+        let msg = head.summary.clone();
+        let wrapped_msgs = crate::ui::draw::wrap_str(&msg, wrap_w);
+        for (i, m) in wrapped_msgs.iter().enumerate() {
+            if i == 0 {
+                lines.push(field_line("Message", Span::styled(m.clone(), primary_style())));
+            } else {
+                lines.push(Line::from(vec![
+                    Span::raw(" ".repeat(12)),
+                    Span::styled(m.clone(), primary_style()),
+                ]));
+            }
+        }
+
         lines.push(field_line("Author", Span::raw(head.author.clone())));
         lines.push(field_line("Date", Span::raw(head.when.clone())));
     } else {
@@ -1213,7 +1270,7 @@ fn build_repo_body(resolved: &std::path::Path, info: &RepoInfo) -> Vec<Line<'sta
 
     // ── Sync ──────────────────────────────────────────────────────────────
     push_section_header(&mut lines, "Sync");
-    append_sync(&mut lines, info);
+    append_sync(&mut lines, info, max_width);
 
     lines
 }
@@ -1233,7 +1290,7 @@ fn push_section_header(lines: &mut Vec<Line<'static>>, title: &'static str) {
 
 // ── Sync section ──────────────────────────────────────────────────────────
 
-fn append_sync(lines: &mut Vec<Line<'static>>, info: &RepoInfo) {
+fn append_sync(lines: &mut Vec<Line<'static>>, info: &RepoInfo, max_width: usize) {
     match &info.upstream {
         None => {
             lines.push(field_line("Upstream", Span::styled("(not configured)", muted_style())));
@@ -1276,18 +1333,30 @@ fn append_sync(lines: &mut Vec<Line<'static>>, info: &RepoInfo) {
     } else {
         lines.push(Line::from(""));
         for r in info.remotes.iter() {
-            lines.push(remote_line(r));
+            for rl in remote_lines(r, max_width) {
+                lines.push(rl);
+            }
         }
     }
 }
 
-fn remote_line(remote: &RemoteInfo) -> Line<'static> {
-    Line::from(vec![
-        Span::raw("    "),
-        Span::styled(format!("{:<8}", remote.name), Style::default().fg(ACCENT())),
-        Span::raw("  "),
-        Span::raw(remote.url.clone()),
-    ])
+fn remote_lines(remote: &RemoteInfo, max_width: usize) -> Vec<Line<'static>> {
+    let wrap_w = max_width.saturating_sub(14).max(10);
+    let wrapped_urls = crate::ui::draw::wrap_str(&remote.url, wrap_w);
+    let mut lines = Vec::new();
+    for (i, url) in wrapped_urls.iter().enumerate() {
+        if i == 0 {
+            lines.push(Line::from(vec![
+                Span::raw("    "),
+                Span::styled(format!("{:<8}", remote.name), Style::default().fg(ACCENT())),
+                Span::raw("  "),
+                Span::raw(url.clone()),
+            ]));
+        } else {
+            lines.push(Line::from(vec![Span::raw(" ".repeat(14)), Span::raw(url.clone())]));
+        }
+    }
+    lines
 }
 
 pub fn file_entry_line(entry: &FileEntry) -> Line<'static> {

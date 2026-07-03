@@ -1758,6 +1758,72 @@ impl App {
         }
     }
 
+    pub fn overview_scroll_up(&mut self) {
+        match self.overview_focus {
+            OverviewFocus::Overview => {
+                self.overview_scroll = self.overview_scroll.saturating_sub(1);
+            }
+            OverviewFocus::Stats => {
+                self.stats_scroll = self.stats_scroll.saturating_sub(1);
+            }
+        }
+    }
+
+    pub fn overview_scroll_down(&mut self) {
+        match self.overview_focus {
+            OverviewFocus::Overview => {
+                self.overview_scroll = self.overview_scroll.saturating_add(1);
+            }
+            OverviewFocus::Stats => {
+                self.stats_scroll = self.stats_scroll.saturating_add(1);
+            }
+        }
+    }
+
+    pub fn overview_scroll_page_up(&mut self, page: usize) {
+        match self.overview_focus {
+            OverviewFocus::Overview => {
+                self.overview_scroll = self.overview_scroll.saturating_sub(page);
+            }
+            OverviewFocus::Stats => {
+                self.stats_scroll = self.stats_scroll.saturating_sub(page);
+            }
+        }
+    }
+
+    pub fn overview_scroll_page_down(&mut self, page: usize) {
+        match self.overview_focus {
+            OverviewFocus::Overview => {
+                self.overview_scroll = self.overview_scroll.saturating_add(page);
+            }
+            OverviewFocus::Stats => {
+                self.stats_scroll = self.stats_scroll.saturating_add(page);
+            }
+        }
+    }
+
+    pub fn overview_scroll_to_top(&mut self) {
+        match self.overview_focus {
+            OverviewFocus::Overview => {
+                self.overview_scroll = 0;
+            }
+            OverviewFocus::Stats => {
+                self.stats_scroll = 0;
+            }
+        }
+    }
+
+    pub fn overview_scroll_to_bottom(&mut self) {
+        match self.overview_focus {
+            OverviewFocus::Overview => {
+                self.overview_scroll = 99999;
+            }
+            OverviewFocus::Stats => {
+                self.stats_scroll = 99999;
+            }
+        }
+    }
+
     /// Scroll the file content panel up by one line.
     pub fn file_content_scroll_up(&mut self) {
         self.file_tree.file_content_scroll = self.file_tree.file_content_scroll.saturating_sub(1);

@@ -272,6 +272,13 @@ impl DetailSection {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum OverviewFocus {
+    #[default]
+    Overview,
+    Stats,
+}
+
 #[derive(Debug, Clone)]
 pub struct DetailCache {
     pub detail: repo::ItemDetail,
@@ -282,6 +289,9 @@ pub struct DetailCache {
 pub struct App {
     pub config: Config,
     pub config_path: PathBuf,
+    pub overview_scroll: usize,
+    pub stats_scroll: usize,
+    pub overview_focus: OverviewFocus,
     /// Filesystem classification per item, parallel to `config.items`.
     /// Recomputed on add/edit/delete so it never drifts from the list.
     pub statuses: Vec<ItemStatus>,
@@ -1051,6 +1061,9 @@ impl App {
             commit_input_scroll: 0,
             help_scroll: 0,
             legend_scroll: 0,
+            overview_scroll: 0,
+            stats_scroll: 0,
+            overview_focus: OverviewFocus::default(),
             collapsed_groups: std::collections::HashSet::new(),
             repo_jump_selection: 0,
             detail_areas: DetailAreas::default(),
@@ -2534,7 +2547,9 @@ fn run_directory_scan(
                             let path = entry.path();
                             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                                 if name.starts_with('.') && name != "." && name != ".." {
-                                    continue;
+                                    if !path.join(".git").exists() {
+                                        continue;
+                                    }
                                 }
                                 if excludes
                                     .iter()

@@ -8553,3 +8553,179 @@ fn test_files_tab_git_blame_toggle() {
     assert!(handled);
     assert!(app.file_tree.show_line_numbers);
 }
+
+#[test]
+fn test_overview_scrolling() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_overview_scroll.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+
+    app.mode = Mode::Overview;
+    assert_eq!(app.overview_focus, crate::app::OverviewFocus::Overview);
+    assert_eq!(app.overview_scroll, 0);
+    assert_eq!(app.stats_scroll, 0);
+
+    // Press Down to scroll overview
+    let key_down = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, key_down, 15);
+    assert!(handled);
+    assert_eq!(app.overview_scroll, 1);
+    assert_eq!(app.stats_scroll, 0);
+
+    // Press Tab to cycle focus to Stats
+    let key_tab = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Tab,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, key_tab, 15);
+    assert!(handled);
+    assert_eq!(app.overview_focus, crate::app::OverviewFocus::Stats);
+
+    // Press Down to scroll stats
+    let handled = crate::input::handle_key(&mut app, key_down, 15);
+    assert!(handled);
+    assert_eq!(app.overview_scroll, 1);
+    assert_eq!(app.stats_scroll, 1);
+
+    // Press PageDown to scroll stats page
+    let key_pagedown = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::PageDown,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, key_pagedown, 15);
+    assert!(handled);
+    assert!(app.stats_scroll > 1);
+
+    // Press Home to jump to top of stats
+    let key_home = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, key_home, 15);
+    assert!(handled);
+    assert_eq!(app.stats_scroll, 0);
+
+    // Press End to jump to bottom of stats
+    let key_end = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::End,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, key_end, 15);
+    assert!(handled);
+    assert_eq!(app.stats_scroll, 99999);
+}
+
+#[test]
+fn test_overview_mouse_events() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_overview_mouse.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+
+    app.mode = Mode::Overview;
+    app.overview_focus = crate::app::OverviewFocus::Overview;
+    app.overview_scroll = 0;
+    app.stats_scroll = 0;
+
+    // Mock overview and stats areas
+    app.detail_areas.overview = Some(ratatui::layout::Rect::new(0, 0, 40, 20));
+    app.detail_areas.stats = Some(ratatui::layout::Rect::new(40, 0, 40, 20));
+
+    // 1. Click on Stats area to cycle focus
+    let mouse_click_stats = crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
+        column: 45,
+        row: 5,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, mouse_click_stats);
+    assert_eq!(app.overview_focus, crate::app::OverviewFocus::Stats);
+
+    // 2. Click on Overview area to cycle focus back
+    let mouse_click_overview = crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
+        column: 10,
+        row: 5,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, mouse_click_overview);
+    assert_eq!(app.overview_focus, crate::app::OverviewFocus::Overview);
+
+    // 3. Scroll down on Stats area
+    let mouse_scroll_down_stats = crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::ScrollDown,
+        column: 45,
+        row: 5,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, mouse_scroll_down_stats);
+    assert_eq!(app.stats_scroll, 1);
+    assert_eq!(app.overview_scroll, 0);
+
+    // 4. Scroll down on Overview area
+    let mouse_scroll_down_overview = crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::ScrollDown,
+        column: 10,
+        row: 5,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, mouse_scroll_down_overview);
+    assert_eq!(app.stats_scroll, 1);
+    assert_eq!(app.overview_scroll, 1);
+
+    // 5. Scroll up on Stats area
+    let mouse_scroll_up_stats = crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::ScrollUp,
+        column: 45,
+        row: 5,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, mouse_scroll_up_stats);
+    assert_eq!(app.stats_scroll, 0);
+    assert_eq!(app.overview_scroll, 1);
+}
+
+#[test]
+fn test_directory_scan_hidden_repos() {
+    let temp_scan_root = std::env::temp_dir().join("gitwig_test_hidden_scan");
+    let _ = std::fs::remove_dir_all(&temp_scan_root);
+    std::fs::create_dir_all(&temp_scan_root).unwrap();
+
+    // 1. Create a hidden git repo (starts with '.' and contains '.git')
+    let hidden_git = temp_scan_root.join(".macosdotfiles");
+    std::fs::create_dir_all(hidden_git.join(".git")).unwrap();
+
+    // 2. Create a normal git repo
+    let normal_git = temp_scan_root.join("my_repo");
+    std::fs::create_dir_all(normal_git.join(".git")).unwrap();
+
+    // 3. Create a hidden non-git folder
+    let hidden_nongit = temp_scan_root.join(".cargo");
+    std::fs::create_dir_all(hidden_nongit.join("bin")).unwrap();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    run_directory_scan(temp_scan_root.clone(), 3, vec![], tx, true);
+
+    let mut found = Vec::new();
+    while let Ok(msg) = rx.recv() {
+        if let Some(repo_info) = msg.strip_prefix("REPO_SCAN_FOUND:") {
+            let parts: Vec<&str> = repo_info.split("|||").collect();
+            if parts.len() == 2 {
+                found.push(parts[0].to_string());
+            }
+        }
+        if msg.starts_with("REPO_SCAN_COMPLETE:") {
+            break;
+        }
+    }
+
+    assert!(found.contains(&".macosdotfiles".to_string()));
+    assert!(found.contains(&"my_repo".to_string()));
+    assert!(!found.contains(&".cargo".to_string()));
+
+    let _ = std::fs::remove_dir_all(&temp_scan_root);
+}

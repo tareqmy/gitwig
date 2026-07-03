@@ -340,7 +340,14 @@ pub(crate) fn get_status_layout_components(
         }
         Mode::Overview => {
             let mut entries = Vec::new();
-            let entries_data = [("Close Overview", "Esc/q/v"), ("Repo Settings", "s")];
+            let entries_data = [
+                ("Close Overview", "Esc/q/v"),
+                ("Repo Settings", "s"),
+                ("Cycle Focus", "Tab/w/W"),
+                ("Scroll", "↑↓/k/j"),
+                ("Page", "⇟/⇞"),
+                ("Jump", "Home/End"),
+            ];
             for (i, (label, key)) in entries_data.iter().enumerate() {
                 let mut spans = Vec::new();
                 if i > 0 {

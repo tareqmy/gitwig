@@ -1701,12 +1701,11 @@ pub fn load_tab_stashes(repo_path: &Path) -> Result<Vec<StashInfo>, String> {
 
 pub fn load_tab_overview(
     repo_path: &Path,
-    commit_limit: usize,
+    _commit_limit: usize,
 ) -> Result<(Vec<CommitterStat>, bool), String> {
     let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
-    let stats_limit = if commit_limit > 0 { commit_limit.min(10000) } else { 10000 };
     let (stats, limit_reached) =
-        collect_committer_stats(&repo, stats_limit).map_err(|e| e.to_string())?;
+        collect_committer_stats(&repo, usize::MAX).map_err(|e| e.to_string())?;
     Ok((stats, limit_reached))
 }
 
