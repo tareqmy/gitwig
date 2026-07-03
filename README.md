@@ -37,12 +37,6 @@ For a quick installation, run the following command in your terminal:
 curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/scripts/install.sh | sh
 ```
 
-*Note: If the repository is private, set your GitHub token first:*
-```sh
-export GITHUB_TOKEN="your_github_pat"
-curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/scripts/install.sh | sh
-```
-
 #### On Windows
 
 You can install **Gitwig** on Windows via PowerShell:
@@ -50,12 +44,6 @@ You can install **Gitwig** on Windows via PowerShell:
 Run the following command in PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/tareqmy/gitwig/master/scripts/install.ps1 | iex
-```
-
-*Note: If the repository is private, set your GitHub token first:*
-```powershell
-$env:GITHUB_TOKEN="your_github_pat"
 irm https://raw.githubusercontent.com/tareqmy/gitwig/master/scripts/install.ps1 | iex
 ```
 * **Benefits**: Quick command-line installation to your user profile directory (`%USERPROFILE%\.gitwig\bin`) without requiring administrator privileges.

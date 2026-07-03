@@ -196,7 +196,7 @@ download_and_extract() {
 
     # If GITHUB_TOKEN is set, download via API asset endpoint
     if [ -n "${GITHUB_TOKEN:-}" ]; then
-        info "Using GITHUB_TOKEN to download from private repository..."
+        info "Using GITHUB_TOKEN to authenticate download request..."
         TAG_API_URL="${GITHUB_API_URL}/releases/tags/${VERSION}"
         
         if command -v curl >/dev/null 2>&1; then
