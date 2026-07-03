@@ -8362,3 +8362,142 @@ fn test_logs_tab_comprehensive() {
         crate::tabs::logs::LogsTab::handle_event(&mut app, key);
     }
 }
+
+#[test]
+fn test_workspace_tab_coverage_booster() {
+    use crossterm::event::KeyCode;
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_coverage_workspace_booster.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+    app.in_logs_ui = false;
+    app.commit_list.selection = 0;
+
+    let mock_info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        changes: crate::repo::WorktreeChanges {
+            staged: vec![crate::repo::FileEntry {
+                path: "staged_file.txt".to_string(),
+                label: "A",
+            }],
+            unstaged: vec![crate::repo::FileEntry {
+                path: "unstaged_file.txt".to_string(),
+                label: "M",
+            }],
+            conflicted: vec![crate::repo::FileEntry {
+                path: "conflicted_file.txt".to_string(),
+                label: "C",
+            }],
+            ..Default::default()
+        },
+        commits: vec![crate::repo::CommitEntry {
+            id: "abc1234".to_string(),
+            oid: "abc1234".to_string(),
+            author: "Author".to_string(),
+            when: "10 mins ago".to_string(),
+            date: "2026-07-02".to_string(),
+            summary: "feat: summary".to_string(),
+            message: "feat: summary\n\nbody".to_string(),
+            refs: vec![],
+            files: vec![],
+            signature_status: "G".to_string(),
+        }],
+        ..Default::default()
+    };
+
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    // Mock file diff with multiple kinds of lines
+    app.diff.file_diff = vec![
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::Header,
+            content: "@@ -1,3 +1,3 @@".to_string(),
+        },
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::Added,
+            content: "+added line".to_string(),
+        },
+        crate::repo::DiffLine {
+            kind: crate::repo::DiffLineKind::Removed,
+            content: "-removed line".to_string(),
+        },
+    ];
+
+    let focuses = vec![
+        DetailSection::Commits,
+        DetailSection::Staged,
+        DetailSection::Unstaged,
+        DetailSection::Conflicts,
+        DetailSection::CommitDetails,
+        DetailSection::StagingDetails,
+        DetailSection::ConflictDiff,
+    ];
+
+    let keycodes = vec![
+        KeyCode::Up,
+        KeyCode::Down,
+        KeyCode::PageUp,
+        KeyCode::PageDown,
+        KeyCode::Home,
+        KeyCode::End,
+        KeyCode::Enter,
+        KeyCode::Char('a'),
+        KeyCode::Char('A'),
+        KeyCode::Char('x'),
+        KeyCode::Char('X'),
+        KeyCode::Char('c'),
+        KeyCode::Char('C'),
+        KeyCode::Char('o'),
+        KeyCode::Char('t'),
+        KeyCode::Char('r'),
+        KeyCode::Right,
+        KeyCode::Delete,
+        KeyCode::Char('l'),
+        KeyCode::Char('G'),
+        KeyCode::Char('/'),
+        KeyCode::Char('f'),
+        KeyCode::Char('b'),
+        KeyCode::Char('t'),
+        KeyCode::Char('i'),
+        KeyCode::Char('p'),
+        KeyCode::Char('v'),
+        KeyCode::Char('y'),
+        KeyCode::Char('s'),
+        KeyCode::Char('S'),
+    ];
+
+    for &is_uncommitted in &[true, false] {
+        let selection = if is_uncommitted { 0 } else { 1 };
+        for &focus in &focuses {
+            // Pass 1: Line mode disabled
+            for &kc in &keycodes {
+                app.detail_focus = focus;
+                app.mode = Mode::Detail;
+                app.in_logs_ui = false;
+                app.commit_list.selection = selection;
+                app.diff.diff_line_mode = false;
+
+                let key =
+                    crossterm::event::KeyEvent::new(kc, crossterm::event::KeyModifiers::empty());
+                let _ = crate::tabs::workspace::WorkspaceTab::handle_event(&mut app, key);
+            }
+
+            // Pass 2: Line mode enabled
+            for &kc in &keycodes {
+                app.detail_focus = focus;
+                app.mode = Mode::Detail;
+                app.in_logs_ui = false;
+                app.commit_list.selection = selection;
+                app.diff.diff_line_mode = true;
+
+                let key =
+                    crossterm::event::KeyEvent::new(kc, crossterm::event::KeyModifiers::empty());
+                let _ = crate::tabs::workspace::WorkspaceTab::handle_event(&mut app, key);
+            }
+        }
+    }
+}

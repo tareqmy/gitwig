@@ -2115,7 +2115,9 @@ impl App {
     pub fn is_cargo_install(&self) -> bool {
         if let Ok(exe_path) = std::env::current_exe() {
             let path_str = exe_path.to_string_lossy().to_lowercase();
-            if path_str.contains(".cargo") && (path_str.contains("/bin") || path_str.contains("\\bin")) {
+            if path_str.contains(".cargo")
+                && (path_str.contains("/bin") || path_str.contains("\\bin"))
+            {
                 return true;
             }
         }
@@ -2125,7 +2127,10 @@ impl App {
     pub fn is_homebrew_install(&self) -> bool {
         if let Ok(exe_path) = std::env::current_exe() {
             let path_str = exe_path.to_string_lossy().to_lowercase();
-            if path_str.contains("homebrew") || path_str.contains("cellar") || path_str.contains("linuxbrew") {
+            if path_str.contains("homebrew")
+                || path_str.contains("cellar")
+                || path_str.contains("linuxbrew")
+            {
                 return true;
             }
         }
