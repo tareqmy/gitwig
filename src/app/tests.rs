@@ -4904,10 +4904,11 @@ fn test_is_newer_version() {
 fn test_cargo_install_detection() {
     let config = Config::default();
     let app = App::new(config, std::path::PathBuf::from("dummy.toml"));
-    // Normal test execution runs within target/debug/deps, so it is not a Cargo or Homebrew installation folder
+    // Normal test execution runs within target/debug/deps, so it is not a Cargo, Homebrew, or Chocolatey installation folder
     assert!(!app.is_cargo_install());
     assert!(!app.is_msi_install());
     assert!(!app.is_homebrew_install());
+    assert!(!app.is_chocolatey_install());
     assert!(app.can_self_update());
 }
 
