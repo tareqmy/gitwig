@@ -50,6 +50,15 @@ irm https://raw.githubusercontent.com/tareqmy/gitwig/master/scripts/install.ps1 
 ```
 * **Benefits**: Quick command-line installation to your user profile directory (`%USERPROFILE%\.gitwig\bin`) without requiring administrator privileges.
 * **Updating**: Supports the in-app self-updater, which will automatically run `install.ps1` to download newer versions.
+#### Via Chocolatey (Windows)
+
+You can install **Gitwig** using Chocolatey:
+
+```cmd
+choco install gitwig
+```
+
+*Note: For the in-app self-updater, if installed via Chocolatey, you should update the package by running `choco upgrade gitwig`.*
 
 
 #### Via Cargo
