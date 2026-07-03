@@ -1,6 +1,6 @@
 [package]
 name = "gitwig"
-version = "2.3.16"
+version = "2.3.17"
 edition = "2024"
 authors = ["tareqmy <tareq.y@gmail.com>"]
 description = "a rust based tui, an alternative to sourcetree and gitui"
@@ -17,7 +17,7 @@ keywords = ["git", "cli", "terminal", "tui", "rust"]
 members = [".", "gitwig-core"]
 
 [dependencies]
-gitwig-core = { path = "gitwig-core", version = "2.3.16" }
+gitwig-core = { path = "gitwig-core", version = "2.3.17" }
 crossterm = "0.29.0"
 ratatui = { version = "0.30", features = ["crossterm_0_29"] }
 serde = { version = "1.0", features = ["derive"] }
