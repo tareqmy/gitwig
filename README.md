@@ -29,6 +29,8 @@ brew tap tareqmy/gitwig
 brew install gitwig
 ```
 
+*Note: If Homebrew prompts you with an "untrusted tap" error, run `brew trust tareqmy/gitwig` to trust it, and then run `brew install gitwig` again.*
+
 #### Via Shell Script (macOS / Linux)
 
 For a quick installation, run the following command in your terminal:
