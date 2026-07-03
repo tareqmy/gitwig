@@ -20,7 +20,14 @@
   > **SSH Host Key Policy:** To prevent connection hangs in the non-interactive TUI context, Gitwig executes git commands with `GIT_SSH_COMMAND` set to `ssh -o StrictHostKeyChecking=accept-new`. This automatically trusts and saves new host keys, while verifying existing ones to protect against MITM attacks. If you require a different SSH policy, make sure to add host keys to your `known_hosts` beforehand.
 
 
-### Installation
+#### Via Homebrew (macOS / Linux)
+
+You can tap and install **Gitwig** using Homebrew:
+
+```sh
+brew tap tareqmy/gitwig
+brew install gitwig
+```
 
 #### Via Shell Script (macOS / Linux)
 
@@ -38,15 +45,9 @@ curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/scripts/insta
 
 #### On Windows
 
-You can install **Gitwig** on Windows using one of two methods:
+You can install **Gitwig** on Windows via PowerShell:
 
-##### Method A: Via Windows Installer (MSI) (Recommended)
-Download the latest `gitwig-*.msi` file from the [Releases](https://github.com/tareqmy/gitwig/releases) page and run the installer.
-* **Benefits**: Installs system-wide to `Program Files`, registers Gitwig in Windows **Apps & Features (Add/Remove Programs)** for easy management/uninstallation, and appends itself to the system-wide `PATH` variable.
-* **Updating**: To update, simply download and install the new version's `.msi` file. *Note: Do not use the in-app self-updater if you installed via MSI (see Warning below).*
-
-##### Method B: Via PowerShell Script
-For a quick user-level installation, run the following command in PowerShell:
+Run the following command in PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/tareqmy/gitwig/master/scripts/install.ps1 | iex
@@ -59,10 +60,6 @@ irm https://raw.githubusercontent.com/tareqmy/gitwig/master/scripts/install.ps1 
 ```
 * **Benefits**: Quick command-line installation to your user profile directory (`%USERPROFILE%\.gitwig\bin`) without requiring administrator privileges.
 * **Updating**: Supports the in-app self-updater, which will automatically run `install.ps1` to download newer versions.
-
-> [!WARNING]
-> **Do not mix installation methods.**
-> If you install Gitwig via the MSI installer (which updates the System `PATH`), using the in-app self-updater will execute the `install.ps1` script in the background and install a second copy to your User profile directory. Because System `PATH` entries take precedence over User `PATH` entries on Windows, your terminal will continue to run the old version in `Program Files`, leading to an update loop. If you installed via MSI, always update by installing the newer `.msi` package.
 
 
 #### Via Cargo
@@ -92,8 +89,6 @@ If you installed Gitwig via the shell script, you can uninstall it at any time u
 ```sh
 curl -fsSL https://raw.githubusercontent.com/tareqmy/gitwig/master/scripts/uninstall.sh | sh
 ```
-
-If you installed Gitwig via the Windows Installer (MSI), you can uninstall it at any time via **Apps & Features** in Windows Settings or by right-clicking the `.msi` file and selecting **Uninstall**.
 
 If you installed Gitwig via the PowerShell script, you can uninstall it at any time using:
 

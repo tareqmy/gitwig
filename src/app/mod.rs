@@ -2184,8 +2184,8 @@ impl App {
     pub fn trigger_self_update(&mut self) {
         if self.is_msi_install() {
             self.error_message = Some(
-                "Self-update is disabled for system-wide MSI installations.\n\n\
-                 Please download the latest MSI package from:\n\
+                "Self-update is disabled for system-wide Windows installations.\n\n\
+                 Please update via Chocolatey or download the latest release from:\n\
                  https://github.com/tareqmy/gitwig/releases"
                     .to_string(),
             );
