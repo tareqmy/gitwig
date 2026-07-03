@@ -163,13 +163,13 @@ jobs:
           VERSION_NUM="${VERSION#v}"
           
           # Clone the tap repository manually using the token
-          git clone "https://x-access-token:${{ secrets.TAP_GITHUB_TOKEN }}@github.com/tareqmy/homebrew-gitwig.git" homebrew-gitwig || {
+          git clone "https://oauth2:${{ secrets.TAP_GITHUB_TOKEN }}@github.com/tareqmy/homebrew-gitwig.git" homebrew-gitwig || {
             echo "Clone failed (possibly empty repository). Initializing new local repository..."
             mkdir homebrew-gitwig
             cd homebrew-gitwig
             git init
             git checkout -b main
-            git remote add origin "https://x-access-token:${{ secrets.TAP_GITHUB_TOKEN }}@github.com/tareqmy/homebrew-gitwig.git"
+            git remote add origin "https://oauth2:${{ secrets.TAP_GITHUB_TOKEN }}@github.com/tareqmy/homebrew-gitwig.git"
             cd ..
           }
           
