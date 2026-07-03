@@ -712,14 +712,37 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         }
     }
 
-    // Graph view scroll (tab 3, index 2)
+    // Graph view scroll & click (tab 3, index 2)
     if app.detail_tab == 2 {
         if let Some(rect) = areas.tab_bar {
             if pos.y >= rect.y + rect.height {
                 if is_scroll_up {
-                    app.graph_scroll_up();
+                    app.graph_select_up();
+                    return;
                 } else if is_scroll_down {
-                    app.graph_scroll_down();
+                    app.graph_select_down();
+                    return;
+                }
+            }
+        }
+        if let Some(rect) = areas.graph {
+            if rect.contains(pos) {
+                if is_click {
+                    if let Some(inner) = areas.graph_inner {
+                        if inner.contains(pos) {
+                            let clicked_row = (pos.y - inner.y) as usize;
+                            let actual_idx = app.graph_scroll + clicked_row;
+                            let total = match &app.current_detail {
+                                Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                                    info.graph_lines.len()
+                                }
+                                _ => 0,
+                            };
+                            if actual_idx < total {
+                                app.graph_selection = actual_idx;
+                            }
+                        }
+                    }
                 }
                 return;
             }

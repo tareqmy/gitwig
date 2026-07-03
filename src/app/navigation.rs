@@ -678,6 +678,7 @@ impl App {
             self.commit_list.selection = 0;
             self.detail_tab = 0;
             self.graph_scroll = 0;
+            self.graph_selection = 0;
             self.inspect_full_diff = false;
             self.commit_popup.maximized = false;
             self.mode = Mode::Detail;
@@ -1849,31 +1850,55 @@ impl App {
         self.file_tree.file_content_scroll = (self.file_tree.file_content_scroll + page).min(max);
     }
 
-    /// Scroll the graph view up by one line.
-    pub fn graph_scroll_up(&mut self) {
-        self.graph_scroll = self.graph_scroll.saturating_sub(1);
-    }
-
-    /// Scroll the graph view down by one line.
-    pub fn graph_scroll_down(&mut self) {
-        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            let max = info.graph_lines.len().saturating_sub(1);
-            if self.graph_scroll < max {
-                self.graph_scroll += 1;
+    /// Move graph selection up by one line.
+    pub fn graph_select_up(&mut self) {
+        if self.graph_selection > 0 {
+            self.graph_selection -= 1;
+            if self.graph_selection < self.graph_scroll {
+                self.graph_scroll = self.graph_selection;
             }
         }
     }
 
-    /// Scroll the graph view up by a page.
-    pub fn graph_scroll_page_up(&mut self, page: usize) {
-        self.graph_scroll = self.graph_scroll.saturating_sub(page);
+    /// Move graph selection down by one line.
+    pub fn graph_select_down(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            let total = info.graph_lines.len();
+            let visible_height = self.graph_visible_height.get();
+            let visible_height =
+                if visible_height > 0 { visible_height } else { self.get_current_page_size() };
+            if total > 0 && self.graph_selection + 1 < total {
+                self.graph_selection += 1;
+                let bottom = self.graph_scroll + visible_height;
+                if self.graph_selection >= bottom {
+                    self.graph_scroll = self.graph_selection.saturating_sub(visible_height - 1);
+                }
+            }
+        }
     }
 
-    /// Scroll the graph view down by a page.
-    pub fn graph_scroll_page_down(&mut self, page: usize) {
+    /// Move graph selection up by a page.
+    pub fn graph_select_page_up(&mut self, page: usize) {
+        self.graph_selection = self.graph_selection.saturating_sub(page);
+        if self.graph_selection < self.graph_scroll {
+            self.graph_scroll = self.graph_selection;
+        }
+    }
+
+    /// Move graph selection down by a page.
+    pub fn graph_select_page_down(&mut self, page: usize) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            let max = info.graph_lines.len().saturating_sub(1);
-            self.graph_scroll = (self.graph_scroll + page).min(max);
+            let total = info.graph_lines.len();
+            let visible_height = self.graph_visible_height.get();
+            let visible_height =
+                if visible_height > 0 { visible_height } else { self.get_current_page_size() };
+            if total > 0 {
+                self.graph_selection = (self.graph_selection + page).min(total.saturating_sub(1));
+                let bottom = self.graph_scroll + visible_height;
+                if self.graph_selection >= bottom {
+                    self.graph_scroll = self.graph_selection.saturating_sub(visible_height - 1);
+                }
+            }
         }
     }
 
@@ -1918,6 +1943,16 @@ impl App {
     pub fn get_selected_commit(&self) -> Option<&crate::repo::CommitEntry> {
         match &self.current_detail {
             Some(ItemDetail::Repo { info, .. }) => {
+                if self.detail_tab == 2 {
+                    if let repo::TabData::Loaded(ref lines) = info.graph_lines {
+                        if let Some(line) = lines.get(self.graph_selection) {
+                            if let Some(ref c) = line.commit {
+                                return info.commits.iter().find(|entry| entry.oid == c.oid);
+                            }
+                        }
+                    }
+                    return None;
+                }
                 let dirty = !info.changes.staged.is_empty()
                     || !info.changes.unstaged.is_empty()
                     || !info.changes.untracked.is_empty()
@@ -3102,14 +3137,21 @@ impl App {
         }
     }
 
-    pub fn graph_scroll_to_top(&mut self) {
+    pub fn graph_select_to_top(&mut self) {
+        self.graph_selection = 0;
         self.graph_scroll = 0;
     }
 
-    pub fn graph_scroll_to_bottom(&mut self) {
+    pub fn graph_select_to_bottom(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            let max = info.graph_lines.len().saturating_sub(1);
-            self.graph_scroll = max;
+            let total = info.graph_lines.len();
+            let visible_height = self.graph_visible_height.get();
+            let visible_height =
+                if visible_height > 0 { visible_height } else { self.get_current_page_size() };
+            if total > 0 {
+                self.graph_selection = total.saturating_sub(1);
+                self.graph_scroll = self.graph_selection.saturating_sub(visible_height - 1);
+            }
         }
     }
 

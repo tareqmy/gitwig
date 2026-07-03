@@ -1597,6 +1597,34 @@ fn test_mouse_row_selection_in_detail_panels() {
     crate::mouse::handle_mouse(&mut app, worktree_click);
     assert_eq!(app.worktree_selection, 1);
     assert_eq!(app.detail_focus, DetailSection::Worktrees);
+
+    // 12. Graph tab click test
+    app.mode = Mode::Detail;
+    app.detail_tab = 2; // Graph Tab
+    app.detail_areas = crate::ui_detail::DetailAreas::default();
+    let mock_info_8 = repo::RepoInfo {
+        graph_lines: repo::TabData::Loaded(vec![
+            repo::GraphLine { graph: "*".to_string(), commit: None },
+            repo::GraphLine { graph: "|*".to_string(), commit: None },
+        ]),
+        ..Default::default()
+    };
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("a_repo"),
+        info: Box::new(mock_info_8),
+    });
+    app.detail_areas.graph = Some(Rect::new(0, 0, 100, 20));
+    app.detail_areas.graph_inner = Some(Rect::new(1, 1, 98, 18));
+    app.graph_scroll = 0;
+
+    let graph_click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 10,
+        row: 2, // index 1 (relative to 1)
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    crate::mouse::handle_mouse(&mut app, graph_click);
+    assert_eq!(app.graph_selection, 1);
 }
 
 #[test]
@@ -4192,31 +4220,37 @@ fn test_graph_tab_scrolling() {
     // Press Down
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
     assert!(handled);
-    assert_eq!(app.graph_scroll, 1);
+    assert_eq!(app.graph_selection, 1);
+    assert_eq!(app.graph_scroll, 0);
 
     // Press PageDown
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
     assert!(handled);
-    assert_eq!(app.graph_scroll, 11);
+    assert_eq!(app.graph_selection, 11);
+    assert_eq!(app.graph_scroll, 2);
 
     // Press End
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
     assert!(handled);
-    assert_eq!(app.graph_scroll, 14); // len = 15, max index = 14
+    assert_eq!(app.graph_selection, 14);
+    assert_eq!(app.graph_scroll, 5);
 
     // Press Up
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
     assert!(handled);
-    assert_eq!(app.graph_scroll, 13);
+    assert_eq!(app.graph_selection, 13);
+    assert_eq!(app.graph_scroll, 5);
 
     // Press PageUp
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::PageUp), 10);
     assert!(handled);
+    assert_eq!(app.graph_selection, 3);
     assert_eq!(app.graph_scroll, 3);
 
     // Press Home
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
     assert!(handled);
+    assert_eq!(app.graph_selection, 0);
     assert_eq!(app.graph_scroll, 0);
 }
 
@@ -7479,10 +7513,10 @@ fn test_all_scroll_helpers() {
     app.file_content_scroll_page_up(5);
     app.file_content_scroll_page_down(5);
 
-    app.graph_scroll_up();
-    app.graph_scroll_down();
-    app.graph_scroll_page_up(5);
-    app.graph_scroll_page_down(5);
+    app.graph_select_up();
+    app.graph_select_down();
+    app.graph_select_page_up(5);
+    app.graph_select_page_down(5);
 
     app.commit_details_scroll_up();
     app.commit_details_scroll_down();
@@ -7714,6 +7748,7 @@ fn test_ui_detail_non_repos() {
                     0,
                     0,
                     &[],
+                    0,
                     0,
                     0,
                     0,

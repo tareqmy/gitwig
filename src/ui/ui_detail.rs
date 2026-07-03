@@ -107,6 +107,10 @@ pub struct DetailAreas {
     pub overview: Option<Rect>,
     /// Bounding box of the stats panel in Overview mode.
     pub stats: Option<Rect>,
+    /// Bounding box of the graph panel.
+    pub graph: Option<Rect>,
+    /// Inner area of the graph list.
+    pub graph_inner: Option<Rect>,
     /// Inner area of commits list.
     pub commits_inner: Option<Rect>,
     /// Inner area of staged files list.
@@ -175,6 +179,7 @@ pub fn draw(
     visible_files: &[crate::app::FileTreeItem],
     detail_tab: usize,
     graph_scroll: usize,
+    graph_selection: usize,
     help_scroll: usize,
     areas: &mut DetailAreas,
     input_buffer: &str,
@@ -623,19 +628,30 @@ pub fn draw(
                             .padding(Padding::uniform(1));
 
                         let inner = block.inner(body_area);
+                        areas.graph = Some(body_area);
+                        areas.graph_inner = Some(inner);
                         f.render_widget(block, body_area);
 
                         let visible_height = inner.height as usize;
+                        app.graph_visible_height.set(visible_height);
                         let upper = (graph_scroll + visible_height).min(info.graph_lines.len());
                         let visible_lines = &info.graph_lines.as_slice()[graph_scroll..upper];
 
-                        let mut list_lines = Vec::new();
-                        for g_line in visible_lines {
-                            list_lines.push(graph_line_spans(g_line));
+                        let mut list_items = Vec::new();
+                        for (idx, g_line) in visible_lines.iter().enumerate() {
+                            let global_idx = graph_scroll + idx;
+                            let line = graph_line_spans(g_line);
+                            let item = if global_idx == graph_selection {
+                                ListItem::new(line)
+                                    .style(Style::default().add_modifier(Modifier::REVERSED))
+                            } else {
+                                ListItem::new(line)
+                            };
+                            list_items.push(item);
                         }
 
-                        let paragraph = Paragraph::new(list_lines).wrap(Wrap { trim: false });
-                        f.render_widget(paragraph, inner);
+                        let list = List::new(list_items);
+                        f.render_widget(list, inner);
                     }
                 }
             } else if detail_tab == 3 {

@@ -202,6 +202,7 @@ pub fn draw(
                 &app.file_tree.visible_files,
                 app.detail_tab,
                 app.graph_scroll,
+                app.graph_selection,
                 app.help_scroll,
                 detail_areas,
                 &app.input_buffer,

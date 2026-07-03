@@ -373,6 +373,7 @@ pub struct App {
     /// Flattened visible files inside the Files tab.
     /// Vertical scroll offset for the git history graph view (Graph tab).
     pub graph_scroll: usize,
+    pub graph_selection: usize,
     /// Whether the status bar is expanded.
     pub status_expanded: bool,
     /// Whether the settings panel focus is on the sidebar categories.
@@ -536,6 +537,7 @@ pub struct App {
     pub last_background_refresh: std::time::Instant,
     pub last_background_fetch_all: std::time::Instant,
     pub background_refresh_running: bool,
+    pub graph_visible_height: std::cell::Cell<usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -1077,6 +1079,7 @@ impl App {
             last_click: None,
             detail_tab: 0,
             graph_scroll: 0,
+            graph_selection: 0,
             status_expanded: false,
             settings_focus_sidebar: true,
             tx,
@@ -1183,6 +1186,7 @@ impl App {
             last_background_refresh: std::time::Instant::now(),
             last_background_fetch_all: std::time::Instant::now(),
             background_refresh_running: false,
+            graph_visible_height: std::cell::Cell::new(0),
         };
 
         if app.config.sort_by != SortOrder::Custom {
