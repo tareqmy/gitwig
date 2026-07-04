@@ -267,10 +267,14 @@ pub fn draw_inspect_window(
             v_center[1],
         );
     } else {
+        let hunk_ranges = app.get_diff_hunk_ranges();
+        let selected_hunk_range = hunk_ranges.get(app.diff.diff_hunk_selection);
+
         let diff_spans: Vec<Line> = file_diff
             .iter()
-            .map(|line| {
-                let style = match line.kind {
+            .enumerate()
+            .map(|(idx, line)| {
+                let mut style = match line.kind {
                     DiffLineKind::Added => Style::default().fg(SUCCESS()),
                     DiffLineKind::Removed => Style::default().fg(DANGER()),
                     DiffLineKind::Header => Style::default().fg(ACCENT()),
@@ -285,6 +289,21 @@ pub fn draw_inspect_window(
                         .fg(ratatui::style::Color::Yellow)
                         .add_modifier(ratatui::style::Modifier::BOLD),
                 };
+
+                if right_focused {
+                    if app.diff.diff_line_mode {
+                        if idx == app.diff.diff_line_selection {
+                            style = style.add_modifier(Modifier::REVERSED);
+                        }
+                    } else {
+                        if let Some(range) = selected_hunk_range {
+                            if range.contains(&idx) {
+                                style = style.add_modifier(Modifier::REVERSED);
+                            }
+                        }
+                    }
+                }
+
                 Line::from(Span::styled(line.content.clone(), style))
             })
             .collect();

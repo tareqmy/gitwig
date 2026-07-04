@@ -360,6 +360,9 @@ pub struct DiffLine {
     pub kind: DiffLineKind,
     /// Raw content (already includes the leading +/−/space prefix character).
     pub content: String,
+    pub old_lineno: Option<u32>,
+    pub new_lineno: Option<u32>,
+    pub hunk_idx: Option<usize>,
 }
 
 /// Return the unified diff of `file_path` as it changed in `commit_oid`
@@ -679,6 +682,9 @@ fn apply_line_patch_inner(
                         patch_lines.push(DiffLine {
                             kind: DiffLineKind::Removed,
                             content: line.content.clone(),
+                            old_lineno: None,
+                            new_lineno: None,
+                            hunk_idx: None,
                         });
                         new_old_count += 1;
                     }
@@ -686,6 +692,9 @@ fn apply_line_patch_inner(
                         patch_lines.push(DiffLine {
                             kind: DiffLineKind::Added,
                             content: line.content.clone(),
+                            old_lineno: None,
+                            new_lineno: None,
+                            hunk_idx: None,
                         });
                         new_new_count += 1;
                     }
@@ -697,6 +706,9 @@ fn apply_line_patch_inner(
                         patch_lines.push(DiffLine {
                             kind: DiffLineKind::Added,
                             content: line.content.clone(),
+                            old_lineno: None,
+                            new_lineno: None,
+                            hunk_idx: None,
                         });
                         new_new_count += 1;
                     }
@@ -704,6 +716,9 @@ fn apply_line_patch_inner(
                         patch_lines.push(DiffLine {
                             kind: DiffLineKind::Removed,
                             content: line.content.clone(),
+                            old_lineno: None,
+                            new_lineno: None,
+                            hunk_idx: None,
                         });
                         new_old_count += 1;
                     }
@@ -722,6 +737,9 @@ fn apply_line_patch_inner(
                         patch_lines.push(DiffLine {
                             kind: DiffLineKind::Context,
                             content: line.content.clone(),
+                            old_lineno: None,
+                            new_lineno: None,
+                            hunk_idx: None,
                         });
                         new_old_count += 1;
                         new_new_count += 1;
@@ -736,6 +754,9 @@ fn apply_line_patch_inner(
                         patch_lines.push(DiffLine {
                             kind: DiffLineKind::Context,
                             content: line.content.clone(),
+                            old_lineno: None,
+                            new_lineno: None,
+                            hunk_idx: None,
                         });
                         new_old_count += 1;
                         new_new_count += 1;
@@ -2140,11 +2161,17 @@ fn get_worktree_diff_inner(
 /// Walk a libgit2 `Diff` and collect coloured `DiffLine` values.
 fn collect_diff_lines(diff: &git2::Diff<'_>) -> Option<Vec<DiffLine>> {
     let mut lines: Vec<DiffLine> = Vec::new();
-    diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
+    let mut current_hunk_idx = None;
+    let mut hunk_count = 0;
+    diff.print(git2::DiffFormat::Patch, |_, _, line| {
         let kind = match line.origin() {
             '+' => DiffLineKind::Added,
             '-' => DiffLineKind::Removed,
-            'H' => DiffLineKind::Header,
+            'H' => {
+                current_hunk_idx = Some(hunk_count);
+                hunk_count += 1;
+                DiffLineKind::Header
+            }
             ' ' => DiffLineKind::Context,
             _ => return true, // skip file-header meta lines
         };
@@ -2152,7 +2179,13 @@ fn collect_diff_lines(diff: &git2::Diff<'_>) -> Option<Vec<DiffLine>> {
             .trim_end_matches('\n')
             .trim_end_matches('\r')
             .to_string();
-        lines.push(DiffLine { kind, content });
+        lines.push(DiffLine {
+            kind,
+            content,
+            old_lineno: line.old_lineno(),
+            new_lineno: line.new_lineno(),
+            hunk_idx: current_hunk_idx,
+        });
         true
     })
     .ok()?;
@@ -2613,6 +2646,9 @@ pub fn get_conflict_markers_diff(repo_path: &Path, file_path: &str) -> Vec<DiffL
             lines.push(DiffLine {
                 kind: DiffLineKind::ConflictSeparator,
                 content: line.to_string(),
+                old_lineno: None,
+                new_lineno: None,
+                hunk_idx: None,
             });
         } else if line.starts_with("=======") {
             in_ours = false;
@@ -2620,6 +2656,9 @@ pub fn get_conflict_markers_diff(repo_path: &Path, file_path: &str) -> Vec<DiffL
             lines.push(DiffLine {
                 kind: DiffLineKind::ConflictSeparator,
                 content: line.to_string(),
+                old_lineno: None,
+                new_lineno: None,
+                hunk_idx: None,
             });
         } else if line.starts_with(">>>>>>>") {
             in_ours = false;
@@ -2627,13 +2666,16 @@ pub fn get_conflict_markers_diff(repo_path: &Path, file_path: &str) -> Vec<DiffL
             lines.push(DiffLine {
                 kind: DiffLineKind::ConflictSeparator,
                 content: line.to_string(),
+                old_lineno: None,
+                new_lineno: None,
+                hunk_idx: None,
             });
         } else if in_ours {
-            lines.push(DiffLine { kind: DiffLineKind::ConflictOurs, content: line.to_string() });
+            lines.push(DiffLine { kind: DiffLineKind::ConflictOurs, content: line.to_string(), old_lineno: None, new_lineno: None, hunk_idx: None });
         } else if in_theirs {
-            lines.push(DiffLine { kind: DiffLineKind::ConflictTheirs, content: line.to_string() });
+            lines.push(DiffLine { kind: DiffLineKind::ConflictTheirs, content: line.to_string(), old_lineno: None, new_lineno: None, hunk_idx: None });
         } else {
-            lines.push(DiffLine { kind: DiffLineKind::Context, content: line.to_string() });
+            lines.push(DiffLine { kind: DiffLineKind::Context, content: line.to_string(), old_lineno: None, new_lineno: None, hunk_idx: None });
         }
     }
     lines

@@ -6810,27 +6810,41 @@ fn test_workspace_diff_actions_direct() {
         info: Box::new(mock_info),
     });
 
-    // Populate mock file diff with hunks
     app.diff.file_diff = vec![
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::Header,
             content: "@@ -1,3 +1,4 @@".to_string(),
+            old_lineno: None,
+            new_lineno: None,
+            hunk_idx: Some(0),
         },
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::Context,
             content: " fn main() {".to_string(),
+            old_lineno: Some(1),
+            new_lineno: Some(1),
+            hunk_idx: Some(0),
         },
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::Added,
             content: "+    println!(\"hello\");".to_string(),
+            old_lineno: None,
+            new_lineno: Some(2),
+            hunk_idx: Some(0),
         },
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::Header,
             content: "@@ -10,3 +10,4 @@".to_string(),
+            old_lineno: None,
+            new_lineno: None,
+            hunk_idx: Some(1),
         },
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::Removed,
             content: "-    println!(\"old\");".to_string(),
+            old_lineno: Some(10),
+            new_lineno: None,
+            hunk_idx: Some(1),
         },
     ];
 
@@ -6869,22 +6883,37 @@ fn test_workspace_diff_actions_direct() {
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::ConflictSeparator,
             content: "<<<<<<< OURS".to_string(),
+            old_lineno: None,
+            new_lineno: None,
+            hunk_idx: None,
         },
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::ConflictOurs,
             content: "ours".to_string(),
+            old_lineno: None,
+            new_lineno: None,
+            hunk_idx: None,
         },
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::ConflictSeparator,
             content: "=======".to_string(),
+            old_lineno: None,
+            new_lineno: None,
+            hunk_idx: None,
         },
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::ConflictTheirs,
             content: "theirs".to_string(),
+            old_lineno: None,
+            new_lineno: None,
+            hunk_idx: None,
         },
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::ConflictSeparator,
             content: ">>>>>>> THEIRS".to_string(),
+            old_lineno: None,
+            new_lineno: None,
+            hunk_idx: None,
         },
     ];
 
@@ -8553,14 +8582,23 @@ fn test_workspace_tab_coverage_booster() {
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::Header,
             content: "@@ -1,3 +1,3 @@".to_string(),
+            old_lineno: None,
+            new_lineno: None,
+            hunk_idx: Some(0),
         },
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::Added,
             content: "+added line".to_string(),
+            old_lineno: None,
+            new_lineno: Some(1),
+            hunk_idx: Some(0),
         },
         crate::repo::DiffLine {
             kind: crate::repo::DiffLineKind::Removed,
             content: "-removed line".to_string(),
+            old_lineno: Some(1),
+            new_lineno: None,
+            hunk_idx: Some(0),
         },
     ];
 
