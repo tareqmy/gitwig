@@ -1959,10 +1959,10 @@ fn test_settings_mode_navigation_and_editing() {
     assert_eq!(app.settings_selected_index, 5);
 
     crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
-    assert_eq!(app.settings_selected_index, 8); // Category 2 end is 8
+    assert_eq!(app.settings_selected_index, 61); // Category 2 end is 61
 
     crate::input::handle_key(&mut app, key_event(KeyCode::PageDown), 10);
-    assert_eq!(app.settings_selected_index, 8);
+    assert_eq!(app.settings_selected_index, 61);
 
     // Press Esc to focus sidebar
     crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 10);
@@ -9023,5 +9023,34 @@ fn test_automatic_workspace_sync() {
 
     let _ = std::fs::remove_dir_all(&watch_root);
 }
+
+#[test]
+fn test_settings_watch_dirs_editing() {
+    let mut config = Config::default();
+    config.watch_dirs = vec!["~/old_watch".to_string()];
+    
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_watch.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::Settings;
+    app.settings_selected_index = 61; // Watch directories
+    app.settings_focus_sidebar = false;
+    app.settings_editing = false;
+
+    // Start editing
+    app.toggle_or_edit_setting();
+    assert!(app.settings_editing);
+    assert_eq!(app.input_buffer, "~/old_watch");
+
+    // Modify input buffer
+    app.input_buffer = "~/new_watch,~/another".to_string();
+
+    // Commit edit
+    app.commit_settings_edit();
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.watch_dirs, vec!["~/new_watch".to_string(), "~/another".to_string()]);
+}
+
 
 

@@ -2316,6 +2316,10 @@ impl App {
                 self.settings_editing = true;
                 self.input_buffer = self.config.auto_fetch_interval_mins.to_string();
             }
+            61 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.watch_dirs.join(",");
+            }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {
                     self.settings_editing = true;
@@ -2457,6 +2461,17 @@ impl App {
                 } else {
                     self.status_message = Some("Invalid integer".to_string());
                 }
+            }
+            61 => {
+                self.config.watch_dirs = trimmed
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                self.persist("Watch directories updated");
+                self.settings_editing = false;
+                self.input_buffer.clear();
+                self.setup_watcher();
             }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {

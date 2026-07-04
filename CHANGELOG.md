@@ -7,6 +7,7 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Added
+- support mouse scroll, PageUp/PageDown, and Home/End keys in global search results ([62b4528](https://github.com/tareqmy/gitwig/commit/62b4528))
 - implement automatic workspace synchronization of newly created or cloned repositories ([fb7a9c5](https://github.com/tareqmy/gitwig/commit/fb7a9c5))
 - implement global code search across all tracked repositories ([f08e019](https://github.com/tareqmy/gitwig/commit/f08e019))
 - adding changelog ([cc2ec1c](https://github.com/tareqmy/gitwig/commit/cc2ec1c))
