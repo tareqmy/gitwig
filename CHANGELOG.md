@@ -7,6 +7,12 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Added
+- expose compact_view layout setting in TUI Settings panel ([266cebd](https://github.com/tareqmy/gitwig/commit/266cebd))
+- expose tab_ttl_secs setting in TUI Settings panel ([667d2cd](https://github.com/tareqmy/gitwig/commit/667d2cd))
+- expose detail_cache_ttl_secs setting in TUI Settings panel ([47e011b](https://github.com/tareqmy/gitwig/commit/47e011b))
+- expose graph_max_commits setting in TUI Settings panel ([72ff63a](https://github.com/tareqmy/gitwig/commit/72ff63a))
+- expose enable_commit_signatures setting in TUI Settings panel ([c346b6b](https://github.com/tareqmy/gitwig/commit/c346b6b))
+- add show_system_stats configuration to toggle CPU/Memory display in status bar ([4e10ed8](https://github.com/tareqmy/gitwig/commit/4e10ed8))
 - show default status symbols 30 seconds after bulk fetch completes ([53752a5](https://github.com/tareqmy/gitwig/commit/53752a5))
 
 ## [v2.3.19] - 2026-07-04
