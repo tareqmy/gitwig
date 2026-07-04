@@ -765,9 +765,13 @@ impl SettingsPopup {
                 }
                 KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
                     app.settings_focus_sidebar = false;
+                    let cat = get_active_category(app.settings_selected_index);
+                    app.settings_selected_index = get_category_indices(cat)[0];
                 }
                 KeyCode::Char('w') | KeyCode::Char('W') => {
                     app.settings_focus_sidebar = false;
+                    let cat = get_active_category(app.settings_selected_index);
+                    app.settings_selected_index = get_category_indices(cat)[0];
                 }
                 KeyCode::Char('1') => {
                     app.settings_selected_index = GENERAL_SETTING_INDICES[0];

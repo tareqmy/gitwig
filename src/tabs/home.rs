@@ -99,7 +99,7 @@ impl HomeTab {
                     app.toggle_pin_selected();
                 } else if app.is_bound(Action::HomeOpenSettings, key) {
                     app.mode = Mode::Settings;
-                    app.settings_selected_index = 0;
+                    app.settings_selected_index = 9;
                     app.settings_editing = false;
                     app.settings_focus_sidebar = true;
                 } else if app.is_bound(Action::HomeCheckUpdate, key) {

@@ -1736,7 +1736,7 @@ fn test_settings_mode_navigation_and_editing() {
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('s')), 10);
     assert!(handled);
     assert_eq!(app.mode, Mode::Settings);
-    assert_eq!(app.settings_selected_index, 0);
+    assert_eq!(app.settings_selected_index, 9);
     assert!(!app.settings_editing);
     assert!(app.settings_focus_sidebar);
 
@@ -1744,6 +1744,13 @@ fn test_settings_mode_navigation_and_editing() {
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('w')), 10);
     assert!(handled);
     assert!(!app.settings_focus_sidebar);
+    assert_eq!(app.settings_selected_index, 9);
+
+    // Go down to Poll Interval (index 0): 9 -> 56 -> 55 -> 0
+    for _ in 0..3 {
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    }
+    assert_eq!(app.settings_selected_index, 0);
 
     // Select poll interval, press enter to edit
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
