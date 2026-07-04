@@ -482,9 +482,25 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(sidebar_paragraph, sidebar_inner);
 
     // 2. Settings Content Pane Rendering
+    let right_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(1),
+            Constraint::Length(5),
+        ])
+        .split(chunks[2]);
+
     let indices = get_category_indices(active_cat);
-    let right_inner_rect = chunks[2].inner(Margin { horizontal: 1, vertical: 1 });
-    let available_text_width = (right_inner_rect.width as usize).saturating_sub(6);
+    let right_title = format!(" {} ", get_category_name(active_cat));
+    let right_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(if !app.settings_focus_sidebar { accent_style() } else { muted_style() })
+        .title(Span::styled(right_title, primary_style()))
+        .padding(Padding::horizontal(1));
+
+    let content_inner = right_block.inner(right_chunks[0]);
+    let available_text_width = (content_inner.width as usize).saturating_sub(6);
 
     let mut right_items = Vec::new();
     let mut current_line = 0;
@@ -500,7 +516,6 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         let is_selected = sub_idx == active_sub_idx && !app.settings_focus_sidebar;
 
         let label = get_label(global_idx);
-        let desc = get_desc(global_idx);
         let val_str = get_val_str(app, global_idx);
 
         let prefix = if is_selected { "> " } else { "  " };
@@ -522,12 +537,8 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             wrap_str(&val_str, val_width)
         };
 
-        let desc_offset = 5;
-        let desc_width = available_text_width.saturating_sub(desc_offset).max(10);
-        let desc_chunks = wrap_str(desc, desc_width);
-
         item_starts[sub_idx] = current_line;
-        let item_height = val_chunks.len() + desc_chunks.len() + 1; // value lines + desc lines + spacer
+        let item_height = val_chunks.len() + 1; // value lines + spacer
         current_line += item_height;
 
         if is_selected {
@@ -571,17 +582,11 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             ]));
         }
 
-        // Description lines (indented by 5 spaces)
-        for chunk in desc_chunks {
-            right_items
-                .push(Line::from(vec![Span::raw("     "), Span::styled(chunk, muted_style())]));
-        }
-
         // Spacer
         right_items.push(Line::from(""));
     }
 
-    let viewport_height = right_inner_rect.height as usize;
+    let viewport_height = content_inner.height as usize;
     let total_height = current_line;
     let mut scroll_y = if viewport_height >= total_height {
         0
@@ -614,20 +619,31 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         }
     }
 
-    let right_title = format!(" {} ", get_category_name(active_cat));
-    let right_block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(CARD_BORDER())
-        .border_style(if !app.settings_focus_sidebar { accent_style() } else { muted_style() })
-        .title(Span::styled(right_title, primary_style()))
-        .padding(Padding::horizontal(1));
-
-    let content_inner = right_block.inner(chunks[2]);
-    f.render_widget(right_block, chunks[2]);
+    f.render_widget(right_block, right_chunks[0]);
 
     let paragraph =
         Paragraph::new(right_items).alignment(Alignment::Left).scroll((scroll_y as u16, 0));
     f.render_widget(paragraph, content_inner);
+
+    // 3. Render description panel at the bottom
+    let desc_title = " Description ";
+    let desc_block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(muted_style())
+        .title(Span::styled(desc_title, muted_style()))
+        .padding(Padding::horizontal(1));
+    let desc_inner = desc_block.inner(right_chunks[1]);
+    f.render_widget(desc_block, right_chunks[1]);
+
+    let active_desc = get_desc(app.settings_selected_index);
+    let desc_width = (desc_inner.width as usize).saturating_sub(2).max(10);
+    let desc_lines: Vec<Line> = wrap_str(active_desc, desc_width)
+        .into_iter()
+        .map(|s| Line::from(Span::styled(s, muted_style())))
+        .collect();
+    let desc_para = Paragraph::new(desc_lines);
+    f.render_widget(desc_para, desc_inner);
 
     // Dropdown rendering for theme name (index 3)
     if app.settings_editing && app.settings_selected_index == 3 && !app.settings_focus_sidebar {

@@ -7,6 +7,7 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Added
+- display settings value beside name on the same line ([42e5ef5](https://github.com/tareqmy/gitwig/commit/42e5ef5))
 - expose compact_view layout setting in TUI Settings panel ([266cebd](https://github.com/tareqmy/gitwig/commit/266cebd))
 - expose tab_ttl_secs setting in TUI Settings panel ([667d2cd](https://github.com/tareqmy/gitwig/commit/667d2cd))
 - expose detail_cache_ttl_secs setting in TUI Settings panel ([47e011b](https://github.com/tareqmy/gitwig/commit/47e011b))
