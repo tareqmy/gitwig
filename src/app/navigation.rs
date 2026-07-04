@@ -2324,6 +2324,10 @@ impl App {
                 self.config.show_system_stats = !self.config.show_system_stats;
                 self.persist("Show CPU/MEM updated");
             }
+            63 => {
+                self.config.enable_commit_signatures = !self.config.enable_commit_signatures;
+                self.persist("Commit signatures updated");
+            }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {
                     self.settings_editing = true;

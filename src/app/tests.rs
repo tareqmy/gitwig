@@ -9125,6 +9125,30 @@ fn test_settings_show_system_stats_toggling() {
     assert!(!app.config.show_system_stats);
 }
 
+#[test]
+fn test_settings_enable_commit_signatures_toggling() {
+    let mut config = Config::default();
+    config.enable_commit_signatures = false;
+    
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_signatures.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::Settings;
+    app.settings_selected_index = 63; // Enable Commit Signatures
+    app.settings_focus_sidebar = false;
+    app.settings_editing = false;
+
+    // Toggle setting
+    app.toggle_or_edit_setting();
+    assert!(app.config.enable_commit_signatures);
+
+    // Toggle again
+    app.toggle_or_edit_setting();
+    assert!(!app.config.enable_commit_signatures);
+}
+
+
 
 
 
