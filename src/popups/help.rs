@@ -90,6 +90,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("e", "Edit selected item"),
                 ("D", "Delete selected item"),
                 ("f", "Enter repository search mode"),
+                ("ctrl+f", "Open global code search popup overlay"),
                 ("R", "Refresh status of selected item"),
                 ("F", "Bulk fetch all tracked repositories concurrently"),
                 ("o / O", "Cycle sorting mode / Toggle reverse sorting"),

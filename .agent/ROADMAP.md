@@ -159,6 +159,6 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Line-level Staging:** Selecting individual lines within a hunk and staging only those lines.
 
 ## Phase 14: Repository Search & Discovery Enhancements
-- [ ] **Global Code Search:** Search for string patterns across all tracked repositories using a fast, multithreaded search fallback from the homepage.
-- [ ] **Automatic Workspace Sync:** Watch a specified directory (e.g., `~/development`) and automatically add new repositories as they are created or cloned.
+- [x] **Global Code Search:** Search for string patterns across all tracked repositories using a fast, multithreaded search fallback from the homepage.
+- [x] **Automatic Workspace Sync:** Watch a specified directory (e.g., `~/development`) and automatically add new repositories as they are created or cloned.
 

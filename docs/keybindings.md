@@ -13,6 +13,7 @@
 | `R`                  | Normal          | Refresh status of selected item   |
 | `F`                  | Normal          | Bulk fetch all tracked repositories concurrently |
 | `f`                  | Normal          | Enter repository search mode      |
+| `ctrl+f`             | Normal          | Open global code search popup overlay |
 | `p`                  | Normal          | Toggle pin status of selected item |
 | `*`                  | Normal          | Toggle Favorite / Star status of selected item |
 | `Space`              | Normal          | Toggle selection of item for batch operations (fetch, delete, terminal) |
@@ -35,8 +36,14 @@
 | `Esc`                | Normal          | Clear active search filter or cancel all repository selections |
 | `Enter`              | Editing         | Save the typed text and persist   |
 | `Esc`                | Editing         | Cancel without saving             |
-| `Enter`              | RepoSearchInput | Apply repository search and return to Normal mode |
 | `Esc`                | RepoSearchInput | Clear repository search and return to Normal mode |
+| `Esc`                | GlobalSearch    | Return to Normal mode             |
+| `Tab`                | GlobalSearch    | Toggle focus between search query input and results |
+| `↑` / `↓`            | GlobalSearch    | Navigate search results           |
+| `Enter` (Query focus)| GlobalSearch    | Trigger/execute search scan       |
+| `Enter` (Results focus) | GlobalSearch | Select matched result, jump to repository, and open Detail view |
+| `Char`               | GlobalSearch    | Type query (when input is focused)|
+| `Backspace`          | GlobalSearch    | Erase query character (when input is focused) |
 | `Enter`              | Settings (Edit) | Save settings edit                |
 | `Esc`                | Settings (Edit) | Cancel settings edit              |
 | `Esc` / `q`          | Settings        | Exit Settings and return to Home  |

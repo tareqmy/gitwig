@@ -29,6 +29,9 @@ sort_reverse = false
 
 # Enable compatibility mode to use simple ASCII symbols
 compatibility_mode = false
+
+# Directories to watch recursively for automatic workspace syncing
+watch_dirs = ["~/development"]
 ```
 
 ### Config keys
@@ -36,6 +39,7 @@ compatibility_mode = false
 | Key | Type | Default | Description |
 | --- | ---- | ------- | ----------- |
 | `items` | `[String]` | `[]` | Paths shown in the main list. Managed by the in-app `a` (directory scan) / `e` / `d` shortcuts. |
+| `watch_dirs` | `[String]` | `[]` | Directories watched recursively for automatic workspace synchronization. When a new Git repository is cloned or created in these directories, it is automatically added to `items` and persisted. |
 | `poll_interval_ms` | `Integer` | `100` | How long (ms) the event loop waits between input checks. Lower feels snappier; higher saves CPU. |
 | `max_commits` | `Integer` | `0` | Maximum commits to load in workspace view. Set to `0` for unlimited. |
 | `page_size` | `Integer` | `10` | Number of lines/items scrolled by Page Up / Page Down. |

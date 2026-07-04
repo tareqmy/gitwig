@@ -7,7 +7,9 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Added
-- adding changelog ([81cde7c](https://github.com/tareqmy/gitwig/commit/81cde7c))
+- implement automatic workspace synchronization of newly created or cloned repositories ([fb7a9c5](https://github.com/tareqmy/gitwig/commit/fb7a9c5))
+- implement global code search across all tracked repositories ([f08e019](https://github.com/tareqmy/gitwig/commit/f08e019))
+- adding changelog ([cc2ec1c](https://github.com/tareqmy/gitwig/commit/cc2ec1c))
 
 ### Fixed
 - clear generic input_buffer instead of commit_popup buffer and take inputs from status bar for remote add ([52c2c7e](https://github.com/tareqmy/gitwig/commit/52c2c7e))
