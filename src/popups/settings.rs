@@ -503,7 +503,18 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         let desc = get_desc(global_idx);
         let val_str = get_val_str(app, global_idx);
 
-        let val_offset = if is_selected && app.settings_editing { 11 } else { 5 };
+        let prefix = if is_selected { "> " } else { "  " };
+        let label_sep = if is_selected && app.settings_editing {
+            if global_idx == 3 { "  [Select]: " } else { "  [Edit]: " }
+        } else {
+            ": "
+        };
+
+        let prefix_len = prefix.chars().count();
+        let label_len = label.chars().count();
+        let sep_len = label_sep.chars().count();
+        let val_offset = prefix_len + label_len + sep_len;
+
         let val_width = available_text_width.saturating_sub(val_offset).max(10);
         let val_chunks = if global_idx == 8 {
             wrap_excludes(&val_str, val_width)
@@ -516,7 +527,7 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         let desc_chunks = wrap_str(desc, desc_width);
 
         item_starts[sub_idx] = current_line;
-        let item_height = 1 + val_chunks.len() + desc_chunks.len() + 1; // label + value + desc + spacer
+        let item_height = val_chunks.len() + desc_chunks.len() + 1; // value lines + desc lines + spacer
         current_line += item_height;
 
         if is_selected {
@@ -526,10 +537,8 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             selected_val_offset = val_offset;
         }
 
-        let prefix = if is_selected { "> " } else { "  " };
-
-        // Line 1: Label line
-        right_items.push(Line::from(vec![
+        // Line 1: Label + First chunk of Value
+        let mut val_line_spans = vec![
             Span::styled(prefix, if is_selected { accent_style() } else { muted_style() }),
             Span::styled(
                 label,
@@ -539,40 +548,27 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
                     primary_style()
                 },
             ),
-        ]));
+            Span::styled(label_sep, muted_style()),
+        ];
 
-        // Line 2: First line of value (indented by val_offset)
-        let mut val_line_spans = Vec::new();
-        if is_selected && app.settings_editing {
-            let label_edit = if global_idx == 3 { "   [Select]: " } else { "   [Edit]: " };
-            val_line_spans.push(Span::styled(label_edit, muted_style()));
-            val_line_spans.push(Span::styled(
-                val_chunks[0].clone(),
-                Style::default().fg(ACCENT()).add_modifier(Modifier::UNDERLINED),
-            ));
+        let val_style = if is_selected && app.settings_editing {
+            Style::default().fg(ACCENT()).add_modifier(Modifier::UNDERLINED)
+        } else if is_selected {
+            accent_style()
         } else {
-            val_line_spans.push(Span::styled("   : ", muted_style()));
-            val_line_spans.push(Span::styled(
-                val_chunks[0].clone(),
-                if is_selected { accent_style() } else { Style::default() },
-            ));
-        }
+            Style::default()
+        };
+
+        val_line_spans.push(Span::styled(val_chunks[0].clone(), val_style));
         right_items.push(Line::from(val_line_spans));
 
         // Subsequent lines of the value (indented by val_offset spaces)
         for chunk in val_chunks.iter().skip(1) {
             let spaces = " ".repeat(val_offset);
-            let span = Span::styled(
-                chunk.clone(),
-                if is_selected && app.settings_editing {
-                    Style::default().fg(ACCENT()).add_modifier(Modifier::UNDERLINED)
-                } else if is_selected {
-                    accent_style()
-                } else {
-                    Style::default()
-                },
-            );
-            right_items.push(Line::from(vec![Span::raw(spaces), span]));
+            right_items.push(Line::from(vec![
+                Span::raw(spaces),
+                Span::styled(chunk.clone(), val_style),
+            ]));
         }
 
         // Description lines (indented by 5 spaces)
@@ -602,8 +598,15 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         target_scroll.min(max_scroll)
     };
 
-    if app.settings_editing && app.settings_selected_index != 3 && !app.settings_focus_sidebar {
-        let cursor_line = item_starts[active_sub_idx] + 1 + (selected_val_chunks_len - 1);
+    if active_sub_idx == indices.len() - 1 {
+        let last_start = item_starts[active_sub_idx];
+        let last_height = total_height - last_start;
+        let last_end = last_start + last_height;
+        if last_end > scroll_y + viewport_height {
+            scroll_y = last_end.saturating_sub(viewport_height);
+        }
+    } else {
+        let cursor_line = item_starts[active_sub_idx];
         if cursor_line < scroll_y {
             scroll_y = cursor_line;
         } else if cursor_line >= scroll_y + viewport_height {
@@ -671,7 +674,7 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     // Cursor position rendering
     if app.settings_editing && app.settings_selected_index != 3 && !app.settings_focus_sidebar {
-        let cursor_line = item_starts[active_sub_idx] + 1 + (selected_val_chunks_len - 1);
+        let cursor_line = item_starts[active_sub_idx] + (selected_val_chunks_len - 1);
 
         if cursor_line >= scroll_y && cursor_line < scroll_y + viewport_height {
             let cursor_y = (content_inner.y + cursor_line as u16).saturating_sub(scroll_y as u16);
