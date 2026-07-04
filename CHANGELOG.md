@@ -25,6 +25,7 @@ and this project adheres to Semantic Versioning.
 - organize settings categories and implement word-wrapping for descriptions ([778f996](https://github.com/tareqmy/gitwig/commit/778f996))
 
 ### Documentation
+- update settings keybindings, configuration references, and status bar shortcuts ([9d0ab79](https://github.com/tareqmy/gitwig/commit/9d0ab79))
 - update changelog with exposed settings features ([3037cbc](https://github.com/tareqmy/gitwig/commit/3037cbc))
 
 ## [v2.3.19] - 2026-07-04
