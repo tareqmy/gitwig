@@ -447,6 +447,32 @@ impl WorkspaceTab {
                     app.toggle_diff_line_mode();
                     return true;
                 }
+                KeyCode::Char('s') | KeyCode::Char('S')
+                    if app.is_uncommitted_selected()
+                        && detail_focus == DetailSection::StagingDetails =>
+                {
+                    if app.last_staging_focus == DetailSection::Unstaged {
+                        if app.diff.diff_line_mode {
+                            app.stage_selected_line();
+                        } else {
+                            app.stage_selected_hunk();
+                        }
+                    }
+                    return true;
+                }
+                KeyCode::Char('u') | KeyCode::Char('U')
+                    if app.is_uncommitted_selected()
+                        && detail_focus == DetailSection::StagingDetails =>
+                {
+                    if app.last_staging_focus == DetailSection::Staged {
+                        if app.diff.diff_line_mode {
+                            app.unstage_selected_line();
+                        } else {
+                            app.unstage_selected_hunk();
+                        }
+                    }
+                    return true;
+                }
                 KeyCode::Char('s') | KeyCode::Char('S') => {
                     app.stashing_ui_selection = 0;
                     app.stash_untracked = true;

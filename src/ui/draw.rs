@@ -2288,7 +2288,7 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(entry_labels.iter().any(|label| label.contains("Unstage Hunk [↵]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Unstage Hunk [↵/u]")));
 
         // D) StagingDetails with last_staging_focus == Unstaged -> Stage Hunk [↵]
         app.detail_focus = DetailSection::StagingDetails;
@@ -2300,10 +2300,10 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(entry_labels.iter().any(|label| label.contains("Stage Hunk [↵]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Stage Hunk [↵/s]")));
         assert!(entry_labels.iter().any(|label| label.contains("Discard Hunk [x/Del]")));
 
-        // D2) StagingDetails with last_staging_focus == Unstaged and diff_line_mode == true -> Stage Line [↵] & Discard Line [x/Del] & Hunk Mode [l]
+        // D2) StagingDetails with last_staging_focus == Unstaged and diff_line_mode == true -> Stage Line [↵/s] & Discard Line [x/Del] & Hunk Mode [l]
         app.diff.diff_line_mode = true;
         let (_, entries) = inspect_dismiss_entries(&app);
         let entry_labels: Vec<String> = entries
@@ -2312,7 +2312,7 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(entry_labels.iter().any(|label| label.contains("Stage Line [↵]")));
+        assert!(entry_labels.iter().any(|label| label.contains("Stage Line [↵/s]")));
         assert!(entry_labels.iter().any(|label| label.contains("Discard Line [x/Del]")));
         assert!(entry_labels.iter().any(|label| label.contains("Hunk Mode [l]")));
 

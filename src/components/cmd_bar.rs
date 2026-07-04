@@ -1448,17 +1448,17 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
                     if app.diff.diff_line_mode {
                         entries_data.push(("Hunk Mode", "l"));
                         if app.last_staging_focus == DetailSection::Staged {
-                            entries_data.push(("Unstage Line", "↵"));
+                            entries_data.push(("Unstage Line", "↵/u"));
                         } else if app.last_staging_focus == DetailSection::Unstaged {
-                            entries_data.push(("Stage Line", "↵"));
+                            entries_data.push(("Stage Line", "↵/s"));
                             entries_data.push(("Discard Line", "x/Del"));
                         }
                     } else {
                         entries_data.push(("Line Mode", "l"));
                         if app.last_staging_focus == DetailSection::Staged {
-                            entries_data.push(("Unstage Hunk", "↵"));
+                            entries_data.push(("Unstage Hunk", "↵/u"));
                         } else if app.last_staging_focus == DetailSection::Unstaged {
-                            entries_data.push(("Stage Hunk", "↵"));
+                            entries_data.push(("Stage Hunk", "↵/s"));
                             entries_data.push(("Discard Hunk", "x/Del"));
                         }
                     }

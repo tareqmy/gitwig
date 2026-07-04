@@ -447,6 +447,30 @@ impl InspectPopup {
             {
                 app.toggle_diff_line_mode();
             }
+            KeyCode::Char('s') | KeyCode::Char('S')
+                if app.is_uncommitted_selected()
+                    && app.detail_focus == DetailSection::StagingDetails =>
+            {
+                if app.last_staging_focus == DetailSection::Unstaged {
+                    if app.diff.diff_line_mode {
+                        app.stage_selected_line();
+                    } else {
+                        app.stage_selected_hunk();
+                    }
+                }
+            }
+            KeyCode::Char('u') | KeyCode::Char('U')
+                if app.is_uncommitted_selected()
+                    && app.detail_focus == DetailSection::StagingDetails =>
+            {
+                if app.last_staging_focus == DetailSection::Staged {
+                    if app.diff.diff_line_mode {
+                        app.unstage_selected_line();
+                    } else {
+                        app.unstage_selected_hunk();
+                    }
+                }
+            }
             KeyCode::Char('o')
                 if (app.detail_focus == DetailSection::Conflicts
                     || app.detail_focus == DetailSection::ConflictDiff)
