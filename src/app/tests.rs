@@ -9102,5 +9102,29 @@ fn test_bulk_fetch_completion_and_30s_clear() {
     assert!(app.bulk_fetch_completed_at.is_none());
 }
 
+#[test]
+fn test_settings_show_system_stats_toggling() {
+    let mut config = Config::default();
+    config.show_system_stats = false;
+    
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_stats.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::Settings;
+    app.settings_selected_index = 62; // Show CPU/MEM in Status Bar
+    app.settings_focus_sidebar = false;
+    app.settings_editing = false;
+
+    // Toggle setting (simulates Enter/Space key press)
+    app.toggle_or_edit_setting();
+    assert!(app.config.show_system_stats);
+
+    // Toggle again
+    app.toggle_or_edit_setting();
+    assert!(!app.config.show_system_stats);
+}
+
+
 
 

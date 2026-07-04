@@ -2320,6 +2320,10 @@ impl App {
                 self.settings_editing = true;
                 self.input_buffer = self.config.watch_dirs.join(",");
             }
+            62 => {
+                self.config.show_system_stats = !self.config.show_system_stats;
+                self.persist("Show CPU/MEM updated");
+            }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {
                     self.settings_editing = true;

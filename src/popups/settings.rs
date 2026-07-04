@@ -13,7 +13,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
 
-const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13, 58, 55, 56, 60];
+const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13, 58, 55, 56, 60, 62];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 10, 8, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3];
@@ -110,6 +110,7 @@ fn get_label(global_idx: usize) -> &'static str {
         56 => "Editor Command",
         60 => "Auto-Fetch Interval (mins)",
         61 => "Watch Directories",
+        62 => "Show CPU/MEM in Status Bar",
         14 => "Toggle Status Bar",
         15 => "Help",
         16 => "Quit / Close Dialog",
@@ -188,6 +189,9 @@ fn get_desc(global_idx: usize) -> &'static str {
         }
         61 => {
             "Comma-separated list of directories watched recursively for automatic workspace synchronization (e.g. ~/development)."
+        }
+        62 => {
+            "Display memory usage and CPU usage of the Gitwig process in the bottom status bar."
         }
         14 => "Toggles the status bar between collapsed and expanded view.",
         15 => "Opens the global help overlay.",
@@ -344,6 +348,7 @@ pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
                     app.config.watch_dirs.join(",")
                 }
             }
+            62 => app.config.show_system_stats.to_string(),
             _ => String::new(),
         }
     }

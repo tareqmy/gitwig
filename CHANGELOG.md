@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Added
+- show default status symbols 30 seconds after bulk fetch completes ([53752a5](https://github.com/tareqmy/gitwig/commit/53752a5))
 
 ## [v2.3.19] - 2026-07-04
 ### Added

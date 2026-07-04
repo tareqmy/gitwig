@@ -143,6 +143,7 @@ impl Default for Config {
             compact_view: false,
             show_grouping: true,
             auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
+            show_system_stats: default_show_system_stats(),
         }
     }
 }
@@ -222,6 +223,9 @@ fn default_enable_commit_signatures() -> bool {
 }
 fn default_auto_fetch_interval_mins() -> u64 {
     10
+}
+fn default_show_system_stats() -> bool {
+    false
 }
 
 fn default_scan() -> ScanConfig {
@@ -317,6 +321,9 @@ pub struct Config {
     /// Time interval in minutes to automatically run git fetch in the background for all repositories. Set to 0 to disable.
     #[serde(default = "default_auto_fetch_interval_mins")]
     pub auto_fetch_interval_mins: u64,
+    /// Whether to show current CPU & Memory stats in the status bar at the bottom.
+    #[serde(default = "default_show_system_stats")]
+    pub show_system_stats: bool,
 }
 
 impl Config {
@@ -436,6 +443,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         compact_view: false,
         show_grouping: true,
         auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
+        show_system_stats: default_show_system_stats(),
     };
 
     // Attempt to save the fallback back to the original path.
@@ -568,6 +576,7 @@ pub fn load_config(
                 compact_view: false,
                 show_grouping: true,
                 auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
+                show_system_stats: default_show_system_stats(),
             },
             path,
             None,
@@ -693,6 +702,7 @@ pub fn load_config(
         compact_view: false,
         show_grouping: true,
         auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
+        show_system_stats: default_show_system_stats(),
     };
     save_config(&fallback, &canonical)?;
 

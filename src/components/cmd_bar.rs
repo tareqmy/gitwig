@@ -1710,10 +1710,17 @@ fn draw_status_layout(
             false
         };
 
-    let status_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Min(1), Constraint::Length(28)])
-        .split(area);
+    let status_chunks = if app.config.show_system_stats {
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Min(1), Constraint::Length(28)])
+            .split(area)
+    } else {
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Min(1), Constraint::Length(0)])
+            .split(area)
+    };
 
     let left_area = status_chunks[0];
     let right_area = status_chunks[1];
@@ -1798,7 +1805,7 @@ fn draw_status_layout(
 
     // Render CPU & Memory Stats on the right
     let (rss_mb, cpu_pct) = get_process_stats(app);
-    let stats_text = if rss_mb > 0.0 {
+    let stats_text = if app.config.show_system_stats && rss_mb > 0.0 {
         format!(" mem: {:.1}mb │ cpu: {:.1}% ", rss_mb, cpu_pct)
     } else {
         "".to_string()
