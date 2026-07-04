@@ -2332,6 +2332,10 @@ impl App {
                 self.settings_editing = true;
                 self.input_buffer = self.config.graph_max_commits.to_string();
             }
+            65 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.detail_cache_ttl_secs.to_string();
+            }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {
                     self.settings_editing = true;
@@ -2489,6 +2493,16 @@ impl App {
                 if let Ok(val) = trimmed.parse::<usize>() {
                     self.config.graph_max_commits = val;
                     self.persist("Graph max commits updated");
+                    self.settings_editing = false;
+                    self.input_buffer.clear();
+                } else {
+                    self.status_message = Some("Invalid integer".to_string());
+                }
+            }
+            65 => {
+                if let Ok(val) = trimmed.parse::<u64>() {
+                    self.config.detail_cache_ttl_secs = val;
+                    self.persist("Detail cache TTL updated");
                     self.settings_editing = false;
                     self.input_buffer.clear();
                 } else {

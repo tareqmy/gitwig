@@ -13,7 +13,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
 
-const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13, 58, 55, 56, 60, 62, 63];
+const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13, 58, 55, 56, 60, 62, 63, 65];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 10, 8, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3];
@@ -113,6 +113,7 @@ fn get_label(global_idx: usize) -> &'static str {
         62 => "Show CPU/MEM in Status Bar",
         63 => "Enable Commit Signatures",
         64 => "Graph Max Commits",
+        65 => "Detail Cache TTL (secs)",
         14 => "Toggle Status Bar",
         15 => "Help",
         16 => "Quit / Close Dialog",
@@ -200,6 +201,9 @@ fn get_desc(global_idx: usize) -> &'static str {
         }
         64 => {
             "Maximum commits visualized in the Graph tab history. Set to 0 for unlimited."
+        }
+        65 => {
+            "How long in seconds repository details (history, files, etc) are cached in memory before reloading."
         }
         14 => "Toggles the status bar between collapsed and expanded view.",
         15 => "Opens the global help overlay.",
@@ -363,6 +367,13 @@ pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
                     format!("{}█", app.input_buffer)
                 } else {
                     app.config.graph_max_commits.to_string()
+                }
+            }
+            65 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.detail_cache_ttl_secs.to_string()
                 }
             }
             _ => String::new(),
