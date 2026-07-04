@@ -1862,10 +1862,10 @@ fn test_settings_mode_navigation_and_editing() {
 
     // Go to General Settings (Category 0) using hotkey '1'
     crate::input::handle_key(&mut app, key_event(KeyCode::Char('1')), 10);
-    assert_eq!(app.settings_selected_index, 0);
+    assert_eq!(app.settings_selected_index, 9);
 
-    // Navigate to Page Size (index 7): 0 -> 7
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    // Navigate to Page Size (index 7) by pressing End
+    crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
     assert_eq!(app.settings_selected_index, 7);
 
     // Edit Page Size
@@ -1876,8 +1876,8 @@ fn test_settings_mode_navigation_and_editing() {
     assert!(!app.settings_editing);
     assert_eq!(app.config.page_size, 15);
 
-    // Go down to Preferred Git Client (index 9): 7 -> 9
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    // Go down to Preferred Git Client (index 9) by pressing Home
+    crate::input::handle_key(&mut app, key_event(KeyCode::Home), 10);
     assert_eq!(app.settings_selected_index, 9);
 
     // Edit Preferred Git Client
@@ -1888,8 +1888,11 @@ fn test_settings_mode_navigation_and_editing() {
     assert!(!app.settings_editing);
     assert_eq!(app.config.git_app, "lazygit");
 
-    // Go down to Compatibility Mode (index 12): 9 -> 12
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    // Go to Compatibility Mode (index 12): first press End to go to 7, then Up 4 times
+    crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
+    for _ in 0..4 {
+        crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
+    }
     assert_eq!(app.settings_selected_index, 12);
     assert!(!app.config.compatibility_mode);
 
@@ -1899,8 +1902,10 @@ fn test_settings_mode_navigation_and_editing() {
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
     assert!(!app.config.compatibility_mode);
 
-    // Go down to Resync on Tab Change (index 13): 12 -> 13
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    // Go to Resync on Tab Change (index 13) by going Up 3 times (12 -> 66 -> 65 -> 13)
+    for _ in 0..3 {
+        crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
+    }
     assert_eq!(app.settings_selected_index, 13);
     assert!(!app.config.resync_on_tab_change);
 
@@ -1927,17 +1932,10 @@ fn test_settings_mode_navigation_and_editing() {
 
     // Test Auto-Fetch Interval (index 60) in Category 0
     crate::input::handle_key(&mut app, key_event(KeyCode::Char('1')), 10);
-    assert_eq!(app.settings_selected_index, 0);
-    // Move down through all items in Category 0:
-    // 0 -> 7 -> 9 -> 12 -> 13 -> 58 -> 55 -> 56 -> 60
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 7
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 9
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 12
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 13
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 58
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 55
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 56
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10); // 60
+    assert_eq!(app.settings_selected_index, 9);
+    for _ in 0..4 {
+        crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    }
     assert_eq!(app.settings_selected_index, 60);
 
     // Edit Auto-Fetch Interval

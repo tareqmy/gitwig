@@ -1273,15 +1273,53 @@ pub(crate) fn wrap_str(s: &str, max_width: usize) -> Vec<String> {
     if s.is_empty() {
         return vec![String::new()];
     }
-    let mut chunks = Vec::new();
-    let chars: Vec<char> = s.chars().collect();
-    let mut i = 0;
-    while i < chars.len() {
-        let end = (i + max_width).min(chars.len());
-        chunks.push(chars[i..end].iter().collect());
-        i = end;
+    let mut lines = Vec::new();
+    for paragraph in s.lines() {
+        let mut current_line = String::new();
+        for word in paragraph.split_whitespace() {
+            if current_line.is_empty() {
+                if word.chars().count() > max_width {
+                    let chars: Vec<char> = word.chars().collect();
+                    let mut i = 0;
+                    while i < chars.len() {
+                        let end = (i + max_width).min(chars.len());
+                        lines.push(chars[i..end].iter().collect());
+                        i = end;
+                    }
+                } else {
+                    current_line.push_str(word);
+                }
+            } else {
+                let proposed_len = current_line.chars().count() + 1 + word.chars().count();
+                if proposed_len <= max_width {
+                    current_line.push(' ');
+                    current_line.push_str(word);
+                } else {
+                    lines.push(current_line);
+                    if word.chars().count() > max_width {
+                        let chars: Vec<char> = word.chars().collect();
+                        let mut i = 0;
+                        while i < chars.len() {
+                            let end = (i + max_width).min(chars.len());
+                            lines.push(chars[i..end].iter().collect());
+                            i = end;
+                        }
+                        current_line = String::new();
+                    } else {
+                        current_line = word.to_string();
+                    }
+                }
+            }
+        }
+        if !current_line.is_empty() {
+            lines.push(current_line);
+        }
     }
-    chunks
+    if lines.is_empty() {
+        vec![String::new()]
+    } else {
+        lines
+    }
 }
 
 /// Pack comma-separated `val_str` items onto lines of at most `max_width` chars.

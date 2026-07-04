@@ -13,7 +13,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
 
-const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13, 58, 55, 56, 60, 62, 63, 65, 66];
+const GENERAL_SETTING_INDICES: &[usize] = &[9, 56, 55, 0, 60, 13, 65, 66, 12, 58, 62, 63, 7];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 10, 8, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3, 67];

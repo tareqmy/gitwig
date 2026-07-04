@@ -15,6 +15,9 @@ and this project adheres to Semantic Versioning.
 - add show_system_stats configuration to toggle CPU/Memory display in status bar ([4e10ed8](https://github.com/tareqmy/gitwig/commit/4e10ed8))
 - show default status symbols 30 seconds after bulk fetch completes ([53752a5](https://github.com/tareqmy/gitwig/commit/53752a5))
 
+### Documentation
+- update changelog with exposed settings features ([3037cbc](https://github.com/tareqmy/gitwig/commit/3037cbc))
+
 ## [v2.3.19] - 2026-07-04
 ### Added
 - support editing watch directories inside Settings menu ([423854e](https://github.com/tareqmy/gitwig/commit/423854e))
