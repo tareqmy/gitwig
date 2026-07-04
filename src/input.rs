@@ -87,6 +87,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::WorktreeRemoveConfirm
             | Mode::SubmoduleAddUrlInput
             | Mode::SubmoduleAddPathInput
+            | Mode::GlobalSearch
     ) || (matches!(app.mode, Mode::CommitInput) && app.commit_popup.editing)
         || (matches!(app.mode, Mode::Settings) && app.settings_editing);
     if !is_text_input && app.is_bound(crate::keybindings::Action::ToggleStatusBar, key) {
@@ -379,6 +380,48 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             {
                 return true;
             }
+        }
+        Mode::GlobalSearch => {
+            match code {
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.mode = Mode::Normal;
+                }
+                KeyCode::Tab => {
+                    app.global_search_focus_input = !app.global_search_focus_input;
+                }
+                KeyCode::Up => {
+                    if !app.global_search_results.is_empty() {
+                        app.global_search_selection = app.global_search_selection.saturating_sub(1);
+                    }
+                }
+                KeyCode::Down => {
+                    if !app.global_search_results.is_empty()
+                        && app.global_search_selection + 1 < app.global_search_results.len()
+                    {
+                        app.global_search_selection += 1;
+                    }
+                }
+                KeyCode::Enter => {
+                    if app.global_search_focus_input {
+                        app.trigger_global_search();
+                    } else {
+                        app.select_global_search_result();
+                    }
+                }
+                KeyCode::Backspace => {
+                    if app.global_search_focus_input {
+                        app.input_buffer.pop();
+                    }
+                }
+                KeyCode::Char(c) => {
+                    if app.global_search_focus_input {
+                        app.input_buffer.push(c);
+                    }
+                }
+                _ => {}
+            }
+            return true;
         }
         Mode::RepoJump => {
             let matches = app.get_jump_matches();

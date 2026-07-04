@@ -509,4 +509,122 @@ impl App {
         }
         results
     }
+
+    pub fn trigger_global_search(&mut self) {
+        let query = self.input_buffer.clone();
+        if query.trim().is_empty() {
+            return;
+        }
+        self.global_search_query = query.clone();
+        self.global_search_running = true;
+        self.global_search_results.clear();
+        self.global_search_selection = 0;
+        
+        let tx = self.global_search_tx.clone();
+        let repo_paths = self.config.items.clone();
+        
+        std::thread::spawn(move || {
+            let mut handles = Vec::new();
+            let query_lower = query.to_lowercase();
+            
+            for path_str in repo_paths {
+                let path = std::path::PathBuf::from(&path_str);
+                let query_lower = query_lower.clone();
+                let path_str_clone = path_str.clone();
+                
+                let handle = std::thread::spawn(move || {
+                    let mut local_results = Vec::new();
+                    let repo_name = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| path_str_clone.clone());
+                        
+                    fn walk_and_search(
+                        current_dir: &std::path::Path,
+                        base_dir: &std::path::Path,
+                        repo_name: &str,
+                        repo_path: &str,
+                        query: &str,
+                        results: &mut Vec<SearchResult>,
+                    ) {
+                        if let Ok(entries) = std::fs::read_dir(current_dir) {
+                            for entry in entries.flatten() {
+                                let path = entry.path();
+                                let name = entry.file_name();
+                                let name_str = name.to_string_lossy();
+                                
+                                if name_str.starts_with('.') 
+                                    || name_str == "target" 
+                                    || name_str == "node_modules"
+                                    || name_str == "build"
+                                    || name_str == "dist"
+                                    || name_str == "vendor"
+                                {
+                                    continue;
+                                }
+                                
+                                if path.is_dir() {
+                                    walk_and_search(&path, base_dir, repo_name, repo_path, query, results);
+                                } else if path.is_file() {
+                                    if let Ok(meta) = entry.metadata() {
+                                        if meta.len() > 1_000_000 {
+                                            continue;
+                                        }
+                                    }
+                                    if let Ok(content) = std::fs::read_to_string(&path) {
+                                        for (i, line) in content.lines().enumerate() {
+                                            if line.to_lowercase().contains(query) {
+                                                let rel_path = path
+                                                    .strip_prefix(base_dir)
+                                                    .unwrap_or(&path)
+                                                    .to_string_lossy()
+                                                    .to_string();
+                                                    
+                                                results.push(SearchResult {
+                                                    repo_name: repo_name.to_string(),
+                                                    repo_path: repo_path.to_string(),
+                                                    file_rel_path: rel_path,
+                                                    line_number: i + 1,
+                                                    line_content: line.trim().to_string(),
+                                                });
+                                                if results.len() > 100 {
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    walk_and_search(&path, &path, &repo_name, &path_str_clone, &query_lower, &mut local_results);
+                    local_results
+                });
+                handles.push(handle);
+            }
+            
+            let mut all_results = Vec::new();
+            for h in handles {
+                if let Ok(res) = h.join() {
+                    all_results.extend(res);
+                }
+            }
+            all_results.truncate(500);
+            let _ = tx.send(all_results);
+        });
+    }
+
+    pub fn select_global_search_result(&mut self) {
+        if self.global_search_results.is_empty() || self.global_search_selection >= self.global_search_results.len() {
+            return;
+        }
+        let result = self.global_search_results[self.global_search_selection].clone();
+        if let Some(pos) = self.config.items.iter().position(|x| x == &result.repo_path) {
+            self.jump_to_repo(pos);
+            self.open_detail();
+            self.input_buffer.clear();
+            self.mode = Mode::Detail;
+        }
+    }
 }

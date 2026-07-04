@@ -8860,3 +8860,55 @@ fn test_directory_scan_hidden_repos() {
 
     let _ = std::fs::remove_dir_all(&temp_scan_root);
 }
+
+#[test]
+fn test_global_code_search() {
+    let temp_dir = std::env::temp_dir().join("gitwig_global_search_test");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let file1 = temp_dir.join("file1.txt");
+    std::fs::write(&file1, "hello world\nthis is a gitwig test\nrust coding").unwrap();
+
+    let file2 = temp_dir.join("file2.txt");
+    std::fs::write(&file2, "unrelated text\nkeep coding").unwrap();
+
+    let mut config = Config::default();
+    config.items = vec![temp_dir.to_string_lossy().to_string()];
+    let mut app = App::new(config, std::env::temp_dir().join("dummy_config.toml"));
+
+    // Set search query in input_buffer
+    app.input_buffer = "gitwig".to_string();
+    app.trigger_global_search();
+
+    // Poll the receiver for results (with a timeout of 1000ms max)
+    let start = std::time::Instant::now();
+    let mut results = Vec::new();
+    while start.elapsed().as_millis() < 1000 {
+        if let Ok(res) = app.global_search_rx.try_recv() {
+            results = res;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+
+    assert!(!results.is_empty(), "Search results should not be empty");
+    assert_eq!(results[0].repo_name, temp_dir.file_name().unwrap().to_string_lossy().to_string());
+    assert_eq!(results[0].file_rel_path, "file1.txt");
+    assert_eq!(results[0].line_number, 2);
+    assert_eq!(results[0].line_content, "this is a gitwig test");
+
+    // Apply the snapshot of results to app
+    app.global_search_results = results;
+    app.global_search_selection = 0;
+    app.global_search_focus_input = false;
+
+    // Trigger selection
+    app.select_global_search_result();
+
+    // Verify app mode changed to Mode::Detail
+    assert_eq!(app.mode, Mode::Detail);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+

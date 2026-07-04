@@ -183,6 +183,8 @@ pub enum Mode {
     BulkAddRepoLabelInput,
     /// Prompting for labels when adding a cloned repository.
     CloneRepoLabelInput,
+    /// Searching across all tracked repositories.
+    GlobalSearch,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -291,6 +293,15 @@ pub struct DetailCache {
     pub loaded_at: std::time::Instant,
 }
 
+#[derive(Debug, Clone)]
+pub struct SearchResult {
+    pub repo_name: String,
+    pub repo_path: String,
+    pub file_rel_path: String,
+    pub line_number: usize,
+    pub line_content: String,
+}
+
 /// All mutable session state.
 pub struct App {
     pub config: Config,
@@ -388,6 +399,13 @@ pub struct App {
     pub tx: std::sync::mpsc::Sender<String>,
     /// Receiver for background task events.
     pub rx: std::sync::mpsc::Receiver<String>,
+    pub global_search_rx: std::sync::mpsc::Receiver<Vec<SearchResult>>,
+    pub global_search_tx: std::sync::mpsc::Sender<Vec<SearchResult>>,
+    pub global_search_query: String,
+    pub global_search_results: Vec<SearchResult>,
+    pub global_search_selection: usize,
+    pub global_search_running: bool,
+    pub global_search_focus_input: bool,
     /// Whether a background fetch is active.
     pub fetching: bool,
     /// Store the latest version if an update is available.
@@ -1036,6 +1054,7 @@ impl App {
         let (detail_tx, detail_rx) = std::sync::mpsc::channel();
         let (tab_tx, tab_rx) = std::sync::mpsc::channel();
         let (status_refresh_tx, status_refresh_rx) = std::sync::mpsc::channel();
+        let (global_search_tx, global_search_rx) = std::sync::mpsc::channel();
         let queue = crate::queue::Queue::default();
         let mut app = Self {
             queue: queue.clone(),
@@ -1092,6 +1111,13 @@ impl App {
             settings_focus_sidebar: true,
             tx,
             rx,
+            global_search_rx,
+            global_search_tx,
+            global_search_query: String::new(),
+            global_search_results: Vec::new(),
+            global_search_selection: 0,
+            global_search_running: false,
+            global_search_focus_input: true,
             fetching: false,
             update_available: None,
             update_check_manual: false,
@@ -1520,6 +1546,13 @@ where
                     }
                 }
             }
+        }
+
+        while let Ok(results) = app.global_search_rx.try_recv() {
+            app.global_search_results = results;
+            app.global_search_running = false;
+            app.global_search_focus_input = false;
+            app.global_search_selection = 0;
         }
 
         let mut tab_updated = false;
