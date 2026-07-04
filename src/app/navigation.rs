@@ -2156,10 +2156,13 @@ impl App {
             _ => false,
         };
         if has_staged || has_head {
-            self.commit_popup.input_buffer.clear();
+            // Retain the current buffer as draft, do not clear it
             self.commit_popup.editing = true;
             self.commit_popup.amend = false;
             self.commit_input_scroll = 0;
+            self.commit_popup.scroll.set(0);
+            self.commit_popup.cursor_idx = self.commit_popup.input_buffer.chars().count();
+            self.commit_popup.adjust_scroll();
             self.commit_popup.maximized = false;
             self.mode = Mode::CommitInput;
         } else {
@@ -2183,6 +2186,9 @@ impl App {
             self.commit_popup.editing = true;
             self.commit_popup.amend = true;
             self.commit_input_scroll = 0;
+            self.commit_popup.scroll.set(0);
+            self.commit_popup.cursor_idx = self.commit_popup.input_buffer.chars().count();
+            self.commit_popup.adjust_scroll();
             self.commit_popup.maximized = false;
             self.mode = Mode::CommitInput;
         } else {
@@ -2217,10 +2223,12 @@ impl App {
 
     pub fn commit_input_scroll_up(&mut self) {
         self.commit_input_scroll = self.commit_input_scroll.saturating_sub(1);
+        self.commit_popup.scroll.set(self.commit_input_scroll);
     }
 
     pub fn commit_input_scroll_down(&mut self) {
         self.commit_input_scroll = self.commit_input_scroll.saturating_add(1);
+        self.commit_popup.scroll.set(self.commit_input_scroll);
     }
 
     pub fn toggle_or_edit_setting(&mut self) {

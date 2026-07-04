@@ -1,16 +1,19 @@
 use crate::components::{Component, DrawableComponent, EventState};
 use crate::queue::{InternalEvent, Queue};
 use crossterm::event::{Event, KeyCode, KeyModifiers};
+use std::cell::Cell;
 
 pub struct CommitPopup {
     pub queue: Queue,
     pub input_buffer: String,
     pub editing: bool,
     pub amend: bool,
-    pub scroll: usize,
+    pub scroll: Cell<usize>,
     pub maximized: bool,
     pub width_pct: u16,
     pub height_pct: u16,
+    pub cursor_idx: usize,
+    pub last_height: Cell<usize>,
 }
 
 impl CommitPopup {
@@ -20,12 +23,199 @@ impl CommitPopup {
             input_buffer: String::new(),
             editing: true,
             amend: false,
-            scroll: 0,
+            scroll: Cell::new(0),
             maximized: false,
             width_pct: 60,
             height_pct: 60,
+            cursor_idx: 0,
+            last_height: Cell::new(8),
         }
     }
+
+    pub fn char_idx_to_line_col(&self, char_idx: usize) -> (usize, usize) {
+        char_idx_to_line_col(&self.input_buffer, char_idx)
+    }
+
+    pub fn line_col_to_char_idx(&self, line: usize, col: usize) -> usize {
+        line_col_to_char_idx(&self.input_buffer, line, col)
+    }
+
+    pub fn adjust_scroll(&mut self) {
+        let (line, _) = self.char_idx_to_line_col(self.cursor_idx);
+        let height = self.last_height.get().max(2);
+        let scroll_val = self.scroll.get();
+        if line < scroll_val {
+            self.scroll.set(line);
+        } else if line >= scroll_val + height {
+            self.scroll.set(line - height + 1);
+        }
+    }
+
+    fn insert_char(&mut self, c: char) {
+        let mut idx = 0;
+        let mut new_str = String::with_capacity(self.input_buffer.len() + 4);
+        for ch in self.input_buffer.chars() {
+            if idx == self.cursor_idx {
+                new_str.push(c);
+            }
+            new_str.push(ch);
+            idx += 1;
+        }
+        if idx == self.cursor_idx {
+            new_str.push(c);
+        }
+        self.input_buffer = new_str;
+        self.cursor_idx += 1;
+        self.adjust_scroll();
+    }
+
+    fn backspace(&mut self) {
+        if self.cursor_idx > 0 {
+            let mut idx = 0;
+            let mut new_str = String::with_capacity(self.input_buffer.len());
+            for ch in self.input_buffer.chars() {
+                if idx != self.cursor_idx - 1 {
+                    new_str.push(ch);
+                }
+                idx += 1;
+            }
+            self.input_buffer = new_str;
+            self.cursor_idx -= 1;
+            self.adjust_scroll();
+        }
+    }
+
+    fn delete_char(&mut self) {
+        if self.cursor_idx < self.input_buffer.chars().count() {
+            let mut idx = 0;
+            let mut new_str = String::with_capacity(self.input_buffer.len());
+            for ch in self.input_buffer.chars() {
+                if idx != self.cursor_idx {
+                    new_str.push(ch);
+                }
+                idx += 1;
+            }
+            self.input_buffer = new_str;
+            self.adjust_scroll();
+        }
+    }
+
+    fn delete_word_before_cursor(&mut self) {
+        if self.cursor_idx > 0 {
+            let chars: Vec<char> = self.input_buffer.chars().collect();
+            let mut idx = self.cursor_idx;
+            while idx > 0 && chars[idx - 1].is_whitespace() {
+                idx -= 1;
+            }
+            while idx > 0 && !chars[idx - 1].is_whitespace() {
+                idx -= 1;
+            }
+            let delete_count = self.cursor_idx - idx;
+            if delete_count > 0 {
+                let mut new_str = String::new();
+                for (i, &ch) in chars.iter().enumerate() {
+                    if i < idx || i >= self.cursor_idx {
+                        new_str.push(ch);
+                    }
+                }
+                self.input_buffer = new_str;
+                self.cursor_idx = idx;
+                self.adjust_scroll();
+            }
+        }
+    }
+
+    fn kill_line_after_cursor(&mut self) {
+        let chars: Vec<char> = self.input_buffer.chars().collect();
+        let mut idx = self.cursor_idx;
+        while idx < chars.len() && chars[idx] != '\n' {
+            idx += 1;
+        }
+        if idx == self.cursor_idx && idx < chars.len() && chars[idx] == '\n' {
+            idx += 1;
+        }
+        let delete_count = idx - self.cursor_idx;
+        if delete_count > 0 {
+            let mut new_str = String::new();
+            for (i, &ch) in chars.iter().enumerate() {
+                if i < self.cursor_idx || i >= idx {
+                    new_str.push(ch);
+                }
+            }
+            self.input_buffer = new_str;
+            self.adjust_scroll();
+        }
+    }
+
+    fn move_up(&mut self) {
+        let (line, col) = self.char_idx_to_line_col(self.cursor_idx);
+        if line > 0 {
+            self.cursor_idx = self.line_col_to_char_idx(line - 1, col);
+            self.adjust_scroll();
+        }
+    }
+
+    fn move_down(&mut self) {
+        let (line, col) = self.char_idx_to_line_col(self.cursor_idx);
+        self.cursor_idx = self.line_col_to_char_idx(line + 1, col);
+        self.adjust_scroll();
+    }
+
+    fn move_home(&mut self) {
+        let (line, _) = self.char_idx_to_line_col(self.cursor_idx);
+        self.cursor_idx = self.line_col_to_char_idx(line, 0);
+        self.adjust_scroll();
+    }
+
+    fn move_end(&mut self) {
+        let (line, _) = self.char_idx_to_line_col(self.cursor_idx);
+        self.cursor_idx = self.line_col_to_char_idx(line, usize::MAX);
+        self.adjust_scroll();
+    }
+}
+
+pub fn char_idx_to_line_col(text: &str, char_idx: usize) -> (usize, usize) {
+    let mut line = 0;
+    let mut col = 0;
+    for (i, c) in text.chars().enumerate() {
+        if i == char_idx {
+            return (line, col);
+        }
+        if c == '\n' {
+            line += 1;
+            col = 0;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
+}
+
+pub fn line_col_to_char_idx(text: &str, line: usize, col: usize) -> usize {
+    let mut current_line = 0;
+    let mut current_col = 0;
+    let mut line_start_char_idx = 0;
+    for (i, c) in text.chars().enumerate() {
+        if current_line == line {
+            if current_col == col {
+                return i;
+            }
+            if c == '\n' {
+                return i;
+            }
+        }
+        if c == '\n' {
+            current_line += 1;
+            current_col = 0;
+            line_start_char_idx = i + 1;
+        } else {
+            current_col += 1;
+        }
+    }
+    if current_line == line {
+        return line_start_char_idx + col.min(current_col);
+    }
+    text.chars().count()
 }
 
 impl DrawableComponent for CommitPopup {
@@ -59,24 +249,86 @@ impl Component for CommitPopup {
                         self.maximized = !self.maximized;
                         return Ok(EventState::Consumed);
                     }
+                    KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.input_buffer.clear();
+                        self.cursor_idx = 0;
+                        self.scroll.set(0);
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.kill_line_after_cursor();
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('w') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.delete_word_before_cursor();
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('b') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        if self.cursor_idx > 0 {
+                            self.cursor_idx -= 1;
+                            self.adjust_scroll();
+                        }
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        if self.cursor_idx < self.input_buffer.chars().count() {
+                            self.cursor_idx += 1;
+                            self.adjust_scroll();
+                        }
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.move_up();
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.move_down();
+                        return Ok(EventState::Consumed);
+                    }
                     KeyCode::Char(c) => {
-                        self.input_buffer.push(c);
+                        self.insert_char(c);
                         return Ok(EventState::Consumed);
                     }
                     KeyCode::Backspace => {
-                        self.input_buffer.pop();
+                        self.backspace();
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Delete => {
+                        self.delete_char();
                         return Ok(EventState::Consumed);
                     }
                     KeyCode::Enter => {
-                        self.input_buffer.push('\n');
+                        self.insert_char('\n');
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Left => {
+                        if self.cursor_idx > 0 {
+                            self.cursor_idx -= 1;
+                            self.adjust_scroll();
+                        }
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Right => {
+                        if self.cursor_idx < self.input_buffer.chars().count() {
+                            self.cursor_idx += 1;
+                            self.adjust_scroll();
+                        }
                         return Ok(EventState::Consumed);
                     }
                     KeyCode::Up => {
-                        self.scroll = self.scroll.saturating_sub(1);
+                        self.move_up();
                         return Ok(EventState::Consumed);
                     }
                     KeyCode::Down => {
-                        self.scroll = self.scroll.saturating_add(1);
+                        self.move_down();
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::Home => {
+                        self.move_home();
+                        return Ok(EventState::Consumed);
+                    }
+                    KeyCode::End => {
+                        self.move_end();
                         return Ok(EventState::Consumed);
                     }
                     _ => {}
@@ -107,11 +359,11 @@ impl Component for CommitPopup {
                         return Ok(EventState::Consumed);
                     }
                     KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                        self.scroll = self.scroll.saturating_sub(1);
+                        self.scroll.set(self.scroll.get().saturating_sub(1));
                         return Ok(EventState::Consumed);
                     }
                     KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                        self.scroll = self.scroll.saturating_add(1);
+                        self.scroll.set(self.scroll.get().saturating_add(1));
                         return Ok(EventState::Consumed);
                     }
                     _ => {}
@@ -135,16 +387,15 @@ use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{
-    Block, BorderType, Borders, Clear, Gauge, List, ListItem, ListState, Padding, Paragraph, Wrap,
+    Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap,
 };
 
-use crate::ui::*;
 pub fn draw_commit_popup(
     f: &mut Frame,
     input_buffer: &str,
     editing: bool,
     commit_amend: bool,
-    scroll: usize,
+    _scroll: usize,
     area: Rect,
     app: &crate::app::App,
     areas: &mut DetailAreas,
@@ -181,14 +432,6 @@ pub fn draw_commit_popup(
         .title(title)
         .padding(Padding::horizontal(1));
 
-    let text = if input_buffer.is_empty() {
-        Paragraph::new(Span::styled("(type commit message here...)", muted_style()))
-            .wrap(Wrap { trim: true })
-            .scroll((scroll as u16, 0))
-    } else {
-        Paragraph::new(input_buffer).wrap(Wrap { trim: true }).scroll((scroll as u16, 0))
-    };
-
     let inner_area = block.inner(popup_area);
     f.render_widget(block, popup_area);
 
@@ -197,6 +440,21 @@ pub fn draw_commit_popup(
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(0), Constraint::Length(1)])
         .split(inner_area);
+
+    // Sync app.commit_popup.last_height so adjust_scroll works correctly on next event
+    let text_area_height = chunks[0].height as usize;
+    app.commit_popup.last_height.set(text_area_height);
+
+    let scroll_val = app.commit_popup.scroll.get();
+    let text = if input_buffer.is_empty() {
+        Paragraph::new(Span::styled("(type commit message here...)", muted_style()))
+            .wrap(Wrap { trim: true })
+            .scroll((scroll_val as u16, 0))
+    } else {
+        Paragraph::new(input_buffer)
+            .wrap(Wrap { trim: true })
+            .scroll((scroll_val as u16, 0))
+    };
 
     f.render_widget(text, chunks[0]);
 
@@ -219,16 +477,19 @@ pub fn draw_commit_popup(
     f.render_widget(Paragraph::new(checkbox_line), chunks[1]);
 
     if editing {
-        let lines: Vec<&str> = input_buffer.split('\n').collect();
-        let last_line = lines.last().copied().unwrap_or("");
-        let line_count = lines.len();
+        let (cursor_line, cursor_col) = char_idx_to_line_col(input_buffer, app.commit_popup.cursor_idx);
         let cursor_y = chunks[0]
             .y
-            .saturating_add(line_count.saturating_sub(1) as u16)
-            .min(chunks[0].y.saturating_add(chunks[0].height.saturating_sub(1)));
-        let cursor_offset = last_line.chars().count() as u16;
-        let cursor_x =
-            chunks[0].x.saturating_add(cursor_offset.min(chunks[0].width.saturating_sub(1)));
+            .saturating_add(cursor_line.saturating_sub(scroll_val) as u16);
+        let max_y = chunks[0].y.saturating_add(chunks[0].height.saturating_sub(1));
+        let cursor_y = cursor_y.min(max_y);
+
+        let cursor_x = chunks[0]
+            .x
+            .saturating_add(cursor_col as u16);
+        let max_x = chunks[0].x.saturating_add(chunks[0].width.saturating_sub(1));
+        let cursor_x = cursor_x.min(max_x);
+
         f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
     }
 }

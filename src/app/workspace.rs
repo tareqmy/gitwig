@@ -925,6 +925,13 @@ impl App {
                     self.status_message = Some(success_msg.to_string());
                     self.refresh_detail();
                     self.refresh_selected_status();
+
+                    self.commit_popup.input_buffer.clear();
+                    self.commit_popup.cursor_idx = 0;
+                    self.commit_popup.scroll.set(0);
+                    self.commit_input_scroll = 0;
+                    self.commit_popup.maximized = false;
+                    self.mode = Mode::Detail;
                 }
                 Err(e) => {
                     let fail_msg = if self.commit_popup.amend {
@@ -936,10 +943,5 @@ impl App {
                 }
             }
         }
-
-        self.commit_popup.input_buffer.clear();
-        self.commit_input_scroll = 0;
-        self.commit_popup.maximized = false;
-        self.mode = Mode::Detail;
     }
 }
