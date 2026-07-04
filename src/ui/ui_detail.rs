@@ -426,6 +426,22 @@ pub fn draw(
             2
         };
 
+        let show_selected_long = if name_format > 0 {
+            let expanded_width = 11 + tabs_data.iter().map(|&(long_name, medium_name, short_name, _, tab_idx)| {
+                let name_len = if tab_idx == detail_tab {
+                    long_name.len()
+                } else if name_format == 1 {
+                    medium_name.len()
+                } else {
+                    short_name.len()
+                };
+                name_len + 8
+            }).sum::<usize>();
+            tab_area.width as usize >= expanded_width
+        } else {
+            false
+        };
+
         let mut spans = vec![Span::raw("  ")];
         for (i, &(long_name, medium_name, short_name, display_num, tab_idx)) in
             tabs_data.iter().enumerate()
@@ -433,10 +449,14 @@ pub fn draw(
             if i > 0 {
                 spans.push(Span::raw(" "));
             }
-            let name = match name_format {
-                0 => long_name,
-                1 => medium_name,
-                _ => short_name,
+            let name = if tab_idx == detail_tab && (name_format == 0 || show_selected_long) {
+                long_name
+            } else {
+                match name_format {
+                    0 => long_name,
+                    1 => medium_name,
+                    _ => short_name,
+                }
             };
             let bullet = if detail_tab == tab_idx { "┃" } else { "│" };
             let style = if detail_tab == tab_idx {

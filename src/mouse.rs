@@ -687,12 +687,32 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                     } else {
                         2
                     };
+                    let show_selected_long = if name_format > 0 {
+                        let expanded_width = 11 + tabs_data.iter().map(|&(long_name, medium_name, short_name, tab_idx)| {
+                            let name_len = if tab_idx == app.detail_tab {
+                                long_name.len()
+                            } else if name_format == 1 {
+                                medium_name.len()
+                            } else {
+                                short_name.len()
+                            };
+                            name_len + 8
+                        }).sum::<usize>();
+                        rect.width as usize >= expanded_width
+                    } else {
+                        false
+                    };
+
                     let mut current_offset = 2;
                     for &(long_name, medium_name, short_name, tab_index) in &tabs_data {
-                        let name = match name_format {
-                            0 => long_name,
-                            1 => medium_name,
-                            _ => short_name,
+                        let name = if tab_index == app.detail_tab && (name_format == 0 || show_selected_long) {
+                            long_name
+                        } else {
+                            match name_format {
+                                0 => long_name,
+                                1 => medium_name,
+                                _ => short_name,
+                            }
                         };
                         let tab_width = name.len() + 8;
                         if click_x >= current_offset && click_x < current_offset + tab_width as u16
