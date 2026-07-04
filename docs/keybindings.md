@@ -83,8 +83,8 @@
 | `G`                  | Detail          | Load more commits (Workspace commits list / Logs view)            |
 | `l`                  | Detail          | Open Logs view (Workspace tab commits list focus) or Toggle lock status (Worktrees tab; asks reason/unlocks) |
 | `D`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), stash (Stashes tab; asks confirmation), or remove worktree (Worktrees tab; asks confirmation) |
-| `s`                  | Detail          | Open Stashing UI overlay (Workspace tab), Prompt to save stash (Stashing UI / Stashes tab), or Open theme picker (Overview overlay) |
-| `u`                  | Detail          | Toggle "Stash untracked files" option (Stashing UI)               |
+| `s` / `S`            | Detail          | Stage selected hunk/line (Workspace tab StagingDetails focus), open Stashing UI overlay (Workspace tab files list focus), Prompt to save stash (Stashing UI / Stashes tab), or Open theme picker (Overview overlay) |
+| `u` / `U`            | Detail          | Unstage selected hunk/line (Workspace tab StagingDetails focus), or Toggle "Stash untracked files" option (Stashing UI) |
 | `i`                  | Detail          | Toggle "Keep index" option (Stashing UI)                         |
 | `Ctrl+U`             | Input (Stash)   | Toggle "Stash untracked files" option (Stash Create popup)       |
 | `Ctrl+I`             | Input (Stash)   | Toggle "Keep index" option (Stash Create popup)                 |

@@ -155,8 +155,8 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **LFS Workflows:** Support for `git lfs pull`, `git lfs track`, and checking LFS storage consumption within the repository settings panel.
 
 ## Phase 13: Interactive Hunk & Line Patching
-- [ ] **Hunk Staging:** Pressing `s` or `u` on a specific hunk in the Diff view to stage/unstage just that hunk.
-- [ ] **Line-level Staging:** Selecting individual lines within a hunk and staging only those lines.
+- [x] **Hunk Staging:** Pressing `s` or `u` on a specific hunk in the Diff view to stage/unstage just that hunk.
+- [x] **Line-level Staging:** Selecting individual lines within a hunk and staging only those lines.
 
 ## Phase 14: Repository Search & Discovery Enhancements
 - [x] **Global Code Search:** Search for string patterns across all tracked repositories using a fast, multithreaded search fallback from the homepage.
