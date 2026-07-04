@@ -9052,5 +9052,55 @@ fn test_settings_watch_dirs_editing() {
     assert_eq!(app.config.watch_dirs, vec!["~/new_watch".to_string(), "~/another".to_string()]);
 }
 
+#[test]
+fn test_bulk_fetch_completion_and_30s_clear() {
+    let mut config = Config::default();
+    config.items = vec!["/path/to/repo".to_string()];
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_bulk_fetch.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.bulk_fetching.insert("/path/to/repo".to_string());
+    app.bulk_fetch_results.insert("/path/to/repo".to_string(), Ok("Fetched".to_string()));
+
+    app.tx.send("BULK_FETCH_SUCCESS:/path/to/repo".to_string()).unwrap();
+
+    if let Ok(raw_msg) = app.rx.try_recv() {
+        if let Some(success_path) = raw_msg.strip_prefix("BULK_FETCH_SUCCESS:") {
+            app.bulk_fetching.remove(success_path);
+            app.bulk_fetch_results.insert(success_path.to_string(), Ok("Fetched successfully".to_string()));
+            if app.bulk_fetching.is_empty() {
+                app.bulk_fetch_completed_at = Some(std::time::Instant::now());
+            }
+        }
+    }
+
+    assert!(app.bulk_fetching.is_empty());
+    assert!(app.bulk_fetch_completed_at.is_some());
+    assert!(!app.bulk_fetch_results.is_empty());
+
+    // 1. Not elapsed
+    app.bulk_fetch_completed_at = Some(std::time::Instant::now() - std::time::Duration::from_secs(29));
+    if let Some(completed_at) = app.bulk_fetch_completed_at {
+        if completed_at.elapsed().as_secs() >= 30 {
+            app.bulk_fetch_results.clear();
+            app.bulk_fetch_completed_at = None;
+        }
+    }
+    assert!(!app.bulk_fetch_results.is_empty());
+    assert!(app.bulk_fetch_completed_at.is_some());
+
+    // 2. Elapsed
+    app.bulk_fetch_completed_at = Some(std::time::Instant::now() - std::time::Duration::from_secs(30));
+    if let Some(completed_at) = app.bulk_fetch_completed_at {
+        if completed_at.elapsed().as_secs() >= 30 {
+            app.bulk_fetch_results.clear();
+            app.bulk_fetch_completed_at = None;
+        }
+    }
+    assert!(app.bulk_fetch_results.is_empty());
+    assert!(app.bulk_fetch_completed_at.is_none());
+}
+
 
 

@@ -444,6 +444,8 @@ pub struct App {
     pub bulk_fetching: std::collections::HashSet<String>,
     /// Results of the latest bulk fetch (path -> Ok(msg) or Err(err)).
     pub bulk_fetch_results: std::collections::HashMap<String, Result<String, String>>,
+    /// Timestamp when the last bulk fetch was completed.
+    pub bulk_fetch_completed_at: Option<std::time::Instant>,
     /// Repository paths currently selected for batch operations.
     pub multi_selected: std::collections::HashSet<String>,
     /// Whether we are currently viewing logs UI.
@@ -1157,6 +1159,7 @@ impl App {
             pending_interactive_rebase: None,
             bulk_fetching: std::collections::HashSet::new(),
             bulk_fetch_results: std::collections::HashMap::new(),
+            bulk_fetch_completed_at: None,
             multi_selected: std::collections::HashSet::new(),
             in_logs_ui: false,
             repo_theme_cache: std::collections::HashMap::new(),
@@ -1374,6 +1377,7 @@ where
                     .insert(success_path.to_string(), Ok("Fetched successfully".to_string()));
                 if app.bulk_fetching.is_empty() {
                     app.status_message = Some("Bulk fetch completed successfully".to_string());
+                    app.bulk_fetch_completed_at = Some(std::time::Instant::now());
                 }
                 app.decrement_implicit_network();
                 continue;
@@ -1387,6 +1391,7 @@ where
                 }
                 if app.bulk_fetching.is_empty() {
                     app.status_message = Some("Bulk fetch completed".to_string());
+                    app.bulk_fetch_completed_at = Some(std::time::Instant::now());
                 }
                 app.decrement_implicit_network();
                 continue;
@@ -2123,6 +2128,13 @@ where
                 app.status_message = None;
             }
             app.fetch_progress = 0;
+        }
+
+        if let Some(completed_at) = app.bulk_fetch_completed_at {
+            if completed_at.elapsed().as_secs() >= 30 {
+                app.bulk_fetch_results.clear();
+                app.bulk_fetch_completed_at = None;
+            }
         }
 
         let poll_dur = if !app.bulk_fetching.is_empty() || app.fetching {
