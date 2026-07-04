@@ -17,6 +17,9 @@ and this project adheres to Semantic Versioning.
 - add show_system_stats configuration to toggle CPU/Memory display in status bar ([4e10ed8](https://github.com/tareqmy/gitwig/commit/4e10ed8))
 - show default status symbols 30 seconds after bulk fetch completes ([53752a5](https://github.com/tareqmy/gitwig/commit/53752a5))
 
+### Fixed
+- reset focus to first item of category when entering from sidebar ([4779656](https://github.com/tareqmy/gitwig/commit/4779656))
+
 ### Changed
 - organize settings categories and implement word-wrapping for descriptions ([778f996](https://github.com/tareqmy/gitwig/commit/778f996))
 

@@ -636,7 +636,18 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     let desc_inner = desc_block.inner(right_chunks[1]);
     f.render_widget(desc_block, right_chunks[1]);
 
-    let active_desc = get_desc(app.settings_selected_index);
+    let active_desc = if app.settings_focus_sidebar {
+        match active_cat {
+            0 => "Configuration for background polling intervals, default git executable, external text editor, caching TTL, and general UI display toggles.",
+            1 => "Controls repository list sorting rules (alphabetical, custom, recent visits), list sorting direction, and limits on maximum parsed commits.",
+            2 => "Configures primary repository discovery paths, recursive search depths, directory exclusion lists, and watch paths for automatic workspace sync.",
+            3 => "Select active TUI visual themes and toggle compact card/row layouts for list views.",
+            4 => "Custom key mappings and keyboard shortcuts for navigating repositories, committing changes, triggering git actions, and UI overlays.",
+            _ => "",
+        }
+    } else {
+        get_desc(app.settings_selected_index)
+    };
     let desc_width = (desc_inner.width as usize).saturating_sub(2).max(10);
     let desc_lines: Vec<Line> = wrap_str(active_desc, desc_width)
         .into_iter()
