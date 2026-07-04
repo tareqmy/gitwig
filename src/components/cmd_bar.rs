@@ -139,6 +139,24 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     app.config.compatibility_mode,
                 );
             }
+            Mode::RemoteAddNameInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Add Remote (Name)",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
+            Mode::RemoteAddUrlInput => {
+                draw_input_status(
+                    f,
+                    area,
+                    "Add Remote (URL)",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                );
+            }
             Mode::StashCreateInput => {
                 draw_input_status(
                     f,
@@ -361,7 +379,7 @@ pub(crate) fn get_status_layout_components(
             }
             (Some(msg_spans), entries)
         }
-        Mode::Detail | Mode::RemoteAddNameInput | Mode::RemoteAddUrlInput => {
+        Mode::Detail => {
             let (msg_spans, entries) = detail_dismiss_entries(app);
             (msg_spans, entries)
         }

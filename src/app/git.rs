@@ -247,7 +247,7 @@ impl App {
         }
         if let Some(commit) = self.get_selected_commit() {
             self.tag_action_target_oid = Some(commit.oid.clone());
-            self.commit_popup.input_buffer.clear();
+            self.input_buffer.clear();
             self.mode = Mode::TagCreateInput;
         }
     }
@@ -256,6 +256,7 @@ impl App {
         let tag_name = self.input_buffer.trim().to_string();
         if tag_name.is_empty() {
             self.status_message = Some("Tag name cannot be empty".to_string());
+            self.input_buffer.clear();
             self.mode = Mode::Detail;
             return;
         }
@@ -272,11 +273,12 @@ impl App {
                 }
             }
         }
+        self.input_buffer.clear();
         self.mode = Mode::Detail;
     }
 
     pub fn start_stash_create(&mut self) {
-        self.commit_popup.input_buffer.clear();
+        self.input_buffer.clear();
         self.mode = Mode::StashCreateInput;
     }
 
@@ -305,19 +307,20 @@ impl App {
                 }
             }
         }
+        self.input_buffer.clear();
         self.mode = Mode::Detail;
     }
 
     pub fn start_remote_add(&mut self) {
         self.mode = Mode::RemoteAddNameInput;
-        self.commit_popup.input_buffer.clear();
+        self.input_buffer.clear();
         self.remote_add_name.clear();
         self.remote_add_url.clear();
     }
 
     pub fn commit_remote_add_name(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
-        self.commit_popup.input_buffer.clear();
+        self.input_buffer.clear();
         if trimmed.is_empty() {
             self.mode = Mode::Detail;
             return;
@@ -328,7 +331,7 @@ impl App {
 
     pub fn commit_remote_add_url(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
-        self.commit_popup.input_buffer.clear();
+        self.input_buffer.clear();
         self.mode = Mode::Detail;
         if trimmed.is_empty() {
             return;
@@ -571,7 +574,7 @@ impl App {
 
     pub fn start_branch_create(&mut self) {
         if let Some(repo::ItemDetail::Repo { .. }) = &self.current_detail {
-            self.commit_popup.input_buffer.clear();
+            self.input_buffer.clear();
             self.mode = Mode::BranchCreateInput;
         }
     }
@@ -580,6 +583,7 @@ impl App {
         let branch_name = self.input_buffer.trim().to_string();
         if branch_name.is_empty() {
             self.status_message = Some("Branch name cannot be empty".to_string());
+            self.input_buffer.clear();
             self.mode = Mode::Detail;
             return;
         }
@@ -607,12 +611,12 @@ impl App {
                 }
             }
         }
-        self.commit_popup.input_buffer.clear();
+        self.input_buffer.clear();
         self.mode = Mode::Detail;
     }
 
     pub fn cancel_branch_create(&mut self) {
-        self.commit_popup.input_buffer.clear();
+        self.input_buffer.clear();
         self.mode = Mode::Detail;
     }
 

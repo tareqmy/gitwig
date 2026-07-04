@@ -29,7 +29,7 @@ pub fn draw_submodule_add_url_popup(f: &mut Frame, input_buffer: &str, area: Rec
         Line::from(""),
         Line::from(vec![
             Span::styled("> ", Style::default().fg(ACCENT())),
-            Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD)),
+            Span::styled(input_buffer, Style::default()),
         ]),
     ];
 
@@ -68,7 +68,7 @@ pub fn draw_submodule_add_path_popup(f: &mut Frame, input_buffer: &str, url: &st
         Line::from(""),
         Line::from(vec![
             Span::styled("> ", Style::default().fg(ACCENT())),
-            Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD)),
+            Span::styled(input_buffer, Style::default()),
         ]),
     ];
 

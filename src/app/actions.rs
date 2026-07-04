@@ -38,7 +38,7 @@ impl App {
             });
             if already_exists {
                 self.status_message = Some("Repository already added".to_string());
-                self.commit_popup.input_buffer.clear();
+                self.input_buffer.clear();
                 self.mode = Mode::Normal;
                 return;
             }
@@ -62,7 +62,7 @@ impl App {
             }
             self.persist("Saved");
         }
-        self.commit_popup.input_buffer.clear();
+        self.input_buffer.clear();
         self.mode = Mode::Normal;
     }
 
@@ -147,7 +147,7 @@ impl App {
                 }
             }
         }
-        self.commit_popup.input_buffer.clear();
+        self.input_buffer.clear();
         self.mode = Mode::Normal;
     }
 

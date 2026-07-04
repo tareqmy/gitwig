@@ -59,7 +59,7 @@ pub fn draw_stash_create_popup(f: &mut Frame, input_buffer: &str, area: Rect, ap
     let text = if input_buffer.is_empty() {
         Paragraph::new(Span::styled("(optional message...)", muted_style()))
     } else {
-        Paragraph::new(input_buffer).style(primary_style().add_modifier(Modifier::BOLD))
+        Paragraph::new(input_buffer).style(Style::default())
     };
     f.render_widget(text, chunks[2]);
 

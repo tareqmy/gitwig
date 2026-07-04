@@ -35,7 +35,7 @@ pub fn draw_remote_add_name_popup(f: &mut Frame, input_buffer: &str, area: Rect)
     let content = vec![
         Line::from(vec![Span::styled("Remote Name: ", muted_style())]),
         Line::from(""),
-        Line::from(vec![Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD))]),
+        Line::from(vec![Span::styled(input_buffer, Style::default())]),
     ];
 
     let inner_area = block.inner(popup_area);
@@ -77,12 +77,12 @@ pub fn draw_remote_add_url_popup(f: &mut Frame, remote_name: &str, input_buffer:
     let content = vec![
         Line::from(vec![
             Span::styled("Remote Name: ", muted_style()),
-            Span::styled(remote_name, primary_style().add_modifier(Modifier::BOLD)),
+            Span::styled(remote_name, Style::default()),
         ]),
         Line::from(""),
         Line::from(vec![Span::styled("Remote URL: ", muted_style())]),
         Line::from(""),
-        Line::from(vec![Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD))]),
+        Line::from(vec![Span::styled(input_buffer, Style::default())]),
     ];
 
     let inner_area = block.inner(popup_area);

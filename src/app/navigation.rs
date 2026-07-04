@@ -2335,7 +2335,7 @@ impl App {
                         self.config.poll_interval_ms = val;
                         self.persist("Poll interval updated");
                         self.settings_editing = false;
-                        self.commit_popup.input_buffer.clear();
+                        self.input_buffer.clear();
                     } else {
                         self.status_message =
                             Some("Poll interval must be at least 10ms".to_string());
@@ -2375,7 +2375,7 @@ impl App {
                     self.config.scan.max_depth = val;
                     self.persist("Scan max depth updated");
                     self.settings_editing = false;
-                    self.commit_popup.input_buffer.clear();
+                    self.input_buffer.clear();
                 } else {
                     self.status_message = Some("Invalid integer".to_string());
                 }
@@ -2384,14 +2384,14 @@ impl App {
                 self.config.scan.start_dir = trimmed.to_string();
                 self.persist("Scan start directory updated");
                 self.settings_editing = false;
-                self.commit_popup.input_buffer.clear();
+                self.input_buffer.clear();
             }
             6 => {
                 if let Ok(val) = trimmed.parse::<usize>() {
                     self.config.max_commits = val;
                     self.persist("Max commits updated");
                     self.settings_editing = false;
-                    self.commit_popup.input_buffer.clear();
+                    self.input_buffer.clear();
                 } else {
                     self.status_message = Some("Invalid integer".to_string());
                 }
@@ -2402,7 +2402,7 @@ impl App {
                         self.config.page_size = val;
                         self.persist("Page size updated");
                         self.settings_editing = false;
-                        self.commit_popup.input_buffer.clear();
+                        self.input_buffer.clear();
                     } else {
                         self.status_message = Some("Page size must be at least 1".to_string());
                     }
@@ -2418,7 +2418,7 @@ impl App {
                     .collect();
                 self.persist("Scan exclude folders updated");
                 self.settings_editing = false;
-                self.commit_popup.input_buffer.clear();
+                self.input_buffer.clear();
             }
             9 => {
                 let trimmed_app = trimmed.to_string();
@@ -2428,7 +2428,7 @@ impl App {
                         self.config.git_app = trimmed_app;
                         self.persist("Preferred Git Client updated");
                         self.settings_editing = false;
-                        self.commit_popup.input_buffer.clear();
+                        self.input_buffer.clear();
                     } else {
                         self.status_message =
                             Some("Invalid client! Allowed values: git, gitui, lazygit".to_string());
@@ -2443,7 +2443,7 @@ impl App {
                     self.config.editor = trimmed_editor;
                     self.persist("Editor Command updated");
                     self.settings_editing = false;
-                    self.commit_popup.input_buffer.clear();
+                    self.input_buffer.clear();
                 } else {
                     self.status_message = Some("Editor Command cannot be empty".to_string());
                 }
@@ -2453,7 +2453,7 @@ impl App {
                     self.config.auto_fetch_interval_mins = val;
                     self.persist("Auto-fetch interval updated");
                     self.settings_editing = false;
-                    self.commit_popup.input_buffer.clear();
+                    self.input_buffer.clear();
                 } else {
                     self.status_message = Some("Invalid integer".to_string());
                 }
@@ -2483,7 +2483,7 @@ impl App {
                         } else {
                             self.status_message = Some("Keybindings updated and saved".to_string());
                             self.settings_editing = false;
-                            self.commit_popup.input_buffer.clear();
+                            self.input_buffer.clear();
                         }
                     } else {
                         self.status_message =
@@ -2497,7 +2497,7 @@ impl App {
 
     pub fn cancel_settings_edit(&mut self) {
         self.settings_editing = false;
-        self.commit_popup.input_buffer.clear();
+        self.input_buffer.clear();
     }
 
     pub fn get_available_themes(&self) -> Vec<String> {
@@ -2523,7 +2523,7 @@ impl App {
     }
 
     pub fn cancel_input(&mut self) {
-        self.commit_popup.input_buffer.clear();
+        self.input_buffer.clear();
         self.mode = Mode::Normal;
     }
 
@@ -2549,7 +2549,7 @@ impl App {
 
     pub fn commit_bulk_add(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
-        self.commit_popup.input_buffer.clear();
+        self.input_buffer.clear();
         self.mode = Mode::Normal;
         if !trimmed.is_empty() {
             self.bulk_add_path_with_labels(trimmed, vec![]);

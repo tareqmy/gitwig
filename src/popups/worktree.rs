@@ -29,7 +29,7 @@ pub fn draw_worktree_add_branch_popup(f: &mut Frame, input_buffer: &str, area: R
         Line::from(""),
         Line::from(vec![
             Span::styled("> ", Style::default().fg(ACCENT())),
-            Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD)),
+            Span::styled(input_buffer, Style::default()),
         ]),
     ];
 
@@ -66,7 +66,7 @@ pub fn draw_worktree_add_path_popup(
     let content = vec![
         Line::from(vec![
             Span::styled("Selected Branch: ", muted_style()),
-            Span::styled(branch_name, primary_style()),
+            Span::styled(branch_name, Style::default()),
         ]),
         Line::from(""),
         Line::from(vec![Span::styled(
@@ -76,7 +76,7 @@ pub fn draw_worktree_add_path_popup(
         Line::from(""),
         Line::from(vec![
             Span::styled("> ", Style::default().fg(ACCENT())),
-            Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD)),
+            Span::styled(input_buffer, Style::default()),
         ]),
     ];
 
@@ -113,14 +113,14 @@ pub fn draw_worktree_lock_reason_popup(
     let content = vec![
         Line::from(vec![
             Span::styled("Locking worktree: ", muted_style()),
-            Span::styled(wt_name, primary_style().add_modifier(Modifier::BOLD)),
+            Span::styled(wt_name, Style::default()),
         ]),
         Line::from(""),
         Line::from(vec![Span::styled("Enter reason (optional): ", muted_style())]),
         Line::from(""),
         Line::from(vec![
             Span::styled("> ", Style::default().fg(ACCENT())),
-            Span::styled(input_buffer, primary_style()),
+            Span::styled(input_buffer, Style::default()),
         ]),
     ];
 

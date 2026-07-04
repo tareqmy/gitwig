@@ -48,7 +48,7 @@ pub fn draw_tag_create_popup(
         Line::from(""),
         Line::from(vec![
             Span::styled("Tag Name: ", muted_style()),
-            Span::styled(input_buffer, primary_style().add_modifier(Modifier::BOLD)),
+            Span::styled(input_buffer, Style::default()),
         ]),
     ];
 
