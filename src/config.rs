@@ -130,6 +130,7 @@ impl Default for Config {
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
             starred: std::collections::HashSet::new(),
+            watch_dirs: vec![],
             theme_name: default_theme_name(),
             theme: default_theme(),
             scan: default_scan(),
@@ -277,6 +278,9 @@ pub struct Config {
     /// List of starred repository paths.
     #[serde(default)]
     pub starred: std::collections::HashSet<String>,
+    /// Directories to watch for automatic workspace syncing.
+    #[serde(default)]
+    pub watch_dirs: Vec<String>,
     /// Theme configurations for styling the terminal TUI.
     #[serde(skip)]
     pub theme: ThemeConfig,
@@ -419,6 +423,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         starred: std::collections::HashSet::new(),
+        watch_dirs: vec![],
         theme_name: default_theme_name(),
         theme: default_theme(),
         scan: default_scan(),
@@ -550,6 +555,7 @@ pub fn load_config(
                 sort_reverse: false,
                 pinned: std::collections::HashSet::new(),
                 starred: std::collections::HashSet::new(),
+                watch_dirs: vec![],
                 theme_name: fallback_theme_name,
                 theme: fallback_theme,
                 scan: default_scan(),
@@ -674,6 +680,7 @@ pub fn load_config(
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         starred: std::collections::HashSet::new(),
+        watch_dirs: vec![],
         theme_name: default_theme_name(),
         theme: default_theme(),
         scan: default_scan(),

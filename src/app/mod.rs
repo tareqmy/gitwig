@@ -669,6 +669,22 @@ impl App {
             }
         }
 
+        for watch_dir in &self.config.watch_dirs {
+            let expanded = repo::expand_tilde(watch_dir);
+            let canon = match std::fs::canonicalize(&expanded) {
+                Ok(c) => c,
+                Err(_) => PathBuf::from(&expanded),
+            };
+            if canon.exists() && canon.is_dir() {
+                if let Err(e) = watcher.watch(&canon, RecursiveMode::Recursive) {
+                    crate::debug_log::warn(format!(
+                        "Failed to watch directory {:?}: {}",
+                        canon, e
+                    ));
+                }
+            }
+        }
+
         self.watcher = Some(watcher);
     }
 
@@ -1396,15 +1412,36 @@ where
                 if let Some(repo_path) = msg.strip_prefix("REFRESH_REPO:") {
                     let canon_target = std::fs::canonicalize(repo_path)
                         .unwrap_or_else(|_| PathBuf::from(repo_path));
-                    if let Some(idx) = app.config.items.iter().position(|item| {
+                    let already_tracked = app.config.items.iter().position(|item| {
                         let canon_item =
                             std::fs::canonicalize(item).unwrap_or_else(|_| PathBuf::from(item));
                         canon_item == canon_target
-                    }) {
+                    });
+                    if let Some(idx) = already_tracked {
                         app.statuses[idx] = repo::inspect_summary(&app.config.items[idx]);
                         if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
                             if resolved == &canon_target {
                                 app.resync_detail();
+                            }
+                        }
+                    } else {
+                        // Check if it is inside one of the watched directories
+                        let mut inside_watch_dir = false;
+                        for watch_dir in &app.config.watch_dirs {
+                            let expanded = repo::expand_tilde(watch_dir);
+                            if let Ok(canon_watch) = std::fs::canonicalize(&expanded) {
+                                if canon_target.starts_with(&canon_watch) {
+                                    inside_watch_dir = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if inside_watch_dir {
+                            let git_dir = canon_target.join(".git");
+                            if git_dir.exists() && git_dir.is_dir() {
+                                let path_str = repo_path.to_string();
+                                app.auto_discover_add(path_str);
+                                app.status_message = Some("Auto-discovered new repository".to_string());
                             }
                         }
                     }

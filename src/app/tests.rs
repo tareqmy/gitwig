@@ -8912,3 +8912,72 @@ fn test_global_code_search() {
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
 
+#[test]
+fn test_automatic_workspace_sync() {
+    let watch_root = std::env::temp_dir().join("gitwig_watch_test");
+    let _ = std::fs::remove_dir_all(&watch_root);
+    std::fs::create_dir_all(&watch_root).unwrap();
+
+    // Create a new git repository inside watched root
+    let new_repo = watch_root.join("new_auto_repo");
+    std::fs::create_dir_all(new_repo.join(".git")).unwrap();
+
+    let mut config = Config::default();
+    config.watch_dirs = vec![watch_root.to_string_lossy().to_string()];
+    
+    let mut app = App::new(config, std::env::temp_dir().join("dummy_config.toml"));
+
+    // Verify watch dirs are registered (watcher exists)
+    app.setup_watcher();
+    assert!(app.watcher.is_some());
+
+    // Send a REFRESH_REPO event to simulate notify trigger
+    let msg = format!("REFRESH_REPO:{}", new_repo.to_string_lossy());
+    app.tx.send(msg).unwrap();
+
+    // Wait a brief moment and process events
+    let start = std::time::Instant::now();
+    let mut found = false;
+    while start.elapsed().as_millis() < 500 {
+        if let Ok(raw_msg) = app.rx.try_recv() {
+            if let Some(repo_path) = raw_msg.strip_prefix("REFRESH_REPO:") {
+                let canon_target = std::fs::canonicalize(repo_path)
+                    .unwrap_or_else(|_| PathBuf::from(repo_path));
+                let already_tracked = app.config.items.iter().position(|item| {
+                    let canon_item =
+                        std::fs::canonicalize(item).unwrap_or_else(|_| PathBuf::from(item));
+                    canon_item == canon_target
+                });
+                if already_tracked.is_none() {
+                    let mut inside_watch_dir = false;
+                    for watch_dir in &app.config.watch_dirs {
+                        let expanded = repo::expand_tilde(watch_dir);
+                        if let Ok(canon_watch) = std::fs::canonicalize(&expanded) {
+                            if canon_target.starts_with(&canon_watch) {
+                                inside_watch_dir = true;
+                                break;
+                            }
+                        }
+                    }
+                    if inside_watch_dir {
+                        let git_dir = canon_target.join(".git");
+                        if git_dir.exists() && git_dir.is_dir() {
+                            let path_str = repo_path.to_string();
+                            app.auto_discover_add(path_str);
+                            found = true;
+                        }
+                    }
+                }
+            }
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+
+    assert!(found, "The repository should be auto-discovered");
+    assert!(app.config.items.contains(&new_repo.to_string_lossy().to_string()), "The repository should be automatically added to config");
+
+    let _ = std::fs::remove_dir_all(&watch_root);
+}
+
+

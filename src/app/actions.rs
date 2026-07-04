@@ -627,4 +627,19 @@ impl App {
             self.mode = Mode::Detail;
         }
     }
+
+    pub fn auto_discover_add(&mut self, path: String) {
+        let trimmed = path.trim().to_string();
+        if !trimmed.is_empty() {
+            let status = repo::inspect_summary(&trimmed);
+            self.statuses.push(status);
+            self.config.items.push(trimmed.clone());
+            self.original_items.push(trimmed.clone());
+            self.sort_items_in_place();
+            self.persist("Auto-discovered new repository");
+            
+            // Update the file watcher to include the new repository
+            self.setup_watcher();
+        }
+    }
 }
