@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+
+## [v2.3.19] - 2026-07-04
 ### Added
+- support editing watch directories inside Settings menu ([423854e](https://github.com/tareqmy/gitwig/commit/423854e))
 - support mouse scroll, PageUp/PageDown, and Home/End keys in global search results ([62b4528](https://github.com/tareqmy/gitwig/commit/62b4528))
 - implement automatic workspace synchronization of newly created or cloned repositories ([fb7a9c5](https://github.com/tareqmy/gitwig/commit/fb7a9c5))
 - implement global code search across all tracked repositories ([f08e019](https://github.com/tareqmy/gitwig/commit/f08e019))
