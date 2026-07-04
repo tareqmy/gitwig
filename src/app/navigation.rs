@@ -2340,6 +2340,10 @@ impl App {
                 self.settings_editing = true;
                 self.input_buffer = self.config.tab_ttl_secs.to_string();
             }
+            67 => {
+                self.config.compact_view = !self.config.compact_view;
+                self.persist("Compact view toggled");
+            }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {
                     self.settings_editing = true;

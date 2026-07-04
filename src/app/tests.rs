@@ -9232,6 +9232,30 @@ fn test_settings_tab_ttl_editing() {
     assert_eq!(app.config.tab_ttl_secs, 45);
 }
 
+#[test]
+fn test_settings_compact_view_toggling() {
+    let mut config = Config::default();
+    config.compact_view = false;
+    
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_compact.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::Settings;
+    app.settings_selected_index = 67; // Compact Layout View
+    app.settings_focus_sidebar = false;
+    app.settings_editing = false;
+
+    // Toggle setting
+    app.toggle_or_edit_setting();
+    assert!(app.config.compact_view);
+
+    // Toggle again
+    app.toggle_or_edit_setting();
+    assert!(!app.config.compact_view);
+}
+
+
 
 
 

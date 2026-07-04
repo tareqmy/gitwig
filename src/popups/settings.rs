@@ -16,7 +16,7 @@ use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wr
 const GENERAL_SETTING_INDICES: &[usize] = &[0, 7, 9, 12, 13, 58, 55, 56, 60, 62, 63, 65, 66];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 10, 8, 61];
-const THEME_SETTING_INDICES: &[usize] = &[3];
+const THEME_SETTING_INDICES: &[usize] = &[3, 67];
 const KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
     38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 59, 57,
@@ -115,6 +115,7 @@ fn get_label(global_idx: usize) -> &'static str {
         64 => "Graph Max Commits",
         65 => "Detail Cache TTL (secs)",
         66 => "Tab Cache TTL (secs)",
+        67 => "Compact Layout View",
         14 => "Toggle Status Bar",
         15 => "Help",
         16 => "Quit / Close Dialog",
@@ -208,6 +209,9 @@ fn get_desc(global_idx: usize) -> &'static str {
         }
         66 => {
             "How long in seconds lazy-loaded tab data remains cached in memory before automatic refresh."
+        }
+        67 => {
+            "Show a compact single-line layout for repository cards in the list."
         }
         14 => "Toggles the status bar between collapsed and expanded view.",
         15 => "Opens the global help overlay.",
@@ -387,6 +391,7 @@ pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
                     app.config.tab_ttl_secs.to_string()
                 }
             }
+            67 => app.config.compact_view.to_string(),
             _ => String::new(),
         }
     }
