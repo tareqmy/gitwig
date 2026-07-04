@@ -2336,6 +2336,10 @@ impl App {
                 self.settings_editing = true;
                 self.input_buffer = self.config.detail_cache_ttl_secs.to_string();
             }
+            66 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.tab_ttl_secs.to_string();
+            }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {
                     self.settings_editing = true;
@@ -2503,6 +2507,16 @@ impl App {
                 if let Ok(val) = trimmed.parse::<u64>() {
                     self.config.detail_cache_ttl_secs = val;
                     self.persist("Detail cache TTL updated");
+                    self.settings_editing = false;
+                    self.input_buffer.clear();
+                } else {
+                    self.status_message = Some("Invalid integer".to_string());
+                }
+            }
+            66 => {
+                if let Ok(val) = trimmed.parse::<u64>() {
+                    self.config.tab_ttl_secs = val;
+                    self.persist("Tab cache TTL updated");
                     self.settings_editing = false;
                     self.input_buffer.clear();
                 } else {

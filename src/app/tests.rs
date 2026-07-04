@@ -9204,6 +9204,35 @@ fn test_settings_detail_cache_ttl_editing() {
     assert_eq!(app.config.detail_cache_ttl_secs, 15);
 }
 
+#[test]
+fn test_settings_tab_ttl_editing() {
+    let mut config = Config::default();
+    config.tab_ttl_secs = 60;
+    
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_tab_ttl.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::Settings;
+    app.settings_selected_index = 66; // Tab Cache TTL
+    app.settings_focus_sidebar = false;
+    app.settings_editing = false;
+
+    // Start editing
+    app.toggle_or_edit_setting();
+    assert!(app.settings_editing);
+    assert_eq!(app.input_buffer, "60");
+
+    // Modify input buffer
+    app.input_buffer = "45".to_string();
+
+    // Commit edit
+    app.commit_settings_edit();
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.tab_ttl_secs, 45);
+}
+
+
 
 
 
