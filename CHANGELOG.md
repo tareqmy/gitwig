@@ -14,6 +14,9 @@ and this project adheres to Semantic Versioning.
 ### Fixed
 - clear generic input_buffer instead of commit_popup buffer and take inputs from status bar for remote add ([52c2c7e](https://github.com/tareqmy/gitwig/commit/52c2c7e))
 
+### Documentation
+- update features, keybindings, configuration, and help overlay docs for global search and workspace sync ([4916e6b](https://github.com/tareqmy/gitwig/commit/4916e6b))
+
 ## [v2.3.18] - 2026-07-04
 ### Added
 - prompt for labels on adding, bulk adding, and importing/cloning repositories ([140e6a4](https://github.com/tareqmy/gitwig/commit/140e6a4))

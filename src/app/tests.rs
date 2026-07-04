@@ -8903,7 +8903,51 @@ fn test_global_code_search() {
     app.global_search_selection = 0;
     app.global_search_focus_input = false;
 
-    // Trigger selection
+    // Test mouse and keyboard navigation actions on search results
+    app.global_search_results = vec![
+        SearchResult { repo_name: "a".to_string(), repo_path: "p".to_string(), file_rel_path: "f".to_string(), line_number: 1, line_content: "c".to_string() },
+        SearchResult { repo_name: "a".to_string(), repo_path: "p".to_string(), file_rel_path: "f".to_string(), line_number: 2, line_content: "c".to_string() },
+        SearchResult { repo_name: "a".to_string(), repo_path: "p".to_string(), file_rel_path: "f".to_string(), line_number: 3, line_content: "c".to_string() },
+    ];
+    app.mode = Mode::GlobalSearch;
+    app.config.page_size = 2;
+
+    // Test PageDown
+    crate::input::handle_key(&mut app, crossterm::event::KeyEvent::new(crossterm::event::KeyCode::PageDown, crossterm::event::KeyModifiers::empty()), 0);
+    assert_eq!(app.global_search_selection, 2);
+
+    // Test PageUp
+    crate::input::handle_key(&mut app, crossterm::event::KeyEvent::new(crossterm::event::KeyCode::PageUp, crossterm::event::KeyModifiers::empty()), 0);
+    assert_eq!(app.global_search_selection, 0);
+
+    // Test End
+    crate::input::handle_key(&mut app, crossterm::event::KeyEvent::new(crossterm::event::KeyCode::End, crossterm::event::KeyModifiers::empty()), 0);
+    assert_eq!(app.global_search_selection, 2);
+
+    // Test Home
+    crate::input::handle_key(&mut app, crossterm::event::KeyEvent::new(crossterm::event::KeyCode::Home, crossterm::event::KeyModifiers::empty()), 0);
+    assert_eq!(app.global_search_selection, 0);
+
+    // Test Mouse ScrollDown
+    crate::mouse::handle_mouse(&mut app, crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::ScrollDown,
+        column: 0,
+        row: 0,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    });
+    assert_eq!(app.global_search_selection, 1);
+
+    // Test Mouse ScrollUp
+    crate::mouse::handle_mouse(&mut app, crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::ScrollUp,
+        column: 0,
+        row: 0,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    });
+    assert_eq!(app.global_search_selection, 0);
+
+    // Set selection back to 0 and matching repo path to test selection jump
+    app.global_search_results[0].repo_path = temp_dir.to_string_lossy().to_string();
     app.select_global_search_result();
 
     // Verify app mode changed to Mode::Detail

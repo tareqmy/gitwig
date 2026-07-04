@@ -24,6 +24,22 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         return;
     }
 
+    if app.mode == Mode::GlobalSearch {
+        if is_scroll_up {
+            if !app.global_search_results.is_empty() {
+                app.global_search_selection = app.global_search_selection.saturating_sub(1);
+            }
+            return;
+        } else if is_scroll_down {
+            if !app.global_search_results.is_empty()
+                && app.global_search_selection + 1 < app.global_search_results.len()
+            {
+                app.global_search_selection += 1;
+            }
+            return;
+        }
+    }
+
     let pos = Position { x: mouse.column, y: mouse.row };
 
     if is_click && pos.y == 0 {
