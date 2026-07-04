@@ -144,3 +144,21 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Diff Summarizer:** Highlight a large diff/hunk and get a brief explanation of what the change does.
 - [ ] **Smart Conflict Explainer:** Provides a natural-language description of merge conflicts, highlighting the logical differences between "Ours" and "Theirs".
 - [ ] **Local LLM Support:** Integration with local Ollama instances for offline code analysis.
+
+## Phase 11: Forge Integrations (GitHub / GitLab / Gitea)
+- [ ] **PR/MR Viewer:** View active Pull Requests, descriptions, CI/CD run statuses, and review comments directly in a dedicated tab.
+- [ ] **Issue Tracker:** List assigned issues and allow checking out branches linked to those issues.
+- [ ] **Code Review Mode:** Support adding/viewing line comments on diffs inside active Pull Requests.
+
+## Phase 12: Git LFS & Large File Management
+- [ ] **LFS Detection:** Visual indicators for files tracked by Git LFS.
+- [ ] **LFS Workflows:** Support for `git lfs pull`, `git lfs track`, and checking LFS storage consumption within the repository settings panel.
+
+## Phase 13: Interactive Hunk & Line Patching
+- [ ] **Hunk Staging:** Pressing `s` or `u` on a specific hunk in the Diff view to stage/unstage just that hunk.
+- [ ] **Line-level Staging:** Selecting individual lines within a hunk and staging only those lines.
+
+## Phase 14: Repository Search & Discovery Enhancements
+- [ ] **Global Code Search:** Search for string patterns across all tracked repositories using a fast, multithreaded search fallback from the homepage.
+- [ ] **Automatic Workspace Sync:** Watch a specified directory (e.g., `~/development`) and automatically add new repositories as they are created or cloned.
+

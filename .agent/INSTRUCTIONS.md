@@ -69,6 +69,28 @@ The crate is organized so each file has a single clear responsibility. Keep it t
 - `README.md` — update when user-facing behavior, install steps, or CLI surface change.
 - If a change touches multiple concerns, update each affected doc. If you are unsure where something belongs, add it where a future agent is most likely to look.
 
+## Release Process
+To publish a new version of Gitwig, follow these steps:
+1. **Update Version Number:** Update the version in `Cargo.toml` (both the workspace root and core workspace if needed).
+2. **Regenerate the Changelog:** Run the changelog generation script to update `CHANGELOG.md`:
+   ```bash
+   python3 scripts/generate_changelog.py
+   ```
+3. **Commit the changes:** Commit version and changelog changes:
+   ```bash
+   git add Cargo.toml CHANGELOG.md
+   git commit -m "release: vX.Y.Z"
+   ```
+4. **Tag the Commit:** Create a signed or annotated tag:
+   ```bash
+   git tag -a vX.Y.Z -m "release vX.Y.Z"
+   ```
+5. **Push Tag to GitHub:** Push the commits and tags to remote:
+   ```bash
+   git push origin main --follow-tags
+   ```
+6. **Automated CD Pipeline:** The GitHub Actions CD workflow triggers automatically on tags starting with `v*`. It creates a draft release, builds for all target platforms, packages/uploads release assets, publishes the GitHub release, publishes packages to crates.io, updates the Homebrew tap, and pushes to Chocolatey.
+
 ## Communication
 - Be concise.
 - Provide technical rationale for your decisions.
