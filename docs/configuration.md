@@ -51,5 +51,11 @@ watch_dirs = ["~/development"]
 | `scan.start_dir` | `String` | `"$HOME"` | Starting directory for interactive repository discovery scanning. |
 | `scan.excludes` | `[String]` | `[]` | Directory names excluded from discovery scanning. |
 | `scan.git_only` | `Boolean` | `true` | Only scan folders that contain a .git directory. |
+| `auto_fetch_interval_mins` | `Integer` | `10` | Time interval in minutes to automatically run background fetches for all repositories. Set to `0` to disable. |
+| `show_system_stats` | `Boolean` | `false` | Display CPU and Memory utilization of the Gitwig process in the bottom status bar. |
+| `enable_commit_signatures` | `Boolean` | `false` | Verify GPG/SSH signatures on commits list (requires spawning git subprocesses). |
+| `graph_max_commits` | `Integer` | `1000` | Maximum commits visualized in the Graph tab history. Set to `0` for unlimited. |
+| `detail_cache_ttl_secs` | `Integer` | `30` | How long in seconds repository details are cached in memory before reloading. |
+| `tab_ttl_secs` | `Integer` | `60` | How long in seconds lazy-loaded tab data remains cached in memory before automatic refresh. |
 
 Gitwig writes back to whichever file it loaded from, so edits made in the UI persist across runs.

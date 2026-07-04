@@ -286,6 +286,8 @@ pub(crate) fn get_status_layout_components(
                     ("Select", "↑/↓"),
                     ("Page", "⇟/⇞"),
                     ("Jump", "Home/End"),
+                    ("Pane", "Tab/←/→"),
+                    ("Category", "1-5"),
                     ("Edit/Toggle", "Enter/Space"),
                     ("Back", "Esc/q"),
                 ];

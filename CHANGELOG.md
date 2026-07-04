@@ -7,6 +7,7 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Added
+- show category description when settings sidebar is focused ([f0cf39c](https://github.com/tareqmy/gitwig/commit/f0cf39c))
 - render settings descriptions in a dedicated box at the bottom of the right panel ([cd379f9](https://github.com/tareqmy/gitwig/commit/cd379f9))
 - display settings value beside name on the same line ([42e5ef5](https://github.com/tareqmy/gitwig/commit/42e5ef5))
 - expose compact_view layout setting in TUI Settings panel ([266cebd](https://github.com/tareqmy/gitwig/commit/266cebd))

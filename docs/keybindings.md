@@ -47,8 +47,12 @@
 | `Enter`              | Settings (Edit) | Save settings edit                |
 | `Esc`                | Settings (Edit) | Cancel settings edit              |
 | `Esc` / `q`          | Settings        | Exit Settings and return to Home  |
-| `↑` / `↓` / `k` / `j` | Settings        | Navigate setting fields           |
+| `↑` / `↓` / `k` / `j` | Settings        | Navigate setting fields / categories |
 | `Enter` / `Space`    | Settings        | Toggle / Edit selected setting    |
+| `Tab` / `Shift+Tab`  | Settings        | Switch focus between category list (sidebar) and settings list |
+| `←` / `h` / `H`      | Settings        | Focus category list (sidebar)     |
+| `→` / `l` / `L` / `w` / `W` | Settings  | Focus settings list               |
+| `1` - `5`            | Settings        | Jump directly to category: General (1), Sorting (2), Scan (3), Theme (4), Keybindings (5) |
 | `Backspace`          | Editing         | Erase one character               |
 | `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag, push branch/tag/all tags, abort/continue merge) |
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
