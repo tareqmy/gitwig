@@ -2328,6 +2328,10 @@ impl App {
                 self.config.enable_commit_signatures = !self.config.enable_commit_signatures;
                 self.persist("Commit signatures updated");
             }
+            64 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.graph_max_commits.to_string();
+            }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {
                     self.settings_editing = true;
@@ -2480,6 +2484,16 @@ impl App {
                 self.settings_editing = false;
                 self.input_buffer.clear();
                 self.setup_watcher();
+            }
+            64 => {
+                if let Ok(val) = trimmed.parse::<usize>() {
+                    self.config.graph_max_commits = val;
+                    self.persist("Graph max commits updated");
+                    self.settings_editing = false;
+                    self.input_buffer.clear();
+                } else {
+                    self.status_message = Some("Invalid integer".to_string());
+                }
             }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {

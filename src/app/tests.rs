@@ -9148,6 +9148,35 @@ fn test_settings_enable_commit_signatures_toggling() {
     assert!(!app.config.enable_commit_signatures);
 }
 
+#[test]
+fn test_settings_graph_max_commits_editing() {
+    let mut config = Config::default();
+    config.graph_max_commits = 1000;
+    
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_graph_commits.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::Settings;
+    app.settings_selected_index = 64; // Graph Max Commits
+    app.settings_focus_sidebar = false;
+    app.settings_editing = false;
+
+    // Start editing
+    app.toggle_or_edit_setting();
+    assert!(app.settings_editing);
+    assert_eq!(app.input_buffer, "1000");
+
+    // Modify input buffer
+    app.input_buffer = "250".to_string();
+
+    // Commit edit
+    app.commit_settings_edit();
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.graph_max_commits, 250);
+}
+
+
 
 
 
