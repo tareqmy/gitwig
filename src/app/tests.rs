@@ -8948,45 +8948,97 @@ fn test_global_code_search() {
 
     // Test mouse and keyboard navigation actions on search results
     app.global_search_results = vec![
-        SearchResult { repo_name: "a".to_string(), repo_path: "p".to_string(), file_rel_path: "f".to_string(), line_number: 1, line_content: "c".to_string() },
-        SearchResult { repo_name: "a".to_string(), repo_path: "p".to_string(), file_rel_path: "f".to_string(), line_number: 2, line_content: "c".to_string() },
-        SearchResult { repo_name: "a".to_string(), repo_path: "p".to_string(), file_rel_path: "f".to_string(), line_number: 3, line_content: "c".to_string() },
+        SearchResult {
+            repo_name: "a".to_string(),
+            repo_path: "p".to_string(),
+            file_rel_path: "f".to_string(),
+            line_number: 1,
+            line_content: "c".to_string(),
+        },
+        SearchResult {
+            repo_name: "a".to_string(),
+            repo_path: "p".to_string(),
+            file_rel_path: "f".to_string(),
+            line_number: 2,
+            line_content: "c".to_string(),
+        },
+        SearchResult {
+            repo_name: "a".to_string(),
+            repo_path: "p".to_string(),
+            file_rel_path: "f".to_string(),
+            line_number: 3,
+            line_content: "c".to_string(),
+        },
     ];
     app.mode = Mode::GlobalSearch;
     app.config.page_size = 2;
 
     // Test PageDown
-    crate::input::handle_key(&mut app, crossterm::event::KeyEvent::new(crossterm::event::KeyCode::PageDown, crossterm::event::KeyModifiers::empty()), 0);
+    crate::input::handle_key(
+        &mut app,
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::PageDown,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        0,
+    );
     assert_eq!(app.global_search_selection, 2);
 
     // Test PageUp
-    crate::input::handle_key(&mut app, crossterm::event::KeyEvent::new(crossterm::event::KeyCode::PageUp, crossterm::event::KeyModifiers::empty()), 0);
+    crate::input::handle_key(
+        &mut app,
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::PageUp,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        0,
+    );
     assert_eq!(app.global_search_selection, 0);
 
     // Test End
-    crate::input::handle_key(&mut app, crossterm::event::KeyEvent::new(crossterm::event::KeyCode::End, crossterm::event::KeyModifiers::empty()), 0);
+    crate::input::handle_key(
+        &mut app,
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::End,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        0,
+    );
     assert_eq!(app.global_search_selection, 2);
 
     // Test Home
-    crate::input::handle_key(&mut app, crossterm::event::KeyEvent::new(crossterm::event::KeyCode::Home, crossterm::event::KeyModifiers::empty()), 0);
+    crate::input::handle_key(
+        &mut app,
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Home,
+            crossterm::event::KeyModifiers::empty(),
+        ),
+        0,
+    );
     assert_eq!(app.global_search_selection, 0);
 
     // Test Mouse ScrollDown
-    crate::mouse::handle_mouse(&mut app, crossterm::event::MouseEvent {
-        kind: crossterm::event::MouseEventKind::ScrollDown,
-        column: 0,
-        row: 0,
-        modifiers: crossterm::event::KeyModifiers::empty(),
-    });
+    crate::mouse::handle_mouse(
+        &mut app,
+        crossterm::event::MouseEvent {
+            kind: crossterm::event::MouseEventKind::ScrollDown,
+            column: 0,
+            row: 0,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        },
+    );
     assert_eq!(app.global_search_selection, 1);
 
     // Test Mouse ScrollUp
-    crate::mouse::handle_mouse(&mut app, crossterm::event::MouseEvent {
-        kind: crossterm::event::MouseEventKind::ScrollUp,
-        column: 0,
-        row: 0,
-        modifiers: crossterm::event::KeyModifiers::empty(),
-    });
+    crate::mouse::handle_mouse(
+        &mut app,
+        crossterm::event::MouseEvent {
+            kind: crossterm::event::MouseEventKind::ScrollUp,
+            column: 0,
+            row: 0,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        },
+    );
     assert_eq!(app.global_search_selection, 0);
 
     // Set selection back to 0 and matching repo path to test selection jump
@@ -9011,7 +9063,7 @@ fn test_automatic_workspace_sync() {
 
     let mut config = Config::default();
     config.watch_dirs = vec![watch_root.to_string_lossy().to_string()];
-    
+
     let mut app = App::new(config, std::env::temp_dir().join("dummy_config.toml"));
 
     // Verify watch dirs are registered (watcher exists)
@@ -9028,8 +9080,8 @@ fn test_automatic_workspace_sync() {
     while start.elapsed().as_millis() < 500 {
         if let Ok(raw_msg) = app.rx.try_recv() {
             if let Some(repo_path) = raw_msg.strip_prefix("REFRESH_REPO:") {
-                let canon_target = std::fs::canonicalize(repo_path)
-                    .unwrap_or_else(|_| PathBuf::from(repo_path));
+                let canon_target =
+                    std::fs::canonicalize(repo_path).unwrap_or_else(|_| PathBuf::from(repo_path));
                 let already_tracked = app.config.items.iter().position(|item| {
                     let canon_item =
                         std::fs::canonicalize(item).unwrap_or_else(|_| PathBuf::from(item));
@@ -9062,7 +9114,10 @@ fn test_automatic_workspace_sync() {
     }
 
     assert!(found, "The repository should be auto-discovered");
-    assert!(app.config.items.contains(&new_repo.to_string_lossy().to_string()), "The repository should be automatically added to config");
+    assert!(
+        app.config.items.contains(&new_repo.to_string_lossy().to_string()),
+        "The repository should be automatically added to config"
+    );
 
     let _ = std::fs::remove_dir_all(&watch_root);
 }
@@ -9071,7 +9126,7 @@ fn test_automatic_workspace_sync() {
 fn test_settings_watch_dirs_editing() {
     let mut config = Config::default();
     config.watch_dirs = vec!["~/old_watch".to_string()];
-    
+
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_watch.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);
@@ -9111,7 +9166,8 @@ fn test_bulk_fetch_completion_and_30s_clear() {
     if let Ok(raw_msg) = app.rx.try_recv() {
         if let Some(success_path) = raw_msg.strip_prefix("BULK_FETCH_SUCCESS:") {
             app.bulk_fetching.remove(success_path);
-            app.bulk_fetch_results.insert(success_path.to_string(), Ok("Fetched successfully".to_string()));
+            app.bulk_fetch_results
+                .insert(success_path.to_string(), Ok("Fetched successfully".to_string()));
             if app.bulk_fetching.is_empty() {
                 app.bulk_fetch_completed_at = Some(std::time::Instant::now());
             }
@@ -9123,7 +9179,8 @@ fn test_bulk_fetch_completion_and_30s_clear() {
     assert!(!app.bulk_fetch_results.is_empty());
 
     // 1. Not elapsed
-    app.bulk_fetch_completed_at = Some(std::time::Instant::now() - std::time::Duration::from_secs(29));
+    app.bulk_fetch_completed_at =
+        Some(std::time::Instant::now() - std::time::Duration::from_secs(29));
     if let Some(completed_at) = app.bulk_fetch_completed_at {
         if completed_at.elapsed().as_secs() >= 30 {
             app.bulk_fetch_results.clear();
@@ -9134,7 +9191,8 @@ fn test_bulk_fetch_completion_and_30s_clear() {
     assert!(app.bulk_fetch_completed_at.is_some());
 
     // 2. Elapsed
-    app.bulk_fetch_completed_at = Some(std::time::Instant::now() - std::time::Duration::from_secs(30));
+    app.bulk_fetch_completed_at =
+        Some(std::time::Instant::now() - std::time::Duration::from_secs(30));
     if let Some(completed_at) = app.bulk_fetch_completed_at {
         if completed_at.elapsed().as_secs() >= 30 {
             app.bulk_fetch_results.clear();
@@ -9149,7 +9207,7 @@ fn test_bulk_fetch_completion_and_30s_clear() {
 fn test_settings_show_system_stats_toggling() {
     let mut config = Config::default();
     config.show_system_stats = false;
-    
+
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_stats.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);
@@ -9172,7 +9230,7 @@ fn test_settings_show_system_stats_toggling() {
 fn test_settings_enable_commit_signatures_toggling() {
     let mut config = Config::default();
     config.enable_commit_signatures = false;
-    
+
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_signatures.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);
@@ -9195,7 +9253,7 @@ fn test_settings_enable_commit_signatures_toggling() {
 fn test_settings_graph_max_commits_editing() {
     let mut config = Config::default();
     config.graph_max_commits = 1000;
-    
+
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_graph_commits.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);
@@ -9223,7 +9281,7 @@ fn test_settings_graph_max_commits_editing() {
 fn test_settings_detail_cache_ttl_editing() {
     let mut config = Config::default();
     config.detail_cache_ttl_secs = 30;
-    
+
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_detail_ttl.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);
@@ -9251,7 +9309,7 @@ fn test_settings_detail_cache_ttl_editing() {
 fn test_settings_tab_ttl_editing() {
     let mut config = Config::default();
     config.tab_ttl_secs = 60;
-    
+
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_tab_ttl.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);
@@ -9279,7 +9337,7 @@ fn test_settings_tab_ttl_editing() {
 fn test_settings_compact_view_toggling() {
     let mut config = Config::default();
     config.compact_view = false;
-    
+
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_compact.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);
@@ -9297,12 +9355,3 @@ fn test_settings_compact_view_toggling() {
     app.toggle_or_edit_setting();
     assert!(!app.config.compact_view);
 }
-
-
-
-
-
-
-
-
-

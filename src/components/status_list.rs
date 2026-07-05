@@ -267,18 +267,18 @@ pub fn draw_staging_panels(
             .enumerate()
             .map(|(i, line)| {
                 let is_selected_hunk = selected_hunk_range.map(|r| r.contains(&i)).unwrap_or(false);
-                let (prefix, bg_style) = if right_focused {
+                let (prefix, prefix_style) = if right_focused {
                     if app.diff.diff_line_mode {
                         if i == app.diff.diff_line_selection {
-                            ("▎", Style::default().bg(ratatui::style::Color::Rgb(70, 70, 70)))
+                            ("▎", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
                         } else if is_selected_hunk {
-                            (" ", Style::default().bg(ratatui::style::Color::Rgb(40, 40, 40)))
+                            ("▏", Style::default().fg(Color::DarkGray))
                         } else {
                             (" ", Style::default())
                         }
                     } else {
                         if is_selected_hunk {
-                            ("▎", Style::default().bg(ratatui::style::Color::Rgb(50, 50, 50)))
+                            ("▎", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
                         } else {
                             (" ", Style::default())
                         }
@@ -287,7 +287,7 @@ pub fn draw_staging_panels(
                     (" ", Style::default())
                 };
 
-                let mut style = match line.kind {
+                let content_style = match line.kind {
                     DiffLineKind::Added => Style::default().fg(SUCCESS()),
                     DiffLineKind::Removed => Style::default().fg(DANGER()),
                     DiffLineKind::Header => Style::default().fg(ACCENT()),
@@ -302,11 +302,10 @@ pub fn draw_staging_panels(
                         .fg(ratatui::style::Color::Yellow)
                         .add_modifier(ratatui::style::Modifier::BOLD),
                 };
-                style = style.patch(bg_style);
 
                 Line::from(vec![
-                    Span::styled(prefix, style),
-                    Span::styled(line.content.clone(), style),
+                    Span::styled(prefix, prefix_style),
+                    Span::styled(line.content.clone(), content_style),
                 ])
             })
             .collect();

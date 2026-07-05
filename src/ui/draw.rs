@@ -1315,11 +1315,7 @@ pub(crate) fn wrap_str(s: &str, max_width: usize) -> Vec<String> {
             lines.push(current_line);
         }
     }
-    if lines.is_empty() {
-        vec![String::new()]
-    } else {
-        lines
-    }
+    if lines.is_empty() { vec![String::new()] } else { lines }
 }
 
 /// Pack comma-separated `val_str` items onto lines of at most `max_width` chars.
@@ -1616,11 +1612,8 @@ pub fn draw_global_search_popup(f: &mut Frame, app: &App, area: Rect) {
         .split(inner);
 
     // 1. Draw search query input box
-    let input_border_style = if app.global_search_focus_input {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
+    let input_border_style =
+        if app.global_search_focus_input { Style::default().fg(ACCENT()) } else { muted_style() };
     let input_block = Block::default()
         .borders(Borders::ALL)
         .border_style(input_border_style)
@@ -1633,20 +1626,16 @@ pub fn draw_global_search_popup(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(input_p, chunks[0]);
 
     // 2. Draw results list or loading state
-    let list_border_style = if !app.global_search_focus_input {
-        Style::default().fg(ACCENT())
-    } else {
-        muted_style()
-    };
-    let list_block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(list_border_style)
-        .title(" Results ");
+    let list_border_style =
+        if !app.global_search_focus_input { Style::default().fg(ACCENT()) } else { muted_style() };
+    let list_block =
+        Block::default().borders(Borders::ALL).border_style(list_border_style).title(" Results ");
 
     if app.global_search_running {
-        let loading_p = Paragraph::new(Line::from(vec![
-            Span::styled(" Searching across all tracked repositories...", accent_style().add_modifier(Modifier::BOLD)),
-        ]))
+        let loading_p = Paragraph::new(Line::from(vec![Span::styled(
+            " Searching across all tracked repositories...",
+            accent_style().add_modifier(Modifier::BOLD),
+        )]))
         .block(list_block);
         f.render_widget(loading_p, chunks[1]);
     } else if app.global_search_results.is_empty() {
@@ -1655,13 +1644,15 @@ pub fn draw_global_search_popup(f: &mut Frame, app: &App, area: Rect) {
         } else {
             "No matching string patterns found."
         };
-        let empty_p = Paragraph::new(Line::from(vec![
-            Span::styled(format!(" {}", empty_msg), muted_style()),
-        ]))
+        let empty_p = Paragraph::new(Line::from(vec![Span::styled(
+            format!(" {}", empty_msg),
+            muted_style(),
+        )]))
         .block(list_block);
         f.render_widget(empty_p, chunks[1]);
     } else {
-        let list_items: Vec<ratatui::widgets::ListItem> = app.global_search_results
+        let list_items: Vec<ratatui::widgets::ListItem> = app
+            .global_search_results
             .iter()
             .enumerate()
             .map(|(i, res)| {
@@ -1673,8 +1664,22 @@ pub fn draw_global_search_popup(f: &mut Frame, app: &App, area: Rect) {
                 };
 
                 let row_line = Line::from(vec![
-                    Span::styled(format!("[{}] ", res.repo_name), if is_selected && !app.global_search_focus_input { row_style } else { Style::default().fg(ratatui::style::Color::Green) }),
-                    Span::styled(format!("{}:{} ", res.file_rel_path, res.line_number), if is_selected && !app.global_search_focus_input { row_style } else { Style::default().fg(ratatui::style::Color::Cyan) }),
+                    Span::styled(
+                        format!("[{}] ", res.repo_name),
+                        if is_selected && !app.global_search_focus_input {
+                            row_style
+                        } else {
+                            Style::default().fg(ratatui::style::Color::Green)
+                        },
+                    ),
+                    Span::styled(
+                        format!("{}:{} ", res.file_rel_path, res.line_number),
+                        if is_selected && !app.global_search_focus_input {
+                            row_style
+                        } else {
+                            Style::default().fg(ratatui::style::Color::Cyan)
+                        },
+                    ),
                     Span::styled(res.line_content.clone(), row_style),
                 ]);
                 ratatui::widgets::ListItem::new(row_line)
@@ -1697,7 +1702,7 @@ pub fn draw_global_search_popup(f: &mut Frame, app: &App, area: Rect) {
         Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(
             if app.global_search_focus_input { " search  " } else { " open repo  " },
-            muted_style()
+            muted_style(),
         ),
         Span::styled("↑↓ navigate  ", muted_style()),
         Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),

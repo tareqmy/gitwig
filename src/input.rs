@@ -404,12 +404,14 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 KeyCode::PageUp => {
                     if !app.global_search_results.is_empty() {
-                        app.global_search_selection = app.global_search_selection.saturating_sub(app.config.page_size);
+                        app.global_search_selection =
+                            app.global_search_selection.saturating_sub(app.config.page_size);
                     }
                 }
                 KeyCode::PageDown => {
                     if !app.global_search_results.is_empty() {
-                        app.global_search_selection = (app.global_search_selection + app.config.page_size)
+                        app.global_search_selection = (app.global_search_selection
+                            + app.config.page_size)
                             .min(app.global_search_results.len().saturating_sub(1));
                     }
                 }
@@ -420,7 +422,8 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 }
                 KeyCode::End => {
                     if !app.global_search_results.is_empty() {
-                        app.global_search_selection = app.global_search_results.len().saturating_sub(1);
+                        app.global_search_selection =
+                            app.global_search_results.len().saturating_sub(1);
                     }
                 }
                 KeyCode::Enter => {

@@ -2638,11 +2638,7 @@ impl App {
         let labels: Vec<String> = if labels_str.is_empty() {
             Vec::new()
         } else {
-            labels_str
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect()
+            labels_str.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
         };
         let path = self.pending_bulk_add_repo.take().unwrap_or_default();
         self.bulk_add_path_with_labels(path, labels);

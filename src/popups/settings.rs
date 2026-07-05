@@ -195,24 +195,16 @@ fn get_desc(global_idx: usize) -> &'static str {
         61 => {
             "Comma-separated list of directories watched recursively for automatic workspace synchronization (e.g. ~/development)."
         }
-        62 => {
-            "Display memory usage and CPU usage of the Gitwig process in the bottom status bar."
-        }
-        63 => {
-            "Verify GPG/SSH signatures on commits list (requires spawning git subprocesses)."
-        }
-        64 => {
-            "Maximum commits visualized in the Graph tab history. Set to 0 for unlimited."
-        }
+        62 => "Display memory usage and CPU usage of the Gitwig process in the bottom status bar.",
+        63 => "Verify GPG/SSH signatures on commits list (requires spawning git subprocesses).",
+        64 => "Maximum commits visualized in the Graph tab history. Set to 0 for unlimited.",
         65 => {
             "How long in seconds repository details (history, files, etc) are cached in memory before reloading."
         }
         66 => {
             "How long in seconds lazy-loaded tab data remains cached in memory before automatic refresh."
         }
-        67 => {
-            "Show a compact single-line layout for repository cards in the list."
-        }
+        67 => "Show a compact single-line layout for repository cards in the list.",
         14 => "Toggles the status bar between collapsed and expanded view.",
         15 => "Opens the global help overlay.",
         16 => "Exits the application or closes the active settings/popup dialog.",
@@ -484,10 +476,7 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     // 2. Settings Content Pane Rendering
     let right_chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(1),
-            Constraint::Length(5),
-        ])
+        .constraints([Constraint::Min(1), Constraint::Length(5)])
         .split(chunks[2]);
 
     let indices = get_category_indices(active_cat);
@@ -576,10 +565,8 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
         // Subsequent lines of the value (indented by val_offset spaces)
         for chunk in val_chunks.iter().skip(1) {
             let spaces = " ".repeat(val_offset);
-            right_items.push(Line::from(vec![
-                Span::raw(spaces),
-                Span::styled(chunk.clone(), val_style),
-            ]));
+            right_items
+                .push(Line::from(vec![Span::raw(spaces), Span::styled(chunk.clone(), val_style)]));
         }
 
         // Spacer
@@ -638,11 +625,21 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     let active_desc = if app.settings_focus_sidebar {
         match active_cat {
-            0 => "Configuration for background polling intervals, default git executable, external text editor, caching TTL, and general UI display toggles.",
-            1 => "Controls repository list sorting rules (alphabetical, custom, recent visits), list sorting direction, and limits on maximum parsed commits.",
-            2 => "Configures primary repository discovery paths, recursive search depths, directory exclusion lists, and watch paths for automatic workspace sync.",
-            3 => "Select active TUI visual themes and toggle compact card/row layouts for list views.",
-            4 => "Custom key mappings and keyboard shortcuts for navigating repositories, committing changes, triggering git actions, and UI overlays.",
+            0 => {
+                "Configuration for background polling intervals, default git executable, external text editor, caching TTL, and general UI display toggles."
+            }
+            1 => {
+                "Controls repository list sorting rules (alphabetical, custom, recent visits), list sorting direction, and limits on maximum parsed commits."
+            }
+            2 => {
+                "Configures primary repository discovery paths, recursive search depths, directory exclusion lists, and watch paths for automatic workspace sync."
+            }
+            3 => {
+                "Select active TUI visual themes and toggle compact card/row layouts for list views."
+            }
+            4 => {
+                "Custom key mappings and keyboard shortcuts for navigating repositories, committing changes, triggering git actions, and UI overlays."
+            }
             _ => "",
         }
     } else {

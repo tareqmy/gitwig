@@ -688,16 +688,20 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         2
                     };
                     let show_selected_long = if name_format > 0 {
-                        let expanded_width = 11 + tabs_data.iter().map(|&(long_name, medium_name, short_name, tab_idx)| {
-                            let name_len = if tab_idx == app.detail_tab {
-                                long_name.len()
-                            } else if name_format == 1 {
-                                medium_name.len()
-                            } else {
-                                short_name.len()
-                            };
-                            name_len + 8
-                        }).sum::<usize>();
+                        let expanded_width = 11
+                            + tabs_data
+                                .iter()
+                                .map(|&(long_name, medium_name, short_name, tab_idx)| {
+                                    let name_len = if tab_idx == app.detail_tab {
+                                        long_name.len()
+                                    } else if name_format == 1 {
+                                        medium_name.len()
+                                    } else {
+                                        short_name.len()
+                                    };
+                                    name_len + 8
+                                })
+                                .sum::<usize>();
                         rect.width as usize >= expanded_width
                     } else {
                         false
@@ -705,7 +709,9 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
 
                     let mut current_offset = 2;
                     for &(long_name, medium_name, short_name, tab_index) in &tabs_data {
-                        let name = if tab_index == app.detail_tab && (name_format == 0 || show_selected_long) {
+                        let name = if tab_index == app.detail_tab
+                            && (name_format == 0 || show_selected_long)
+                        {
                             long_name
                         } else {
                             match name_format {

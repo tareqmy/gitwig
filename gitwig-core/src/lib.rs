@@ -2671,11 +2671,29 @@ pub fn get_conflict_markers_diff(repo_path: &Path, file_path: &str) -> Vec<DiffL
                 hunk_idx: None,
             });
         } else if in_ours {
-            lines.push(DiffLine { kind: DiffLineKind::ConflictOurs, content: line.to_string(), old_lineno: None, new_lineno: None, hunk_idx: None });
+            lines.push(DiffLine {
+                kind: DiffLineKind::ConflictOurs,
+                content: line.to_string(),
+                old_lineno: None,
+                new_lineno: None,
+                hunk_idx: None,
+            });
         } else if in_theirs {
-            lines.push(DiffLine { kind: DiffLineKind::ConflictTheirs, content: line.to_string(), old_lineno: None, new_lineno: None, hunk_idx: None });
+            lines.push(DiffLine {
+                kind: DiffLineKind::ConflictTheirs,
+                content: line.to_string(),
+                old_lineno: None,
+                new_lineno: None,
+                hunk_idx: None,
+            });
         } else {
-            lines.push(DiffLine { kind: DiffLineKind::Context, content: line.to_string(), old_lineno: None, new_lineno: None, hunk_idx: None });
+            lines.push(DiffLine {
+                kind: DiffLineKind::Context,
+                content: line.to_string(),
+                old_lineno: None,
+                new_lineno: None,
+                hunk_idx: None,
+            });
         }
     }
     lines

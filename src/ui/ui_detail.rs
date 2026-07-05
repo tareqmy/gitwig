@@ -427,16 +427,20 @@ pub fn draw(
         };
 
         let show_selected_long = if name_format > 0 {
-            let expanded_width = 11 + tabs_data.iter().map(|&(long_name, medium_name, short_name, _, tab_idx)| {
-                let name_len = if tab_idx == detail_tab {
-                    long_name.len()
-                } else if name_format == 1 {
-                    medium_name.len()
-                } else {
-                    short_name.len()
-                };
-                name_len + 8
-            }).sum::<usize>();
+            let expanded_width = 11
+                + tabs_data
+                    .iter()
+                    .map(|&(long_name, medium_name, short_name, _, tab_idx)| {
+                        let name_len = if tab_idx == detail_tab {
+                            long_name.len()
+                        } else if name_format == 1 {
+                            medium_name.len()
+                        } else {
+                            short_name.len()
+                        };
+                        name_len + 8
+                    })
+                    .sum::<usize>();
             tab_area.width as usize >= expanded_width
         } else {
             false

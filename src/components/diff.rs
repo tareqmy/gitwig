@@ -274,7 +274,29 @@ pub fn draw_inspect_window(
             .iter()
             .enumerate()
             .map(|(idx, line)| {
-                let mut style = match line.kind {
+                let is_selected_hunk =
+                    selected_hunk_range.map(|r| r.contains(&idx)).unwrap_or(false);
+                let (prefix, prefix_style) = if right_focused {
+                    if app.diff.diff_line_mode {
+                        if idx == app.diff.diff_line_selection {
+                            ("▎", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
+                        } else if is_selected_hunk {
+                            ("▏", Style::default().fg(Color::DarkGray))
+                        } else {
+                            (" ", Style::default())
+                        }
+                    } else {
+                        if is_selected_hunk {
+                            ("▎", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
+                        } else {
+                            (" ", Style::default())
+                        }
+                    }
+                } else {
+                    (" ", Style::default())
+                };
+
+                let content_style = match line.kind {
                     DiffLineKind::Added => Style::default().fg(SUCCESS()),
                     DiffLineKind::Removed => Style::default().fg(DANGER()),
                     DiffLineKind::Header => Style::default().fg(ACCENT()),
@@ -290,21 +312,10 @@ pub fn draw_inspect_window(
                         .add_modifier(ratatui::style::Modifier::BOLD),
                 };
 
-                if right_focused {
-                    if app.diff.diff_line_mode {
-                        if idx == app.diff.diff_line_selection {
-                            style = style.add_modifier(Modifier::REVERSED);
-                        }
-                    } else {
-                        if let Some(range) = selected_hunk_range {
-                            if range.contains(&idx) {
-                                style = style.add_modifier(Modifier::REVERSED);
-                            }
-                        }
-                    }
-                }
-
-                Line::from(Span::styled(line.content.clone(), style))
+                Line::from(vec![
+                    Span::styled(prefix, prefix_style),
+                    Span::styled(line.content.clone(), content_style),
+                ])
             })
             .collect();
         f.render_widget(

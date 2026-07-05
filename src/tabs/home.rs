@@ -131,7 +131,9 @@ impl HomeTab {
                     app.yank_selected_repo_path();
                 } else if code == KeyCode::Char('t') || code == KeyCode::Char('T') {
                     app.pending_terminal = true;
-                } else if code == KeyCode::Char('f') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                } else if code == KeyCode::Char('f')
+                    && key.modifiers.contains(KeyModifiers::CONTROL)
+                {
                     app.input_buffer.clear();
                     app.global_search_query.clear();
                     app.global_search_results.clear();

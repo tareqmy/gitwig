@@ -679,10 +679,7 @@ impl App {
             };
             if canon.exists() && canon.is_dir() {
                 if let Err(e) = watcher.watch(&canon, RecursiveMode::Recursive) {
-                    crate::debug_log::warn(format!(
-                        "Failed to watch directory {:?}: {}",
-                        canon, e
-                    ));
+                    crate::debug_log::warn(format!("Failed to watch directory {:?}: {}", canon, e));
                 }
             }
         }
@@ -1446,7 +1443,8 @@ where
                             if git_dir.exists() && git_dir.is_dir() {
                                 let path_str = repo_path.to_string();
                                 app.auto_discover_add(path_str);
-                                app.status_message = Some("Auto-discovered new repository".to_string());
+                                app.status_message =
+                                    Some("Auto-discovered new repository".to_string());
                             }
                         }
                     }

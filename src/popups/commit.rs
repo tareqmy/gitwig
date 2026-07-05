@@ -386,9 +386,7 @@ use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{
-    Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap,
-};
+use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
 
 pub fn draw_commit_popup(
     f: &mut Frame,
@@ -451,9 +449,7 @@ pub fn draw_commit_popup(
             .wrap(Wrap { trim: true })
             .scroll((scroll_val as u16, 0))
     } else {
-        Paragraph::new(input_buffer)
-            .wrap(Wrap { trim: true })
-            .scroll((scroll_val as u16, 0))
+        Paragraph::new(input_buffer).wrap(Wrap { trim: true }).scroll((scroll_val as u16, 0))
     };
 
     f.render_widget(text, chunks[0]);
@@ -477,16 +473,13 @@ pub fn draw_commit_popup(
     f.render_widget(Paragraph::new(checkbox_line), chunks[1]);
 
     if editing {
-        let (cursor_line, cursor_col) = char_idx_to_line_col(input_buffer, app.commit_popup.cursor_idx);
-        let cursor_y = chunks[0]
-            .y
-            .saturating_add(cursor_line.saturating_sub(scroll_val) as u16);
+        let (cursor_line, cursor_col) =
+            char_idx_to_line_col(input_buffer, app.commit_popup.cursor_idx);
+        let cursor_y = chunks[0].y.saturating_add(cursor_line.saturating_sub(scroll_val) as u16);
         let max_y = chunks[0].y.saturating_add(chunks[0].height.saturating_sub(1));
         let cursor_y = cursor_y.min(max_y);
 
-        let cursor_x = chunks[0]
-            .x
-            .saturating_add(cursor_col as u16);
+        let cursor_x = chunks[0].x.saturating_add(cursor_col as u16);
         let max_x = chunks[0].x.saturating_add(chunks[0].width.saturating_sub(1));
         let cursor_x = cursor_x.min(max_x);
 

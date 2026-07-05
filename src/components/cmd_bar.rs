@@ -958,13 +958,23 @@ pub(crate) fn get_status_layout_components(
                 Span::raw("Global Search: "),
                 Span::styled(
                     if app.global_search_focus_input { "Input Focused" } else { "Results Focused" },
-                    accent_style().add_modifier(Modifier::BOLD)
+                    accent_style().add_modifier(Modifier::BOLD),
                 ),
             ];
             let entries_data = if app.global_search_focus_input {
-                vec![("Type Query", "Char"), ("Search", "Enter"), ("Focus Results", "Tab"), ("Cancel", "Esc")]
+                vec![
+                    ("Type Query", "Char"),
+                    ("Search", "Enter"),
+                    ("Focus Results", "Tab"),
+                    ("Cancel", "Esc"),
+                ]
             } else {
-                vec![("Select Result", "↑/↓"), ("Open Detail", "Enter"), ("Focus Input", "Tab"), ("Cancel", "Esc")]
+                vec![
+                    ("Select Result", "↑/↓"),
+                    ("Open Detail", "Enter"),
+                    ("Focus Input", "Tab"),
+                    ("Cancel", "Esc"),
+                ]
             };
             let mut entries = Vec::new();
             for (i, (label, key)) in entries_data.iter().enumerate() {
