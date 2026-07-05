@@ -1,0 +1,27 @@
+name: gitwig
+base: core22
+version: '2.3.20'
+summary: Rust-based Terminal User Interface (TUI) for Git
+description: |
+  Gitwig is a terminal user interface (TUI) for Git that aims to provide a
+  SourceTree-like experience in the terminal. It is fast, lightweight, and
+  features hunk/line staging, interactive rebasing, log graphing, branch
+  management, and a dedicated settings panel.
+
+grade: stable
+confinement: classic
+
+parts:
+  gitwig:
+    plugin: rust
+    source: .
+    build-packages:
+      - pkg-config
+      - libssl-dev
+      - cmake
+      - clang
+      - make
+
+apps:
+  gitwig:
+    command: bin/gitwig
