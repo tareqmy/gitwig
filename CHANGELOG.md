@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+
+## [v2.3.21] - 2026-07-05
+### Added
+- implement hunk-level staging keybinds (s to stage, u to unstage) in diff view ([04779af](https://github.com/tareqmy/gitwig/commit/04779af))
+- implement line-level selection and visual highlights in diff view ([c0a1476](https://github.com/tareqmy/gitwig/commit/c0a1476))
+- show full name of the selected tab header if space allows when shortened ([8a91a13](https://github.com/tareqmy/gitwig/commit/8a91a13))
+- improve commit popup editor with cursor navigation, editing shortcuts, and draft retention ([b285f38](https://github.com/tareqmy/gitwig/commit/b285f38))
+- add snapcraft configuration for Linux packaging support ([0e6d0d5](https://github.com/tareqmy/gitwig/commit/0e6d0d5))
+
+### Changed
+- improve selected hunk and line presentation in staging details and diff view ([6001fcb](https://github.com/tareqmy/gitwig/commit/6001fcb))
+
+### Documentation
+- update roadmap and keybindings guide for hunk/line-level staging ([c167085](https://github.com/tareqmy/gitwig/commit/c167085))
+
+## [v2.3.20] - 2026-07-05
 ### Added
 - show category description when settings sidebar is focused ([f0cf39c](https://github.com/tareqmy/gitwig/commit/f0cf39c))
 - render settings descriptions in a dedicated box at the bottom of the right panel ([cd379f9](https://github.com/tareqmy/gitwig/commit/cd379f9))
