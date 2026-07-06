@@ -74,6 +74,20 @@ impl RepoSettingsPopup {
                             app.config.repo_configs.insert(repo_path, repo_cfg);
                             app.persist("Repository note updated");
                         }
+                        6 => {
+                            let pattern = app.repo_settings_input.trim();
+                            if !pattern.is_empty() {
+                                match Self::track_lfs_pattern(&repo_path, pattern) {
+                                    Ok(msg) => {
+                                        app.status_message = Some(msg);
+                                        app.resync_detail();
+                                    }
+                                    Err(err) => {
+                                        app.status_message = Some(err);
+                                    }
+                                }
+                            }
+                        }
                         _ => {}
                     }
                     app.repo_settings_editing = false;
@@ -85,7 +99,8 @@ impl RepoSettingsPopup {
                 }
                 KeyCode::Char(c)
                     if app.repo_settings_selected_index == 4
-                        || app.repo_settings_selected_index == 5 =>
+                        || app.repo_settings_selected_index == 5
+                        || app.repo_settings_selected_index == 6 =>
                 {
                     app.repo_settings_input.push(c);
                     return true;
@@ -106,14 +121,14 @@ impl RepoSettingsPopup {
             }
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                 app.repo_settings_selected_index = if app.repo_settings_selected_index == 0 {
-                    5
+                    8
                 } else {
                     app.repo_settings_selected_index - 1
                 };
                 return true;
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                app.repo_settings_selected_index = (app.repo_settings_selected_index + 1) % 6;
+                app.repo_settings_selected_index = (app.repo_settings_selected_index + 1) % 9;
                 return true;
             }
             KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
@@ -154,6 +169,17 @@ impl RepoSettingsPopup {
                             app.config.repo_configs.get(&repo_path).cloned().unwrap_or_default();
                         app.repo_settings_input = repo_cfg.note.clone().unwrap_or_default();
                         app.repo_settings_editing = true;
+                    }
+                    6 => {
+                        app.repo_settings_input = String::new();
+                        app.repo_settings_editing = true;
+                    }
+                    7 => {
+                        app.lfs_pull();
+                        app.mode = Mode::Detail;
+                    }
+                    8 => {
+                        app.resync_detail();
                     }
                     _ => {}
                 }
@@ -223,9 +249,26 @@ impl RepoSettingsPopup {
         }
     }
 
+    fn track_lfs_pattern(repo_path: &str, pattern: &str) -> Result<String, String> {
+        let output = std::process::Command::new("git")
+            .arg("lfs")
+            .arg("track")
+            .arg(pattern)
+            .current_dir(repo_path)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        if output.status.success() {
+            Ok(format!("Tracked '{}' with Git LFS (updated .gitattributes)", pattern))
+        } else {
+            let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            Err(format!("Git LFS track failed: {}", err))
+        }
+    }
+
     pub fn draw(f: &mut Frame, app: &App, area: Rect) {
         let popup_width = 54;
-        let popup_height = 16;
+        let popup_height = 20;
         let popup_area = crate::ui::layout::centered_rect_fixed(popup_width, popup_height, area);
 
         let block = Block::default()
@@ -252,7 +295,7 @@ impl RepoSettingsPopup {
                 Constraint::Length(1), // Spacer
                 Constraint::Length(1), // Repository Name
                 Constraint::Length(1), // Spacer
-                Constraint::Min(6),    // Settings items list
+                Constraint::Min(9),    // Settings items list
                 Constraint::Length(1), // Spacer
                 Constraint::Length(1), // Shortcuts instructions
             ])
@@ -277,7 +320,7 @@ impl RepoSettingsPopup {
                           label: &str,
                           value: &str,
                           is_editing: bool|
-         -> Line<'static> {
+          -> Line<'static> {
             let is_selected = idx == app.repo_settings_selected_index;
             let prefix = if is_selected { "▶ " } else { "  " };
 
@@ -311,6 +354,17 @@ impl RepoSettingsPopup {
                     },
                 ));
                 spans.push(Span::styled(" >", muted_style()));
+            } else if label == "Git LFS Pull:" || label == "LFS Storage Size:" {
+                spans.push(Span::styled("[ ", muted_style()));
+                spans.push(Span::styled(
+                    value.to_string(),
+                    if is_selected {
+                        accent_style().add_modifier(Modifier::BOLD)
+                    } else {
+                        muted_style()
+                    },
+                ));
+                spans.push(Span::styled(" ]", muted_style()));
             } else {
                 spans.push(Span::styled("[ ", muted_style()));
                 spans.push(Span::styled(
@@ -399,13 +453,66 @@ impl RepoSettingsPopup {
             app.repo_settings_selected_index == 5 && app.repo_settings_editing,
         );
 
-        let settings_lines =
-            vec![theme_line, page_size_line, max_commits_line, resync_line, editor_line, note_line];
+        // Row 6: Git LFS Track Pattern
+        let track_line = build_line(
+            6,
+            "Git LFS Track:",
+            if app.repo_settings_selected_index == 6 && app.repo_settings_editing {
+                &app.repo_settings_input
+            } else {
+                "enter pattern (e.g. *.psd)"
+            },
+            app.repo_settings_selected_index == 6 && app.repo_settings_editing,
+        );
+
+        // Row 7: Git LFS Pull
+        let pull_line = build_line(7, "Git LFS Pull:", "press Enter to pull files", false);
+
+        // Row 8: LFS Storage Size
+        let lfs_info = if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+            (info.lfs_installed, info.lfs_storage_size)
+        } else {
+            (false, None)
+        };
+        let lfs_size_str = match lfs_info {
+            (false, _) => "git-lfs not installed".to_string(),
+            (true, None) => "not initialized/0 B".to_string(),
+            (true, Some(bytes)) => {
+                const KB: u64 = 1024;
+                const MB: u64 = 1024 * 1024;
+                const GB: u64 = 1024 * 1024 * 1024;
+                if bytes >= GB {
+                    format!("{:.2} GB (Enter to refresh)", bytes as f64 / GB as f64)
+                } else if bytes >= MB {
+                    format!("{:.2} MB (Enter to refresh)", bytes as f64 / MB as f64)
+                } else if bytes >= KB {
+                    format!("{:.2} KB (Enter to refresh)", bytes as f64 / KB as f64)
+                } else {
+                    format!("{} B (Enter to refresh)", bytes)
+                }
+            }
+        };
+        let lfs_size_line = build_line(8, "LFS Storage Size:", &lfs_size_str, false);
+
+        let settings_lines = vec![
+            theme_line,
+            page_size_line,
+            max_commits_line,
+            resync_line,
+            editor_line,
+            note_line,
+            track_line,
+            pull_line,
+            lfs_size_line,
+        ];
         f.render_widget(Paragraph::new(settings_lines), chunks[3]);
 
         // Shortcuts helper bar
         let helper_line = if app.repo_settings_editing {
-            if app.repo_settings_selected_index == 4 || app.repo_settings_selected_index == 5 {
+            if app.repo_settings_selected_index == 4
+                || app.repo_settings_selected_index == 5
+                || app.repo_settings_selected_index == 6
+            {
                 Line::from(vec![
                     Span::styled(" [Text] ", accent_style()),
                     Span::styled("Type  ", muted_style()),

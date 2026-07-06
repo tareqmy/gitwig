@@ -44,6 +44,12 @@ pub fn draw_staging_panels(
     app: &crate::app::App,
     area: Rect,
 ) {
+    let empty_set = std::collections::HashSet::new();
+    let lfs_files = if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        &info.lfs_files
+    } else {
+        &empty_set
+    };
     let right_focused =
         focus == DetailSection::StagingDetails || focus == DetailSection::ConflictDiff;
     let selected_file_name: Option<String> = {
@@ -180,6 +186,7 @@ pub fn draw_staging_panels(
             focus == DetailSection::Staged,
             if focus == DetailSection::Staged { Some(staging_file_selection) } else { None },
             &app.status_list.staged_list_state,
+            lfs_files,
             left_split[0],
         );
         areas.staged_sub_inner = Some(staged_inner);
@@ -194,6 +201,7 @@ pub fn draw_staging_panels(
             focus == DetailSection::Unstaged,
             if focus == DetailSection::Unstaged { Some(staging_file_selection) } else { None },
             &app.status_list.unstaged_list_state,
+            lfs_files,
             left_split[1],
         );
         areas.unstaged_sub_inner = Some(unstaged_inner);
@@ -213,6 +221,7 @@ pub fn draw_staging_panels(
                     None
                 },
                 &app.status_list.conflicts_list_state,
+                lfs_files,
                 left_split[2],
             );
             areas.conflicts_sub_inner = Some(conflicts_inner);

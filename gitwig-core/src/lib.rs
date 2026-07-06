@@ -248,6 +248,12 @@ pub struct RepoInfo {
     pub tab_loaded_at: [Option<std::time::Instant>; 10],
     /// Whether each tab is currently loading in the background (index matches tab_idx)
     pub tab_loading: [bool; 10],
+    /// Files tracked by Git LFS in the index/working copy.
+    pub lfs_files: std::collections::HashSet<String>,
+    /// Whether git-lfs is installed in the system PATH.
+    pub lfs_installed: bool,
+    /// Storage size of the local LFS directory if LFS is used.
+    pub lfs_storage_size: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -1398,6 +1404,119 @@ pub fn get_commit_files(repo_path: &Path, oid: &str) -> Result<Vec<FileEntry>, S
     let commit = repo.find_commit(oid).map_err(|e| e.to_string())?;
     Ok(commit_changed_files(&repo, &commit))
 }
+fn match_pattern(path: &str, pattern: &str) -> bool {
+    if pattern.starts_with('*') {
+        let suffix = &pattern[1..];
+        return path.ends_with(suffix);
+    }
+    if pattern.ends_with('*') {
+        let prefix = &pattern[0..pattern.len() - 1];
+        return path.starts_with(prefix);
+    }
+    if pattern.contains('*') {
+        let parts: Vec<&str> = pattern.split('*').collect();
+        if parts.len() == 2 {
+            return path.starts_with(parts[0]) && path.ends_with(parts[1]);
+        }
+    }
+    path == pattern || path.ends_with(&format!("/{}", pattern))
+}
+
+fn get_lfs_info(repo_path: &Path) -> (bool, std::collections::HashSet<String>) {
+    let mut tracked = std::collections::HashSet::new();
+    let mut installed = false;
+
+    if let Ok(output) = std::process::Command::new("git")
+        .arg("lfs")
+        .arg("--version")
+        .output()
+    {
+        installed = output.status.success();
+    }
+
+    if installed {
+        if let Ok(output) = std::process::Command::new("git")
+            .arg("lfs")
+            .arg("ls-files")
+            .arg("-n")
+            .current_dir(repo_path)
+            .output()
+        {
+            if output.status.success() {
+                if let Ok(stdout) = String::from_utf8(output.stdout) {
+                    for line in stdout.lines() {
+                        let trimmed = line.trim();
+                        if !trimmed.is_empty() {
+                            tracked.insert(trimmed.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let gitattributes_path = repo_path.join(".gitattributes");
+    if gitattributes_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&gitattributes_path) {
+            let mut patterns = Vec::new();
+            for line in content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                if line.contains("filter=lfs") || line.contains("diff=lfs") || line.contains("merge=lfs") {
+                    if let Some(pattern) = line.split_whitespace().next() {
+                        patterns.push(pattern.to_string());
+                    }
+                }
+            }
+
+            if !patterns.is_empty() {
+                if let Ok(repo) = Repository::open(repo_path) {
+                    if let Ok(index) = repo.index() {
+                        for entry in index.iter() {
+                            if let Ok(path_str) = std::str::from_utf8(&entry.path) {
+                                for pat in &patterns {
+                                    if match_pattern(path_str, pat) {
+                                        tracked.insert(path_str.to_string());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    (installed, tracked)
+}
+
+fn get_lfs_storage_size(repo_path: &Path) -> Option<u64> {
+    let lfs_path = repo_path.join(".git").join("lfs");
+    if !lfs_path.exists() {
+        return None;
+    }
+
+    fn calculate_dir_size(dir: &Path) -> u64 {
+        let mut size = 0;
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                if let Ok(metadata) = entry.metadata() {
+                    if metadata.is_dir() {
+                        size += calculate_dir_size(&entry.path());
+                    } else {
+                        size += metadata.len();
+                    }
+                }
+            }
+        }
+        size
+    }
+
+    Some(calculate_dir_size(&lfs_path))
+}
 
 // ── Internal collection ────────────────────────────────────────────────────
 
@@ -1415,6 +1534,10 @@ fn collect_info(
     populate_ahead_behind(&repo, &mut summary);
 
     let mut info = RepoInfo { summary, ..RepoInfo::default() };
+    let (lfs_inst, lfs_f) = get_lfs_info(path);
+    info.lfs_installed = lfs_inst;
+    info.lfs_files = lfs_f;
+    info.lfs_storage_size = get_lfs_storage_size(path);
 
     if let Ok(head) = repo.head() {
         info.branch = head.shorthand().ok().map(String::from);
@@ -3027,6 +3150,16 @@ pub fn worktree_prune(repo_path: &Path) -> Result<(), String> {
 mod tests {
     use super::*;
     use std::fs::File;
+
+    #[test]
+    fn test_match_pattern() {
+        assert!(match_pattern("test.psd", "*.psd"));
+        assert!(match_pattern("assets/test.psd", "*.psd"));
+        assert!(match_pattern("assets/img.png", "assets/*.png"));
+        assert!(match_pattern("src/app.rs", "src/*"));
+        assert!(match_pattern("test.txt", "test.txt"));
+        assert!(!match_pattern("src/app.rs", "*.psd"));
+    }
     use std::io::Write;
 
     #[test]

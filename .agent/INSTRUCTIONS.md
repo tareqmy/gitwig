@@ -72,24 +72,25 @@ The crate is organized so each file has a single clear responsibility. Keep it t
 ## Release Process
 To publish a new version of Gitwig, follow these steps:
 1. **Update Version Number:** Update the version in `Cargo.toml` (both the workspace root and core workspace if needed).
-2. **Regenerate the Changelog:** Run the changelog generation script to update `CHANGELOG.md`:
+2. **Update Scripts & Checksums:** If any installation/uninstallation scripts under `scripts/` (e.g. `install.sh`, `install.ps1`, etc.) are changed, ensure they are fully tested and their corresponding `.sha256` checksum files are updated with the correct SHA-256 checksums.
+3. **Regenerate the Changelog:** Run the changelog generation script to update `CHANGELOG.md`:
    ```bash
    python3 scripts/generate_changelog.py
    ```
-3. **Commit the changes:** Commit version and changelog changes:
+4. **Commit the changes:** Commit version, changelog, and checksum changes:
    ```bash
    git add Cargo.toml CHANGELOG.md
    git commit -m "release: vX.Y.Z"
    ```
-4. **Tag the Commit:** Create a signed or annotated tag:
+5. **Tag the Commit:** Create a signed or annotated tag:
    ```bash
    git tag -a vX.Y.Z -m "release vX.Y.Z"
    ```
-5. **Push Tag to GitHub:** Push the commits and tags to remote:
+6. **Push Tag to GitHub:** Push the commits and tags to remote:
    ```bash
    git push origin main --follow-tags
    ```
-6. **Automated CD Pipeline:** The GitHub Actions CD workflow triggers automatically on tags starting with `v*`. It creates a draft release, builds for all target platforms, packages/uploads release assets, publishes the GitHub release, publishes packages to crates.io, updates the Homebrew tap, and pushes to Chocolatey.
+7. **Automated CD Pipeline:** The GitHub Actions CD workflow triggers automatically on tags starting with `v*`. It creates a draft release, builds for all target platforms, packages/uploads release assets, publishes the GitHub release, publishes packages to crates.io, updates the Homebrew tap, and pushes to Chocolatey.
 
 ## Communication
 - Be concise.

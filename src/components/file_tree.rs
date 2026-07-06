@@ -149,11 +149,16 @@ pub fn draw_files_view(
                     (files_tab_sym("file_tree"), muted_style(), primary_style())
                 };
 
-                ListItem::new(Line::from(vec![
+                let mut spans = vec![
                     Span::raw(indent),
                     Span::styled(prefix, prefix_style),
                     Span::styled(item.name.clone(), name_style),
-                ]))
+                ];
+                if !item.is_dir && info.lfs_files.contains(&item.full_path) {
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled("[LFS]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
+                }
+                ListItem::new(Line::from(spans))
             })
             .collect();
 
@@ -475,8 +480,14 @@ pub fn draw_commit_files_panel(
             v[1],
         );
     } else {
+        let empty_set = std::collections::HashSet::new();
+        let lfs_files = if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+            &info.lfs_files
+        } else {
+            &empty_set
+        };
         let items: Vec<ListItem> =
-            commit.files.iter().map(|f| ListItem::new(file_entry_line(f))).collect();
+            commit.files.iter().map(|f| ListItem::new(file_entry_line(f, lfs_files.contains(&f.path)))).collect();
         let list =
             List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
         let mut state = app.status_list.changed_files_list_state.borrow_mut();

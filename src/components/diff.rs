@@ -38,6 +38,7 @@ pub fn draw_file_subpanel(
     focused: bool,
     selection: Option<usize>,
     list_state: &std::cell::RefCell<ListState>,
+    lfs_files: &std::collections::HashSet<String>,
     area: Rect,
 ) -> Rect {
     // When focused, highlight the title in accent; border stays muted (contained inside outer).
@@ -75,7 +76,7 @@ pub fn draw_file_subpanel(
     if let Some(sel_idx) = selection {
         // Focused: render as a selectable list with highlight.
         let items: Vec<ListItem> =
-            files.iter().map(|e| ListItem::new(file_entry_line(e))).collect();
+            files.iter().map(|e| ListItem::new(file_entry_line(e, lfs_files.contains(&e.path)))).collect();
         let list =
             List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
         let mut state = list_state.borrow_mut();
@@ -83,7 +84,7 @@ pub fn draw_file_subpanel(
         f.render_stateful_widget(list, inner, &mut *state);
     } else {
         // Not focused: plain paragraph.
-        let file_lines: Vec<Line<'static>> = files.iter().map(file_entry_line).collect();
+        let file_lines: Vec<Line<'static>> = files.iter().map(|e| file_entry_line(e, lfs_files.contains(&e.path))).collect();
         f.render_widget(Paragraph::new(file_lines).wrap(Wrap { trim: false }), inner);
     }
     inner
@@ -216,8 +217,14 @@ pub fn draw_inspect_window(
                 v[1],
             );
         } else {
+            let empty_set = std::collections::HashSet::new();
+            let lfs_files = if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+                &info.lfs_files
+            } else {
+                &empty_set
+            };
             let items: Vec<ListItem> =
-                commit.files.iter().map(|f| ListItem::new(file_entry_line(f))).collect();
+                commit.files.iter().map(|f| ListItem::new(file_entry_line(f, lfs_files.contains(&f.path)))).collect();
             let list =
                 List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
             let mut state = app.status_list.changed_files_list_state.borrow_mut();

@@ -14,7 +14,7 @@
 use crate::ui::layout::centered_rect;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{
     Block, BorderType, Borders, Cell, Clear, List, ListItem, ListState, Padding, Paragraph, Row,
@@ -1399,7 +1399,7 @@ fn remote_lines(remote: &RemoteInfo, max_width: usize) -> Vec<Line<'static>> {
     lines
 }
 
-pub fn file_entry_line(entry: &FileEntry) -> Line<'static> {
+pub fn file_entry_line(entry: &FileEntry, is_lfs: bool) -> Line<'static> {
     let label_style = match entry.label {
         "N" => Style::default().fg(SUCCESS()),
         "D" => Style::default().fg(DANGER()),
@@ -1408,11 +1408,16 @@ pub fn file_entry_line(entry: &FileEntry) -> Line<'static> {
         "?" => muted_style(),
         _ => Style::default().fg(WARNING()), // "M"
     };
-    Line::from(vec![
+    let mut spans = vec![
         Span::raw(FILE_INDENT),
         Span::styled(format!("{:<FILE_LABEL_WIDTH$}", entry.label), label_style),
         Span::styled(entry.path.clone(), muted_style()),
-    ])
+    ];
+    if is_lfs {
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled("[LFS]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
+    }
+    Line::from(spans)
 }
 
 // ── Low-level line builders ────────────────────────────────────────────────

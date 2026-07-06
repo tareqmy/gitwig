@@ -71,6 +71,49 @@ impl App {
         }
     }
 
+    /// Spawns a background thread to pull all Git LFS files for the repository.
+    pub fn lfs_pull(&mut self) {
+        if self.fetching {
+            return;
+        }
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+            if !info.lfs_installed {
+                self.status_message = Some("Git LFS is not installed on this system".to_string());
+                return;
+            }
+            crate::debug_log::info("Network Action: git lfs pull");
+            self.fetching = true;
+            self.status_message = Some("Git LFS Pulling...".to_string());
+
+            let repo_path = resolved.clone();
+            let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
+
+            std::thread::spawn(move || {
+                let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                    let output = std::process::Command::new("git")
+                        .arg("lfs")
+                        .arg("pull")
+                        .current_dir(&repo_path)
+                        .output()?;
+
+                    if output.status.success() {
+                        Ok("Git LFS files pulled successfully".to_string())
+                    } else {
+                        let err_msg =
+                            String::from_utf8_lossy(&output.stderr).trim().to_string();
+                        Err(format!("git lfs pull failed: {}", err_msg).into())
+                    }
+                })();
+
+                let msg = match res {
+                    Ok(success) => success,
+                    Err(e) => format!("LFS pull failed: {}", e),
+                };
+                let _ = tx.send(msg);
+            });
+        }
+    }
+
     /// Spawns a background thread to push the selected local branch to its upstream remote.
     /// If no upstream is configured, it falls back to the first configured remote (typically origin)
     /// and sets upstream tracking (-u).

@@ -151,8 +151,8 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Code Review Mode:** Support adding/viewing line comments on diffs inside active Pull Requests.
 
 ## Phase 12: Git LFS & Large File Management
-- [ ] **LFS Detection:** Visual indicators for files tracked by Git LFS.
-- [ ] **LFS Workflows:** Support for `git lfs pull`, `git lfs track`, and checking LFS storage consumption within the repository settings panel.
+- [x] **LFS Detection:** Visual indicators for files tracked by Git LFS.
+- [x] **LFS Workflows:** Support for `git lfs pull`, `git lfs track`, and checking LFS storage consumption within the repository settings panel.
 
 ## Phase 13: Interactive Hunk & Line Patching
 - [x] **Hunk Staging:** Pressing `s` or `u` on a specific hunk in the Diff view to stage/unstage just that hunk.

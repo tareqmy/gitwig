@@ -169,10 +169,16 @@ pub fn draw_stashes_view(
     }
     f.render_stateful_widget(list, left_chunks[0], &mut *list_state);
 
-    // ── Stashed Files List Panel ──
     let files_focused = focus == DetailSection::StashedFiles;
     let selected_stash = info.stashes.get(stash_selection);
     let stashed_files = selected_stash.map(|s| s.files.as_slice()).unwrap_or(&[]);
+
+    let empty_set = std::collections::HashSet::new();
+    let lfs_files = if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        &info.lfs_files
+    } else {
+        &empty_set
+    };
 
     let stashed_files_inner = draw_file_subpanel(
         f,
@@ -184,6 +190,7 @@ pub fn draw_stashes_view(
         files_focused,
         if files_focused || !stashed_files.is_empty() { Some(stash_file_selection) } else { None },
         &app.stash_list.stash_file_list_state,
+        lfs_files,
         left_chunks[1],
     );
     areas.stashed_files_inner = Some(stashed_files_inner);
