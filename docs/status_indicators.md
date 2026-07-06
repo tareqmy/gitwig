@@ -36,6 +36,13 @@ When a repository has an active Git operation or special state, Gitwig displays 
 - `🔍 BISECT` — Active Bisect session.
 - `📬 APPLY` — Applying patches (mailbox).
 
+### Git LFS Badges (`[LFS]`)
+Files tracked by Git LFS will display a blue `[LFS]` badge next to their names in:
+- Staged / Unstaged / Conflicts file panels (Workspace tab).
+- Changed files lists (Commit Details / Inspect window).
+- Repository Files Tree list (Files tab).
+- Stashed Files list (Stashes tab).
+
 ### Global Summary Header Bar
 The high-level dashboard stats at the top of the homepage show:
 - **repos**: Total number of configured repositories.

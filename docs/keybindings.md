@@ -83,7 +83,7 @@
 | `G`                  | Detail          | Load more commits (Workspace commits list / Logs view)            |
 | `l`                  | Detail          | Open Logs view (Workspace tab commits list focus) or Toggle lock status (Worktrees tab; asks reason/unlocks) |
 | `D`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), stash (Stashes tab; asks confirmation), or remove worktree (Worktrees tab; asks confirmation) |
-| `s` / `S`            | Detail          | Stage selected hunk/line (Workspace tab StagingDetails focus), open Stashing UI overlay (Workspace tab files list focus), Prompt to save stash (Stashing UI / Stashes tab), or Open theme picker (Overview overlay) |
+| `s` / `S`            | Detail          | Stage selected hunk/line (Workspace tab StagingDetails focus), open Stashing UI overlay (Workspace tab files list focus), Prompt to save stash (Stashing UI / Stashes tab), or Open Repository Settings popup (Overview overlay) |
 | `u` / `U`            | Detail          | Unstage selected hunk/line (Workspace tab StagingDetails focus), or Toggle "Stash untracked files" option (Stashing UI) |
 | `i`                  | Detail          | Toggle "Keep index" option (Stashing UI)                         |
 | `Ctrl+U`             | Input (Stash)   | Toggle "Stash untracked files" option (Stash Create popup)       |
@@ -121,3 +121,13 @@ The selected card's border color mirrors the current operation mode:
 - **Red** — awaiting delete confirmation; the doomed card's border turns red.
 
 The selected item is marked with a left-edge `▌` accent, a colored border, and bold text. In `ADDING` and `EDITING` modes the real terminal cursor sits at the end of your input so you can see exactly where the next character will land.
+
+### Repository Settings Popup controls:
+When viewing the Repository Settings popup (entered via `s` on the repository Overview page):
+- `↑` / `↓` / `j` / `k` — Navigate settings rows.
+- `Enter` / `Space` — Toggle/Edit the selected setting:
+  * For editable fields (Page Size, Max Commits, Editor Command, User Note, Git LFS Track): starts/enters editing mode (type and press `Enter` to confirm, `Esc` to cancel).
+  * For action fields (Git LFS Pull, LFS Storage Size): triggers the pull background job or refreshes the storage size.
+- `←` / `→` / `h` / `l` — Cycle options (Theme, Resync on Tab Change).
+- `Esc` / `q` — Close repository settings popup and return to repository Detail view.
+

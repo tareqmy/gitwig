@@ -174,6 +174,13 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
         ),
         Span::raw("Applying patches (mailbox)"),
     ]));
+    lines.push(Line::from(vec![
+        Span::styled(
+            format!("  {}", pad("[LFS]")),
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("File tracked by Git LFS"),
+    ]));
 
     // Separator
     lines.push(Line::from(""));

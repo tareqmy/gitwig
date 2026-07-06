@@ -14,3 +14,4 @@
 - **Mode-Aware Status Bar**: Shows contextual shortcuts dynamically with support for collapsed/expanded view (`.`). When expanded, it dynamically wraps the shortcut items and calculates the exact number of rows needed based on terminal width.
 - **Global Code Search**: Press `Ctrl-F` to search for string patterns across all tracked repositories using a fast, multithreaded offline file scanner. Hitting `Enter` on a result automatically jumps to and opens that repository.
 - **Automatic Workspace Sync**: Monitor directories (e.g. `watch_dirs = ["~/development"]`) to automatically sync newly created or cloned repositories to your workspace in real-time.
+- **Git LFS Integration**: Automatic visual indicators (`[LFS]`) for tracked files, with LFS workflows (`git lfs pull` files, `git lfs track <pattern>`, and checking local LFS storage usage) accessible inside Repository Settings.
