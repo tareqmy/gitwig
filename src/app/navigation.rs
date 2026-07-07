@@ -718,10 +718,11 @@ impl App {
                 info.graph_lines = repo::TabData::NotLoaded;
                 info.submodules = repo::TabData::NotLoaded;
                 info.reflog = repo::TabData::NotLoaded;
+                info.forge_issues = repo::TabData::NotLoaded;
                 info.committer_stats = repo::TabData::NotLoaded;
                 info.remote_tags_loaded = false;
                 info.remote_tags_attempted = false;
-                info.tab_loaded_at = [None; 10];
+                info.tab_loaded_at = [None; 11];
             }
 
             self.loading_repo_path = Some(item.clone());
@@ -1163,6 +1164,23 @@ impl App {
                     });
                 }
             }
+            10 => {
+                let is_not_loaded = info.forge_issues.is_not_loaded();
+                if should_trigger(info, tab_idx, is_not_loaded) {
+                    info.tab_loading[tab_idx] = true;
+                    if is_not_loaded {
+                        info.forge_issues = repo::TabData::Loading;
+                    }
+                    std::thread::spawn(move || {
+                        let res = repo::load_tab_forge_issues(&path);
+                        let _ = tx.send((
+                            path.to_string_lossy().to_string(),
+                            tab_idx,
+                            repo::TabPayload::ForgeIssues(res),
+                        ));
+                    });
+                }
+            }
             _ => {}
         }
     }
@@ -1225,6 +1243,13 @@ impl App {
                     DetailSection::StashedFiles => DetailSection::StagingDetails,
                     _ => DetailSection::Stashes,
                 }
+            };
+            return;
+        }
+        if self.detail_tab == 10 {
+            self.detail_focus = match self.detail_focus {
+                DetailSection::ForgeIssues => DetailSection::ForgeIssueDetails,
+                _ => DetailSection::ForgeIssues,
             };
             return;
         }
@@ -3028,6 +3053,9 @@ impl App {
             }
             9 => {
                 self.detail_focus = DetailSection::Reflog;
+            }
+            10 => {
+                self.detail_focus = DetailSection::ForgeIssues;
             }
             _ => {}
         }

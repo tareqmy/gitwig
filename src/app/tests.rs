@@ -3781,8 +3781,8 @@ fn test_tab_ttl_behavior() {
     let mock_info = crate::repo::RepoInfo {
         commits: vec![],
         files: crate::repo::TabData::Loaded(vec!["file1.txt".to_string()]),
-        tab_loaded_at: [None; 10],
-        tab_loading: [false; 10],
+        tab_loaded_at: [None; 11],
+        tab_loading: [false; 11],
         ..crate::repo::RepoInfo::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
@@ -9346,4 +9346,82 @@ fn test_settings_compact_view_toggling() {
     // Toggle again
     app.toggle_or_edit_setting();
     assert!(!app.config.compact_view);
+}
+
+#[test]
+fn test_forge_tab_event_handling() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_forge_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+    app.detail_tab = 10; // Forge Tab
+    app.detail_focus = DetailSection::ForgeIssues;
+
+    let mock_info = crate::repo::RepoInfo {
+        forge_issues: crate::repo::TabData::Loaded(vec![
+            crate::repo::ForgeIssue {
+                number: 1,
+                title: "Issue 1".to_string(),
+                state: "OPEN".to_string(),
+                author: "user1".to_string(),
+                assignees: vec!["user2".to_string()],
+                url: "https://github.com/org/repo/issues/1".to_string(),
+            },
+            crate::repo::ForgeIssue {
+                number: 2,
+                title: "Issue 2".to_string(),
+                state: "CLOSED".to_string(),
+                author: "user3".to_string(),
+                assignees: vec![],
+                url: "https://github.com/org/repo/issues/2".to_string(),
+            },
+        ]),
+        tab_loaded_at: [None; 11],
+        tab_loading: [false; 11],
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    // Test selection movement keys
+    assert_eq!(app.forge_issue_selection, 0);
+
+    // Move down
+    let key_down = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_down);
+    assert!(handled);
+    assert_eq!(app.forge_issue_selection, 1);
+
+    // Move up
+    let key_up = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_up);
+    assert!(handled);
+    assert_eq!(app.forge_issue_selection, 0);
+
+    // Home key
+    let key_home = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Home,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_home);
+    assert!(handled);
+    assert_eq!(app.forge_issue_selection, 0);
+
+    // End key
+    let key_end = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::End,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_end);
+    assert!(handled);
+    assert_eq!(app.forge_issue_selection, 1);
 }

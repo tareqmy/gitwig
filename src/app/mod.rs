@@ -210,6 +210,8 @@ pub enum DetailSection {
     Worktrees,
     Submodules,
     Reflog,
+    ForgeIssues,
+    ForgeIssueDetails,
 }
 
 /// Resizable splitter identifier.
@@ -223,6 +225,7 @@ pub enum Splitter {
     StashesHorizontal,  // Stashes view: left (lists) vs right (diff)
     StashesVertical,    // Stashes view: top list vs bottom files list
     OverviewHorizontal, // Overview view: left (info) vs right (stats)
+    ForgeVertical,      // Forge view: top (issues list) vs bottom (details)
     CommitPopupWidth,   // Dragging vertical border of commit popup
     CommitPopupHeight,  // Dragging horizontal border of commit popup
     CommitPopupBoth,    // Dragging corner of commit popup
@@ -251,6 +254,8 @@ impl DetailSection {
             Self::Worktrees => Self::Worktrees,
             Self::Submodules => Self::Submodules,
             Self::Reflog => Self::Reflog,
+            Self::ForgeIssues => Self::ForgeIssueDetails,
+            Self::ForgeIssueDetails => Self::ForgeIssues,
         }
     }
 
@@ -276,6 +281,8 @@ impl DetailSection {
             Self::Worktrees => Self::Worktrees,
             Self::Submodules => Self::Submodules,
             Self::Reflog => Self::Reflog,
+            Self::ForgeIssues => Self::ForgeIssueDetails,
+            Self::ForgeIssueDetails => Self::ForgeIssues,
         }
     }
 }
@@ -516,6 +523,8 @@ pub struct App {
     pub stashes_vertical_split_pct: u16,
     /// Percentage width of the left overview panel in the Overview tab (default: 50).
     pub overview_horizontal_split_pct: u16,
+    /// Percentage height of the top issues list in the Forge tab (default: 50).
+    pub forge_vertical_split_pct: u16,
     /// Percentage width of the commit message popup (default: 80).
     pub commit_popup_width_pct: u16,
     /// Percentage height of the commit message popup (default: 45).
@@ -548,6 +557,7 @@ pub struct App {
     pub worktree_selection: usize,
     pub submodule_selection: usize,
     pub reflog_selection: usize,
+    pub forge_issue_selection: usize,
     pub worktree_add_branch: String,
     pub worktree_add_path: String,
     pub worktree_lock_reason: String,
@@ -1192,6 +1202,7 @@ impl App {
             stashes_horizontal_split_pct: 38,
             stashes_vertical_split_pct: 38,
             overview_horizontal_split_pct: 38,
+            forge_vertical_split_pct: 50,
             commit_popup_width_pct: 80,
             commit_popup_height_pct: 45,
             active_drag_splitter: None,
@@ -1221,6 +1232,7 @@ impl App {
             worktree_selection: 0,
             submodule_selection: 0,
             reflog_selection: 0,
+            forge_issue_selection: 0,
             worktree_add_branch: String::new(),
             worktree_add_path: String::new(),
             worktree_lock_reason: String::new(),
@@ -1672,6 +1684,12 @@ where
                         repo::TabPayload::Reflog(res) => {
                             info.reflog = match res {
                                 Ok(r) => repo::TabData::Loaded(r),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::ForgeIssues(res) => {
+                            info.forge_issues = match res {
+                                Ok(issues) => repo::TabData::Loaded(issues),
                                 Err(e) => repo::TabData::Error(e),
                             };
                         }

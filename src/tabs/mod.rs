@@ -71,7 +71,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
 
     if app.is_bound(Action::CycleTabForward, key) {
         app.inspect_full_diff = false;
-        app.detail_tab = (app.detail_tab + 1) % 10;
+        app.detail_tab = (app.detail_tab + 1) % 11;
         app.commit_list.selection = 0;
         app.set_default_focus_for_tab();
         if app.get_current_resync_on_tab_change() {
@@ -82,7 +82,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
 
     if app.is_bound(Action::CycleTabBackward, key) {
         app.inspect_full_diff = false;
-        app.detail_tab = if app.detail_tab == 0 { 9 } else { app.detail_tab - 1 };
+        app.detail_tab = if app.detail_tab == 0 { 10 } else { app.detail_tab - 1 };
         app.commit_list.selection = 0;
         app.set_default_focus_for_tab();
         if app.get_current_resync_on_tab_change() {
@@ -211,9 +211,95 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
         7 => return handle_worktree_events(app, key),
         8 => return handle_submodule_events(app, key),
         9 => return handle_reflog_events(app, key),
+        10 => return handle_forge_events(app, key),
         _ => {}
     }
     false
+}
+
+fn handle_forge_events(app: &mut App, key: KeyEvent) -> bool {
+    let issues_count = if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        if let repo::TabData::Loaded(issues) = &info.forge_issues { issues.len() } else { 0 }
+    } else {
+        0
+    };
+
+    let code = key.code;
+    match code {
+        KeyCode::Down | KeyCode::Char('j') => {
+            if issues_count > 0 {
+                app.forge_issue_selection = (app.forge_issue_selection + 1).min(issues_count - 1);
+            }
+            true
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.forge_issue_selection = app.forge_issue_selection.saturating_sub(1);
+            true
+        }
+        KeyCode::PageDown => {
+            if issues_count > 0 {
+                app.forge_issue_selection =
+                    (app.forge_issue_selection + app.config.page_size).min(issues_count - 1);
+            }
+            true
+        }
+        KeyCode::PageUp => {
+            app.forge_issue_selection =
+                app.forge_issue_selection.saturating_sub(app.config.page_size);
+            true
+        }
+        KeyCode::Home => {
+            app.forge_issue_selection = 0;
+            true
+        }
+        KeyCode::End => {
+            if issues_count > 0 {
+                app.forge_issue_selection = issues_count - 1;
+            }
+            true
+        }
+        KeyCode::Enter => {
+            if let Some(repo::ItemDetail::Repo { resolved, info }) = &app.current_detail {
+                if let repo::TabData::Loaded(issues) = &info.forge_issues {
+                    if let Some(issue) = issues.get(app.forge_issue_selection) {
+                        let num = issue.number;
+                        let path = resolved.clone();
+                        app.fetching = true;
+                        app.status_message =
+                            Some(format!("Resolving and switching branch for issue #{}...", num));
+                        let tx = app.tx.clone();
+                        std::thread::spawn(move || {
+                            match repo::resolve_and_checkout_issue_branch(&path, num) {
+                                Ok(msg) => {
+                                    let _ = tx.send(format!("CHECKOUT_SUCCESS:{}", msg));
+                                }
+                                Err(e) => {
+                                    let _ = tx.send(format!(
+                                        "CHECKOUT_ERROR:Failed to switch branch: {}",
+                                        e
+                                    ));
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+            true
+        }
+        KeyCode::Char('o') => {
+            if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+                if let repo::TabData::Loaded(issues) = &info.forge_issues {
+                    if let Some(issue) = issues.get(app.forge_issue_selection) {
+                        repo::open_browser(&issue.url);
+                        app.status_message =
+                            Some(format!("Opened issue #{} in browser", issue.number));
+                    }
+                }
+            }
+            true
+        }
+        _ => false,
+    }
 }
 
 fn handle_reflog_events(app: &mut App, key: KeyEvent) -> bool {

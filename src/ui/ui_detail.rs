@@ -93,6 +93,9 @@ pub struct DetailAreas {
     pub inspect_vertical_splitter: Option<Rect>,
     /// Bounding box of the main vertical splitter in workspace tab.
     pub workspace_main_splitter: Option<Rect>,
+    pub forge_issues: Option<Rect>,
+    pub forge_issue_details: Option<Rect>,
+    pub forge_vertical_splitter: Option<Rect>,
     /// Bounding box of the horizontal splitter in files tab.
     pub files_horizontal_splitter: Option<Rect>,
     /// Bounding box of the horizontal splitter in branches tab.
@@ -403,16 +406,17 @@ pub fn draw(
 
     if let Some(tab_area) = tab_bar_area {
         let tabs_data = [
-            ("Workspace", "WS", "W", 1, 0),
-            ("Files", "Fi", "F", 2, 1),
-            ("Graph", "Gr", "G", 3, 2),
-            ("Branches", "Br", "B", 4, 3),
-            ("Tags", "Tg", "T", 5, 4),
-            ("Remotes", "Rm", "R", 6, 5),
-            ("Stashes", "St", "S", 7, 6),
-            ("Worktrees", "WT", "W", 8, 7),
-            ("Submodules", "SM", "S", 9, 8),
-            ("Reflog", "Rf", "R", 0, 9),
+            ("Workspace", "WS", "W", "1", 0),
+            ("Files", "Fi", "F", "2", 1),
+            ("Graph", "Gr", "G", "3", 2),
+            ("Branches", "Br", "B", "4", 3),
+            ("Tags", "Tg", "T", "5", 4),
+            ("Remotes", "Rm", "R", "6", 5),
+            ("Stashes", "St", "S", "7", 6),
+            ("Worktrees", "WT", "W", "8", 7),
+            ("Submodules", "SM", "S", "9", 8),
+            ("Reflog", "Rf", "R", "0", 9),
+            ("Forge", "Fo", "F", "-", 10),
         ];
 
         let width_long: usize = 11 + tabs_data.iter().map(|t| t.0.len() + 8).sum::<usize>();
@@ -752,13 +756,24 @@ pub fn draw(
                     app,
                     body_area,
                 );
-            } else {
+            } else if detail_tab == 9 {
                 // Render Reflog view (tab 10, index 9)
                 crate::components::reflog_list::draw_reflog_view(
                     f,
                     info,
                     *focus,
                     app.reflog_selection,
+                    areas,
+                    app,
+                    body_area,
+                );
+            } else {
+                // Render Forge view (tab 11, index 10)
+                crate::components::forge_list::draw_forge_view(
+                    f,
+                    info,
+                    *focus,
+                    app.forge_issue_selection,
                     areas,
                     app,
                     body_area,

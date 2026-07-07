@@ -174,6 +174,19 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         }
                     }
                 }
+                Splitter::ForgeVertical => {
+                    if let (Some(top), Some(bottom)) =
+                        (areas.forge_issues, areas.forge_issue_details)
+                    {
+                        let start_y = top.y;
+                        let total_height = (bottom.y + bottom.height).saturating_sub(start_y);
+                        if total_height > 0 {
+                            let relative_y = pos.y.saturating_sub(start_y);
+                            let pct = ((relative_y as f32 / total_height as f32) * 100.0) as u16;
+                            app.forge_vertical_split_pct = pct.clamp(15, 85);
+                        }
+                    }
+                }
                 Splitter::CommitPopupWidth => {
                     if let Some(parent) = areas.commit_popup_parent {
                         if parent.width > 0 {
@@ -317,6 +330,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         if let Some(rect) = areas.overview_horizontal_splitter {
             if rect.contains(pos) {
                 app.active_drag_splitter = Some(Splitter::OverviewHorizontal);
+                return;
+            }
+        }
+        if let Some(rect) = areas.forge_vertical_splitter {
+            if rect.contains(pos) {
+                app.active_drag_splitter = Some(Splitter::ForgeVertical);
                 return;
             }
         }
@@ -739,6 +758,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                 7 => app.detail_focus = DetailSection::Worktrees,
                                 8 => app.detail_focus = DetailSection::Submodules,
                                 9 => app.detail_focus = DetailSection::Reflog,
+                                10 => app.detail_focus = DetailSection::ForgeIssues,
                                 _ => {}
                             }
                             if app.get_current_resync_on_tab_change() {
@@ -1420,6 +1440,52 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                             (app.worktree_selection + 1).min(wts_count.saturating_sub(1));
                     }
                 }
+            }
+        }
+    }
+    // Forge Issues list panel.
+    if let Some(rect) = areas.forge_issues {
+        if rect.contains(pos) {
+            if is_click {
+                app.detail_focus = DetailSection::ForgeIssues;
+                let inner_y = rect.y + 1;
+                let header_height = 2;
+                if pos.y >= inner_y + header_height {
+                    let clicked_row = (pos.y - (inner_y + header_height)) as usize;
+                    let total = match &app.current_detail {
+                        Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                            if let crate::repo::TabData::Loaded(issues) = &info.forge_issues {
+                                issues.len()
+                            } else {
+                                0
+                            }
+                        }
+                        _ => 0,
+                    };
+                    if clicked_row < total {
+                        app.forge_issue_selection = clicked_row;
+                    }
+                }
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::ForgeIssues;
+                app.forge_issue_selection = app.forge_issue_selection.saturating_sub(1);
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::ForgeIssues;
+                if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+                    if let crate::repo::TabData::Loaded(issues) = &info.forge_issues {
+                        let issues_count = issues.len();
+                        app.forge_issue_selection =
+                            (app.forge_issue_selection + 1).min(issues_count.saturating_sub(1));
+                    }
+                }
+            }
+        }
+    }
+    // Forge Issue details panel.
+    if let Some(rect) = areas.forge_issue_details {
+        if rect.contains(pos) {
+            if is_click {
+                app.detail_focus = DetailSection::ForgeIssueDetails;
             }
         }
     }

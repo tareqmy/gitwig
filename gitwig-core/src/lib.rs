@@ -202,6 +202,7 @@ pub enum TabPayload {
     Worktrees(Result<Vec<WorktreeInfo>, String>),
     Submodules(Result<Vec<SubmoduleInfo>, String>),
     Reflog(Result<Vec<ReflogEntry>, String>),
+    ForgeIssues(Result<Vec<ForgeIssue>, String>),
 }
 
 #[derive(Debug, Default, Clone)]
@@ -240,14 +241,15 @@ pub struct RepoInfo {
     pub submodules: TabData<Vec<SubmoduleInfo>>,
     /// Available reflog entries.
     pub reflog: TabData<Vec<ReflogEntry>>,
+    pub forge_issues: TabData<Vec<ForgeIssue>>,
     /// Committer statistics.
     pub committer_stats: TabData<Vec<CommitterStat>>,
     /// Whether the committer statistics walk was capped by the limit.
     pub committer_stats_limit_reached: bool,
     /// Timestamps when each tab was loaded (index matches tab_idx)
-    pub tab_loaded_at: [Option<std::time::Instant>; 10],
+    pub tab_loaded_at: [Option<std::time::Instant>; 11],
     /// Whether each tab is currently loading in the background (index matches tab_idx)
-    pub tab_loading: [bool; 10],
+    pub tab_loading: [bool; 11],
     /// Files tracked by Git LFS in the index/working copy.
     pub lfs_files: std::collections::HashSet<String>,
     /// Whether git-lfs is installed in the system PATH.
@@ -3140,6 +3142,199 @@ pub fn worktree_prune(repo_path: &Path) -> Result<(), String> {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
     Ok(())
+}
+
+pub fn load_tab_forge_issues(repo_path: &Path) -> Result<Vec<ForgeIssue>, String> {
+    let mut cmd = std::process::Command::new("gh");
+    cmd.arg("issue")
+        .arg("list")
+        .arg("--limit")
+        .arg("50")
+        .arg("--json")
+        .arg("number,title,state,author,assignees,url")
+        .current_dir(repo_path);
+
+    let output = match cmd.output() {
+        Ok(out) => out,
+        Err(e) => {
+            return Err(format!(
+                "GitHub CLI ('gh') not found or failed to execute: {}. Ensure 'gh' is installed and in your PATH.",
+                e
+            ));
+        }
+    };
+
+    if !output.status.success() {
+        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(format!(
+            "GitHub CLI error: {}. Make sure you are authenticated (run 'gh auth login') and this is a GitHub repository.",
+            err_msg
+        ));
+    }
+
+    #[derive(serde::Deserialize)]
+    struct GhAuthor {
+        login: String,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct GhAssignee {
+        login: String,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct GhIssue {
+        number: u32,
+        title: String,
+        state: String,
+        author: Option<GhAuthor>,
+        assignees: Option<Vec<GhAssignee>>,
+        url: String,
+    }
+
+    let raw_issues: Vec<GhIssue> = serde_json::from_slice(&output.stdout)
+        .map_err(|e| format!("Failed to parse GitHub CLI response: {}", e))?;
+
+    let issues = raw_issues
+        .into_iter()
+        .map(|item| {
+            let author = item.author.map(|a| a.login).unwrap_or_else(|| "none".to_string());
+            let assignees =
+                item.assignees.unwrap_or_default().into_iter().map(|a| a.login).collect();
+            ForgeIssue {
+                number: item.number,
+                title: item.title,
+                state: item.state,
+                author,
+                assignees,
+                url: item.url,
+            }
+        })
+        .collect();
+
+    Ok(issues)
+}
+
+pub fn resolve_and_checkout_issue_branch(
+    repo_path: &Path,
+    issue_number: u32,
+) -> Result<String, String> {
+    let mut cmd = std::process::Command::new("gh");
+    cmd.arg("issue")
+        .arg("view")
+        .arg(issue_number.to_string())
+        .arg("--json")
+        .arg("developmentBranch")
+        .current_dir(repo_path);
+
+    if let Ok(output) = cmd.output() {
+        if output.status.success() {
+            #[derive(serde::Deserialize)]
+            struct GhDevBranch {
+                name: String,
+            }
+            #[derive(serde::Deserialize)]
+            struct GhIssueView {
+                #[serde(rename = "developmentBranch")]
+                development_branch: Option<GhDevBranch>,
+            }
+            if let Ok(parsed) = serde_json::from_slice::<GhIssueView>(&output.stdout) {
+                if let Some(dev_branch) = parsed.development_branch {
+                    if !dev_branch.name.is_empty() {
+                        let name = dev_branch.name;
+                        if checkout_local_branch(repo_path, &name).is_ok() {
+                            return Ok(format!("Checked out linked local branch '{}'", name));
+                        }
+                        if let Ok(msg) = checkout_remote_branch(repo_path, &name) {
+                            return Ok(format!("Checked out linked remote branch '{}'", msg));
+                        }
+                        let checkout_out = std::process::Command::new("git")
+                            .arg("checkout")
+                            .arg("-b")
+                            .arg(&name)
+                            .current_dir(repo_path)
+                            .output();
+                        if let Ok(out) = checkout_out {
+                            if out.status.success() {
+                                return Ok(format!(
+                                    "Created and switched to linked branch '{}'",
+                                    name
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let target_pattern = format!("{}", issue_number);
+    let mut found_local = None;
+    let mut found_remote = None;
+
+    if let Ok(branches) = repo.branches(None) {
+        for (branch, branch_type) in branches.flatten() {
+            if let Ok(Some(name)) = branch.name() {
+                if name.contains(&target_pattern) {
+                    match branch_type {
+                        git2::BranchType::Local => {
+                            found_local = Some(name.to_string());
+                            break;
+                        }
+                        git2::BranchType::Remote => {
+                            found_remote = Some(name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(local_name) = found_local {
+        checkout_local_branch(repo_path, &local_name).map_err(|e| e.to_string())?;
+        return Ok(format!("Checked out matched local branch '{}'", local_name));
+    }
+
+    if let Some(remote_name) = found_remote {
+        let msg = checkout_remote_branch(repo_path, &remote_name).map_err(|e| e.to_string())?;
+        return Ok(format!("Checked out matched remote branch: {}", msg));
+    }
+
+    let new_branch_name = format!("issue-{}", issue_number);
+    let checkout_out = std::process::Command::new("git")
+        .arg("checkout")
+        .arg("-b")
+        .arg(&new_branch_name)
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !checkout_out.status.success() {
+        let err = String::from_utf8_lossy(&checkout_out.stderr).trim().to_string();
+        return Err(format!("Failed to create new branch: {}", err));
+    }
+
+    Ok(format!("Created and switched to new branch '{}'", new_branch_name))
+}
+
+pub fn open_browser(url: &str) {
+    #[cfg(target_os = "macos")]
+    let _ = std::process::Command::new("open").arg(url).status();
+    #[cfg(target_os = "windows")]
+    let _ = std::process::Command::new("cmd").args(["/C", "start", url]).status();
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let _ = std::process::Command::new("xdg-open").arg(url).status();
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]
+pub struct ForgeIssue {
+    pub number: u32,
+    pub title: String,
+    pub state: String,
+    pub author: String,
+    pub assignees: Vec<String>,
+    pub url: String,
 }
 
 #[cfg(test)]
