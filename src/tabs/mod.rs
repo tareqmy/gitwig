@@ -208,47 +208,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
         }
     }
 
-    if app.is_bound(Action::GoToTab8, key) {
-        if !app.advanced_tabs {
-            app.inspect_full_diff = false;
-            app.detail_tab = 7;
-            app.advanced_tabs = true;
-            app.commit_list.selection = 0;
-            app.set_default_focus_for_tab();
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-            return true;
-        }
-    }
 
-    if app.is_bound(Action::GoToTab9, key) {
-        if !app.advanced_tabs {
-            app.inspect_full_diff = false;
-            app.detail_tab = 8;
-            app.advanced_tabs = true;
-            app.commit_list.selection = 0;
-            app.set_default_focus_for_tab();
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-            return true;
-        }
-    }
-
-    if app.is_bound(Action::GoToTab10, key) {
-        if !app.advanced_tabs {
-            app.inspect_full_diff = false;
-            app.detail_tab = 9;
-            app.advanced_tabs = true;
-            app.commit_list.selection = 0;
-            app.set_default_focus_for_tab();
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-            return true;
-        }
-    }
 
     match app.detail_tab {
         0 => return WorkspaceTab::handle_event(app, key),

@@ -19,7 +19,7 @@ const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 8, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3, 67];
 const KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
-    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 59, 57, 68, 69, 70, 71, 72,
+    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 57, 68, 69, 70, 71, 72,
     73, 74, 75, 76,
 ];
 
@@ -150,16 +150,14 @@ fn get_label(global_idx: usize) -> &'static str {
         43 => "Detail: Refresh View",
         44 => "Detail: Cycle Tab Fwd",
         45 => "Detail: Cycle Tab Bwd",
-        46 => "Detail: Tab 1 (Commits)",
-        47 => "Detail: Tab 2 (Files)",
-        48 => "Detail: Tab 3 (Graph)",
-        49 => "Detail: Tab 4 (Branches)",
+        46 => "Detail: Tab 1 (Commits) / Advanced 1 (Worktrees)",
+        47 => "Detail: Tab 2 (Files) / Advanced 2 (Submodules)",
+        48 => "Detail: Tab 3 (Graph) / Advanced 3 (Reflog)",
+        49 => "Detail: Tab 4 (Branches) / Advanced 4 (Forge)",
         50 => "Detail: Tab 5 (Tags)",
         51 => "Detail: Tab 6 (Remotes)",
         52 => "Detail: Tab 7 (Stashes)",
-        53 => "Detail: Tab 8 (Worktrees)",
-        54 => "Detail: Tab 9 (Submodules)",
-        59 => "Detail: Tab 10 (Reflog)",
+
         68 => "Detail: Show Overview",
         69 => "Detail: Toggle Advanced Tabs",
         70 => "Home: Open Terminal",
@@ -248,16 +246,22 @@ fn get_desc(global_idx: usize) -> &'static str {
         43 => "Refreshes the git repository details snapshot manually.",
         44 => "Navigates to the next tab in the repository workspace view.",
         45 => "Navigates to the previous tab in the repository workspace view.",
-        46 => "Switches directly to the Commits list tab.",
-        47 => "Switches directly to the Working Tree files tab.",
-        48 => "Switches directly to the Git History Graph tab.",
-        49 => "Switches directly to the local branches list tab.",
-        50 => "Switches directly to the local tags list tab.",
-        51 => "Switches directly to the configured remotes tab.",
-        52 => "Switches directly to the git stashes list tab.",
-        53 => "Switches directly to the repository Worktrees list tab.",
-        54 => "Switches directly to the repository Submodules tab.",
-        59 => "Switches directly to the repository Reflog list tab.",
+        46 => {
+            "Switches directly to the Commits tab (Primary group) or Worktrees tab (Advanced group)."
+        }
+        47 => {
+            "Switches directly to Working Tree files tab (Primary group) or Submodules tab (Advanced group)."
+        }
+        48 => {
+            "Switches directly to Git History Graph tab (Primary group) or Reflog tab (Advanced group)."
+        }
+        49 => {
+            "Switches directly to Local Branches tab (Primary group) or Forge tab (Advanced group)."
+        }
+        50 => "Switches directly to Local Tags tab (only active in Primary tab group).",
+        51 => "Switches directly to Remotes tab (only active in Primary tab group).",
+        52 => "Switches directly to Git Stashes tab (only active in Primary tab group).",
+
         68 => "Shows the repository Overview overlay from any tab.",
         69 => "Toggles between Primary and Advanced tab groups.",
         70 => "Spawn a new shell (Terminal) in the selected repository.",
