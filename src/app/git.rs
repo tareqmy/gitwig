@@ -99,8 +99,7 @@ impl App {
                     if output.status.success() {
                         Ok("Git LFS files pulled successfully".to_string())
                     } else {
-                        let err_msg =
-                            String::from_utf8_lossy(&output.stderr).trim().to_string();
+                        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
                         Err(format!("git lfs pull failed: {}", err_msg).into())
                     }
                 })();

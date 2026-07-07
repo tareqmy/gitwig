@@ -28,7 +28,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     let code = key.code;
     use crate::keybindings::Action;
 
-    if code == KeyCode::Char('v') || code == KeyCode::Char('V') {
+    if app.is_bound(Action::Overview, key) {
         app.mode = Mode::Overview;
         app.trigger_overview_load_if_needed();
         return true;

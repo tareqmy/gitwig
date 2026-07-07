@@ -25,7 +25,7 @@ impl BranchesTab {
                 app.request_branch_merge();
                 return true;
             }
-            KeyCode::Char('r') | KeyCode::Char('R') => {
+            KeyCode::Char('r') => {
                 app.request_branch_rebase();
                 return true;
             }

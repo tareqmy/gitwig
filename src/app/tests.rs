@@ -4913,9 +4913,9 @@ fn test_repo_settings_flow() {
     app.detail_tab = 0;
     app.selected_index = 0;
 
-    // Enter Overview mode via 'v'
-    let v_press = key_event(KeyCode::Char('v'));
-    let handled = crate::input::handle_key(&mut app, v_press, 1);
+    // Enter Overview mode via 'O'
+    let o_press = key_event(KeyCode::Char('O'));
+    let handled = crate::input::handle_key(&mut app, o_press, 1);
     assert!(handled);
     assert_eq!(app.mode, Mode::Overview);
 
@@ -8916,10 +8916,8 @@ fn test_global_code_search() {
     let file2 = temp_dir.join("file2.txt");
     std::fs::write(&file2, "unrelated text\nkeep coding").unwrap();
 
-    let config = Config {
-        items: vec![temp_dir.to_string_lossy().to_string()],
-        ..Default::default()
-    };
+    let config =
+        Config { items: vec![temp_dir.to_string_lossy().to_string()], ..Default::default() };
     let mut app = App::new(config, std::env::temp_dir().join("dummy_config.toml"));
 
     // Set search query in input_buffer
@@ -9063,10 +9061,8 @@ fn test_automatic_workspace_sync() {
     let new_repo = watch_root.join("new_auto_repo");
     std::fs::create_dir_all(new_repo.join(".git")).unwrap();
 
-    let config = Config {
-        watch_dirs: vec![watch_root.to_string_lossy().to_string()],
-        ..Default::default()
-    };
+    let config =
+        Config { watch_dirs: vec![watch_root.to_string_lossy().to_string()], ..Default::default() };
 
     let mut app = App::new(config, std::env::temp_dir().join("dummy_config.toml"));
 
@@ -9128,10 +9124,7 @@ fn test_automatic_workspace_sync() {
 
 #[test]
 fn test_settings_watch_dirs_editing() {
-    let config = Config {
-        watch_dirs: vec!["~/old_watch".to_string()],
-        ..Default::default()
-    };
+    let config = Config { watch_dirs: vec!["~/old_watch".to_string()], ..Default::default() };
 
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_watch.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -9158,10 +9151,7 @@ fn test_settings_watch_dirs_editing() {
 
 #[test]
 fn test_bulk_fetch_completion_and_30s_clear() {
-    let config = Config {
-        items: vec!["/path/to/repo".to_string()],
-        ..Default::default()
-    };
+    let config = Config { items: vec!["/path/to/repo".to_string()], ..Default::default() };
     let temp_path = std::env::temp_dir().join("gitwig_test_config_bulk_fetch.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);
@@ -9213,10 +9203,7 @@ fn test_bulk_fetch_completion_and_30s_clear() {
 
 #[test]
 fn test_settings_show_system_stats_toggling() {
-    let config = Config {
-        show_system_stats: false,
-        ..Default::default()
-    };
+    let config = Config { show_system_stats: false, ..Default::default() };
 
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_stats.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -9238,10 +9225,7 @@ fn test_settings_show_system_stats_toggling() {
 
 #[test]
 fn test_settings_enable_commit_signatures_toggling() {
-    let config = Config {
-        enable_commit_signatures: false,
-        ..Default::default()
-    };
+    let config = Config { enable_commit_signatures: false, ..Default::default() };
 
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_signatures.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -9263,10 +9247,7 @@ fn test_settings_enable_commit_signatures_toggling() {
 
 #[test]
 fn test_settings_graph_max_commits_editing() {
-    let config = Config {
-        graph_max_commits: 1000,
-        ..Default::default()
-    };
+    let config = Config { graph_max_commits: 1000, ..Default::default() };
 
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_graph_commits.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -9293,10 +9274,7 @@ fn test_settings_graph_max_commits_editing() {
 
 #[test]
 fn test_settings_detail_cache_ttl_editing() {
-    let config = Config {
-        detail_cache_ttl_secs: 30,
-        ..Default::default()
-    };
+    let config = Config { detail_cache_ttl_secs: 30, ..Default::default() };
 
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_detail_ttl.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -9323,10 +9301,7 @@ fn test_settings_detail_cache_ttl_editing() {
 
 #[test]
 fn test_settings_tab_ttl_editing() {
-    let config = Config {
-        tab_ttl_secs: 60,
-        ..Default::default()
-    };
+    let config = Config { tab_ttl_secs: 60, ..Default::default() };
 
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_tab_ttl.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -9353,10 +9328,7 @@ fn test_settings_tab_ttl_editing() {
 
 #[test]
 fn test_settings_compact_view_toggling() {
-    let config = Config {
-        compact_view: false,
-        ..Default::default()
-    };
+    let config = Config { compact_view: false, ..Default::default() };
 
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_compact.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };

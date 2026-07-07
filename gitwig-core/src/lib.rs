@@ -1424,11 +1424,7 @@ fn get_lfs_info(repo_path: &Path) -> (bool, std::collections::HashSet<String>) {
     let mut tracked = std::collections::HashSet::new();
     let mut installed = false;
 
-    if let Ok(output) = std::process::Command::new("git")
-        .arg("lfs")
-        .arg("--version")
-        .output()
-    {
+    if let Ok(output) = std::process::Command::new("git").arg("lfs").arg("--version").output() {
         installed = output.status.success();
     }
 
@@ -1462,7 +1458,10 @@ fn get_lfs_info(repo_path: &Path) -> (bool, std::collections::HashSet<String>) {
                 if line.is_empty() || line.starts_with('#') {
                     continue;
                 }
-                if line.contains("filter=lfs") || line.contains("diff=lfs") || line.contains("merge=lfs") {
+                if line.contains("filter=lfs")
+                    || line.contains("diff=lfs")
+                    || line.contains("merge=lfs")
+                {
                     if let Some(pattern) = line.split_whitespace().next() {
                         patterns.push(pattern.to_string());
                     }

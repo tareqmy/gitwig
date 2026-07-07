@@ -320,7 +320,7 @@ impl RepoSettingsPopup {
                           label: &str,
                           value: &str,
                           is_editing: bool|
-          -> Line<'static> {
+         -> Line<'static> {
             let is_selected = idx == app.repo_settings_selected_index;
             let prefix = if is_selected { "▶ " } else { "  " };
 
@@ -469,7 +469,8 @@ impl RepoSettingsPopup {
         let pull_line = build_line(7, "Git LFS Pull:", "press Enter to pull files", false);
 
         // Row 8: LFS Storage Size
-        let lfs_info = if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        let lfs_info = if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail
+        {
             (info.lfs_installed, info.lfs_storage_size)
         } else {
             (false, None)

@@ -388,7 +388,7 @@ pub(crate) fn get_status_layout_components(
         Mode::Overview => {
             let mut entries = Vec::new();
             let entries_data = [
-                ("Close Overview", "Esc/q/v"),
+                ("Close Overview", "Esc/q/O"),
                 ("Repo Settings", "s"),
                 ("Cycle Focus", "Tab/w/W"),
                 ("Scroll", "↑↓/k/j"),

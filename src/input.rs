@@ -186,57 +186,59 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
-        Mode::Overview => match key.code {
-            KeyCode::Esc
-            | KeyCode::Char('q')
-            | KeyCode::Char('Q')
-            | KeyCode::Char('v')
-            | KeyCode::Char('V') => {
+        Mode::Overview => {
+            if app.is_bound(crate::keybindings::Action::Overview, key) {
                 app.mode = Mode::Detail;
                 return true;
             }
-            KeyCode::Char('s') | KeyCode::Char('S') => {
-                app.repo_settings_selected_index = 0;
-                app.repo_settings_editing = false;
-                app.repo_settings_input = String::new();
-                app.mode = Mode::RepoSettings;
-                return true;
+            match key.code {
+                KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                    app.mode = Mode::Detail;
+                    return true;
+                }
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    app.repo_settings_selected_index = 0;
+                    app.repo_settings_editing = false;
+                    app.repo_settings_input = String::new();
+                    app.mode = Mode::RepoSettings;
+                    return true;
+                }
+                KeyCode::Tab | KeyCode::Char('w') | KeyCode::Char('W') => {
+                    app.overview_focus = match app.overview_focus {
+                        crate::app::OverviewFocus::Overview => crate::app::OverviewFocus::Stats,
+                        crate::app::OverviewFocus::Stats => crate::app::OverviewFocus::Overview,
+                    };
+                    return true;
+                }
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                    app.overview_scroll_up();
+                    return true;
+                }
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                    app.overview_scroll_down();
+                    return true;
+                }
+                KeyCode::PageUp => {
+                    let p = app.get_current_page_size();
+                    app.overview_scroll_page_up(p);
+                    return true;
+                }
+                KeyCode::PageDown => {
+                    let p = app.get_current_page_size();
+                    app.overview_scroll_page_down(p);
+                    return true;
+                }
+                KeyCode::Home => {
+                    app.overview_scroll_to_top();
+                    return true;
+                }
+                KeyCode::End => {
+                    app.overview_scroll_to_bottom();
+                    return true;
+                }
+                _ => {}
             }
-            KeyCode::Tab | KeyCode::Char('w') | KeyCode::Char('W') => {
-                app.overview_focus = match app.overview_focus {
-                    crate::app::OverviewFocus::Overview => crate::app::OverviewFocus::Stats,
-                    crate::app::OverviewFocus::Stats => crate::app::OverviewFocus::Overview,
-                };
-                return true;
-            }
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                app.overview_scroll_up();
-                return true;
-            }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                app.overview_scroll_down();
-                return true;
-            }
-            KeyCode::PageUp => {
-                let p = app.get_current_page_size();
-                app.overview_scroll_page_up(p);
-                return true;
-            }
-            KeyCode::PageDown => {
-                let p = app.get_current_page_size();
-                app.overview_scroll_page_down(p);
-                return true;
-            }
-            KeyCode::Home => {
-                app.overview_scroll_to_top();
-                return true;
-            }
-            KeyCode::End => {
-                app.overview_scroll_to_bottom();
-                return true;
-            }
-            _ => {}
-        },
+        }
         Mode::RemotePicker => {
             if crate::popups::remote_picker::RemotePickerPopup::handle_event(app, key) {
                 return true;

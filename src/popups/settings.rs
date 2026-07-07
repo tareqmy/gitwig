@@ -19,7 +19,7 @@ const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 10, 8, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3, 67];
 const KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
-    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 59, 57,
+    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 59, 57, 68,
 ];
 
 fn index_to_action(idx: usize) -> Option<crate::keybindings::Action> {
@@ -159,6 +159,7 @@ fn get_label(global_idx: usize) -> &'static str {
         53 => "Detail: Tab 8 (Worktrees)",
         54 => "Detail: Tab 9 (Submodules)",
         59 => "Detail: Tab 10 (Reflog)",
+        68 => "Detail: Show Overview",
         _ => "",
     }
 }
@@ -248,6 +249,7 @@ fn get_desc(global_idx: usize) -> &'static str {
         53 => "Switches directly to the repository Worktrees list tab.",
         54 => "Switches directly to the repository Submodules tab.",
         59 => "Switches directly to the repository Reflog list tab.",
+        68 => "Shows the repository Overview overlay from any tab.",
         _ => "",
     }
 }
