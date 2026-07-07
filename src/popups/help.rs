@@ -1,4 +1,5 @@
 use crate::app::{App, Mode};
+use crate::keybindings::Action;
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};
 use crate::ui::style::{
@@ -60,90 +61,144 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         key
     };
 
-    let categories: Vec<(&str, Vec<(&str, &str)>)> = vec![
+    let kb = &app.keybindings;
+
+    let help_key = kb.format_action_keys(Action::Help, is_compat);
+    let about_key = kb.format_action_keys(Action::HomeAbout, is_compat);
+    let legend_key = kb.format_action_keys(Action::HomeSymbolsHelp, is_compat);
+    let close_key = kb.format_action_keys(Action::CloseDetail, is_compat);
+    let quit_key = kb.format_action_keys(Action::Close, is_compat);
+
+    let add_key = kb.format_action_keys(Action::HomeAddRepo, is_compat);
+    let bulk_add_key = kb.format_action_keys(Action::HomeBulkAdd, is_compat);
+    let import_key = kb.format_action_keys(Action::HomeImportRepo, is_compat);
+    let edit_key = kb.format_action_keys(Action::HomeEditRepo, is_compat);
+    let delete_key = kb.format_action_keys(Action::HomeDeleteRepo, is_compat);
+    let search_key = kb.format_action_keys(Action::HomeSearchRepo, is_compat);
+    let refresh_key = kb.format_action_keys(Action::HomeRefresh, is_compat);
+    let sort_key = format!(
+        "{}/{}",
+        kb.format_action_keys(Action::HomeCycleSort, is_compat),
+        kb.format_action_keys(Action::HomeToggleSortReverse, is_compat)
+    );
+    let compact_key = kb.format_action_keys(Action::HomeToggleCompactView, is_compat);
+    let pin_key = kb.format_action_keys(Action::HomeTogglePin, is_compat);
+    let settings_key = kb.format_action_keys(Action::HomeOpenSettings, is_compat);
+    let labels_key = kb.format_action_keys(Action::HomeEditLabels, is_compat);
+    let debug_key = kb.format_action_keys(Action::HomeOpenDebugLogs, is_compat);
+    let update_key = kb.format_action_keys(Action::HomeCheckUpdate, is_compat);
+
+    let open_detail_key = kb.format_action_keys(Action::HomeOpenDetail, is_compat);
+    let tab_fwd_key = kb.format_action_keys(Action::CycleTabForward, is_compat);
+    let tab_bwd_key = kb.format_action_keys(Action::CycleTabBackward, is_compat);
+    let tab_key = format!("{}/{}", tab_fwd_key, tab_bwd_key);
+    let focus_fwd_key = kb.format_action_keys(Action::CycleFocusForward, is_compat);
+    let focus_bwd_key = kb.format_action_keys(Action::CycleFocusBackward, is_compat);
+    let focus_key = format!("{}/{}", focus_fwd_key, focus_bwd_key);
+    let resync_key = kb.format_action_keys(Action::RefreshDetail, is_compat);
+
+    // New actions
+    let terminal_key = kb.format_action_keys(Action::HomeOpenTerminal, is_compat);
+    let star_key = kb.format_action_keys(Action::HomeToggleStar, is_compat);
+    let yank_key = kb.format_action_keys(Action::HomeYankPath, is_compat);
+    let jump_picker_key = kb.format_action_keys(Action::HomeJumpPicker, is_compat);
+    let fetch_all_key = kb.format_action_keys(Action::HomeFetchAll, is_compat);
+    let select_key = kb.format_action_keys(Action::HomeSelect, is_compat);
+    let global_search_key = kb.format_action_keys(Action::HomeGlobalSearch, is_compat);
+
+    let make_cat = |title: &'static str,
+                    items: Vec<(&str, &'static str)>|
+     -> (&str, Vec<(String, &'static str)>) {
+        let mapped = items.into_iter().map(|(k, d)| (k.to_string(), d)).collect();
+        (title, mapped)
+    };
+
+    let mut categories: Vec<(&str, Vec<(String, &str)>)> = vec![
         (
             "Global & Navigation",
             vec![
-                ("↑ [Up] / k", "Move selection up / scroll up"),
-                ("↓ [Down] / j", "Move selection down / scroll down"),
-                ("⇞ [PgUp]", "Jump one page up"),
-                ("⇟ [PgDn]", "Jump one page down"),
-                ("Home", "Go to top / scroll to top"),
-                ("End", "Go to bottom / scroll to bottom"),
+                ("↑ [Up] / k".to_string(), "Move selection up / scroll up"),
+                ("↓ [Down] / j".to_string(), "Move selection down / scroll down"),
+                ("⇞ [PgUp]".to_string(), "Jump one page up"),
+                ("⇟ [PgDn]".to_string(), "Jump one page down"),
+                ("Home".to_string(), "Go to top / scroll to top"),
+                ("End".to_string(), "Go to bottom / scroll to bottom"),
                 (
-                    "⎋ [Esc]",
+                    close_key,
                     "Cancel input, close dialog, clear search, cancel selections, or leave detail view",
                 ),
-                ("?", "Toggle this help overlay"),
-                ("V", "Show about popup / creator profile"),
-                ("h", "Show signs & symbols legend popup"),
-                ("q", "Close detail view"),
-                ("ctrl+q", "Quit application"),
+                (help_key, "Toggle this help overlay"),
+                (about_key, "Show about popup / creator profile"),
+                (legend_key, "Show signs & symbols legend popup"),
+                (quit_key, "Quit application"),
             ],
         ),
         (
             "Main List Operations",
             vec![
-                ("a", "Add a new repository"),
-                ("A", "Bulk add folders in a directory"),
-                ("i", "Import remote repository"),
-                ("e", "Edit selected item"),
-                ("D", "Delete selected item"),
-                ("f", "Enter repository search mode"),
-                ("ctrl+f", "Open global code search popup overlay"),
-                ("R", "Refresh status of selected item"),
-                ("F", "Bulk fetch all tracked repositories concurrently"),
-                ("o / O", "Cycle sorting mode / Toggle reverse sorting"),
-                ("v", "Toggle between standard cards and compact 1-row view"),
-                ("p", "Toggle pin status of selected item"),
-                ("*", "Toggle Favorite / Star status of selected item"),
-                ("Space", "Toggle selection of item for batch operations"),
-                ("y", "Yank absolute path of selected item to clipboard"),
-                ("/", "Open fuzzy Jump-to-Repo picker overlay"),
-                ("← / → / Space / Enter", "Collapse/expand label group (on group header)"),
-                ("g", "Launch preferred Git client for selected repository"),
-                ("t", "Spawn a new shell (Terminal) in the selected repository"),
-                ("s", "Open options/settings page"),
-                ("l", "Edit labels of selected item"),
-                ("d", "Open debug logs panel"),
-                ("u", "Check for application updates manually"),
-                ("⌫ [Backspace]", "Erase character while typing"),
-            ],
-        ),
-        (
-            "Repository Detail View",
-            vec![
-                ("↵ [Enter] / → [Right]", "Open detail view / Stage file"),
-                ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
-                ("w / W", "Cycle panel focus forward (w) / backward (W)"),
-                ("/", "Fuzzy search commits / branches / tags / repos"),
-                ("R", "Resync active tab (Detail)"),
-            ],
-        ),
-        (
-            "Git Operations (Detail)",
-            vec![
+                (add_key, "Add a new repository"),
+                (bulk_add_key, "Bulk add folders in a directory"),
+                (import_key, "Import remote repository"),
+                (edit_key, "Edit selected item"),
+                (delete_key, "Delete selected item"),
+                (search_key, "Enter repository search mode"),
+                (global_search_key, "Open global code search popup overlay"),
+                (refresh_key, "Refresh status of selected item"),
+                (fetch_all_key, "Bulk fetch all tracked repositories concurrently"),
+                (sort_key, "Cycle sorting mode / Toggle reverse sorting"),
+                (compact_key, "Toggle between standard cards and compact 1-row view"),
+                (pin_key, "Toggle pin status of selected item"),
+                (star_key, "Toggle Favorite / Star status of selected item"),
+                (select_key, "Toggle selection of item for batch operations"),
+                (yank_key, "Yank absolute path of selected item to clipboard"),
+                (jump_picker_key, "Open fuzzy Jump-to-Repo picker overlay"),
                 (
-                    "c / C",
-                    "Commit (c) / Amend last commit (C) (Workspace) / Create branch (Branches)",
+                    "← / → / Space / Enter".to_string(),
+                    "Collapse/expand label group (on group header)",
                 ),
-                ("s", "Stash changes (Workspace changes or Stashes tab)"),
-                ("p", "Pull branch (Branches) / Push tag (Tags)"),
-                ("⇧P", "Push branch (Branches) / Push all tags (Tags)"),
-                ("/", "Fuzzy search files / branches / tags"),
-                ("F", "Fetch remote (Branches / Tags / Remotes tabs)"),
-                ("⇧H", "Show file history (Files tab)"),
-                ("e / o", "Open file in editor (Files tab)"),
-            ],
-        ),
-        (
-            "Mouse Interactions",
-            vec![
-                ("Left-Click", "Focus clicked panel / change tab (mouse support)"),
-                ("Left-Click+Drag", "Drag boundaries to resize split panels"),
+                ("g".to_string(), "Launch preferred Git client for selected repository"),
+                (terminal_key, "Spawn a new shell (Terminal) in the selected repository"),
+                (settings_key, "Open options/settings page"),
+                (labels_key, "Edit labels of selected item"),
+                (debug_key, "Open debug logs panel"),
+                (update_key, "Check for application updates manually"),
+                ("⌫ [Backspace]".to_string(), "Erase character while typing"),
             ],
         ),
     ];
+
+    categories.push(make_cat(
+        "Repository Detail View",
+        vec![
+            (&open_detail_key, "Open detail view / Stage file"),
+            (&tab_key, "Cycle detail view tabs"),
+            (&focus_key, "Cycle panel focus forward (w) / backward (W)"),
+            ("/", "Fuzzy search commits / branches / tags / repos"),
+            (&resync_key, "Resync active tab (Detail)"),
+        ],
+    ));
+
+    categories.push(make_cat(
+        "Git Operations (Detail)",
+        vec![
+            ("c / C", "Commit (c) / Amend last commit (C) (Workspace) / Create branch (Branches)"),
+            ("s", "Stash changes (Workspace changes or Stashes tab)"),
+            ("p", "Pull branch (Branches) / Push tag (Tags)"),
+            ("⇧P", "Push branch (Branches) / Push all tags (Tags)"),
+            ("/", "Fuzzy search files / branches / tags"),
+            ("F", "Fetch remote (Branches / Tags / Remotes tabs)"),
+            ("⇧H", "Show file history (Files tab)"),
+            ("e / o", "Open file in editor (Files tab)"),
+        ],
+    ));
+
+    categories.push(make_cat(
+        "Mouse Interactions",
+        vec![
+            ("Left-Click", "Focus clicked panel / change tab (mouse support)"),
+            ("Left-Click+Drag", "Drag boundaries to resize split panels"),
+        ],
+    ));
 
     // Find max key width for aligned display
     let mut max_key_width = 0;
@@ -176,7 +231,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         ]));
 
         for (key, desc) in keys {
-            let k_str = format_key(key);
+            let k_str = format_key(&key);
             let padded_key = format!("{:>width$}", k_str, width = max_key_width);
             let desc_lines = wrap_text(desc, desc_width);
             for (idx, desc_line) in desc_lines.into_iter().enumerate() {
@@ -243,10 +298,11 @@ pub struct HelpPopup;
 impl HelpPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
         let code = key.code;
+        if app.is_bound(Action::Help, key) || app.is_bound(Action::CloseDetail, key) {
+            app.close_dialog();
+            return true;
+        }
         match code {
-            KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
-                app.close_dialog();
-            }
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                 app.help_scroll_up();
             }
@@ -275,10 +331,11 @@ pub struct DetailHelpPopup;
 impl DetailHelpPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
         let code = key.code;
+        if app.is_bound(Action::DetailHelp, key) || app.is_bound(Action::CloseDetail, key) {
+            app.close_detail_help();
+            return true;
+        }
         match code {
-            KeyCode::Char('?') | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
-                app.close_detail_help();
-            }
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
                 app.help_scroll_up();
             }

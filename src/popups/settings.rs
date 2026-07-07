@@ -19,7 +19,8 @@ const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 10, 8, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3, 67];
 const KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
-    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 59, 57, 68, 69,
+    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 59, 57, 68, 69, 70, 71, 72,
+    73, 74, 75, 76,
 ];
 
 fn index_to_action(idx: usize) -> Option<crate::keybindings::Action> {
@@ -161,6 +162,13 @@ fn get_label(global_idx: usize) -> &'static str {
         59 => "Detail: Tab 10 (Reflog)",
         68 => "Detail: Show Overview",
         69 => "Detail: Toggle Advanced Tabs",
+        70 => "Home: Open Terminal",
+        71 => "Home: Toggle Star",
+        72 => "Home: Yank Path",
+        73 => "Home: Jump Picker",
+        74 => "Home: Fetch All",
+        75 => "Home: Toggle Selection",
+        76 => "Home: Global Code Search",
         _ => "",
     }
 }
@@ -252,6 +260,13 @@ fn get_desc(global_idx: usize) -> &'static str {
         59 => "Switches directly to the repository Reflog list tab.",
         68 => "Shows the repository Overview overlay from any tab.",
         69 => "Toggles between Primary and Advanced tab groups.",
+        70 => "Spawn a new shell (Terminal) in the selected repository.",
+        71 => "Toggle Star / Favorite status of selected repository.",
+        72 => "Yank absolute path of selected repository to clipboard.",
+        73 => "Open fuzzy Jump-to-Repo picker overlay.",
+        74 => "Bulk fetch all tracked repositories concurrently.",
+        75 => "Toggle selection of repository for batch operations.",
+        76 => "Open global code search popup overlay.",
         _ => "",
     }
 }

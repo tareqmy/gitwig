@@ -150,13 +150,16 @@ pub fn draw_about_popup(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(Paragraph::new(credits_lines), info_chunks[6]);
 
     // Close instruction
+    let compat = app.config.compatibility_mode;
+    let about_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::HomeAbout, compat);
+    let close_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat);
     let close_line = Line::from(vec![
         Span::styled("Press ", muted_style()),
-        Span::styled("Esc", accent_style()),
+        Span::styled(close_key, accent_style()),
         Span::styled(" / ", muted_style()),
-        Span::styled("q", accent_style()),
-        Span::styled(" / ", muted_style()),
-        Span::styled("v", accent_style()),
+        Span::styled(about_key, accent_style()),
         Span::styled(" to close", muted_style()),
     ]);
     f.render_widget(Paragraph::new(close_line), info_chunks[8]);
@@ -166,16 +169,11 @@ use crossterm::event::{KeyCode, KeyEvent};
 pub struct AboutPopup;
 impl AboutPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
-        let code = key.code;
-        match code {
-            KeyCode::Char('v')
-            | KeyCode::Char('V')
-            | KeyCode::Esc
-            | KeyCode::Char('q')
-            | KeyCode::Char('Q') => {
-                app.close_dialog();
-            }
-            _ => {}
+        if app.is_bound(crate::keybindings::Action::HomeAbout, key)
+            || app.is_bound(crate::keybindings::Action::CloseDetail, key)
+        {
+            app.close_dialog();
+            return true;
         }
         false
     }

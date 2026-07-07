@@ -36,6 +36,13 @@ pub enum Action {
     HomeOpenDetail,
     HomeCheckUpdate,
     HomeToggleCompactView,
+    HomeOpenTerminal,
+    HomeToggleStar,
+    HomeYankPath,
+    HomeJumpPicker,
+    HomeFetchAll,
+    HomeSelect,
+    HomeGlobalSearch,
 
     // Detail / Workspace Tab Navigation
     CloseDetail,
@@ -109,6 +116,13 @@ impl Action {
             59 => Some(Action::GoToTab10),
             68 => Some(Action::Overview),
             69 => Some(Action::ToggleAdvancedTabs),
+            70 => Some(Action::HomeOpenTerminal),
+            71 => Some(Action::HomeToggleStar),
+            72 => Some(Action::HomeYankPath),
+            73 => Some(Action::HomeJumpPicker),
+            74 => Some(Action::HomeFetchAll),
+            75 => Some(Action::HomeSelect),
+            76 => Some(Action::HomeGlobalSearch),
             _ => None,
         }
     }
@@ -148,6 +162,13 @@ pub struct HomeKeybindings {
     pub open_detail: Option<Vec<String>>,
     pub check_update: Option<Vec<String>>,
     pub toggle_compact_view: Option<Vec<String>>,
+    pub open_terminal: Option<Vec<String>>,
+    pub toggle_star: Option<Vec<String>>,
+    pub yank_path: Option<Vec<String>>,
+    pub jump_picker: Option<Vec<String>>,
+    pub fetch_all: Option<Vec<String>>,
+    pub select: Option<Vec<String>>,
+    pub global_search: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -308,6 +329,13 @@ impl KeybindingsConfig {
                 open_detail: Some(vec!["enter".to_string(), "right".to_string()]),
                 check_update: Some(vec!["u".to_string()]),
                 toggle_compact_view: Some(vec!["v".to_string()]),
+                open_terminal: Some(vec!["t".to_string()]),
+                toggle_star: Some(vec!["*".to_string()]),
+                yank_path: Some(vec!["y".to_string()]),
+                jump_picker: Some(vec!["/".to_string()]),
+                fetch_all: Some(vec!["F".to_string()]),
+                select: Some(vec!["space".to_string()]),
+                global_search: Some(vec!["ctrl-f".to_string()]),
             },
             navigation: NavigationKeybindings {
                 close_detail: Some(vec!["esc".to_string(), "q".to_string(), "Q".to_string()]),
@@ -371,6 +399,13 @@ impl KeybindingsConfig {
             Action::HomeOpenDetail => self.home.open_detail.as_ref(),
             Action::HomeCheckUpdate => self.home.check_update.as_ref(),
             Action::HomeToggleCompactView => self.home.toggle_compact_view.as_ref(),
+            Action::HomeOpenTerminal => self.home.open_terminal.as_ref(),
+            Action::HomeToggleStar => self.home.toggle_star.as_ref(),
+            Action::HomeYankPath => self.home.yank_path.as_ref(),
+            Action::HomeJumpPicker => self.home.jump_picker.as_ref(),
+            Action::HomeFetchAll => self.home.fetch_all.as_ref(),
+            Action::HomeSelect => self.home.select.as_ref(),
+            Action::HomeGlobalSearch => self.home.global_search.as_ref(),
 
             // Navigation
             Action::CloseDetail => self.navigation.close_detail.as_ref(),
@@ -395,6 +430,36 @@ impl KeybindingsConfig {
         };
 
         keys_opt.cloned().unwrap_or_default()
+    }
+
+    pub fn format_action_keys(&self, action: Action, compatibility_mode: bool) -> String {
+        let keys = self.get_action_keys(action);
+        if keys.is_empty() {
+            return "-".to_string();
+        }
+        keys.iter()
+            .map(|k| {
+                let key = k.clone();
+                if !compatibility_mode {
+                    match key.as_str() {
+                        "esc" | "escape" => "⎋".to_string(),
+                        "tab" => "⇥".to_string(),
+                        "backtab" | "shift-tab" => "⇧⇥".to_string(),
+                        "enter" | "return" => "↵".to_string(),
+                        _ => key,
+                    }
+                } else {
+                    match key.as_str() {
+                        "esc" | "escape" => "Esc".to_string(),
+                        "tab" => "Tab".to_string(),
+                        "backtab" | "shift-tab" => "Shift+Tab".to_string(),
+                        "enter" | "return" => "Enter".to_string(),
+                        _ => key,
+                    }
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("/")
     }
 
     pub fn matches(&self, action: Action, key: KeyEvent) -> bool {
@@ -508,6 +573,13 @@ impl KeybindingsConfig {
             Action::HomeOpenDetail => self.home.open_detail = keys_opt,
             Action::HomeCheckUpdate => self.home.check_update = keys_opt,
             Action::HomeToggleCompactView => self.home.toggle_compact_view = keys_opt,
+            Action::HomeOpenTerminal => self.home.open_terminal = keys_opt,
+            Action::HomeToggleStar => self.home.toggle_star = keys_opt,
+            Action::HomeYankPath => self.home.yank_path = keys_opt,
+            Action::HomeJumpPicker => self.home.jump_picker = keys_opt,
+            Action::HomeFetchAll => self.home.fetch_all = keys_opt,
+            Action::HomeSelect => self.home.select = keys_opt,
+            Action::HomeGlobalSearch => self.home.global_search = keys_opt,
             Action::CloseDetail => self.navigation.close_detail = keys_opt,
             Action::DetailHelp => self.navigation.detail_help = keys_opt,
             Action::CycleFocusForward => self.navigation.cycle_focus_forward = keys_opt,
@@ -589,6 +661,36 @@ impl KeybindingsConfig {
                     if cfg.navigation.toggle_advanced_tabs.is_none() {
                         cfg.navigation.toggle_advanced_tabs =
                             defaults.navigation.toggle_advanced_tabs.clone();
+                        migrated = true;
+                    }
+
+                    // Newer home fields added after initial release
+                    if cfg.home.open_terminal.is_none() {
+                        cfg.home.open_terminal = defaults.home.open_terminal.clone();
+                        migrated = true;
+                    }
+                    if cfg.home.toggle_star.is_none() {
+                        cfg.home.toggle_star = defaults.home.toggle_star.clone();
+                        migrated = true;
+                    }
+                    if cfg.home.yank_path.is_none() {
+                        cfg.home.yank_path = defaults.home.yank_path.clone();
+                        migrated = true;
+                    }
+                    if cfg.home.jump_picker.is_none() {
+                        cfg.home.jump_picker = defaults.home.jump_picker.clone();
+                        migrated = true;
+                    }
+                    if cfg.home.fetch_all.is_none() {
+                        cfg.home.fetch_all = defaults.home.fetch_all.clone();
+                        migrated = true;
+                    }
+                    if cfg.home.select.is_none() {
+                        cfg.home.select = defaults.home.select.clone();
+                        migrated = true;
+                    }
+                    if cfg.home.global_search.is_none() {
+                        cfg.home.global_search = defaults.home.global_search.clone();
                         migrated = true;
                     }
 

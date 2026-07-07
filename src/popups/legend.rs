@@ -257,13 +257,16 @@ pub fn draw_legend_popup(f: &mut Frame, area: Rect, app: &App) {
     let list_para = Paragraph::new(lines).scroll((app.legend_scroll as u16, 0));
     f.render_widget(list_para, chunks[2]);
 
+    let compat = app.config.compatibility_mode;
+    let close_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat);
+    let legend_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::HomeSymbolsHelp, compat);
     let close_line = Line::from(vec![
         Span::raw("Press "),
-        Span::styled("Esc", accent_style()),
+        Span::styled(close_key, accent_style()),
         Span::raw(" or "),
-        Span::styled("q", accent_style()),
-        Span::raw(" or "),
-        Span::styled("h", accent_style()),
+        Span::styled(legend_key, accent_style()),
         Span::raw(" to close (Use ↑/↓/PgUp/PgDn to scroll)"),
     ])
     .alignment(Alignment::Center);
@@ -274,16 +277,13 @@ use crossterm::event::{KeyCode, KeyEvent};
 pub struct LegendPopup;
 impl LegendPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
-        let code = key.code;
-        match code {
-            KeyCode::Char('h')
-            | KeyCode::Char('H')
-            | KeyCode::Esc
-            | KeyCode::Char('q')
-            | KeyCode::Char('Q') => {
-                app.close_dialog();
-                return true;
-            }
+        if app.is_bound(crate::keybindings::Action::HomeSymbolsHelp, key)
+            || app.is_bound(crate::keybindings::Action::CloseDetail, key)
+        {
+            app.close_dialog();
+            return true;
+        }
+        match key.code {
             KeyCode::Up | KeyCode::Char('k') => {
                 app.legend_scroll_up();
                 return true;

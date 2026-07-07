@@ -113,9 +113,9 @@ impl HomeTab {
                     app.import_name.clear();
                 } else if app.is_bound(Action::HomeOpenGitApp, key) {
                     app.pending_git_app = true;
-                } else if code == KeyCode::Char('*') {
+                } else if app.is_bound(Action::HomeToggleStar, key) {
                     app.toggle_star_selected();
-                } else if code == KeyCode::Char('/') {
+                } else if app.is_bound(Action::HomeJumpPicker, key) {
                     app.input_buffer.clear();
                     app.repo_jump_selection = 0;
                     app.mode = Mode::RepoJump;
@@ -127,13 +127,11 @@ impl HomeTab {
                     app.mode = Mode::RepoSearchInput;
                 } else if app.is_bound(Action::HomeOpenDetail, key) {
                     app.open_detail();
-                } else if code == KeyCode::Char('y') || code == KeyCode::Char('Y') {
+                } else if app.is_bound(Action::HomeYankPath, key) {
                     app.yank_selected_repo_path();
-                } else if code == KeyCode::Char('t') || code == KeyCode::Char('T') {
+                } else if app.is_bound(Action::HomeOpenTerminal, key) {
                     app.pending_terminal = true;
-                } else if code == KeyCode::Char('f')
-                    && key.modifiers.contains(KeyModifiers::CONTROL)
-                {
+                } else if app.is_bound(Action::HomeGlobalSearch, key) {
                     app.input_buffer.clear();
                     app.global_search_query.clear();
                     app.global_search_results.clear();
@@ -142,9 +140,9 @@ impl HomeTab {
                     app.global_search_focus_input = true;
                     app.mode = Mode::GlobalSearch;
                     return true;
-                } else if code == KeyCode::Char('F') {
+                } else if app.is_bound(Action::HomeFetchAll, key) {
                     app.bulk_fetch_all();
-                } else if code == KeyCode::Char(' ') {
+                } else if app.is_bound(Action::HomeSelect, key) {
                     if let Some(path) = app.get_selected_item() {
                         let path_str = path.clone();
                         if app.multi_selected.contains(&path_str) {

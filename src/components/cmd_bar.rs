@@ -339,15 +339,15 @@ pub(crate) fn get_status_layout_components(
             (msg_spans, entries)
         }
         Mode::Help => {
-            let (msg_spans, entries) = help_dismiss_entries();
+            let (msg_spans, entries) = help_dismiss_entries(app);
             (msg_spans, entries)
         }
         Mode::About => {
-            let (msg_spans, entries) = about_dismiss_entries();
+            let (msg_spans, entries) = about_dismiss_entries(app);
             (msg_spans, entries)
         }
         Mode::Legend => {
-            let (msg_spans, entries) = legend_dismiss_entries();
+            let (msg_spans, entries) = legend_dismiss_entries(app);
             (msg_spans, entries)
         }
         Mode::RepoSettings => {
@@ -410,7 +410,7 @@ pub(crate) fn get_status_layout_components(
             (None, entries)
         }
         Mode::DetailHelp => {
-            let (msg_spans, entries) = detail_help_entries();
+            let (msg_spans, entries) = detail_help_entries(app);
             (msg_spans, entries)
         }
         Mode::CommitInput => {
@@ -1355,11 +1355,41 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         ],
         _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/0-9"), ("Resync", "R"), ("Help", "?")],
     };
+    let compat = app.config.compatibility_mode;
+    let home_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat);
+    let cycle_focus_key = format!(
+        "{}/{}",
+        app.keybindings.format_action_keys(crate::keybindings::Action::CycleFocusForward, compat),
+        app.keybindings.format_action_keys(crate::keybindings::Action::CycleFocusBackward, compat)
+    );
+    let resync_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::RefreshDetail, compat);
+    let help_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::DetailHelp, compat);
+    let toggle_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::ToggleAdvancedTabs, compat);
+
+    let home_key_ref = home_key.as_str();
+    let cycle_focus_key_ref = cycle_focus_key.as_str();
+    let resync_key_ref = resync_key.as_str();
+    let help_key_ref = help_key.as_str();
+    let toggle_key_ref = toggle_key.as_str();
+
     let mut final_entries = Vec::new();
     for (label, key) in entries_data {
         if label == "Tabs" {
             final_entries.push(("Tabs", if app.advanced_tabs { "1-4" } else { "1-7" }));
-            final_entries.push((if app.advanced_tabs { "Primary" } else { "Advanced" }, "Z"));
+            final_entries
+                .push((if app.advanced_tabs { "Primary" } else { "Advanced" }, toggle_key_ref));
+        } else if label == "Home" {
+            final_entries.push(("Home", home_key_ref));
+        } else if label == "Cycle Focus" {
+            final_entries.push(("Cycle Focus", cycle_focus_key_ref));
+        } else if label == "Resync" {
+            final_entries.push(("Resync", resync_key_ref));
+        } else if label == "Help" {
+            final_entries.push(("Help", help_key_ref));
         } else {
             final_entries.push((label, key));
         }
@@ -1497,7 +1527,35 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
         entries_data.push(("Help", "?"));
     }
 
-    for (i, (label, key)) in entries_data.iter().enumerate() {
+    let compat = app.config.compatibility_mode;
+    let exit_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat);
+    let cycle_focus_key = format!(
+        "{}/{}",
+        app.keybindings.format_action_keys(crate::keybindings::Action::CycleFocusForward, compat),
+        app.keybindings.format_action_keys(crate::keybindings::Action::CycleFocusBackward, compat)
+    );
+    let help_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::DetailHelp, compat);
+
+    let exit_key_ref = exit_key.as_str();
+    let cycle_focus_key_ref = cycle_focus_key.as_str();
+    let help_key_ref = help_key.as_str();
+
+    let mut final_entries = Vec::new();
+    for (label, key) in entries_data {
+        if label == "Workspace" || label == "Logs UI" {
+            final_entries.push((label, exit_key_ref));
+        } else if label == "Cycle Focus" {
+            final_entries.push(("Cycle Focus", cycle_focus_key_ref));
+        } else if label == "Help" {
+            final_entries.push(("Help", help_key_ref));
+        } else {
+            final_entries.push((label, key));
+        }
+    }
+
+    for (i, (label, key)) in final_entries.iter().enumerate() {
         let mut spans = Vec::new();
         if i > 0 {
             spans.push(Span::styled(" ", muted_style()));
@@ -1512,12 +1570,18 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
     (message_spans, entries)
 }
 
-fn detail_help_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+fn detail_help_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let compat = app.config.compatibility_mode;
+    let help_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::DetailHelp, compat);
+    let esc_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat);
+    let close_keys = format!("{}/{}", help_key, esc_key);
     let entries = vec![StatusEntry::new(vec![
         Span::raw("Close Help"),
         Span::raw(" "),
         Span::styled("[", muted_style()),
-        Span::styled("?/⎋/q", accent_style()),
+        Span::styled(close_keys, accent_style()),
         Span::styled("]", muted_style()),
     ])];
     (None, entries)
@@ -1747,6 +1811,10 @@ fn draw_status_layout(
     let right_area = status_chunks[1];
 
     let mut spans = Vec::new();
+    let toggle_key = app.keybindings.format_action_keys(
+        crate::keybindings::Action::ToggleStatusBar,
+        app.config.compatibility_mode,
+    );
 
     // Add Mode Badge
     let badge = get_mode_badge(&app.mode);
@@ -1778,7 +1846,7 @@ fn draw_status_layout(
         spans.push(Span::raw("Less"));
         spans.push(Span::raw(" "));
         spans.push(Span::styled("[", muted_style()));
-        spans.push(Span::styled(".", accent_style()));
+        spans.push(Span::styled(toggle_key.clone(), accent_style()));
         spans.push(Span::styled("]", muted_style()));
 
         let para = Paragraph::new(Line::from(spans)).wrap(Wrap { trim: true });
@@ -1816,7 +1884,7 @@ fn draw_status_layout(
             spans.push(Span::raw("More"));
             spans.push(Span::raw(" "));
             spans.push(Span::styled("[", muted_style()));
-            spans.push(Span::styled(".", accent_style()));
+            spans.push(Span::styled(toggle_key.clone(), accent_style()));
             spans.push(Span::styled("]", muted_style()));
         }
 
@@ -1875,35 +1943,69 @@ fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEn
     let sort_dir = if app.config.sort_reverse { " (Rev)" } else { "" };
     let sort_key_label = format!("Sort: {}{}", sort_label, sort_dir);
 
+    let compat = app.config.compatibility_mode;
+    let kb = &app.keybindings;
+    let k = |a| kb.format_action_keys(a, compat);
+
+    let detail_key = k(crate::keybindings::Action::HomeOpenDetail);
+    let git_app_key = k(crate::keybindings::Action::HomeOpenGitApp);
+    let terminal_key = k(crate::keybindings::Action::HomeOpenTerminal);
+    let sort_key = format!(
+        "{}/{}",
+        k(crate::keybindings::Action::HomeCycleSort),
+        k(crate::keybindings::Action::HomeToggleSortReverse)
+    );
+    let search_key = k(crate::keybindings::Action::HomeSearchRepo);
+    let jump_key = k(crate::keybindings::Action::HomeJumpPicker);
+    let add_key = k(crate::keybindings::Action::HomeAddRepo);
+    let bulk_add_key = k(crate::keybindings::Action::HomeBulkAdd);
+    let import_key = k(crate::keybindings::Action::HomeImportRepo);
+    let edit_key = k(crate::keybindings::Action::HomeEditRepo);
+    let delete_key = k(crate::keybindings::Action::HomeDeleteRepo);
+    let labels_key = k(crate::keybindings::Action::HomeEditLabels);
+    let refresh_key = k(crate::keybindings::Action::HomeRefresh);
+    let fetch_key = k(crate::keybindings::Action::HomeFetchAll);
+    let select_key = k(crate::keybindings::Action::HomeSelect);
+    let pin_key = k(crate::keybindings::Action::HomeTogglePin);
+    let star_key = k(crate::keybindings::Action::HomeToggleStar);
+    let yank_key = k(crate::keybindings::Action::HomeYankPath);
+    let update_key = k(crate::keybindings::Action::HomeCheckUpdate);
+    let debug_key = k(crate::keybindings::Action::HomeOpenDebugLogs);
+    let about_key = k(crate::keybindings::Action::HomeAbout);
+    let compact_key = k(crate::keybindings::Action::HomeToggleCompactView);
+    let legend_key = k(crate::keybindings::Action::HomeSymbolsHelp);
+    let help_key = k(crate::keybindings::Action::Help);
+    let quit_key = k(crate::keybindings::Action::Close);
+
     let entries_data = vec![
         ("Navigate", "↑↓"),
         ("Page", "⇟/⇞"),
         ("Jump", "Home/End"),
-        ("Detail", "↵/→"),
-        (&app.config.git_app, "g"),
-        ("Terminal", "t"),
-        (&sort_key_label, "o/O"),
-        ("Find", "f"),
-        ("Jump Picker", "/"),
-        ("Add", "a"),
-        ("Bulk Add", "A"),
-        ("Import", "i"),
-        ("Edit", "e"),
-        ("Delete", "D"),
-        ("Labels", "l"),
-        ("Refresh", "R"),
-        ("Fetch All", "F"),
-        ("Select", "Space"),
-        ("Pin", "p"),
-        ("Star", "*"),
-        ("Yank Path", "y"),
-        ("Check Update", "u"),
-        ("Debug Logs", "d"),
-        ("About", "V"),
-        ("Compact", "v"),
-        ("Legend", "h"),
-        ("Help", "?"),
-        ("Quit", "ctrl+q"),
+        ("Detail", &detail_key),
+        (&app.config.git_app, &git_app_key),
+        ("Terminal", &terminal_key),
+        (&sort_key_label, &sort_key),
+        ("Find", &search_key),
+        ("Jump Picker", &jump_key),
+        ("Add", &add_key),
+        ("Bulk Add", &bulk_add_key),
+        ("Import", &import_key),
+        ("Edit", &edit_key),
+        ("Delete", &delete_key),
+        ("Labels", &labels_key),
+        ("Refresh", &refresh_key),
+        ("Fetch All", &fetch_key),
+        ("Select", &select_key),
+        ("Pin", &pin_key),
+        ("Star", &star_key),
+        ("Yank Path", &yank_key),
+        ("Check Update", &update_key),
+        ("Debug Logs", &debug_key),
+        ("About", &about_key),
+        ("Compact", &compact_key),
+        ("Legend", &legend_key),
+        ("Help", &help_key),
+        ("Quit", &quit_key),
     ];
     let mut entries = Vec::new();
     for (i, (label, key)) in entries_data.iter().enumerate() {
@@ -2348,34 +2450,51 @@ fn confirm_branch_push_entries(target: &str) -> (Option<Vec<Span<'static>>>, Vec
     (message_spans, entries)
 }
 
-fn help_dismiss_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+fn help_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let compat = app.config.compatibility_mode;
+    let help_key = app.keybindings.format_action_keys(crate::keybindings::Action::Help, compat);
+    let close_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat);
+    let close_keys = format!("{}/{}", help_key, close_key);
     let entries = vec![StatusEntry::new(vec![
         Span::raw("Close Help"),
         Span::raw(" "),
         Span::styled("[", muted_style()),
-        Span::styled("?/⎋/q", accent_style()),
+        Span::styled(close_keys, accent_style()),
         Span::styled("]", muted_style()),
     ])];
     (None, entries)
 }
 
-fn about_dismiss_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+fn about_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let compat = app.config.compatibility_mode;
+    let about_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::HomeAbout, compat);
+    let close_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat);
+    let close_keys = format!("{}/{}", about_key, close_key);
     let entries = vec![StatusEntry::new(vec![
         Span::raw("Close About"),
         Span::raw(" "),
         Span::styled("[", muted_style()),
-        Span::styled("v/⎋/q", accent_style()),
+        Span::styled(close_keys, accent_style()),
         Span::styled("]", muted_style()),
     ])];
     (None, entries)
 }
 
-fn legend_dismiss_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+fn legend_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let compat = app.config.compatibility_mode;
+    let legend_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::HomeSymbolsHelp, compat);
+    let close_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat);
+    let close_keys = format!("{}/{}", legend_key, close_key);
     let entries = vec![StatusEntry::new(vec![
         Span::raw("Close Legend"),
         Span::raw(" "),
         Span::styled("[", muted_style()),
-        Span::styled("h/⎋/q", accent_style()),
+        Span::styled(close_keys, accent_style()),
         Span::styled("]", muted_style()),
     ])];
     (None, entries)
