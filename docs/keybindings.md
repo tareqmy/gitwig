@@ -58,9 +58,11 @@
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
 | `Esc` / `q`          | Detail          | Return to the list                |
-| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs (Workspace → Files → Graph → Branches → Tags → Remotes → Stashes → Worktrees → Submodules → Reflog) |
+| `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs within the active group (Primary vs. Advanced) |
 | `w` / `W`            | Detail          | Cycle panel focus forward (w) / backward (W) |
-| `1` - `9` and `0`    | Detail          | Jump directly to tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7), Worktrees (8), Submodules (9), or Reflog (0) |
+| `1` - `7`            | Detail          | Jump directly to Primary tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7) |
+| `1` - `4`            | Detail          | Jump directly to Advanced tab: Worktrees (1), Submodules (2), Reflog (3), Forge (4) (when Advanced group is active) |
+| `Z`                  | Detail          | Toggle between Primary and Advanced tab groups |
 | `v` / `V`            | Detail          | Toggle full-screen repository Overview overlay |
 | `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |

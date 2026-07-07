@@ -71,7 +71,8 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("⇟ [PgDn]", "Jump page size rows down"),
                 ("Home", "Scroll to top / go to first item"),
                 ("End", "Scroll to bottom / go to last item"),
-                ("⇥ [Tab] / ⇧⇥", "Cycle detail view tabs"),
+                ("⇥ [Tab] / ⇧⇥", "Cycle tabs within active group"),
+                ("Z", "Toggle between Primary and Advanced tab groups"),
                 ("w / W", "Cycle panel focus forward (w) / backward (W)"),
                 ("R", "Resync current tab state"),
                 ("? / ⎋ [Esc]", "Close this help"),
@@ -81,16 +82,8 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         (
             "Tab Direct Navigation",
             vec![
-                ("1", "Go to Workspace tab"),
-                ("2", "Go to Files tab"),
-                ("3", "Go to Graph View tab"),
-                ("4", "Go to Branches tab"),
-                ("5", "Go to Tags tab"),
-                ("6", "Go to Remotes tab"),
-                ("7", "Go to Stashes tab"),
-                ("8", "Go to Worktrees tab"),
-                ("9", "Go to Submodules tab"),
-                ("0", "Go to Reflog tab"),
+                ("Primary [1-7]", "Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7)"),
+                ("Advanced [1-4]", "Worktrees (1), Submodules (2), Reflog (3), Forge (4) (accessible when Advanced group is active)"),
             ],
         ),
         (

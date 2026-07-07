@@ -1,20 +1,21 @@
 # 🔍 Detail view
 
-Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports ten tabs for git repositories: **Workspace**, **Files**, **Graph**, **Branches**, **Tags**, **Remotes**, **Stashes**, **Worktrees**, **Submodules**, and **Reflog**.
-- Press `1` to switch to the **Workspace** tab.
-- Press `2` to switch to the **Files** tab.
-- Press `3` to switch to the **Graph** tab.
-- Press `4` to switch to the **Branches** tab.
-- Press `5` to switch to the **Tags** tab.
-- Press `6` to switch to the **Remotes** tab.
-- Press `7` to switch to the **Stashes** tab.
-- Press `8` to switch to the **Worktrees** tab.
-- Press `9` to switch to the **Submodules** tab.
-- Press `0` to switch to the **Reflog** tab.
+Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports eleven tabs for git repositories, organized into two groups:
+
+| Group | Tabs | Access / Navigation |
+|---|---|---|
+| **Primary** | **Workspace**, **Files**, **Graph**, **Branches**, **Tags**, **Remotes**, **Stashes** | Always visible. Use `1`–`7` to jump directly. |
+| **Advanced** | **Worktrees**, **Submodules**, **Reflog**, **Forge** | Toggled via `Z`. Use `1`–`4` to jump directly when active. |
+
+- Press `Z` from any tab to toggle between **Primary** and **Advanced** tab groups.
+- Press `Esc` while viewing the Advanced group to step back to the Primary group.
+- Press `Tab` / `Shift+Tab` to cycle forward/backward through the tabs *within* the currently active group.
+- Directly jump to tabs using number keys:
+  - In **Primary** group: Workspace (`1`), Files (`2`), Graph (`3`), Branches (`4`), Tags (`5`), Remotes (`6`), Stashes (`7`). Pressing `8`, `9`, or `0` automatically toggles to the Advanced group and jumps to Worktrees, Submodules, or Reflog.
+  - In **Advanced** group: Worktrees (`1`), Submodules (`2`), Reflog (`3`), Forge (`4`).
 - Press `v` from any tab to toggle the repository **Overview** full-screen overlay.
-- Alternatively, press `Tab` / `Shift+Tab` to cycle forward/backward through the tabs.
-- You can also click on the tab headers directly with the mouse to switch tabs.
-Press `Esc` or `q` to return to the repository list.
+- Alternatively, you can click on the visible tab headers directly with the mouse to switch tabs.
+Press `Esc` or `q` (from the Primary group) to return to the repository list.
 
 ### Panel Layout & Navigation (Workspace Tab)
 
