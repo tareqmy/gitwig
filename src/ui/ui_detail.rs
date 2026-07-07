@@ -405,7 +405,7 @@ pub fn draw(
     }
 
     if let Some(tab_area) = tab_bar_area {
-        let tabs_data = [
+        let all_tabs_data = [
             ("Workspace", "WS", "W", "1", 0),
             ("Files", "Fi", "F", "2", 1),
             ("Graph", "Gr", "G", "3", 2),
@@ -413,11 +413,23 @@ pub fn draw(
             ("Tags", "Tg", "T", "5", 4),
             ("Remotes", "Rm", "R", "6", 5),
             ("Stashes", "St", "S", "7", 6),
-            ("Worktrees", "WT", "W", "8", 7),
-            ("Submodules", "SM", "S", "9", 8),
-            ("Reflog", "Rf", "R", "0", 9),
-            ("Forge", "Fo", "F", "-", 10),
+            ("Worktrees", "WT", "W", "1", 7),
+            ("Submodules", "SM", "S", "2", 8),
+            ("Reflog", "Rf", "R", "3", 9),
+            ("Forge", "Fo", "F", "4", 10),
         ];
+
+        let tabs_data: Vec<_> = all_tabs_data
+            .iter()
+            .filter(|&&(_, _, _, _, tab_idx)| {
+                if app.advanced_tabs {
+                    (7..=10).contains(&tab_idx)
+                } else {
+                    (0..=6).contains(&tab_idx)
+                }
+            })
+            .copied()
+            .collect();
 
         let width_long: usize = 11 + tabs_data.iter().map(|t| t.0.len() + 8).sum::<usize>();
         let width_medium: usize = 11 + tabs_data.iter().map(|t| t.1.len() + 8).sum::<usize>();
@@ -477,6 +489,15 @@ pub fn draw(
                 style,
             ));
         }
+
+        if app.advanced_tabs {
+            spans.push(Span::raw("   "));
+            spans.push(Span::styled("← Primary [Z]", Style::default().fg(ACCENT())));
+        } else {
+            spans.push(Span::raw("   "));
+            spans.push(Span::styled("⟨Adv [Z]⟩", muted_style()));
+        }
+
         let tab_line = Line::from(spans);
         f.render_widget(Paragraph::new(tab_line), tab_area);
         areas.tab_bar = Some(tab_area);

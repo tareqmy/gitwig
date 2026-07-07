@@ -391,6 +391,7 @@ pub struct App {
     pub last_click: Option<(std::time::Instant, usize)>,
     /// Active tab in the detail view (0 = Details, 1 = Graph, 2 = Branches, 3 = Files).
     pub detail_tab: usize,
+    pub advanced_tabs: bool,
     /// Selected file index in the Files tab.
     /// Vertical scroll offset for the file content preview in Files tab.
     /// Set of expanded folder paths.
@@ -1130,6 +1131,7 @@ impl App {
 
             last_click: None,
             detail_tab: 0,
+            advanced_tabs: false,
             graph_scroll: 0,
             graph_selection: 0,
             status_expanded: false,

@@ -683,7 +683,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             if rect.contains(pos) {
                 if is_click {
                     let click_x = pos.x - rect.x;
-                    let tabs_data = [
+                    let all_tabs_data = [
                         ("Workspace", "WS", "W", 0),
                         ("Files", "Fi", "F", 1),
                         ("Graph", "Gr", "G", 2),
@@ -694,7 +694,19 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         ("Worktrees", "WT", "W", 7),
                         ("Submodules", "SM", "S", 8),
                         ("Reflog", "Rf", "R", 9),
+                        ("Forge", "Fo", "F", 10),
                     ];
+                    let tabs_data: Vec<_> = all_tabs_data
+                        .iter()
+                        .filter(|&&(_, _, _, tab_idx)| {
+                            if app.advanced_tabs {
+                                (7..=10).contains(&tab_idx)
+                            } else {
+                                (0..=6).contains(&tab_idx)
+                            }
+                        })
+                        .copied()
+                        .collect();
                     let width_long: usize =
                         11 + tabs_data.iter().map(|t| t.0.len() + 8).sum::<usize>();
                     let width_medium: usize =

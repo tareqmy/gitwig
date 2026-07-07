@@ -56,6 +56,7 @@ pub enum Action {
     GoToTab9,
     GoToTab10,
     Overview,
+    ToggleAdvancedTabs,
 }
 
 impl Action {
@@ -107,6 +108,7 @@ impl Action {
             57 => Some(Action::HomeCheckUpdate),
             59 => Some(Action::GoToTab10),
             68 => Some(Action::Overview),
+            69 => Some(Action::ToggleAdvancedTabs),
             _ => None,
         }
     }
@@ -168,6 +170,7 @@ pub struct NavigationKeybindings {
     pub go_to_tab_9: Option<Vec<String>>,
     pub go_to_tab_10: Option<Vec<String>>,
     pub overview: Option<Vec<String>>,
+    pub toggle_advanced_tabs: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -325,6 +328,7 @@ impl KeybindingsConfig {
                 go_to_tab_9: Some(vec!["9".to_string()]),
                 go_to_tab_10: Some(vec!["0".to_string()]),
                 overview: Some(vec!["O".to_string()]),
+                toggle_advanced_tabs: Some(vec!["Z".to_string()]),
             },
         }
     }
@@ -387,6 +391,7 @@ impl KeybindingsConfig {
             Action::GoToTab9 => self.navigation.go_to_tab_9.as_ref(),
             Action::GoToTab10 => self.navigation.go_to_tab_10.as_ref(),
             Action::Overview => self.navigation.overview.as_ref(),
+            Action::ToggleAdvancedTabs => self.navigation.toggle_advanced_tabs.as_ref(),
         };
 
         keys_opt.cloned().unwrap_or_default()
@@ -521,6 +526,7 @@ impl KeybindingsConfig {
             Action::GoToTab9 => self.navigation.go_to_tab_9 = keys_opt,
             Action::GoToTab10 => self.navigation.go_to_tab_10 = keys_opt,
             Action::Overview => self.navigation.overview = keys_opt,
+            Action::ToggleAdvancedTabs => self.navigation.toggle_advanced_tabs = keys_opt,
         }
     }
 
@@ -578,6 +584,11 @@ impl KeybindingsConfig {
 
                     if cfg.navigation.overview.is_none() {
                         cfg.navigation.overview = defaults.navigation.overview.clone();
+                        migrated = true;
+                    }
+                    if cfg.navigation.toggle_advanced_tabs.is_none() {
+                        cfg.navigation.toggle_advanced_tabs =
+                            defaults.navigation.toggle_advanced_tabs.clone();
                         migrated = true;
                     }
 

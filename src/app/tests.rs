@@ -14,6 +14,16 @@ impl Drop for TestFileGuard {
     }
 }
 
+struct TestDirGuard {
+    path: PathBuf,
+}
+
+impl Drop for TestDirGuard {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.path);
+    }
+}
+
 #[test]
 fn test_stash_creation_flow() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -2276,8 +2286,10 @@ fn test_workspace_all_changes_shortcuts() {
         graph_max_commits: 1000,
         ..Default::default()
     };
-    let temp_path = std::env::temp_dir().join("gitwig_test_config_workspace_all.toml");
-    let _guard = TestFileGuard { path: temp_path.clone() };
+    let temp_dir = std::env::temp_dir().join("gitwig_test_workspace_all_changes_dir");
+    let _ = std::fs::create_dir_all(&temp_dir);
+    let temp_path = temp_dir.join("config.toml");
+    let _guard = TestDirGuard { path: temp_dir };
     let mut app = App::new(config, temp_path);
 
     // Open details Workspace view and focus Unstaged section
@@ -9424,4 +9436,91 @@ fn test_forge_tab_event_handling() {
     let handled = crate::tabs::route_detail_event(&mut app, key_end);
     assert!(handled);
     assert_eq!(app.forge_issue_selection, 1);
+}
+
+#[test]
+fn test_tab_groups_primary_advanced() {
+    let config = Config::default();
+    let temp_dir = std::env::temp_dir().join("gitwig_test_tab_groups_dir");
+    let _ = std::fs::create_dir_all(&temp_dir);
+    let temp_config_path = temp_dir.join("config.toml");
+    let _guard = TestDirGuard { path: temp_dir };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+
+    let mock_info = crate::repo::RepoInfo {
+        tab_loaded_at: [None; 11],
+        tab_loading: [false; 11],
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    // 1. Initial State: Primary tabs, Workspace (0)
+    assert!(!app.advanced_tabs);
+    assert_eq!(app.detail_tab, 0);
+
+    // 2. Cycle Forward (should go to Files (1))
+    let key_tab = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Tab,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_tab);
+    assert!(handled);
+    assert_eq!(app.detail_tab, 1);
+
+    // 3. Jump to Tab 7 (Stashes - index 6)
+    let key_7 = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('7'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_7);
+    assert!(handled);
+    assert_eq!(app.detail_tab, 6);
+
+    // 4. Cycle Forward from index 6 (should wrap back to 0)
+    let handled = crate::tabs::route_detail_event(&mut app, key_tab);
+    assert!(handled);
+    assert_eq!(app.detail_tab, 0);
+
+    // 5. Toggle Advanced Tabs (by pressing Z)
+    let key_z = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('Z'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_z);
+    assert!(handled);
+    assert!(app.advanced_tabs);
+    assert_eq!(app.detail_tab, 7); // Worktrees is index 7
+
+    // 6. Jump to Tab 3 of Advanced group (Reflog - index 9)
+    let key_3 = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('3'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_3);
+    assert!(handled);
+    assert_eq!(app.detail_tab, 9);
+
+    // 7. Cycle Forward from index 9 (should go to index 10 - Forge)
+    let handled = crate::tabs::route_detail_event(&mut app, key_tab);
+    assert!(handled);
+    assert_eq!(app.detail_tab, 10);
+
+    // 8. Cycle Forward from index 10 (should wrap back to 7 - Worktrees)
+    let handled = crate::tabs::route_detail_event(&mut app, key_tab);
+    assert!(handled);
+    assert_eq!(app.detail_tab, 7);
+
+    // 9. Escape in Advanced mode should return to Primary
+    let key_esc = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_esc);
+    assert!(handled);
+    assert!(!app.advanced_tabs);
+    assert_eq!(app.detail_tab, 0);
 }

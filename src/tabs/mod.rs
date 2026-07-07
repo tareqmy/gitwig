@@ -1,4 +1,4 @@
-use crate::app::{App, DetailSection, Mode};
+use crate::app::{App, Mode};
 use crate::repo;
 use crossterm::event::{KeyCode, KeyEvent};
 
@@ -44,6 +44,15 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
                 return true;
             }
         }
+        if app.advanced_tabs {
+            app.advanced_tabs = false;
+            app.detail_tab = 0;
+            app.set_default_focus_for_tab();
+            if app.get_current_resync_on_tab_change() {
+                app.resync_detail();
+            }
+            return true;
+        }
         app.close_detail();
         return true;
     }
@@ -71,7 +80,11 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
 
     if app.is_bound(Action::CycleTabForward, key) {
         app.inspect_full_diff = false;
-        app.detail_tab = (app.detail_tab + 1) % 11;
+        if app.advanced_tabs {
+            app.detail_tab = 7 + (app.detail_tab - 7 + 1) % 4;
+        } else {
+            app.detail_tab = (app.detail_tab + 1) % 7;
+        }
         app.commit_list.selection = 0;
         app.set_default_focus_for_tab();
         if app.get_current_resync_on_tab_change() {
@@ -82,7 +95,28 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
 
     if app.is_bound(Action::CycleTabBackward, key) {
         app.inspect_full_diff = false;
-        app.detail_tab = if app.detail_tab == 0 { 10 } else { app.detail_tab - 1 };
+        if app.advanced_tabs {
+            app.detail_tab = 7 + if app.detail_tab == 7 { 3 } else { app.detail_tab - 7 - 1 };
+        } else {
+            app.detail_tab = if app.detail_tab == 0 { 6 } else { app.detail_tab - 1 };
+        }
+        app.commit_list.selection = 0;
+        app.set_default_focus_for_tab();
+        if app.get_current_resync_on_tab_change() {
+            app.resync_detail();
+        }
+        return true;
+    }
+
+    if app.is_bound(Action::ToggleAdvancedTabs, key) {
+        app.inspect_full_diff = false;
+        if app.advanced_tabs {
+            app.advanced_tabs = false;
+            app.detail_tab = 0;
+        } else {
+            app.advanced_tabs = true;
+            app.detail_tab = 7;
+        }
         app.commit_list.selection = 0;
         app.set_default_focus_for_tab();
         if app.get_current_resync_on_tab_change() {
@@ -93,9 +127,9 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
 
     if app.is_bound(Action::GoToTab1, key) {
         app.inspect_full_diff = false;
-        app.detail_tab = 0;
+        app.detail_tab = if app.advanced_tabs { 7 } else { 0 };
         app.commit_list.selection = 0;
-        app.detail_focus = DetailSection::Commits;
+        app.set_default_focus_for_tab();
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
         }
@@ -104,9 +138,9 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
 
     if app.is_bound(Action::GoToTab2, key) {
         app.inspect_full_diff = false;
-        app.detail_tab = 1;
+        app.detail_tab = if app.advanced_tabs { 8 } else { 1 };
         app.commit_list.selection = 0;
-        app.detail_focus = DetailSection::Files;
+        app.set_default_focus_for_tab();
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
         }
@@ -115,8 +149,9 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
 
     if app.is_bound(Action::GoToTab3, key) {
         app.inspect_full_diff = false;
-        app.detail_tab = 2;
+        app.detail_tab = if app.advanced_tabs { 9 } else { 2 };
         app.commit_list.selection = 0;
+        app.set_default_focus_for_tab();
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
         }
@@ -125,9 +160,9 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
 
     if app.is_bound(Action::GoToTab4, key) {
         app.inspect_full_diff = false;
-        app.detail_tab = 3;
+        app.detail_tab = if app.advanced_tabs { 10 } else { 3 };
         app.commit_list.selection = 0;
-        app.detail_focus = DetailSection::LocalBranches;
+        app.set_default_focus_for_tab();
         if app.get_current_resync_on_tab_change() {
             app.resync_detail();
         }
@@ -135,69 +170,84 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     }
 
     if app.is_bound(Action::GoToTab5, key) {
-        app.inspect_full_diff = false;
-        app.detail_tab = 4;
-        app.commit_list.selection = 0;
-        app.detail_focus = DetailSection::LocalTags;
-        if app.get_current_resync_on_tab_change() {
-            app.resync_detail();
+        if !app.advanced_tabs {
+            app.inspect_full_diff = false;
+            app.detail_tab = 4;
+            app.commit_list.selection = 0;
+            app.set_default_focus_for_tab();
+            if app.get_current_resync_on_tab_change() {
+                app.resync_detail();
+            }
+            return true;
         }
-        return true;
     }
 
     if app.is_bound(Action::GoToTab6, key) {
-        app.inspect_full_diff = false;
-        app.detail_tab = 5;
-        app.commit_list.selection = 0;
-        app.detail_focus = DetailSection::Remotes;
-        if app.get_current_resync_on_tab_change() {
-            app.resync_detail();
+        if !app.advanced_tabs {
+            app.inspect_full_diff = false;
+            app.detail_tab = 5;
+            app.commit_list.selection = 0;
+            app.set_default_focus_for_tab();
+            if app.get_current_resync_on_tab_change() {
+                app.resync_detail();
+            }
+            return true;
         }
-        return true;
     }
 
     if app.is_bound(Action::GoToTab7, key) {
-        app.inspect_full_diff = false;
-        app.detail_tab = 6;
-        app.commit_list.selection = 0;
-        app.detail_focus = DetailSection::Stashes;
-        if app.get_current_resync_on_tab_change() {
-            app.resync_detail();
+        if !app.advanced_tabs {
+            app.inspect_full_diff = false;
+            app.detail_tab = 6;
+            app.commit_list.selection = 0;
+            app.set_default_focus_for_tab();
+            if app.get_current_resync_on_tab_change() {
+                app.resync_detail();
+            }
+            return true;
         }
-        return true;
     }
 
     if app.is_bound(Action::GoToTab8, key) {
-        app.inspect_full_diff = false;
-        app.detail_tab = 7;
-        app.commit_list.selection = 0;
-        app.detail_focus = DetailSection::Worktrees;
-        if app.get_current_resync_on_tab_change() {
-            app.resync_detail();
+        if !app.advanced_tabs {
+            app.inspect_full_diff = false;
+            app.detail_tab = 7;
+            app.advanced_tabs = true;
+            app.commit_list.selection = 0;
+            app.set_default_focus_for_tab();
+            if app.get_current_resync_on_tab_change() {
+                app.resync_detail();
+            }
+            return true;
         }
-        return true;
     }
 
     if app.is_bound(Action::GoToTab9, key) {
-        app.inspect_full_diff = false;
-        app.detail_tab = 8;
-        app.commit_list.selection = 0;
-        app.detail_focus = DetailSection::Submodules;
-        if app.get_current_resync_on_tab_change() {
-            app.resync_detail();
+        if !app.advanced_tabs {
+            app.inspect_full_diff = false;
+            app.detail_tab = 8;
+            app.advanced_tabs = true;
+            app.commit_list.selection = 0;
+            app.set_default_focus_for_tab();
+            if app.get_current_resync_on_tab_change() {
+                app.resync_detail();
+            }
+            return true;
         }
-        return true;
     }
 
     if app.is_bound(Action::GoToTab10, key) {
-        app.inspect_full_diff = false;
-        app.detail_tab = 9;
-        app.commit_list.selection = 0;
-        app.detail_focus = DetailSection::Reflog;
-        if app.get_current_resync_on_tab_change() {
-            app.resync_detail();
+        if !app.advanced_tabs {
+            app.inspect_full_diff = false;
+            app.detail_tab = 9;
+            app.advanced_tabs = true;
+            app.commit_list.selection = 0;
+            app.set_default_focus_for_tab();
+            if app.get_current_resync_on_tab_change() {
+                app.resync_detail();
+            }
+            return true;
         }
-        return true;
     }
 
     match app.detail_tab {
