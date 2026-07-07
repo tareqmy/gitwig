@@ -144,6 +144,13 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
+        Mode::NotGitRepo => match key.code {
+            KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => {
+                app.mode = Mode::Normal;
+                return true;
+            }
+            _ => {}
+        },
         Mode::Detail => {
             if crate::tabs::route_detail_event(app, key) {
                 return true;

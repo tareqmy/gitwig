@@ -237,7 +237,7 @@ impl App {
         let excludes = self.config.scan.excludes.clone();
         let tx = self.tx.clone();
 
-        run_directory_scan(start_dir, max_depth, excludes, tx, true);
+        run_directory_scan(start_dir, max_depth, excludes, tx, false);
     }
 
     pub fn start_bulk_repo_scan(&mut self) {
@@ -254,7 +254,7 @@ impl App {
         let excludes = self.config.scan.excludes.clone();
         let tx = self.tx.clone();
 
-        run_directory_scan(start_dir, max_depth, excludes, tx, false);
+        run_directory_scan(start_dir, max_depth, excludes, tx, true);
     }
 
     pub fn get_scan_matches(&self) -> Vec<(String, String)> {

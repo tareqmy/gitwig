@@ -15,7 +15,7 @@ use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wr
 
 const GENERAL_SETTING_INDICES: &[usize] = &[9, 56, 55, 0, 60, 13, 65, 66, 12, 58, 62, 63, 7];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
-const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 10, 8, 61];
+const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 8, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3, 67];
 const KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
@@ -103,7 +103,7 @@ fn get_label(global_idx: usize) -> &'static str {
         7 => "Page Size",
         8 => "Scan Exclude Folders",
         9 => "Preferred Git Client",
-        10 => "Scan Git Only",
+        10 => "(removed: always git-only)",
         12 => "Compatibility Mode",
         13 => "Resync on Tab Change",
         58 => "Show Grouping",

@@ -185,6 +185,8 @@ pub enum Mode {
     CloneRepoLabelInput,
     /// Searching across all tracked repositories.
     GlobalSearch,
+    /// Popup shown when the selected item is not a git repository.
+    NotGitRepo,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -2623,11 +2625,40 @@ fn run_directory_scan(
     max_depth: usize,
     excludes: Vec<String>,
     tx: std::sync::mpsc::Sender<String>,
-    git_only: bool,
+    bulk: bool,
 ) {
     std::thread::spawn(move || {
         let root = start_dir;
         let mut count = 0;
+
+        fn has_git_subdirs(dir: &std::path::Path, excludes: &[String]) -> bool {
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    if let Ok(file_type) = entry.file_type() {
+                        if file_type.is_dir() {
+                            let path = entry.path();
+                            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                                if name.starts_with('.') && name != "." && name != ".." {
+                                    if !path.join(".git").exists() {
+                                        continue;
+                                    }
+                                }
+                                if excludes
+                                    .iter()
+                                    .any(|ex| name == ex || path.to_string_lossy().contains(ex))
+                                {
+                                    continue;
+                                }
+                            }
+                            if path.join(".git").exists() {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            false
+        }
 
         fn scan(
             dir: &std::path::Path,
@@ -2636,7 +2667,7 @@ fn run_directory_scan(
             excludes: &[String],
             tx: &std::sync::mpsc::Sender<String>,
             count: &mut usize,
-            git_only: bool,
+            bulk: bool,
         ) {
             *count += 1;
             if (*count).is_multiple_of(50) {
@@ -2645,16 +2676,16 @@ fn run_directory_scan(
 
             let git_dir = dir.join(".git");
             if git_dir.exists() {
-                let name = dir
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| dir.to_string_lossy().into_owned());
-                let path = dir.to_string_lossy().into_owned();
-                let _ = tx.send(format!("REPO_SCAN_FOUND:{}|||{}", name, path));
-                if git_only {
-                    return;
+                if !bulk {
+                    let name = dir
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| dir.to_string_lossy().into_owned());
+                    let path = dir.to_string_lossy().into_owned();
+                    let _ = tx.send(format!("REPO_SCAN_FOUND:{}|||{}", name, path));
                 }
-            } else if !git_only {
+                return;
+            } else if bulk && has_git_subdirs(dir, excludes) {
                 let name = dir
                     .file_name()
                     .map(|n| n.to_string_lossy().into_owned())
@@ -2685,14 +2716,14 @@ fn run_directory_scan(
                                     continue;
                                 }
                             }
-                            scan(&path, depth + 1, max_depth, excludes, tx, count, git_only);
+                            scan(&path, depth + 1, max_depth, excludes, tx, count, bulk);
                         }
                     }
                 }
             }
         }
 
-        scan(&root, 0, max_depth, &excludes, &tx, &mut count, git_only);
+        scan(&root, 0, max_depth, &excludes, &tx, &mut count, bulk);
         let _ = tx.send(format!("REPO_SCAN_COUNT:{}", count));
         let _ = tx.send("REPO_SCAN_COMPLETE:".to_string());
     });

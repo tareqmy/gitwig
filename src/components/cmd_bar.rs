@@ -1012,6 +1012,20 @@ pub(crate) fn get_status_layout_components(
             }
             (Some(msg_spans), entries)
         }
+        Mode::NotGitRepo => {
+            let msg_spans = vec![Span::styled(
+                "Not a Git Repository  ",
+                Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+            )];
+            let entries = vec![StatusEntry::new(vec![
+                Span::raw("Dismiss"),
+                Span::raw(" "),
+                Span::styled("[", muted_style()),
+                Span::styled("Esc/Enter/q", accent_style()),
+                Span::styled("]", muted_style()),
+            ])];
+            (Some(msg_spans), entries)
+        }
         _ => return None,
     };
     Some(comps)

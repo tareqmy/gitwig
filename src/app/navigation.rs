@@ -588,7 +588,14 @@ impl App {
     /// as the view is open; closing clears it.
     pub fn open_detail(&mut self) {
         if let Some(item) = self.get_selected_item().cloned() {
+            // Guard: only allow opening a git repository
+            if !std::path::Path::new(&item).join(".git").exists() {
+                self.mode = Mode::NotGitRepo;
+                return;
+            }
+
             crate::debug_log::info(format!("Opening detail view for repository: {}", item));
+
             // Update visit time
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -2315,8 +2322,7 @@ impl App {
                 self.input_buffer = self.config.git_app.clone();
             }
             10 => {
-                self.config.scan.git_only = !self.config.scan.git_only;
-                self.persist("Scan Git Only updated");
+                // Scan Git Only is now always enabled; this setting has been removed.
             }
             12 => {
                 self.config.compatibility_mode = !self.config.compatibility_mode;
@@ -2698,7 +2704,6 @@ impl App {
         };
 
         let mut added_paths = Vec::new();
-        let git_only = self.config.scan.git_only;
 
         for entry_opt in entries {
             let entry = match entry_opt {
@@ -2706,17 +2711,14 @@ impl App {
                 Err(_) => continue,
             };
             let path = entry.path();
-            if path.is_dir() {
-                let show_dir = if git_only { path.join(".git").exists() } else { true };
-                if show_dir {
-                    if let Some(sub_name) = path.file_name().and_then(|n| n.to_str()) {
-                        let mut base_str = trimmed.clone();
-                        if !base_str.ends_with(std::path::MAIN_SEPARATOR) {
-                            base_str.push(std::path::MAIN_SEPARATOR);
-                        }
-                        let path_to_add = format!("{}{}", base_str, sub_name);
-                        added_paths.push(path_to_add);
+            if path.is_dir() && path.join(".git").exists() {
+                if let Some(sub_name) = path.file_name().and_then(|n| n.to_str()) {
+                    let mut base_str = trimmed.clone();
+                    if !base_str.ends_with(std::path::MAIN_SEPARATOR) {
+                        base_str.push(std::path::MAIN_SEPARATOR);
                     }
+                    let path_to_add = format!("{}{}", base_str, sub_name);
+                    added_paths.push(path_to_add);
                 }
             }
         }

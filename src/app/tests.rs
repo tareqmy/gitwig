@@ -549,31 +549,15 @@ fn test_bulk_add_folders() {
     let _guard = TestFileGuard { path: config_path.clone() };
     let mut app = App::new(config, config_path);
 
-    // Case 1: git_only is enabled (default)
-    app.config.scan.git_only = true;
+    // Case 1: git_only is always enabled — only git repos are included
     app.input_buffer = temp_dir.to_string_lossy().to_string();
     app.commit_bulk_add();
 
-    // Should include repo_a and repo_c, but NOT repo_b
+    // Should include repo_a and repo_c, but NOT repo_b (no .git dir)
     assert_eq!(app.config.items.len(), 2);
     assert!(app.config.items.iter().any(|item| item.ends_with("repo_a")));
     assert!(app.config.items.iter().any(|item| item.ends_with("repo_c")));
     assert!(!app.config.items.iter().any(|item| item.ends_with("repo_b")));
-
-    // Clear items and try again with git_only = false
-    app.config.items.clear();
-    app.original_items.clear();
-    app.statuses.clear();
-
-    app.config.scan.git_only = false;
-    app.input_buffer = temp_dir.to_string_lossy().to_string();
-    app.commit_bulk_add();
-
-    // Should include repo_a, repo_b, and repo_c
-    assert_eq!(app.config.items.len(), 3);
-    assert!(app.config.items.iter().any(|item| item.ends_with("repo_a")));
-    assert!(app.config.items.iter().any(|item| item.ends_with("repo_b")));
-    assert!(app.config.items.iter().any(|item| item.ends_with("repo_c")));
 
     // Clean up
     let _ = std::fs::remove_dir_all(&temp_dir);
@@ -1851,18 +1835,7 @@ fn test_settings_mode_navigation_and_editing() {
     assert!(!app.settings_editing);
     assert_eq!(app.config.scan.max_depth, 3);
 
-    // Go down to Scan Git Only (index 10)
-    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
-    assert_eq!(app.settings_selected_index, 10);
-    assert!(app.config.scan.git_only);
-
-    // Toggle Scan Git Only
-    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(!app.config.scan.git_only);
-    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
-    assert!(app.config.scan.git_only);
-
-    // Go down to Scan Excludes (index 8)
+    // Go down to Scan Excludes (index 8) — Scan Git Only setting has been removed
     crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
     assert_eq!(app.settings_selected_index, 8);
 
@@ -3115,8 +3088,15 @@ fn test_repo_search_filtering() {
 fn test_normal_mode_right_arrow_detail() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let temp_repo = std::env::temp_dir().join("gitwig_test_right_arrow_repo");
+    let _ = std::fs::remove_dir_all(&temp_repo);
+    std::fs::create_dir_all(&temp_repo).unwrap();
+    std::fs::create_dir_all(temp_repo.join(".git")).unwrap();
+    let repo_path = temp_repo.to_string_lossy().to_string();
+
     let config = Config {
-        items: vec!["a_repo".to_string()],
+        items: vec![repo_path.clone()],
         poll_interval_ms: 100,
         max_commits: 0,
         page_size: 10,
@@ -3149,11 +3129,11 @@ fn test_normal_mode_right_arrow_detail() {
 
     // Verify we opened detail view in loading state
     assert_eq!(app.mode, Mode::Detail);
-    assert_eq!(app.loading_repo_path.as_deref(), Some("a_repo"));
+    assert_eq!(app.loading_repo_path.as_ref(), Some(&repo_path));
 
     // Wait for background thread message
     let (path, detail) = app.detail_rx.recv().unwrap();
-    assert_eq!(path, "a_repo");
+    assert_eq!(path, repo_path);
 
     // Manually apply to verify state transition
     app.current_detail = Some(detail);
@@ -3161,6 +3141,8 @@ fn test_normal_mode_right_arrow_detail() {
 
     assert_eq!(app.loading_repo_path, None);
     assert!(app.current_detail.is_some());
+
+    let _ = std::fs::remove_dir_all(&temp_repo);
 }
 
 #[test]
@@ -3693,9 +3675,10 @@ fn test_tag_push_all_confirmation_flow() {
 #[test]
 fn test_detail_cache_ttl_behavior() {
     let temp_dir = std::env::temp_dir();
-    let repo_path = temp_dir.join("test_cache_repo");
+    let repo_path = temp_dir.join("test_detail_cache_ttl_repo");
     let _ = std::fs::remove_dir_all(&repo_path);
     std::fs::create_dir_all(&repo_path).unwrap();
+    std::fs::create_dir_all(repo_path.join(".git")).unwrap();
 
     // Initialize App
     let config = Config {
@@ -5593,11 +5576,23 @@ fn test_repo_jump_flow() {
 
 #[test]
 fn test_mru_group_flow() {
+    let temp_dir = std::env::temp_dir().join("gitwig_test_mru_repos");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let alpha = temp_dir.join("alpha");
+    let beta = temp_dir.join("beta");
+    let gamma = temp_dir.join("gamma");
+
+    std::fs::create_dir_all(alpha.join(".git")).unwrap();
+    std::fs::create_dir_all(beta.join(".git")).unwrap();
+    std::fs::create_dir_all(gamma.join(".git")).unwrap();
+
     let config = Config {
         items: vec![
-            "/path/to/alpha".to_string(),
-            "/path/to/beta".to_string(),
-            "/path/to/gamma".to_string(),
+            alpha.to_string_lossy().to_string(),
+            beta.to_string_lossy().to_string(),
+            gamma.to_string_lossy().to_string(),
         ],
         ..Default::default()
     };
@@ -5618,6 +5613,8 @@ fn test_mru_group_flow() {
     } else {
         panic!("Expected Recent group header");
     }
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
 }
 
 #[test]
@@ -8894,7 +8891,7 @@ fn test_directory_scan_hidden_repos() {
     std::fs::create_dir_all(hidden_nongit.join("bin")).unwrap();
 
     let (tx, rx) = std::sync::mpsc::channel();
-    run_directory_scan(temp_scan_root.clone(), 3, vec![], tx, true);
+    run_directory_scan(temp_scan_root.clone(), 3, vec![], tx, false);
 
     let mut found = Vec::new();
     while let Ok(msg) = rx.recv() {
@@ -8912,6 +8909,49 @@ fn test_directory_scan_hidden_repos() {
     assert!(found.contains(&".macosdotfiles".to_string()));
     assert!(found.contains(&"my_repo".to_string()));
     assert!(!found.contains(&".cargo".to_string()));
+
+    let _ = std::fs::remove_dir_all(&temp_scan_root);
+}
+
+#[test]
+fn test_bulk_scan_flow() {
+    let temp_scan_root = std::env::temp_dir().join("gitwig_test_bulk_scan_root");
+    let _ = std::fs::remove_dir_all(&temp_scan_root);
+    std::fs::create_dir_all(&temp_scan_root).unwrap();
+
+    // Create a folder 'folder_x' containing 'a' (git), 'b' (git), and 'c' (nongit)
+    let folder_x = temp_scan_root.join("folder_x");
+    std::fs::create_dir_all(folder_x.join("a").join(".git")).unwrap();
+    std::fs::create_dir_all(folder_x.join("b").join(".git")).unwrap();
+    std::fs::create_dir_all(folder_x.join("c")).unwrap();
+
+    // Create another folder 'folder_y' containing no git repositories
+    let folder_y = temp_scan_root.join("folder_y");
+    std::fs::create_dir_all(folder_y.join("d")).unwrap();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    run_directory_scan(temp_scan_root.clone(), 3, vec![], tx, true);
+
+    let mut found = Vec::new();
+    while let Ok(msg) = rx.recv() {
+        if let Some(repo_info) = msg.strip_prefix("REPO_SCAN_FOUND:") {
+            let parts: Vec<&str> = repo_info.split("|||").collect();
+            if parts.len() == 2 {
+                found.push(parts[0].to_string());
+            }
+        }
+        if msg.starts_with("REPO_SCAN_COMPLETE:") {
+            break;
+        }
+    }
+
+    // Should find folder_x (since it contains immediate git repo subfolders a and b)
+    assert!(found.contains(&"folder_x".to_string()));
+    // Should NOT find folder_y (since it doesn't contain any git repo subfolders)
+    assert!(!found.contains(&"folder_y".to_string()));
+    // Should NOT find a or b directly (since bulk scan only finds parents containing git repos)
+    assert!(!found.contains(&"a".to_string()));
+    assert!(!found.contains(&"b".to_string()));
 
     let _ = std::fs::remove_dir_all(&temp_scan_root);
 }

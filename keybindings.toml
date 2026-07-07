@@ -38,6 +38,13 @@ open_detail = [
 ]
 check_update = ["u"]
 toggle_compact_view = ["v"]
+open_terminal = ["t"]
+toggle_star = ["*"]
+yank_path = ["y"]
+jump_picker = ["/"]
+fetch_all = ["F"]
+select = ["space"]
+global_search = ["ctrl-f"]
 
 [navigation]
 close_detail = [

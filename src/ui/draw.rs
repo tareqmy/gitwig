@@ -284,6 +284,10 @@ pub fn draw(
         crate::popups::about::draw_about_popup(f, area, app);
     }
 
+    if matches!(app.mode, Mode::NotGitRepo) {
+        draw_not_git_repo_popup(f, area, app);
+    }
+
     if matches!(app.mode, Mode::Legend) {
         crate::popups::legend::draw_legend_popup(f, area, app);
     }
@@ -2208,6 +2212,73 @@ pub fn draw_tag_search_popup(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(Paragraph::new(hint), chunks[2]);
 }
 
+fn draw_not_git_repo_popup(f: &mut Frame, area: Rect, app: &App) {
+    use crate::ui::layout::centered_rect_fixed;
+    use ratatui::style::{Color, Modifier};
+    use ratatui::text::Text;
+    use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap};
+
+    let popup_area = centered_rect_fixed(56, 9, area);
+    f.render_widget(Clear, popup_area);
+
+    let is_compat = app.config.compatibility_mode;
+    let icon = if is_compat { "[!] " } else { "⚠  " };
+    let border_style = Style::default().fg(DANGER());
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(border_style)
+        .title(
+            ratatui::text::Line::from(vec![
+                ratatui::text::Span::raw(" "),
+                ratatui::text::Span::styled(
+                    format!("{}Not a Git Repository", icon),
+                    border_style.add_modifier(Modifier::BOLD),
+                ),
+                ratatui::text::Span::raw(" "),
+            ])
+            .alignment(ratatui::layout::Alignment::Center),
+        );
+
+    let path_label = app.get_selected_item().cloned().unwrap_or_else(|| "<unknown>".to_string());
+
+    let body = Text::from(vec![
+        ratatui::text::Line::from(""),
+        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+            path_label,
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+        )]),
+        ratatui::text::Line::from(""),
+        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+            "This entry is not a git repository.",
+            Style::default(),
+        )]),
+        ratatui::text::Line::from(vec![ratatui::text::Span::styled(
+            "Please remove it from your list.",
+            muted_style(),
+        )]),
+        ratatui::text::Line::from(""),
+        ratatui::text::Line::from(vec![
+            ratatui::text::Span::styled("Press ", muted_style()),
+            ratatui::text::Span::styled(
+                "Esc / Enter / q",
+                accent_style().add_modifier(Modifier::BOLD),
+            ),
+            ratatui::text::Span::styled(" to dismiss", muted_style()),
+        ]),
+    ]);
+
+    f.render_widget(block.clone(), popup_area);
+    let inner = block.inner(popup_area);
+    f.render_widget(
+        Paragraph::new(body)
+            .alignment(ratatui::layout::Alignment::Center)
+            .wrap(Wrap { trim: true }),
+        inner,
+    );
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
@@ -3200,6 +3271,7 @@ mod tests {
             Mode::SubmoduleAddUrlInput,
             Mode::SubmoduleAddPathInput,
             Mode::SubmoduleDeleteConfirm,
+            Mode::NotGitRepo,
         ];
 
         for mode in &other_modes {
