@@ -1,6 +1,6 @@
 name: gitwig
 base: core22
-version: '2.3.21'
+version: '2.3.22'
 summary: Rust-based Terminal User Interface (TUI) for Git
 description: |
   Gitwig is a terminal user interface (TUI) for Git that aims to provide a

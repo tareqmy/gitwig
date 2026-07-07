@@ -71,13 +71,11 @@ impl CommitPopup {
 
     fn backspace(&mut self) {
         if self.cursor_idx > 0 {
-            let mut idx = 0;
             let mut new_str = String::with_capacity(self.input_buffer.len());
-            for ch in self.input_buffer.chars() {
+            for (idx, ch) in self.input_buffer.chars().enumerate() {
                 if idx != self.cursor_idx - 1 {
                     new_str.push(ch);
                 }
-                idx += 1;
             }
             self.input_buffer = new_str;
             self.cursor_idx -= 1;
@@ -87,13 +85,11 @@ impl CommitPopup {
 
     fn delete_char(&mut self) {
         if self.cursor_idx < self.input_buffer.chars().count() {
-            let mut idx = 0;
             let mut new_str = String::with_capacity(self.input_buffer.len());
-            for ch in self.input_buffer.chars() {
+            for (idx, ch) in self.input_buffer.chars().enumerate() {
                 if idx != self.cursor_idx {
                     new_str.push(ch);
                 }
-                idx += 1;
             }
             self.input_buffer = new_str;
             self.adjust_scroll();

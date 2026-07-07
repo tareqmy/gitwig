@@ -1405,12 +1405,10 @@ pub fn get_commit_files(repo_path: &Path, oid: &str) -> Result<Vec<FileEntry>, S
     Ok(commit_changed_files(&repo, &commit))
 }
 fn match_pattern(path: &str, pattern: &str) -> bool {
-    if pattern.starts_with('*') {
-        let suffix = &pattern[1..];
+    if let Some(suffix) = pattern.strip_prefix('*') {
         return path.ends_with(suffix);
     }
-    if pattern.ends_with('*') {
-        let prefix = &pattern[0..pattern.len() - 1];
+    if let Some(prefix) = pattern.strip_suffix('*') {
         return path.starts_with(prefix);
     }
     if pattern.contains('*') {

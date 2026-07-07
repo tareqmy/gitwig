@@ -438,10 +438,8 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.input_buffer.pop();
                     }
                 }
-                KeyCode::Char(c) => {
-                    if app.global_search_focus_input {
-                        app.input_buffer.push(c);
-                    }
+                KeyCode::Char(c) if app.global_search_focus_input => {
+                    app.input_buffer.push(c);
                 }
                 _ => {}
             }
