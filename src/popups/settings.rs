@@ -17,43 +17,10 @@ const GENERAL_SETTING_INDICES: &[usize] = &[9, 56, 55, 0, 60, 13, 65, 66, 12, 58
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 8, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3, 67];
-const KEYBINDINGS_SETTING_INDICES: &[usize] = &[
-    // --- Global Actions ---
+const GLOBAL_NAV_SETTING_INDICES: &[usize] = &[
     16, // Quit / Close Dialog (Close)
     15, // Help (Help)
     14, // Toggle Status Bar (ToggleStatusBar)
-    // --- Home Navigation & Actions ---
-    17, // Home: Move Down (HomeMoveDown)
-    18, // Home: Move Up (HomeMoveUp)
-    19, // Home: Page Down (HomePageDown)
-    20, // Home: Page Up (HomePageUp)
-    21, // Home: Go to Top (HomeHome)
-    22, // Home: Go to Bottom (HomeEnd)
-    38, // Home: Open Details (HomeOpenDetail)
-    75, // Home: Toggle Selection (HomeSelect)
-    33, // Home: Toggle Pin (HomeTogglePin)
-    71, // Home: Toggle Star (HomeToggleStar)
-    72, // Home: Yank Path (HomeYankPath)
-    73, // Home: Jump Picker (HomeJumpPicker)
-    76, // Home: Global Code Search (HomeGlobalSearch)
-    37, // Home: Search Repository (HomeSearchRepo)
-    30, // Home: Refresh Status (HomeRefresh)
-    31, // Home: Cycle Sort Order (HomeCycleSort)
-    32, // Home: Toggle Sort Reverse (HomeToggleSortReverse)
-    77, // Home: Toggle Compact View (HomeToggleCompactView)
-    23, // Home: Add Repository (HomeAddRepo)
-    24, // Home: Bulk Add (HomeBulkAdd)
-    35, // Home: Import Repository (HomeImportRepo)
-    25, // Home: Edit Repository (HomeEditRepo)
-    26, // Home: Delete Repository (HomeDeleteRepo)
-    28, // Home: Edit Labels (HomeEditLabels)
-    70, // Home: Open Terminal (HomeOpenTerminal)
-    36, // Home: Open Git App (HomeOpenGitApp)
-    27, // Home: Open Debug Logs (HomeOpenDebugLogs)
-    29, // Home: Open About Dialog (HomeAbout)
-    78, // Home: Signs & Symbols Legend (HomeSymbolsHelp)
-    57, // Home: Check Updates (HomeCheckUpdate)
-    // --- Detail/Workspace Navigation & Actions ---
     39, // Detail: Close View (CloseDetail)
     40, // Detail: Help (DetailHelp)
     41, // Detail: Cycle Focus Fwd (CycleFocusForward)
@@ -61,15 +28,71 @@ const KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     43, // Detail: Refresh View (RefreshDetail)
     44, // Detail: Cycle Tab Fwd (CycleTabForward)
     45, // Detail: Cycle Tab Bwd (CycleTabBackward)
-    46, // Detail: Tab 1 (Commits / Worktrees)
-    47, // Detail: Tab 2 (Files / Submodules)
-    48, // Detail: Tab 3 (Graph / Reflog)
-    49, // Detail: Tab 4 (Branches / Forge)
-    50, // Detail: Tab 5 (Tags)
-    51, // Detail: Tab 6 (Remotes)
-    52, // Detail: Tab 7 (Stashes)
+    46, // Detail: Tab 1
+    47, // Detail: Tab 2
+    48, // Detail: Tab 3
+    49, // Detail: Tab 4
+    50, // Detail: Tab 5
+    51, // Detail: Tab 6
+    52, // Detail: Tab 7
     68, // Detail: Show Overview (Overview)
     69, // Detail: Toggle Advanced Tabs (ToggleAdvancedTabs)
+];
+const HOME_SETTING_INDICES: &[usize] = &[
+    17, // Home: Move Down
+    18, // Home: Move Up
+    19, // Home: Page Down
+    20, // Home: Page Up
+    21, // Home: Go to Top
+    22, // Home: Go to Bottom
+    38, // Home: Open Details
+    75, // Home: Toggle Selection
+    33, // Home: Toggle Pin
+    71, // Home: Toggle Star
+    72, // Home: Yank Path
+    73, // Home: Jump Picker
+    76, // Home: Global Code Search
+    37, // Home: Search Repository
+    30, // Home: Refresh Status
+    31, // Home: Cycle Sort Order
+    32, // Home: Toggle Sort Reverse
+    77, // Home: Toggle Compact View
+    23, // Home: Add Repository
+    24, // Home: Bulk Add
+    35, // Home: Import Repository
+    25, // Home: Edit Repository
+    26, // Home: Delete Repository
+    28, // Home: Edit Labels
+    70, // Home: Open Terminal
+    36, // Home: Open Git App
+    27, // Home: Open Debug Logs
+    29, // Home: Open About Dialog
+    78, // Home: Signs & Symbols Legend
+    57, // Home: Check Updates
+];
+const WORKSPACE_SETTING_INDICES: &[usize] =
+    &[100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116];
+const FILES_BRANCHES_SETTING_INDICES: &[usize] =
+    &[120, 121, 122, 123, 124, 125, 126, 127, 130, 131, 132, 133, 134, 135, 136, 137, 138];
+const TAGS_REMOTES_STASHES_SETTING_INDICES: &[usize] =
+    &[140, 141, 142, 143, 144, 145, 150, 151, 152, 160, 161, 162];
+const ADVANCED_TABS_SETTING_INDICES: &[usize] = &[170, 171, 172, 173, 174, 180, 181, 190, 200, 201];
+const DIFF_CONFLICT_SETTING_INDICES: &[usize] = &[210, 211, 212, 213, 220, 221, 222, 223, 224];
+const SCROLL_NAV_SETTING_INDICES: &[usize] = &[230, 231, 232, 233, 234, 235];
+const ALL_KEYBINDINGS_SETTING_INDICES: &[usize] = &[
+    // Global & Nav Keys
+    16, 15, 14, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 68, 69,
+    // Home Screen Keys
+    17, 18, 19, 20, 21, 22, 38, 75, 33, 71, 72, 73, 76, 37, 30, 31, 32, 77, 23, 24, 35, 25, 26, 28,
+    70, 36, 27, 29, 78, 57, // Workspace Tab Keys
+    100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
+    // Files & Branch Keys
+    120, 121, 122, 123, 124, 125, 126, 127, 130, 131, 132, 133, 134, 135, 136, 137, 138,
+    // Tags, Remotes & Stashes
+    140, 141, 142, 143, 144, 145, 150, 151, 152, 160, 161, 162, // Advanced Tabs Keys
+    170, 171, 172, 173, 174, 180, 181, 190, 200, 201, // Diff & Conflict Keys
+    210, 211, 212, 213, 220, 221, 222, 223, 224, // Scroll & Nav Keys
+    230, 231, 232, 233, 234, 235,
 ];
 
 fn index_to_action(idx: usize) -> Option<crate::keybindings::Action> {
@@ -82,7 +105,7 @@ fn get_category_indices(cat: usize) -> &'static [usize] {
         1 => SORTING_SETTING_INDICES,
         2 => SCAN_SETTING_INDICES,
         3 => THEME_SETTING_INDICES,
-        4 => KEYBINDINGS_SETTING_INDICES,
+        4 => ALL_KEYBINDINGS_SETTING_INDICES,
         _ => &[],
     }
 }
@@ -138,6 +161,28 @@ fn get_sub_index(selected_idx: usize) -> usize {
     let cat = get_active_category(selected_idx);
     let indices = get_category_indices(cat);
     indices.iter().position(|&x| x == selected_idx).unwrap_or(0)
+}
+
+pub(crate) fn get_action_section_name(idx: usize) -> &'static str {
+    if GLOBAL_NAV_SETTING_INDICES.contains(&idx) {
+        "Global & Navigation"
+    } else if HOME_SETTING_INDICES.contains(&idx) {
+        "Home Screen Keys"
+    } else if WORKSPACE_SETTING_INDICES.contains(&idx) {
+        "Workspace Tab Keys"
+    } else if FILES_BRANCHES_SETTING_INDICES.contains(&idx) {
+        "Files & Branch Keys"
+    } else if TAGS_REMOTES_STASHES_SETTING_INDICES.contains(&idx) {
+        "Tags, Remotes & Stashes Keys"
+    } else if ADVANCED_TABS_SETTING_INDICES.contains(&idx) {
+        "Advanced Tabs Keys"
+    } else if DIFF_CONFLICT_SETTING_INDICES.contains(&idx) {
+        "Diff & Conflict Keys"
+    } else if SCROLL_NAV_SETTING_INDICES.contains(&idx) {
+        "Scroll & Nav Keys"
+    } else {
+        "Unknown"
+    }
 }
 
 pub(crate) fn get_label(global_idx: usize) -> &'static str {
@@ -199,16 +244,15 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         43 => "Detail: Refresh View",
         44 => "Detail: Cycle Tab Fwd",
         45 => "Detail: Cycle Tab Bwd",
-        46 => "Detail: Tab 1 (Commits) / Advanced 1 (Worktrees)",
-        47 => "Detail: Tab 2 (Files) / Advanced 2 (Submodules)",
-        48 => "Detail: Tab 3 (Graph) / Advanced 3 (Reflog)",
-        49 => "Detail: Tab 4 (Branches) / Advanced 4 (Forge)",
+        46 => "Detail: Tab 1 (Commits / Worktrees)",
+        47 => "Detail: Tab 2 (Files / Submodules)",
+        48 => "Detail: Tab 3 (Graph / Reflog)",
+        49 => "Detail: Tab 4 (Branches / Forge)",
         50 => "Detail: Tab 5 (Tags)",
         51 => "Detail: Tab 6 (Remotes)",
         52 => "Detail: Tab 7 (Stashes)",
 
         68 => "Detail: Show Overview",
-        69 => "Detail: Toggle Advanced Tabs",
         70 => "Home: Open Terminal",
         71 => "Home: Toggle Star",
         72 => "Home: Yank Path",
@@ -218,6 +262,105 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         76 => "Home: Global Code Search",
         77 => "Home: Toggle Compact View",
         78 => "Home: Signs & Symbols Legend",
+        69 => "Detail: Toggle Advanced Tabs",
+
+        // Workspace
+        100 => "Workspace: Load More",
+        101 => "Workspace: Create Tag",
+        102 => "Workspace: Create Branch",
+        103 => "Workspace: Yank Commit Hash",
+        104 => "Workspace: Revert Commit",
+        105 => "Workspace: Cherry Pick",
+        106 => "Workspace: Interactive Rebase",
+        107 => "Workspace: Open Stash UI",
+        108 => "Workspace: Commit Changes",
+        109 => "Workspace: Commit Amend",
+        110 => "Workspace: Fuzzy Search",
+        111 => "Workspace: Column Picker",
+        112 => "Workspace: Open Full Logs",
+        113 => "Workspace: Stage / Unstage Selected",
+        114 => "Workspace: Stage / Unstage All",
+        115 => "Workspace: Discard Selected Change",
+        116 => "Workspace: Discard All Changes",
+
+        // Files
+        120 => "Files: Blame Toggle",
+        121 => "Files: Line Numbers Toggle",
+        122 => "Files: Selected File History",
+        123 => "Files: Fuzzy Search Picker",
+        124 => "Files: Expand Folder",
+        125 => "Files: Collapse Folder",
+        126 => "Files: Open in Editor",
+        127 => "Files: Toggle Full Screen Diff",
+
+        // Branches
+        130 => "Branches: Checkout selected",
+        131 => "Branches: Create branch",
+        132 => "Branches: Delete branch",
+        133 => "Branches: Merge branch",
+        134 => "Branches: Rebase current",
+        135 => "Branches: Interactive Rebase",
+        136 => "Branches: Pull branch changes",
+        137 => "Branches: Push branch",
+        138 => "Branches: Fuzzy Search",
+
+        // Tags
+        140 => "Tags: Checkout tag",
+        141 => "Tags: Delete tag",
+        142 => "Tags: Push tag",
+        143 => "Tags: Push all tags",
+        144 => "Tags: Fetch tags",
+        145 => "Tags: Fuzzy Search",
+
+        // Remotes
+        150 => "Remotes: Add remote",
+        151 => "Remotes: Delete remote",
+        152 => "Remotes: Fetch remote",
+
+        // Stashes
+        160 => "Stashes: Apply stash",
+        161 => "Stashes: Create stash",
+        162 => "Stashes: Delete stash",
+
+        // Worktrees
+        170 => "Worktrees: Open worktree",
+        171 => "Worktrees: Add worktree",
+        172 => "Worktrees: Remove worktree",
+        173 => "Worktrees: Lock/Unlock worktree",
+        174 => "Worktrees: Prune worktrees",
+
+        // Submodules
+        180 => "Submodules: Add submodule",
+        181 => "Submodules: Delete submodule",
+
+        // Reflog
+        190 => "Reflog: Checkout entry OID",
+
+        // Forge
+        200 => "Forge: Checkout issue branch",
+        201 => "Forge: Open issue in browser",
+
+        // Diff
+        210 => "Diff: Toggle Line/Hunk Mode",
+        211 => "Diff: Stage hunk/line",
+        212 => "Diff: Unstage hunk/line",
+        213 => "Diff: Discard hunk/line",
+
+        // Conflict
+        220 => "Conflict: Accept OURS",
+        221 => "Conflict: Accept THEIRS",
+        222 => "Conflict: Mark Resolved",
+        223 => "Conflict: Abort Merge",
+        224 => "Conflict: Continue Merge",
+
+        // Detail List Scroll
+        230 => "Scroll: Move Up",
+        231 => "Scroll: Move Down",
+        232 => "Scroll: Page Up",
+        233 => "Scroll: Page Down",
+        234 => "Scroll: Go to Top",
+        235 => "Scroll: Go to Bottom",
+
         _ => "",
     }
 }
@@ -330,7 +473,7 @@ fn get_desc(global_idx: usize) -> &'static str {
 
 pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
     let is_selected = app.settings_selected_index == global_idx;
-    if KEYBINDINGS_SETTING_INDICES.contains(&global_idx) {
+    if index_to_action(global_idx).is_some() {
         if is_selected && app.settings_editing {
             format!("{}█", app.input_buffer)
         } else if let Some(action) = index_to_action(global_idx) {
@@ -546,7 +689,17 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     let sidebar_inner = sidebar_block.inner(chunks[0]);
     f.render_widget(sidebar_block, chunks[0]);
 
-    let sidebar_paragraph = Paragraph::new(sidebar_items);
+    let sidebar_viewport_height = sidebar_inner.height as usize;
+    let sidebar_total_height = 5 * 2;
+    let mut sidebar_scroll_y = 0;
+    if sidebar_viewport_height < sidebar_total_height {
+        let cursor_line = active_cat * 2;
+        let target_scroll = cursor_line.saturating_sub(sidebar_viewport_height / 2);
+        let max_scroll = sidebar_total_height.saturating_sub(sidebar_viewport_height);
+        sidebar_scroll_y = target_scroll.min(max_scroll);
+    }
+
+    let sidebar_paragraph = Paragraph::new(sidebar_items).scroll((sidebar_scroll_y as u16, 0));
     f.render_widget(sidebar_paragraph, sidebar_inner);
 
     // 2. Settings Content Pane Rendering
@@ -579,6 +732,33 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
 
     for (sub_idx, &global_idx) in indices.iter().enumerate() {
         let is_selected = sub_idx == active_sub_idx && !app.settings_focus_sidebar;
+
+        let header_str = if active_cat == 4 {
+            match global_idx {
+                16 => Some("Global & Navigation"),
+                17 => Some("Home Screen Keys"),
+                100 => Some("Workspace Tab Keys"),
+                120 => Some("Files & Branch Keys"),
+                140 => Some("Tags, Remotes & Stashes Keys"),
+                170 => Some("Advanced Tabs Keys"),
+                210 => Some("Diff & Conflict Keys"),
+                230 => Some("Scroll & Nav Keys"),
+                _ => None,
+            }
+        } else {
+            None
+        };
+
+        if let Some(h_title) = header_str {
+            let line_len = available_text_width.saturating_sub(h_title.chars().count() + 4);
+            let dashes = "─".repeat(line_len);
+            right_items.push(Line::from(vec![Span::styled(
+                format!("── {} {}", h_title, dashes),
+                accent_style().add_modifier(Modifier::BOLD),
+            )]));
+            right_items.push(Line::from("")); // spacer
+            current_line += 2;
+        }
 
         let label = get_label(global_idx);
         let val_str = get_val_str(app, global_idx);
@@ -790,6 +970,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 pub struct SettingsPopup;
 impl SettingsPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
+        app.status_message = None;
         let code = key.code;
         if app.settings_editing && app.settings_selected_index == 3 {
             match code {
@@ -874,7 +1055,7 @@ impl SettingsPopup {
                     app.settings_focus_sidebar = false;
                 }
                 KeyCode::Char('5') => {
-                    app.settings_selected_index = KEYBINDINGS_SETTING_INDICES[0];
+                    app.settings_selected_index = ALL_KEYBINDINGS_SETTING_INDICES[0];
                     app.settings_focus_sidebar = false;
                 }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
@@ -921,7 +1102,7 @@ impl SettingsPopup {
                 }
                 KeyCode::PageDown => {
                     if app.settings_focus_sidebar {
-                        app.settings_selected_index = KEYBINDINGS_SETTING_INDICES[0];
+                        app.settings_selected_index = ALL_KEYBINDINGS_SETTING_INDICES[0];
                     } else {
                         let cat = get_active_category(app.settings_selected_index);
                         let indices = get_category_indices(cat);
@@ -941,7 +1122,7 @@ impl SettingsPopup {
                 }
                 KeyCode::End => {
                     if app.settings_focus_sidebar {
-                        app.settings_selected_index = KEYBINDINGS_SETTING_INDICES[0];
+                        app.settings_selected_index = ALL_KEYBINDINGS_SETTING_INDICES[0];
                     } else {
                         let cat = get_active_category(app.settings_selected_index);
                         let indices = get_category_indices(cat);

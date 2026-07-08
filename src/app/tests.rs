@@ -9598,3 +9598,56 @@ fn test_keybindings_view_conflict_checking() {
     let conflict = defaults.find_conflict(crate::keybindings::Action::Help, &["?".to_string()]);
     assert_eq!(conflict, Some(crate::keybindings::Action::DetailHelp));
 }
+
+#[test]
+fn test_keybindings_conflict_revert_settings() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config::default();
+
+    let temp_dir = std::env::temp_dir().join("gitwig_test_dir_keybindings_conflict");
+    let _ = std::fs::create_dir_all(&temp_dir);
+    let temp_path = temp_dir.join("config.toml");
+
+    let mut app = App::new(config, temp_path);
+
+    // Enter settings
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('s')), 10);
+    assert_eq!(app.mode, Mode::Settings);
+
+    // Jump to keybindings category
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('5')), 10);
+    assert_eq!(app.settings_selected_index, 16); // Quit / Close Dialog
+
+    // Navigate to Help (index 15)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 15);
+
+    // Start editing Help key (default is '?')
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(app.settings_editing);
+
+    // Propose 'ctrl-q' (which is already bound to Quit/Close in the same section)
+    app.input_buffer.clear();
+    for c in "ctrl-q".chars() {
+        crate::input::handle_key(&mut app, key_event(KeyCode::Char(c)), 10);
+    }
+    assert_eq!(app.input_buffer, "ctrl-q");
+
+    // Commit change -> should fail, show conflict warning, and revert!
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+
+    // Should NOT be editing anymore (reverted)
+    assert!(!app.settings_editing);
+    assert!(app.input_buffer.is_empty());
+
+    // Status message should indicate conflict and mention both the action and its section
+    let status = app.status_message.clone().unwrap_or_default();
+    assert!(status.contains("Conflict: key already bound to 'Quit / Close Dialog'"));
+    assert!(status.contains("in 'Global & Navigation'"));
+
+    // Verify keybind was NOT updated (still '?')
+    assert!(app.is_bound(crate::keybindings::Action::Help, key_event(KeyCode::Char('?'))));
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}

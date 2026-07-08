@@ -2144,7 +2144,7 @@ where
             }
             app.fetch_progress = (app.fetch_progress + 5) % 105;
         } else {
-            if !app.fetching {
+            if !app.fetching && app.mode != Mode::Settings {
                 app.status_message = None;
             }
             app.fetch_progress = 0;

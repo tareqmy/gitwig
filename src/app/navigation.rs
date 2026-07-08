@@ -2588,10 +2588,16 @@ impl App {
                     } else if let Some(conflicting_action) =
                         self.keybindings.find_conflict(action, &keys)
                     {
-                        let action_name =
-                            crate::popups::settings::get_label(conflicting_action.to_index());
-                        self.status_message =
-                            Some(format!("Conflict: key already bound to '{}'", action_name));
+                        let conflicting_idx = conflicting_action.to_index();
+                        let action_name = crate::popups::settings::get_label(conflicting_idx);
+                        let section_name =
+                            crate::popups::settings::get_action_section_name(conflicting_idx);
+                        self.status_message = Some(format!(
+                            "Conflict: key already bound to '{}' in '{}'",
+                            action_name, section_name
+                        ));
+                        self.settings_editing = false;
+                        self.input_buffer.clear();
                     } else {
                         self.keybindings.update_action_keys(action, keys);
                         let config_dir = self.config_path.parent().unwrap_or(&self.config_path);

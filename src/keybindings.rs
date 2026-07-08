@@ -213,6 +213,104 @@ impl Action {
             74 => Some(Action::HomeFetchAll),
             75 => Some(Action::HomeSelect),
             76 => Some(Action::HomeGlobalSearch),
+
+            // Workspace
+            100 => Some(Action::WorkspaceLoadMore),
+            101 => Some(Action::WorkspaceCreateTag),
+            102 => Some(Action::WorkspaceCreateBranch),
+            103 => Some(Action::WorkspaceYankHash),
+            104 => Some(Action::WorkspaceRevert),
+            105 => Some(Action::WorkspaceCherryPick),
+            106 => Some(Action::WorkspaceInteractiveRebase),
+            107 => Some(Action::WorkspaceStashUI),
+            108 => Some(Action::WorkspaceCommit),
+            109 => Some(Action::WorkspaceCommitAmend),
+            110 => Some(Action::WorkspaceFuzzySearch),
+            111 => Some(Action::WorkspaceColumnPicker),
+            112 => Some(Action::WorkspaceLogsView),
+            113 => Some(Action::WorkspaceStage),
+            114 => Some(Action::WorkspaceStageAll),
+            115 => Some(Action::WorkspaceDiscard),
+            116 => Some(Action::WorkspaceDiscardAll),
+
+            // Files
+            120 => Some(Action::FilesBlame),
+            121 => Some(Action::FilesLineNumbers),
+            122 => Some(Action::FilesHistory),
+            123 => Some(Action::FilesSearch),
+            124 => Some(Action::FilesExpand),
+            125 => Some(Action::FilesCollapse),
+            126 => Some(Action::FilesEditor),
+            127 => Some(Action::FilesFullScreen),
+
+            // Branches
+            130 => Some(Action::BranchesCheckout),
+            131 => Some(Action::BranchesCreate),
+            132 => Some(Action::BranchesDelete),
+            133 => Some(Action::BranchesMerge),
+            134 => Some(Action::BranchesRebase),
+            135 => Some(Action::BranchesInteractiveRebase),
+            136 => Some(Action::BranchesPull),
+            137 => Some(Action::BranchesPush),
+            138 => Some(Action::BranchesSearch),
+
+            // Tags
+            140 => Some(Action::TagsCheckout),
+            141 => Some(Action::TagsDelete),
+            142 => Some(Action::TagsPush),
+            143 => Some(Action::TagsPushAll),
+            144 => Some(Action::TagsFetch),
+            145 => Some(Action::TagsSearch),
+
+            // Remotes
+            150 => Some(Action::RemotesAdd),
+            151 => Some(Action::RemotesDelete),
+            152 => Some(Action::RemotesFetch),
+
+            // Stashes
+            160 => Some(Action::StashesApply),
+            161 => Some(Action::StashesCreate),
+            162 => Some(Action::StashesDelete),
+
+            // Worktrees
+            170 => Some(Action::WorktreesOpen),
+            171 => Some(Action::WorktreesAdd),
+            172 => Some(Action::WorktreesDelete),
+            173 => Some(Action::WorktreesLock),
+            174 => Some(Action::WorktreesPrune),
+
+            // Submodules
+            180 => Some(Action::SubmodulesAdd),
+            181 => Some(Action::SubmodulesDelete),
+
+            // Reflog
+            190 => Some(Action::ReflogCheckout),
+
+            // Forge
+            200 => Some(Action::ForgeCheckout),
+            201 => Some(Action::ForgeOpenBrowser),
+
+            // Diff
+            210 => Some(Action::DiffLineMode),
+            211 => Some(Action::DiffStage),
+            212 => Some(Action::DiffUnstage),
+            213 => Some(Action::DiffDiscard),
+
+            // Conflict
+            220 => Some(Action::ConflictOurs),
+            221 => Some(Action::ConflictTheirs),
+            222 => Some(Action::ConflictResolve),
+            223 => Some(Action::ConflictAbort),
+            224 => Some(Action::ConflictContinue),
+
+            // Detail List Scroll
+            230 => Some(Action::DetailMoveUp),
+            231 => Some(Action::DetailMoveDown),
+            232 => Some(Action::DetailPageUp),
+            233 => Some(Action::DetailPageDown),
+            234 => Some(Action::DetailHome),
+            235 => Some(Action::DetailEnd),
+
             _ => None,
         }
     }
@@ -270,7 +368,103 @@ impl Action {
             Action::HomeFetchAll => 74,
             Action::HomeSelect => 75,
             Action::HomeGlobalSearch => 76,
-            _ => 999, // default placeholder index for unmapped keys
+
+            // Workspace
+            Action::WorkspaceLoadMore => 100,
+            Action::WorkspaceCreateTag => 101,
+            Action::WorkspaceCreateBranch => 102,
+            Action::WorkspaceYankHash => 103,
+            Action::WorkspaceRevert => 104,
+            Action::WorkspaceCherryPick => 105,
+            Action::WorkspaceInteractiveRebase => 106,
+            Action::WorkspaceStashUI => 107,
+            Action::WorkspaceCommit => 108,
+            Action::WorkspaceCommitAmend => 109,
+            Action::WorkspaceFuzzySearch => 110,
+            Action::WorkspaceColumnPicker => 111,
+            Action::WorkspaceLogsView => 112,
+            Action::WorkspaceStage => 113,
+            Action::WorkspaceStageAll => 114,
+            Action::WorkspaceDiscard => 115,
+            Action::WorkspaceDiscardAll => 116,
+
+            // Files
+            Action::FilesBlame => 120,
+            Action::FilesLineNumbers => 121,
+            Action::FilesHistory => 122,
+            Action::FilesSearch => 123,
+            Action::FilesExpand => 124,
+            Action::FilesCollapse => 125,
+            Action::FilesEditor => 126,
+            Action::FilesFullScreen => 127,
+
+            // Branches
+            Action::BranchesCheckout => 130,
+            Action::BranchesCreate => 131,
+            Action::BranchesDelete => 132,
+            Action::BranchesMerge => 133,
+            Action::BranchesRebase => 134,
+            Action::BranchesInteractiveRebase => 135,
+            Action::BranchesPull => 136,
+            Action::BranchesPush => 137,
+            Action::BranchesSearch => 138,
+
+            // Tags
+            Action::TagsCheckout => 140,
+            Action::TagsDelete => 141,
+            Action::TagsPush => 142,
+            Action::TagsPushAll => 143,
+            Action::TagsFetch => 144,
+            Action::TagsSearch => 145,
+
+            // Remotes
+            Action::RemotesAdd => 150,
+            Action::RemotesDelete => 151,
+            Action::RemotesFetch => 152,
+
+            // Stashes
+            Action::StashesApply => 160,
+            Action::StashesCreate => 161,
+            Action::StashesDelete => 162,
+
+            // Worktrees
+            Action::WorktreesOpen => 170,
+            Action::WorktreesAdd => 171,
+            Action::WorktreesDelete => 172,
+            Action::WorktreesLock => 173,
+            Action::WorktreesPrune => 174,
+
+            // Submodules
+            Action::SubmodulesAdd => 180,
+            Action::SubmodulesDelete => 181,
+
+            // Reflog
+            Action::ReflogCheckout => 190,
+
+            // Forge
+            Action::ForgeCheckout => 200,
+            Action::ForgeOpenBrowser => 201,
+
+            // Diff
+            Action::DiffLineMode => 210,
+            Action::DiffStage => 211,
+            Action::DiffUnstage => 212,
+            Action::DiffDiscard => 213,
+
+            // Conflict
+            Action::ConflictOurs => 220,
+            Action::ConflictTheirs => 221,
+            Action::ConflictResolve => 222,
+            Action::ConflictAbort => 223,
+            Action::ConflictContinue => 224,
+
+            // Detail List Scroll
+            Action::DetailMoveUp => 230,
+            Action::DetailMoveDown => 231,
+            Action::DetailPageUp => 232,
+            Action::DetailPageDown => 233,
+            Action::DetailHome => 234,
+            Action::DetailEnd => 235,
         }
     }
 }
