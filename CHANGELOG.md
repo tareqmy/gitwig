@@ -5,7 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
-## [v2.3.22] - 2026-07-06
+## [v2.4.1] - 2026-07-08
+### Added
+- **settings**: group keybindings into visual sections and implement conflict auto-revert ([c94ce5b](https://github.com/tareqmy/gitwig/commit/c94ce5b))
+- group keybindings by active context and enforce uniqueness in settings ([682ffda](https://github.com/tareqmy/gitwig/commit/682ffda))
+- group repository detail tabs into Primary/Advanced views ([6c8cbf4](https://github.com/tareqmy/gitwig/commit/6c8cbf4))
+- **forge**: implement Phase 11 issue tracker integration ([2eb36a2](https://github.com/tareqmy/gitwig/commit/2eb36a2))
+
+### Fixed
+- pgup/dn button function corrected in settings popup ([bd3fea1](https://github.com/tareqmy/gitwig/commit/bd3fea1))
+- migrate missing keybinding fields so status bar shows correct shortcuts ([827834e](https://github.com/tareqmy/gitwig/commit/827834e))
+- resolve keybinding conflict between revert commit and repo overview ([291cd99](https://github.com/tareqmy/gitwig/commit/291cd99))
+
+### Documentation
+- instructions added for docs update and release preparation ([c0b2781](https://github.com/tareqmy/gitwig/commit/c0b2781))
+- update docs and instructions ([39f097c](https://github.com/tareqmy/gitwig/commit/39f097c))
+- update docs and instruction with the new advanced panel ([6ade439](https://github.com/tareqmy/gitwig/commit/6ade439))
+
+### Refactored
+- update config-level keybindings and ignore generated config files ([ab91e7a](https://github.com/tareqmy/gitwig/commit/ab91e7a))
+- make all remaining terminal shortcuts configurable via keybindings ([2374768](https://github.com/tareqmy/gitwig/commit/2374768))
+- remove redundant tab 8, 9, and 10 keybindings from settings ([e1da18a](https://github.com/tareqmy/gitwig/commit/e1da18a))
+
+### Testing
+- add and add all repo option should always show folders that are git repos and contains git repos respectively ([f80620d](https://github.com/tareqmy/gitwig/commit/f80620d))
+
+## [v2.3.22] - 2026-07-07
 ### Added
 - implement Phase 12 - Git LFS & Large File Management ([c16038e](https://github.com/tareqmy/gitwig/commit/c16038e))
 
