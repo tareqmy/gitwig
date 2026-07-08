@@ -912,7 +912,11 @@ impl SettingsPopup {
                         app.settings_selected_index = GENERAL_SETTING_INDICES[0];
                     } else {
                         let cat = get_active_category(app.settings_selected_index);
-                        app.settings_selected_index = get_category_indices(cat)[0];
+                        let indices = get_category_indices(cat);
+                        let sub = get_sub_index(app.settings_selected_index);
+                        let page = app.config.page_size.min(indices.len()).max(1);
+                        let new_sub = sub.saturating_sub(page);
+                        app.settings_selected_index = indices[new_sub];
                     }
                 }
                 KeyCode::PageDown => {
@@ -921,7 +925,10 @@ impl SettingsPopup {
                     } else {
                         let cat = get_active_category(app.settings_selected_index);
                         let indices = get_category_indices(cat);
-                        app.settings_selected_index = indices[indices.len() - 1];
+                        let sub = get_sub_index(app.settings_selected_index);
+                        let page = app.config.page_size.min(indices.len()).max(1);
+                        let new_sub = (sub + page).min(indices.len() - 1);
+                        app.settings_selected_index = indices[new_sub];
                     }
                 }
                 KeyCode::Home => {

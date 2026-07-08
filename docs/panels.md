@@ -65,7 +65,7 @@ Triggered by opening a repository.
         *   `Shift+Tab` / `backtab` : Cycle tab backward
         *   `R` : Resync active tab details manually
         *   `1` - `7` : Jump directly to Tabs 1-7 (or Tabs 8-11 in advanced group)
-        *   `X` : Toggle Advanced Tab group (Worktrees, Submodules, Reflog, Forge)
+        *   `Z` : Toggle Advanced Tab group (Worktrees, Submodules, Reflog, Forge)
         *   `O` : Show repository Overview overlay
 
 ### Main Workspace Tabs
