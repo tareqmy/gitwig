@@ -60,7 +60,8 @@ The crate is organized so each file has a single clear responsibility. Keep it t
 - **Maintain high code coverage** at all times. Avoid any code additions that drop the overall test coverage.
 
 ## Keeping Docs In Sync
-- **Whenever you change code, update the relevant documentation, help pages, legends, status bar, and shortcuts in the same task.** All files, READMEs, help overlays, status bars, and legends must be fully up to date.
+- **When asked to update documentation (or when changing code that impacts user experience), you MUST update all docs, README, shortcuts in the status bar, help overlays, and legends.** Everything must remain in perfect lockstep.
+- **Agent files in the `.agent/` folder:** You must also update the files in the `.agent/` folder (such as `INSTRUCTIONS.md`, `ROADMAP.md`, `STYLE_GUIDE.md`, and `CODEMAP.md`) if the conventions, roadmap status, or rules have changed.
 - **UI Panels & Keybindings Documentation:** If you add, modify, or remove any UI panels, tabs, modal views, or keyboard shortcuts, you **MUST** update [panels.md](file:///Users/tareqmy/development/rustprojects/gitwig/docs/panels.md) to keep the panel directory and shortcuts list fully in sync.
 - **Installer Checksums:** If you modify any installation or uninstallation script in the `scripts/` directory (e.g., `install.sh`, `install.ps1`, `uninstall.sh`, `uninstall.ps1`), you **MUST** recalculate its SHA-256 checksum and overwrite the corresponding `.sha256` file in the same commit. This prevents TUI self-update verification failures.
 - `GEMINI.md` — update when the tech stack, architectural patterns, or development workflow change.
@@ -69,6 +70,12 @@ The crate is organized so each file has a single clear responsibility. Keep it t
 - `.agent/STYLE_GUIDE.md` — update when coding standards, naming, error-handling patterns, or TUI patterns change.
 - `README.md` — update when user-facing behavior, install steps, or CLI surface change.
 - If a change touches multiple concerns, update each affected doc. If you are unsure where something belongs, add it where a future agent is most likely to look.
+
+## Release Preparation Mandate
+When you (the Agent) are asked to prepare files for a release, you MUST:
+1. **Update all references of the version**: Search for and update the version string across the entire repository (e.g., in `.version`, `Cargo.toml`, `gitwig-core/Cargo.toml`, `Cargo.lock`, `Formula/gitwig.rb`, `dist/chocolatey/gitwig.nuspec`, `dist/chocolatey/tools/chocolateyinstall.ps1`, and `snap/snapcraft.yaml`).
+2. **Prepare the Changelog**: Run `python3 scripts/generate_changelog.py` or update `CHANGELOG.md` to capture all changes since the last release.
+3. **Update Script Checksums**: Recalculate and update the `.sha256` checksum files for all installation and uninstallation scripts in the `scripts/` directory (e.g., `install.sh`, `install.ps1`, etc.) to match their latest content.
 
 ## Release Process
 To publish a new version of Gitwig, follow these steps:
