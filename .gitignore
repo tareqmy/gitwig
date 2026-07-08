@@ -10,3 +10,7 @@
 
 #ignore macos files
 .DS_Store
+
+# Local configuration files generated during testing or development
+/keybindings.toml
+/config.toml

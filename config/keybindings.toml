@@ -1,50 +1,590 @@
-[global]
-toggle_status_bar = ["."]
-help = ["?"]
-close = ["ctrl-q"]
+[global.toggle_status_bar]
+keys = ["."]
+description = "Toggle status bar visibility"
 
-[home]
-move_down = ["j", "down"]
-move_up = ["k", "up"]
-page_down = ["pagedown"]
-page_up = ["pageup"]
-home = ["home"]
-end = ["end"]
-add_repo = ["a"]
-bulk_add = ["A"]
-edit_repo = ["e"]
-delete_repo = ["D"]
-open_debug_logs = ["d"]
-edit_labels = ["l"]
-about = ["V"]
-symbols_help = ["h"]
-refresh = ["R"]
-cycle_sort = ["o"]
-toggle_sort_reverse = ["O"]
-toggle_pin = ["p"]
-open_settings = ["s"]
-import_repo = ["i"]
-open_git_app = ["g"]
-search_repo = ["f"]
-open_detail = ["enter", "right"]
-check_update = ["u"]
-toggle_compact_view = ["v"]
+[global.help]
+keys = ["?"]
+description = "Show help overlay"
 
-[navigation]
-close_detail = ["esc", "q", "Q"]
-detail_help = ["?"]
-cycle_focus_forward = ["w"]
-cycle_focus_backward = ["W"]
-refresh_detail = ["R"]
-cycle_tab_forward = ["tab"]
-cycle_tab_backward = ["backtab", "shift-tab"]
-go_to_tab_1 = ["1"]
-go_to_tab_2 = ["2"]
-go_to_tab_3 = ["3"]
-go_to_tab_4 = ["4"]
-go_to_tab_5 = ["5"]
-go_to_tab_6 = ["6"]
-go_to_tab_7 = ["7"]
-go_to_tab_8 = ["8"]
-go_to_tab_9 = ["9"]
-go_to_tab_10 = ["0"]
+[global.close]
+keys = ["ctrl-q"]
+description = "Quit Gitwig"
+
+[home.move_down]
+keys = [
+    "j",
+    "down",
+]
+description = "Move selection down"
+
+[home.move_up]
+keys = [
+    "k",
+    "up",
+]
+description = "Move selection up"
+
+[home.page_down]
+keys = ["pagedown"]
+description = "Scroll selection down by page"
+
+[home.page_up]
+keys = ["pageup"]
+description = "Scroll selection up by page"
+
+[home.home]
+keys = ["home"]
+description = "Go to top of list"
+
+[home.end]
+keys = ["end"]
+description = "Go to bottom of list"
+
+[home.add_repo]
+keys = ["a"]
+description = "Add repository path manually"
+
+[home.bulk_add]
+keys = ["A"]
+description = "Bulk add repositories in a directory"
+
+[home.edit_repo]
+keys = ["e"]
+description = "Edit selected repository details"
+
+[home.delete_repo]
+keys = ["D"]
+description = "Delete selected repository from config"
+
+[home.open_debug_logs]
+keys = ["d"]
+description = "Open debug logs popup"
+
+[home.edit_labels]
+keys = ["l"]
+description = "Edit custom labels of selected repository"
+
+[home.about]
+keys = ["V"]
+description = "Open about dialog"
+
+[home.symbols_help]
+keys = ["h"]
+description = "Show signs & symbols legend popup"
+
+[home.refresh]
+keys = ["R"]
+description = "Refresh selected repository status"
+
+[home.cycle_sort]
+keys = ["o"]
+description = "Cycle sorting criteria"
+
+[home.toggle_sort_reverse]
+keys = ["O"]
+description = "Toggle sorting direction (ascending/descending)"
+
+[home.toggle_pin]
+keys = ["p"]
+description = "Toggle pin status of selected repository"
+
+[home.open_settings]
+keys = ["s"]
+description = "Open settings view"
+
+[home.import_repo]
+keys = ["i"]
+description = "Import / clone remote repository"
+
+[home.open_git_app]
+keys = ["g"]
+description = "Launch preferred external Git client"
+
+[home.search_repo]
+keys = ["f"]
+description = "Enter search query to filter repositories"
+
+[home.open_detail]
+keys = [
+    "enter",
+    "right",
+]
+description = "Open selected repository detail view"
+
+[home.check_update]
+keys = ["u"]
+description = "Check for application updates"
+
+[home.toggle_compact_view]
+keys = ["v"]
+description = "Toggle compact repository list layout"
+
+[home.open_terminal]
+keys = ["t"]
+description = "Open terminal shell at repository path"
+
+[home.toggle_star]
+keys = ["*"]
+description = "Toggle Starred/Favorite status of repository"
+
+[home.yank_path]
+keys = ["y"]
+description = "Yank repository absolute path to clipboard"
+
+[home.jump_picker]
+keys = ["/"]
+description = "Open fuzzy Jump-to-Repo picker overlay"
+
+[home.fetch_all]
+keys = ["F"]
+description = "Fetch all tracked repositories concurrently"
+
+[home.select]
+keys = ["space"]
+description = "Toggle selection for batch operations"
+
+[home.global_search]
+keys = ["ctrl-f"]
+description = "Open global code search popup"
+
+[navigation.close_detail]
+keys = [
+    "esc",
+    "q",
+    "Q",
+]
+description = "Close detail view / Go back"
+
+[navigation.detail_help]
+keys = ["?"]
+description = "Show detail view help overlay"
+
+[navigation.cycle_focus_forward]
+keys = ["w"]
+description = "Cycle focus forward through panels"
+
+[navigation.cycle_focus_backward]
+keys = ["W"]
+description = "Cycle focus backward through panels"
+
+[navigation.refresh_detail]
+keys = ["R"]
+description = "Resync active tab details manually"
+
+[navigation.cycle_tab_forward]
+keys = ["tab"]
+description = "Cycle tab forward"
+
+[navigation.cycle_tab_backward]
+keys = [
+    "backtab",
+    "shift-tab",
+]
+description = "Cycle tab backward"
+
+[navigation.go_to_tab_1]
+keys = ["1"]
+description = "Go to Tab 1"
+
+[navigation.go_to_tab_2]
+keys = ["2"]
+description = "Go to Tab 2"
+
+[navigation.go_to_tab_3]
+keys = ["3"]
+description = "Go to Tab 3"
+
+[navigation.go_to_tab_4]
+keys = ["4"]
+description = "Go to Tab 4"
+
+[navigation.go_to_tab_5]
+keys = ["5"]
+description = "Go to Tab 5"
+
+[navigation.go_to_tab_6]
+keys = ["6"]
+description = "Go to Tab 6"
+
+[navigation.go_to_tab_7]
+keys = ["7"]
+description = "Go to Tab 7"
+
+[navigation.overview]
+keys = ["O"]
+description = "Show repository Overview screen"
+
+[navigation.toggle_advanced_tabs]
+keys = ["Z"]
+description = "Toggle between Primary and Advanced tab groups"
+
+[workspace.load_more]
+keys = ["G"]
+description = "Load more commits"
+
+[workspace.create_tag]
+keys = [
+    "t",
+    "T",
+]
+description = "Create tag at selected commit"
+
+[workspace.create_branch]
+keys = [
+    "b",
+    "B",
+]
+description = "Create branch at selected commit"
+
+[workspace.yank_hash]
+keys = [
+    "y",
+    "Y",
+]
+description = "Yank selected commit hash"
+
+[workspace.revert]
+keys = [
+    "v",
+    "V",
+]
+description = "Revert selected commit"
+
+[workspace.cherry_pick]
+keys = [
+    "p",
+    "P",
+]
+description = "Cherry-pick selected commit"
+
+[workspace.interactive_rebase]
+keys = [
+    "i",
+    "I",
+]
+description = "Interactive rebase from selected commit"
+
+[workspace.stash_ui]
+keys = [
+    "s",
+    "S",
+]
+description = "Open stashing UI panel"
+
+[workspace.commit]
+keys = ["c"]
+description = "Commit changes"
+
+[workspace.commit_amend]
+keys = ["C"]
+description = "Commit and amend last commit"
+
+[workspace.fuzzy_search]
+keys = ["/"]
+description = "Fuzzy search commits list"
+
+[workspace.column_picker]
+keys = ["f"]
+description = "Open search column picker"
+
+[workspace.logs_view]
+keys = [
+    "l",
+    "L",
+]
+description = "Open full-screen Logs view"
+
+[workspace.stage]
+keys = ["enter"]
+description = "Stage / unstage selected file"
+
+[workspace.stage_all]
+keys = [
+    "a",
+    "A",
+]
+description = "Stage all / Unstage all files"
+
+[workspace.discard]
+keys = ["x"]
+description = "Discard changes in selected unstaged file"
+
+[workspace.discard_all]
+keys = ["X"]
+description = "Discard all unstaged changes"
+
+[files.blame]
+keys = [
+    "b",
+    "B",
+]
+description = "Toggle git blame panel"
+
+[files.line_numbers]
+keys = [
+    "n",
+    "N",
+]
+description = "Toggle line numbers in content viewer"
+
+[files.history]
+keys = ["H"]
+description = "View commit history of the selected file"
+
+[files.search]
+keys = ["/"]
+description = "Launch fuzzy file search picker"
+
+[files.expand]
+keys = [
+    ">",
+    ".",
+]
+description = "Expand folder in tree"
+
+[files.collapse]
+keys = [
+    "<",
+    ",",
+]
+description = "Collapse folder in tree"
+
+[files.editor]
+keys = [
+    "e",
+    "o",
+]
+description = "Open selected file in terminal editor"
+
+[files.full_screen]
+keys = ["right"]
+description = "Toggle full-screen view mode in viewer"
+
+[branches.checkout]
+keys = ["enter"]
+description = "Checkout selected branch"
+
+[branches.create]
+keys = [
+    "c",
+    "C",
+]
+description = "Create new branch"
+
+[branches.delete]
+keys = ["D"]
+description = "Delete selected branch"
+
+[branches.merge]
+keys = [
+    "m",
+    "M",
+]
+description = "Merge selected branch into current branch"
+
+[branches.rebase]
+keys = ["r"]
+description = "Rebase current branch onto selected branch"
+
+[branches.interactive_rebase]
+keys = [
+    "i",
+    "I",
+]
+description = "Interactive rebase of current branch onto selected branch"
+
+[branches.pull]
+keys = ["p"]
+description = "Pull remote changes"
+
+[branches.push]
+keys = ["P"]
+description = "Push selected branch to remote"
+
+[branches.search]
+keys = ["/"]
+description = "Fuzzy search branches"
+
+[tags.checkout]
+keys = ["enter"]
+description = "Checkout selected tag"
+
+[tags.delete]
+keys = ["D"]
+description = "Delete selected tag"
+
+[tags.push]
+keys = ["p"]
+description = "Push selected tag to remote"
+
+[tags.push_all]
+keys = ["P"]
+description = "Push all tags to remote"
+
+[tags.fetch]
+keys = [
+    "f",
+    "F",
+]
+description = "Fetch remote tags"
+
+[tags.search]
+keys = ["/"]
+description = "Fuzzy search tags"
+
+[remotes.add]
+keys = [
+    "a",
+    "A",
+]
+description = "Add new remote"
+
+[remotes.delete]
+keys = ["D"]
+description = "Delete selected remote"
+
+[remotes.fetch]
+keys = [
+    "f",
+    "F",
+]
+description = "Fetch selected remote"
+
+[stashes.apply]
+keys = [
+    "a",
+    "A",
+]
+description = "Apply selected stash"
+
+[stashes.create]
+keys = [
+    "s",
+    "S",
+]
+description = "Create new stash"
+
+[stashes.delete]
+keys = ["D"]
+description = "Delete selected stash"
+
+[worktrees.open]
+keys = ["enter"]
+description = "Open selected worktree in new Gitwig context"
+
+[worktrees.add]
+keys = ["a"]
+description = "Add new worktree"
+
+[worktrees.delete]
+keys = ["D"]
+description = "Remove selected worktree"
+
+[worktrees.lock]
+keys = ["l"]
+description = "Toggle lock status of selected worktree"
+
+[worktrees.prune]
+keys = ["p"]
+description = "Prune stale worktree metadata"
+
+[submodules.add]
+keys = ["a"]
+description = "Add new submodule"
+
+[submodules.delete]
+keys = ["D"]
+description = "Delete selected submodule"
+
+[reflog.checkout]
+keys = [
+    "enter",
+    "space",
+]
+description = "Checkout commit OID of selected reflog entry"
+
+[forge.checkout]
+keys = ["enter"]
+description = "Checkout branch corresponding to selected issue"
+
+[forge.open_browser]
+keys = ["o"]
+description = "Open selected issue in web browser"
+
+[diff.line_mode]
+keys = [
+    "l",
+    "L",
+]
+description = "Toggle line-by-line stage/discard mode"
+
+[diff.stage]
+keys = [
+    "s",
+    "S",
+]
+description = "Stage selected hunk/line"
+
+[diff.unstage]
+keys = [
+    "u",
+    "U",
+]
+description = "Unstage selected hunk/line"
+
+[diff.discard]
+keys = [
+    "x",
+    "delete",
+]
+description = "Discard selected hunk/line"
+
+[conflict.ours]
+keys = ["o"]
+description = "Accept OURS version of conflict"
+
+[conflict.theirs]
+keys = ["t"]
+description = "Accept THEIRS version of conflict"
+
+[conflict.resolve]
+keys = ["r"]
+description = "Mark conflict as resolved"
+
+[conflict.abort]
+keys = ["A"]
+description = "Abort merge"
+
+[conflict.continue_merge]
+keys = ["C"]
+description = "Continue merge"
+
+[detail.move_up]
+keys = [
+    "k",
+    "up",
+]
+description = "Move selection up in detail panels"
+
+[detail.move_down]
+keys = [
+    "j",
+    "down",
+]
+description = "Move selection down in detail panels"
+
+[detail.page_up]
+keys = ["pageup"]
+description = "Scroll selection up by page in detail panels"
+
+[detail.page_down]
+keys = ["pagedown"]
+description = "Scroll selection down by page in detail panels"
+
+[detail.home]
+keys = ["home"]
+description = "Go to top of list in detail panels"
+
+[detail.end]
+keys = ["end"]
+description = "Go to bottom of list in detail panels"

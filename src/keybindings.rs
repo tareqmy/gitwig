@@ -690,7 +690,7 @@ impl KeybindingsConfig {
                 go_to_tab_5: Some(Keybind::new(&["5"], "Go to Tab 5")),
                 go_to_tab_6: Some(Keybind::new(&["6"], "Go to Tab 6")),
                 go_to_tab_7: Some(Keybind::new(&["7"], "Go to Tab 7")),
-                overview: Some(Keybind::new(&["o", "O"], "Show repository Overview screen")),
+                overview: Some(Keybind::new(&["O"], "Show repository Overview screen")),
                 toggle_advanced_tabs: Some(Keybind::new(
                     &["Z"],
                     "Toggle between Primary and Advanced tab groups",
