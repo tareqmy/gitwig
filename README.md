@@ -28,5 +28,6 @@ Explore the features, configuration, and controls of Gitwig:
 - [⌨️ Keybindings](docs/keybindings.md)
 - [📂 Item Status Indicators](docs/status_indicators.md)
 - [🔍 Detail View](docs/detail_view.md)
+- [🖥️ Panels & UI Windows](docs/panels.md)
 - [🔧 Configuration](docs/configuration.md)
 - [🎨 Font & Symbol Support](docs/font_support.md)
