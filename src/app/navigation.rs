@@ -2582,7 +2582,17 @@ impl App {
                         }
                     }
 
-                    if all_valid {
+                    if !all_valid {
+                        self.status_message =
+                            Some("One or more key mappings are invalid".to_string());
+                    } else if let Some(conflicting_action) =
+                        self.keybindings.find_conflict(action, &keys)
+                    {
+                        let action_name =
+                            crate::popups::settings::get_label(conflicting_action.to_index());
+                        self.status_message =
+                            Some(format!("Conflict: key already bound to '{}'", action_name));
+                    } else {
                         self.keybindings.update_action_keys(action, keys);
                         let config_dir = self.config_path.parent().unwrap_or(&self.config_path);
                         if let Err(e) = self.keybindings.save(config_dir) {
@@ -2593,9 +2603,6 @@ impl App {
                             self.settings_editing = false;
                             self.input_buffer.clear();
                         }
-                    } else {
-                        self.status_message =
-                            Some("One or more key mappings are invalid".to_string());
                     }
                 }
             }

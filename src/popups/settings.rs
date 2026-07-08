@@ -18,9 +18,58 @@ const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 8, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3, 67];
 const KEYBINDINGS_SETTING_INDICES: &[usize] = &[
-    14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
-    38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 57, 68, 69, 70, 71, 72,
-    73, 74, 75, 76,
+    // --- Global Actions ---
+    16, // Quit / Close Dialog (Close)
+    15, // Help (Help)
+    14, // Toggle Status Bar (ToggleStatusBar)
+    // --- Home Navigation & Actions ---
+    17, // Home: Move Down (HomeMoveDown)
+    18, // Home: Move Up (HomeMoveUp)
+    19, // Home: Page Down (HomePageDown)
+    20, // Home: Page Up (HomePageUp)
+    21, // Home: Go to Top (HomeHome)
+    22, // Home: Go to Bottom (HomeEnd)
+    38, // Home: Open Details (HomeOpenDetail)
+    75, // Home: Toggle Selection (HomeSelect)
+    33, // Home: Toggle Pin (HomeTogglePin)
+    71, // Home: Toggle Star (HomeToggleStar)
+    72, // Home: Yank Path (HomeYankPath)
+    73, // Home: Jump Picker (HomeJumpPicker)
+    76, // Home: Global Code Search (HomeGlobalSearch)
+    37, // Home: Search Repository (HomeSearchRepo)
+    30, // Home: Refresh Status (HomeRefresh)
+    31, // Home: Cycle Sort Order (HomeCycleSort)
+    32, // Home: Toggle Sort Reverse (HomeToggleSortReverse)
+    77, // Home: Toggle Compact View (HomeToggleCompactView)
+    23, // Home: Add Repository (HomeAddRepo)
+    24, // Home: Bulk Add (HomeBulkAdd)
+    35, // Home: Import Repository (HomeImportRepo)
+    25, // Home: Edit Repository (HomeEditRepo)
+    26, // Home: Delete Repository (HomeDeleteRepo)
+    28, // Home: Edit Labels (HomeEditLabels)
+    70, // Home: Open Terminal (HomeOpenTerminal)
+    36, // Home: Open Git App (HomeOpenGitApp)
+    27, // Home: Open Debug Logs (HomeOpenDebugLogs)
+    29, // Home: Open About Dialog (HomeAbout)
+    78, // Home: Signs & Symbols Legend (HomeSymbolsHelp)
+    57, // Home: Check Updates (HomeCheckUpdate)
+    // --- Detail/Workspace Navigation & Actions ---
+    39, // Detail: Close View (CloseDetail)
+    40, // Detail: Help (DetailHelp)
+    41, // Detail: Cycle Focus Fwd (CycleFocusForward)
+    42, // Detail: Cycle Focus Bwd (CycleFocusBackward)
+    43, // Detail: Refresh View (RefreshDetail)
+    44, // Detail: Cycle Tab Fwd (CycleTabForward)
+    45, // Detail: Cycle Tab Bwd (CycleTabBackward)
+    46, // Detail: Tab 1 (Commits / Worktrees)
+    47, // Detail: Tab 2 (Files / Submodules)
+    48, // Detail: Tab 3 (Graph / Reflog)
+    49, // Detail: Tab 4 (Branches / Forge)
+    50, // Detail: Tab 5 (Tags)
+    51, // Detail: Tab 6 (Remotes)
+    52, // Detail: Tab 7 (Stashes)
+    68, // Detail: Show Overview (Overview)
+    69, // Detail: Toggle Advanced Tabs (ToggleAdvancedTabs)
 ];
 
 fn index_to_action(idx: usize) -> Option<crate::keybindings::Action> {
@@ -91,7 +140,7 @@ fn get_sub_index(selected_idx: usize) -> usize {
     indices.iter().position(|&x| x == selected_idx).unwrap_or(0)
 }
 
-fn get_label(global_idx: usize) -> &'static str {
+pub(crate) fn get_label(global_idx: usize) -> &'static str {
     match global_idx {
         0 => "Poll Interval (ms)",
         1 => "Sort By",
@@ -167,6 +216,8 @@ fn get_label(global_idx: usize) -> &'static str {
         74 => "Home: Fetch All",
         75 => "Home: Toggle Selection",
         76 => "Home: Global Code Search",
+        77 => "Home: Toggle Compact View",
+        78 => "Home: Signs & Symbols Legend",
         _ => "",
     }
 }
@@ -271,6 +322,8 @@ fn get_desc(global_idx: usize) -> &'static str {
         74 => "Bulk fetch all tracked repositories concurrently.",
         75 => "Toggle selection of repository for batch operations.",
         76 => "Open global code search popup overlay.",
+        77 => "Toggles repository list view between standard card layout and compact 1-row layout.",
+        78 => "Opens the signs and symbols legend overlay panel.",
         _ => "",
     }
 }

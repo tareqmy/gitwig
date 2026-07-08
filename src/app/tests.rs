@@ -5096,8 +5096,14 @@ fn test_keybindings_settings_panel_flow() {
 
     // Jump to keybindings category via '5'
     crate::input::handle_key(&mut app, key_event(KeyCode::Char('5')), 10);
-    assert_eq!(app.settings_selected_index, 14); // Toggle Status Bar
+    assert_eq!(app.settings_selected_index, 16); // Quit / Close Dialog
     assert!(!app.settings_editing);
+
+    // Navigate down to Toggle Status Bar (index 14)
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 15);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Down), 10);
+    assert_eq!(app.settings_selected_index, 14);
 
     // Start editing
     crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
@@ -9563,4 +9569,32 @@ fn test_tab_groups_primary_advanced() {
     assert!(handled);
     assert!(!app.advanced_tabs);
     assert_eq!(app.detail_tab, 0);
+}
+
+#[test]
+fn test_keybindings_view_conflict_checking() {
+    let defaults = crate::keybindings::KeybindingsConfig::default_config();
+
+    // 1. Proposed binding is unique and does not conflict
+    let conflict =
+        defaults.find_conflict(crate::keybindings::Action::HomeMoveDown, &["ctrl-d".to_string()]);
+    assert!(conflict.is_none());
+
+    // 2. Conflict within the same view (Home view context)
+    // HomeMoveDown is mapped to 'down' / 'j' by default. Let's propose 'j' for HomeMoveUp
+    let conflict =
+        defaults.find_conflict(crate::keybindings::Action::HomeMoveUp, &["j".to_string()]);
+    assert_eq!(conflict, Some(crate::keybindings::Action::HomeMoveDown));
+
+    // 3. No conflict across different views (Home view action vs Detail view action)
+    // HomeMoveDown is 'down' / 'j'. CycleFocusForward is 'w'.
+    // Let's propose 'j' for CycleFocusForward (a Detail action). Should NOT conflict since they are in separate views.
+    let conflict =
+        defaults.find_conflict(crate::keybindings::Action::CycleFocusForward, &["j".to_string()]);
+    assert!(conflict.is_none());
+
+    // 4. Proposing a global key mapping conflicts with both contexts
+    // '?' is default for DetailHelp (Detail view action). Proposing '?' for global Help should conflict.
+    let conflict = defaults.find_conflict(crate::keybindings::Action::Help, &["?".to_string()]);
+    assert_eq!(conflict, Some(crate::keybindings::Action::DetailHelp));
 }

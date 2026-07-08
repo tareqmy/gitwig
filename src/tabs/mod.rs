@@ -208,8 +208,6 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
         }
     }
 
-
-
     match app.detail_tab {
         0 => return WorkspaceTab::handle_event(app, key),
         1 => return FilesTab::handle_event(app, key),

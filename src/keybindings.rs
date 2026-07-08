@@ -105,9 +105,9 @@ impl Action {
             50 => Some(Action::GoToTab5),
             51 => Some(Action::GoToTab6),
             52 => Some(Action::GoToTab7),
-            55 => Some(Action::HomeToggleCompactView),
-            56 => Some(Action::HomeSymbolsHelp),
             57 => Some(Action::HomeCheckUpdate),
+            77 => Some(Action::HomeToggleCompactView),
+            78 => Some(Action::HomeSymbolsHelp),
             68 => Some(Action::Overview),
             69 => Some(Action::ToggleAdvancedTabs),
             70 => Some(Action::HomeOpenTerminal),
@@ -118,6 +118,62 @@ impl Action {
             75 => Some(Action::HomeSelect),
             76 => Some(Action::HomeGlobalSearch),
             _ => None,
+        }
+    }
+
+    pub fn to_index(self) -> usize {
+        match self {
+            Action::ToggleStatusBar => 14,
+            Action::Help => 15,
+            Action::Close => 16,
+            Action::HomeMoveDown => 17,
+            Action::HomeMoveUp => 18,
+            Action::HomePageDown => 19,
+            Action::HomePageUp => 20,
+            Action::HomeHome => 21,
+            Action::HomeEnd => 22,
+            Action::HomeAddRepo => 23,
+            Action::HomeBulkAdd => 24,
+            Action::HomeEditRepo => 25,
+            Action::HomeDeleteRepo => 26,
+            Action::HomeOpenDebugLogs => 27,
+            Action::HomeEditLabels => 28,
+            Action::HomeAbout => 29,
+            Action::HomeRefresh => 30,
+            Action::HomeCycleSort => 31,
+            Action::HomeToggleSortReverse => 32,
+            Action::HomeTogglePin => 33,
+            Action::HomeOpenSettings => 34,
+            Action::HomeImportRepo => 35,
+            Action::HomeOpenGitApp => 36,
+            Action::HomeSearchRepo => 37,
+            Action::HomeOpenDetail => 38,
+            Action::CloseDetail => 39,
+            Action::DetailHelp => 40,
+            Action::CycleFocusForward => 41,
+            Action::CycleFocusBackward => 42,
+            Action::RefreshDetail => 43,
+            Action::CycleTabForward => 44,
+            Action::CycleTabBackward => 45,
+            Action::GoToTab1 => 46,
+            Action::GoToTab2 => 47,
+            Action::GoToTab3 => 48,
+            Action::GoToTab4 => 49,
+            Action::GoToTab5 => 50,
+            Action::GoToTab6 => 51,
+            Action::GoToTab7 => 52,
+            Action::HomeToggleCompactView => 77,
+            Action::HomeSymbolsHelp => 78,
+            Action::HomeCheckUpdate => 57,
+            Action::Overview => 68,
+            Action::ToggleAdvancedTabs => 69,
+            Action::HomeOpenTerminal => 70,
+            Action::HomeToggleStar => 71,
+            Action::HomeYankPath => 72,
+            Action::HomeJumpPicker => 73,
+            Action::HomeFetchAll => 74,
+            Action::HomeSelect => 75,
+            Action::HomeGlobalSearch => 76,
         }
     }
 }
@@ -478,8 +534,94 @@ impl KeybindingsConfig {
         false
     }
 
-    pub fn check_conflicts(&self) {
-        let mut home_map: HashMap<(KeyCode, KeyModifiers), Vec<Action>> = HashMap::new();
+    pub fn find_conflict(&self, target_action: Action, proposed_keys: &[String]) -> Option<Action> {
+        let is_global =
+            matches!(target_action, Action::ToggleStatusBar | Action::Help | Action::Close);
+
+        let is_home = matches!(
+            target_action,
+            Action::HomeMoveDown
+                | Action::HomeMoveUp
+                | Action::HomePageDown
+                | Action::HomePageUp
+                | Action::HomeHome
+                | Action::HomeEnd
+                | Action::HomeAddRepo
+                | Action::HomeBulkAdd
+                | Action::HomeEditRepo
+                | Action::HomeDeleteRepo
+                | Action::HomeOpenDebugLogs
+                | Action::HomeEditLabels
+                | Action::HomeAbout
+                | Action::HomeSymbolsHelp
+                | Action::HomeRefresh
+                | Action::HomeCycleSort
+                | Action::HomeToggleSortReverse
+                | Action::HomeTogglePin
+                | Action::HomeOpenSettings
+                | Action::HomeImportRepo
+                | Action::HomeOpenGitApp
+                | Action::HomeSearchRepo
+                | Action::HomeOpenDetail
+                | Action::HomeCheckUpdate
+                | Action::HomeToggleCompactView
+                | Action::HomeOpenTerminal
+                | Action::HomeToggleStar
+                | Action::HomeYankPath
+                | Action::HomeJumpPicker
+                | Action::HomeFetchAll
+                | Action::HomeSelect
+                | Action::HomeGlobalSearch
+        );
+
+        let is_detail = matches!(
+            target_action,
+            Action::CloseDetail
+                | Action::DetailHelp
+                | Action::CycleFocusForward
+                | Action::CycleFocusBackward
+                | Action::RefreshDetail
+                | Action::CycleTabForward
+                | Action::CycleTabBackward
+                | Action::GoToTab1
+                | Action::GoToTab2
+                | Action::GoToTab3
+                | Action::GoToTab4
+                | Action::GoToTab5
+                | Action::GoToTab6
+                | Action::GoToTab7
+                | Action::Overview
+                | Action::ToggleAdvancedTabs
+        );
+
+        let parsed_proposed: Vec<(KeyCode, KeyModifiers)> =
+            proposed_keys.iter().filter_map(|k| parse_key(k)).collect();
+
+        if parsed_proposed.is_empty() {
+            return None;
+        }
+
+        let check_list = |other_actions: &[Action]| -> Option<Action> {
+            for &other in other_actions {
+                if other == target_action {
+                    continue;
+                }
+                let other_keys = self.get_action_keys(other);
+                for ok_str in &other_keys {
+                    if let Some((ok_code, ok_mods)) = parse_key(ok_str) {
+                        for &(prop_code, prop_mods) in &parsed_proposed {
+                            if keys_equal(prop_code, prop_mods, ok_code, ok_mods) {
+                                return Some(other);
+                            }
+                        }
+                    }
+                }
+            }
+            None
+        };
+
+        let global_actions = [Action::ToggleStatusBar, Action::Help, Action::Close];
+
         let home_actions = [
             Action::HomeMoveDown,
             Action::HomeMoveUp,
@@ -506,21 +648,157 @@ impl KeybindingsConfig {
             Action::HomeOpenDetail,
             Action::HomeCheckUpdate,
             Action::HomeToggleCompactView,
+            Action::HomeOpenTerminal,
+            Action::HomeToggleStar,
+            Action::HomeYankPath,
+            Action::HomeJumpPicker,
+            Action::HomeFetchAll,
+            Action::HomeSelect,
+            Action::HomeGlobalSearch,
         ];
 
-        for action in &home_actions {
-            let keys = self.get_action_keys(*action);
+        let detail_actions = [
+            Action::CloseDetail,
+            Action::DetailHelp,
+            Action::CycleFocusForward,
+            Action::CycleFocusBackward,
+            Action::RefreshDetail,
+            Action::CycleTabForward,
+            Action::CycleTabBackward,
+            Action::GoToTab1,
+            Action::GoToTab2,
+            Action::GoToTab3,
+            Action::GoToTab4,
+            Action::GoToTab5,
+            Action::GoToTab6,
+            Action::GoToTab7,
+            Action::Overview,
+            Action::ToggleAdvancedTabs,
+        ];
+
+        if is_global {
+            if let Some(conflict) = check_list(&global_actions) {
+                return Some(conflict);
+            }
+            if let Some(conflict) = check_list(&home_actions) {
+                return Some(conflict);
+            }
+            if let Some(conflict) = check_list(&detail_actions) {
+                return Some(conflict);
+            }
+        }
+
+        if is_home {
+            if let Some(conflict) = check_list(&home_actions) {
+                return Some(conflict);
+            }
+            if let Some(conflict) = check_list(&global_actions) {
+                return Some(conflict);
+            }
+        }
+
+        if is_detail {
+            if let Some(conflict) = check_list(&detail_actions) {
+                return Some(conflict);
+            }
+            if let Some(conflict) = check_list(&global_actions) {
+                return Some(conflict);
+            }
+        }
+
+        None
+    }
+
+    pub fn check_conflicts(&self) {
+        let global_actions = [Action::ToggleStatusBar, Action::Help, Action::Close];
+
+        let home_actions = [
+            Action::HomeMoveDown,
+            Action::HomeMoveUp,
+            Action::HomePageDown,
+            Action::HomePageUp,
+            Action::HomeHome,
+            Action::HomeEnd,
+            Action::HomeAddRepo,
+            Action::HomeBulkAdd,
+            Action::HomeEditRepo,
+            Action::HomeDeleteRepo,
+            Action::HomeOpenDebugLogs,
+            Action::HomeEditLabels,
+            Action::HomeAbout,
+            Action::HomeSymbolsHelp,
+            Action::HomeRefresh,
+            Action::HomeCycleSort,
+            Action::HomeToggleSortReverse,
+            Action::HomeTogglePin,
+            Action::HomeOpenSettings,
+            Action::HomeImportRepo,
+            Action::HomeOpenGitApp,
+            Action::HomeSearchRepo,
+            Action::HomeOpenDetail,
+            Action::HomeCheckUpdate,
+            Action::HomeToggleCompactView,
+            Action::HomeOpenTerminal,
+            Action::HomeToggleStar,
+            Action::HomeYankPath,
+            Action::HomeJumpPicker,
+            Action::HomeFetchAll,
+            Action::HomeSelect,
+            Action::HomeGlobalSearch,
+        ];
+
+        let detail_actions = [
+            Action::CloseDetail,
+            Action::DetailHelp,
+            Action::CycleFocusForward,
+            Action::CycleFocusBackward,
+            Action::RefreshDetail,
+            Action::CycleTabForward,
+            Action::CycleTabBackward,
+            Action::GoToTab1,
+            Action::GoToTab2,
+            Action::GoToTab3,
+            Action::GoToTab4,
+            Action::GoToTab5,
+            Action::GoToTab6,
+            Action::GoToTab7,
+            Action::Overview,
+            Action::ToggleAdvancedTabs,
+        ];
+
+        let mut home_context_map: HashMap<(KeyCode, KeyModifiers), Vec<Action>> = HashMap::new();
+        for &action in global_actions.iter().chain(home_actions.iter()) {
+            let keys = self.get_action_keys(action);
             for k in &keys {
                 if let Some((code, mods)) = parse_key(k) {
-                    home_map.entry((code, mods)).or_default().push(*action);
+                    home_context_map.entry((code, mods)).or_default().push(action);
                 }
             }
         }
 
-        for (key, actions) in home_map {
+        for (key, actions) in home_context_map {
             if actions.len() > 1 {
                 crate::debug_log::warn(format!(
-                    "Keybind conflict detected for key {:?}: mapped to multiple actions {:?}",
+                    "Keybind conflict in Home View for key {:?}: mapped to multiple actions {:?}",
+                    key, actions
+                ));
+            }
+        }
+
+        let mut detail_context_map: HashMap<(KeyCode, KeyModifiers), Vec<Action>> = HashMap::new();
+        for &action in global_actions.iter().chain(detail_actions.iter()) {
+            let keys = self.get_action_keys(action);
+            for k in &keys {
+                if let Some((code, mods)) = parse_key(k) {
+                    detail_context_map.entry((code, mods)).or_default().push(action);
+                }
+            }
+        }
+
+        for (key, actions) in detail_context_map {
+            if actions.len() > 1 {
+                crate::debug_log::warn(format!(
+                    "Keybind conflict in Detail View for key {:?}: mapped to multiple actions {:?}",
                     key, actions
                 ));
             }
