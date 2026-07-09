@@ -73,7 +73,7 @@ The crate is organized so each file has a single clear responsibility. Keep it t
 
 ## Release Preparation Mandate
 When you (the Agent) are asked to prepare files for a release, you MUST:
-1. **Update all references of the version**: Search for and update the version string across the entire repository (e.g., in `.version`, `Cargo.toml`, `gitwig-core/Cargo.toml`, `Cargo.lock`, `Formula/gitwig.rb`, and `snap/snapcraft.yaml`).
+1. **Update all references of the version**: Search for and update the version string across the entire repository (e.g., in `.version`, `Cargo.toml`, `gitwig-core/Cargo.toml`, `Cargo.lock`, and `Formula/gitwig.rb`).
 2. **Prepare the Changelog**: Run `python3 scripts/generate_changelog.py` or update `CHANGELOG.md` to capture all changes since the last release.
 3. **Update Script Checksums**: Recalculate and update the `.sha256` checksum files for all installation and uninstallation scripts in the `scripts/` directory (e.g., `install.sh`, `install.ps1`, etc.) to match their latest content.
 
