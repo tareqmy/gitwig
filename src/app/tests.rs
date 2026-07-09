@@ -621,6 +621,8 @@ fn test_add_repo_with_labels_flow() {
     assert!(app.config.items.iter().any(|x| x == &target_sub_path));
     let labels_bulk = app.config.labels.get(&target_sub_path).unwrap();
     assert_eq!(labels_bulk, &vec!["shared".to_string(), "source".to_string()]);
+    assert_eq!(app.mode, Mode::Normal);
+    assert!(app.input_buffer.is_empty());
 
     // Test 3: Clone add with labels flow
     app.pending_add_repo = Some("/path/to/my_cloned_repo".to_string());

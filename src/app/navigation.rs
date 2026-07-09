@@ -2686,6 +2686,8 @@ impl App {
         };
         let path = self.pending_bulk_add_repo.take().unwrap_or_default();
         self.bulk_add_path_with_labels(path, labels);
+        self.input_buffer.clear();
+        self.mode = Mode::Normal;
     }
 
     pub fn bulk_add_path(&mut self, path: String) {
