@@ -103,7 +103,6 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Reflog Viewer: A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
 - [x] Remove temporary installation scripts from the base directory.
 - [x] Homebrew Tap Distribution: Create and maintain a custom Homebrew tap (`homebrew-gitwig`) distributing pre-built macOS and Linux archives, and integrate formula updates into the CD release workflow.
-- [x] Chocolatey Package Distribution: Build and maintain a Chocolatey package for Windows, pushing `.nupkg` packages to the community feed, and automate release updates in the CD pipeline.
 - [ ] **Per Repository rule**
 
 ## Phase 9: Homepage Enhancements
