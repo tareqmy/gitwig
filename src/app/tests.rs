@@ -9821,4 +9821,51 @@ fn test_skip_key_logging_in_commit_input() {
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
 
+#[test]
+fn test_debug_logs_fuzzy_search() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let config = Config::default();
+    let temp_dir = std::env::temp_dir().join("gitwig_test_debug_search");
+    let _ = std::fs::create_dir_all(&temp_dir);
+    let temp_path = temp_dir.join("config.toml");
+    let mut app = App::new(config, temp_path.clone());
+
+    // Populate with known log entries
+    crate::debug_log::clear();
+    crate::debug_log::info("Alpha Log Entry");
+    crate::debug_log::info("Beta Log Entry");
+    crate::debug_log::info("Gamma Log Entry");
+
+    app.mode = Mode::DebugLogs;
+
+    // Verify initial state: no search query, search is not active
+    assert!(app.debug_log_search_query.is_none());
+    assert!(!app.debug_log_search_editing);
+
+    // 1. Press '/' to enter search mode
+    crate::popups::debug::DebugLogsPopup::handle_event(&mut app, key_event(KeyCode::Char('/')));
+    assert!(app.debug_log_search_query.is_some());
+    assert!(app.debug_log_search_editing);
+    assert_eq!(app.debug_log_search_query.as_deref(), Some(""));
+
+    // 2. Type "be" to filter logs
+    crate::popups::debug::DebugLogsPopup::handle_event(&mut app, key_event(KeyCode::Char('b')));
+    crate::popups::debug::DebugLogsPopup::handle_event(&mut app, key_event(KeyCode::Char('e')));
+    assert_eq!(app.debug_log_search_query.as_deref(), Some("be"));
+
+    // 3. Press Enter to lock/exit editing but keep filter
+    crate::popups::debug::DebugLogsPopup::handle_event(&mut app, key_event(KeyCode::Enter));
+    assert!(app.debug_log_search_query.is_some());
+    assert!(!app.debug_log_search_editing);
+
+    // 4. Press Esc to clear filter
+    crate::popups::debug::DebugLogsPopup::handle_event(&mut app, key_event(KeyCode::Esc));
+    assert!(app.debug_log_search_query.is_none());
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+
 

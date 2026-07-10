@@ -776,7 +776,18 @@ pub(crate) fn get_status_layout_components(
                 "Debug Logs  ",
                 Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
             )];
-            let entries_data = [("Clear", "c/x"), ("Back", "Esc/q/l")];
+            let entries_data = if app.debug_log_search_editing {
+                vec![("Type to filter", ""), ("Focus List", "Enter"), ("Back", "Esc")]
+            } else if app.debug_log_search_query.is_some() {
+                vec![
+                    ("Edit Query", "/"),
+                    ("Clear Logs", "c/x"),
+                    ("Clear Filter", "Esc"),
+                    ("Back", "q"),
+                ]
+            } else {
+                vec![("Find", "/"), ("Clear", "c/x"), ("Back", "Esc/q")]
+            };
             let mut entries = Vec::new();
             for (i, (label, key)) in entries_data.iter().enumerate() {
                 let mut spans = Vec::new();
@@ -784,10 +795,12 @@ pub(crate) fn get_status_layout_components(
                     spans.push(Span::styled(" ", muted_style()));
                 }
                 spans.push(Span::raw((*label).to_string()));
-                spans.push(Span::raw(" "));
-                spans.push(Span::styled("[", muted_style()));
-                spans.push(Span::styled((*key).to_string(), accent_style()));
-                spans.push(Span::styled("]", muted_style()));
+                if !key.is_empty() {
+                    spans.push(Span::raw(" "));
+                    spans.push(Span::styled("[", muted_style()));
+                    spans.push(Span::styled((*key).to_string(), accent_style()));
+                    spans.push(Span::styled("]", muted_style()));
+                }
                 entries.push(StatusEntry::new(spans));
             }
             (Some(msg_spans), entries)

@@ -53,8 +53,13 @@
 | `←` / `h` / `H`      | Settings        | Focus category list (sidebar)     |
 | `→` / `l` / `L` / `w` / `W` | Settings  | Focus settings list               |
 | `1` - `5`            | Settings        | Jump directly to category: General (1), Sorting (2), Scan (3), Theme (4), Keybindings (5) |
-| `Esc` / `q`          | DebugLogs       | Exit Debug Logs and return to Home |
+| `Esc` / `q`          | DebugLogs       | Exit Debug Logs (or clear filter if active) and return to Home |
 | `c` / `C` / `x`      | DebugLogs       | Clear all debug logs and reset scroll |
+| `/`                  | DebugLogs       | Enter fuzzy search query mode    |
+| `Enter`              | DebugLogs (Search) | Finish typing query and lock focus to log list scrolling |
+| `Esc`                | DebugLogs (Search) | Clear query character/text or exit search mode |
+| `Backspace`          | DebugLogs (Search) | Erase query character            |
+| `Char`               | DebugLogs (Search) | Type query character             |
 | `↑` / `↓` / `k` / `j` | DebugLogs       | Scroll debug logs list            |
 | `PgUp` / `PgDn`      | DebugLogs       | Scroll debug logs list by page size |
 | `Home` / `End`       | DebugLogs       | Jump to top / bottom of debug logs |

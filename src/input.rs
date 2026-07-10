@@ -91,7 +91,8 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::SubmoduleAddPathInput
             | Mode::GlobalSearch
     ) || (matches!(app.mode, Mode::CommitInput) && app.commit_popup.editing)
-        || (matches!(app.mode, Mode::Settings) && app.settings_editing);
+        || (matches!(app.mode, Mode::Settings) && app.settings_editing)
+        || (matches!(app.mode, Mode::DebugLogs) && app.debug_log_search_editing);
     if !is_text_input && app.is_bound(crate::keybindings::Action::ToggleStatusBar, key) {
         app.toggle_status_expanded();
         return true;
