@@ -13,7 +13,8 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
 
-const GENERAL_SETTING_INDICES: &[usize] = &[9, 56, 55, 0, 60, 13, 65, 66, 12, 58, 62, 63, 7];
+const GENERAL_SETTING_INDICES: &[usize] =
+    &[9, 56, 55, 0, 60, 13, 65, 66, 12, 58, 62, 63, 7, 80, 81];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 8, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3, 67];
@@ -211,6 +212,8 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         65 => "Detail Cache TTL (secs)",
         66 => "Tab Cache TTL (secs)",
         67 => "Compact Layout View",
+        80 => "Stale Threshold (months)",
+        81 => "Show Stale Projects",
         14 => "Toggle Status Bar",
         15 => "Help",
         16 => "Quit / Close Dialog",
@@ -407,6 +410,8 @@ fn get_desc(global_idx: usize) -> &'static str {
             "How long in seconds lazy-loaded tab data remains cached in memory before automatic refresh."
         }
         67 => "Show a compact single-line layout for repository cards in the list.",
+        80 => "Number of months inactive to be considered stale. Cannot be less than 1.",
+        81 => "Show or hide stale repositories in the list on the main page.",
         14 => "Toggles the status bar between collapsed and expanded view.",
         15 => "Opens the global help overlay.",
         16 => "Exits the application or closes the active settings/popup dialog.",
@@ -603,6 +608,14 @@ pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
                 }
             }
             67 => app.config.compact_view.to_string(),
+            80 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.stale_threshold_months.to_string()
+                }
+            }
+            81 => app.config.show_stale_projects.to_string(),
             _ => String::new(),
         }
     }

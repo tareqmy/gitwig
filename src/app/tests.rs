@@ -1856,8 +1856,12 @@ fn test_settings_mode_navigation_and_editing() {
     crate::input::handle_key(&mut app, key_event(KeyCode::Char('1')), 10);
     assert_eq!(app.settings_selected_index, 9);
 
-    // Navigate to Page Size (index 7) by pressing End
+    // Navigate to Page Size (index 7) by pressing End and then Up twice (due to new stale settings added at the end)
     crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
+    assert_eq!(app.settings_selected_index, 81);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
+    assert_eq!(app.settings_selected_index, 80);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
     assert_eq!(app.settings_selected_index, 7);
 
     // Edit Page Size
@@ -1880,9 +1884,9 @@ fn test_settings_mode_navigation_and_editing() {
     assert!(!app.settings_editing);
     assert_eq!(app.config.git_app, "lazygit");
 
-    // Go to Compatibility Mode (index 12): first press End to go to 7, then Up 4 times
+    // Go to Compatibility Mode (index 12): first press End to go to 81, then Up 6 times
     crate::input::handle_key(&mut app, key_event(KeyCode::End), 10);
-    for _ in 0..4 {
+    for _ in 0..6 {
         crate::input::handle_key(&mut app, key_event(KeyCode::Up), 10);
     }
     assert_eq!(app.settings_selected_index, 12);
@@ -9405,6 +9409,113 @@ fn test_settings_compact_view_toggling() {
     // Toggle again
     app.toggle_or_edit_setting();
     assert!(!app.config.compact_view);
+}
+
+#[test]
+fn test_settings_stale_behavior_and_toggling() {
+    let config = Config {
+        stale_threshold_months: 1,
+        show_stale_projects: true,
+        items: vec!["repo_a".to_string(), "repo_b".to_string()],
+        ..Default::default()
+    };
+
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_stale.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // 1. Validate stale_threshold_months editing
+    app.mode = Mode::Settings;
+    app.settings_selected_index = 80; // Stale Threshold (months)
+    app.settings_focus_sidebar = false;
+    app.settings_editing = false;
+
+    app.toggle_or_edit_setting();
+    assert!(app.settings_editing);
+    assert_eq!(app.input_buffer, "1");
+
+    // Commit valid value (2 months)
+    app.input_buffer = "2".to_string();
+    app.commit_settings_edit();
+    assert!(!app.settings_editing);
+    assert_eq!(app.config.stale_threshold_months, 2);
+
+    // Try committing invalid value (0 months)
+    app.toggle_or_edit_setting();
+    app.input_buffer = "0".to_string();
+    app.commit_settings_edit();
+    assert!(app.settings_editing); // still editing
+    assert!(app.status_message.as_ref().unwrap().contains("must be at least 1"));
+
+    // 2. Validate show_stale_projects toggling
+    app.settings_selected_index = 81; // Show Stale Projects
+    app.settings_editing = false;
+    assert!(app.config.show_stale_projects);
+
+    app.toggle_or_edit_setting();
+    assert!(!app.config.show_stale_projects);
+
+    app.toggle_or_edit_setting();
+    assert!(app.config.show_stale_projects);
+
+    // 3. Validate get_filtered_items stale filtering
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+
+    let summary_stale = crate::repo::RepoSummary {
+        branch: Some("main".to_string()),
+        staged: 0,
+        modified: 0,
+        untracked: 0,
+        conflicted: 0,
+        ahead: 0,
+        behind: 0,
+        state: crate::repo::RepoState::Clean,
+        last_commit_time: Some(now - 45 * 24 * 60 * 60), // 45 days ago (stale for 1 month threshold, clean for 2 months threshold)
+    };
+
+    let summary_fresh = crate::repo::RepoSummary {
+        branch: Some("main".to_string()),
+        staged: 0,
+        modified: 0,
+        untracked: 0,
+        conflicted: 0,
+        ahead: 0,
+        behind: 0,
+        state: crate::repo::RepoState::Clean,
+        last_commit_time: Some(now - 5 * 24 * 60 * 60), // 5 days ago (fresh)
+    };
+
+    app.statuses = vec![
+        crate::repo::ItemStatus::GitRepo(Some(summary_stale)),
+        crate::repo::ItemStatus::GitRepo(Some(summary_fresh)),
+    ];
+
+    // Threshold = 2 months (60 days), so 45 days is NOT stale
+    app.config.stale_threshold_months = 2;
+    app.config.show_stale_projects = false;
+    let items = app.get_filtered_items();
+    assert_eq!(items.len(), 2); // Both shown because neither is stale
+
+    // Threshold = 1 month (30 days), so 45 days is stale. show_stale_projects = false
+    app.config.stale_threshold_months = 1;
+    let items = app.get_filtered_items();
+    assert_eq!(items.len(), 1); // Stale project hidden
+    assert_eq!(items[0].1, "repo_b"); // Only fresh repo_b shown
+
+    // show_stale_projects = true
+    app.config.show_stale_projects = true;
+    let items = app.get_filtered_items();
+    assert_eq!(items.len(), 2); // Both shown
+
+    // Global Filter = Stale, show_stale_projects = false
+    app.config.show_stale_projects = false;
+    app.global_filter = Some(GlobalFilter::Stale);
+    let items = app.get_filtered_items();
+    assert_eq!(items.len(), 1); // Stale filter override works
+    assert_eq!(items[0].1, "repo_a"); // Only stale repo_a shown
 }
 
 #[test]

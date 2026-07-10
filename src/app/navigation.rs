@@ -181,7 +181,7 @@ impl App {
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0);
-            let stale_threshold = 30 * 24 * 60 * 60; // 30 days
+            let stale_threshold = (self.config.stale_threshold_months as i64) * 30 * 24 * 60 * 60;
 
             self.config
                 .items
@@ -192,14 +192,32 @@ impl App {
                     match filter {
                         GlobalFilter::Dirty => {
                             if let Some(crate::repo::ItemStatus::GitRepo(Some(summary))) = status {
-                                !summary.is_clean()
+                                if !summary.is_clean() {
+                                    if !self.config.show_stale_projects {
+                                        if let Some(t) = summary.last_commit_time {
+                                            return now - t <= stale_threshold;
+                                        }
+                                    }
+                                    true
+                                } else {
+                                    false
+                                }
                             } else {
                                 false
                             }
                         }
                         GlobalFilter::Ahead => {
                             if let Some(crate::repo::ItemStatus::GitRepo(Some(summary))) = status {
-                                summary.ahead > 0
+                                if summary.ahead > 0 {
+                                    if !self.config.show_stale_projects {
+                                        if let Some(t) = summary.last_commit_time {
+                                            return now - t <= stale_threshold;
+                                        }
+                                    }
+                                    true
+                                } else {
+                                    false
+                                }
                             } else {
                                 false
                             }
@@ -219,7 +237,29 @@ impl App {
                 })
                 .collect()
         } else {
-            self.config.items.iter().enumerate().collect()
+            let mut items: Vec<(usize, &String)> = self.config.items.iter().enumerate().collect();
+            if !self.config.show_stale_projects {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0);
+                let stale_threshold =
+                    (self.config.stale_threshold_months as i64) * 30 * 24 * 60 * 60;
+                items.retain(|&(idx, _)| {
+                    if let Some(crate::repo::ItemStatus::GitRepo(Some(summary))) =
+                        self.statuses.get(idx)
+                    {
+                        if let Some(t) = summary.last_commit_time {
+                            now - t <= stale_threshold
+                        } else {
+                            true
+                        }
+                    } else {
+                        true
+                    }
+                });
+            }
+            items
         };
 
         if let Some(ref query) = self.repo_search_query {
@@ -2383,6 +2423,14 @@ impl App {
                 self.config.compact_view = !self.config.compact_view;
                 self.persist("Compact view toggled");
             }
+            80 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.stale_threshold_months.to_string();
+            }
+            81 => {
+                self.config.show_stale_projects = !self.config.show_stale_projects;
+                self.persist("Show Stale Projects updated");
+            }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {
                     self.settings_editing = true;
@@ -2562,6 +2610,21 @@ impl App {
                     self.persist("Tab cache TTL updated");
                     self.settings_editing = false;
                     self.input_buffer.clear();
+                } else {
+                    self.status_message = Some("Invalid integer".to_string());
+                }
+            }
+            80 => {
+                if let Ok(val) = trimmed.parse::<u32>() {
+                    if val >= 1 {
+                        self.config.stale_threshold_months = val;
+                        self.persist("Stale threshold updated");
+                        self.settings_editing = false;
+                        self.input_buffer.clear();
+                    } else {
+                        self.status_message =
+                            Some("Stale threshold must be at least 1 month".to_string());
+                    }
                 } else {
                     self.status_message = Some("Invalid integer".to_string());
                 }

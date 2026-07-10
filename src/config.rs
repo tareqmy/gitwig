@@ -144,6 +144,8 @@ impl Default for Config {
             show_grouping: true,
             auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
             show_system_stats: default_show_system_stats(),
+            stale_threshold_months: default_stale_threshold_months(),
+            show_stale_projects: default_show_stale_projects(),
         }
     }
 }
@@ -226,6 +228,12 @@ fn default_auto_fetch_interval_mins() -> u64 {
 }
 fn default_show_system_stats() -> bool {
     false
+}
+fn default_stale_threshold_months() -> u32 {
+    1
+}
+fn default_show_stale_projects() -> bool {
+    true
 }
 
 fn default_scan() -> ScanConfig {
@@ -324,6 +332,12 @@ pub struct Config {
     /// Whether to show current CPU & Memory stats in the status bar at the bottom.
     #[serde(default = "default_show_system_stats")]
     pub show_system_stats: bool,
+    /// Number of months inactive to be considered stale.
+    #[serde(default = "default_stale_threshold_months")]
+    pub stale_threshold_months: u32,
+    /// Hide stale projects if disabled.
+    #[serde(default = "default_show_stale_projects")]
+    pub show_stale_projects: bool,
 }
 
 impl Config {
@@ -444,6 +458,8 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         show_grouping: true,
         auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
         show_system_stats: default_show_system_stats(),
+        stale_threshold_months: default_stale_threshold_months(),
+        show_stale_projects: default_show_stale_projects(),
     };
 
     // Attempt to save the fallback back to the original path.
@@ -577,6 +593,8 @@ pub fn load_config(
                 show_grouping: true,
                 auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
                 show_system_stats: default_show_system_stats(),
+                stale_threshold_months: default_stale_threshold_months(),
+                show_stale_projects: default_show_stale_projects(),
             },
             path,
             None,
@@ -703,6 +721,8 @@ pub fn load_config(
         show_grouping: true,
         auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
         show_system_stats: default_show_system_stats(),
+        stale_threshold_months: default_stale_threshold_months(),
+        show_stale_projects: default_show_stale_projects(),
     };
     save_config(&fallback, &canonical)?;
 

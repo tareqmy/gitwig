@@ -437,7 +437,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         .duration_since(std::time::UNIX_EPOCH)
                         .map(|d| d.as_secs() as i64)
                         .unwrap_or(0);
-                    let stale_threshold = 30 * 24 * 60 * 60; // 30 days
+                    let stale_threshold =
+                        (app.config.stale_threshold_months as i64) * 30 * 24 * 60 * 60;
 
                     for status in &app.statuses {
                         match status {

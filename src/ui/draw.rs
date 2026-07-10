@@ -489,7 +489,7 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
-    let stale_threshold = 30 * 24 * 60 * 60; // 30 days
+    let stale_threshold = (app.config.stale_threshold_months as i64) * 30 * 24 * 60 * 60;
 
     for status in &app.statuses {
         match status {
@@ -514,6 +514,13 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
         }
     }
 
+    let visible_count = app.get_filtered_items().len();
+    let repos_text = if visible_count < total_repos {
+        format!(" {}/{} ", visible_count, total_repos)
+    } else {
+        format!(" {} ", total_repos)
+    };
+
     let dot = Span::styled("  •  ", muted_style());
     let repos_style = if app.global_filter.is_none() {
         primary_style().fg(ACCENT()).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
@@ -526,7 +533,7 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
         muted_style()
     };
     let mut spans = vec![
-        Span::styled(format!(" {} ", total_repos), repos_style),
+        Span::styled(repos_text, repos_style),
         Span::styled("repos", repos_label_style),
     ];
 
@@ -575,8 +582,13 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
     } else {
         muted_style()
     };
+    let stale_label = if !app.config.show_stale_projects && stale_count > 0 {
+        "stale (hidden)"
+    } else {
+        "stale"
+    };
     spans.push(Span::styled(format!(" {} ", stale_count), stale_style));
-    spans.push(Span::styled("stale", stale_label_style));
+    spans.push(Span::styled(stale_label, stale_label_style));
 
     let line = Line::from(spans).alignment(Alignment::Center);
     f.render_widget(Paragraph::new(line), area);
