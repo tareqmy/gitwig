@@ -89,13 +89,6 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     let update_key = kb.format_action_keys(Action::HomeCheckUpdate, is_compat);
 
     let open_detail_key = kb.format_action_keys(Action::HomeOpenDetail, is_compat);
-    let tab_fwd_key = kb.format_action_keys(Action::CycleTabForward, is_compat);
-    let tab_bwd_key = kb.format_action_keys(Action::CycleTabBackward, is_compat);
-    let tab_key = format!("{}/{}", tab_fwd_key, tab_bwd_key);
-    let focus_fwd_key = kb.format_action_keys(Action::CycleFocusForward, is_compat);
-    let focus_bwd_key = kb.format_action_keys(Action::CycleFocusBackward, is_compat);
-    let focus_key = format!("{}/{}", focus_fwd_key, focus_bwd_key);
-    let resync_key = kb.format_action_keys(Action::RefreshDetail, is_compat);
 
     // New actions
     let terminal_key = kb.format_action_keys(Action::HomeOpenTerminal, is_compat);
@@ -136,6 +129,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         (
             "Main List Operations",
             vec![
+                (open_detail_key, "Open Detail view for selected repository"),
                 (add_key, "Add a new repository"),
                 (bulk_add_key, "Bulk add folders in a directory"),
                 (import_key, "Import remote repository"),
@@ -167,28 +161,15 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         ),
     ];
 
-    categories.push(make_cat(
-        "Repository Detail View",
-        vec![
-            (&open_detail_key, "Open detail view / Stage file"),
-            (&tab_key, "Cycle detail view tabs"),
-            (&focus_key, "Cycle panel focus forward (w) / backward (W)"),
-            ("/", "Fuzzy search commits / branches / tags / repos"),
-            (&resync_key, "Resync active tab (Detail)"),
-        ],
-    ));
 
     categories.push(make_cat(
-        "Git Operations (Detail)",
+        "Debug Logs Panel",
         vec![
-            ("c / C", "Commit (c) / Amend last commit (C) (Workspace) / Create branch (Branches)"),
-            ("s", "Stash changes (Workspace changes or Stashes tab)"),
-            ("p", "Pull branch (Branches) / Push tag (Tags)"),
-            ("⇧P", "Push branch (Branches) / Push all tags (Tags)"),
-            ("/", "Fuzzy search files / branches / tags"),
-            ("F", "Fetch remote (Branches / Tags / Remotes tabs)"),
-            ("⇧H", "Show file history (Files tab)"),
-            ("e / o", "Open file in editor (Files tab)"),
+            ("Esc / q", "Exit debug logs panel"),
+            ("c / C / x", "Clear all debug logs"),
+            ("/", "Fuzzy search/filter debug logs"),
+            ("Enter", "Focus/lock list scrolling"),
+            ("↑ / ↓ / j / k", "Scroll log entries"),
         ],
     ));
 
