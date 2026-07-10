@@ -145,19 +145,19 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Local LLM Support:** Integration with local Ollama instances for offline code analysis.
 
 ## Phase 11: Forge Integrations (GitHub / GitLab / Gitea)
-- [ ] **PR/MR Viewer:** View active Pull Requests, descriptions, CI/CD run statuses, and review comments directly in a dedicated tab.
-- [ ] **Issue Tracker:** List assigned issues and allow checking out branches linked to those issues.
-- [ ] **Code Review Mode:** Support adding/viewing line comments on diffs inside active Pull Requests.
+- [x] PR/MR Viewer: View active Pull Requests, descriptions, CI/CD run statuses, and review comments directly in a dedicated tab.
+- [x] Issue Tracker: List assigned issues and allow checking out branches linked to those issues.
+- [x] Code Review Mode: Support adding/viewing line comments on diffs inside active Pull Requests.
 
 ## Phase 12: Git LFS & Large File Management
-- [x] **LFS Detection:** Visual indicators for files tracked by Git LFS.
-- [x] **LFS Workflows:** Support for `git lfs pull`, `git lfs track`, and checking LFS storage consumption within the repository settings panel.
+- [x] LFS Detection: Visual indicators for files tracked by Git LFS.
+- [x] LFS Workflows: Support for `git lfs pull`, `git lfs track`, and checking LFS storage consumption within the repository settings panel.
 
 ## Phase 13: Interactive Hunk & Line Patching
-- [x] **Hunk Staging:** Pressing `s` or `u` on a specific hunk in the Diff view to stage/unstage just that hunk.
-- [x] **Line-level Staging:** Selecting individual lines within a hunk and staging only those lines.
+- [x] Hunk Staging: Pressing `s` or `u` on a specific hunk in the Diff view to stage/unstage just that hunk.
+- [x] Line-level Staging: Selecting individual lines within a hunk and staging only those lines.
 
 ## Phase 14: Repository Search & Discovery Enhancements
-- [x] **Global Code Search:** Search for string patterns across all tracked repositories using a fast, multithreaded search fallback from the homepage.
-- [x] **Automatic Workspace Sync:** Watch a specified directory (e.g., `~/development`) and automatically add new repositories as they are created or cloned.
+- [x] Global Code Search: Search for string patterns across all tracked repositories using a fast, multithreaded search fallback from the homepage.
+- [x] Automatic Workspace Sync: Watch a specified directory (e.g., `~/development`) and automatically add new repositories as they are created or cloned.
 

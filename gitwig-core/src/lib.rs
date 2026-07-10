@@ -204,6 +204,7 @@ pub enum TabPayload {
     Reflog(Result<Vec<ReflogEntry>, String>),
     ForgeIssues(Result<Vec<ForgeIssue>, String>),
     ForgePRs(Result<Vec<ForgePR>, String>),
+    PRComments(Result<Vec<ForgePRComment>, String>),
 }
 
 #[derive(Debug, Default, Clone)]
@@ -3231,9 +3232,19 @@ pub struct ForgePR {
     pub assignees: Vec<String>,
     pub url: String,
     pub head_ref: String,
+    pub head_ref_oid: String,
     pub body: String,
     pub status_checks: Vec<CIStatusCheck>,
     pub reviews: Vec<PRReview>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]
+pub struct ForgePRComment {
+    pub path: String,
+    pub line: Option<u32>,
+    pub body: String,
+    pub author: String,
+    pub commit_id: String,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]
@@ -3258,7 +3269,7 @@ pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
         .arg("--limit")
         .arg("50")
         .arg("--json")
-        .arg("number,title,state,author,assignees,url,headRefName,statusCheckRollup,body,reviews")
+        .arg("number,title,state,author,assignees,url,headRefName,headRefOid,statusCheckRollup,body,reviews")
         .current_dir(repo_path);
 
     let output = match cmd.output() {
@@ -3314,6 +3325,8 @@ pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
         url: String,
         #[serde(rename = "headRefName")]
         head_ref_name: String,
+        #[serde(rename = "headRefOid")]
+        head_ref_oid: String,
         body: String,
         #[serde(rename = "statusCheckRollup")]
         status_check_rollup: Option<Vec<GhStatusCheck>>,
@@ -3359,6 +3372,7 @@ pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
                 assignees,
                 url: item.url,
                 head_ref: item.head_ref_name,
+                head_ref_oid: item.head_ref_oid,
                 body: item.body,
                 status_checks,
                 reviews,
@@ -3367,6 +3381,91 @@ pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
         .collect();
 
     Ok(prs)
+}
+
+pub fn load_pr_comments(repo_path: &Path, pr_number: u32) -> Result<Vec<ForgePRComment>, String> {
+    let mut cmd = std::process::Command::new("gh");
+    cmd.arg("api")
+        .arg(format!("repos/:owner/:repo/pulls/{}/comments", pr_number))
+        .current_dir(repo_path);
+
+    let output = match cmd.output() {
+        Ok(out) => out,
+        Err(e) => return Err(format!("Failed to execute gh: {}", e)),
+    };
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(format!("Failed to load PR comments: {}", err));
+    }
+
+    #[derive(serde::Deserialize)]
+    struct GhUser {
+        login: String,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct GhPRComment {
+        path: String,
+        line: Option<u32>,
+        body: String,
+        user: Option<GhUser>,
+        #[serde(rename = "commit_id")]
+        commit_id: String,
+    }
+
+    let raw_comments: Vec<GhPRComment> = serde_json::from_slice(&output.stdout)
+        .map_err(|e| format!("Failed to parse PR comments: {}", e))?;
+
+    let comments = raw_comments
+        .into_iter()
+        .map(|c| ForgePRComment {
+            path: c.path,
+            line: c.line,
+            body: c.body,
+            author: c.user.map(|u| u.login).unwrap_or_else(|| "none".to_string()),
+            commit_id: c.commit_id,
+        })
+        .collect();
+
+    Ok(comments)
+}
+
+pub fn add_pr_line_comment(
+    repo_path: &Path,
+    pr_number: u32,
+    commit_id: &str,
+    path: &str,
+    line: u32,
+    body: &str,
+) -> Result<(), String> {
+    let mut cmd = std::process::Command::new("gh");
+    cmd.arg("api")
+        .arg(format!("repos/:owner/:repo/pulls/{}/comments", pr_number))
+        .arg("--method")
+        .arg("POST")
+        .arg("-F")
+        .arg(format!("body={}", body))
+        .arg("-F")
+        .arg(format!("commit_id={}", commit_id))
+        .arg("-F")
+        .arg(format!("path={}", path))
+        .arg("-F")
+        .arg(format!("line={}", line))
+        .arg("-F")
+        .arg("side=RIGHT")
+        .current_dir(repo_path);
+
+    let output = match cmd.output() {
+        Ok(out) => out,
+        Err(e) => return Err(format!("Failed to execute gh: {}", e)),
+    };
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(format!("Failed to add PR comment: {}", err));
+    }
+    Ok(())
 }
 
 pub fn checkout_pr_branch(repo_path: &Path, pr_number: u32) -> Result<String, String> {

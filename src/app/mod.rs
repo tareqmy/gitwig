@@ -173,6 +173,9 @@ pub enum Mode {
     BranchSearchInput,
     /// Floating popup for fuzzy file search fallback.
     FileSearchInput,
+    ForgeCommentPathInput,
+    ForgeCommentLineInput,
+    ForgeCommentBodyInput,
     /// Floating popup for fuzzy commit search in logs view.
     CommitFuzzySearch,
     /// Floating popup for fuzzy tag search.
@@ -574,6 +577,10 @@ pub struct App {
     pub forge_issue_selection: usize,
     pub forge_pr_selection: usize,
     pub forge_issues_assigned_only: bool,
+    pub forge_comment_path: String,
+    pub forge_comment_line: u32,
+    pub forge_pr_comments: Option<Vec<repo::ForgePRComment>>,
+    pub forge_pr_comments_loading: bool,
     pub worktree_add_branch: String,
     pub worktree_add_path: String,
     pub worktree_lock_reason: String,
@@ -1255,6 +1262,10 @@ impl App {
             forge_issue_selection: 0,
             forge_pr_selection: 0,
             forge_issues_assigned_only: true,
+            forge_comment_path: String::new(),
+            forge_comment_line: 1,
+            forge_pr_comments: None,
+            forge_pr_comments_loading: false,
             worktree_add_branch: String::new(),
             worktree_add_path: String::new(),
             worktree_lock_reason: String::new(),
@@ -1512,6 +1523,13 @@ where
                 } else if let Some(err_msg) = msg.strip_prefix("CHECKOUT_ERROR:") {
                     app.fetching = false;
                     app.set_error(err_msg.to_string());
+                } else if msg == "COMMENT_SUCCESS" {
+                    app.fetching = false;
+                    app.status_message = Some("Comment posted successfully".to_string());
+                    app.load_comments_for_selected_pr();
+                } else if let Some(err_msg) = msg.strip_prefix("COMMENT_ERROR:") {
+                    app.fetching = false;
+                    app.set_error(err_msg.to_string());
                 } else if let Some(success_msg) = msg.strip_prefix("UPDATE_SUCCESS:") {
                     app.fetching = false;
                     app.status_message = Some(success_msg.to_string());
@@ -1720,6 +1738,15 @@ where
                                 Ok(prs) => repo::TabData::Loaded(prs),
                                 Err(e) => repo::TabData::Error(e),
                             };
+                            app.load_comments_for_selected_pr();
+                        }
+                        repo::TabPayload::PRComments(res) => {
+                            if let Ok(comments) = res {
+                                app.forge_pr_comments = Some(comments);
+                            } else {
+                                app.forge_pr_comments = None;
+                            }
+                            app.forge_pr_comments_loading = false;
                         }
                         repo::TabPayload::Overview(res) => match res {
                             Ok((stats, capped)) => {

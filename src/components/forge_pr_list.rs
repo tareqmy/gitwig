@@ -295,6 +295,47 @@ pub fn draw_forge_prs_view(
             }
         }
 
+        // Line Comments
+        detail_lines.push(Line::from(""));
+        detail_lines.push(Line::from(vec![Span::styled(
+            "Line Comments:",
+            Style::default().add_modifier(Modifier::BOLD),
+        )]));
+        if app.forge_pr_comments_loading {
+            detail_lines.push(Line::from(vec![
+                Span::raw("  "),
+                Span::styled("Loading line comments...", muted_style()),
+            ]));
+        } else if let Some(comments) = &app.forge_pr_comments {
+            if comments.is_empty() {
+                detail_lines.push(Line::from(vec![
+                    Span::raw("  "),
+                    Span::styled("No line comments.", muted_style()),
+                ]));
+            } else {
+                for comment in comments {
+                    let file_line = if let Some(line) = comment.line {
+                        format!("{}:{}", comment.path, line)
+                    } else {
+                        comment.path.clone()
+                    };
+                    detail_lines.push(Line::from(vec![
+                        Span::raw("  • "),
+                        Span::styled(file_line, Style::default().fg(ACCENT())),
+                        Span::raw(" by @"),
+                        Span::raw(&comment.author),
+                        Span::raw(": "),
+                        Span::raw(comment.body.trim()),
+                    ]));
+                }
+            }
+        } else {
+            detail_lines.push(Line::from(vec![
+                Span::raw("  "),
+                Span::styled("Failed to load comments or not authenticated.", muted_style()),
+            ]));
+        }
+
         // Description/Body
         if !selected_pr.body.trim().is_empty() {
             detail_lines.push(Line::from(""));
@@ -317,7 +358,9 @@ pub fn draw_forge_prs_view(
             Span::styled("Enter", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
             Span::raw(" - Checkout PR branch | "),
             Span::styled("o", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
-            Span::raw(" - Open in browser"),
+            Span::raw(" - Open in browser | "),
+            Span::styled("n", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
+            Span::raw(" - Add line comment"),
         ]));
 
         let paragraph = Paragraph::new(detail_lines).wrap(Wrap { trim: false });

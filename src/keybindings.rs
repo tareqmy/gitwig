@@ -137,6 +137,7 @@ pub enum Action {
     ForgeCheckout,
     ForgeOpenBrowser,
     ForgeToggleAssigned,
+    ForgeAddComment,
 
     // Diff
     DiffLineMode,
@@ -291,6 +292,7 @@ impl Action {
             200 => Some(Action::ForgeCheckout),
             201 => Some(Action::ForgeOpenBrowser),
             202 => Some(Action::ForgeToggleAssigned),
+            203 => Some(Action::ForgeAddComment),
 
             // Diff
             210 => Some(Action::DiffLineMode),
@@ -447,6 +449,7 @@ impl Action {
             Action::ForgeCheckout => 200,
             Action::ForgeOpenBrowser => 201,
             Action::ForgeToggleAssigned => 202,
+            Action::ForgeAddComment => 203,
 
             // Diff
             Action::DiffLineMode => 210,
@@ -645,6 +648,7 @@ pub struct ForgeKeybindings {
     pub checkout: Option<Keybind>,
     pub open_browser: Option<Keybind>,
     pub toggle_assigned: Option<Keybind>,
+    pub add_comment: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -994,6 +998,10 @@ impl KeybindingsConfig {
                     &["a"],
                     "Toggle between all issues and assigned issues",
                 )),
+                add_comment: Some(Keybind::new(
+                    &["n"],
+                    "Add a line comment to the current Pull Request",
+                )),
             },
             diff: DiffKeybindings {
                 line_mode: Some(Keybind::new(
@@ -1171,6 +1179,7 @@ impl KeybindingsConfig {
             Action::ForgeCheckout => self.forge.checkout.as_ref(),
             Action::ForgeOpenBrowser => self.forge.open_browser.as_ref(),
             Action::ForgeToggleAssigned => self.forge.toggle_assigned.as_ref(),
+            Action::ForgeAddComment => self.forge.add_comment.as_ref(),
 
             // Diff
             Action::DiffLineMode => self.diff.line_mode.as_ref(),
@@ -1332,6 +1341,7 @@ impl KeybindingsConfig {
             Action::ForgeCheckout => self.forge.checkout.as_ref(),
             Action::ForgeOpenBrowser => self.forge.open_browser.as_ref(),
             Action::ForgeToggleAssigned => self.forge.toggle_assigned.as_ref(),
+            Action::ForgeAddComment => self.forge.add_comment.as_ref(),
 
             // Diff
             Action::DiffLineMode => self.diff.line_mode.as_ref(),
@@ -1716,6 +1726,7 @@ impl KeybindingsConfig {
             Action::ForgeCheckout => self.forge.checkout = keybind,
             Action::ForgeOpenBrowser => self.forge.open_browser = keybind,
             Action::ForgeToggleAssigned => self.forge.toggle_assigned = keybind,
+            Action::ForgeAddComment => self.forge.add_comment = keybind,
 
             // Diff
             Action::DiffLineMode => self.diff.line_mode = keybind,

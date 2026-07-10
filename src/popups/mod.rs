@@ -8,6 +8,7 @@ pub mod create_tag;
 pub mod debug;
 pub mod detail_help;
 pub mod error;
+pub mod forge_comment;
 pub mod help;
 pub mod import;
 pub mod inspect;

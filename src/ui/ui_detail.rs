@@ -862,6 +862,20 @@ pub fn draw(
                     body_area,
                 );
             }
+            // Draw PR line comment popups on top when requested.
+            if matches!(
+                mode,
+                Mode::ForgeCommentPathInput
+                    | Mode::ForgeCommentLineInput
+                    | Mode::ForgeCommentBodyInput
+            ) {
+                crate::popups::forge_comment::draw_forge_comment_popup(
+                    f,
+                    app,
+                    input_buffer,
+                    body_area,
+                );
+            }
             // Draw remote add name popup on top when requested.
             if matches!(mode, Mode::RemoteAddNameInput) {
                 crate::popups::add_remote::draw_remote_add_name_popup(f, input_buffer, body_area);

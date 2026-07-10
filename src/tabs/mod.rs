@@ -325,38 +325,35 @@ fn handle_forge_pr_events(app: &mut App, key: KeyEvent) -> bool {
         0
     };
 
+    let old_selection = app.forge_pr_selection;
+    let mut handled = false;
+
     if app.is_bound(Action::DetailMoveDown, key) {
         if prs_count > 0 {
             app.forge_pr_selection = (app.forge_pr_selection + 1).min(prs_count - 1);
         }
-        return true;
-    }
-    if app.is_bound(Action::DetailMoveUp, key) {
+        handled = true;
+    } else if app.is_bound(Action::DetailMoveUp, key) {
         app.forge_pr_selection = app.forge_pr_selection.saturating_sub(1);
-        return true;
-    }
-    if app.is_bound(Action::DetailPageDown, key) {
+        handled = true;
+    } else if app.is_bound(Action::DetailPageDown, key) {
         if prs_count > 0 {
             app.forge_pr_selection =
                 (app.forge_pr_selection + app.config.page_size).min(prs_count - 1);
         }
-        return true;
-    }
-    if app.is_bound(Action::DetailPageUp, key) {
+        handled = true;
+    } else if app.is_bound(Action::DetailPageUp, key) {
         app.forge_pr_selection = app.forge_pr_selection.saturating_sub(app.config.page_size);
-        return true;
-    }
-    if app.is_bound(Action::DetailHome, key) {
+        handled = true;
+    } else if app.is_bound(Action::DetailHome, key) {
         app.forge_pr_selection = 0;
-        return true;
-    }
-    if app.is_bound(Action::DetailEnd, key) {
+        handled = true;
+    } else if app.is_bound(Action::DetailEnd, key) {
         if prs_count > 0 {
             app.forge_pr_selection = prs_count - 1;
         }
-        return true;
-    }
-    if app.is_bound(Action::ForgeCheckout, key) {
+        handled = true;
+    } else if app.is_bound(Action::ForgeCheckout, key) {
         if let Some(repo::ItemDetail::Repo { resolved, info }) = &app.current_detail {
             if let repo::TabData::Loaded(prs) = &info.forge_prs {
                 if let Some(pr) = prs.get(app.forge_pr_selection) {
@@ -377,9 +374,8 @@ fn handle_forge_pr_events(app: &mut App, key: KeyEvent) -> bool {
                 }
             }
         }
-        return true;
-    }
-    if app.is_bound(Action::ForgeOpenBrowser, key) {
+        handled = true;
+    } else if app.is_bound(Action::ForgeOpenBrowser, key) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
             if let repo::TabData::Loaded(prs) = &info.forge_prs {
                 if let Some(pr) = prs.get(app.forge_pr_selection) {
@@ -388,9 +384,20 @@ fn handle_forge_pr_events(app: &mut App, key: KeyEvent) -> bool {
                 }
             }
         }
-        return true;
+        handled = true;
+    } else if app.is_bound(Action::ForgeAddComment, key) {
+        if prs_count > 0 {
+            app.mode = Mode::ForgeCommentPathInput;
+            app.input_buffer.clear();
+        }
+        handled = true;
     }
-    false
+
+    if app.forge_pr_selection != old_selection {
+        app.load_comments_for_selected_pr();
+    }
+
+    handled
 }
 
 fn handle_reflog_events(app: &mut App, key: KeyEvent) -> bool {

@@ -9626,6 +9626,7 @@ fn test_forge_pr_tab_event_handling() {
                 assignees: vec!["user2".to_string()],
                 url: "https://github.com/org/repo/pull/101".to_string(),
                 head_ref: "feature/pr-1".to_string(),
+                head_ref_oid: "sha101".to_string(),
                 body: "Body 1".to_string(),
                 status_checks: vec![],
                 reviews: vec![],
@@ -9638,6 +9639,7 @@ fn test_forge_pr_tab_event_handling() {
                 assignees: vec![],
                 url: "https://github.com/org/repo/pull/102".to_string(),
                 head_ref: "feature/pr-2".to_string(),
+                head_ref_oid: "sha102".to_string(),
                 body: "Body 2".to_string(),
                 status_checks: vec![],
                 reviews: vec![],
@@ -9672,6 +9674,39 @@ fn test_forge_pr_tab_event_handling() {
     let handled = crate::tabs::route_detail_event(&mut app, key_up);
     assert!(handled);
     assert_eq!(app.forge_pr_selection, 0);
+
+    // Pressing 'n' should start the comment path input wizard
+    let key_n = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('n'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_n);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::ForgeCommentPathInput);
+
+    // Simulate typing a file path: "src/main.rs"
+    app.input_buffer = "src/main.rs".to_string();
+    let key_enter = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::input::handle_key(&mut app, key_enter, 1);
+    assert!(handled);
+    assert_eq!(app.forge_comment_path, "src/main.rs");
+    assert_eq!(app.mode, Mode::ForgeCommentLineInput);
+
+    // Simulate typing a line number: "10"
+    app.input_buffer = "10".to_string();
+    let handled = crate::input::handle_key(&mut app, key_enter, 1);
+    assert!(handled);
+    assert_eq!(app.forge_comment_line, 10);
+    assert_eq!(app.mode, Mode::ForgeCommentBodyInput);
+
+    // Simulate typing comment body: "Looks good"
+    app.input_buffer = "Looks good".to_string();
+    let handled = crate::input::handle_key(&mut app, key_enter, 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
 }
 
 #[test]

@@ -515,6 +515,10 @@ description = "Open selected issue in web browser"
 keys = ["a"]
 description = "Toggle between all issues and assigned issues"
 
+[forge.add_comment]
+keys = ["n"]
+description = "Add a line comment to the current Pull Request"
+
 [diff.line_mode]
 keys = [
     "l",

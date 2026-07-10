@@ -75,6 +75,9 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::BulkAddScanPicker
             | Mode::BranchSearchInput
             | Mode::FileSearchInput
+            | Mode::ForgeCommentPathInput
+            | Mode::ForgeCommentLineInput
+            | Mode::ForgeCommentBodyInput
             | Mode::CommitFuzzySearch
             | Mode::TagSearchInput
             | Mode::ImportUrlInput
@@ -609,6 +612,79 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char(c) => {
                     app.input_buffer.push(c);
                     app.branch_search_selection = 0;
+                }
+                _ => {}
+            }
+            return true;
+        }
+        Mode::ForgeCommentPathInput => {
+            match code {
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.mode = Mode::Detail;
+                }
+                KeyCode::Enter => {
+                    app.forge_comment_path = app.input_buffer.trim().to_string();
+                    app.input_buffer.clear();
+                    app.mode = Mode::ForgeCommentLineInput;
+                }
+                _ => {}
+            }
+            return true;
+        }
+        Mode::ForgeCommentLineInput => {
+            match code {
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.mode = Mode::Detail;
+                }
+                KeyCode::Enter => {
+                    let line_num = app.input_buffer.trim().parse::<u32>().unwrap_or(1);
+                    app.forge_comment_line = line_num;
+                    app.input_buffer.clear();
+                    app.mode = Mode::ForgeCommentBodyInput;
+                }
+                _ => {}
+            }
+            return true;
+        }
+        Mode::ForgeCommentBodyInput => {
+            match code {
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.mode = Mode::Detail;
+                }
+                KeyCode::Enter => {
+                    let body = app.input_buffer.trim().to_string();
+                    app.input_buffer.clear();
+                    app.mode = Mode::Detail;
+
+                    if let Some(crate::repo::ItemDetail::Repo { resolved, info }) =
+                        &app.current_detail
+                    {
+                        if let crate::repo::TabData::Loaded(prs) = &info.forge_prs {
+                            if let Some(pr) = prs.get(app.forge_pr_selection) {
+                                let pr_number = pr.number;
+                                let commit_id = pr.head_ref_oid.clone();
+                                let file_path = app.forge_comment_path.clone();
+                                let line_num = app.forge_comment_line;
+                                let path = resolved.clone();
+                                app.fetching = true;
+                                app.status_message = Some("Posting review comment...".to_string());
+                                let tx = app.tx.clone();
+                                std::thread::spawn(move || match crate::repo::add_pr_line_comment(
+                                    &path, pr_number, &commit_id, &file_path, line_num, &body,
+                                ) {
+                                    Ok(()) => {
+                                        let _ = tx.send("COMMENT_SUCCESS".to_string());
+                                    }
+                                    Err(e) => {
+                                        let _ = tx.send(format!("COMMENT_ERROR:{}", e));
+                                    }
+                                });
+                            }
+                        }
+                    }
                 }
                 _ => {}
             }

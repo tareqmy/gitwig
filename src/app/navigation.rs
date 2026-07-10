@@ -12,6 +12,28 @@ impl App {
         self.error_message = Some(msg);
     }
 
+    pub fn load_comments_for_selected_pr(&mut self) {
+        self.forge_pr_comments = None;
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+            if let repo::TabData::Loaded(prs) = &info.forge_prs {
+                if !prs.is_empty() && self.forge_pr_selection < prs.len() {
+                    let pr_number = prs[self.forge_pr_selection].number;
+                    self.forge_pr_comments_loading = true;
+                    let path = resolved.clone();
+                    let tx = self.tab_tx.clone();
+                    std::thread::spawn(move || {
+                        let res = repo::load_pr_comments(&path, pr_number);
+                        let _ = tx.send((
+                            path.to_string_lossy().to_string(),
+                            11, // tab_idx (PRs tab)
+                            repo::TabPayload::PRComments(res),
+                        ));
+                    });
+                }
+            }
+        }
+    }
+
     pub fn status_height(&self) -> u16 {
         if self.status_expanded {
             let width = if let Ok(size) = crossterm::terminal::size() { size.0 } else { 80 };
@@ -1245,6 +1267,8 @@ impl App {
                             repo::TabPayload::ForgePRs(res),
                         ));
                     });
+                } else if self.forge_pr_comments.is_none() && !self.forge_pr_comments_loading {
+                    self.load_comments_for_selected_pr();
                 }
             }
             _ => {}
