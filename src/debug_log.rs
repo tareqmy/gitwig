@@ -106,4 +106,3 @@ pub fn clear() {
         let _ = std::fs::write(&log_path, "");
     }
 }
-

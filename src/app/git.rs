@@ -32,12 +32,11 @@ impl App {
                 }
 
                 let r_name = resolved.file_name().and_then(|s| s.to_str()).unwrap_or("");
-                let remote_url = repo::get_default_remote_url(resolved).unwrap_or_else(|| "(no url)".to_string());
+                let remote_url = repo::get_default_remote_url(resolved)
+                    .unwrap_or_else(|| "(no url)".to_string());
                 crate::debug_log::info(format!(
                     "Network Action: Pulling branch '{}' for repository '{}' [url: '{}'] (user triggered)",
-                    branch_info.name,
-                    r_name,
-                    remote_url
+                    branch_info.name, r_name, remote_url
                 ));
                 self.fetching = true;
                 self.status_message = Some("Pulling...".to_string());
@@ -86,11 +85,11 @@ impl App {
                 return;
             }
             let r_name = resolved.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            let remote_url = repo::get_default_remote_url(resolved).unwrap_or_else(|| "(no url)".to_string());
+            let remote_url =
+                repo::get_default_remote_url(resolved).unwrap_or_else(|| "(no url)".to_string());
             crate::debug_log::info(format!(
                 "Network Action: git lfs pull for repository '{}' [url: '{}'] (user triggered)",
-                r_name,
-                remote_url
+                r_name, remote_url
             ));
             self.fetching = true;
             self.status_message = Some("Git LFS Pulling...".to_string());
@@ -195,12 +194,11 @@ impl App {
             };
 
             let r_name = repo_path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            let remote_url = repo::get_remote_url(&repo_path, &remote_name).unwrap_or_else(|| "(no url)".to_string());
+            let remote_url = repo::get_remote_url(&repo_path, &remote_name)
+                .unwrap_or_else(|| "(no url)".to_string());
             crate::debug_log::info(format!(
                 "Network Action: Pushing branch '{}' for repository '{}' [url: '{}'] (user triggered)",
-                branch_name,
-                r_name,
-                remote_url
+                branch_name, r_name, remote_url
             ));
             self.fetching = true;
             self.status_message =
@@ -1110,14 +1108,11 @@ impl App {
                 let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
                 let reason = if show_progress { "user triggered" } else { "implicit refresh" };
                 let r_name = repo_path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-                let remote_url = repo::get_remote_url(&repo_path, &remote_name).unwrap_or_else(|| "(no url)".to_string());
+                let remote_url = repo::get_remote_url(&repo_path, &remote_name)
+                    .unwrap_or_else(|| "(no url)".to_string());
                 crate::debug_log::info(format!(
                     "Network Action: Fetching remote tags from '{}' for repository '{}' [url: '{}'] (show_progress={}, {})",
-                    remote_name,
-                    r_name,
-                    remote_url,
-                    show_progress,
-                    reason
+                    remote_name, r_name, remote_url, show_progress, reason
                 ));
                 if show_progress {
                     self.fetching = true;
@@ -1146,12 +1141,11 @@ impl App {
         }
         if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
             let r_name = resolved.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            let remote_url = repo::get_remote_url(resolved, remote_name).unwrap_or_else(|| "(no url)".to_string());
+            let remote_url = repo::get_remote_url(resolved, remote_name)
+                .unwrap_or_else(|| "(no url)".to_string());
             crate::debug_log::info(format!(
                 "Network Action: Fetching remote '{}' for repository '{}' [url: '{}'] (user triggered)",
-                remote_name,
-                r_name,
-                remote_url
+                remote_name, r_name, remote_url
             ));
             self.fetching = true;
             self.status_message = Some(format!("Fetching remote '{}'...", remote_name));
@@ -1277,11 +1271,11 @@ impl App {
                 if path_buf.exists() {
                     let path_str = item.clone();
                     let r_name = path_buf.file_name().and_then(|s| s.to_str()).unwrap_or(&path_str);
-                    let remote_url = repo::get_default_remote_url(&path_buf).unwrap_or_else(|| "(no url)".to_string());
+                    let remote_url = repo::get_default_remote_url(&path_buf)
+                        .unwrap_or_else(|| "(no url)".to_string());
                     crate::debug_log::info(format!(
                         "Network Action: Fetching repository '{}' [url: '{}'] during bulk fetch (user triggered)",
-                        r_name,
-                        remote_url
+                        r_name, remote_url
                     ));
                     self.bulk_fetching.insert(path_str.clone());
                     self.bulk_fetch_results.remove(&path_str);
@@ -1334,11 +1328,11 @@ impl App {
                 if path_buf.exists() {
                     let path_str = item.clone();
                     let r_name = path_buf.file_name().and_then(|s| s.to_str()).unwrap_or(&path_str);
-                    let remote_url = repo::get_default_remote_url(&path_buf).unwrap_or_else(|| "(no url)".to_string());
+                    let remote_url = repo::get_default_remote_url(&path_buf)
+                        .unwrap_or_else(|| "(no url)".to_string());
                     crate::debug_log::info(format!(
                         "Network Action: Fetching repository '{}' [url: '{}'] during bulk fetch (scheduled)",
-                        r_name,
-                        remote_url
+                        r_name, remote_url
                     ));
                     self.bulk_fetching.insert(path_str.clone());
                     self.bulk_fetch_results.remove(&path_str);
@@ -1381,7 +1375,8 @@ impl App {
             let branch_name = branch_name.to_string();
             let remote_name = remote_name.to_string();
             let r_name = repo_path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            let remote_url = repo::get_remote_url(&repo_path, &remote_name).unwrap_or_else(|| "(no url)".to_string());
+            let remote_url = repo::get_remote_url(&repo_path, &remote_name)
+                .unwrap_or_else(|| "(no url)".to_string());
             crate::debug_log::info(format!(
                 "Network Action: Pushing branch '{}' to '{}' for repository '{}' [url: '{}'] (user triggered)",
                 branch_name, remote_name, r_name, remote_url
@@ -1436,7 +1431,8 @@ impl App {
             let tag_name = tag_name.to_string();
             let remote_name = remote_name.to_string();
             let r_name = repo_path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            let remote_url = repo::get_remote_url(&repo_path, &remote_name).unwrap_or_else(|| "(no url)".to_string());
+            let remote_url = repo::get_remote_url(&repo_path, &remote_name)
+                .unwrap_or_else(|| "(no url)".to_string());
             crate::debug_log::info(format!(
                 "Network Action: Pushing tag '{}' to '{}' for repository '{}' [url: '{}'] (user triggered)",
                 tag_name, remote_name, r_name, remote_url
@@ -1490,7 +1486,8 @@ impl App {
             let repo_path = resolved.clone();
             let remote_name = remote_name.to_string();
             let r_name = repo_path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            let remote_url = repo::get_remote_url(&repo_path, &remote_name).unwrap_or_else(|| "(no url)".to_string());
+            let remote_url = repo::get_remote_url(&repo_path, &remote_name)
+                .unwrap_or_else(|| "(no url)".to_string());
             crate::debug_log::info(format!(
                 "Network Action: Pushing all tags to '{}' for repository '{}' [url: '{}'] (user triggered)",
                 remote_name, r_name, remote_url

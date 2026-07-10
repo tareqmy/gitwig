@@ -77,7 +77,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::CycleTabForward, key) {
         app.inspect_full_diff = false;
         if app.advanced_tabs {
-            app.detail_tab = 7 + (app.detail_tab - 7 + 1) % 4;
+            app.detail_tab = 7 + (app.detail_tab - 7 + 1) % 5;
         } else {
             app.detail_tab = (app.detail_tab + 1) % 7;
         }
@@ -92,7 +92,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::CycleTabBackward, key) {
         app.inspect_full_diff = false;
         if app.advanced_tabs {
-            app.detail_tab = 7 + if app.detail_tab == 7 { 3 } else { app.detail_tab - 7 - 1 };
+            app.detail_tab = 7 + if app.detail_tab == 7 { 4 } else { app.detail_tab - 7 - 1 };
         } else {
             app.detail_tab = if app.detail_tab == 0 { 6 } else { app.detail_tab - 1 };
         }
@@ -166,16 +166,14 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     }
 
     if app.is_bound(Action::GoToTab5, key) {
-        if !app.advanced_tabs {
-            app.inspect_full_diff = false;
-            app.detail_tab = 4;
-            app.commit_list.selection = 0;
-            app.set_default_focus_for_tab();
-            if app.get_current_resync_on_tab_change() {
-                app.resync_detail();
-            }
-            return true;
+        app.inspect_full_diff = false;
+        app.detail_tab = if app.advanced_tabs { 11 } else { 4 };
+        app.commit_list.selection = 0;
+        app.set_default_focus_for_tab();
+        if app.get_current_resync_on_tab_change() {
+            app.resync_detail();
         }
+        return true;
     }
 
     if app.is_bound(Action::GoToTab6, key) {
@@ -216,6 +214,7 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
         8 => return handle_submodule_events(app, key),
         9 => return handle_reflog_events(app, key),
         10 => return handle_forge_events(app, key),
+        11 => return handle_forge_pr_events(app, key),
         _ => {}
     }
     false
@@ -291,6 +290,81 @@ fn handle_forge_events(app: &mut App, key: KeyEvent) -> bool {
                 if let Some(issue) = issues.get(app.forge_issue_selection) {
                     repo::open_browser(&issue.url);
                     app.status_message = Some(format!("Opened issue #{} in browser", issue.number));
+                }
+            }
+        }
+        return true;
+    }
+    false
+}
+
+fn handle_forge_pr_events(app: &mut App, key: KeyEvent) -> bool {
+    let prs_count = if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        if let repo::TabData::Loaded(prs) = &info.forge_prs { prs.len() } else { 0 }
+    } else {
+        0
+    };
+
+    if app.is_bound(Action::DetailMoveDown, key) {
+        if prs_count > 0 {
+            app.forge_pr_selection = (app.forge_pr_selection + 1).min(prs_count - 1);
+        }
+        return true;
+    }
+    if app.is_bound(Action::DetailMoveUp, key) {
+        app.forge_pr_selection = app.forge_pr_selection.saturating_sub(1);
+        return true;
+    }
+    if app.is_bound(Action::DetailPageDown, key) {
+        if prs_count > 0 {
+            app.forge_pr_selection =
+                (app.forge_pr_selection + app.config.page_size).min(prs_count - 1);
+        }
+        return true;
+    }
+    if app.is_bound(Action::DetailPageUp, key) {
+        app.forge_pr_selection = app.forge_pr_selection.saturating_sub(app.config.page_size);
+        return true;
+    }
+    if app.is_bound(Action::DetailHome, key) {
+        app.forge_pr_selection = 0;
+        return true;
+    }
+    if app.is_bound(Action::DetailEnd, key) {
+        if prs_count > 0 {
+            app.forge_pr_selection = prs_count - 1;
+        }
+        return true;
+    }
+    if app.is_bound(Action::ForgeCheckout, key) {
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &app.current_detail {
+            if let repo::TabData::Loaded(prs) = &info.forge_prs {
+                if let Some(pr) = prs.get(app.forge_pr_selection) {
+                    let num = pr.number;
+                    let path = resolved.clone();
+                    app.fetching = true;
+                    app.status_message = Some(format!("Checking out branch for PR #{}...", num));
+                    let tx = app.tx.clone();
+                    std::thread::spawn(move || match repo::checkout_pr_branch(&path, num) {
+                        Ok(msg) => {
+                            let _ = tx.send(format!("CHECKOUT_SUCCESS:{}", msg));
+                        }
+                        Err(e) => {
+                            let _ =
+                                tx.send(format!("CHECKOUT_ERROR:Failed to switch branch: {}", e));
+                        }
+                    });
+                }
+            }
+        }
+        return true;
+    }
+    if app.is_bound(Action::ForgeOpenBrowser, key) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+            if let repo::TabData::Loaded(prs) = &info.forge_prs {
+                if let Some(pr) = prs.get(app.forge_pr_selection) {
+                    repo::open_browser(&pr.url);
+                    app.status_message = Some(format!("Opened PR #{} in browser", pr.number));
                 }
             }
         }

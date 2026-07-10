@@ -3782,8 +3782,8 @@ fn test_tab_ttl_behavior() {
     let mock_info = crate::repo::RepoInfo {
         commits: vec![],
         files: crate::repo::TabData::Loaded(vec!["file1.txt".to_string()]),
-        tab_loaded_at: [None; 11],
-        tab_loading: [false; 11],
+        tab_loaded_at: [None; 12],
+        tab_loading: [false; 12],
         ..crate::repo::RepoInfo::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
@@ -9547,8 +9547,8 @@ fn test_forge_tab_event_handling() {
                 url: "https://github.com/org/repo/issues/2".to_string(),
             },
         ]),
-        tab_loaded_at: [None; 11],
-        tab_loading: [false; 11],
+        tab_loaded_at: [None; 12],
+        tab_loading: [false; 12],
         ..Default::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
@@ -9597,6 +9597,74 @@ fn test_forge_tab_event_handling() {
 }
 
 #[test]
+fn test_forge_pr_tab_event_handling() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_forge_prs_dummy.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+    app.mode = Mode::Detail;
+    app.detail_tab = 11; // PRs Tab
+    app.detail_focus = DetailSection::ForgePRs;
+
+    let mock_info = crate::repo::RepoInfo {
+        forge_prs: crate::repo::TabData::Loaded(vec![
+            crate::repo::ForgePR {
+                number: 101,
+                title: "PR 1".to_string(),
+                state: "OPEN".to_string(),
+                author: "user1".to_string(),
+                assignees: vec!["user2".to_string()],
+                url: "https://github.com/org/repo/pull/101".to_string(),
+                head_ref: "feature/pr-1".to_string(),
+                body: "Body 1".to_string(),
+                status_checks: vec![],
+                reviews: vec![],
+            },
+            crate::repo::ForgePR {
+                number: 102,
+                title: "PR 2".to_string(),
+                state: "MERGED".to_string(),
+                author: "user3".to_string(),
+                assignees: vec![],
+                url: "https://github.com/org/repo/pull/102".to_string(),
+                head_ref: "feature/pr-2".to_string(),
+                body: "Body 2".to_string(),
+                status_checks: vec![],
+                reviews: vec![],
+            },
+        ]),
+        tab_loaded_at: [None; 12],
+        tab_loading: [false; 12],
+        ..Default::default()
+    };
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(mock_info),
+    });
+
+    // Test selection movement keys
+    assert_eq!(app.forge_pr_selection, 0);
+
+    // Move down
+    let key_down = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_down);
+    assert!(handled);
+    assert_eq!(app.forge_pr_selection, 1);
+
+    // Move up
+    let key_up = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Up,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_up);
+    assert!(handled);
+    assert_eq!(app.forge_pr_selection, 0);
+}
+
+#[test]
 fn test_tab_groups_primary_advanced() {
     let config = Config::default();
     let temp_dir = std::env::temp_dir().join("gitwig_test_tab_groups_dir");
@@ -9607,8 +9675,8 @@ fn test_tab_groups_primary_advanced() {
     app.mode = Mode::Detail;
 
     let mock_info = crate::repo::RepoInfo {
-        tab_loaded_at: [None; 11],
-        tab_loading: [false; 11],
+        tab_loaded_at: [None; 12],
+        tab_loading: [false; 12],
         ..Default::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
@@ -9667,7 +9735,12 @@ fn test_tab_groups_primary_advanced() {
     assert!(handled);
     assert_eq!(app.detail_tab, 10);
 
-    // 8. Cycle Forward from index 10 (should wrap back to 7 - Worktrees)
+    // 8. Cycle Forward from index 10 (should go to index 11 - PRs)
+    let handled = crate::tabs::route_detail_event(&mut app, key_tab);
+    assert!(handled);
+    assert_eq!(app.detail_tab, 11);
+
+    // 9. Cycle Forward from index 11 (should wrap back to 7 - Worktrees)
     let handled = crate::tabs::route_detail_event(&mut app, key_tab);
     assert!(handled);
     assert_eq!(app.detail_tab, 7);
@@ -9866,6 +9939,3 @@ fn test_debug_logs_fuzzy_search() {
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
-
-
-

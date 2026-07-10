@@ -161,7 +161,6 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         ),
     ];
 
-
     categories.push(make_cat(
         "Debug Logs Panel",
         vec![

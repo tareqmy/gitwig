@@ -532,10 +532,8 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
     } else {
         muted_style()
     };
-    let mut spans = vec![
-        Span::styled(repos_text, repos_style),
-        Span::styled("repos", repos_label_style),
-    ];
+    let mut spans =
+        vec![Span::styled(repos_text, repos_style), Span::styled("repos", repos_label_style)];
 
     spans.push(dot.clone());
     let is_dirty_active = app.global_filter == Some(crate::app::GlobalFilter::Dirty);
@@ -582,11 +580,8 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
     } else {
         muted_style()
     };
-    let stale_label = if !app.config.show_stale_projects && stale_count > 0 {
-        "stale (hidden)"
-    } else {
-        "stale"
-    };
+    let stale_label =
+        if !app.config.show_stale_projects && stale_count > 0 { "stale (hidden)" } else { "stale" };
     spans.push(Span::styled(format!(" {} ", stale_count), stale_style));
     spans.push(Span::styled(stale_label, stale_label_style));
 

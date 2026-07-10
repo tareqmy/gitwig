@@ -214,6 +214,8 @@ pub enum DetailSection {
     Reflog,
     ForgeIssues,
     ForgeIssueDetails,
+    ForgePRs,
+    ForgePRDetails,
 }
 
 /// Resizable splitter identifier.
@@ -228,6 +230,7 @@ pub enum Splitter {
     StashesVertical,    // Stashes view: top list vs bottom files list
     OverviewHorizontal, // Overview view: left (info) vs right (stats)
     ForgeVertical,      // Forge view: top (issues list) vs bottom (details)
+    ForgePRVertical,    // Forge PR view: top (PRs list) vs bottom (details)
     CommitPopupWidth,   // Dragging vertical border of commit popup
     CommitPopupHeight,  // Dragging horizontal border of commit popup
     CommitPopupBoth,    // Dragging corner of commit popup
@@ -258,6 +261,8 @@ impl DetailSection {
             Self::Reflog => Self::Reflog,
             Self::ForgeIssues => Self::ForgeIssueDetails,
             Self::ForgeIssueDetails => Self::ForgeIssues,
+            Self::ForgePRs => Self::ForgePRDetails,
+            Self::ForgePRDetails => Self::ForgePRs,
         }
     }
 
@@ -285,6 +290,8 @@ impl DetailSection {
             Self::Reflog => Self::Reflog,
             Self::ForgeIssues => Self::ForgeIssueDetails,
             Self::ForgeIssueDetails => Self::ForgeIssues,
+            Self::ForgePRs => Self::ForgePRDetails,
+            Self::ForgePRDetails => Self::ForgePRs,
         }
     }
 }
@@ -528,6 +535,8 @@ pub struct App {
     pub overview_horizontal_split_pct: u16,
     /// Percentage height of the top issues list in the Forge tab (default: 50).
     pub forge_vertical_split_pct: u16,
+    /// Percentage height of the top PRs list in the Forge PRs tab (default: 50).
+    pub forge_pr_vertical_split_pct: u16,
     /// Percentage width of the commit message popup (default: 80).
     pub commit_popup_width_pct: u16,
     /// Percentage height of the commit message popup (default: 45).
@@ -563,6 +572,7 @@ pub struct App {
     pub submodule_selection: usize,
     pub reflog_selection: usize,
     pub forge_issue_selection: usize,
+    pub forge_pr_selection: usize,
     pub worktree_add_branch: String,
     pub worktree_add_path: String,
     pub worktree_lock_reason: String,
@@ -1209,6 +1219,7 @@ impl App {
             stashes_vertical_split_pct: 38,
             overview_horizontal_split_pct: 38,
             forge_vertical_split_pct: 50,
+            forge_pr_vertical_split_pct: 50,
             commit_popup_width_pct: 80,
             commit_popup_height_pct: 45,
             active_drag_splitter: None,
@@ -1241,6 +1252,7 @@ impl App {
             submodule_selection: 0,
             reflog_selection: 0,
             forge_issue_selection: 0,
+            forge_pr_selection: 0,
             worktree_add_branch: String::new(),
             worktree_add_path: String::new(),
             worktree_lock_reason: String::new(),
@@ -1698,6 +1710,12 @@ where
                         repo::TabPayload::ForgeIssues(res) => {
                             info.forge_issues = match res {
                                 Ok(issues) => repo::TabData::Loaded(issues),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::ForgePRs(res) => {
+                            info.forge_prs = match res {
+                                Ok(prs) => repo::TabData::Loaded(prs),
                                 Err(e) => repo::TabData::Error(e),
                             };
                         }

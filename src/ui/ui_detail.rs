@@ -96,6 +96,9 @@ pub struct DetailAreas {
     pub forge_issues: Option<Rect>,
     pub forge_issue_details: Option<Rect>,
     pub forge_vertical_splitter: Option<Rect>,
+    pub forge_prs: Option<Rect>,
+    pub forge_pr_details: Option<Rect>,
+    pub forge_pr_vertical_splitter: Option<Rect>,
     /// Bounding box of the horizontal splitter in files tab.
     pub files_horizontal_splitter: Option<Rect>,
     /// Bounding box of the horizontal splitter in branches tab.
@@ -417,13 +420,14 @@ pub fn draw(
             ("Submodules", "SM", "S", "2", 8),
             ("Reflog", "Rf", "R", "3", 9),
             ("Forge", "Fo", "F", "4", 10),
+            ("PRs", "PR", "P", "5", 11),
         ];
 
         let tabs_data: Vec<_> = all_tabs_data
             .iter()
             .filter(|&&(_, _, _, _, tab_idx)| {
                 if app.advanced_tabs {
-                    (7..=10).contains(&tab_idx)
+                    (7..=11).contains(&tab_idx)
                 } else {
                     (0..=6).contains(&tab_idx)
                 }
@@ -788,13 +792,24 @@ pub fn draw(
                     app,
                     body_area,
                 );
-            } else {
+            } else if detail_tab == 10 {
                 // Render Forge view (tab 11, index 10)
                 crate::components::forge_list::draw_forge_view(
                     f,
                     info,
                     *focus,
                     app.forge_issue_selection,
+                    areas,
+                    app,
+                    body_area,
+                );
+            } else {
+                // Render PRs view (tab 12, index 11)
+                crate::components::forge_pr_list::draw_forge_prs_view(
+                    f,
+                    info,
+                    *focus,
+                    app.forge_pr_selection,
                     areas,
                     app,
                     body_area,

@@ -86,11 +86,9 @@ pub fn draw_debug_logs(f: &mut Frame, app: &App, area: Rect) {
             .border_type(CARD_BORDER())
             .border_style(Style::default().fg(border_color))
             .title(" Fuzzy Search Logs ");
-        let input_p = Paragraph::new(Line::from(vec![
-            Span::raw("> "),
-            Span::styled(query, primary_style()),
-        ]))
-        .block(input_block);
+        let input_p =
+            Paragraph::new(Line::from(vec![Span::raw("> "), Span::styled(query, primary_style())]))
+                .block(input_block);
         f.render_widget(input_p, rect);
 
         if app.debug_log_search_editing {
@@ -107,9 +105,7 @@ pub fn draw_debug_logs(f: &mut Frame, app: &App, area: Rect) {
         logs.into_iter()
             .filter(|log_line| {
                 let log_lower = log_line.to_lowercase();
-                if q_lower.is_empty() {
-                    true
-                } else if log_lower.contains(&q_lower) {
+                if q_lower.is_empty() || log_lower.contains(&q_lower) {
                     true
                 } else {
                     let mut log_chars = log_lower.chars();
@@ -170,9 +166,8 @@ pub fn draw_debug_logs(f: &mut Frame, app: &App, area: Rect) {
         Vec::new()
     };
 
-    let paragraph = Paragraph::new(visible_lines)
-        .style(Style::default())
-        .wrap(Wrap { trim: false });
+    let paragraph =
+        Paragraph::new(visible_lines).style(Style::default()).wrap(Wrap { trim: false });
     f.render_widget(paragraph, list_rect);
 }
 
@@ -183,9 +178,7 @@ fn get_filtered_logs_count(query_opt: &Option<String>) -> usize {
         logs.into_iter()
             .filter(|l| {
                 let l_lower = l.to_lowercase();
-                if q_lower.is_empty() {
-                    true
-                } else if l_lower.contains(&q_lower) {
+                if q_lower.is_empty() || l_lower.contains(&q_lower) {
                     true
                 } else {
                     let mut l_chars = l_lower.chars();
@@ -251,7 +244,8 @@ impl DebugLogsPopup {
                     app.debug_log_scroll -= 1;
                 }
                 KeyCode::PageUp => {
-                    app.debug_log_scroll = app.debug_log_scroll.saturating_sub(app.config.page_size);
+                    app.debug_log_scroll =
+                        app.debug_log_scroll.saturating_sub(app.config.page_size);
                 }
                 KeyCode::PageDown => {
                     let total_logs = get_filtered_logs_count(&app.debug_log_search_query);

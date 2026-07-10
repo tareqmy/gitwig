@@ -203,6 +203,7 @@ pub enum TabPayload {
     Submodules(Result<Vec<SubmoduleInfo>, String>),
     Reflog(Result<Vec<ReflogEntry>, String>),
     ForgeIssues(Result<Vec<ForgeIssue>, String>),
+    ForgePRs(Result<Vec<ForgePR>, String>),
 }
 
 #[derive(Debug, Default, Clone)]
@@ -242,14 +243,15 @@ pub struct RepoInfo {
     /// Available reflog entries.
     pub reflog: TabData<Vec<ReflogEntry>>,
     pub forge_issues: TabData<Vec<ForgeIssue>>,
+    pub forge_prs: TabData<Vec<ForgePR>>,
     /// Committer statistics.
     pub committer_stats: TabData<Vec<CommitterStat>>,
     /// Whether the committer statistics walk was capped by the limit.
     pub committer_stats_limit_reached: bool,
     /// Timestamps when each tab was loaded (index matches tab_idx)
-    pub tab_loaded_at: [Option<std::time::Instant>; 11],
+    pub tab_loaded_at: [Option<std::time::Instant>; 12],
     /// Whether each tab is currently loading in the background (index matches tab_idx)
-    pub tab_loading: [bool; 11],
+    pub tab_loading: [bool; 12],
     /// Files tracked by Git LFS in the index/working copy.
     pub lfs_files: std::collections::HashSet<String>,
     /// Whether git-lfs is installed in the system PATH.
@@ -3213,6 +3215,165 @@ pub fn load_tab_forge_issues(repo_path: &Path) -> Result<Vec<ForgeIssue>, String
         .collect();
 
     Ok(issues)
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]
+pub struct ForgePR {
+    pub number: u32,
+    pub title: String,
+    pub state: String,
+    pub author: String,
+    pub assignees: Vec<String>,
+    pub url: String,
+    pub head_ref: String,
+    pub body: String,
+    pub status_checks: Vec<CIStatusCheck>,
+    pub reviews: Vec<PRReview>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]
+pub struct CIStatusCheck {
+    pub name: String,
+    pub state: Option<String>,
+    pub status: Option<String>,
+    pub conclusion: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]
+pub struct PRReview {
+    pub author: String,
+    pub body: String,
+    pub state: String,
+}
+
+pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
+    let mut cmd = std::process::Command::new("gh");
+    cmd.arg("pr")
+        .arg("list")
+        .arg("--limit")
+        .arg("50")
+        .arg("--json")
+        .arg("number,title,state,author,assignees,url,headRefName,statusCheckRollup,body,reviews")
+        .current_dir(repo_path);
+
+    let output = match cmd.output() {
+        Ok(out) => out,
+        Err(e) => {
+            return Err(format!(
+                "GitHub CLI ('gh') not found or failed to execute: {}. Ensure 'gh' is installed and in your PATH.",
+                e
+            ));
+        }
+    };
+
+    if !output.status.success() {
+        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(format!(
+            "GitHub CLI error: {}. Make sure you are authenticated (run 'gh auth login') and this is a GitHub repository.",
+            err_msg
+        ));
+    }
+
+    #[derive(serde::Deserialize)]
+    struct GhAuthor {
+        login: String,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct GhAssignee {
+        login: String,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct GhReview {
+        author: Option<GhAuthor>,
+        body: String,
+        state: String,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct GhStatusCheck {
+        name: String,
+        state: Option<String>,
+        status: Option<String>,
+        conclusion: Option<String>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct GhPR {
+        number: u32,
+        title: String,
+        state: String,
+        author: Option<GhAuthor>,
+        assignees: Option<Vec<GhAssignee>>,
+        url: String,
+        #[serde(rename = "headRefName")]
+        head_ref_name: String,
+        body: String,
+        #[serde(rename = "statusCheckRollup")]
+        status_check_rollup: Option<Vec<GhStatusCheck>>,
+        reviews: Option<Vec<GhReview>>,
+    }
+
+    let raw_prs: Vec<GhPR> = serde_json::from_slice(&output.stdout)
+        .map_err(|e| format!("Failed to parse GitHub CLI response: {}", e))?;
+
+    let prs = raw_prs
+        .into_iter()
+        .map(|item| {
+            let author = item.author.map(|a| a.login).unwrap_or_else(|| "none".to_string());
+            let assignees =
+                item.assignees.unwrap_or_default().into_iter().map(|a| a.login).collect();
+            let status_checks = item
+                .status_check_rollup
+                .unwrap_or_default()
+                .into_iter()
+                .map(|c| CIStatusCheck {
+                    name: c.name,
+                    state: c.state,
+                    status: c.status,
+                    conclusion: c.conclusion,
+                })
+                .collect();
+            let reviews = item
+                .reviews
+                .unwrap_or_default()
+                .into_iter()
+                .map(|r| PRReview {
+                    author: r.author.map(|a| a.login).unwrap_or_else(|| "none".to_string()),
+                    body: r.body,
+                    state: r.state,
+                })
+                .collect();
+
+            ForgePR {
+                number: item.number,
+                title: item.title,
+                state: item.state,
+                author,
+                assignees,
+                url: item.url,
+                head_ref: item.head_ref_name,
+                body: item.body,
+                status_checks,
+                reviews,
+            }
+        })
+        .collect();
+
+    Ok(prs)
+}
+
+pub fn checkout_pr_branch(repo_path: &Path, pr_number: u32) -> Result<String, String> {
+    let mut cmd = std::process::Command::new("gh");
+    cmd.arg("pr").arg("checkout").arg(pr_number.to_string()).current_dir(repo_path);
+
+    let output = cmd.output().map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(format!("Failed to checkout PR branch: {}", err));
+    }
+    Ok(format!("Checked out branch for PR #{}", pr_number))
 }
 
 pub fn resolve_and_checkout_issue_branch(

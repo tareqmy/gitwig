@@ -187,6 +187,17 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         }
                     }
                 }
+                Splitter::ForgePRVertical => {
+                    if let (Some(top), Some(bottom)) = (areas.forge_prs, areas.forge_pr_details) {
+                        let start_y = top.y;
+                        let total_height = (bottom.y + bottom.height).saturating_sub(start_y);
+                        if total_height > 0 {
+                            let relative_y = pos.y.saturating_sub(start_y);
+                            let pct = ((relative_y as f32 / total_height as f32) * 100.0) as u16;
+                            app.forge_pr_vertical_split_pct = pct.clamp(15, 85);
+                        }
+                    }
+                }
                 Splitter::CommitPopupWidth => {
                     if let Some(parent) = areas.commit_popup_parent {
                         if parent.width > 0 {
@@ -336,6 +347,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         if let Some(rect) = areas.forge_vertical_splitter {
             if rect.contains(pos) {
                 app.active_drag_splitter = Some(Splitter::ForgeVertical);
+                return;
+            }
+        }
+        if let Some(rect) = areas.forge_pr_vertical_splitter {
+            if rect.contains(pos) {
+                app.active_drag_splitter = Some(Splitter::ForgePRVertical);
                 return;
             }
         }
@@ -696,12 +713,13 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         ("Submodules", "SM", "S", 8),
                         ("Reflog", "Rf", "R", 9),
                         ("Forge", "Fo", "F", 10),
+                        ("PRs", "PR", "P", 11),
                     ];
                     let tabs_data: Vec<_> = all_tabs_data
                         .iter()
                         .filter(|&&(_, _, _, tab_idx)| {
                             if app.advanced_tabs {
-                                (7..=10).contains(&tab_idx)
+                                (7..=11).contains(&tab_idx)
                             } else {
                                 (0..=6).contains(&tab_idx)
                             }
@@ -772,6 +790,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                 8 => app.detail_focus = DetailSection::Submodules,
                                 9 => app.detail_focus = DetailSection::Reflog,
                                 10 => app.detail_focus = DetailSection::ForgeIssues,
+                                11 => app.detail_focus = DetailSection::ForgePRs,
                                 _ => {}
                             }
                             if app.get_current_resync_on_tab_change() {
@@ -1499,6 +1518,52 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         if rect.contains(pos) {
             if is_click {
                 app.detail_focus = DetailSection::ForgeIssueDetails;
+            }
+        }
+    }
+    // Forge PRs list panel.
+    if let Some(rect) = areas.forge_prs {
+        if rect.contains(pos) {
+            if is_click {
+                app.detail_focus = DetailSection::ForgePRs;
+                let inner_y = rect.y + 1;
+                let header_height = 2;
+                if pos.y >= inner_y + header_height {
+                    let clicked_row = (pos.y - (inner_y + header_height)) as usize;
+                    let total = match &app.current_detail {
+                        Some(crate::repo::ItemDetail::Repo { info, .. }) => {
+                            if let crate::repo::TabData::Loaded(prs) = &info.forge_prs {
+                                prs.len()
+                            } else {
+                                0
+                            }
+                        }
+                        _ => 0,
+                    };
+                    if clicked_row < total {
+                        app.forge_pr_selection = clicked_row;
+                    }
+                }
+            } else if is_scroll_up {
+                app.detail_focus = DetailSection::ForgePRs;
+                app.forge_pr_selection = app.forge_pr_selection.saturating_sub(1);
+            } else if is_scroll_down {
+                app.detail_focus = DetailSection::ForgePRs;
+                if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+                    if let crate::repo::TabData::Loaded(prs) = &info.forge_prs {
+                        let prs_count = prs.len();
+                        app.forge_pr_selection =
+                            (app.forge_pr_selection + 1).min(prs_count.saturating_sub(1));
+                    }
+                }
+            }
+        }
+    }
+    // Forge PR details panel.
+    if let Some(rect) = areas.forge_pr_details {
+        if rect.contains(pos) {
+            if is_click {
+                app.detail_focus = DetailSection::ForgePRDetails;
             }
         }
     }
