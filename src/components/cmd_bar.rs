@@ -776,7 +776,7 @@ pub(crate) fn get_status_layout_components(
                 "Debug Logs  ",
                 Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
             )];
-            let entries_data = [("Back", "Esc/q/l")];
+            let entries_data = [("Clear", "c/x"), ("Back", "Esc/q/l")];
             let mut entries = Vec::new();
             for (i, (label, key)) in entries_data.iter().enumerate() {
                 let mut spans = Vec::new();

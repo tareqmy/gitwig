@@ -9763,3 +9763,34 @@ fn test_keybindings_conflict_revert_settings() {
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_clear_debug_logs_popup() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let config = Config::default();
+    let temp_dir = std::env::temp_dir().join("gitwig_test_clear_logs");
+    let _ = std::fs::create_dir_all(&temp_dir);
+    let temp_path = temp_dir.join("config.toml");
+    let mut app = App::new(config, temp_path.clone());
+
+    // Write a test log
+    crate::debug_log::info("Test Log Entry");
+    assert!(crate::debug_log::get_logs().iter().any(|l| l.contains("Test Log Entry")));
+
+    // Change app mode to DebugLogs
+    app.mode = Mode::DebugLogs;
+    app.debug_log_scroll = 5;
+
+    // Simulate pressing 'c' key in DebugLogs mode
+    crate::popups::debug::DebugLogsPopup::handle_event(&mut app, key_event(KeyCode::Char('c')));
+
+    // The specific test log should be gone now (other concurrent tests might have added new logs)
+    assert!(!crate::debug_log::get_logs().iter().any(|l| l.contains("Test Log Entry")));
+    // Scroll should reset to 0
+    assert_eq!(app.debug_log_scroll, 0);
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+

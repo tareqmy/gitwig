@@ -95,3 +95,15 @@ pub fn get_logs() -> Vec<String> {
     let mutex = LOGS.get_or_init(init_logs);
     if let Ok(guard) = mutex.lock() { guard.clone() } else { Vec::new() }
 }
+
+pub fn clear() {
+    let mutex = LOGS.get_or_init(init_logs);
+    if let Ok(mut guard) = mutex.lock() {
+        guard.clear();
+    }
+    if let Some(home) = dirs::home_dir() {
+        let log_path = home.join(".gitwig").join("gitwig.log");
+        let _ = std::fs::write(&log_path, "");
+    }
+}
+

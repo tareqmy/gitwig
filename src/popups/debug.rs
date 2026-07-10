@@ -27,6 +27,16 @@ pub fn draw_debug_logs(f: &mut Frame, app: &App, area: Rect) {
                 Span::raw(" "),
             ])
             .alignment(Alignment::Center),
+        )
+        .title_bottom(
+            Line::from(vec![
+                Span::raw(" "),
+                Span::styled("c", accent_style().add_modifier(Modifier::BOLD)),
+                Span::styled("lear  •  ", muted_style()),
+                Span::styled("q", accent_style().add_modifier(Modifier::BOLD)),
+                Span::styled("uit ", muted_style()),
+            ])
+            .alignment(Alignment::Right),
         );
 
     f.render_widget(Clear, popup_area);
@@ -91,6 +101,10 @@ impl DebugLogsPopup {
             | KeyCode::Char('L') => {
                 crate::debug_log::info("Exiting debug logs");
                 app.mode = Mode::Normal;
+            }
+            KeyCode::Char('c') | KeyCode::Char('C') | KeyCode::Char('x') => {
+                crate::debug_log::clear();
+                app.debug_log_scroll = 0;
             }
             KeyCode::Down | KeyCode::Char('j') => {
                 let log_count = crate::debug_log::get_logs().len();
