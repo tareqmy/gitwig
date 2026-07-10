@@ -3337,6 +3337,16 @@ pub struct ForgeIssue {
     pub url: String,
 }
 
+pub fn get_remote_url(repo_path: &Path, remote_name: &str) -> Option<String> {
+    let remotes = load_tab_remotes(repo_path).ok()?;
+    remotes.into_iter().find(|r| r.name == remote_name).map(|r| r.url)
+}
+
+pub fn get_default_remote_url(repo_path: &Path) -> Option<String> {
+    let remotes = load_tab_remotes(repo_path).ok()?;
+    remotes.into_iter().next().map(|r| r.url)
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {

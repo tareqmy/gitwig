@@ -84,7 +84,9 @@ pub fn draw_debug_logs(f: &mut Frame, app: &App, area: Rect) {
         })
         .collect();
 
-    let paragraph = Paragraph::new(visible_lines).style(Style::default());
+    let paragraph = Paragraph::new(visible_lines)
+        .style(Style::default())
+        .wrap(Wrap { trim: false });
     f.render_widget(paragraph, inner_rect);
 }
 
