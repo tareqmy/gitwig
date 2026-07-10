@@ -32,6 +32,12 @@ compatibility_mode = false
 
 # Directories to watch recursively for automatic workspace syncing
 watch_dirs = ["~/development"]
+
+# Number of months inactive to be considered stale
+stale_threshold_months = 1
+
+# Hide/show stale projects on the main page list
+show_stale_projects = true
 ```
 
 ### Config keys
@@ -57,5 +63,7 @@ watch_dirs = ["~/development"]
 | `graph_max_commits` | `Integer` | `1000` | Maximum commits visualized in the Graph tab history. Set to `0` for unlimited. |
 | `detail_cache_ttl_secs` | `Integer` | `30` | How long in seconds repository details are cached in memory before reloading. |
 | `tab_ttl_secs` | `Integer` | `60` | How long in seconds lazy-loaded tab data remains cached in memory before automatic refresh. |
+| `stale_threshold_months` | `Integer` | `1` | Number of months inactive (no commits) for a repository to be considered stale. |
+| `show_stale_projects` | `Boolean` | `true` | Show or hide stale repositories in the list on the main page. |
 
 Gitwig writes back to whichever file it loaded from, so edits made in the UI persist across runs.

@@ -45,10 +45,10 @@ Files tracked by Git LFS will display a blue `[LFS]` badge next to their names i
 
 ### Global Summary Header Bar
 The high-level dashboard stats at the top of the homepage show:
-- **repos**: Total number of configured repositories.
+- **repos**: Total number of configured repositories. If stale projects are hidden via configuration (`show_stale_projects`), the dashboard shows `<visible>/<total>` repositories, indicating how many are hidden due to being stale.
 - **dirty**: Repositories with uncommitted/unstaged changes.
 - **ahead**: Repositories with local commits ahead of their remote tracking branch.
-- **stale**: Repositories where the last commit is older than 30 days.
+- **stale**: Repositories where the last commit is older than the configured threshold (default is 1 month; configurable via `stale_threshold_months` in settings).
 
 ### Auto-Refresh & Manual Refresh
 Items support `~` and `~/...` expansion, so `~/code/gitwig` resolves to your home directory. 

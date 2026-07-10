@@ -53,6 +53,11 @@
 | `←` / `h` / `H`      | Settings        | Focus category list (sidebar)     |
 | `→` / `l` / `L` / `w` / `W` | Settings  | Focus settings list               |
 | `1` - `5`            | Settings        | Jump directly to category: General (1), Sorting (2), Scan (3), Theme (4), Keybindings (5) |
+| `Esc` / `q`          | DebugLogs       | Exit Debug Logs and return to Home |
+| `c` / `C` / `x`      | DebugLogs       | Clear all debug logs and reset scroll |
+| `↑` / `↓` / `k` / `j` | DebugLogs       | Scroll debug logs list            |
+| `PgUp` / `PgDn`      | DebugLogs       | Scroll debug logs list by page size |
+| `Home` / `End`       | DebugLogs       | Jump to top / bottom of debug logs |
 | `Backspace`          | Editing         | Erase one character               |
 | `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag, push branch/tag/all tags, abort/continue merge) |
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
