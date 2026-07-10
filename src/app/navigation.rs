@@ -2869,7 +2869,7 @@ impl App {
         let dest_str = dest_path.to_string_lossy().to_string();
 
         crate::debug_log::info(format!(
-            "Network Action: Cloning remote repository {} to {}",
+            "Network Action: Cloning remote repository {} to {} (user triggered)",
             url, dest_str
         ));
         self.fetching = true;

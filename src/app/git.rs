@@ -32,8 +32,9 @@ impl App {
                 }
 
                 crate::debug_log::info(format!(
-                    "Network Action: Pulling branch '{}'",
-                    branch_info.name
+                    "Network Action: Pulling branch '{}' for repository '{}' (user triggered)",
+                    branch_info.name,
+                    resolved.to_string_lossy()
                 ));
                 self.fetching = true;
                 self.status_message = Some("Pulling...".to_string());
@@ -81,7 +82,10 @@ impl App {
                 self.status_message = Some("Git LFS is not installed on this system".to_string());
                 return;
             }
-            crate::debug_log::info("Network Action: git lfs pull");
+            crate::debug_log::info(format!(
+                "Network Action: git lfs pull for repository '{}' (user triggered)",
+                resolved.to_string_lossy()
+            ));
             self.fetching = true;
             self.status_message = Some("Git LFS Pulling...".to_string());
 
@@ -184,7 +188,11 @@ impl App {
                 }
             };
 
-            crate::debug_log::info(format!("Network Action: Pushing branch '{}'", branch_name));
+            crate::debug_log::info(format!(
+                "Network Action: Pushing branch '{}' for repository '{}' (user triggered)",
+                branch_name,
+                repo_path.to_string_lossy()
+            ));
             self.fetching = true;
             self.status_message =
                 Some(format!("Pushing '{}' to '{}'...", branch_name, remote_name));
@@ -1091,9 +1099,13 @@ impl App {
                 let repo_path = resolved.clone();
                 let remote_name = remote.name.clone();
                 let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
+                let reason = if show_progress { "user triggered" } else { "implicit refresh" };
                 crate::debug_log::info(format!(
-                    "Network Action: Fetching remote tags from '{}' (show_progress={})",
-                    remote_name, show_progress
+                    "Network Action: Fetching remote tags from '{}' for repository '{}' (show_progress={}, {})",
+                    remote_name,
+                    repo_path.to_string_lossy(),
+                    show_progress,
+                    reason
                 ));
                 if show_progress {
                     self.fetching = true;
@@ -1121,7 +1133,11 @@ impl App {
             return;
         }
         if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
-            crate::debug_log::info(format!("Network Action: Fetching remote '{}'", remote_name));
+            crate::debug_log::info(format!(
+                "Network Action: Fetching remote '{}' for repository '{}' (user triggered)",
+                remote_name,
+                resolved.to_string_lossy()
+            ));
             self.fetching = true;
             self.status_message = Some(format!("Fetching remote '{}'...", remote_name));
 
@@ -1234,6 +1250,7 @@ impl App {
         if !self.bulk_fetching.is_empty() {
             return;
         }
+        crate::debug_log::info("Network Action: Bulk fetching all repositories (user triggered)");
 
         let items = self.config.items.clone();
         for (idx, item) in items.iter().enumerate() {
@@ -1283,6 +1300,7 @@ impl App {
         if !self.bulk_fetching.is_empty() {
             return;
         }
+        crate::debug_log::info("Network Action: Bulk fetching all repositories (scheduled)");
 
         let items = self.config.items.clone();
         for (idx, item) in items.iter().enumerate() {
@@ -1293,6 +1311,10 @@ impl App {
                 let path_buf = PathBuf::from(&path);
                 if path_buf.exists() {
                     let path_str = item.clone();
+                    crate::debug_log::info(format!(
+                        "Network Action: Fetching repository '{}' during bulk fetch (scheduled)",
+                        item
+                    ));
                     self.bulk_fetching.insert(path_str.clone());
                     self.bulk_fetch_results.remove(&path_str);
                     self.increment_implicit_network();
@@ -1334,8 +1356,8 @@ impl App {
             let branch_name = branch_name.to_string();
             let remote_name = remote_name.to_string();
             crate::debug_log::info(format!(
-                "Network Action: Pushing branch '{}' to '{}'",
-                branch_name, remote_name
+                "Network Action: Pushing branch '{}' to '{}' for repository '{}' (user triggered)",
+                branch_name, remote_name, repo_path.to_string_lossy()
             ));
             self.fetching = true;
             self.status_message =
@@ -1387,8 +1409,8 @@ impl App {
             let tag_name = tag_name.to_string();
             let remote_name = remote_name.to_string();
             crate::debug_log::info(format!(
-                "Network Action: Pushing tag '{}' to '{}'",
-                tag_name, remote_name
+                "Network Action: Pushing tag '{}' to '{}' for repository '{}' (user triggered)",
+                tag_name, remote_name, repo_path.to_string_lossy()
             ));
             self.fetching = true;
             self.status_message =
@@ -1439,8 +1461,8 @@ impl App {
             let repo_path = resolved.clone();
             let remote_name = remote_name.to_string();
             crate::debug_log::info(format!(
-                "Network Action: Pushing all tags to '{}'",
-                remote_name
+                "Network Action: Pushing all tags to '{}' for repository '{}' (user triggered)",
+                remote_name, repo_path.to_string_lossy()
             ));
             self.fetching = true;
             self.status_message = Some(format!("Pushing all tags to '{}'...", remote_name));
@@ -1785,6 +1807,10 @@ impl App {
         let url = self.submodule_add_url.clone();
         let path = self.submodule_add_path.clone();
 
+        crate::debug_log::info(format!(
+            "Network Action: Adding submodule from '{}' to '{}' in repository '{}' (user triggered)",
+            url, path, repo_path.to_string_lossy()
+        ));
         self.fetching = true;
         self.status_message = Some(format!("Adding submodule '{}'...", path));
         self.mode = Mode::Detail;

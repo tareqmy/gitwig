@@ -2345,7 +2345,11 @@ impl App {
     }
 
     pub fn trigger_update_check_internal(&mut self, manual: bool) {
-        crate::debug_log::info(format!("Network Action: Checking for updates (manual={})", manual));
+        let reason = if manual { "user triggered" } else { "scheduled" };
+        crate::debug_log::info(format!(
+            "Network Action: Checking for updates (manual={}, {})",
+            manual, reason
+        ));
         self.update_check_manual = manual;
         if manual {
             self.status_message = Some("Checking for updates...".to_string());
