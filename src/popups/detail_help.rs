@@ -94,8 +94,8 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     let primary_nums = format!("{}-{}", p1, p7);
 
     let a1 = app.keybindings.format_action_keys(crate::keybindings::Action::GoToTab1, is_compat);
-    let a4 = app.keybindings.format_action_keys(crate::keybindings::Action::GoToTab4, is_compat);
-    let advanced_nums = format!("{}-{}", a1, a4);
+    let a5 = app.keybindings.format_action_keys(crate::keybindings::Action::GoToTab5, is_compat);
+    let advanced_nums = format!("{}-{}", a1, a5);
 
     let make_cat = |title: &'static str,
                     items: Vec<(&str, &'static str)>|
@@ -134,7 +134,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ),
                 (
                     format!("Advanced [{}]", advanced_nums),
-                    "Worktrees (1), Submodules (2), Reflog (3), Forge (4) (accessible when Advanced group is active)",
+                    "Worktrees (1), Submodules (2), Reflog (3), Forge (4), PRs (5) (accessible when Advanced group is active)",
                 ),
             ],
         ),
@@ -214,6 +214,15 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     categories.push(make_cat(
         "Reflog Tab",
         vec![("↵ [Enter] / Space", "Checkout the commit OID of the selected reflog entry")],
+    ));
+
+    categories.push(make_cat(
+        "Forge Integration (Issues & PRs)",
+        vec![
+            ("↵ [Enter]", "Checkout branch linked to selected issue or checkout PR branch"),
+            ("o", "Open selected issue or PR in web browser"),
+            ("a", "Toggle between all issues and assigned issues (Issues tab only)"),
+        ],
     ));
 
     categories.push(make_cat(

@@ -1380,6 +1380,31 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Resync", "R"),
             ("Help", "?"),
         ],
+        10 => vec![
+            ("Home", "⎋/q"),
+            ("Tabs", "Tab/0-9"),
+            ("Cycle Focus", "w/W"),
+            ("Navigate", "↑↓"),
+            ("Page", "⇟/⇞"),
+            ("Jump", "Home/End"),
+            ("Checkout Branch", "↵"),
+            ("Open Browser", "o"),
+            ("Toggle Assigned", "a"),
+            ("Resync", "R"),
+            ("Help", "?"),
+        ],
+        11 => vec![
+            ("Home", "⎋/q"),
+            ("Tabs", "Tab/0-9"),
+            ("Cycle Focus", "w/W"),
+            ("Navigate", "↑↓"),
+            ("Page", "⇟/⇞"),
+            ("Jump", "Home/End"),
+            ("Checkout PR Branch", "↵"),
+            ("Open Browser", "o"),
+            ("Resync", "R"),
+            ("Help", "?"),
+        ],
         _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/0-9"), ("Resync", "R"), ("Help", "?")],
     };
     let compat = app.config.compatibility_mode;
@@ -1406,7 +1431,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
     let mut final_entries = Vec::new();
     for (label, key) in entries_data {
         if label == "Tabs" {
-            final_entries.push(("Tabs", if app.advanced_tabs { "1-4" } else { "1-7" }));
+            final_entries.push(("Tabs", if app.advanced_tabs { "1-5" } else { "1-7" }));
             final_entries
                 .push((if app.advanced_tabs { "Primary" } else { "Advanced" }, toggle_key_ref));
         } else if label == "Home" {

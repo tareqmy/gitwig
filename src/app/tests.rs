@@ -9594,6 +9594,16 @@ fn test_forge_tab_event_handling() {
     let handled = crate::tabs::route_detail_event(&mut app, key_end);
     assert!(handled);
     assert_eq!(app.forge_issue_selection, 1);
+
+    // Toggle assigned only filter
+    assert!(app.forge_issues_assigned_only);
+    let key_a = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('a'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    let handled = crate::tabs::route_detail_event(&mut app, key_a);
+    assert!(handled);
+    assert!(!app.forge_issues_assigned_only);
 }
 
 #[test]

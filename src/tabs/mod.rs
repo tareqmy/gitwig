@@ -221,6 +221,26 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
 }
 
 fn handle_forge_events(app: &mut App, key: KeyEvent) -> bool {
+    if app.is_bound(Action::ForgeToggleAssigned, key) {
+        app.forge_issues_assigned_only = !app.forge_issues_assigned_only;
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &mut app.current_detail {
+            info.forge_issues = repo::TabData::Loading;
+            app.forge_issue_selection = 0;
+            let path = resolved.clone();
+            let assigned_only = app.forge_issues_assigned_only;
+            let tx = app.tab_tx.clone();
+            std::thread::spawn(move || {
+                let res = repo::load_tab_forge_issues(&path, assigned_only);
+                let _ = tx.send((
+                    path.to_string_lossy().to_string(),
+                    10, // tab_idx
+                    repo::TabPayload::ForgeIssues(res),
+                ));
+            });
+        }
+        return true;
+    }
+
     let issues_count = if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
         if let repo::TabData::Loaded(issues) = &info.forge_issues { issues.len() } else { 0 }
     } else {

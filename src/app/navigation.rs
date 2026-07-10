@@ -1219,8 +1219,9 @@ impl App {
                     if is_not_loaded {
                         info.forge_issues = repo::TabData::Loading;
                     }
+                    let assigned_only = self.forge_issues_assigned_only;
                     std::thread::spawn(move || {
-                        let res = repo::load_tab_forge_issues(&path);
+                        let res = repo::load_tab_forge_issues(&path, assigned_only);
                         let _ = tx.send((
                             path.to_string_lossy().to_string(),
                             tab_idx,

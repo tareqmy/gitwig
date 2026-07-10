@@ -136,6 +136,7 @@ pub enum Action {
     // Forge
     ForgeCheckout,
     ForgeOpenBrowser,
+    ForgeToggleAssigned,
 
     // Diff
     DiffLineMode,
@@ -289,6 +290,7 @@ impl Action {
             // Forge
             200 => Some(Action::ForgeCheckout),
             201 => Some(Action::ForgeOpenBrowser),
+            202 => Some(Action::ForgeToggleAssigned),
 
             // Diff
             210 => Some(Action::DiffLineMode),
@@ -444,6 +446,7 @@ impl Action {
             // Forge
             Action::ForgeCheckout => 200,
             Action::ForgeOpenBrowser => 201,
+            Action::ForgeToggleAssigned => 202,
 
             // Diff
             Action::DiffLineMode => 210,
@@ -641,6 +644,7 @@ pub struct ReflogKeybindings {
 pub struct ForgeKeybindings {
     pub checkout: Option<Keybind>,
     pub open_browser: Option<Keybind>,
+    pub toggle_assigned: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -986,6 +990,10 @@ impl KeybindingsConfig {
                     "Checkout branch corresponding to selected issue",
                 )),
                 open_browser: Some(Keybind::new(&["o"], "Open selected issue in web browser")),
+                toggle_assigned: Some(Keybind::new(
+                    &["a"],
+                    "Toggle between all issues and assigned issues",
+                )),
             },
             diff: DiffKeybindings {
                 line_mode: Some(Keybind::new(
@@ -1162,6 +1170,7 @@ impl KeybindingsConfig {
             // Forge
             Action::ForgeCheckout => self.forge.checkout.as_ref(),
             Action::ForgeOpenBrowser => self.forge.open_browser.as_ref(),
+            Action::ForgeToggleAssigned => self.forge.toggle_assigned.as_ref(),
 
             // Diff
             Action::DiffLineMode => self.diff.line_mode.as_ref(),
@@ -1322,6 +1331,7 @@ impl KeybindingsConfig {
             // Forge
             Action::ForgeCheckout => self.forge.checkout.as_ref(),
             Action::ForgeOpenBrowser => self.forge.open_browser.as_ref(),
+            Action::ForgeToggleAssigned => self.forge.toggle_assigned.as_ref(),
 
             // Diff
             Action::DiffLineMode => self.diff.line_mode.as_ref(),
@@ -1705,6 +1715,7 @@ impl KeybindingsConfig {
             // Forge
             Action::ForgeCheckout => self.forge.checkout = keybind,
             Action::ForgeOpenBrowser => self.forge.open_browser = keybind,
+            Action::ForgeToggleAssigned => self.forge.toggle_assigned = keybind,
 
             // Diff
             Action::DiffLineMode => self.diff.line_mode = keybind,

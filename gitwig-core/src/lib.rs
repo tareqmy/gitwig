@@ -3146,11 +3146,16 @@ pub fn worktree_prune(repo_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-pub fn load_tab_forge_issues(repo_path: &Path) -> Result<Vec<ForgeIssue>, String> {
+pub fn load_tab_forge_issues(
+    repo_path: &Path,
+    assigned_only: bool,
+) -> Result<Vec<ForgeIssue>, String> {
     let mut cmd = std::process::Command::new("gh");
-    cmd.arg("issue")
-        .arg("list")
-        .arg("--limit")
+    cmd.arg("issue").arg("list");
+    if assigned_only {
+        cmd.arg("--assignee").arg("@me");
+    }
+    cmd.arg("--limit")
         .arg("50")
         .arg("--json")
         .arg("number,title,state,author,assignees,url")

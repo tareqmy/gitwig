@@ -511,6 +511,10 @@ description = "Checkout branch corresponding to selected issue"
 keys = ["o"]
 description = "Open selected issue in web browser"
 
+[forge.toggle_assigned]
+keys = ["a"]
+description = "Toggle between all issues and assigned issues"
+
 [diff.line_mode]
 keys = [
     "l",

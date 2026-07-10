@@ -94,7 +94,14 @@ pub fn draw_forge_view(
         .border_style(list_border_style)
         .title(Line::from(vec![
             Span::raw(" "),
-            Span::styled("Issues", primary_style()),
+            Span::styled(
+                if app.forge_issues_assigned_only {
+                    "Issues (Assigned to me)"
+                } else {
+                    "Issues (All Open)"
+                },
+                primary_style(),
+            ),
             Span::raw(" "),
         ]))
         .padding(Padding::uniform(0));
@@ -254,7 +261,9 @@ pub fn draw_forge_view(
                 Span::styled("Enter", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
                 Span::raw(" - Checkout/Create branch | "),
                 Span::styled("o", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
-                Span::raw(" - Open in browser"),
+                Span::raw(" - Open in browser | "),
+                Span::styled("a", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
+                Span::raw(" - Toggle all/assigned"),
             ]),
         ];
 
