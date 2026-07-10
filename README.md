@@ -31,3 +31,13 @@ Explore the features, configuration, and controls of Gitwig:
 - [🖥️ Panels & UI Windows](docs/panels.md)
 - [🔧 Configuration](docs/configuration.md)
 - [🎨 Font & Symbol Support](docs/font_support.md)
+
+---
+
+## 🤝 QA & Special Thanks
+
+A huge thank you to the following friends who helped with Quality Assurance (QA) and testing to make Gitwig more robust:
+
+- **Ehsanul Alam Sabbir** — [GitHub](https://github.com/easabbir) / [LinkedIn](https://www.linkedin.com/in/ehsanul-alam-sabbir/)
+- **Fahim Rahman** — [GitHub](https://github.com/fahim-6/) / [LinkedIn](https://www.linkedin.com/in/fahim-rahman-4b333791/)
+
