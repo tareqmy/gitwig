@@ -19,7 +19,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
 }
 
 fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
-    crate::debug_log::info(format!("Key pressed: {:?}", key.code));
+    if app.mode != Mode::CommitInput {
+        crate::debug_log::info(format!("Key pressed: {:?}", key.code));
+    }
     let code = key.code;
 
     if app.is_bound(crate::keybindings::Action::Close, key) {

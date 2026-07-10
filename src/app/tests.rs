@@ -9794,3 +9794,31 @@ fn test_clear_debug_logs_popup() {
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
 
+#[test]
+fn test_skip_key_logging_in_commit_input() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let config = Config::default();
+    let temp_dir = std::env::temp_dir().join("gitwig_test_skip_key_logging");
+    let _ = std::fs::create_dir_all(&temp_dir);
+    let temp_path = temp_dir.join("config.toml");
+    let mut app = App::new(config, temp_path.clone());
+
+    // Clear logs first so we have a clean state to verify
+    crate::debug_log::clear();
+
+    // 1. In CommitInput mode, key presses should NOT be logged
+    app.mode = Mode::CommitInput;
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('x')), 10);
+    assert!(!crate::debug_log::get_logs().iter().any(|l| l.contains("Key pressed: Char('x')")));
+
+    // 2. In Normal mode, key presses SHOULD be logged
+    app.mode = Mode::Normal;
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('y')), 10);
+    assert!(crate::debug_log::get_logs().iter().any(|l| l.contains("Key pressed: Char('y')")));
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+
