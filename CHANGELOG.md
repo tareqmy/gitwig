@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [v2.4.2] - 2026-07-10
+### Added
+- **stale projects**: make stale repository threshold and visibility configurable ([792b0bb](https://github.com/tareqmy/gitwig/commit/792b0bb))
+- **debug logs**: add clear debug logs shortcut (`c`/`C`/`x`) ([f5ee4ee](https://github.com/tareqmy/gitwig/commit/f5ee4ee))
+- **debug logs**: support fuzzy searching/filtering using `/` ([7492bb0](https://github.com/tareqmy/gitwig/commit/7492bb0))
+- **QA contributors**: add honorary mentions section in `README.md` ([af083dd](https://github.com/tareqmy/gitwig/commit/af083dd))
+
+### Changed
+- **logging**: include remote URL and log only the base repository name in all network action logs ([e030fdb](https://github.com/tareqmy/gitwig/commit/e030fdb), [1eceb3c](https://github.com/tareqmy/gitwig/commit/1eceb3c))
+- **keypresses**: disable keypress logging while editing commit messages (`Mode::CommitInput`) to avoid verbose log clutter ([73272f3](https://github.com/tareqmy/gitwig/commit/73272f3))
+- **help popup**: clean up main help popup, removing detail-view shortcuts ([a4284c1](https://github.com/tareqmy/gitwig/commit/a4284c1))
+
+### Fixed
+- **labels**: bug where pressing enter from bulk add labels did not close input ([3fdaf05](https://github.com/tareqmy/gitwig/commit/3fdaf05))
+
+### Documentation
+- update `docs/configuration.md`, `docs/keybindings.md`, `docs/status_indicators.md`, and in-app help overlays to reflect the new features and keys ([f3a401a](https://github.com/tareqmy/gitwig/commit/f3a401a))
+
+### Refactored
+- remove support for snapcraft packaging ([80aaee7](https://github.com/tareqmy/gitwig/commit/80aaee7))
+- remove support for chocolatey packaging ([2d65363](https://github.com/tareqmy/gitwig/commit/2d65363))
+
 ## [v2.4.1] - 2026-07-08
 ### Added
 - **settings**: group keybindings into visual sections and implement conflict auto-revert ([c94ce5b](https://github.com/tareqmy/gitwig/commit/c94ce5b))

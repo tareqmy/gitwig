@@ -73,9 +73,11 @@ The crate is organized so each file has a single clear responsibility. Keep it t
 
 ## Release Preparation Mandate
 When you (the Agent) are asked to prepare files for a release, you MUST:
-1. **Update all references of the version**: Search for and update the version string across the entire repository (e.g., in `.version`, `Cargo.toml`, `gitwig-core/Cargo.toml`, `Cargo.lock`, and `Formula/gitwig.rb`).
-2. **Prepare the Changelog**: Run `python3 scripts/generate_changelog.py` or update `CHANGELOG.md` to capture all changes since the last release.
-3. **Update Script Checksums**: Recalculate and update the `.sha256` checksum files for all installation and uninstallation scripts in the `scripts/` directory (e.g., `install.sh`, `install.ps1`, etc.) to match their latest content.
+1. **Update all references of the version**: Search for and update the version string across the entire repository (e.g., in `.version`, `Cargo.toml`, `gitwig-core/Cargo.toml`, and `Formula/gitwig.rb`).
+2. **Rebuild Lockfile**: Run a test or compilation command (e.g., `cargo test`) to ensure `Cargo.lock` is correctly regenerated and updated with the new versions.
+3. **Prepare the Changelog**: Run `python3 scripts/generate_changelog.py` or update `CHANGELOG.md` to capture all changes since the last release. Ensure formatting adheres to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+4. **Update Script Checksums**: Recalculate and update the `.sha256` checksum files for all installation and uninstallation scripts in the `scripts/` directory (e.g., `install.sh`, `install.ps1`, etc.) to match their latest content.
+5. **Clean up Test Artifacts**: Unstage and delete any temporary configuration files (such as `dummy.toml`, `dummy_path.toml`) created in the root directory by the test suite before submitting the staged changes.
 
 ## Release Process
 To publish a new version of Gitwig, follow these steps:
