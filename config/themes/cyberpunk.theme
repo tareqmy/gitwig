@@ -1,0 +1,5 @@
+accent = "lightmagenta"
+warning = "lightyellow"
+danger = "lightred"
+success = "lightcyan"
+border_type = "double"

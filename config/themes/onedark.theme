@@ -1,0 +1,5 @@
+accent = "blue"
+warning = "yellow"
+danger = "lightred"
+success = "green"
+border_type = "rounded"

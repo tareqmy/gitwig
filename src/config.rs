@@ -740,6 +740,24 @@ pub fn load_config(
 fn write_popular_themes(themes_dir: &Path) -> Result<(), Box<dyn Error>> {
     let popular_themes = [
         (
+            "catppuccin",
+            r#"accent = "lightblue"
+warning = "lightyellow"
+danger = "lightred"
+success = "lightgreen"
+border_type = "rounded"
+"#,
+        ),
+        (
+            "cyberpunk",
+            r#"accent = "lightmagenta"
+warning = "lightyellow"
+danger = "lightred"
+success = "lightcyan"
+border_type = "double"
+"#,
+        ),
+        (
             "dracula",
             r#"accent = "lightmagenta"
 warning = "lightyellow"
@@ -786,6 +804,42 @@ border_type = "rounded"
         ),
         (
             "oceanic",
+            r#"accent = "lightcyan"
+warning = "yellow"
+danger = "red"
+success = "lightgreen"
+border_type = "rounded"
+"#,
+        ),
+        (
+            "onedark",
+            r#"accent = "blue"
+warning = "yellow"
+danger = "lightred"
+success = "green"
+border_type = "rounded"
+"#,
+        ),
+        (
+            "rosepine",
+            r#"accent = "lightmagenta"
+warning = "yellow"
+danger = "lightred"
+success = "lightcyan"
+border_type = "rounded"
+"#,
+        ),
+        (
+            "solarized_dark",
+            r#"accent = "cyan"
+warning = "yellow"
+danger = "red"
+success = "green"
+border_type = "rounded"
+"#,
+        ),
+        (
+            "tokyonight",
             r#"accent = "lightcyan"
 warning = "yellow"
 danger = "red"
@@ -965,13 +1019,19 @@ border_type = "double"
 
         write_popular_themes(&test_dir).unwrap();
 
-        // Verify that Dracula, Forest, Gruvbox, Monokai, Nord, and Oceanic files are written
+        // Verify that Dracula, Forest, Gruvbox, Monokai, Nord, Oceanic and new popular themes are written
+        assert!(test_dir.join("catppuccin.theme").exists());
+        assert!(test_dir.join("cyberpunk.theme").exists());
         assert!(test_dir.join("dracula.theme").exists());
         assert!(test_dir.join("forest.theme").exists());
         assert!(test_dir.join("gruvbox.theme").exists());
         assert!(test_dir.join("monokai.theme").exists());
         assert!(test_dir.join("nord.theme").exists());
         assert!(test_dir.join("oceanic.theme").exists());
+        assert!(test_dir.join("onedark.theme").exists());
+        assert!(test_dir.join("rosepine.theme").exists());
+        assert!(test_dir.join("solarized_dark.theme").exists());
+        assert!(test_dir.join("tokyonight.theme").exists());
 
         // Read one theme to verify content
         let contents = fs::read_to_string(test_dir.join("oceanic.theme")).unwrap();
