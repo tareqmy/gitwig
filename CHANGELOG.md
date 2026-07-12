@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [v2.4.3] - 2026-07-12
+### Added
+- **forge**: implement Phase 11 PR/MR Viewer integration ([59884bd](https://github.com/tareqmy/gitwig/commit/59884bd))
+- **forge**: implement Phase 11 Issue Tracker integration ([938e489](https://github.com/tareqmy/gitwig/commit/938e489))
+- **forge**: implement Phase 11 Code Review Mode to add/view line comments ([00e5fb0](https://github.com/tareqmy/gitwig/commit/00e5fb0))
+- **commit**: provide option to clear commit message editor using `Ctrl+U` in edit mode or `x`/`u` in confirm mode ([15ed930](https://github.com/tareqmy/gitwig/commit/15ed930))
+
+### Documentation
+- update roadmap, codebase map, help overlay, and keybindings docs to reflect the new forge and commit features ([f28954d](https://github.com/tareqmy/gitwig/commit/f28954d), [f520ff2](https://github.com/tareqmy/gitwig/commit/f520ff2))
+
 ## [v2.4.2] - 2026-07-10
 ### Added
 - **stale projects**: make stale repository threshold and visibility configurable ([792b0bb](https://github.com/tareqmy/gitwig/commit/792b0bb))
