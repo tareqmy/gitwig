@@ -68,9 +68,10 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Modal error popups for failed Git network and stash operations.
 - [x] Stash uncommitted files with a stash comment/name input popup.
 - [x] Conflict resolution UI.
+- [x] Clear option for commit message editor (Ctrl+U in editing mode, x in confirm mode).
 
 ## Phase 7: Advanced Git Workflows & Power-User Tools
-- [x] Add a debug panel
+- [x] Add a debug panel (with fuzzy search using / key).
 - [x] Git clone
 - [x] Bulk add repo option
 - [x] Purged all usage and dependency of fzf from the app
