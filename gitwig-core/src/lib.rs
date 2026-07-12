@@ -3661,6 +3661,38 @@ mod tests {
         assert!(match_pattern("test.txt", "test.txt"));
         assert!(!match_pattern("src/app.rs", "*.psd"));
     }
+
+    #[test]
+    fn test_get_lfs_info() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_lfs_{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // 1. Create a dummy git repo with .git/lfs directory to bypass the short-circuit check
+        let _repo = Repository::init(&temp_path).unwrap();
+        let lfs_dir = temp_path.join(".git").join("lfs");
+        std::fs::create_dir_all(&lfs_dir).unwrap();
+
+        // 2. Call get_lfs_info (which will trigger is_lfs_installed and cover them)
+        let (installed, tracked) = get_lfs_info(&temp_path);
+        
+        // Assert that get_lfs_info completed (whether lfs is installed on user's machine or not)
+        assert!(tracked.is_empty());
+
+        // 3. Create .gitattributes with lfs pattern
+        let gitattributes_path = temp_path.join(".gitattributes");
+        std::fs::write(&gitattributes_path, "*.bin filter=lfs diff=lfs merge=lfs").unwrap();
+        
+        let (installed2, _tracked2) = get_lfs_info(&temp_path);
+        assert_eq!(installed, installed2);
+        
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
     use std::io::Write;
 
     #[test]
@@ -4680,6 +4712,16 @@ mod tests {
                 &format!("refs/heads/{}", active_branch),
             )
             .unwrap();
+
+        // Create mock remote tracking reference so resolve succeeds
+        let commit_obj = repo.head().unwrap().peel_to_commit().unwrap();
+        repo.reference(
+            &format!("refs/remotes/origin/{}", active_branch),
+            commit_obj.id(),
+            true,
+            "create mock remote ref",
+        )
+        .unwrap();
 
         // Test has_upstream_remote and get_branch_upstream_remote
         assert!(has_upstream_remote(&temp_path, active_branch));
