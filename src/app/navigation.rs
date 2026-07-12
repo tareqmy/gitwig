@@ -199,8 +199,8 @@ impl App {
         rows
     }
 
-    pub fn get_filtered_items(&self) -> Vec<(usize, &String)> {
-        let base_items: Vec<(usize, &String)> = if let Some(filter) = self.global_filter {
+    pub fn get_active_items(&self) -> Vec<(usize, &String)> {
+        if let Some(filter) = self.global_filter {
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_secs() as i64)
@@ -284,7 +284,11 @@ impl App {
                 });
             }
             items
-        };
+        }
+    }
+
+    pub fn get_filtered_items(&self) -> Vec<(usize, &String)> {
+        let base_items = self.get_active_items();
 
         if let Some(ref query) = self.repo_search_query {
             let query_lower = query.to_lowercase();
@@ -3550,12 +3554,10 @@ impl App {
 
     pub fn get_jump_matches(&self) -> Vec<(usize, String, String)> {
         let query = self.input_buffer.to_lowercase();
+        let active_items = self.get_active_items();
         if query.is_empty() {
-            return self
-                .config
-                .items
-                .iter()
-                .enumerate()
+            return active_items
+                .into_iter()
                 .map(|(idx, path)| {
                     let name = std::path::Path::new(path)
                         .file_name()
@@ -3568,7 +3570,7 @@ impl App {
         }
 
         let mut matches = Vec::new();
-        for (idx, path) in self.config.items.iter().enumerate() {
+        for (idx, path) in active_items {
             let name =
                 std::path::Path::new(path).file_name().and_then(|s| s.to_str()).unwrap_or(path);
             let name_lower = name.to_lowercase();

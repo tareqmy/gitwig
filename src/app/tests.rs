@@ -5608,6 +5608,36 @@ fn test_repo_jump_flow() {
 }
 
 #[test]
+fn test_repo_jump_flow_filters_stale() {
+    let config = Config {
+        items: vec![
+            "/path/to/alpha".to_string(),
+            "/path/to/beta".to_string(),
+            "/path/to/gamma".to_string(),
+        ],
+        show_stale_projects: false,
+        stale_threshold_months: 1,
+        ..Default::default()
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_repo_jump_stale.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Mock summary with a very old commit time for "/path/to/beta" to make it stale
+    let mut summary = crate::repo::RepoSummary::default();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    summary.last_commit_time = Some((now - 7776000) as i64); // 3 months ago
+
+    app.statuses[1] = crate::repo::ItemStatus::GitRepo(Some(summary));
+
+    // Since show_stale_projects is false, "/path/to/beta" (index 1) should be hidden, and not searchable
+    let matches = app.get_jump_matches();
+    // Should only contain "/path/to/alpha" (index 0) and "/path/to/gamma" (index 2)
+    assert_eq!(matches.len(), 2);
+    assert!(matches.iter().all(|m| m.0 != 1));
+}
+
+#[test]
 fn test_mru_group_flow() {
     let temp_dir = std::env::temp_dir().join("gitwig_test_mru_repos");
     let _ = std::fs::remove_dir_all(&temp_dir);
