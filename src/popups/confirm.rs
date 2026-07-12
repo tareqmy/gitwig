@@ -1077,3 +1077,29 @@ pub fn draw_update_confirm_popup(f: &mut Frame, latest_version: &str, area: Rect
     let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
     f.render_widget(paragraph, popup_area);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_confirm_popup_boost() {
+        let queue = Queue::default();
+        let mut popup = ConfirmPopup::new(queue.clone());
+
+        // Test event handler
+        let key_yes = KeyEvent::new(KeyCode::Enter, KeyModifiers::empty());
+        let res_yes = popup.event(&Event::Key(key_yes)).unwrap();
+        assert!(matches!(res_yes, EventState::Consumed));
+
+        let event = queue.pop();
+        assert!(event.is_some());
+        assert!(matches!(event.unwrap(), InternalEvent::ConfirmYes));
+
+        let key_no = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
+        let res_no = popup.event(&Event::Key(key_no)).unwrap();
+        assert!(matches!(res_no, EventState::Consumed));
+    }
+}
+

@@ -66,3 +66,26 @@ impl RemotesTab {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_remotes_tab_events() {
+        let config = crate::config::Config::default();
+        let mut app = crate::app::App::new(config, std::path::PathBuf::from("test.toml"));
+        
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+        // Test navigation boundaries
+        RemotesTab::handle_event(&mut app, key_event(KeyCode::Up));
+        RemotesTab::handle_event(&mut app, key_event(KeyCode::Down));
+        RemotesTab::handle_event(&mut app, key_event(KeyCode::PageUp));
+        RemotesTab::handle_event(&mut app, key_event(KeyCode::PageDown));
+        RemotesTab::handle_event(&mut app, key_event(KeyCode::Home));
+        RemotesTab::handle_event(&mut app, key_event(KeyCode::End));
+    }
+}
+

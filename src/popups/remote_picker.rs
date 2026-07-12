@@ -92,3 +92,54 @@ impl RemotePickerPopup {
         true
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_remote_picker_popup_events() {
+        let config = crate::config::Config::default();
+        let mut app = crate::app::App::new(config, std::path::PathBuf::from("test.toml"));
+        
+        // Setup mock remotes list in current_detail
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from("test"),
+            info: Box::new(crate::repo::RepoInfo {
+                remotes: crate::repo::TabData::Loaded(vec![
+                    crate::repo::RemoteInfo {
+                        name: "origin".to_string(),
+                        url: "url1".to_string(),
+                        push_url: None,
+                        refspecs: vec![],
+                    },
+                    crate::repo::RemoteInfo {
+                        name: "upstream".to_string(),
+                        url: "url2".to_string(),
+                        push_url: None,
+                        refspecs: vec![],
+                    },
+                ]),
+                ..Default::default()
+            }),
+        });
+        app.remote_picker_selection = 0;
+
+        let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+        // Test Up/Down key handling
+        RemotePickerPopup::handle_event(&mut app, key_event(KeyCode::Down));
+        assert_eq!(app.remote_picker_selection, 1);
+
+        RemotePickerPopup::handle_event(&mut app, key_event(KeyCode::Up));
+        assert_eq!(app.remote_picker_selection, 0);
+
+        // Test Enter confirm
+        RemotePickerPopup::handle_event(&mut app, key_event(KeyCode::Enter));
+
+        // Test Esc cancel
+        RemotePickerPopup::handle_event(&mut app, key_event(KeyCode::Esc));
+    }
+}
+

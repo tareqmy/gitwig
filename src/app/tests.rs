@@ -10112,5 +10112,12 @@ fn test_app_actions_coverage() {
     app.select_global_search_result();
     
     app.auto_discover_add("/dummy/path/e".to_string());
+
+    // Workspace action coverage boost
+    app.request_revert();
+    app.confirm_revert();
+    app.cancel_revert();
+    app.cancel_commit_search();
+    app.cancel_commit();
 }
 

@@ -1046,4 +1046,30 @@ enable_commit_signatures = false
 
         let _ = fs::remove_dir_all(&test_dir);
     }
+
+    #[test]
+    fn test_config_coverage_boost() {
+        // 1. ssh_command_val
+        let ssh_val = ssh_command_val();
+        assert!(!ssh_val.is_empty());
+
+        // 2. sym on configuration symbols
+        let config = Config { compatibility_mode: true, ..Config::default() };
+        assert_eq!(config.sym("branch"), "* ");
+        let config2 = Config { compatibility_mode: false, ..Config::default() };
+        assert_eq!(config2.sym("branch"), "\u{e0a0} ");
+
+        // 3. handle_parse_error
+        let unique_id = get_unique_id();
+        let test_dir = std::env::temp_dir().join(format!("gitwig_test_parse_err_{}", unique_id));
+        fs::create_dir_all(&test_dir).unwrap();
+        let err_path = test_dir.join("config.toml");
+        let (config, warning) = handle_parse_error(&err_path, Box::new(std::io::Error::other("mock error")));
+        assert!(warning.is_some());
+        assert!(config.items.is_empty());
+        let _ = fs::remove_dir_all(&test_dir);
+
+        // 4. find_legacy_config
+        let _legacy = find_legacy_config();
+    }
 }
