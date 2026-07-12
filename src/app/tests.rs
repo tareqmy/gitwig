@@ -10004,3 +10004,42 @@ fn test_debug_logs_fuzzy_search() {
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_startup_deferred_loading() {
+    let config = Config {
+        items: vec!["/dummy/path/a".to_string(), "/dummy/path/b".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        ..Default::default()
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_deferred.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+
+    let app = App::new(config, temp_path);
+
+    // Check that at startup, the status array is immediately initialized with Loading
+    assert_eq!(app.statuses.len(), 2);
+    assert!(matches!(app.statuses[0], repo::ItemStatus::Loading));
+    assert!(matches!(app.statuses[1], repo::ItemStatus::Loading));
+
+    // Since App::new spawns a background thread to load them, they should be sent via the status_refresh_tx
+    let mut received = false;
+    for _ in 0..50 {
+        if let Ok(updates) =
+            app.status_refresh_rx.recv_timeout(std::time::Duration::from_millis(50))
+        {
+            // Because we chunk/worker them, they might be sent in chunks or all together depending on timing.
+            // Let's assert that we got some updates.
+            assert!(!updates.is_empty());
+            for update in updates {
+                assert!(matches!(update.2, repo::ItemStatus::Missing));
+            }
+            received = true;
+            break;
+        }
+    }
+    assert!(received, "Should receive background status updates");
+}

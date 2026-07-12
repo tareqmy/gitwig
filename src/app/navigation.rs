@@ -536,9 +536,19 @@ impl App {
             SortOrder::LatestChanges => {
                 let mut z: Vec<(String, ItemStatus)> =
                     self.config.items.drain(..).zip(self.statuses.drain(..)).collect();
+                let mut times = std::collections::HashMap::with_capacity(z.len());
+                for (path, status) in &z {
+                    let t = match status {
+                        crate::repo::ItemStatus::GitRepo(Some(s)) => {
+                            s.last_commit_time.unwrap_or(0) as u64
+                        }
+                        _ => repo::get_latest_change_time(path),
+                    };
+                    times.insert(path.clone(), t);
+                }
                 z.sort_by(|a, b| {
-                    let time_a = repo::get_latest_change_time(&a.0);
-                    let time_b = repo::get_latest_change_time(&b.0);
+                    let time_a = times.get(&a.0).copied().unwrap_or(0);
+                    let time_b = times.get(&b.0).copied().unwrap_or(0);
                     time_b.cmp(&time_a) // Descending
                 });
                 if self.config.sort_reverse {

@@ -720,6 +720,46 @@ impl App {
         self.watcher = Some(watcher);
     }
 
+    pub fn trigger_initial_status_load(&self) {
+        let paths: Vec<(usize, String)> = self.config.items.iter().cloned().enumerate().collect();
+        let tx = self.status_refresh_tx.clone();
+
+        std::thread::spawn(move || {
+            let num_workers = 4.min(paths.len());
+            if num_workers == 0 {
+                return;
+            }
+
+            let paths = std::sync::Arc::new(paths);
+            let mut handles = Vec::new();
+
+            for worker_id in 0..num_workers {
+                let paths = std::sync::Arc::clone(&paths);
+                let tx = tx.clone();
+                let handle = std::thread::spawn(move || {
+                    let mut updates = Vec::new();
+                    let total = paths.len();
+                    let mut i = worker_id;
+                    while i < total {
+                        if let Some((idx, path)) = paths.get(i) {
+                            let status = repo::inspect_summary(path);
+                            updates.push((*idx, path.clone(), status));
+                        }
+                        i += num_workers;
+                    }
+                    if !updates.is_empty() {
+                        let _ = tx.send(updates);
+                    }
+                });
+                handles.push(handle);
+            }
+
+            for handle in handles {
+                let _ = handle.join();
+            }
+        });
+    }
+
     pub fn drain_queue(&mut self) {
         while let Some(ev) = self.queue.pop() {
             match ev {
@@ -1097,7 +1137,7 @@ impl App {
         let keybindings = crate::keybindings::KeybindingsConfig::load(config_dir);
         let original_items = config.items.clone();
         let max_commits = config.max_commits;
-        let statuses = config.items.iter().map(|s| repo::inspect_summary(s)).collect();
+        let statuses = vec![repo::ItemStatus::Loading; config.items.len()];
         let (tx, rx) = std::sync::mpsc::channel();
         let (detail_tx, detail_rx) = std::sync::mpsc::channel();
         let (tab_tx, tab_rx) = std::sync::mpsc::channel();
@@ -1345,6 +1385,7 @@ impl App {
 
         app.resolve_repo_themes();
         app.setup_watcher();
+        app.trigger_initial_status_load();
 
         app
     }

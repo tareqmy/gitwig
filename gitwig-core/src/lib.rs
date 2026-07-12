@@ -27,6 +27,7 @@ use git2::{Repository, StatusOptions, StatusShow};
 /// summarize its state.
 #[derive(Debug, Clone)]
 pub enum ItemStatus {
+    Loading,
     Missing,
     Directory,
     GitRepo(Option<RepoSummary>),

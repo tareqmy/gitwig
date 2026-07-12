@@ -1169,6 +1169,11 @@ fn status_indicator_line(app: &App, status: &ItemStatus, item: &str) -> Line<'st
     }
 
     match status {
+        ItemStatus::Loading => Line::from(vec![
+            Span::styled(app.sym("bullet_empty"), muted_style()),
+            Span::raw(" "),
+            Span::styled("loading...", muted_style()),
+        ]),
         ItemStatus::Missing => Line::from(vec![
             Span::styled(app.sym("close"), Style::default().fg(DANGER())),
             Span::raw(" "),
