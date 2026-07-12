@@ -10,112 +10,30 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
 
 pub(crate) fn commit_input_editing_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
-    let entries = vec![
-        StatusEntry::new(vec![
-            Span::raw("Done Editing"),
-            Span::raw(" "),
-            Span::styled("[", muted_style()),
-            Span::styled("⌃C", accent_style()),
-            Span::styled("]", muted_style()),
-        ]),
-        StatusEntry::new(vec![
-            Span::styled(" ", muted_style()),
-            Span::raw("Toggle Amend"),
-            Span::raw(" "),
-            Span::styled("[", muted_style()),
-            Span::styled("⌃A", accent_style()),
-            Span::styled("]", muted_style()),
-        ]),
-        StatusEntry::new(vec![
-            Span::styled(" ", muted_style()),
-            Span::raw("Newline"),
-            Span::raw(" "),
-            Span::styled("[", muted_style()),
-            Span::styled("↵", accent_style()),
-            Span::styled("]", muted_style()),
-        ]),
-        StatusEntry::new(vec![
-            Span::styled(" ", muted_style()),
-            Span::raw("Cancel Commit"),
-            Span::raw(" "),
-            Span::styled("[", muted_style()),
-            Span::styled("⎋", accent_style()),
-            Span::styled("]", muted_style()),
-        ]),
-        StatusEntry::new(vec![
-            Span::styled(" ", muted_style()),
-            Span::raw("Max Size"),
-            Span::raw(" "),
-            Span::styled("[", muted_style()),
-            Span::styled("⌃D", accent_style()),
-            Span::styled("]", muted_style()),
-        ]),
-        StatusEntry::new(vec![
-            Span::styled(" ", muted_style()),
-            Span::raw("Scroll"),
-            Span::raw(" "),
-            Span::styled("[", muted_style()),
-            Span::styled("↑/↓", accent_style()),
-            Span::styled("]", muted_style()),
-        ]),
+    let entries_data = [
+        ("Done Editing", "⌃C"),
+        ("Toggle Amend", "⌃A"),
+        ("Newline", "↵"),
+        ("Cancel Commit", "⎋"),
+        ("Max Size", "⌃D"),
+        ("Scroll", "↑/↓"),
     ];
-    (None, entries)
+    (None, super::build_status_entries(&entries_data))
 }
 
 pub(crate) fn commit_input_confirm_entries(
     commit_amend: bool,
 ) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let amend_toggle_label = if commit_amend { "Amend: [Yes]" } else { "Amend: [No]" };
-    let entries = vec![
-        StatusEntry::new(vec![
-            Span::raw("Submit Commit"),
-            Span::raw(" "),
-            Span::styled("[", muted_style()),
-            Span::styled("↵", accent_style()),
-            Span::styled("]", muted_style()),
-        ]),
-        StatusEntry::new(vec![
-            Span::styled(" ", muted_style()),
-            Span::raw(amend_toggle_label),
-            Span::raw(" "),
-            Span::styled("[", muted_style()),
-            Span::styled("a/space", accent_style()),
-            Span::styled("]", muted_style()),
-        ]),
-        StatusEntry::new(vec![
-            Span::styled(" ", muted_style()),
-            Span::raw("Edit Message"),
-            Span::raw(" "),
-            Span::styled("[", muted_style()),
-            Span::styled("e", accent_style()),
-            Span::styled("]", muted_style()),
-        ]),
-        StatusEntry::new(vec![
-            Span::styled(" ", muted_style()),
-            Span::raw("Cancel"),
-            Span::raw(" "),
-            Span::styled("[", muted_style()),
-            Span::styled("⎋/q", accent_style()),
-            Span::styled("]", muted_style()),
-        ]),
-        StatusEntry::new(vec![
-            Span::styled(" ", muted_style()),
-            Span::raw("Max Size"),
-            Span::raw(" "),
-            Span::styled("[", muted_style()),
-            Span::styled("d", accent_style()),
-            Span::styled("]", muted_style()),
-        ]),
-        StatusEntry::new(vec![
-            Span::styled(" ", muted_style()),
-            Span::raw("Scroll"),
-            Span::raw(" "),
-            Span::styled("[", muted_style()),
-            Span::styled("↑/↓", accent_style()),
-            Span::styled("]", muted_style()),
-        ]),
+    let entries_data = [
+        ("Submit Commit", "↵"),
+        (amend_toggle_label, "a/space"),
+        ("Edit Message", "e"),
+        ("Cancel", "⎋/q"),
+        ("Max Size", "d"),
+        ("Scroll", "↑/↓"),
     ];
-    (None, entries)
+    (None, super::build_status_entries(&entries_data))
 }
 
 pub(crate) fn confirm_delete_entries(

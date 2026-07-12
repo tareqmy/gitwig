@@ -91,18 +91,6 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
         ("Help", &help_key),
         ("Quit", &quit_key),
     ];
-    let mut entries = Vec::new();
-    for (i, (label, key)) in entries_data.iter().enumerate() {
-        let mut spans = Vec::new();
-        if i > 0 {
-            spans.push(Span::styled(" ", muted_style()));
-        }
-        spans.push(Span::raw((*label).to_string()));
-        spans.push(Span::raw(" "));
-        spans.push(Span::styled("[", muted_style()));
-        spans.push(Span::styled((*key).to_string(), accent_style()));
-        spans.push(Span::styled("]", muted_style()));
-        entries.push(StatusEntry::new(spans));
-    }
+    let entries = super::build_status_entries(&entries_data);
     (message_spans, entries)
 }

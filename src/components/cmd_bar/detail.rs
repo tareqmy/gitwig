@@ -12,7 +12,6 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
     }
 
-    let mut entries = Vec::new();
     let entries_data = match app.detail_tab {
         0 => {
             let mut v = vec![("Home", "⎋/q"), ("Tabs", "Tab/1-9"), ("Cycle Focus", "w/W")];
@@ -302,18 +301,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             final_entries.push((label, key));
         }
     }
-    for (i, (label, key)) in final_entries.iter().enumerate() {
-        let mut spans = Vec::new();
-        if i > 0 {
-            spans.push(Span::styled(" ", muted_style()));
-        }
-        spans.push(Span::raw((*label).to_string()));
-        spans.push(Span::raw(" "));
-        spans.push(Span::styled("[", muted_style()));
-        spans.push(Span::styled((*key).to_string(), accent_style()));
-        spans.push(Span::styled("]", muted_style()));
-        entries.push(StatusEntry::new(spans));
-    }
+    let entries = super::build_status_entries(&final_entries);
     (message_spans, entries)
 }
 
@@ -323,7 +311,6 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
         message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
     }
 
-    let mut entries = Vec::new();
     let mut entries_data = Vec::new();
 
     if app.detail_focus == DetailSection::ConflictDiff {
@@ -463,18 +450,7 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
         }
     }
 
-    for (i, (label, key)) in final_entries.iter().enumerate() {
-        let mut spans = Vec::new();
-        if i > 0 {
-            spans.push(Span::styled(" ", muted_style()));
-        }
-        spans.push(Span::raw((*label).to_string()));
-        spans.push(Span::raw(" "));
-        spans.push(Span::styled("[", muted_style()));
-        spans.push(Span::styled((*key).to_string(), accent_style()));
-        spans.push(Span::styled("]", muted_style()));
-        entries.push(StatusEntry::new(spans));
-    }
+    let entries = super::build_status_entries(&final_entries);
     (message_spans, entries)
 }
 

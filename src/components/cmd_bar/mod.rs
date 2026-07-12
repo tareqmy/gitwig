@@ -29,6 +29,23 @@ impl StatusEntry {
     }
 }
 
+pub(crate) fn build_status_entries(entries_data: &[(&str, &str)]) -> Vec<StatusEntry> {
+    let mut entries = Vec::new();
+    for (i, (label, key)) in entries_data.iter().enumerate() {
+        let mut spans = Vec::new();
+        if i > 0 {
+            spans.push(Span::styled(" ", muted_style()));
+        }
+        spans.push(Span::raw((*label).to_string()));
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled("[", muted_style()));
+        spans.push(Span::styled((*key).to_string(), accent_style()));
+        spans.push(Span::styled("]", muted_style()));
+        entries.push(StatusEntry::new(spans));
+    }
+    entries
+}
+
 mod detail;
 mod main;
 mod popups;
@@ -52,19 +69,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
         )];
         let entries_data = [("Cancel", "Esc")];
-        let mut entries = Vec::new();
-        for (i, (label, key)) in entries_data.iter().enumerate() {
-            let mut spans = Vec::new();
-            if i > 0 {
-                spans.push(Span::styled(" ", muted_style()));
-            }
-            spans.push(Span::raw((*label).to_string()));
-            spans.push(Span::raw(" "));
-            spans.push(Span::styled("[", muted_style()));
-            spans.push(Span::styled((*key).to_string(), accent_style()));
-            spans.push(Span::styled("]", muted_style()));
-            entries.push(StatusEntry::new(spans));
-        }
+        let entries = build_status_entries(&entries_data);
         draw_status_layout(f, area, Some(msg_spans), entries, app);
         return;
     }
