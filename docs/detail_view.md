@@ -1,18 +1,18 @@
 # 🔍 Detail view
 
-Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports eleven tabs for git repositories, organized into two groups:
+Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports twelve tabs for git repositories, organized into two groups:
 
 | Group | Tabs | Access / Navigation |
 |---|---|---|
 | **Primary** | **Workspace**, **Files**, **Graph**, **Branches**, **Tags**, **Remotes**, **Stashes** | Always visible. Use `1`–`7` to jump directly. |
-| **Advanced** | **Worktrees**, **Submodules**, **Reflog**, **Forge** | Toggled via `Z`. Use `1`–`4` to jump directly when active. |
+| **Advanced** | **Worktrees**, **Submodules**, **Reflog**, **Forge Issues**, **Forge PRs** | Toggled via `Z`. Use `1`–`5` to jump directly when active. |
 
 - Press `Z` from any tab to toggle between **Primary** and **Advanced** tab groups.
 - Press `Esc` while viewing the Advanced group to step back to the Primary group.
 - Press `Tab` / `Shift+Tab` to cycle forward/backward through the tabs *within* the currently active group.
 - Directly jump to tabs using number keys:
-  - In **Primary** group: Workspace (`1`), Files (`2`), Graph (`3`), Branches (`4`), Tags (`5`), Remotes (`6`), Stashes (`7`). Pressing `8`, `9`, or `0` automatically toggles to the Advanced group and jumps to Worktrees, Submodules, or Reflog.
-  - In **Advanced** group: Worktrees (`1`), Submodules (`2`), Reflog (`3`), Forge (`4`).
+  - In **Primary** group: Workspace (`1`), Files (`2`), Graph (`3`), Branches (`4`), Tags (`5`), Remotes (`6`), Stashes (`7`).
+  - In **Advanced** group: Worktrees (`1`), Submodules (`2`), Reflog (`3`), Forge Issues (`4`), Forge PRs (`5`).
 - Press `v` from any tab to toggle the repository **Overview** full-screen overlay.
 - Alternatively, you can click on the visible tab headers directly with the mouse to switch tabs.
 Press `Esc` or `q` (from the Primary group) to return to the repository list.

@@ -201,13 +201,22 @@ Triggered by opening a repository.
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate reflog list
         *   `Enter` / `Space` : Checkout commit OID of selected reflog entry
 
-#### Tab 10: Forge Tab (Advanced Tab Group)
+#### Tab 10: Forge Issues Tab (Advanced Tab Group)
 *   *Forge Issues Panel*: Displays PRs, issues, and CI/CD status.
     *   *Shortcuts*:
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate issues list
         *   `Enter` : Checkout branch corresponding to selected issue
         *   `o` : Open selected issue in web browser
+
+#### Tab 11: Forge PRs Tab (Advanced Tab Group)
+*   *Forge Pull Requests Panel*: Displays PR list and details.
+    *   *Shortcuts*:
+        *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
+        *   `PgUp` / `PgDn` / `Home` / `End` : Navigate PRs list
+        *   `Enter` : Checkout branch corresponding to selected PR
+        *   `o` : Open selected PR in web browser
+        *   `n` : Add a line comment to the current Pull Request
 
 ---
 
