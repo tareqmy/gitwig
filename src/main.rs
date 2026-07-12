@@ -110,6 +110,19 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Enable raw mode to capture input without line buffering
     enable_raw_mode()?;
+    struct TerminalGuard;
+    impl Drop for TerminalGuard {
+        fn drop(&mut self) {
+            let _ = disable_raw_mode();
+            let mut stdout = io::stdout();
+            let _ = execute!(stdout, LeaveAlternateScreen, DisableMouseCapture);
+            let _ = execute!(stdout, crossterm::cursor::Show);
+            print!("\x1b[23;0t");
+            let _ = io::Write::flush(&mut stdout);
+        }
+    }
+    let guard = TerminalGuard;
+
     let mut stdout = io::stdout();
 
     // Push terminal title stack
@@ -150,20 +163,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Run the application logic
     let res = run(&mut terminal, app);
 
-    // Cleanup terminal: disable raw mode, leave alt screen, disable mouse
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
-    terminal.show_cursor()?;
-
-    // Restore original terminal window title
-    print!("\x1b[23;0t");
-    let _ = io::Write::flush(&mut io::stdout());
+    // Explicitly drop guard to restore terminal state before printing/handling errors
+    drop(guard);
 
     // Log any error returned from app logic
-    if let Err(err) = res {
+    if let Err(ref err) = res {
         println!("{:?}", err);
     }
 
-    Ok(())
+    res
 }
 pub mod mouse;
