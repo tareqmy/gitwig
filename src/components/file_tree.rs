@@ -184,25 +184,6 @@ pub fn draw_files_view(
             let right_border_style =
                 if right_focused { Style::default().fg(ACCENT()) } else { muted_style() };
 
-            let mut title_spans = vec![
-                Span::raw(" "),
-                Span::styled(format!("Contents of {}", folder_name), primary_style()),
-            ];
-            if right_focused && file_content_scroll > 0 {
-                title_spans.push(Span::styled(
-                    format!("  ↕ line {}", file_content_scroll + 1),
-                    muted_style(),
-                ));
-            }
-            title_spans.push(Span::raw(" "));
-
-            let right_block = Block::default()
-                .borders(Borders::ALL)
-                .border_type(CARD_BORDER())
-                .border_style(right_border_style)
-                .title(Line::from(title_spans))
-                .padding(Padding::uniform(1));
-
             let prefix = if selected_item.full_path.is_empty() {
                 "".to_string()
             } else {
@@ -228,6 +209,28 @@ pub fn draw_files_view(
                 (false, true) => std::cmp::Ordering::Greater,
                 _ => a.0.cmp(&b.0),
             });
+
+            let total_lines = if children_vec.is_empty() { 1 } else { children_vec.len() };
+            let file_content_scroll = file_content_scroll.min(total_lines.saturating_sub(1));
+
+            let mut title_spans = vec![
+                Span::raw(" "),
+                Span::styled(format!("Contents of {}", folder_name), primary_style()),
+            ];
+            if right_focused && file_content_scroll > 0 {
+                title_spans.push(Span::styled(
+                    format!("  ↕ line {}", file_content_scroll + 1),
+                    muted_style(),
+                ));
+            }
+            title_spans.push(Span::raw(" "));
+
+            let right_block = Block::default()
+                .borders(Borders::ALL)
+                .border_type(CARD_BORDER())
+                .border_style(right_border_style)
+                .title(Line::from(title_spans))
+                .padding(Padding::uniform(1));
 
             let mut lines = Vec::new();
             if children_vec.is_empty() {
@@ -266,6 +269,16 @@ pub fn draw_files_view(
             let right_border_style =
                 if right_focused { Style::default().fg(ACCENT()) } else { muted_style() };
 
+            let file_path = resolved.join(&selected_item.full_path);
+            let content_text = match read_file_content(&file_path) {
+                Ok(content) => content,
+                Err(e) => format!("Could not read file: {}", e),
+            };
+            let lines: Vec<Line> =
+                content_text.lines().map(crate::ui::syntax::highlight_code_line).collect();
+
+            let file_content_scroll = file_content_scroll.min(lines.len().saturating_sub(1));
+
             let mut title_spans = vec![
                 Span::raw(" "),
                 Span::styled(format!("Content of {}", selected_item.name), primary_style()),
@@ -284,14 +297,6 @@ pub fn draw_files_view(
                 .border_style(right_border_style)
                 .title(Line::from(title_spans))
                 .padding(Padding::uniform(1));
-
-            let file_path = resolved.join(&selected_item.full_path);
-            let content_text = match read_file_content(&file_path) {
-                Ok(content) => content,
-                Err(e) => format!("Could not read file: {}", e),
-            };
-            let lines: Vec<Line> =
-                content_text.lines().map(crate::ui::syntax::highlight_code_line).collect();
 
             if files_full_screen && (app.file_tree.show_line_numbers || app.file_tree.show_blame) {
                 let inner_area = right_block.inner(chunks[1]);

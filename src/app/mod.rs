@@ -990,24 +990,24 @@ impl App {
                     self.refresh_blame_if_shown();
                 }
                 crate::queue::InternalEvent::FileContentUp => {
-                    self.file_tree.file_content_scroll_up()
+                    self.file_content_scroll_up();
                 }
                 crate::queue::InternalEvent::FileContentDown => {
-                    self.file_tree.file_content_scroll_down()
+                    self.file_content_scroll_down();
                 }
                 crate::queue::InternalEvent::FileContentPageUp => {
                     let p = self.get_current_page_size();
-                    self.file_tree.file_content_scroll_page_up(p)
+                    self.file_content_scroll_page_up(p);
                 }
                 crate::queue::InternalEvent::FileContentPageDown => {
                     let p = self.get_current_page_size();
-                    self.file_tree.file_content_scroll_page_down(p)
+                    self.file_content_scroll_page_down(p);
                 }
                 crate::queue::InternalEvent::FileContentTop => {
-                    self.file_tree.file_content_scroll_to_top()
+                    self.file_content_scroll_to_top();
                 }
                 crate::queue::InternalEvent::FileContentBottom => {
-                    self.file_tree.file_content_scroll_to_bottom()
+                    self.file_content_scroll_to_bottom();
                 }
                 crate::queue::InternalEvent::ToggleFolderExpanded => self.toggle_folder_expanded(),
                 crate::queue::InternalEvent::CollapseAllFolders => self.collapse_all_folders(),
