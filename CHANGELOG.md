@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [v2.4.5] - 2026-07-12
+### Added
+- filter out hidden repositories in jump search ([d64dd71](https://github.com/tareqmy/gitwig/commit/d64dd71))
+- adding some more popular themes ([f4d80e9](https://github.com/tareqmy/gitwig/commit/f4d80e9))
+
+### Fixed
+- resolve line number vertical misalignment drift in files tab ([e84c3bd](https://github.com/tareqmy/gitwig/commit/e84c3bd))
+- resolve panic/crash when pressing End in file content panel ([5f40dfa](https://github.com/tareqmy/gitwig/commit/5f40dfa))
+
+### Documentation
+- add top-of-file module documentation summaries to all Rust source files ([4ce07d5](https://github.com/tareqmy/gitwig/commit/4ce07d5))
+- refine module layout architecture and code quality rules in agent instructions ([6ad9f7d](https://github.com/tareqmy/gitwig/commit/6ad9f7d))
+
+### Refactored
+- extract status bar entry builder helper in cmd_bar ([f93a0ea](https://github.com/tareqmy/gitwig/commit/f93a0ea))
+- split monolithic cmd_bar.rs into submodules ([786fa2b](https://github.com/tareqmy/gitwig/commit/786fa2b))
+- extract terminal setup and CLI parsing from main.rs ([87258e1](https://github.com/tareqmy/gitwig/commit/87258e1))
+
 ## [v2.4.4] - 2026-07-12
 ### Fixed
 - ensure alternate screen and raw mode are cleaned up on startup error ([4e68538](https://github.com/tareqmy/gitwig/commit/4e68538))
