@@ -14,3 +14,14 @@ impl KeyConfig {
         Self::default()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_key_config_methods() {
+        let _ = KeyConfig::init();
+        let _ = KeyConfig::default();
+    }
+}

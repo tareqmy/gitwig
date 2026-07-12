@@ -8718,6 +8718,13 @@ fn test_workspace_tab_coverage_booster() {
             }
         }
     }
+
+    // Direct tests for cancel methods
+    app.cancel_cherry_pick();
+    app.cancel_revert();
+    app.cancel_discard_changes();
+    app.cancel_commit_search();
+    app.cancel_commit();
 }
 
 #[test]
@@ -10061,56 +10068,56 @@ fn test_app_actions_coverage() {
     let _guard = TestFileGuard { path: temp_path.clone() };
 
     let mut app = App::new(config, temp_path);
-    
+
     // Test basic edit/add state changes
     app.start_add();
     app.start_edit();
     app.request_delete();
-    
+
     app.input_buffer = "/dummy/path/b".to_string();
     app.commit_add();
-    
+
     app.input_buffer = "  /dummy/path/c  ".to_string();
     app.commit_add_with_labels(app.input_buffer.clone(), vec!["label1".to_string()]);
-    
+
     app.input_buffer = "label-input".to_string();
     app.commit_add_label_input();
-    
+
     app.add_repo_path("/dummy/path/d".to_string());
-    
+
     app.input_buffer = "/dummy/path_edited".to_string();
     app.commit_edit();
-    
+
     app.confirm_delete();
-    
+
     app.start_edit_labels();
     app.commit_edit_labels();
-    
+
     app.start_repo_scan();
     app.start_bulk_repo_scan();
-    
+
     let matches = app.get_scan_matches();
     assert!(matches.is_empty());
-    
+
     app.start_branch_search();
     let branch_matches = app.get_branch_search_matches();
     assert!(branch_matches.is_empty());
-    
+
     app.start_file_search();
     let file_matches = app.get_file_search_matches();
     assert!(file_matches.is_empty());
-    
+
     app.start_commit_fuzzy_search();
     let commit_matches = app.get_commit_fuzzy_matches();
     assert!(commit_matches.is_empty());
-    
+
     app.start_tag_search();
     let tag_matches = app.get_tag_search_matches();
     assert!(tag_matches.is_empty());
-    
+
     app.trigger_global_search();
     app.select_global_search_result();
-    
+
     app.auto_discover_add("/dummy/path/e".to_string());
 
     // Workspace action coverage boost
@@ -10121,3 +10128,203 @@ fn test_app_actions_coverage() {
     app.cancel_commit();
 }
 
+#[test]
+fn test_git_cancels_coverage_boost() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_git_cancels.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/path/to/repo_a"),
+        info: Box::new(crate::repo::RepoInfo {
+            commits: vec![crate::repo::CommitEntry {
+                id: "abc1234".to_string(),
+                oid: "abc1234".to_string(),
+                author: "Author".to_string(),
+                when: "10 mins ago".to_string(),
+                date: "2026-07-02".to_string(),
+                summary: "feat: summary".to_string(),
+                message: "feat: summary\n\nbody".to_string(),
+                refs: vec![],
+                files: vec![],
+                signature_status: "G".to_string(),
+            }],
+            ..Default::default()
+        }),
+    });
+
+    app.cancel_branch_push();
+    app.cancel_branch_checkout();
+    app.cancel_tag_delete();
+    app.cancel_tag_push();
+    app.cancel_tag_push_all();
+    app.cancel_branch_create();
+    app.cancel_branch_delete();
+    app.cancel_branch_merge();
+    app.cancel_branch_rebase();
+    app.cancel_branch_interactive_rebase();
+    app.cancel_remote_picker();
+
+    assert_eq!(app.staging_file_total(), 0);
+
+    // Call request triggers
+    app.mode = Mode::Detail;
+    app.start_branch_create();
+    assert_eq!(app.mode, Mode::BranchCreateInput);
+
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+    app.detail_focus = DetailSection::Commits;
+    app.commit_list.selection = 0;
+    app.start_tag_create();
+    assert_eq!(app.mode, Mode::TagCreateInput);
+
+    app.mode = Mode::Detail;
+    app.start_stash_create();
+    assert_eq!(app.mode, Mode::StashCreateInput);
+
+    app.mode = Mode::Detail;
+    app.start_remote_add();
+    assert_eq!(app.mode, Mode::RemoteAddNameInput);
+
+    app.mode = Mode::Detail;
+    app.request_tag_delete();
+    app.request_tag_push();
+    app.request_tag_push_all();
+    app.request_branch_delete();
+    app.request_branch_merge();
+    app.request_branch_rebase();
+    app.request_branch_interactive_rebase();
+}
+
+#[test]
+fn test_navigation_boilerplates_coverage_boost() {
+    let config = Config::default();
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_nav_boilerplates.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(config, temp_config_path);
+
+    // 1. local_branch
+    app.local_branch_up();
+    app.local_branch_down();
+    app.local_branch_page_up(2);
+    app.local_branch_page_down(2);
+    app.local_branch_to_top();
+    app.local_branch_to_bottom();
+
+    // 2. remote_branch
+    app.remote_branch_up();
+    app.remote_branch_down();
+    app.remote_branch_page_up(2);
+    app.remote_branch_page_down(2);
+    app.remote_branch_to_top();
+    app.remote_branch_to_bottom();
+
+    // 3. file_list
+    app.file_list_up();
+    app.file_list_down();
+    app.file_list_page_up(2);
+    app.file_list_page_down(2);
+    app.file_list_to_top();
+    app.file_list_to_bottom();
+
+    // 4. detail_commit
+    app.detail_commit_up();
+    app.detail_commit_down();
+    app.detail_commit_page_up(2);
+    app.detail_commit_page_down(2);
+    app.detail_commit_to_top();
+    app.detail_commit_to_bottom();
+
+    // 5. detail_file / staging_file / conflict_file
+    app.detail_file_up();
+    app.detail_file_down();
+    app.staging_file_up();
+    app.staging_file_down();
+    app.conflict_file_up();
+    app.conflict_file_down();
+
+    // 6. diff_hunk / diff_line
+    app.diff_hunk_up();
+    app.diff_hunk_down();
+    app.diff_line_up();
+    app.diff_line_down();
+
+    // 7. overview_scroll
+    app.overview_scroll_up();
+    app.overview_scroll_down();
+    app.overview_scroll_page_up(2);
+    app.overview_scroll_page_down(2);
+    app.overview_scroll_to_top();
+    app.overview_scroll_to_bottom();
+
+    // 8. file_content_scroll
+    app.file_content_scroll_up();
+    app.file_content_scroll_down();
+    app.file_content_scroll_page_up(2);
+    app.file_content_scroll_page_down(2);
+    app.file_content_scroll_to_top();
+    app.file_content_scroll_to_bottom();
+
+    // 9. graph_select
+    app.graph_select_up();
+    app.graph_select_down();
+    app.graph_select_page_up(2);
+    app.graph_select_page_down(2);
+    app.graph_select_to_top();
+    app.graph_select_to_bottom();
+
+    // 10. scrolls
+    app.commit_details_scroll_up();
+    app.commit_details_scroll_down();
+    app.commit_input_scroll_up();
+    app.commit_input_scroll_down();
+
+    // 11. remote_picker / local_tag
+    app.remote_picker_up();
+    app.remote_picker_down();
+    app.local_tag_up();
+    app.local_tag_down();
+    app.local_tag_page_up(2);
+    app.local_tag_page_down(2);
+    app.local_tag_to_top();
+    app.local_tag_to_bottom();
+
+    // 12. remote / stash
+    app.remote_up();
+    app.remote_down();
+    app.remote_page_up(2);
+    app.remote_page_down(2);
+    app.remote_to_top();
+    app.remote_to_bottom();
+
+    app.stash_up();
+    app.stash_down();
+    app.stash_page_up(2);
+    app.stash_page_down(2);
+    app.stash_to_top();
+    app.stash_to_bottom();
+
+    // 13. stash_file
+    app.stash_file_up();
+    app.stash_file_down();
+    app.stash_file_page_up(2);
+    app.stash_file_page_down(2);
+    app.stash_file_to_top();
+    app.stash_file_to_bottom();
+
+    // 14. help / legend scroll
+    app.help_scroll_up();
+    app.help_scroll_down();
+    app.help_scroll_page_up(2);
+    app.help_scroll_page_down(2);
+    app.help_scroll_to_top();
+    app.help_scroll_to_bottom();
+    app.legend_scroll_up();
+    app.legend_scroll_down();
+    app.legend_scroll_page_up(2);
+    app.legend_scroll_page_down(2);
+    app.legend_scroll_to_top();
+    app.legend_scroll_to_bottom();
+}

@@ -123,8 +123,7 @@ mod tests {
         assert!(logs.iter().any(|l| l.contains("[WARN] unique_warn_msg_test")));
         assert!(logs.iter().any(|l| l.contains("[ERROR] unique_error_msg_test")));
         assert!(logs.iter().any(|l| l.contains("[DEBUG] unique_debug_msg_test")));
-        
+
         clear();
     }
 }
-

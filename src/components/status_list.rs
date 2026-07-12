@@ -375,3 +375,34 @@ impl Component for StatusListComponent {
         Ok(EventState::NotConsumed)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_status_list_component() {
+        let queue = crate::queue::Queue::default();
+        let mut component = StatusListComponent::new(queue.clone());
+
+        let key = |code: KeyCode| Event::Key(KeyEvent::new(code, KeyModifiers::empty()));
+
+        // Test event methods
+        assert!(component.event(&key(KeyCode::Up)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Down)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('a'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('x'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('X'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('s'))).unwrap().is_consumed());
+
+        // Test draw
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let _ = component.draw(f, Rect::new(0, 0, 80, 24));
+            })
+            .unwrap();
+    }
+}

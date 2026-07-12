@@ -271,3 +271,43 @@ pub fn draw_forge_view(
         f.render_widget(paragraph, detail_inner);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_draw_forge_view() {
+        let config = crate::config::Config::default();
+        let app = App::new(config, std::path::PathBuf::from("test.toml"));
+
+        let info = RepoInfo {
+            forge_issues: repo::TabData::Loaded(vec![repo::ForgeIssue {
+                number: 123,
+                title: "Issue Title".to_string(),
+                state: "open".to_string(),
+                author: "author".to_string(),
+                url: "https://example.com".to_string(),
+                assignees: vec!["author".to_string()],
+            }]),
+            ..RepoInfo::default()
+        };
+
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let mut areas = DetailAreas::default();
+                draw_forge_view(
+                    f,
+                    &info,
+                    DetailSection::ForgeIssues,
+                    0,
+                    &mut areas,
+                    &app,
+                    Rect::new(0, 0, 80, 24),
+                );
+            })
+            .unwrap();
+    }
+}

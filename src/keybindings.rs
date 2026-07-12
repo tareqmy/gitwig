@@ -1776,3 +1776,37 @@ impl KeybindingsConfig {
         default_cfg
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_keybindings_coverage_boost() {
+        // 1. from_index / to_index
+        let action = Action::Close;
+        let idx = action.to_index();
+        let parsed = Action::from_index(idx);
+        assert_eq!(parsed, Some(action));
+        assert!(Action::from_index(9999).is_none());
+
+        // 2. save / load / check_conflicts
+        let temp_dir = std::env::temp_dir().join(format!(
+            "gitwig_kb_{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let config = KeybindingsConfig::default_config();
+        config.check_conflicts();
+        config.save(&temp_dir).unwrap();
+
+        let loaded = KeybindingsConfig::load(&temp_dir);
+        assert_eq!(
+            loaded.format_action_keys(Action::Close, false),
+            config.format_action_keys(Action::Close, false)
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+}

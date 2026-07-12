@@ -367,3 +367,57 @@ pub fn draw_forge_prs_view(
         f.render_widget(paragraph, detail_inner);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_draw_forge_prs_view() {
+        let config = crate::config::Config::default();
+        let app = App::new(config, std::path::PathBuf::from("test.toml"));
+
+        let info = RepoInfo {
+            forge_prs: repo::TabData::Loaded(vec![repo::ForgePR {
+                number: 456,
+                title: "PR Title".to_string(),
+                state: "open".to_string(),
+                author: "author".to_string(),
+                assignees: vec![],
+                url: "https://example.com".to_string(),
+                head_ref: "feature-branch".to_string(),
+                head_ref_oid: "xyz789".to_string(),
+                body: "PR Description".to_string(),
+                status_checks: vec![repo::CIStatusCheck {
+                    name: "CI".to_string(),
+                    state: Some("SUCCESS".to_string()),
+                    status: None,
+                    conclusion: Some("SUCCESS".to_string()),
+                }],
+                reviews: vec![repo::PRReview {
+                    author: "reviewer".to_string(),
+                    state: "APPROVED".to_string(),
+                    body: "LGTM".to_string(),
+                }],
+            }]),
+            ..RepoInfo::default()
+        };
+
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let mut areas = DetailAreas::default();
+                draw_forge_prs_view(
+                    f,
+                    &info,
+                    DetailSection::ForgePRs,
+                    0,
+                    &mut areas,
+                    &app,
+                    Rect::new(0, 0, 80, 24),
+                );
+            })
+            .unwrap();
+    }
+}

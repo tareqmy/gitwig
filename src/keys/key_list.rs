@@ -37,3 +37,13 @@ impl Default for KeyList {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_key_list_default() {
+        let _ = KeyList::default();
+    }
+}

@@ -674,3 +674,109 @@ fn files_tab_sym(key: &str) -> &'static str {
         _ => "",
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_file_tree_component() {
+        let queue = crate::queue::Queue::default();
+        let mut component = FileTreeComponent::new(queue.clone());
+
+        component.file_content_scroll_up();
+        component.file_content_scroll_down();
+        component.file_content_scroll_page_up(1);
+        component.file_content_scroll_page_down(1);
+        component.file_content_scroll_to_top();
+        component.file_content_scroll_to_bottom();
+
+        let key = |code: KeyCode| Event::Key(KeyEvent::new(code, KeyModifiers::empty()));
+
+        // Test event methods
+        assert!(component.event(&key(KeyCode::Up)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Down)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::PageUp)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::PageDown)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Home)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::End)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Enter)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Left)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('x'))).unwrap().is_consumed());
+
+        // Test draw functions
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let _ = component.draw(f, Rect::new(0, 0, 80, 24));
+
+                let info = RepoInfo {
+                    files: repo::TabData::Loaded(vec!["file.txt".to_string()]),
+                    ..RepoInfo::default()
+                };
+                let visible = vec![
+                    crate::app::FileTreeItem {
+                        name: "file.txt".to_string(),
+                        full_path: "file.txt".to_string(),
+                        is_dir: false,
+                        is_expanded: false,
+                        depth: 0,
+                    },
+                    crate::app::FileTreeItem {
+                        name: "dir".to_string(),
+                        full_path: "dir".to_string(),
+                        is_dir: true,
+                        is_expanded: true,
+                        depth: 0,
+                    },
+                ];
+                let mut areas = DetailAreas::default();
+                let config = crate::config::Config::default();
+                let app = App::new(config, std::path::PathBuf::from("test.toml"));
+
+                draw_files_view(
+                    f,
+                    std::path::Path::new("/tmp"),
+                    &info,
+                    &visible,
+                    DetailSection::Files,
+                    0,
+                    0,
+                    &mut areas,
+                    50,
+                    &app,
+                    Rect::new(0, 0, 80, 24),
+                );
+
+                let commit = CommitEntry {
+                    id: "abc".to_string(),
+                    oid: "abc".to_string(),
+                    author: "author".to_string(),
+                    when: "10 mins ago".to_string(),
+                    date: "2026-07-02".to_string(),
+                    summary: "summary".to_string(),
+                    message: "msg".to_string(),
+                    refs: vec![],
+                    files: vec![],
+                    signature_status: "G".to_string(),
+                };
+                draw_commit_files_panel(
+                    f,
+                    &commit,
+                    DetailSection::Staged,
+                    0,
+                    &[],
+                    0,
+                    0,
+                    &mut areas,
+                    50,
+                    50,
+                    &app,
+                    Rect::new(0, 0, 80, 24),
+                );
+            })
+            .unwrap();
+    }
+}

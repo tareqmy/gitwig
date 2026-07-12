@@ -102,7 +102,7 @@ mod tests {
     fn test_remote_picker_popup_events() {
         let config = crate::config::Config::default();
         let mut app = crate::app::App::new(config, std::path::PathBuf::from("test.toml"));
-        
+
         // Setup mock remotes list in current_detail
         app.current_detail = Some(crate::repo::ItemDetail::Repo {
             resolved: std::path::PathBuf::from("test"),
@@ -142,4 +142,3 @@ mod tests {
         RemotePickerPopup::handle_event(&mut app, key_event(KeyCode::Esc));
     }
 }
-

@@ -76,7 +76,7 @@ mod tests {
     fn test_remotes_tab_events() {
         let config = crate::config::Config::default();
         let mut app = crate::app::App::new(config, std::path::PathBuf::from("test.toml"));
-        
+
         let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
 
         // Test navigation boundaries
@@ -88,4 +88,3 @@ mod tests {
         RemotesTab::handle_event(&mut app, key_event(KeyCode::End));
     }
 }
-

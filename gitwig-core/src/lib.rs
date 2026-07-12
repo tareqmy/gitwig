@@ -3678,17 +3678,17 @@ mod tests {
 
         // 2. Call get_lfs_info (which will trigger is_lfs_installed and cover them)
         let (installed, tracked) = get_lfs_info(&temp_path);
-        
+
         // Assert that get_lfs_info completed (whether lfs is installed on user's machine or not)
         assert!(tracked.is_empty());
 
         // 3. Create .gitattributes with lfs pattern
         let gitattributes_path = temp_path.join(".gitattributes");
         std::fs::write(&gitattributes_path, "*.bin filter=lfs diff=lfs merge=lfs").unwrap();
-        
+
         let (installed2, _tracked2) = get_lfs_info(&temp_path);
         assert_eq!(installed, installed2);
-        
+
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);
     }
@@ -3726,7 +3726,7 @@ mod tests {
         // 5. Test stage/unstage/discard all
         let _ = stage_all_changes(&temp_path);
         let _ = unstage_all_changes(&temp_path);
-        
+
         std::fs::write(&file_path, "modified content").unwrap();
         let _ = discard_all_changes(&temp_path);
 
@@ -3774,6 +3774,88 @@ mod tests {
         // 15. Test inspect_detail & inspect_summary
         let _detail = inspect_detail(temp_path.to_str().unwrap(), 10, 10, true);
         let _summary = inspect_summary(temp_path.to_str().unwrap());
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_more_gitwig_core_coverage() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_cov2_{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // 1. Repository init
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // 2. Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // 3. Create dummy file & commit
+        let file_path = temp_path.join("test.txt");
+        std::fs::write(&file_path, "line 1\nline 2\nline 3\n").unwrap();
+        stage_file(&temp_path, "test.txt").unwrap();
+        commit_changes(&temp_path, "first commit").unwrap();
+
+        let head_commit = repo.head().unwrap().peel_to_commit().unwrap();
+        let head_oid = head_commit.id().to_string();
+
+        // 4. Test checkout functions
+        let _ = checkout_commit(&temp_path, &head_oid);
+        let _ = checkout_local_branch(&temp_path, "master");
+        let _ = checkout_remote_branch(&temp_path, "origin/master");
+        let _ = checkout_tag(&temp_path, "v1.0.0");
+
+        // 5. Test branch / tag creation & deletion
+        let _ = create_branch(&temp_path, "new-branch-2");
+        let _ = delete_local_branch(&temp_path, "new-branch-2");
+        let _ = delete_remote_branch(&temp_path, "origin/new-branch-2");
+        let _ = create_tag(&temp_path, "v1.0.0", &head_oid);
+        let _ = delete_remote_tag(&temp_path, "origin", "v1.0.0");
+        let _ = get_remote_tags(&temp_path, "origin");
+
+        // 6. Test serialize & deserialize tags
+        let tag_info = vec![BranchInfo {
+            name: "v1.0.0".to_string(),
+            is_head: false,
+            short_sha: "abc1234".to_string(),
+            short_message: "tag msg".to_string(),
+        }];
+        let serialized = serialize_tags(&tag_info);
+        let deserialized = deserialize_tags(&serialized);
+        assert_eq!(deserialized.len(), 1);
+        assert_eq!(deserialized[0].name, "v1.0.0");
+
+        // 7. Test history / blame / commit files
+        let _ = get_file_history(&temp_path, "test.txt");
+        let _ = get_file_blame(&temp_path, "test.txt");
+        let _ = get_commit_files(&temp_path, &head_oid);
+
+        // 8. Test load tab functions
+        let _ = load_tab_files(&temp_path);
+        let _ = load_tab_branches(&temp_path);
+        let _ = load_tab_remotes(&temp_path);
+        let _ = load_tab_overview(&temp_path, 10);
+
+        // 9. Test load_tab_graph_stream
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let _ =
+            load_tab_graph_stream(&temp_path, 10, temp_path.to_str().unwrap().to_string(), 0, tx);
+
+        // 10. Test invalidate cache
+        invalidate_ref_map_cache(&temp_path);
+
+        // 11. Test Forge API/command execution fallbacks/errors
+        let _ = load_tab_forge_issues(&temp_path, false);
+        let _ = load_tab_forge_issues(&temp_path, true);
+        let _ = load_tab_forge_prs(&temp_path);
+        let _ = load_pr_comments(&temp_path, 1);
+        let _ = add_pr_line_comment(&temp_path, 1, "sha", "file.txt", 10, "comment");
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);

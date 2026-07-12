@@ -1102,4 +1102,3 @@ mod tests {
         assert!(matches!(res_no, EventState::Consumed));
     }
 }
-

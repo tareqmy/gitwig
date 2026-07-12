@@ -417,3 +417,105 @@ impl Component for DiffComponent {
         Ok(EventState::NotConsumed)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_diff_component() {
+        let queue = crate::queue::Queue::default();
+        let mut component = DiffComponent::new(queue.clone());
+
+        component.file_diff = vec![
+            DiffLine {
+                content: "line 1".to_string(),
+                kind: DiffLineKind::Context,
+                old_lineno: Some(1),
+                new_lineno: Some(1),
+                hunk_idx: Some(0),
+            },
+            DiffLine {
+                content: "line 2".to_string(),
+                kind: DiffLineKind::Added,
+                old_lineno: None,
+                new_lineno: Some(2),
+                hunk_idx: Some(0),
+            },
+        ];
+
+        // Test scroll functions
+        component.diff_scroll_up();
+        component.diff_scroll_down();
+        component.diff_scroll_page_up(1);
+        component.diff_scroll_page_down(1);
+        component.diff_scroll_to_top();
+        component.diff_scroll_to_bottom();
+
+        let key = |code: KeyCode| Event::Key(KeyEvent::new(code, KeyModifiers::empty()));
+
+        // Test event methods
+        assert!(component.event(&key(KeyCode::Up)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Down)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::PageUp)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::PageDown)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Home)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::End)).unwrap().is_consumed());
+
+        // Test draw
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let _ = component.draw(f, Rect::new(0, 0, 80, 24));
+
+                let list_state = std::cell::RefCell::new(ListState::default());
+                let empty_set = std::collections::HashSet::new();
+                draw_file_subpanel(
+                    f,
+                    "Test Panel",
+                    ratatui::style::Color::Red,
+                    &[FileEntry { path: "file.txt".to_string(), label: "M" }],
+                    "Empty",
+                    Borders::ALL,
+                    true,
+                    Some(0),
+                    &list_state,
+                    &empty_set,
+                    Rect::new(0, 0, 40, 12),
+                );
+
+                let mut areas = DetailAreas::default();
+                let commit = CommitEntry {
+                    id: "abc".to_string(),
+                    oid: "abc".to_string(),
+                    author: "author".to_string(),
+                    when: "10 mins ago".to_string(),
+                    date: "2026-07-02".to_string(),
+                    summary: "summary".to_string(),
+                    message: "msg".to_string(),
+                    refs: vec![],
+                    files: vec![],
+                    signature_status: "G".to_string(),
+                };
+                let config = crate::config::Config::default();
+                let app = App::new(config, std::path::PathBuf::from("test.toml"));
+                draw_inspect_window(
+                    f,
+                    &commit,
+                    DetailSection::Staged,
+                    0,
+                    &component.file_diff,
+                    0,
+                    0,
+                    &mut areas,
+                    50,
+                    50,
+                    &app,
+                    Rect::new(0, 0, 80, 24),
+                );
+            })
+            .unwrap();
+    }
+}

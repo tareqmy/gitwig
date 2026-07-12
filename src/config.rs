@@ -1064,7 +1064,8 @@ enable_commit_signatures = false
         let test_dir = std::env::temp_dir().join(format!("gitwig_test_parse_err_{}", unique_id));
         fs::create_dir_all(&test_dir).unwrap();
         let err_path = test_dir.join("config.toml");
-        let (config, warning) = handle_parse_error(&err_path, Box::new(std::io::Error::other("mock error")));
+        let (config, warning) =
+            handle_parse_error(&err_path, Box::new(std::io::Error::other("mock error")));
         assert!(warning.is_some());
         assert!(config.items.is_empty());
         let _ = fs::remove_dir_all(&test_dir);

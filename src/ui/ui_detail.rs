@@ -1608,3 +1608,58 @@ pub fn read_file_content(path: &std::path::Path) -> Result<String, std::io::Erro
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     Ok(content)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::repo::{FileEntry, GraphLine, RepoInfo, TabData};
+    use ratatui::text::Span;
+
+    #[test]
+    fn test_ui_detail_functions_coverage_boost() {
+        // 1. error_style
+        let _ = error_style();
+
+        // 2. field_label / field_line / kind_line
+        let _ = field_label("name");
+        let _ = field_line("test", Span::raw("val"));
+        let _ = kind_line("staged", ratatui::style::Color::Red, "red", "sub");
+
+        // 3. file_entry_line
+        let entry = FileEntry { path: "test_path.txt".to_string(), label: "M" };
+        let _ = file_entry_line(&entry, false);
+        let _ = file_entry_line(&entry, true);
+
+        // 4. graph_line_spans
+        let gline = GraphLine {
+            graph: "*".to_string(),
+            commit: Some(crate::repo::GraphCommit {
+                oid: "oid".to_string(),
+                decoration: "dec".to_string(),
+                summary: "msg".to_string(),
+                author: "Author".to_string(),
+                date: "date".to_string(),
+                signature_status: "G".to_string(),
+            }),
+        };
+        let _ = graph_line_spans(&gline);
+
+        // 5. build_committer_stats_lines
+        let info = RepoInfo {
+            committer_stats: TabData::Loaded(vec![crate::repo::CommitterStat {
+                name: "Author".to_string(),
+                email: "author@example.com".to_string(),
+                count: 15,
+            }]),
+            ..RepoInfo::default()
+        };
+        let _ = build_committer_stats_lines(&info);
+
+        // 6. read_file_content
+        let temp_file = std::env::temp_dir().join("twig_ui_detail_test_file.txt");
+        let _ = std::fs::write(&temp_file, "hello world");
+        let content = read_file_content(&temp_file).unwrap();
+        assert_eq!(content, "hello world");
+        let _ = std::fs::remove_file(&temp_file);
+    }
+}

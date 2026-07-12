@@ -831,3 +831,37 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     }
     true
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_input_dispatch_coverage() {
+        let config = crate::config::Config::default();
+        let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
+
+        let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+        // Test with error message
+        app.error_message = Some("mock error".to_string());
+        assert!(handle_key(&mut app, key(KeyCode::Esc), 0));
+        assert!(app.error_message.is_none());
+
+        // Test fetching dismiss
+        app.fetching = true;
+        assert!(handle_key(&mut app, key(KeyCode::Esc), 0));
+        assert!(!app.fetching);
+
+        // Test loading_repo_path cancel
+        app.loading_repo_path = Some("mock/path".to_string());
+        assert!(handle_key(&mut app, key(KeyCode::Esc), 0));
+        assert!(app.loading_repo_path.is_none());
+
+        // Test Mode::NotGitRepo
+        app.mode = Mode::NotGitRepo;
+        assert!(handle_key(&mut app, key(KeyCode::Esc), 0));
+        assert_eq!(app.mode, Mode::Normal);
+    }
+}

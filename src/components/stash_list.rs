@@ -327,3 +327,37 @@ impl Component for StashListComponent {
         Ok(EventState::NotConsumed)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_stash_list_component() {
+        let queue = crate::queue::Queue::default();
+        let mut component = StashListComponent::new(queue.clone());
+
+        let key = |code: KeyCode| Event::Key(KeyEvent::new(code, KeyModifiers::empty()));
+
+        // Test event methods
+        assert!(component.event(&key(KeyCode::Up)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Down)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::PageUp)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::PageDown)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Home)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::End)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Enter)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('D'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('s'))).unwrap().is_consumed());
+
+        // Test draw
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let _ = component.draw(f, Rect::new(0, 0, 80, 24));
+            })
+            .unwrap();
+    }
+}

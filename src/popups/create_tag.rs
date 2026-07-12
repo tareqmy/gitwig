@@ -70,3 +70,20 @@ pub fn draw_tag_create_popup(
         .min(inner_area.x.saturating_add(inner_area.width.saturating_sub(1)));
     f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_draw_tag_create_popup() {
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let area = Rect::new(0, 0, 80, 24);
+                draw_tag_create_popup(f, "v1.0.0", Some("1234567890"), area);
+            })
+            .unwrap();
+    }
+}

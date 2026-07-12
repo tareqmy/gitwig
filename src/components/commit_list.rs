@@ -539,3 +539,84 @@ impl crate::components::DrawableComponent for CommitListComponent {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_commit_list_component() {
+        let queue = crate::queue::Queue::default();
+        let mut component = CommitListComponent::new(queue.clone());
+
+        // Test scroll functions
+        component.details_scroll_up();
+        component.details_scroll_down();
+
+        let key = |code: KeyCode| Event::Key(KeyEvent::new(code, KeyModifiers::empty()));
+
+        // Test event methods
+        assert!(component.event(&key(KeyCode::Char('f'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('c'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('C'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('t'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('b'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('i'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('p'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('y'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('v'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Enter)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Home)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::End)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Char('G'))).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Up)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::Down)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::PageUp)).unwrap().is_consumed());
+        assert!(component.event(&key(KeyCode::PageDown)).unwrap().is_consumed());
+
+        // Test draw
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let mut areas = DetailAreas::default();
+                let info = RepoInfo {
+                    commits: vec![CommitEntry {
+                        id: "abc".to_string(),
+                        oid: "abc".to_string(),
+                        author: "author".to_string(),
+                        when: "10 mins ago".to_string(),
+                        date: "2026-07-02".to_string(),
+                        summary: "summary".to_string(),
+                        message: "msg".to_string(),
+                        refs: vec![
+                            "tag:v1".to_string(),
+                            "remote:origin/main".to_string(),
+                            "local-branch".to_string(),
+                        ],
+                        files: vec![],
+                        signature_status: "G".to_string(),
+                    }],
+                    ..RepoInfo::default()
+                };
+                draw_detail_commits(
+                    f,
+                    &info,
+                    DetailSection::Commits,
+                    0,
+                    &None,
+                    Rect::new(0, 0, 80, 24),
+                    &component.table_state,
+                    &mut areas,
+                    100,
+                );
+                draw_commit_details_widget(f, &info.commits[0], true, 0, Rect::new(0, 0, 80, 24));
+
+                let config = crate::config::Config::default();
+                let app = App::new(config, std::path::PathBuf::from("test.toml"));
+                draw_logs_view(f, &info, 0, &None, &app, Rect::new(0, 0, 80, 24));
+            })
+            .unwrap();
+    }
+}

@@ -53,3 +53,33 @@ pub mod status_list;
 pub mod submodule_list;
 pub mod tag_list;
 pub mod worktree_list;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct DummyComponent;
+    impl DrawableComponent for DummyComponent {
+        fn draw(&self, _f: &mut Frame, _rect: Rect) -> Result<()> {
+            Ok(())
+        }
+    }
+    impl Component for DummyComponent {
+        fn event(&mut self, _ev: &Event) -> Result<EventState> {
+            Ok(EventState::NotConsumed)
+        }
+    }
+
+    #[test]
+    fn test_component_defaults() {
+        let mut c = DummyComponent;
+        assert!(!c.focused());
+        c.focus(true);
+        assert!(c.is_visible());
+        c.hide();
+        assert!(c.show().is_ok());
+
+        assert!(EventState::Consumed.is_consumed());
+        assert!(!EventState::NotConsumed.is_consumed());
+    }
+}

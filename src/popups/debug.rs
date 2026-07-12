@@ -322,3 +322,58 @@ impl DebugLogsPopup {
         true
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_debug_logs_popup_coverage_boost() {
+        let config = crate::config::Config::default();
+        let mut app = crate::app::App::new(config, std::path::PathBuf::from("test.toml"));
+
+        let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+        // 1. Start query / enable editing
+        app.debug_log_search_editing = false;
+        app.debug_log_search_query = None;
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::Char('/')));
+        assert!(app.debug_log_search_editing);
+        assert_eq!(app.debug_log_search_query, Some(String::new()));
+
+        // 2. Type characters
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::Char('a')));
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::Char('b')));
+        assert_eq!(app.debug_log_search_query, Some("ab".to_string()));
+
+        // 3. Backspace
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::Backspace));
+        assert_eq!(app.debug_log_search_query, Some("a".to_string()));
+
+        // 4. Enter to stop editing
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::Enter));
+        assert!(!app.debug_log_search_editing);
+
+        // 5. Scroll keys in non-editing mode
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::Down));
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::Up));
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::PageDown));
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::PageUp));
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::Home));
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::End));
+
+        // 6. Clear logs
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::Char('c')));
+
+        // 7. Esc with active query to reset query
+        app.debug_log_search_query = Some("test".to_string());
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::Esc));
+        assert_eq!(app.debug_log_search_query, None);
+
+        // 8. Esc to quit debug logs mode
+        app.mode = crate::app::Mode::DebugLogs;
+        DebugLogsPopup::handle_event(&mut app, key(KeyCode::Esc));
+        assert_eq!(app.mode, crate::app::Mode::Normal);
+    }
+}

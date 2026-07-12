@@ -31,3 +31,13 @@ impl Default for KeySymbols {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_key_symbols_default() {
+        let _ = KeySymbols::default();
+    }
+}

@@ -107,3 +107,39 @@ pub fn draw_forge_comment_popup(f: &mut Frame, app: &App, input_buffer: &str, ar
         .min(inner_area.x.saturating_add(inner_area.width.saturating_sub(1)));
     f.set_cursor_position(Position::new(cursor_x, cursor_y));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_draw_forge_comment_popup() {
+        let config = crate::config::Config::default();
+        let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
+
+        app.mode = Mode::ForgeCommentPathInput;
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                draw_forge_comment_popup(f, &app, "some/path.txt", Rect::new(0, 0, 80, 24));
+            })
+            .unwrap();
+
+        app.mode = Mode::ForgeCommentLineInput;
+        app.forge_comment_path = "some/path.txt".to_string();
+        terminal
+            .draw(|f| {
+                draw_forge_comment_popup(f, &app, "42", Rect::new(0, 0, 80, 24));
+            })
+            .unwrap();
+
+        app.mode = Mode::ForgeCommentBodyInput;
+        app.forge_comment_line = 42;
+        terminal
+            .draw(|f| {
+                draw_forge_comment_popup(f, &app, "looks good", Rect::new(0, 0, 80, 24));
+            })
+            .unwrap();
+    }
+}
