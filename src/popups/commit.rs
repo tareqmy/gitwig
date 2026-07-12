@@ -362,6 +362,15 @@ impl Component for CommitPopup {
                         self.scroll.set(self.scroll.get().saturating_add(1));
                         return Ok(EventState::Consumed);
                     }
+                    KeyCode::Char('x')
+                    | KeyCode::Char('X')
+                    | KeyCode::Char('u')
+                    | KeyCode::Char('U') => {
+                        self.input_buffer.clear();
+                        self.cursor_idx = 0;
+                        self.scroll.set(0);
+                        return Ok(EventState::Consumed);
+                    }
                     _ => {}
                 }
             }
@@ -461,9 +470,9 @@ pub fn draw_commit_popup(
         Span::styled(format!("{} ", checkbox), checkbox_style),
         Span::styled("Amend last commit", primary_style()),
         if !editing {
-            Span::styled(" (toggle: [a/space])", muted_style())
+            Span::styled(" (toggle: [a/space] | clear: [x])", muted_style())
         } else {
-            Span::styled(" (toggle: [⌃A])", muted_style())
+            Span::styled(" (toggle: [⌃A] | clear: [⌃U])", muted_style())
         },
     ]);
     f.render_widget(Paragraph::new(checkbox_line), chunks[1]);

@@ -4402,6 +4402,26 @@ fn test_commit_popup_custom_keys() {
     assert!(handled);
     assert!(app.commit_popup.editing);
 
+    // Test Ctrl+U in editing mode -> clears buffer
+    app.commit_popup.input_buffer = "hello world".to_string();
+    app.commit_popup.cursor_idx = 5;
+    let ctrl_u = KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL);
+    let handled = crate::input::handle_key(&mut app, ctrl_u, 0);
+    assert!(handled);
+    assert!(app.commit_popup.input_buffer.is_empty());
+    assert_eq!(app.commit_popup.cursor_idx, 0);
+
+    // Enter confirm mode and test 'x' in confirm mode -> clears buffer
+    app.commit_popup.input_buffer = "some message".to_string();
+    app.commit_popup.editing = false;
+    let key_x = KeyEvent::new(KeyCode::Char('x'), KeyModifiers::empty());
+    let handled = crate::input::handle_key(&mut app, key_x, 0);
+    assert!(handled);
+    assert!(app.commit_popup.input_buffer.is_empty());
+
+    // Switch editing back to true for next steps
+    app.commit_popup.editing = true;
+
     // Test Esc in editing mode -> closes popup / returns to Detail mode
     let key_esc = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
     let handled = crate::input::handle_key(&mut app, key_esc, 0);
