@@ -413,13 +413,7 @@ fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
         let spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
         let idx = ((app.fetch_progress / 10) % 10) as usize;
         right_spans.insert(0, Span::raw(" "));
-        right_spans.insert(
-            0,
-            Span::styled(
-                spinner_chars[idx],
-                Style::default().fg(ratatui::style::Color::Cyan).add_modifier(Modifier::BOLD),
-            ),
-        );
+        right_spans.insert(0, Span::styled(spinner_chars[idx], accent_style()));
     }
     block = block.title(Line::from(right_spans).alignment(Alignment::Right));
     f.render_widget(block, area);
@@ -753,9 +747,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                             ),
                             RepoState::ApplyMailbox => (
                                 " 📬 APPLYING",
-                                Style::default()
-                                    .fg(ratatui::style::Color::Cyan)
-                                    .add_modifier(Modifier::BOLD),
+                                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
                             ),
                             RepoState::Clean => (" ✓ CLEAN", muted_style()),
                         };
@@ -934,9 +926,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                             ),
                             RepoState::ApplyMailbox => (
                                 " 📬 APPLYING",
-                                Style::default()
-                                    .fg(ratatui::style::Color::Cyan)
-                                    .add_modifier(Modifier::BOLD),
+                                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
                             ),
                             RepoState::Clean => (" ✓ CLEAN", muted_style()),
                         };
@@ -1693,7 +1683,7 @@ pub fn draw_global_search_popup(f: &mut Frame, app: &App, area: Rect) {
                         if is_selected && !app.global_search_focus_input {
                             row_style
                         } else {
-                            Style::default().fg(ratatui::style::Color::Cyan)
+                            Style::default().fg(ACCENT())
                         },
                     ),
                     Span::styled(res.line_content.clone(), row_style),
@@ -1808,7 +1798,7 @@ pub fn draw_repo_scan_popup(f: &mut Frame, app: &App, area: Rect) {
     };
 
     let hint = Line::from(vec![
-        Span::styled(status_text, Style::default().fg(ratatui::style::Color::Cyan)),
+        Span::styled(status_text, Style::default().fg(ACCENT())),
         Span::raw("  |  "),
         Span::styled("Type to filter/manual path  ", muted_style()),
         Span::styled("↑↓ navigate  ", muted_style()),
@@ -1901,7 +1891,7 @@ pub fn draw_bulk_add_scan_popup(f: &mut Frame, app: &App, area: Rect) {
     };
 
     let hint = Line::from(vec![
-        Span::styled(status_text, Style::default().fg(ratatui::style::Color::Cyan)),
+        Span::styled(status_text, Style::default().fg(ACCENT())),
         Span::raw("  |  "),
         Span::styled("Type to filter/manual path  ", muted_style()),
         Span::styled("↑↓ navigate  ", muted_style()),
@@ -2228,7 +2218,7 @@ fn draw_not_git_repo_popup(f: &mut Frame, area: Rect, app: &App) {
     use crate::ui::layout::centered_rect_fixed;
     use ratatui::style::{Color, Modifier};
     use ratatui::text::Text;
-    use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap};
+    use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
     let popup_area = centered_rect_fixed(56, 9, area);
     f.render_widget(Clear, popup_area);
@@ -2239,7 +2229,7 @@ fn draw_not_git_repo_popup(f: &mut Frame, area: Rect, app: &App) {
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
+        .border_type(CARD_BORDER())
         .border_style(border_style)
         .title(
             ratatui::text::Line::from(vec![

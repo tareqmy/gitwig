@@ -80,11 +80,15 @@ pub fn draw_debug_logs(f: &mut Frame, app: &App, area: Rect) {
 
     if let Some(rect) = input_rect {
         let query = app.debug_log_search_query.as_deref().unwrap_or("");
-        let border_color = if app.debug_log_search_editing { ACCENT() } else { Color::DarkGray };
+        let border_style = if app.debug_log_search_editing {
+            Style::default().fg(ACCENT())
+        } else {
+            Style::default()
+        };
         let input_block = Block::default()
             .borders(Borders::ALL)
             .border_type(CARD_BORDER())
-            .border_style(Style::default().fg(border_color))
+            .border_style(border_style)
             .title(" Fuzzy Search Logs ");
         let input_p =
             Paragraph::new(Line::from(vec![Span::raw("> "), Span::styled(query, primary_style())]))

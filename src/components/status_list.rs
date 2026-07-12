@@ -281,7 +281,7 @@ pub fn draw_staging_panels(
                         if i == app.diff.diff_line_selection {
                             ("▎", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
                         } else if is_selected_hunk {
-                            ("▏", Style::default().fg(Color::DarkGray))
+                            ("▏", muted_style())
                         } else {
                             (" ", Style::default())
                         }

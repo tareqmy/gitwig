@@ -1,7 +1,7 @@
 use crate::app::App;
 use crate::ui::layout::centered_rect_fixed;
 use crate::ui::style::{
-    CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style,
+    ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, primary_style,
 };
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
@@ -80,10 +80,7 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
         Span::raw("Path does not exist or is not a directory"),
     ]));
     lines.push(Line::from(vec![
-        Span::styled(
-            format!("  {}", pad("N+")),
-            Style::default().fg(accent_style().fg.unwrap_or(Color::Cyan)),
-        ),
+        Span::styled(format!("  {}", pad("N+")), Style::default().fg(ACCENT())),
         Span::raw("N Staged changes"),
     ]));
     lines.push(Line::from(vec![
@@ -147,9 +144,7 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
     lines.push(Line::from(vec![
         Span::styled(
             format!("  {}", pad("⚡ CHERRY")),
-            Style::default()
-                .fg(accent_style().fg.unwrap_or(Color::Cyan))
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("Active Cherry-pick operation"),
     ]));
@@ -170,14 +165,14 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
     lines.push(Line::from(vec![
         Span::styled(
             format!("  {}", pad("📬 APPLY")),
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("Applying patches (mailbox)"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
             format!("  {}", pad("[LFS]")),
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("File tracked by Git LFS"),
     ]));
@@ -201,10 +196,7 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
         Span::raw("Repositories with uncommitted/unstaged changes"),
     ]));
     lines.push(Line::from(vec![
-        Span::styled(
-            format!("  {}", pad("ahead")),
-            Style::default().fg(accent_style().fg.unwrap_or(Color::Cyan)),
-        ),
+        Span::styled(format!("  {}", pad("ahead")), Style::default().fg(ACCENT())),
         Span::raw("Repositories with local commits ahead of remote"),
     ]));
     lines.push(Line::from(vec![

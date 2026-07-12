@@ -156,10 +156,7 @@ pub fn draw_files_view(
                 ];
                 if !item.is_dir && info.lfs_files.contains(&item.full_path) {
                     spans.push(Span::raw(" "));
-                    spans.push(Span::styled(
-                        "[LFS]",
-                        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-                    ));
+                    spans.push(Span::styled("[LFS]", accent_style()));
                 }
                 ListItem::new(Line::from(spans))
             })
@@ -336,14 +333,8 @@ pub fn draw_files_view(
                                     format!("{:<7} ", entry.commit_id),
                                     Style::default().fg(ACCENT()),
                                 ));
-                                spans.push(Span::styled(
-                                    format!("{:<8} ", author),
-                                    Style::default().fg(Color::DarkGray),
-                                ));
-                                spans.push(Span::styled(
-                                    format!("{} ", entry.date),
-                                    Style::default().fg(Color::DarkGray),
-                                ));
+                                spans.push(Span::styled(format!("{:<8} ", author), muted_style()));
+                                spans.push(Span::styled(format!("{} ", entry.date), muted_style()));
                             } else {
                                 spans.push(Span::styled("        ".to_string(), muted_style()));
                                 spans.push(Span::styled("         ".to_string(), muted_style()));

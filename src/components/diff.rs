@@ -295,7 +295,7 @@ pub fn draw_inspect_window(
                         if idx == app.diff.diff_line_selection {
                             ("▎", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
                         } else if is_selected_hunk {
-                            ("▏", Style::default().fg(Color::DarkGray))
+                            ("▏", muted_style())
                         } else {
                             (" ", Style::default())
                         }

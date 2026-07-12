@@ -1480,10 +1480,7 @@ pub fn file_entry_line(entry: &FileEntry, is_lfs: bool) -> Line<'static> {
     ];
     if is_lfs {
         spans.push(Span::raw(" "));
-        spans.push(Span::styled(
-            "[LFS]",
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-        ));
+        spans.push(Span::styled("[LFS]", accent_style()));
     }
     Line::from(spans)
 }
