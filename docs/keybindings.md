@@ -71,7 +71,7 @@
 | `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs within the active group (Primary vs. Advanced) |
 | `w` / `W`            | Detail          | Cycle panel focus forward (w) / backward (W) |
 | `1` - `7`            | Detail          | Jump directly to Primary tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7) |
-| `1` - `4`            | Detail          | Jump directly to Advanced tab: Worktrees (1), Submodules (2), Reflog (3), Forge (4) (when Advanced group is active) |
+| `1` - `5`            | Detail          | Jump directly to Advanced tab: Worktrees (1), Submodules (2), Reflog (3), Issues (4), PRs (5) (when Advanced group is active) |
 | `X`                  | Detail          | Toggle between Primary and Advanced tab groups |
 | `O`                  | Detail          | Toggle full-screen repository Overview overlay |
 | `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
@@ -88,7 +88,8 @@
 | `e` / `o`            | Detail          | Open selected file in configured terminal editor (Files tab)      |
 | `Shift+H`            | Detail          | View selected file's commit/revision history (Files tab) |
 | `c`                  | Detail          | Open commit prompt (Workspace tab or Inspect view), or Create branch from HEAD (Branches tab) |
-| `a`                  | Detail          | Stage All (Workspace tab Unstaged focus) / Unstage All (Workspace tab Staged focus), Apply stash (Stashes tab), or Add worktree (Worktrees tab) |
+| `a`                  | Detail          | Toggle "Assigned to me" / "All Open" issues (Issues tab), Stage All (Workspace tab Unstaged focus) / Unstage All (Workspace tab Staged focus), Apply stash (Stashes tab), or Add worktree (Worktrees tab) |
+| `n`                  | Detail          | Add line comment to selected PR (PRs tab)                        |
 | `x`                  | Detail          | Discard selected file changes (Workspace tab or Inspect view; asks confirmation) |
 | `X`                  | Detail          | Discard all changes in repository (Workspace tab or Inspect view; asks confirmation) |
 | `i`                  | Detail          | Interactive rebase from selected commit (Workspace tab commits list) |
@@ -112,12 +113,14 @@
 | `?`                  | Detail          | Toggle detail help overlay        |
 | `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |
 | `⌃C`                 | CommitInput (Edit) | Finish editing commit message (switches to confirm state) |
+| `⌃U` (Ctrl+U)        | CommitInput (Edit) | Clear entire commit message buffer |
 | `↵` (Enter)          | CommitInput (Edit) | Insert a newline                  |
 | `Backspace`          | CommitInput (Edit) | Erase one character from commit message |
 | `Esc`                | CommitInput     | Cancel commit and return to Detail view |
 | `↵` (Enter)          | CommitInput (Confirm) | Submit / execute Git commit      |
 | `e` / `E`            | CommitInput (Confirm) | Edit / resume typing commit message |
 | `a` / `A` / `Space`  | CommitInput (Confirm) | Toggle amend last commit option   |
+| `x` / `X` / `u` / `U` | CommitInput (Confirm) | Clear entire commit message buffer |
 | `Left-Click` (Mouse) | Normal          | Select the clicked item           |
 | `Double-Click` (Mouse)| Normal         | Open Detail view for clicked item |
 | `Left-Click` (Mouse) | Detail          | Shift focus to the clicked panel or change active tab |

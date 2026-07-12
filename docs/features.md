@@ -15,3 +15,5 @@
 - **Global Code Search**: Press `Ctrl-F` to search for string patterns across all tracked repositories using a fast, multithreaded offline file scanner. Hitting `Enter` on a result automatically jumps to and opens that repository.
 - **Automatic Workspace Sync**: Monitor directories (e.g. `watch_dirs = ["~/development"]`) to automatically sync newly created or cloned repositories to your workspace in real-time.
 - **Git LFS Integration**: Automatic visual indicators (`[LFS]`) for tracked files, with LFS workflows (`git lfs pull` files, `git lfs track <pattern>`, and checking local LFS storage usage) accessible inside Repository Settings.
+- **Forge / GitHub Integration**: Dedicated PR/MR Viewer tab (fetching PRs, status checks, reviews, checking out branches, opening in browser), Issue Tracker tab (filtering by assignee/all open), and Code Review Mode (wizard input popups to asynchronously post line comments to PRs).
+

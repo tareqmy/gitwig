@@ -222,6 +222,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
             ("↵ [Enter]", "Checkout branch linked to selected issue or checkout PR branch"),
             ("o", "Open selected issue or PR in web browser"),
             ("a", "Toggle between all issues and assigned issues (Issues tab only)"),
+            ("n", "Add line comment to selected PR (PRs tab only)"),
         ],
     ));
 
