@@ -401,7 +401,7 @@ pub struct App {
 
     /// Timestamp and selected index of the last mouse click for double-click detection.
     pub last_click: Option<(std::time::Instant, usize)>,
-    /// Active tab in the detail view (0 = Details, 1 = Graph, 2 = Branches, 3 = Files).
+    /// Active tab in the detail view (0 = Details, 1 = Files, 2 = Graph, 3 = Branches, 4 = Tags, 5 = Remotes, 6 = Stashes, 7 = Worktrees, 8 = Submodules, 9 = Reflog, 10 = ForgeIssues, 11 = ForgePRs).
     pub detail_tab: usize,
     pub advanced_tabs: bool,
     /// Selected file index in the Files tab.
