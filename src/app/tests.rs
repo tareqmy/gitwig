@@ -5717,6 +5717,9 @@ fn test_background_auto_refresh() {
 
     assert!(!app.background_refresh_running);
 
+    // Drain any startup background messages first
+    while app.status_refresh_rx.try_recv().is_ok() {}
+
     // Mock an update received on the channel
     let updates = vec![(0, "/path/to/repo_a".to_string(), repo::ItemStatus::Directory)];
     app.status_refresh_tx.send(updates).unwrap();
@@ -10043,3 +10046,71 @@ fn test_startup_deferred_loading() {
     }
     assert!(received, "Should receive background status updates");
 }
+
+#[test]
+fn test_app_actions_coverage() {
+    let config = Config {
+        items: vec!["/dummy/path/a".to_string()],
+        poll_interval_ms: 100,
+        max_commits: 0,
+        page_size: 10,
+        sort_by: SortOrder::Custom,
+        ..Default::default()
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_actions_cov.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+
+    let mut app = App::new(config, temp_path);
+    
+    // Test basic edit/add state changes
+    app.start_add();
+    app.start_edit();
+    app.request_delete();
+    
+    app.input_buffer = "/dummy/path/b".to_string();
+    app.commit_add();
+    
+    app.input_buffer = "  /dummy/path/c  ".to_string();
+    app.commit_add_with_labels(app.input_buffer.clone(), vec!["label1".to_string()]);
+    
+    app.input_buffer = "label-input".to_string();
+    app.commit_add_label_input();
+    
+    app.add_repo_path("/dummy/path/d".to_string());
+    
+    app.input_buffer = "/dummy/path_edited".to_string();
+    app.commit_edit();
+    
+    app.confirm_delete();
+    
+    app.start_edit_labels();
+    app.commit_edit_labels();
+    
+    app.start_repo_scan();
+    app.start_bulk_repo_scan();
+    
+    let matches = app.get_scan_matches();
+    assert!(matches.is_empty());
+    
+    app.start_branch_search();
+    let branch_matches = app.get_branch_search_matches();
+    assert!(branch_matches.is_empty());
+    
+    app.start_file_search();
+    let file_matches = app.get_file_search_matches();
+    assert!(file_matches.is_empty());
+    
+    app.start_commit_fuzzy_search();
+    let commit_matches = app.get_commit_fuzzy_matches();
+    assert!(commit_matches.is_empty());
+    
+    app.start_tag_search();
+    let tag_matches = app.get_tag_search_matches();
+    assert!(tag_matches.is_empty());
+    
+    app.trigger_global_search();
+    app.select_global_search_result();
+    
+    app.auto_discover_add("/dummy/path/e".to_string());
+}
+

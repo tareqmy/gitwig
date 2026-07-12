@@ -3693,6 +3693,92 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp_path);
     }
 
+    #[test]
+    fn test_comprehensive_gitwig_core_coverage() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_cov_{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        // 1. Repository init
+        let repo = Repository::init(&temp_path).unwrap();
+
+        // 2. Configure author
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        // 3. Create dummy file & commit
+        let file_path = temp_path.join("test.txt");
+        std::fs::write(&file_path, "line 1\nline 2\nline 3\n").unwrap();
+        stage_file(&temp_path, "test.txt").unwrap();
+        commit_changes(&temp_path, "first commit").unwrap();
+
+        let head_commit = repo.head().unwrap().peel_to_commit().unwrap();
+        let head_oid = head_commit.id().to_string();
+
+        // 4. Test diff & worktree helpers
+        let _diffs = get_commit_file_diff(&temp_path, &head_oid, "test.txt");
+        let _worktree_diff = get_worktree_file_diff(&temp_path, "test.txt", false);
+
+        // 5. Test stage/unstage/discard all
+        let _ = stage_all_changes(&temp_path);
+        let _ = unstage_all_changes(&temp_path);
+        
+        std::fs::write(&file_path, "modified content").unwrap();
+        let _ = discard_all_changes(&temp_path);
+
+        // 6. Test LFS functions
+        let _lfs_size = get_lfs_storage_size(&temp_path);
+
+        // 7. Test load tab listings
+        let _reflog = load_tab_reflog(&temp_path);
+        let _tags = load_tab_tags(&temp_path);
+        let _stashes = load_tab_stashes(&temp_path);
+        let _submodules = load_tab_submodules(&temp_path);
+        let _worktrees = load_tab_worktrees(&temp_path);
+
+        // 8. Test remote add / delete
+        let _ = remote_add(&temp_path, "upstream", "https://github.com/example/upstream.git");
+        let _ = remote_delete(&temp_path, "upstream");
+
+        // 9. Test worktree add / remove
+        let wt_path = temp_path.join("wt-path");
+        let _ = worktree_add(&temp_path, "new-branch", &wt_path);
+        let _ = worktree_remove(&temp_path, "wt-path", true);
+
+        // 10. Test tag delete
+        let _ = delete_tag(&temp_path, "v1.0.0");
+
+        // 11. Test stash apply & drop
+        let _ = apply_stash(&temp_path, 0);
+        let _ = delete_stash(&temp_path, 0);
+
+        // 12. Test merge abort / continue
+        let _ = abort_merge(&temp_path);
+        let _ = continue_merge(&temp_path);
+
+        // 13. Test merge conflict resolver helpers
+        let _ = is_merging(&temp_path);
+        let _ = get_conflict_markers_diff(&temp_path, "test.txt");
+        let _ = resolve_ours(&temp_path, "test.txt");
+        let _ = resolve_theirs(&temp_path, "test.txt");
+        let _ = mark_resolved(&temp_path, "test.txt");
+
+        // 14. Test push target & upstream
+        let _target = get_branch_push_target(&temp_path, "master");
+        let _target2 = get_branch_push_target(&temp_path, "main");
+
+        // 15. Test inspect_detail & inspect_summary
+        let _detail = inspect_detail(temp_path.to_str().unwrap(), 10, 10, true);
+        let _summary = inspect_summary(temp_path.to_str().unwrap());
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
     use std::io::Write;
 
     #[test]

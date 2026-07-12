@@ -106,3 +106,25 @@ pub fn clear() {
         let _ = std::fs::write(&log_path, "");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_debug_log_functions() {
+        info("unique_info_msg_test");
+        warn("unique_warn_msg_test");
+        error("unique_error_msg_test");
+        debug("unique_debug_msg_test");
+
+        let logs = get_logs();
+        assert!(logs.iter().any(|l| l.contains("[INFO] unique_info_msg_test")));
+        assert!(logs.iter().any(|l| l.contains("[WARN] unique_warn_msg_test")));
+        assert!(logs.iter().any(|l| l.contains("[ERROR] unique_error_msg_test")));
+        assert!(logs.iter().any(|l| l.contains("[DEBUG] unique_debug_msg_test")));
+        
+        clear();
+    }
+}
+
