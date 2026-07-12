@@ -88,7 +88,7 @@ impl HomeTab {
                     app.mode = Mode::Legend;
                 } else if app.is_bound(Action::HomeToggleCompactView, key) {
                     app.config.compact_view = !app.config.compact_view;
-                    let _ = crate::config::save_config(&app.config, &app.config_path);
+                    app.persist("Compact view toggled");
                 } else if app.is_bound(Action::HomeRefresh, key) {
                     app.refresh_selected_status();
                 } else if app.is_bound(Action::HomeCycleSort, key) {

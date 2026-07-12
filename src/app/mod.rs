@@ -1365,7 +1365,7 @@ impl App {
             let _ = std::fs::write(&version_path, current_version);
 
             // 4. Save config to persist migration changes
-            let _ = crate::config::save_config(&app.config, &app.config_path);
+            app.persist("Configuration verification saved");
 
             // 5. Update UI status message to inform user
             if is_first_run {

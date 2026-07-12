@@ -674,7 +674,7 @@ impl App {
                 .unwrap_or_default()
                 .as_secs();
             self.config.visits.insert(item.clone(), now);
-            let _ = save_config(&self.config, &self.config_path);
+            self.persist("Opened repository");
 
             if self.config.sort_by == SortOrder::RecentVisit {
                 self.sort_items_in_place();

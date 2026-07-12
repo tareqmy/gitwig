@@ -633,7 +633,7 @@ fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {
                         let wt_path_str = wt_path.to_string_lossy().to_string();
                         if !app.config.items.contains(&wt_path_str) {
                             app.config.items.push(wt_path_str.clone());
-                            let _ = crate::config::save_config(&app.config, &app.config_path);
+                            app.persist("Worktree repository added");
                             app.original_items = app.config.items.clone();
                             if app.config.sort_by != crate::config::SortOrder::Custom {
                                 app.sort_items_in_place();
