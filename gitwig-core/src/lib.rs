@@ -2005,9 +2005,15 @@ fn populate_summary_and_file_changes(repo: &Repository, info: &mut RepoInfo) {
         }
 
         // 2. Populate file entries
-        // Skip directories to avoid showing folders in staging panels
-        let path_buf = repo.workdir().unwrap_or(Path::new("")).join(&path);
-        if path_buf.is_dir() {
+        // Skip directories to avoid showing folders in staging panels.
+        // We only call is_dir() for untracked files (since tracked items in git status are always files).
+        let is_dir = if flags.is_wt_new() && !flags.is_index_new() {
+            let path_buf = repo.workdir().unwrap_or(Path::new("")).join(&path);
+            path_buf.is_dir()
+        } else {
+            false
+        };
+        if is_dir {
             continue;
         }
 
