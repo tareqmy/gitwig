@@ -18,15 +18,9 @@
 )]
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::panic))]
 
-use std::{env, error::Error, io, path::PathBuf};
+use std::{env, error::Error, io};
 
-use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
-    execute,
-    terminal::{
-        EnterAlternateScreen, LeaveAlternateScreen, SetTitle, disable_raw_mode, enable_raw_mode,
-    },
-};
+use crossterm::{execute, terminal::SetTitle};
 use ratatui::{Terminal, backend::CrosstermBackend};
 
 mod app;
@@ -34,120 +28,43 @@ mod config;
 mod debug_log;
 mod input;
 pub mod keybindings;
+pub mod mouse;
 pub use gitwig_core as repo;
 pub mod components;
 mod keys;
 pub mod popups;
 mod queue;
 pub mod tabs;
+mod terminal;
 mod ui;
 pub use crate::ui::ui_detail;
 
 use crate::app::{App, run};
 use crate::config::load_config;
+use crate::terminal::{CliAction, check_cli, init_terminal, setup_panic_hook};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // Parse optional CLI arguments
-    let args: Vec<String> = env::args().collect();
-    if args.len() > 1 {
-        match args[1].as_str() {
-            "--version" | "-v" => {
-                println!("gitwig {}", env!("CARGO_PKG_VERSION"));
-                return Ok(());
-            }
-            "--help" | "-h" => {
-                println!("Gitwig - A Rust-based terminal user interface (TUI) for Git");
-                println!();
-                println!("Usage:");
-                println!("  gitwig [config_path]    Start Gitwig with the specified config file");
-                println!("  gitwig -v, --version    Print version info and exit");
-                println!("  gitwig -h, --help       Print help info and exit");
-                return Ok(());
-            }
-            _ => {}
-        }
-    }
+    let config_path = match check_cli()? {
+        CliAction::Run(path) => path,
+        CliAction::Exit => return Ok(()),
+    };
 
-    // Verify system 'git' is present on PATH before entering TUI
-    if let Err(e) = std::process::Command::new("git").arg("--version").output() {
-        eprintln!("Error: 'git' command-line tool not found on PATH.");
-        eprintln!(
-            "Gitwig requires a system installation of 'git' for network operations, staging, and diffing."
-        );
-        eprintln!("Detailed error: {:?}", e);
-        std::process::exit(1);
-    }
+    setup_panic_hook();
+    let guard = init_terminal()?;
 
-    // Install a panic hook to clean up the terminal state on crash
-    let default_panic = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |info| {
-        let _ = disable_raw_mode();
-        let mut stdout = std::io::stdout();
-        let _ = execute!(stdout, LeaveAlternateScreen, DisableMouseCapture);
-        let _ = execute!(std::io::stdout(), crossterm::cursor::Show);
-
-        // Also log the panic!
-        let msg = if let Some(s) = info.payload().downcast_ref::<&str>() {
-            s.to_string()
-        } else if let Some(s) = info.payload().downcast_ref::<String>() {
-            s.clone()
-        } else {
-            "Unknown panic".to_string()
-        };
-        let location = info
-            .location()
-            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
-            .unwrap_or_else(|| "unknown".to_string());
-
-        let backtrace = std::backtrace::Backtrace::capture();
-        let panic_msg = format!("Panic at {}: {}\nBacktrace:\n{}", location, msg, backtrace);
-        for line in panic_msg.lines() {
-            crate::debug_log::log("PANIC_FATAL", line);
-        }
-
-        default_panic(info);
-    }));
-
-    // Enable raw mode to capture input without line buffering
-    enable_raw_mode()?;
-    struct TerminalGuard;
-    impl Drop for TerminalGuard {
-        fn drop(&mut self) {
-            let _ = disable_raw_mode();
-            let mut stdout = io::stdout();
-            let _ = execute!(stdout, LeaveAlternateScreen, DisableMouseCapture);
-            let _ = execute!(stdout, crossterm::cursor::Show);
-            print!("\x1b[23;0t");
-            let _ = io::Write::flush(&mut stdout);
-        }
-    }
-    let guard = TerminalGuard;
-
-    let mut stdout = io::stdout();
-
-    // Push terminal title stack
-    print!("\x1b[22;0t");
-    let _ = io::Write::flush(&mut stdout);
-
-    // Switch to alternate screen buffer and enable mouse support
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-
-    // Parse optional CLI argument for config path
-    let cli_path = env::args().nth(1).map(PathBuf::from);
-
-    // Create Crossterm backend and initialize terminal UI
+    let stdout = io::stdout();
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // Load configuration plus the path we should persist edits to.
-    let (config, config_path, warning) = load_config(cli_path)?;
+    let (config, config_path, warning) = load_config(config_path)?;
 
-    // Set the terminal title based on compatibility mode configuration
+    // Set terminal title
     if config.compatibility_mode {
         let _ = execute!(io::stdout(), SetTitle("[Gitwig]"));
     } else {
         let _ = execute!(io::stdout(), SetTitle("🌿 Gitwig"));
     }
+
     unsafe {
         if config.ssh_strict_host_checking {
             env::set_var("GITWIG_SSH_STRICT", "1");
@@ -155,22 +72,19 @@ fn main() -> Result<(), Box<dyn Error>> {
             env::set_var("GITWIG_SSH_STRICT", "0");
         }
     }
+
     let mut app = App::new(config, config_path);
     if let Some(warn) = warning {
         app.status_message = Some(warn);
     }
 
-    // Run the application logic
     let res = run(&mut terminal, app);
 
-    // Explicitly drop guard to restore terminal state before printing/handling errors
     drop(guard);
 
-    // Log any error returned from app logic
     if let Err(ref err) = res {
         println!("{:?}", err);
     }
 
     res
 }
-pub mod mouse;
