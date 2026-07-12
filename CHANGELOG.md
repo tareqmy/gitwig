@@ -5,37 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
-## [v2.4.3] - 2026-07-12
-### Added
-- **forge**: implement Phase 11 PR/MR Viewer integration ([59884bd](https://github.com/tareqmy/gitwig/commit/59884bd))
-- **forge**: implement Phase 11 Issue Tracker integration ([938e489](https://github.com/tareqmy/gitwig/commit/938e489))
-- **forge**: implement Phase 11 Code Review Mode to add/view line comments ([00e5fb0](https://github.com/tareqmy/gitwig/commit/00e5fb0))
-- **commit**: provide option to clear commit message editor using `Ctrl+U` in edit mode or `x`/`u` in confirm mode ([15ed930](https://github.com/tareqmy/gitwig/commit/15ed930))
+## [v2.4.4] - 2026-07-12
+### Fixed
+- ensure alternate screen and raw mode are cleaned up on startup error ([4e68538](https://github.com/tareqmy/gitwig/commit/4e68538))
+
+### Changed
+- remove hardcoded colors and borders to respect theme styling rules ([2164662](https://github.com/tareqmy/gitwig/commit/2164662))
+- rules improvement ([ffda1fe](https://github.com/tareqmy/gitwig/commit/ffda1fe))
+
+### Performance
+- **core**: cache git lfs command check and skip subprocesses for non-LFS repos ([81c1947](https://github.com/tareqmy/gitwig/commit/81c1947))
+- **core**: only check is_dir for untracked files in status scanning ([67c172a](https://github.com/tareqmy/gitwig/commit/67c172a))
+- **core**: optimize startup time by deferring status loading to background threads ([cbba7b5](https://github.com/tareqmy/gitwig/commit/cbba7b5))
 
 ### Documentation
-- update roadmap, codebase map, help overlay, and keybindings docs to reflect the new forge and commit features ([f28954d](https://github.com/tareqmy/gitwig/commit/f28954d), [f520ff2](https://github.com/tareqmy/gitwig/commit/f520ff2))
+- document Tab 11 (Forge PRs) and add 'n' comment shortcut to status bar ([f8a3e1d](https://github.com/tareqmy/gitwig/commit/f8a3e1d))
+- sync agent instructions and GEMINI.md with codebase modes, details, and tabs ([5ae16e6](https://github.com/tareqmy/gitwig/commit/5ae16e6))
+
+### Refactored
+- standardize config persistence to use App::persist ([a205e2d](https://github.com/tareqmy/gitwig/commit/a205e2d))
+
+### Testing
+- **core**: resolve test concurrency race and boost coverage to 100% named functions ([8c4366f](https://github.com/tareqmy/gitwig/commit/8c4366f))
+- implement unit tests for remaining components to bring 100+ functions under test coverage ([186e8a9](https://github.com/tareqmy/gitwig/commit/186e8a9))
+- cover remaining config, confirm popup, remote picker, remotes tab and workspace actions ([5cc0a9c](https://github.com/tareqmy/gitwig/commit/5cc0a9c))
+- add unit/integration coverage for 50+ previously untested core and action functions ([3506597](https://github.com/tareqmy/gitwig/commit/3506597))
+- **core**: add test_get_lfs_info and fix mock branch tracking reference resolve ([605c6be](https://github.com/tareqmy/gitwig/commit/605c6be))
+
+## [v2.4.3] - 2026-07-12
+### Added
+- **commit**: provide option to clear commit message editor ([15ed930](https://github.com/tareqmy/gitwig/commit/15ed930))
+- **forge**: implement Phase 11 Code Review Mode to add/view line comments ([00e5fb0](https://github.com/tareqmy/gitwig/commit/00e5fb0))
+- **forge**: implement Phase 11 Issue Tracker integration ([938e489](https://github.com/tareqmy/gitwig/commit/938e489))
+- **forge**: implement Phase 11 PR/MR Viewer integration ([59884bd](https://github.com/tareqmy/gitwig/commit/59884bd))
+
+### Documentation
+- sync and update all user docs, help overlays, keybindings list, and codemap ([f28954d](https://github.com/tareqmy/gitwig/commit/f28954d))
+- **roadmap**: document commit clear option and fuzzy debug logs search in ROADMAP.md ([f520ff2](https://github.com/tareqmy/gitwig/commit/f520ff2))
 
 ## [v2.4.2] - 2026-07-10
 ### Added
-- **stale projects**: make stale repository threshold and visibility configurable ([792b0bb](https://github.com/tareqmy/gitwig/commit/792b0bb))
-- **debug logs**: add clear debug logs shortcut (`c`/`C`/`x`) ([f5ee4ee](https://github.com/tareqmy/gitwig/commit/f5ee4ee))
-- **debug logs**: support fuzzy searching/filtering using `/` ([7492bb0](https://github.com/tareqmy/gitwig/commit/7492bb0))
-- **QA contributors**: add honorary mentions section in `README.md` ([af083dd](https://github.com/tareqmy/gitwig/commit/af083dd))
-
-### Changed
-- **logging**: include remote URL and log only the base repository name in all network action logs ([e030fdb](https://github.com/tareqmy/gitwig/commit/e030fdb), [1eceb3c](https://github.com/tareqmy/gitwig/commit/1eceb3c))
-- **keypresses**: disable keypress logging while editing commit messages (`Mode::CommitInput`) to avoid verbose log clutter ([73272f3](https://github.com/tareqmy/gitwig/commit/73272f3))
-- **help popup**: clean up main help popup, removing detail-view shortcuts ([a4284c1](https://github.com/tareqmy/gitwig/commit/a4284c1))
+- skip logging key presses in commit input mode ([73272f3](https://github.com/tareqmy/gitwig/commit/73272f3))
+- log remote URL and repository name, and wrap debug logs ([e030fdb](https://github.com/tareqmy/gitwig/commit/e030fdb))
+- add shortcut to clear all debug logs in popup ([f5ee4ee](https://github.com/tareqmy/gitwig/commit/f5ee4ee))
+- add repository details to all network action logs ([1eceb3c](https://github.com/tareqmy/gitwig/commit/1eceb3c))
+- add honorary mention for doing qa to - fahim and sabbir ([af083dd](https://github.com/tareqmy/gitwig/commit/af083dd))
+- make stale repository threshold and visibility configurable ([792b0bb](https://github.com/tareqmy/gitwig/commit/792b0bb))
+- remove support for snapcraft. may be in future we can come back to i ([80aaee7](https://github.com/tareqmy/gitwig/commit/80aaee7))
+- removing support for chocolatey. maybe in future we can come back to it ([2d65363](https://github.com/tareqmy/gitwig/commit/2d65363))
 
 ### Fixed
-- **labels**: bug where pressing enter from bulk add labels did not close input ([3fdaf05](https://github.com/tareqmy/gitwig/commit/3fdaf05))
+- provide way to fuzzy search in debug logs window ([7492bb0](https://github.com/tareqmy/gitwig/commit/7492bb0))
+- minor bug, pressing enter from bulk add labels was not closing the input option ([3fdaf05](https://github.com/tareqmy/gitwig/commit/3fdaf05))
 
 ### Documentation
-- update `docs/configuration.md`, `docs/keybindings.md`, `docs/status_indicators.md`, and in-app help overlays to reflect the new features and keys ([f3a401a](https://github.com/tareqmy/gitwig/commit/f3a401a))
-
-### Refactored
-- remove support for snapcraft packaging ([80aaee7](https://github.com/tareqmy/gitwig/commit/80aaee7))
-- remove support for chocolatey packaging ([2d65363](https://github.com/tareqmy/gitwig/commit/2d65363))
+- clean up main help popup, removing detail-view shortcuts ([a4284c1](https://github.com/tareqmy/gitwig/commit/a4284c1))
+- document stale configurations and debug log shortcuts ([f3a401a](https://github.com/tareqmy/gitwig/commit/f3a401a))
 
 ## [v2.4.1] - 2026-07-08
 ### Added
