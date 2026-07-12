@@ -12,6 +12,16 @@ Welcome, Agent. You are tasked with helping build **Gitwig**, a high-performance
 2. **Context Awareness:** Always check the current Git repository state before making changes or proposing UI updates.
 3. **Rust Best Practices:** Use standard libraries where possible, leverage the type system for safety, and minimize `unsafe` blocks.
 4. **TUI Excellence:** Aim for a responsive UI. Avoid blocking the main thread with heavy Git operations.
+5. **Terminal Safety:** Register a custom panic hook at the beginning of `main()` that disables raw mode and leaves the alternate screen before printing the backtrace — this prevents a panic from breaking the user's shell:
+    ```rust
+    let original_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        let _ = crossterm::terminal::disable_raw_mode();
+        let _ = crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen);
+        original_hook(panic_info);
+    }));
+    ```
+   Ensure every early-return path (`?` operator or explicit errors) in `main()` runs a centralized clean-up routine to restore the terminal state.
 
 ## Working with the Codebase
 - **TUI Framework:** Use `ratatui` (currently 0.30) with the `crossterm_0_29` feature. Do not reintroduce `tui-rs` imports. Note that ratatui 0.30's `Backend` trait uses an associated `Error` type (not `io::Error`) — return `Result<(), Box<dyn Error>>` from functions that propagate it, with a `where <B as Backend>::Error: 'static` bound where needed.
