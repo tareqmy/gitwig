@@ -1426,14 +1426,41 @@ fn match_pattern(path: &str, pattern: &str) -> bool {
     path == pattern || path.ends_with(&format!("/{}", pattern))
 }
 
+static LFS_INSTALLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
+fn is_lfs_installed() -> bool {
+    *LFS_INSTALLED.get_or_init(|| {
+        if let Ok(output) = std::process::Command::new("git").arg("lfs").arg("--version").output() {
+            output.status.success()
+        } else {
+            false
+        }
+    })
+}
+
 fn get_lfs_info(repo_path: &Path) -> (bool, std::collections::HashSet<String>) {
     let mut tracked = std::collections::HashSet::new();
-    let mut installed = false;
 
-    if let Ok(output) = std::process::Command::new("git").arg("lfs").arg("--version").output() {
-        installed = output.status.success();
+    // Skip LFS subprocesses entirely if the repo is not using LFS
+    let lfs_dir = repo_path.join(".git").join("lfs");
+    let gitattributes_path = repo_path.join(".gitattributes");
+    let has_lfs_attributes = if gitattributes_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&gitattributes_path) {
+            content.contains("filter=lfs")
+                || content.contains("diff=lfs")
+                || content.contains("merge=lfs")
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    if !lfs_dir.exists() && !has_lfs_attributes {
+        return (false, tracked);
     }
 
+    let installed = is_lfs_installed();
     if installed {
         if let Ok(output) = std::process::Command::new("git")
             .arg("lfs")
