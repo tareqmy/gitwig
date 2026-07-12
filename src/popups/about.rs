@@ -1,3 +1,5 @@
+//! Popup dialog rendering version and project authorship info.
+
 use crate::app::{App, Mode};
 use crate::ui::layout::centered_rect_fixed;
 use crate::ui::style::{CARD_BORDER, accent_style, muted_style, primary_style};

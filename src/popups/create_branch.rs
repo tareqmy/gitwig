@@ -1,3 +1,5 @@
+//! Naming input popup modal for creating new local branches.
+
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};

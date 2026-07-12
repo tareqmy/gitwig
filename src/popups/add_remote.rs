@@ -1,3 +1,5 @@
+//! Dialog modal for inputting new remote name and git URL.
+
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};

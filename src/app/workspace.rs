@@ -1,3 +1,5 @@
+//! Working tree changes management, staging, unstaging, committing, discarding, stashes, and conflict resolution.
+
 use super::*;
 
 impl App {

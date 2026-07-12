@@ -1,3 +1,5 @@
+//! Fullscreen diff inspection popup supporting hunk and line level staging/unstaging.
+
 use crate::app::{App, DetailSection, Mode};
 use crate::keybindings::Action;
 use crossterm::event::KeyEvent;

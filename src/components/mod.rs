@@ -1,3 +1,5 @@
+//! Stateless UI widgets package module declaration.
+
 #![allow(dead_code, unused_imports)]
 pub mod cmd_bar;
 use crossterm::event::Event;

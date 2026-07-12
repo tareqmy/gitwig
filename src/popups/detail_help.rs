@@ -1,3 +1,5 @@
+//! Short-cut keys guide popup for active pane options in the detail inspect view.
+
 use crate::app::{App, DetailSection, Mode};
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};

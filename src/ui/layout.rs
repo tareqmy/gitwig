@@ -1,3 +1,5 @@
+//! UI layout helpers for centering rendering boxes in the terminal viewport.
+
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
 pub fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {

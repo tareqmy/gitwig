@@ -1,3 +1,5 @@
+//! Central keybindings help overlay listing shortcuts grouped by application modes.
+
 use crate::app::{App, Mode};
 use crate::keybindings::Action;
 use crate::repo::RemoteInfo;

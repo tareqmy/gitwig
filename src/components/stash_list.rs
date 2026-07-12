@@ -1,3 +1,5 @@
+//! Stashes viewer listing stash commits with pop/apply options.
+
 #[derive(Default)]
 pub struct StashListComponent {
     pub queue: crate::queue::Queue,

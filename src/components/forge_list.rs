@@ -1,3 +1,5 @@
+//! Forge pull requests and issues list viewer.
+
 use crate::app::{App, DetailSection};
 use crate::repo;
 use crate::repo::RepoInfo;

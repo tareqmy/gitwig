@@ -1,3 +1,5 @@
+//! Symbols and badges glossary guide modal for git state icons.
+
 use crate::app::App;
 use crate::ui::layout::centered_rect_fixed;
 use crate::ui::style::{

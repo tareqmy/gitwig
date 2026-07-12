@@ -1,3 +1,5 @@
+//! Picker popup for selecting target remote for sync/fetch operations.
+
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};

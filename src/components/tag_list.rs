@@ -1,3 +1,5 @@
+//! Git tags list viewer displaying local/remote tags with checkout/push actions.
+
 #[derive(Default)]
 pub struct TagListComponent {
     pub queue: crate::queue::Queue,

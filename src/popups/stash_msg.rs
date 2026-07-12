@@ -1,3 +1,5 @@
+//! Comments input popup for creating named stashes.
+
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};

@@ -1,3 +1,5 @@
+//! Error popup rendering descriptions for failed network, staging, or stash operations.
+
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};

@@ -1,3 +1,5 @@
+//! Dynamic status bar rendering active Mode context shortcuts and status notifications.
+
 use crate::app::{App, DetailSection, Mode};
 use crate::config::SortOrder;
 use crate::ui::style::{

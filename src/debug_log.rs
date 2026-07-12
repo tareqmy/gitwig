@@ -1,3 +1,5 @@
+//! Simple log writer for recording debugging messages and crash backtraces.
+
 use std::sync::{Mutex, OnceLock};
 
 static LOGS: OnceLock<Mutex<Vec<String>>> = OnceLock::new();

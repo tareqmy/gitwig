@@ -1,3 +1,5 @@
+//! Columns filter selection modal for global codebase search.
+
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};

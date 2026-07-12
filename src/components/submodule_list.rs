@@ -1,3 +1,5 @@
+//! Git submodules status and update actions list widget.
+
 use crate::app::{App, DetailSection};
 use crate::repo;
 use crate::repo::RepoInfo;

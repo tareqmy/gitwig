@@ -1,3 +1,5 @@
+//! Diagnostics dialog showing active application logs with query search options.
+
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};

@@ -1,3 +1,5 @@
+//! User keybindings definitions and custom layout mappings.
+
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use serde::{Deserialize, Serialize};
 use std::path::Path;

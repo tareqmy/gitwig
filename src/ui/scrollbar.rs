@@ -1,3 +1,5 @@
+//! Scrollbar drawing utility helper for TUI panels.
+
 use crate::ui::style::ACCENT;
 use ratatui::Frame;
 use ratatui::layout::Rect;

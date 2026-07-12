@@ -1,3 +1,5 @@
+//! Interactive directories tree viewer with file blame, line numbers, and content preview panels.
+
 #[derive(Default)]
 pub struct FileTreeComponent {
     pub queue: crate::queue::Queue,

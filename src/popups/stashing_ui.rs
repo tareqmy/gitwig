@@ -1,3 +1,5 @@
+//! Progress overlay showing the active stash creation/pop processes.
+
 use crate::app::App;
 use crate::repo::{FileEntry, RepoInfo};
 use crate::ui::layout::{centered_rect, centered_rect_fixed};

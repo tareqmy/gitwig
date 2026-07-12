@@ -1,3 +1,5 @@
+//! Modal input popup for creating local annotated tags.
+
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};

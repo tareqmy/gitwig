@@ -1,3 +1,5 @@
+//! Workspace staging area changed files list widget.
+
 #[derive(Default)]
 pub struct StatusListComponent {
     pub queue: crate::queue::Queue,

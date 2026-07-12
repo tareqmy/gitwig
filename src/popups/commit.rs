@@ -1,3 +1,5 @@
+//! Commit popup editor with support for conventional prefixes, GPG/SSH signing, and message clearing.
+
 use crate::components::{Component, DrawableComponent, EventState};
 use crate::queue::{InternalEvent, Queue};
 use crossterm::event::{Event, KeyCode, KeyModifiers};

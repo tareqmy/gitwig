@@ -1,3 +1,5 @@
+//! Thread-safe, lock-free internal event queue for components communication with the App engine.
+
 #![allow(dead_code)]
 use std::cell::RefCell;
 use std::collections::VecDeque;

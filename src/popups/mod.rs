@@ -1,3 +1,5 @@
+//! Modal overlays package module declaration.
+
 #![allow(dead_code, unused_imports)]
 pub mod about;
 pub mod add_remote;

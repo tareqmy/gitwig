@@ -1,3 +1,5 @@
+//! Tokenizer rules and style mapping for code syntax highlighting in previews/diffs.
+
 use ratatui::text::Line;
 
 pub fn highlight_code_line(content: &str) -> Line<'static> {

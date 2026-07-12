@@ -1,3 +1,5 @@
+//! Central confirmation dialog modal for destructive or context-switching Git actions.
+
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};

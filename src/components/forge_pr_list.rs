@@ -1,3 +1,5 @@
+//! Forge pull request review files and comments view.
+
 use crate::app::{App, DetailSection};
 use crate::repo;
 use crate::repo::RepoInfo;

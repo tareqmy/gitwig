@@ -1,3 +1,5 @@
+//! Complete integration and unit test suite for the App state management and workflows.
+
 #![allow(clippy::unwrap_used, clippy::panic)]
 use super::*;
 

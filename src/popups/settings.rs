@@ -1,3 +1,5 @@
+//! Global settings editor supporting themes, sorting preferences, and paths scanner intervals.
+
 use crate::app::{App, Mode};
 use crate::config::SortOrder;
 use crate::repo::RemoteInfo;

@@ -1,3 +1,5 @@
+//! Per-repository overrides configurations editor.
+
 use crate::app::{App, Mode};
 use crate::ui::style::{CARD_BORDER, accent_style, muted_style, primary_style};
 use crossterm::event::{KeyCode, KeyEvent};

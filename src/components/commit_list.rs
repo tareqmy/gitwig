@@ -1,3 +1,5 @@
+//! Commits log history viewer displaying commit metadata, graph tree, and detailed commit card.
+
 #[derive(Default)]
 pub struct CommitListComponent {
     pub queue: crate::queue::Queue,

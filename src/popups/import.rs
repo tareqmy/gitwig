@@ -1,3 +1,5 @@
+//! Remote repository clone and import paths config wizard.
+
 use crate::app::{App, Mode};
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};

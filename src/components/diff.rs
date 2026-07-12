@@ -1,3 +1,5 @@
+//! Unified/split visual diff viewer for staging, unstaging, or unstaged modifications.
+
 #[derive(Default)]
 pub struct DiffComponent {
     pub queue: crate::queue::Queue,

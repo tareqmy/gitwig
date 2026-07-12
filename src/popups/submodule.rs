@@ -1,3 +1,5 @@
+//! Submodule initialization and registration paths dialog wizard.
+
 use crate::ui::layout::centered_rect;
 use crate::ui::style::{ACCENT, CARD_BORDER, DANGER, muted_style, primary_style};
 use ratatui::Frame;

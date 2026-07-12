@@ -1,3 +1,5 @@
+//! Branch list component rendering local/remote branches with checkout actions.
+
 #[derive(Default)]
 pub struct BranchListComponent {
     pub queue: crate::queue::Queue,

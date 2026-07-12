@@ -1,3 +1,5 @@
+//! PR code review comments input modal wizard.
+
 use crate::app::{App, Mode};
 use crate::ui::layout::centered_rect;
 use crate::ui::style::{ACCENT, CARD_BORDER, muted_style, primary_style};

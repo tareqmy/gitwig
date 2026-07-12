@@ -1,3 +1,5 @@
+//! Mouse event handler for grid clicks, scrolling, drag-to-resize splitters, and window resizing.
+
 use crate::app::{App, DetailSection, GlobalFilter, Mode, Splitter};
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Position;

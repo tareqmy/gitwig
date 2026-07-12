@@ -1,3 +1,5 @@
+//! App cursor, focus selection, active panel, tab switching, and homepage sorting navigation logic.
+
 use super::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

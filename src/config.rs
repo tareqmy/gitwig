@@ -1,3 +1,5 @@
+//! Configuration loader, migrator, and settings persistence for TOML configs.
+
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};

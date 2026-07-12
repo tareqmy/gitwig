@@ -139,12 +139,6 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Animated Fetch Spinner: Replace static status indicators with a Braille spinner while a background fetch is active for that repo.
 - [x] Empty State Onboarding Prompt: Welcoming centred panel when zero repos are tracked, listing key shortcuts to get started.
 
-## Phase 10: Intelligent AI Integrations (Optional/Configurable)
-- [ ] **Semantic Commit Generator:** Press a key (e.g., `⌃G`) in the Commit popup to generate conventional commit messages from staged diffs using Gemini/Ollama/OpenAI APIs.
-- [ ] **Diff Summarizer:** Highlight a large diff/hunk and get a brief explanation of what the change does.
-- [ ] **Smart Conflict Explainer:** Provides a natural-language description of merge conflicts, highlighting the logical differences between "Ours" and "Theirs".
-- [ ] **Local LLM Support:** Integration with local Ollama instances for offline code analysis.
-
 ## Phase 11: Forge Integrations (GitHub / GitLab / Gitea)
 - [x] PR/MR Viewer: View active Pull Requests, descriptions, CI/CD run statuses, and review comments directly in a dedicated tab.
 - [x] Issue Tracker: List assigned issues and allow checking out branches linked to those issues.
@@ -162,3 +156,8 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Global Code Search: Search for string patterns across all tracked repositories using a fast, multithreaded search fallback from the homepage.
 - [x] Automatic Workspace Sync: Watch a specified directory (e.g., `~/development`) and automatically add new repositories as they are created or cloned.
 
+## Phase 15: Intelligent AI Integrations (Optional/Configurable)
+- [ ] **Semantic Commit Generator:** Press a key (e.g., `⌃G`) in the Commit popup to generate conventional commit messages from staged diffs using Gemini/Ollama/OpenAI APIs.
+- [ ] **Diff Summarizer:** Highlight a large diff/hunk and get a brief explanation of what the change does.
+- [ ] **Smart Conflict Explainer:** Provides a natural-language description of merge conflicts, highlighting the logical differences between "Ours" and "Theirs".
+- [ ] **Local LLM Support:** Integration with local Ollama instances for offline code analysis.

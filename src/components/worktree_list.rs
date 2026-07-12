@@ -1,3 +1,5 @@
+//! Git worktrees status and layout manager list widget.
+
 use crate::app::{App, DetailSection};
 use crate::repo;
 use crate::repo::RepoInfo;

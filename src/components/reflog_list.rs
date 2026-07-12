@@ -1,3 +1,5 @@
+//! Git reflog history viewer.
+
 use crate::app::{App, DetailSection};
 use crate::repo;
 use crate::repo::RepoInfo;

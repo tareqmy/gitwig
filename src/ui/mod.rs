@@ -1,3 +1,5 @@
+//! UI drawing root declaring themes and layouts.
+
 pub mod draw;
 pub mod layout;
 pub mod scrollbar;

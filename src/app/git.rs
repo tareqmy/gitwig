@@ -1,3 +1,5 @@
+//! Execution of Git repo operations (fetch, pull, push, branch management, submodules, tags, remotes).
+
 use super::*;
 
 #[derive(Clone)]

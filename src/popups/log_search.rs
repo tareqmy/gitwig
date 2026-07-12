@@ -1,3 +1,5 @@
+//! Query search popup for filtering commits history log.
+
 use crate::app::{App, Mode};
 use crossterm::event::{KeyCode, KeyEvent};
 

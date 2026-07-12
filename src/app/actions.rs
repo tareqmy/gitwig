@@ -1,3 +1,5 @@
+//! Repository card state actions (add, edit, remove, pin, label groups) on the home dashboard.
+
 use super::*;
 
 impl App {

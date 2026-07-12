@@ -1,3 +1,5 @@
+//! Dynamic theme manager containing styles, color parsing, and border styling constants.
+
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::BorderType;
 
