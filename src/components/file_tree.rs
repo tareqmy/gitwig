@@ -258,10 +258,8 @@ pub fn draw_files_view(
                 }
             }
 
-            let body = Paragraph::new(lines)
-                .block(right_block)
-                .wrap(Wrap { trim: false })
-                .scroll((file_content_scroll as u16, 0));
+            let body =
+                Paragraph::new(lines).block(right_block).scroll((file_content_scroll as u16, 0));
             f.render_widget(body, chunks[1]);
         } else {
             // Selected item is a file: show its contents
@@ -372,14 +370,11 @@ pub fn draw_files_view(
                     chunk_idx += 1;
                 }
 
-                let body = Paragraph::new(lines)
-                    .wrap(Wrap { trim: false })
-                    .scroll((file_content_scroll as u16, 0));
+                let body = Paragraph::new(lines).scroll((file_content_scroll as u16, 0));
                 f.render_widget(body, sub_chunks[chunk_idx]);
             } else {
                 let body = Paragraph::new(lines)
                     .block(right_block)
-                    .wrap(Wrap { trim: false })
                     .scroll((file_content_scroll as u16, 0));
                 f.render_widget(body, chunks[1]);
             }
