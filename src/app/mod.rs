@@ -125,6 +125,8 @@ pub enum Mode {
     BranchCheckoutConfirm,
     /// Confirming checkout of a tag.
     TagCheckoutConfirm,
+    /// Confirming checkout of a commit.
+    CommitCheckoutConfirm,
     /// Search input for repositories on the home page.
     RepoSearchInput,
     /// Confirming aborting of a merge.
@@ -484,12 +486,14 @@ pub struct App {
     pub search_columns_date: bool,
     /// Target branch name and remote flag for deletion/creation actions.
     pub branch_action_target: Option<(String, bool)>,
+    pub commit_action_target_oid: Option<String>,
     /// Target commit OID for tag creation.
     pub tag_action_target_oid: Option<String>,
     /// Target tag name and remote flag for deletion action.
     pub tag_delete_target: Option<(String, bool)>,
     /// Target tag name for checkout action.
     pub tag_checkout_target: Option<String>,
+    pub commit_checkout_target: Option<String>,
     /// Target tag name for push action.
     pub tag_push_target: Option<String>,
     /// Target file path and staged flag for discard/revert action.
@@ -783,6 +787,7 @@ impl App {
                     Mode::StashDeleteConfirm => self.confirm_stash_delete(),
                     Mode::BranchCheckoutConfirm => self.confirm_branch_checkout(),
                     Mode::TagCheckoutConfirm => self.confirm_tag_checkout(),
+                    Mode::CommitCheckoutConfirm => self.confirm_commit_checkout(),
                     Mode::RemoteDeleteConfirm => self.confirm_remote_delete(),
                     Mode::UpdateConfirm => self.trigger_self_update(),
                     Mode::SubmoduleDeleteConfirm => self.confirm_submodule_delete(),
@@ -808,6 +813,7 @@ impl App {
                     Mode::StashDeleteConfirm => self.cancel_stash_delete(),
                     Mode::BranchCheckoutConfirm => self.cancel_branch_checkout(),
                     Mode::TagCheckoutConfirm => self.cancel_tag_checkout(),
+                    Mode::CommitCheckoutConfirm => self.cancel_commit_checkout(),
                     Mode::RemoteDeleteConfirm => {
                         self.remote_action_target = None;
                         self.mode = Mode::Detail;
@@ -1241,9 +1247,11 @@ impl App {
             search_columns_author: true,
             search_columns_date: true,
             branch_action_target: None,
+            commit_action_target_oid: None,
             tag_action_target_oid: None,
             tag_delete_target: None,
             tag_checkout_target: None,
+            commit_checkout_target: None,
             tag_push_target: None,
             discard_target: None,
             cherry_pick_target: None,

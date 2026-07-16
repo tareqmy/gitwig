@@ -138,6 +138,10 @@ impl App {
                 info.local_branches.get(self.branch_list.local_branch_selection)
             {
                 let branch_name = branch_info.name.clone();
+                if branch_name == "HEAD" {
+                    self.status_message = Some("Cannot push detached HEAD.".to_string());
+                    return;
+                }
 
                 if info.remotes.len() > 1 {
                     // Multiple remotes — ask user to pick.
@@ -152,6 +156,7 @@ impl App {
             }
         }
     }
+
 
     /// Confirms the push operation.
     pub fn confirm_branch_push(&mut self) {
@@ -1683,6 +1688,38 @@ impl App {
 
     pub fn cancel_tag_checkout(&mut self) {
         self.tag_checkout_target = None;
+        self.mode = Mode::Detail;
+    }
+
+    pub fn request_checkout_selected_commit(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if let Some(commit) = info.commits.get(self.commit_list.selection) {
+                self.commit_action_target_oid = Some(commit.id.clone());
+                self.mode = Mode::CommitCheckoutConfirm;
+            }
+        }
+    }
+
+    pub fn confirm_commit_checkout(&mut self) {
+        if let Some(oid) = self.commit_action_target_oid.take() {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                match repo::checkout_commit(resolved, &oid) {
+                    Ok(()) => {
+                        self.status_message =
+                            Some(format!("Checked out commit '{}' (detached HEAD)", &oid[0..7.min(oid.len())]));
+                        self.resync_detail();
+                    }
+                    Err(e) => {
+                        self.status_message = Some(format!("Failed to checkout commit: {}", e));
+                    }
+                }
+            }
+        }
+        self.mode = Mode::Detail;
+    }
+
+    pub fn cancel_commit_checkout(&mut self) {
+        self.commit_action_target_oid = None;
         self.mode = Mode::Detail;
     }
 

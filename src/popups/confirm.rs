@@ -155,6 +155,50 @@ pub fn draw_tag_checkout_popup(f: &mut Frame, target: &Option<String>, area: Rec
     f.render_widget(paragraph, popup_area);
 }
 
+pub fn draw_commit_checkout_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
+    let popup_area = centered_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Checkout Commit", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let commit_oid = target.as_deref().unwrap_or("");
+    let short_oid = if commit_oid.len() > 7 { &commit_oid[..7] } else { commit_oid };
+
+    let content = vec![
+        Line::from(vec![Span::styled(
+            "Are you sure you want to checkout the commit (detached HEAD):",
+            primary_style(),
+        )]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(short_oid, Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block);
+    f.render_widget(paragraph, popup_area);
+}
+
 pub fn draw_discard_changes_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
     let popup_area = centered_rect(60, 20, area);
     f.render_widget(Clear, popup_area);

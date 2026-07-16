@@ -1569,7 +1569,26 @@ fn collect_info(
     info.lfs_files = lfs_f;
     info.lfs_storage_size = get_lfs_storage_size(path);
 
-    if let Ok(head) = repo.head() {
+    let is_detached = repo.head_detached().unwrap_or(false);
+    if is_detached {
+        info.branch = Some("HEAD".to_string());
+        if let Ok(head) = repo.head() {
+            if let Ok(commit) = head.peel_to_commit() {
+                let short_id = format!("{:.7}", commit.id());
+                let summary_text =
+                    sanitize_text(commit.summary().ok().flatten().unwrap_or("(no commit message)"));
+                let author = commit.author();
+                let author_str = sanitize_text(&format!(
+                    "{} <{}>",
+                    author.name().unwrap_or("?"),
+                    author.email().unwrap_or("?")
+                ));
+                let when = format_relative_time(commit.time().seconds());
+                info.head =
+                    Some(HeadInfo { short_id, summary: summary_text, author: author_str, when });
+            }
+        }
+    } else if let Ok(head) = repo.head() {
         info.branch = head.shorthand().ok().map(String::from);
 
         if let Ok(commit) = head.peel_to_commit() {
@@ -1729,6 +1748,27 @@ pub fn load_tab_branches(
     };
 
     let mut local_branches = Vec::new();
+    let is_detached = repo.head_detached().unwrap_or(false);
+    if is_detached {
+        let mut short_sha = String::new();
+        let mut short_message = String::new();
+        if let Ok(head) = repo.head() {
+            if let Ok(target) = head.peel_to_commit() {
+                let id = target.id();
+                let id_str = id.to_string();
+                short_sha = safe_sha_slice(&id_str, 7).to_string();
+                if let Ok(Some(summary)) = target.summary() {
+                    short_message = summary.to_string();
+                }
+            }
+        }
+        local_branches.push(BranchInfo {
+            name: "HEAD".to_string(),
+            is_head: true,
+            short_sha,
+            short_message: sanitize_text(&short_message),
+        });
+    }
     if let Ok(branches) = repo.branches(Some(git2::BranchType::Local)) {
         for (branch, _) in branches.flatten() {
             if let Ok(Some(name)) = branch.name() {
@@ -1948,6 +1988,20 @@ fn build_ref_map(repo: &Repository) -> std::collections::HashMap<git2::Oid, Vec<
             map.entry(oid).or_default().push(label);
         }
     }
+
+    if repo.head_detached().unwrap_or(false) {
+        if let Ok(head) = repo.head() {
+            if let Ok(target) = head.peel_to_commit() {
+                let oid = target.id();
+                let label = "head:HEAD".to_string();
+                let mut entries = map.remove(&oid).unwrap_or_default();
+                entries.insert(0, label);
+                map.insert(oid, entries);
+            }
+        }
+    }
+
+
     map
 }
 
@@ -2106,8 +2160,15 @@ fn populate_summary_and_file_changes(repo: &Repository, info: &mut RepoInfo) {
 /// so the values shown in both places always agree.
 fn collect_summary(repo: &Repository) -> RepoSummary {
     let mut s = RepoSummary::default();
-    // git2 0.21: head() + shorthand() = Result<&str, Error>.
-    if let Ok(head) = repo.head() {
+    let is_detached = repo.head_detached().unwrap_or(false);
+    if is_detached {
+        s.branch = Some("HEAD".to_string());
+        if let Ok(head) = repo.head() {
+            if let Ok(commit) = head.peel_to_commit() {
+                s.last_commit_time = Some(commit.time().seconds());
+            }
+        }
+    } else if let Ok(head) = repo.head() {
         s.branch = head.shorthand().ok().map(String::from);
         if let Ok(commit) = head.peel_to_commit() {
             s.last_commit_time = Some(commit.time().seconds());

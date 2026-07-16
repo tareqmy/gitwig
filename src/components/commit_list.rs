@@ -169,6 +169,12 @@ pub fn draw_detail_commits(
                     format!("[{}]", remote),
                     Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
                 )
+            } else if let Some(head) = r.strip_prefix("head:") {
+                // HEAD — red
+                (
+                    format!("[{}]", head),
+                    Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
+                )
             } else {
                 // Local branch — cyan
                 (format!("[{}]", r), Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
@@ -278,12 +284,16 @@ pub fn draw_commit_details_widget(
             if idx > 0 {
                 ref_spans.push(Span::raw(", "));
             }
-            let style = if r.starts_with("tag:") {
-                Style::default().fg(ratatui::style::Color::Yellow).add_modifier(Modifier::BOLD)
+            let (label, style) = if let Some(tag) = r.strip_prefix("tag:") {
+                (format!("tag:{}", tag), Style::default().fg(ratatui::style::Color::Yellow).add_modifier(Modifier::BOLD))
+            } else if let Some(remote) = r.strip_prefix("remote:") {
+                (format!("remote:{}", remote), Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD))
+            } else if let Some(head) = r.strip_prefix("head:") {
+                (head.to_string(), Style::default().fg(DANGER()).add_modifier(Modifier::BOLD))
             } else {
-                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)
+                (r.clone(), Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
             };
-            ref_spans.push(Span::styled(r.clone(), style));
+            ref_spans.push(Span::styled(label, style));
         }
         lines.push(Line::from(ref_spans));
     }
@@ -368,6 +378,11 @@ pub fn draw_logs_view(
                 (
                     format!("[{}]", remote),
                     Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+                )
+            } else if let Some(head) = r.strip_prefix("head:") {
+                (
+                    format!("[{}]", head),
+                    Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
                 )
             } else {
                 (format!("[{}]", r), Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))

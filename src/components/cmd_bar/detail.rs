@@ -64,6 +64,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 v.push(("Page", "⇟/⇞"));
                 v.push(("Jump", "Home/End"));
                 v.push(("Inspect", "↵/→"));
+                v.push(("Checkout", "o"));
                 v.push(("Tag", "t"));
                 v.push(("Interactive Rebase", "i"));
                 v.push(("Cherry-pick", "p"));

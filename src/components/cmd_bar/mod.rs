@@ -59,6 +59,7 @@ pub(crate) use popups::{
     confirm_branch_push_entries, confirm_branch_rebase_entries, confirm_delete_entries,
     confirm_discard_changes_entries, confirm_remote_delete_entries, confirm_stash_apply_entries,
     confirm_stash_delete_entries, confirm_submodule_delete_entries, confirm_tag_checkout_entries,
+    confirm_commit_checkout_entries,
     help_dismiss_entries, legend_dismiss_entries, remote_picker_status_entries,
 };
 
@@ -488,6 +489,11 @@ pub(crate) fn get_status_layout_components(
         Mode::TagCheckoutConfirm => {
             let target = app.tag_checkout_target.as_deref().unwrap_or("");
             let (msg_spans, entries) = confirm_tag_checkout_entries(target);
+            (msg_spans, entries)
+        }
+        Mode::CommitCheckoutConfirm => {
+            let target = app.commit_action_target_oid.as_deref().unwrap_or("");
+            let (msg_spans, entries) = confirm_commit_checkout_entries(target);
             (msg_spans, entries)
         }
         Mode::BranchPushConfirm => {
@@ -1215,6 +1221,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         | Mode::BranchDeleteConfirm
         | Mode::BranchCheckoutConfirm
         | Mode::TagCheckoutConfirm
+        | Mode::CommitCheckoutConfirm
         | Mode::BranchPushConfirm
         | Mode::BranchMergeConfirm
         | Mode::BranchRebaseConfirm

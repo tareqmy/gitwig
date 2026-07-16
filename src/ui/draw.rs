@@ -69,6 +69,7 @@ pub fn draw(
                 | Mode::SubmoduleAddPathInput
                 | Mode::SubmoduleDeleteConfirm
                 | Mode::TagCheckoutConfirm
+                | Mode::CommitCheckoutConfirm
                 | Mode::BranchPushConfirm
                 | Mode::BranchMergeConfirm
                 | Mode::BranchRebaseConfirm
@@ -142,6 +143,7 @@ pub fn draw(
             | Mode::SubmoduleAddPathInput
             | Mode::SubmoduleDeleteConfirm
             | Mode::TagCheckoutConfirm
+            | Mode::CommitCheckoutConfirm
             | Mode::BranchPushConfirm
             | Mode::BranchMergeConfirm
             | Mode::BranchRebaseConfirm
@@ -3256,6 +3258,7 @@ mod tests {
             Mode::LogsSearchInput,
             Mode::BranchCheckoutConfirm,
             Mode::TagCheckoutConfirm,
+            Mode::CommitCheckoutConfirm,
             Mode::RepoSearchInput,
             Mode::MergeAbortConfirm,
             Mode::MergeContinueConfirm,

@@ -193,6 +193,36 @@ pub(crate) fn confirm_tag_checkout_entries(
     (message_spans, entries)
 }
 
+pub(crate) fn confirm_commit_checkout_entries(
+    target: &str,
+) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let short_oid = if target.len() > 7 { &target[..7] } else { target };
+    let message_spans = Some(vec![
+        Span::raw("Checkout commit "),
+        Span::styled(format!("\"{}\"", short_oid), accent_style().add_modifier(Modifier::BOLD)),
+        Span::raw(" (detached HEAD)? "),
+    ]);
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Confirm"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Cancel"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("n/⎋", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (message_spans, entries)
+}
+
+
 pub(crate) fn confirm_discard_changes_entries(
     target: &str,
     staged: bool,

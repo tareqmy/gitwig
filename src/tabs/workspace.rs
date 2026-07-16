@@ -82,6 +82,10 @@ impl WorkspaceTab {
                     app.request_cherry_pick();
                     return true;
                 }
+                if app.is_bound(Action::WorkspaceCheckout, key) {
+                    app.request_checkout_selected_commit();
+                    return true;
+                }
                 if app.is_bound(Action::WorkspaceRevert, key) {
                     app.request_revert();
                     return true;

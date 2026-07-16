@@ -1100,6 +1100,14 @@ pub fn draw(
                     body_area,
                 );
             }
+            // Draw commit checkout popup on top when requested.
+            if matches!(mode, Mode::CommitCheckoutConfirm) {
+                crate::popups::confirm::draw_commit_checkout_popup(
+                    f,
+                    &app.commit_action_target_oid,
+                    body_area,
+                );
+            }
         }
         _ => {
             let body_lines = build_body(app, detail);
