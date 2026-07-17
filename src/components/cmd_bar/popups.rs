@@ -222,7 +222,6 @@ pub(crate) fn confirm_commit_checkout_entries(
     (message_spans, entries)
 }
 
-
 pub(crate) fn confirm_discard_changes_entries(
     target: &str,
     staged: bool,

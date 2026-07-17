@@ -56,11 +56,11 @@ pub(crate) use popups::{
     about_dismiss_entries, commit_input_confirm_entries, commit_input_editing_entries,
     confirm_branch_checkout_entries, confirm_branch_delete_entries,
     confirm_branch_interactive_rebase_entries, confirm_branch_merge_entries,
-    confirm_branch_push_entries, confirm_branch_rebase_entries, confirm_delete_entries,
-    confirm_discard_changes_entries, confirm_remote_delete_entries, confirm_stash_apply_entries,
-    confirm_stash_delete_entries, confirm_submodule_delete_entries, confirm_tag_checkout_entries,
-    confirm_commit_checkout_entries,
-    help_dismiss_entries, legend_dismiss_entries, remote_picker_status_entries,
+    confirm_branch_push_entries, confirm_branch_rebase_entries, confirm_commit_checkout_entries,
+    confirm_delete_entries, confirm_discard_changes_entries, confirm_remote_delete_entries,
+    confirm_stash_apply_entries, confirm_stash_delete_entries, confirm_submodule_delete_entries,
+    confirm_tag_checkout_entries, help_dismiss_entries, legend_dismiss_entries,
+    remote_picker_status_entries,
 };
 
 pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {

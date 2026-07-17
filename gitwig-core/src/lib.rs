@@ -2001,7 +2001,6 @@ fn build_ref_map(repo: &Repository) -> std::collections::HashMap<git2::Oid, Vec<
         }
     }
 
-
     map
 }
 

@@ -157,7 +157,6 @@ impl App {
         }
     }
 
-
     /// Confirms the push operation.
     pub fn confirm_branch_push(&mut self) {
         if let Some((branch_name, _)) = &self.branch_action_target {
@@ -1705,8 +1704,10 @@ impl App {
             if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
                 match repo::checkout_commit(resolved, &oid) {
                     Ok(()) => {
-                        self.status_message =
-                            Some(format!("Checked out commit '{}' (detached HEAD)", &oid[0..7.min(oid.len())]));
+                        self.status_message = Some(format!(
+                            "Checked out commit '{}' (detached HEAD)",
+                            &oid[0..7.min(oid.len())]
+                        ));
                         self.resync_detail();
                     }
                     Err(e) => {

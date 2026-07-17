@@ -171,10 +171,7 @@ pub fn draw_detail_commits(
                 )
             } else if let Some(head) = r.strip_prefix("head:") {
                 // HEAD — red
-                (
-                    format!("[{}]", head),
-                    Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-                )
+                (format!("[{}]", head), Style::default().fg(DANGER()).add_modifier(Modifier::BOLD))
             } else {
                 // Local branch — cyan
                 (format!("[{}]", r), Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
@@ -285,9 +282,15 @@ pub fn draw_commit_details_widget(
                 ref_spans.push(Span::raw(", "));
             }
             let (label, style) = if let Some(tag) = r.strip_prefix("tag:") {
-                (format!("tag:{}", tag), Style::default().fg(ratatui::style::Color::Yellow).add_modifier(Modifier::BOLD))
+                (
+                    format!("tag:{}", tag),
+                    Style::default().fg(ratatui::style::Color::Yellow).add_modifier(Modifier::BOLD),
+                )
             } else if let Some(remote) = r.strip_prefix("remote:") {
-                (format!("remote:{}", remote), Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD))
+                (
+                    format!("remote:{}", remote),
+                    Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
+                )
             } else if let Some(head) = r.strip_prefix("head:") {
                 (head.to_string(), Style::default().fg(DANGER()).add_modifier(Modifier::BOLD))
             } else {
@@ -380,10 +383,7 @@ pub fn draw_logs_view(
                     Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD),
                 )
             } else if let Some(head) = r.strip_prefix("head:") {
-                (
-                    format!("[{}]", head),
-                    Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
-                )
+                (format!("[{}]", head), Style::default().fg(DANGER()).add_modifier(Modifier::BOLD))
             } else {
                 (format!("[{}]", r), Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))
             };

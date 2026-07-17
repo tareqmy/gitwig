@@ -81,6 +81,7 @@ Triggered by opening a repository.
         *   `t` / `T` : Create tag at selected commit
         *   `b` / `B` : Create new branch at selected commit
         *   `y` / `Y` : Yank selected commit hash
+        *   `o` / `O` : Checkout selected commit (detached HEAD)
         *   `v` / `V` : Revert selected commit
         *   `p` / `P` : Cherry-pick selected commit
         *   `i` / `I` : Run interactive rebase from selected commit
