@@ -1570,3 +1570,111 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    use ratatui::layout::Rect;
+
+    #[test]
+    fn test_mouse_early_returns_and_basic_flows() {
+        let config = crate::config::Config::default();
+        let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
+
+        let click = |col: u16, row: u16| MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: col,
+            row,
+            modifiers: KeyModifiers::empty(),
+        };
+
+        // 1. Non-click/drag/scroll/release event should return early
+        let moved = MouseEvent {
+            kind: MouseEventKind::Moved,
+            column: 10,
+            row: 10,
+            modifiers: KeyModifiers::empty(),
+        };
+        handle_mouse(&mut app, moved);
+
+        // 2. Error message dismissal on click
+        app.error_message = Some("mock error".to_string());
+        handle_mouse(&mut app, click(10, 10));
+        assert!(app.error_message.is_none());
+
+        // 3. Early return when fetching or loading repo path
+        app.fetching = true;
+        app.detail_focus = DetailSection::Commits;
+        app.detail_areas.staged_sub = Some(Rect::new(0, 0, 10, 10));
+        handle_mouse(&mut app, click(5, 5));
+        assert_eq!(app.detail_focus, DetailSection::Commits); // No change because fetching is true
+        app.fetching = false;
+
+        app.loading_repo_path = Some("mock".to_string());
+        handle_mouse(&mut app, click(5, 5));
+        assert_eq!(app.detail_focus, DetailSection::Commits); // No change because loading_repo_path is some
+        app.loading_repo_path = None;
+
+        // 4. Global Search scroll behavior
+        app.mode = Mode::GlobalSearch;
+        app.global_search_results = vec![
+            crate::app::SearchResult {
+                repo_name: "r".to_string(),
+                repo_path: "p".to_string(),
+                file_rel_path: "f".to_string(),
+                line_number: 1,
+                line_content: "c".to_string(),
+            },
+            crate::app::SearchResult {
+                repo_name: "r2".to_string(),
+                repo_path: "p2".to_string(),
+                file_rel_path: "f2".to_string(),
+                line_number: 2,
+                line_content: "c2".to_string(),
+            },
+        ];
+        app.global_search_selection = 0;
+
+        let scroll_down = MouseEvent {
+            kind: MouseEventKind::ScrollDown,
+            column: 10,
+            row: 10,
+            modifiers: KeyModifiers::empty(),
+        };
+        handle_mouse(&mut app, scroll_down);
+        assert_eq!(app.global_search_selection, 1);
+
+        let scroll_up = MouseEvent {
+            kind: MouseEventKind::ScrollUp,
+            column: 10,
+            row: 10,
+            modifiers: KeyModifiers::empty(),
+        };
+        handle_mouse(&mut app, scroll_up);
+        assert_eq!(app.global_search_selection, 0);
+
+        // 5. Splitter drag tests
+        app.active_drag_splitter = Some(Splitter::InspectHorizontal);
+        let release = MouseEvent {
+            kind: MouseEventKind::Up(MouseButton::Left),
+            column: 10,
+            row: 10,
+            modifiers: KeyModifiers::empty(),
+        };
+        handle_mouse(&mut app, release);
+        assert!(app.active_drag_splitter.is_none());
+
+        app.active_drag_splitter = Some(Splitter::InspectHorizontal);
+        app.detail_areas.bottom_left = Some(Rect::new(0, 10, 50, 10));
+        app.detail_areas.bottom_right = Some(Rect::new(50, 10, 50, 10));
+        let drag = MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: 30, // 30% of 100 total width
+            row: 10,
+            modifiers: KeyModifiers::empty(),
+        };
+        handle_mouse(&mut app, drag);
+        assert_eq!(app.inspect_horizontal_split_pct, 30);
+    }
+}

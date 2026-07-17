@@ -865,4 +865,155 @@ mod tests {
         assert!(handle_key(&mut app, key(KeyCode::Esc), 0));
         assert_eq!(app.mode, Mode::Normal);
     }
+
+    #[test]
+    fn test_input_dispatch_all_modes_exhaustive() {
+        let config = crate::config::Config::default();
+        let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
+        let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+        // 1. Mode::NotGitRepo
+        app.mode = Mode::NotGitRepo;
+        assert!(handle_key(&mut app, key(KeyCode::Esc), 0));
+        assert_eq!(app.mode, Mode::Normal);
+
+        app.mode = Mode::NotGitRepo;
+        assert!(handle_key(&mut app, key(KeyCode::Enter), 0));
+        assert_eq!(app.mode, Mode::Normal);
+
+        app.mode = Mode::NotGitRepo;
+        assert!(handle_key(&mut app, key(KeyCode::Char('q')), 0));
+        assert_eq!(app.mode, Mode::Normal);
+
+        // 2. Mode::Overview
+        app.mode = Mode::Overview;
+        assert!(handle_key(&mut app, key(KeyCode::Esc), 0));
+        assert_eq!(app.mode, Mode::Detail);
+
+        app.mode = Mode::Overview;
+        assert!(handle_key(&mut app, key(KeyCode::Char('q')), 0));
+        assert_eq!(app.mode, Mode::Detail);
+
+        app.mode = Mode::Overview;
+        assert!(handle_key(&mut app, key(KeyCode::Char('s')), 0));
+        assert_eq!(app.mode, Mode::RepoSettings);
+
+        app.mode = Mode::Overview;
+        app.overview_focus = crate::app::OverviewFocus::Overview;
+        assert!(handle_key(&mut app, key(KeyCode::Tab), 0));
+        assert_eq!(app.overview_focus, crate::app::OverviewFocus::Stats);
+        assert!(handle_key(&mut app, key(KeyCode::Tab), 0));
+        assert_eq!(app.overview_focus, crate::app::OverviewFocus::Overview);
+
+        // Scroll keys
+        app.mode = Mode::Overview;
+        assert!(handle_key(&mut app, key(KeyCode::Up), 0));
+        assert!(handle_key(&mut app, key(KeyCode::Down), 0));
+        assert!(handle_key(&mut app, key(KeyCode::PageUp), 0));
+        assert!(handle_key(&mut app, key(KeyCode::PageDown), 0));
+        assert!(handle_key(&mut app, key(KeyCode::Home), 0));
+        assert!(handle_key(&mut app, key(KeyCode::End), 0));
+
+        // 3. Mode::StashingUI
+        app.mode = Mode::StashingUI;
+        assert!(handle_key(&mut app, key(KeyCode::Esc), 0));
+        assert_eq!(app.mode, Mode::Detail);
+
+        app.mode = Mode::StashingUI;
+        app.stash_untracked = false;
+        assert!(handle_key(&mut app, key(KeyCode::Char('u')), 0));
+        assert!(app.stash_untracked);
+
+        app.mode = Mode::StashingUI;
+        app.stash_keep_index = false;
+        assert!(handle_key(&mut app, key(KeyCode::Char('i')), 0));
+        assert!(app.stash_keep_index);
+
+        app.mode = Mode::StashingUI;
+        assert!(handle_key(&mut app, key(KeyCode::Char('s')), 0));
+        assert_eq!(app.mode, Mode::StashCreateInput);
+
+        app.mode = Mode::StashingUI;
+        assert!(handle_key(&mut app, key(KeyCode::Up), 0));
+        assert!(handle_key(&mut app, key(KeyCode::Down), 0));
+
+        // 4. Mode::GlobalSearch
+        app.mode = Mode::GlobalSearch;
+        assert!(handle_key(&mut app, key(KeyCode::Esc), 0));
+        assert_eq!(app.mode, Mode::Normal);
+
+        app.mode = Mode::GlobalSearch;
+        app.global_search_focus_input = true;
+        assert!(handle_key(&mut app, key(KeyCode::Tab), 0));
+        assert!(!app.global_search_focus_input);
+
+        app.mode = Mode::GlobalSearch;
+        app.global_search_results = vec![
+            crate::app::SearchResult {
+                repo_name: "repo1".to_string(),
+                repo_path: "path1".to_string(),
+                file_rel_path: "file1".to_string(),
+                line_number: 1,
+                line_content: "content1".to_string(),
+            },
+            crate::app::SearchResult {
+                repo_name: "repo2".to_string(),
+                repo_path: "path2".to_string(),
+                file_rel_path: "file2".to_string(),
+                line_number: 2,
+                line_content: "content2".to_string(),
+            },
+        ];
+        app.global_search_selection = 1;
+        assert!(handle_key(&mut app, key(KeyCode::Up), 0));
+        assert_eq!(app.global_search_selection, 0);
+        assert!(handle_key(&mut app, key(KeyCode::Down), 0));
+        assert_eq!(app.global_search_selection, 1);
+
+        assert!(handle_key(&mut app, key(KeyCode::Home), 0));
+        assert_eq!(app.global_search_selection, 0);
+        assert!(handle_key(&mut app, key(KeyCode::End), 0));
+        assert_eq!(app.global_search_selection, 1);
+
+        assert!(handle_key(&mut app, key(KeyCode::PageUp), 0));
+        assert!(handle_key(&mut app, key(KeyCode::PageDown), 0));
+
+        app.mode = Mode::GlobalSearch;
+        app.global_search_focus_input = true;
+        app.input_buffer.clear();
+        assert!(handle_key(&mut app, key(KeyCode::Char('x')), 0));
+        assert_eq!(app.input_buffer, "x");
+        assert!(handle_key(&mut app, key(KeyCode::Backspace), 0));
+        assert_eq!(app.input_buffer, "");
+
+        // 5. Mode::RepoJump
+        app.mode = Mode::RepoJump;
+        assert!(handle_key(&mut app, key(KeyCode::Esc), 0));
+        assert_eq!(app.mode, Mode::Normal);
+
+        app.mode = Mode::RepoJump;
+        assert!(handle_key(&mut app, key(KeyCode::Up), 0));
+        assert!(handle_key(&mut app, key(KeyCode::Down), 0));
+        app.input_buffer = "test".to_string();
+        assert!(handle_key(&mut app, key(KeyCode::Backspace), 0));
+        assert_eq!(app.input_buffer, "tes");
+        assert!(handle_key(&mut app, key(KeyCode::Char('t')), 0));
+        assert_eq!(app.input_buffer, "test");
+        assert!(handle_key(&mut app, key(KeyCode::Enter), 0));
+
+        // 6. Mode::RepoScanPicker
+        app.mode = Mode::RepoScanPicker;
+        assert!(handle_key(&mut app, key(KeyCode::Esc), 0));
+        assert_eq!(app.mode, Mode::Normal);
+
+        app.mode = Mode::RepoScanPicker;
+        assert!(handle_key(&mut app, key(KeyCode::Up), 0));
+        assert!(handle_key(&mut app, key(KeyCode::Down), 0));
+        app.input_buffer = "test".to_string();
+        assert!(handle_key(&mut app, key(KeyCode::Backspace), 0));
+        assert_eq!(app.input_buffer, "tes");
+        assert!(handle_key(&mut app, key(KeyCode::Char('t')), 0));
+        assert_eq!(app.input_buffer, "test");
+        assert!(handle_key(&mut app, key(KeyCode::Enter), 0));
+    }
 }
