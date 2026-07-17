@@ -411,8 +411,10 @@ To prevent accidental data loss due to muscle-memory `Enter` keypresses, Gitwig 
 
 ### Non-Destructive Actions (`Enter` acts as Confirm)
 *   **Branch Checkout (`Mode::BranchCheckoutConfirm`)**: Switching to another branch.
+*   **Commit Checkout (`Mode::CommitCheckoutConfirm`)**: Checking out a commit OID from the Workspace commits list.
 *   **Tag Checkout (`Mode::TagCheckoutConfirm`)**: Detaching HEAD to check out a tag.
 *   **Branch Push (`Mode::BranchPushConfirm`)**: Pushing commits to remote.
+
 *   **Tag Push (`Mode::TagPushConfirm` / `Mode::TagPushAllConfirm`)**: Pushing single or all tags to remote.
 *   **Branch Merge (`Mode::BranchMergeConfirm`)**: Merging a branch into the active branch.
 *   **Rebase (`Mode::BranchRebaseConfirm` / `Mode::BranchInteractiveRebaseConfirm`)**: Rebasing the current branch.

@@ -146,6 +146,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         "Workspace & Inspection",
         vec![
             ("↵ [Enter]", "Stage/Unstage file, Checkout branch, Checkout tag, or Inspect commit"),
+            ("o", "Checkout selected commit (Workspace commits list)"),
             ("→ [Right]", "Inspect selected commit (Workspace commits list)"),
             ("⎋ [Esc]", "Back to workspace commits list (Inspect mode)"),
             ("c / C", "Commit (c) / Amend last commit (C)"),

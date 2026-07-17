@@ -103,7 +103,7 @@
 | `Ctrl+I`             | Input (Stash)   | Toggle "Keep index" option (Stash Create popup)                 |
 | `m`                  | Detail          | Merge selected branch into current branch (Branches tab; asks confirmation) |
 | `r`                  | Detail          | Rebase current branch onto selected branch (Branches tab; asks confirmation) |
-| `o`                  | Detail          | Accept OURS version of conflict (Workspace tab Conflicts / ConflictDiff) |
+| `o` / `O`            | Detail          | Checkout selected commit (Workspace commits list), or Accept OURS version of conflict (Workspace tab Conflicts / ConflictDiff) |
 | `t`                  | Detail          | Accept THEIRS version of conflict (Workspace tab Conflicts / ConflictDiff) |
 | `r`                  | Detail          | Mark conflict as resolved (Workspace tab Conflicts / ConflictDiff) |
 | `A`                  | Detail          | Abort the merge (Workspace tab Conflicts / ConflictDiff; asks confirmation) |
