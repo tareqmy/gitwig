@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [Unreleased]
+
+## [v2.4.6] - 2026-07-17
+### Added
+- adding necessary agent skills ([772d888](https://github.com/tareqmy/gitwig/commit/772d888))
+
+### Changed
+- allow user to checkout a commit from commit panel ([feaaa25](https://github.com/tareqmy/gitwig/commit/feaaa25))
+
+### Documentation
+- document commit checkout keybinding and format codebase ([b2f30dd](https://github.com/tareqmy/gitwig/commit/b2f30dd))
+- docs updated ([e8dd3f7](https://github.com/tareqmy/gitwig/commit/e8dd3f7))
+
+### Testing
+- test cases added for mouse events ([b69657e](https://github.com/tareqmy/gitwig/commit/b69657e))
+
 ## [v2.4.5] - 2026-07-12
 ### Added
 - filter out hidden repositories in jump search ([d64dd71](https://github.com/tareqmy/gitwig/commit/d64dd71))
