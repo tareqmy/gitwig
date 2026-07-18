@@ -1472,7 +1472,43 @@ fn remote_lines(remote: &RemoteInfo, max_width: usize) -> Vec<Line<'static>> {
     lines
 }
 
-pub fn file_entry_line(entry: &FileEntry, is_lfs: bool) -> Line<'static> {
+pub fn shorten_path(path: &str, max_width: usize) -> String {
+    if path.len() <= max_width {
+        return path.to_string();
+    }
+
+    let components: Vec<&str> = path.split(['/', '\\']).collect();
+    if components.len() <= 1 {
+        return path.to_string();
+    }
+
+    let file_name = components.last().unwrap_or(&"");
+    let dirs = &components[..components.len() - 1];
+
+    let mut shortened_dirs = Vec::new();
+    for dir in dirs {
+        if let Some(first_char) = dir.chars().next() {
+            shortened_dirs.push(first_char.to_string());
+        } else {
+            shortened_dirs.push(String::new());
+        }
+    }
+
+    let separator = if path.contains('\\') { "\\" } else { "/" };
+    let mut shortened_path = shortened_dirs.join(separator);
+    if !shortened_path.is_empty() {
+        shortened_path.push_str(separator);
+    }
+    shortened_path.push_str(file_name);
+
+    shortened_path
+}
+
+pub fn file_entry_line(
+    entry: &FileEntry,
+    is_lfs: bool,
+    available_width: Option<usize>,
+) -> Line<'static> {
     let label_style = match entry.label {
         "N" => Style::default().fg(SUCCESS()),
         "D" => Style::default().fg(DANGER()),
@@ -1481,10 +1517,19 @@ pub fn file_entry_line(entry: &FileEntry, is_lfs: bool) -> Line<'static> {
         "?" => muted_style(),
         _ => Style::default().fg(WARNING()), // "M"
     };
+
+    let non_path_len = FILE_INDENT.len() + FILE_LABEL_WIDTH + if is_lfs { 6 } else { 0 };
+    let path_str = if let Some(w) = available_width {
+        let max_path_width = w.saturating_sub(non_path_len);
+        shorten_path(&entry.path, max_path_width)
+    } else {
+        entry.path.clone()
+    };
+
     let mut spans = vec![
         Span::raw(FILE_INDENT),
         Span::styled(format!("{:<FILE_LABEL_WIDTH$}", entry.label), label_style),
-        Span::styled(entry.path.clone(), muted_style()),
+        Span::styled(path_str, muted_style()),
     ];
     if is_lfs {
         spans.push(Span::raw(" "));
@@ -1632,8 +1677,15 @@ mod tests {
 
         // 3. file_entry_line
         let entry = FileEntry { path: "test_path.txt".to_string(), label: "M" };
-        let _ = file_entry_line(&entry, false);
-        let _ = file_entry_line(&entry, true);
+        let _ = file_entry_line(&entry, false, None);
+        let _ = file_entry_line(&entry, true, None);
+        let _ = file_entry_line(&entry, false, Some(10));
+
+        // Test path shortening logic
+        assert_eq!(shorten_path("src/app/actions.rs", 30), "src/app/actions.rs");
+        assert_eq!(shorten_path("src/app/actions.rs", 15), "s/a/actions.rs");
+        assert_eq!(shorten_path("README.md", 5), "README.md");
+        assert_eq!(shorten_path("gitwig-core\\src\\lib.rs", 15), "g\\s\\lib.rs");
 
         // 4. graph_line_spans
         let gline = GraphLine {

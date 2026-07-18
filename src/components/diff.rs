@@ -79,7 +79,13 @@ pub fn draw_file_subpanel(
         // Focused: render as a selectable list with highlight.
         let items: Vec<ListItem> = files
             .iter()
-            .map(|e| ListItem::new(file_entry_line(e, lfs_files.contains(&e.path))))
+            .map(|e| {
+                ListItem::new(file_entry_line(
+                    e,
+                    lfs_files.contains(&e.path),
+                    Some(inner.width as usize),
+                ))
+            })
             .collect();
         let list =
             List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
@@ -88,8 +94,10 @@ pub fn draw_file_subpanel(
         f.render_stateful_widget(list, inner, &mut *state);
     } else {
         // Not focused: plain paragraph.
-        let file_lines: Vec<Line<'static>> =
-            files.iter().map(|e| file_entry_line(e, lfs_files.contains(&e.path))).collect();
+        let file_lines: Vec<Line<'static>> = files
+            .iter()
+            .map(|e| file_entry_line(e, lfs_files.contains(&e.path), Some(inner.width as usize)))
+            .collect();
         f.render_widget(Paragraph::new(file_lines).wrap(Wrap { trim: false }), inner);
     }
     inner
@@ -232,7 +240,13 @@ pub fn draw_inspect_window(
             let items: Vec<ListItem> = commit
                 .files
                 .iter()
-                .map(|f| ListItem::new(file_entry_line(f, lfs_files.contains(&f.path))))
+                .map(|f| {
+                    ListItem::new(file_entry_line(
+                        f,
+                        lfs_files.contains(&f.path),
+                        Some(left_inner.width as usize),
+                    ))
+                })
                 .collect();
             let list =
                 List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));

@@ -486,7 +486,13 @@ pub fn draw_commit_files_panel(
         let items: Vec<ListItem> = commit
             .files
             .iter()
-            .map(|f| ListItem::new(file_entry_line(f, lfs_files.contains(&f.path))))
+            .map(|f| {
+                ListItem::new(file_entry_line(
+                    f,
+                    lfs_files.contains(&f.path),
+                    Some(left_inner.width as usize),
+                ))
+            })
             .collect();
         let list =
             List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
