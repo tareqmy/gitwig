@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Added
+- **ui**: shorten file paths when panel width is insufficient ([7b7393a](https://github.com/tareqmy/gitwig/commit/7b7393a))
+
+### Fixed
+- **scan**: make watcher respect excludes and add common defaults ([226aa8b](https://github.com/tareqmy/gitwig/commit/226aa8b))
+
+### Documentation
+- update configuration.md for new scan.excludes default and watcher behavior ([55c04b0](https://github.com/tareqmy/gitwig/commit/55c04b0))
 
 ## [v2.4.6] - 2026-07-17
 ### Added
