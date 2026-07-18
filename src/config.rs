@@ -196,7 +196,7 @@ fn default_scan_max_depth() -> usize {
     6
 }
 fn default_scan_excludes() -> Vec<String> {
-    vec![]
+    vec!["node_modules".to_string(), "target".to_string(), "venv".to_string(), ".venv".to_string()]
 }
 
 fn default_scan_start_dir() -> String {

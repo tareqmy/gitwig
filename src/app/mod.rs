@@ -665,11 +665,15 @@ impl App {
         self.watcher = None;
 
         let tx = self.tx.clone();
+        let excludes = self.config.scan.excludes.clone();
         let mut watcher =
             match notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
                 if let Ok(event) = res {
                     for path in event.paths {
                         let path_str = path.to_string_lossy();
+                        if excludes.iter().any(|ex| path_str.contains(ex)) {
+                            continue;
+                        }
                         let clean_path =
                             path_str.replace("\\.git\\", "/.git/").replace("\\.git", "/.git");
                         if let Some(pos) = clean_path.find("/.git") {
