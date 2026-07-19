@@ -115,9 +115,9 @@ description = "Open selected repository detail view"
 keys = ["u"]
 description = "Check for application updates"
 
-[home.toggle_compact_view]
+[home.cycle_view_mode]
 keys = ["v"]
-description = "Toggle compact repository list layout"
+description = "Cycle repository list layout (Normal/Compact/Tile)"
 
 [home.open_terminal]
 keys = ["t"]

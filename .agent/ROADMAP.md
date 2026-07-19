@@ -114,7 +114,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 ### Visual Enhancements
 - [x] Repo Health / State Indicators: Show repo HEAD state as a badge on each card (`⚠ MERGE_HEAD`, `🚧 REBASING`, `⚡ CHERRY-PICK`, `✓ CLEAN`).
 - [x] Last Activity Timestamp: Display relative time of the last commit on each card (e.g., `2h ago`, `3d ago`).
-- [x] Compact / Dense View Toggle: Press `v` to switch between 4-row cards and a 1-row compact list — useful for large repo collections.
+- [x] Home View Modes: Press `v` to cycle between 4-row cards, a 1-row compact list, and a grid-based tile layout.
 - [x] Color-coded Divergence Badge: Color the `↑N ↓M` ahead/behind indicator red/yellow/green based on how out-of-sync the branch is.
 - [x] A popup to explain different signs and symbols used throughout the application.
 - [x] In workspace show the whole file in the diff, since it does not have anything to compare with.

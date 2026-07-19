@@ -19,7 +19,7 @@ const GENERAL_SETTING_INDICES: &[usize] =
     &[9, 56, 55, 0, 60, 13, 65, 66, 12, 58, 62, 63, 7, 80, 81];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 8, 61];
-const THEME_SETTING_INDICES: &[usize] = &[3, 67];
+const THEME_SETTING_INDICES: &[usize] = &[3, 67, 82];
 const GLOBAL_NAV_SETTING_INDICES: &[usize] = &[
     16, // Quit / Close Dialog (Close)
     15, // Help (Help)
@@ -214,6 +214,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         65 => "Detail Cache TTL (secs)",
         66 => "Tab Cache TTL (secs)",
         67 => "Compact Layout View",
+        82 => "Tile Layout Columns (0=Auto)",
         80 => "Stale Threshold (months)",
         81 => "Show Stale Projects",
         14 => "Toggle Status Bar",
@@ -412,6 +413,9 @@ fn get_desc(global_idx: usize) -> &'static str {
             "How long in seconds lazy-loaded tab data remains cached in memory before automatic refresh."
         }
         67 => "Show a compact single-line layout for repository cards in the list.",
+        82 => {
+            "Number of columns in Tile layout. Set to 0 to auto-calculate based on terminal width."
+        }
         80 => "Number of months inactive to be considered stale. Cannot be less than 1.",
         81 => "Show or hide stale repositories in the list on the main page.",
         14 => "Toggles the status bar between collapsed and expanded view.",
@@ -609,7 +613,14 @@ pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
                     app.config.tab_ttl_secs.to_string()
                 }
             }
-            67 => app.config.compact_view.to_string(),
+            67 => format!("{:?}", app.config.view_mode),
+            82 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.tile_columns.to_string()
+                }
+            }
             80 => {
                 if is_selected && app.settings_editing {
                     format!("{}█", app.input_buffer)

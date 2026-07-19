@@ -2177,7 +2177,7 @@ where
         let inner_area = area.inner(Margin { vertical: 1, horizontal: 1 });
 
         let available_height = inner_area.height.saturating_sub(app.status_height());
-        let mut list_height = if app.config.compact_view {
+        let mut list_height = if app.config.view_mode == crate::config::HomeViewMode::Compact {
             available_height.saturating_sub(1)
         } else {
             available_height
@@ -2188,28 +2188,60 @@ where
         let rows = app.get_home_rows();
         let mut accumulated_height = 0;
         let mut visible_count = 0;
+        let cols = if app.config.view_mode == crate::config::HomeViewMode::Tile {
+            app.get_tile_cols()
+        } else {
+            1
+        };
+        let mut current_col = 0;
+
         for row in rows.iter().skip(app.scroll_top) {
-            let h = match row {
+            match row {
                 crate::app::HomeRow::GroupHeader { .. } => {
-                    if app.config.compact_view {
+                    if current_col > 0 {
+                        accumulated_height += 4;
+                        current_col = 0;
+                    }
+                    let h = if app.config.view_mode == crate::config::HomeViewMode::Compact {
                         1
                     } else {
                         2
+                    };
+                    if accumulated_height + h <= list_height {
+                        accumulated_height += h;
+                        visible_count += 1;
+                    } else {
+                        break;
                     }
                 }
                 crate::app::HomeRow::Repo { .. } => {
-                    if app.config.compact_view {
-                        1
+                    if app.config.view_mode == crate::config::HomeViewMode::Tile {
+                        if current_col == 0 {
+                            if accumulated_height + 4 <= list_height {
+                                accumulated_height += 4;
+                            } else {
+                                break;
+                            }
+                        }
+                        visible_count += 1;
+                        current_col += 1;
+                        if current_col == cols {
+                            current_col = 0;
+                        }
                     } else {
-                        4
+                        let h = if app.config.view_mode == crate::config::HomeViewMode::Compact {
+                            1
+                        } else {
+                            4
+                        };
+                        if accumulated_height + h <= list_height {
+                            accumulated_height += h;
+                            visible_count += 1;
+                        } else {
+                            break;
+                        }
                     }
                 }
-            };
-            if accumulated_height + h <= list_height {
-                accumulated_height += h;
-                visible_count += 1;
-            } else {
-                break;
             }
         }
         if visible_count == 0 && !rows.is_empty() {

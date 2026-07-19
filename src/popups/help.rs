@@ -83,7 +83,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         kb.format_action_keys(Action::HomeCycleSort, is_compat),
         kb.format_action_keys(Action::HomeToggleSortReverse, is_compat)
     );
-    let compact_key = kb.format_action_keys(Action::HomeToggleCompactView, is_compat);
+    let compact_key = kb.format_action_keys(Action::HomeCycleViewMode, is_compat);
     let pin_key = kb.format_action_keys(Action::HomeTogglePin, is_compat);
     let settings_key = kb.format_action_keys(Action::HomeOpenSettings, is_compat);
     let labels_key = kb.format_action_keys(Action::HomeEditLabels, is_compat);

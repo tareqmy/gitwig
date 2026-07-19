@@ -257,15 +257,16 @@ pub fn draw(
         *global_summary_area = Some(layout_parts[0]);
         let list_area_parent = layout_parts[2];
 
-        let (header_area, list_area) = if app.config.compact_view {
-            let parts = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Length(1), Constraint::Min(0)])
-                .split(list_area_parent);
-            (Some(parts[0]), parts[1])
-        } else {
-            (None, list_area_parent)
-        };
+        let (header_area, list_area) =
+            if app.config.view_mode == crate::config::HomeViewMode::Compact {
+                let parts = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([Constraint::Length(1), Constraint::Min(0)])
+                    .split(list_area_parent);
+                (Some(parts[0]), parts[1])
+            } else {
+                (None, list_area_parent)
+            };
 
         if let Some(hdr) = header_area {
             draw_compact_headers(f, hdr, app);
@@ -439,40 +440,113 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
     let upper = (app.scroll_top + visible_count).min(rows.len());
     let visible_rows = &rows[app.scroll_top..upper];
 
-    let mut constraints = Vec::new();
-    for row in visible_rows {
-        let h = match row {
-            crate::app::HomeRow::GroupHeader { .. } => {
-                if app.config.compact_view {
-                    1
-                } else {
-                    2
+    if app.config.view_mode != crate::config::HomeViewMode::Tile {
+        let mut constraints = Vec::new();
+        for row in visible_rows {
+            let h = match row {
+                crate::app::HomeRow::GroupHeader { .. } => {
+                    if app.config.view_mode == crate::config::HomeViewMode::Compact { 1 } else { 2 }
                 }
-            }
-            crate::app::HomeRow::Repo { path, .. } => {
-                if app.config.compact_view {
-                    1
-                } else {
-                    let has_note = app
-                        .config
-                        .repo_configs
-                        .get(path)
-                        .and_then(|cfg| cfg.note.as_ref())
-                        .is_some();
-                    if has_note { 5 } else { 4 }
+                crate::app::HomeRow::Repo { path, .. } => {
+                    if app.config.view_mode == crate::config::HomeViewMode::Compact {
+                        1
+                    } else {
+                        let has_note = app
+                            .config
+                            .repo_configs
+                            .get(path)
+                            .and_then(|cfg| cfg.note.as_ref())
+                            .is_some();
+                        if has_note { 5 } else { 4 }
+                    }
                 }
-            }
-        };
-        constraints.push(Constraint::Length(h));
-    }
-    constraints.push(Constraint::Min(0));
+            };
+            constraints.push(Constraint::Length(h));
+        }
+        constraints.push(Constraint::Min(0));
 
-    let chunks: Vec<Rect> = Layout::default()
+        let chunks: Vec<Rect> = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(constraints)
+            .split(content_area)
+            .to_vec();
+        return chunks[..visible_count].to_vec();
+    }
+
+    let cols = app.get_tile_cols();
+    let mut final_rects = Vec::with_capacity(visible_rows.len());
+
+    let mut row_heights = Vec::new();
+    let mut current_row_items = 0;
+
+    for row in visible_rows {
+        match row {
+            crate::app::HomeRow::GroupHeader { .. } => {
+                if current_row_items > 0 {
+                    row_heights.push(4);
+                    current_row_items = 0;
+                }
+                row_heights.push(2);
+            }
+            crate::app::HomeRow::Repo { .. } => {
+                current_row_items += 1;
+                if current_row_items == cols {
+                    row_heights.push(4);
+                    current_row_items = 0;
+                }
+            }
+        }
+    }
+    if current_row_items > 0 {
+        row_heights.push(4);
+    }
+    row_heights.push(0);
+
+    let constraints: Vec<Constraint> = row_heights
+        .iter()
+        .map(|&h| if h == 0 { Constraint::Min(0) } else { Constraint::Length(h as u16) })
+        .collect();
+
+    let vertical_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(constraints)
-        .split(content_area)
-        .to_vec();
-    chunks[..visible_count].to_vec()
+        .split(content_area);
+
+    let mut row_idx = 0;
+    let mut current_col = 0;
+
+    let tile_constraints: Vec<Constraint> =
+        (0..cols).map(|_| Constraint::Ratio(1, cols as u32)).collect();
+
+    for row in visible_rows {
+        match row {
+            crate::app::HomeRow::GroupHeader { .. } => {
+                if current_col > 0 {
+                    row_idx += 1;
+                    current_col = 0;
+                }
+                final_rects.push(vertical_chunks[row_idx]);
+                row_idx += 1;
+            }
+            crate::app::HomeRow::Repo { .. } => {
+                let row_rect = vertical_chunks[row_idx];
+                let horizontal_chunks = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints(tile_constraints.clone())
+                    .split(row_rect);
+
+                final_rects.push(horizontal_chunks[current_col]);
+
+                current_col += 1;
+                if current_col == cols {
+                    current_col = 0;
+                    row_idx += 1;
+                }
+            }
+        }
+    }
+
+    final_rects
 }
 
 fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
@@ -625,7 +699,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     muted_style().add_modifier(Modifier::BOLD)
                 };
                 let mut block = Block::default();
-                if !app.config.compact_view {
+                if app.config.view_mode != crate::config::HomeViewMode::Compact {
                     let border_style =
                         if is_selected { Style::default().fg(ACCENT()) } else { muted_style() };
                     block = block.borders(Borders::BOTTOM).border_style(border_style);
@@ -685,7 +759,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     .and_then(|s| s.to_str())
                     .unwrap_or(item.as_str());
 
-                if app.config.compact_view {
+                if app.config.view_mode == crate::config::HomeViewMode::Compact {
                     let cols = Layout::default()
                         .direction(Direction::Horizontal)
                         .constraints([

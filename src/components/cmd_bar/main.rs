@@ -56,7 +56,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
     let update_key = k(crate::keybindings::Action::HomeCheckUpdate);
     let debug_key = k(crate::keybindings::Action::HomeOpenDebugLogs);
     let about_key = k(crate::keybindings::Action::HomeAbout);
-    let compact_key = k(crate::keybindings::Action::HomeToggleCompactView);
+    let compact_key = k(crate::keybindings::Action::HomeCycleViewMode);
     let legend_key = k(crate::keybindings::Action::HomeSymbolsHelp);
     let help_key = k(crate::keybindings::Action::Help);
     let quit_key = k(crate::keybindings::Action::Close);
@@ -86,7 +86,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
         ("Check Update", &update_key),
         ("Debug Logs", &debug_key),
         ("About", &about_key),
-        ("Compact", &compact_key),
+        ("View Mode", &compact_key),
         ("Legend", &legend_key),
         ("Help", &help_key),
         ("Quit", &quit_key),

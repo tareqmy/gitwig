@@ -7,7 +7,7 @@ This document lists and describes all the user interface panels, tabs, views, ov
 ## 1. Home Screen (Repository List View)
 The primary dashboard shown when Gitwig starts up.
 
-*   **Repository List Panel**: Displays cards for all configured/scanned repositories. Supports Standard and Compact layouts.
+*   **Repository List Panel**: Displays cards for all configured/scanned repositories. Supports Standard, Compact, and Tile grid layouts.
     *   *Shortcuts*:
         *   `↑` / `k` / `up` : Move selection up
         *   `↓` / `j` / `down` : Move selection down
@@ -27,7 +27,7 @@ The primary dashboard shown when Gitwig starts up.
         *   `F` : Bulk fetch all repositories concurrently
         *   `o` : Cycle sorting criteria (Name, Path, Last Commit, Status)
         *   `O` : Toggle reverse sorting
-        *   `v` : Toggle compact single-row list layout
+        *   `v` : Cycle repository list layout (Normal/Compact/Tile)
         *   `a` : Add a repository path manually
         *   `A` : Bulk add subdirectories of a directory
         *   `i` : Import / clone a remote repository

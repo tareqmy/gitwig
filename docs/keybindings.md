@@ -26,7 +26,7 @@
 | `s`                  | Normal          | Open options/settings page        |
 | `d`                  | Normal          | Open debug logs panel             |
 | `V`                  | Normal          | Show about popup / creator profile |
-| `v`                  | Normal          | Toggle between standard cards and compact 1-row view |
+| `v`                  | Normal          | Cycle between standard cards, compact 1-row view, and tile grid view |
 | `h`                  | Normal          | Show signs & symbols legend popup |
 | `u`                  | Normal          | Check for application updates manually |
 | `.`                  | Normal / Detail | Toggle status bar between collapsed and expanded view |

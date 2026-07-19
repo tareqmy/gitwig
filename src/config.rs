@@ -117,8 +117,8 @@ impl Default for ScanConfig {
 
 impl Default for Config {
     fn default() -> Self {
-        Self {
-            items: vec![],
+        Config {
+            items: Vec::new(),
             poll_interval_ms: default_poll_interval_ms(),
             max_commits: default_max_commits(),
             graph_max_commits: default_graph_max_commits(),
@@ -126,23 +126,25 @@ impl Default for Config {
             tab_ttl_secs: default_tab_ttl_secs(),
             page_size: default_page_size(),
             sort_by: default_sort_by(),
-            visits: default_visits(),
+            visits: std::collections::HashMap::new(),
             labels: std::collections::HashMap::new(),
             repo_configs: std::collections::HashMap::new(),
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
             starred: std::collections::HashSet::new(),
-            watch_dirs: vec![],
+            watch_dirs: Vec::new(),
+            theme: ThemeConfig::default(),
             theme_name: default_theme_name(),
-            theme: default_theme(),
             scan: default_scan(),
             git_app: default_git_app(),
-            compatibility_mode: true,
-            resync_on_tab_change: false,
-            enable_commit_signatures: false,
-            ssh_strict_host_checking: false,
+            compatibility_mode: default_compatibility_mode(),
+            resync_on_tab_change: default_resync_on_tab_change(),
+            enable_commit_signatures: default_enable_commit_signatures(),
+            ssh_strict_host_checking: default_ssh_strict_host_checking(),
             editor: default_editor(),
             compact_view: false,
+            view_mode: HomeViewMode::Normal,
+            tile_columns: 0,
             show_grouping: true,
             auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
             show_system_stats: default_show_system_stats(),
@@ -247,6 +249,15 @@ fn default_scan() -> ScanConfig {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum HomeViewMode {
+    #[default]
+    Normal,
+    Compact,
+    Tile,
+}
+
 /// Represents the structure of the configuration file.
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
@@ -325,6 +336,12 @@ pub struct Config {
     /// Whether to show the compact (1-row) list on the home page.
     #[serde(default)]
     pub compact_view: bool,
+    /// The view mode to use for the home page list.
+    #[serde(default)]
+    pub view_mode: HomeViewMode,
+    /// Number of columns in tile mode. 0 means auto-calculate.
+    #[serde(default)]
+    pub tile_columns: usize,
     /// Whether to enable repository grouping on the home page.
     #[serde(default = "default_show_grouping")]
     pub show_grouping: bool,
@@ -457,6 +474,8 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         ssh_strict_host_checking: false,
         editor: default_editor(),
         compact_view: false,
+        view_mode: HomeViewMode::Normal,
+        tile_columns: 0,
         show_grouping: true,
         auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
         show_system_stats: default_show_system_stats(),
@@ -481,6 +500,11 @@ fn load_and_parse_config(path: &Path) -> (Config, Option<String>) {
     match fs::read_to_string(path) {
         Ok(contents) => match toml::from_str::<Config>(&contents) {
             Ok(mut config) => {
+                if config.compact_view && config.view_mode == HomeViewMode::Normal {
+                    config.view_mode = HomeViewMode::Compact;
+                    config.compact_view = false;
+                }
+
                 let allowed = ["git", "gitui", "lazygit"];
                 if !allowed.contains(&config.git_app.as_str()) {
                     let old_val = config.git_app.clone();
@@ -592,6 +616,8 @@ pub fn load_config(
                 ssh_strict_host_checking: false,
                 editor: default_editor(),
                 compact_view: false,
+                view_mode: HomeViewMode::Normal,
+                tile_columns: 0,
                 show_grouping: true,
                 auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
                 show_system_stats: default_show_system_stats(),
@@ -720,6 +746,8 @@ pub fn load_config(
         ssh_strict_host_checking: false,
         editor: default_editor(),
         compact_view: false,
+        view_mode: HomeViewMode::Normal,
+        tile_columns: 0,
         show_grouping: true,
         auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
         show_system_stats: default_show_system_stats(),

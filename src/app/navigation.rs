@@ -406,23 +406,47 @@ impl App {
         }
     }
 
+    pub fn get_tile_cols(&self) -> usize {
+        if self.config.view_mode != crate::config::HomeViewMode::Tile {
+            return 1;
+        }
+        if self.config.tile_columns > 0 {
+            return self.config.tile_columns;
+        }
+        if let Ok(size) = crossterm::terminal::size() {
+            let width = size.0 as usize;
+            (width / 60).max(1)
+        } else {
+            3
+        }
+    }
+
     pub fn move_down(&mut self, visible_count: usize) {
         let len = self.get_items_len();
-        if self.selected_index + 1 < len {
-            self.selected_index += 1;
-            let bottom = self.scroll_top + visible_count;
-            if self.selected_index >= bottom {
-                self.scroll_top = self.scroll_top.saturating_add(1);
-            }
+        let cols = self.get_tile_cols();
+        if self.selected_index + cols < len {
+            self.selected_index += cols;
+        } else if self.selected_index + 1 < len {
+            self.selected_index = len - 1;
+        } else {
+            return;
+        }
+        let bottom = self.scroll_top + visible_count;
+        if self.selected_index >= bottom {
+            let diff = self.selected_index + 1 - bottom;
+            self.scroll_top = self.scroll_top.saturating_add(diff);
         }
     }
 
     pub fn move_up(&mut self) {
-        if self.selected_index > 0 {
-            self.selected_index -= 1;
-            if self.selected_index < self.scroll_top {
-                self.scroll_top = self.scroll_top.saturating_sub(1);
-            }
+        let cols = self.get_tile_cols();
+        if self.selected_index >= cols {
+            self.selected_index -= cols;
+        } else if self.selected_index > 0 {
+            self.selected_index = 0;
+        }
+        if self.selected_index < self.scroll_top {
+            self.scroll_top = self.selected_index;
         }
     }
 
@@ -2486,8 +2510,16 @@ impl App {
                 self.input_buffer = self.config.tab_ttl_secs.to_string();
             }
             67 => {
-                self.config.compact_view = !self.config.compact_view;
-                self.persist("Compact view toggled");
+                self.config.view_mode = match self.config.view_mode {
+                    crate::config::HomeViewMode::Normal => crate::config::HomeViewMode::Compact,
+                    crate::config::HomeViewMode::Compact => crate::config::HomeViewMode::Tile,
+                    crate::config::HomeViewMode::Tile => crate::config::HomeViewMode::Normal,
+                };
+                self.persist("View mode cycled");
+            }
+            82 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.tile_columns.to_string();
             }
             80 => {
                 self.settings_editing = true;
@@ -2674,6 +2706,16 @@ impl App {
                 if let Ok(val) = trimmed.parse::<u64>() {
                     self.config.tab_ttl_secs = val;
                     self.persist("Tab cache TTL updated");
+                    self.settings_editing = false;
+                    self.input_buffer.clear();
+                } else {
+                    self.status_message = Some("Invalid integer".to_string());
+                }
+            }
+            82 => {
+                if let Ok(val) = trimmed.parse::<usize>() {
+                    self.config.tile_columns = val;
+                    self.persist("Tile columns updated");
                     self.settings_editing = false;
                     self.input_buffer.clear();
                 } else {
@@ -3628,7 +3670,7 @@ impl App {
                     let inner_height = (size.1 as usize).saturating_sub(inner_vertical_margin);
                     let available_height =
                         inner_height.saturating_sub(self.status_height() as usize);
-                    let mut lh = if self.config.compact_view {
+                    let mut lh = if self.config.view_mode == crate::config::HomeViewMode::Compact {
                         available_height.saturating_sub(1)
                     } else {
                         available_height
@@ -3645,24 +3687,50 @@ impl App {
                 let mut accumulated = 0;
                 let mut is_visible = false;
                 if pos >= self.scroll_top {
+                    let cols = if self.config.view_mode == crate::config::HomeViewMode::Tile {
+                        self.get_tile_cols()
+                    } else {
+                        1
+                    };
+                    let mut current_col = 0;
+
                     for idx in self.scroll_top..=pos {
-                        let h = match &rows[idx] {
+                        match &rows[idx] {
                             HomeRow::GroupHeader { .. } => {
-                                if self.config.compact_view {
+                                if current_col > 0 {
+                                    accumulated += 4;
+                                    current_col = 0;
+                                }
+                                let h = if self.config.view_mode
+                                    == crate::config::HomeViewMode::Compact
+                                {
                                     1
                                 } else {
                                     2
-                                }
+                                };
+                                accumulated += h;
                             }
                             HomeRow::Repo { .. } => {
-                                if self.config.compact_view {
-                                    1
+                                if self.config.view_mode == crate::config::HomeViewMode::Tile {
+                                    if current_col == 0 {
+                                        accumulated += 4;
+                                    }
+                                    current_col += 1;
+                                    if current_col == cols {
+                                        current_col = 0;
+                                    }
                                 } else {
-                                    4
+                                    let h = if self.config.view_mode
+                                        == crate::config::HomeViewMode::Compact
+                                    {
+                                        1
+                                    } else {
+                                        4
+                                    };
+                                    accumulated += h;
                                 }
                             }
-                        };
-                        accumulated += h;
+                        }
                     }
                     if accumulated <= list_height {
                         is_visible = true;
@@ -3674,57 +3742,66 @@ impl App {
                         self.scroll_top = pos;
                     } else {
                         // Scroll down to make it visible at the bottom of the viewport
-                        let mut acc_height = 0;
-                        let mut temp_scroll = pos;
-                        while temp_scroll > 0 {
-                            let h = match &rows[temp_scroll] {
-                                HomeRow::GroupHeader { .. } => {
-                                    if self.config.compact_view {
-                                        1
-                                    } else {
-                                        2
-                                    }
-                                }
-                                HomeRow::Repo { .. } => {
-                                    if self.config.compact_view {
-                                        1
-                                    } else {
-                                        4
-                                    }
-                                }
-                            };
-                            if acc_height + h <= list_height {
-                                acc_height += h;
-                                temp_scroll -= 1;
-                            } else {
-                                break;
-                            }
-                        }
-                        if temp_scroll == 0 {
-                            let h = match &rows[0] {
-                                HomeRow::GroupHeader { .. } => {
-                                    if self.config.compact_view {
-                                        1
-                                    } else {
-                                        2
-                                    }
-                                }
-                                HomeRow::Repo { .. } => {
-                                    if self.config.compact_view {
-                                        1
-                                    } else {
-                                        4
-                                    }
-                                }
-                            };
-                            if acc_height + h <= list_height {
-                                self.scroll_top = 0;
-                            } else {
-                                self.scroll_top = 1;
-                            }
+                        let cols = if self.config.view_mode == crate::config::HomeViewMode::Tile {
+                            self.get_tile_cols()
                         } else {
-                            self.scroll_top = temp_scroll + 1;
+                            1
+                        };
+
+                        // When scrolling up from the bottom, it's a bit tricky with tiles because tiles are grouped from top to bottom.
+                        // To be perfectly accurate, we should find the exact layout from `0..=pos`.
+                        // But for simplicity, we can layout from 0 to pos, and then advance scroll_top until it just fits.
+                        let mut layout_heights = Vec::new();
+                        let mut current_col = 0;
+                        for idx in 0..=pos {
+                            match &rows[idx] {
+                                HomeRow::GroupHeader { .. } => {
+                                    if current_col > 0 {
+                                        layout_heights.push(4);
+                                        current_col = 0;
+                                    }
+                                    let h = if self.config.view_mode
+                                        == crate::config::HomeViewMode::Compact
+                                    {
+                                        1
+                                    } else {
+                                        2
+                                    };
+                                    layout_heights.push(h);
+                                }
+                                HomeRow::Repo { .. } => {
+                                    if self.config.view_mode == crate::config::HomeViewMode::Tile {
+                                        if current_col == 0 {
+                                            layout_heights.push(4);
+                                        } else {
+                                            layout_heights.push(0); // share row
+                                        }
+                                        current_col += 1;
+                                        if current_col == cols {
+                                            current_col = 0;
+                                        }
+                                    } else {
+                                        let h = if self.config.view_mode
+                                            == crate::config::HomeViewMode::Compact
+                                        {
+                                            1
+                                        } else {
+                                            4
+                                        };
+                                        layout_heights.push(h);
+                                    }
+                                }
+                            }
                         }
+
+                        let mut new_scroll = 0;
+                        let mut total_height: usize = layout_heights.iter().sum();
+
+                        while total_height > list_height && new_scroll < pos {
+                            total_height -= layout_heights[new_scroll];
+                            new_scroll += 1;
+                        }
+                        self.scroll_top = new_scroll;
                     }
                 }
             }

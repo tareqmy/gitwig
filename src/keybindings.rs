@@ -36,7 +36,7 @@ pub enum Action {
     HomeSearchRepo,
     HomeOpenDetail,
     HomeCheckUpdate,
-    HomeToggleCompactView,
+    HomeCycleViewMode,
     HomeOpenTerminal,
     HomeToggleStar,
     HomeYankPath,
@@ -207,7 +207,7 @@ impl Action {
             51 => Some(Action::GoToTab6),
             52 => Some(Action::GoToTab7),
             57 => Some(Action::HomeCheckUpdate),
-            77 => Some(Action::HomeToggleCompactView),
+            77 => Some(Action::HomeCycleViewMode),
             78 => Some(Action::HomeSymbolsHelp),
             68 => Some(Action::Overview),
             69 => Some(Action::ToggleAdvancedTabs),
@@ -364,7 +364,7 @@ impl Action {
             Action::GoToTab5 => 50,
             Action::GoToTab6 => 51,
             Action::GoToTab7 => 52,
-            Action::HomeToggleCompactView => 77,
+            Action::HomeCycleViewMode => 77,
             Action::HomeSymbolsHelp => 78,
             Action::HomeCheckUpdate => 57,
             Action::Overview => 68,
@@ -528,7 +528,7 @@ pub struct HomeKeybindings {
     pub search_repo: Option<Keybind>,
     pub open_detail: Option<Keybind>,
     pub check_update: Option<Keybind>,
-    pub toggle_compact_view: Option<Keybind>,
+    pub cycle_view_mode: Option<Keybind>,
     pub open_terminal: Option<Keybind>,
     pub toggle_star: Option<Keybind>,
     pub yank_path: Option<Keybind>,
@@ -856,9 +856,9 @@ impl KeybindingsConfig {
                     "Open selected repository detail view",
                 )),
                 check_update: Some(Keybind::new(&["u"], "Check for application updates")),
-                toggle_compact_view: Some(Keybind::new(
+                cycle_view_mode: Some(Keybind::new(
                     &["v"],
-                    "Toggle compact repository list layout",
+                    "Cycle repository list layout (Normal/Compact/Tile)",
                 )),
                 open_terminal: Some(Keybind::new(&["t"], "Open terminal shell at repository path")),
                 toggle_star: Some(Keybind::new(
@@ -1083,7 +1083,7 @@ impl KeybindingsConfig {
             Action::HomeSearchRepo => self.home.search_repo.as_ref(),
             Action::HomeOpenDetail => self.home.open_detail.as_ref(),
             Action::HomeCheckUpdate => self.home.check_update.as_ref(),
-            Action::HomeToggleCompactView => self.home.toggle_compact_view.as_ref(),
+            Action::HomeCycleViewMode => self.home.cycle_view_mode.as_ref(),
             Action::HomeOpenTerminal => self.home.open_terminal.as_ref(),
             Action::HomeToggleStar => self.home.toggle_star.as_ref(),
             Action::HomeYankPath => self.home.yank_path.as_ref(),
@@ -1246,7 +1246,7 @@ impl KeybindingsConfig {
             Action::HomeSearchRepo => self.home.search_repo.as_ref(),
             Action::HomeOpenDetail => self.home.open_detail.as_ref(),
             Action::HomeCheckUpdate => self.home.check_update.as_ref(),
-            Action::HomeToggleCompactView => self.home.toggle_compact_view.as_ref(),
+            Action::HomeCycleViewMode => self.home.cycle_view_mode.as_ref(),
             Action::HomeOpenTerminal => self.home.open_terminal.as_ref(),
             Action::HomeToggleStar => self.home.toggle_star.as_ref(),
             Action::HomeYankPath => self.home.yank_path.as_ref(),
@@ -1475,7 +1475,7 @@ impl KeybindingsConfig {
             Action::HomeSearchRepo,
             Action::HomeOpenDetail,
             Action::HomeCheckUpdate,
-            Action::HomeToggleCompactView,
+            Action::HomeCycleViewMode,
             Action::HomeOpenTerminal,
             Action::HomeToggleStar,
             Action::HomeYankPath,
@@ -1561,7 +1561,7 @@ impl KeybindingsConfig {
                 | Action::HomeSearchRepo
                 | Action::HomeOpenDetail
                 | Action::HomeCheckUpdate
-                | Action::HomeToggleCompactView
+                | Action::HomeCycleViewMode
                 | Action::HomeOpenTerminal
                 | Action::HomeToggleStar
                 | Action::HomeYankPath
@@ -1632,7 +1632,7 @@ impl KeybindingsConfig {
             Action::HomeSearchRepo => self.home.search_repo = keybind,
             Action::HomeOpenDetail => self.home.open_detail = keybind,
             Action::HomeCheckUpdate => self.home.check_update = keybind,
-            Action::HomeToggleCompactView => self.home.toggle_compact_view = keybind,
+            Action::HomeCycleViewMode => self.home.cycle_view_mode = keybind,
             Action::HomeOpenTerminal => self.home.open_terminal = keybind,
             Action::HomeToggleStar => self.home.toggle_star = keybind,
             Action::HomeYankPath => self.home.yank_path = keybind,

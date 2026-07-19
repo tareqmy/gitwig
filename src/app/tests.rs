@@ -5456,7 +5456,7 @@ fn test_compact_view_toggle() {
     let config = Config::default();
     let temp_path = temp_dir.join("config.toml");
     let mut app = App::new(config, temp_path);
-    assert!(!app.config.compact_view);
+    assert_eq!(app.config.view_mode, crate::config::HomeViewMode::Normal);
 
     // Simulate event toggle
     let event = crossterm::event::KeyEvent::new(
@@ -5464,10 +5464,10 @@ fn test_compact_view_toggle() {
         crossterm::event::KeyModifiers::empty(),
     );
     let _ = crate::tabs::HomeTab::handle_event(&mut app, event, 10);
-    assert!(app.config.compact_view);
+    assert_eq!(app.config.view_mode, crate::config::HomeViewMode::Compact);
 
     let _ = crate::tabs::HomeTab::handle_event(&mut app, event, 10);
-    assert!(!app.config.compact_view);
+    assert_eq!(app.config.view_mode, crate::config::HomeViewMode::Tile);
 }
 
 #[test]
@@ -9453,7 +9453,7 @@ fn test_settings_tab_ttl_editing() {
 
 #[test]
 fn test_settings_compact_view_toggling() {
-    let config = Config { compact_view: false, ..Default::default() };
+    let config = Config { view_mode: crate::config::HomeViewMode::Normal, ..Default::default() };
 
     let temp_path = std::env::temp_dir().join("gitwig_test_config_settings_compact.toml");
     let _guard = TestFileGuard { path: temp_path.clone() };
@@ -9466,11 +9466,11 @@ fn test_settings_compact_view_toggling() {
 
     // Toggle setting
     app.toggle_or_edit_setting();
-    assert!(app.config.compact_view);
+    assert_eq!(app.config.view_mode, crate::config::HomeViewMode::Compact);
 
     // Toggle again
     app.toggle_or_edit_setting();
-    assert!(!app.config.compact_view);
+    assert_eq!(app.config.view_mode, crate::config::HomeViewMode::Tile);
 }
 
 #[test]

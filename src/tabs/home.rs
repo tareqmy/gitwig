@@ -58,6 +58,26 @@ impl HomeTab {
                     app.move_down(visible_count);
                 } else if app.is_bound(Action::HomeMoveUp, key) {
                     app.move_up();
+                } else if code == KeyCode::Left
+                    && app.config.view_mode == crate::config::HomeViewMode::Tile
+                {
+                    if app.selected_index > 0 {
+                        app.selected_index -= 1;
+                        if app.selected_index < app.scroll_top {
+                            app.scroll_top = app.selected_index;
+                        }
+                    }
+                } else if code == KeyCode::Right
+                    && app.config.view_mode == crate::config::HomeViewMode::Tile
+                {
+                    let len = app.get_items_len();
+                    if app.selected_index + 1 < len {
+                        app.selected_index += 1;
+                        let bottom = app.scroll_top + visible_count;
+                        if app.selected_index >= bottom {
+                            app.scroll_top += 1; // Basic fallback
+                        }
+                    }
                 } else if app.is_bound(Action::HomePageDown, key) {
                     app.page_down(app.get_current_page_size());
                 } else if app.is_bound(Action::HomePageUp, key) {
@@ -86,9 +106,13 @@ impl HomeTab {
                     app.open_about();
                 } else if app.is_bound(Action::HomeSymbolsHelp, key) {
                     app.mode = Mode::Legend;
-                } else if app.is_bound(Action::HomeToggleCompactView, key) {
-                    app.config.compact_view = !app.config.compact_view;
-                    app.persist("Compact view toggled");
+                } else if app.is_bound(Action::HomeCycleViewMode, key) {
+                    app.config.view_mode = match app.config.view_mode {
+                        crate::config::HomeViewMode::Normal => crate::config::HomeViewMode::Compact,
+                        crate::config::HomeViewMode::Compact => crate::config::HomeViewMode::Tile,
+                        crate::config::HomeViewMode::Tile => crate::config::HomeViewMode::Normal,
+                    };
+                    app.persist("View mode cycled");
                 } else if app.is_bound(Action::HomeRefresh, key) {
                     app.refresh_selected_status();
                 } else if app.is_bound(Action::HomeCycleSort, key) {
