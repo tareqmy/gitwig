@@ -5,13 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
-## [Unreleased]
+## [v2.4.8] - 2026-07-20
 ### Added
-- **ui**: add Tile Layout Columns setting and fix tile grid layout visibility logic
+- add Tile Layout Columns setting and fix tile grid layout visibility logic ([4b4e4c8](https://github.com/tareqmy/gitwig/commit/4b4e4c8))
+
+### Documentation
+- update UI strings and changelog for View Mode and Tile Layout options ([ed4f7f9](https://github.com/tareqmy/gitwig/commit/ed4f7f9))
+
+## [v2.4.7] - 2026-07-18
+### Added
 - **ui**: shorten file paths when panel width is insufficient ([7b7393a](https://github.com/tareqmy/gitwig/commit/7b7393a))
 
 ### Fixed
-- **ui**: fix tile grid layout pagination and visibility logic
 - **scan**: make watcher respect excludes and add common defaults ([226aa8b](https://github.com/tareqmy/gitwig/commit/226aa8b))
 
 ### Documentation

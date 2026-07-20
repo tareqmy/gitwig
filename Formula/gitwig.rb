@@ -1,7 +1,7 @@
 class Gitwig < Formula
   desc "Rust-based Terminal User Interface (TUI) for Git"
   homepage "https://github.com/tareqmy/gitwig"
-  version "2.4.7"
+  version "2.4.8"
 
   if OS.mac?
     if Hardware::CPU.intel?
