@@ -59,7 +59,7 @@ const HOME_SETTING_INDICES: &[usize] = &[
     30, // Home: Refresh Status
     31, // Home: Cycle Sort Order
     32, // Home: Toggle Sort Reverse
-    77, // Home: Toggle Compact View
+    77, // Home: Cycle View Mode
     23, // Home: Add Repository
     24, // Home: Bulk Add
     35, // Home: Import Repository
@@ -213,7 +213,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         64 => "Graph Max Commits",
         65 => "Detail Cache TTL (secs)",
         66 => "Tab Cache TTL (secs)",
-        67 => "Compact Layout View",
+        67 => "View Mode",
         82 => "Tile Layout Columns (0=Auto)",
         80 => "Stale Threshold (months)",
         81 => "Show Stale Projects",
@@ -266,7 +266,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         74 => "Home: Fetch All",
         75 => "Home: Toggle Selection",
         76 => "Home: Global Code Search",
-        77 => "Home: Toggle Compact View",
+        77 => "Home: Cycle View Mode",
         78 => "Home: Signs & Symbols Legend",
         69 => "Detail: Toggle Advanced Tabs",
 
@@ -412,7 +412,7 @@ fn get_desc(global_idx: usize) -> &'static str {
         66 => {
             "How long in seconds lazy-loaded tab data remains cached in memory before automatic refresh."
         }
-        67 => "Show a compact single-line layout for repository cards in the list.",
+        67 => "Select between Normal (4 rows), Compact (1 row), or Tile (grid) layout for the repository list.",
         82 => {
             "Number of columns in Tile layout. Set to 0 to auto-calculate based on terminal width."
         }
@@ -476,7 +476,7 @@ fn get_desc(global_idx: usize) -> &'static str {
         74 => "Bulk fetch all tracked repositories concurrently.",
         75 => "Toggle selection of repository for batch operations.",
         76 => "Open global code search popup overlay.",
-        77 => "Toggles repository list view between standard card layout and compact 1-row layout.",
+        77 => "Cycles the repository list layout between Normal, Compact, and Tile views.",
         78 => "Opens the signs and symbols legend overlay panel.",
         _ => "",
     }
@@ -917,7 +917,7 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
                 "Configures primary repository discovery paths, recursive search depths, directory exclusion lists, and watch paths for automatic workspace sync."
             }
             3 => {
-                "Select active TUI visual themes and toggle compact card/row layouts for list views."
+                "Select active TUI visual themes and cycle view layouts for list views."
             }
             4 => {
                 "Custom key mappings and keyboard shortcuts for navigating repositories, committing changes, triggering git actions, and UI overlays."

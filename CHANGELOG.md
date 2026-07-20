@@ -7,9 +7,11 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Added
+- **ui**: add Tile Layout Columns setting and fix tile grid layout visibility logic
 - **ui**: shorten file paths when panel width is insufficient ([7b7393a](https://github.com/tareqmy/gitwig/commit/7b7393a))
 
 ### Fixed
+- **ui**: fix tile grid layout pagination and visibility logic
 - **scan**: make watcher respect excludes and add common defaults ([226aa8b](https://github.com/tareqmy/gitwig/commit/226aa8b))
 
 ### Documentation

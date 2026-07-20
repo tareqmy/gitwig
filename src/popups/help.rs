@@ -142,7 +142,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 (refresh_key, "Refresh status of selected item"),
                 (fetch_all_key, "Bulk fetch all tracked repositories concurrently"),
                 (sort_key, "Cycle sorting mode / Toggle reverse sorting"),
-                (compact_key, "Toggle between standard cards and compact 1-row view"),
+                (compact_key, "Cycle between standard cards, compact 1-row view, and tile grid view"),
                 (pin_key, "Toggle pin status of selected item"),
                 (star_key, "Toggle Favorite / Star status of selected item"),
                 (select_key, "Toggle selection of item for batch operations"),
