@@ -671,7 +671,10 @@ impl App {
                 if let Ok(event) = res {
                     for path in event.paths {
                         let path_str = path.to_string_lossy();
-                        if excludes.iter().any(|ex| path_str.contains(ex)) {
+                        if excludes
+                            .iter()
+                            .any(|ex| path.components().any(|c| c.as_os_str() == ex.as_str()))
+                        {
                             continue;
                         }
                         let clean_path =
@@ -2759,10 +2762,10 @@ fn run_directory_scan(
                                         continue;
                                     }
                                 }
-                                if excludes
-                                    .iter()
-                                    .any(|ex| name == ex || path.to_string_lossy().contains(ex))
-                                {
+                                if excludes.iter().any(|ex| {
+                                    name == ex
+                                        || path.components().any(|c| c.as_os_str() == ex.as_str())
+                                }) {
                                     continue;
                                 }
                             }
@@ -2825,10 +2828,10 @@ fn run_directory_scan(
                                         continue;
                                     }
                                 }
-                                if excludes
-                                    .iter()
-                                    .any(|ex| name == ex || path.to_string_lossy().contains(ex))
-                                {
+                                if excludes.iter().any(|ex| {
+                                    name == ex
+                                        || path.components().any(|c| c.as_os_str() == ex.as_str())
+                                }) {
                                     continue;
                                 }
                             }

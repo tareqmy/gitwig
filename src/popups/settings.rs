@@ -412,7 +412,9 @@ fn get_desc(global_idx: usize) -> &'static str {
         66 => {
             "How long in seconds lazy-loaded tab data remains cached in memory before automatic refresh."
         }
-        67 => "Select between Normal (4 rows), Compact (1 row), or Tile (grid) layout for the repository list.",
+        67 => {
+            "Select between Normal (4 rows), Compact (1 row), or Tile (grid) layout for the repository list."
+        }
         82 => {
             "Number of columns in Tile layout. Set to 0 to auto-calculate based on terminal width."
         }
@@ -916,9 +918,7 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
             2 => {
                 "Configures primary repository discovery paths, recursive search depths, directory exclusion lists, and watch paths for automatic workspace sync."
             }
-            3 => {
-                "Select active TUI visual themes and cycle view layouts for list views."
-            }
+            3 => "Select active TUI visual themes and cycle view layouts for list views.",
             4 => {
                 "Custom key mappings and keyboard shortcuts for navigating repositories, committing changes, triggering git actions, and UI overlays."
             }

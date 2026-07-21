@@ -198,7 +198,13 @@ fn default_scan_max_depth() -> usize {
     6
 }
 fn default_scan_excludes() -> Vec<String> {
-    vec!["node_modules".to_string(), "target".to_string(), "venv".to_string(), ".venv".to_string()]
+    vec![
+        "node_modules".to_string(),
+        "target".to_string(),
+        "venv".to_string(),
+        ".venv".to_string(),
+        "checkout".to_string(),
+    ]
 }
 
 fn default_scan_start_dir() -> String {
@@ -503,6 +509,13 @@ fn load_and_parse_config(path: &Path) -> (Config, Option<String>) {
                 if config.compact_view && config.view_mode == HomeViewMode::Normal {
                     config.view_mode = HomeViewMode::Compact;
                     config.compact_view = false;
+                }
+
+                // Migrate checkout folder exclusion for existing configs
+                if config.scan.excludes.contains(&"target".to_string())
+                    && !config.scan.excludes.contains(&"checkout".to_string())
+                {
+                    config.scan.excludes.push("checkout".to_string());
                 }
 
                 let allowed = ["git", "gitui", "lazygit"];

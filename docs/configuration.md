@@ -55,7 +55,7 @@ show_stale_projects = true
 | `compatibility_mode` | `Boolean` | `false` | Enable to use simple ASCII symbols instead of rich Unicode icons/emojis (prevents layout alignment issues in restricted terminals like RustRover's built-in terminal). |
 | `scan.max_depth` | `Integer` | `6` | Maximum directory depth to search for git repositories during discovery. |
 | `scan.start_dir` | `String` | `"$HOME"` | Starting directory for interactive repository discovery scanning. |
-| `scan.excludes` | `[String]` | `["node_modules", "target", "venv", ".venv"]` | Directory names excluded from discovery scanning and filesystem watching. |
+| `scan.excludes` | `[String]` | `["node_modules", "target", "venv", ".venv", "checkout"]` | Directory names excluded from discovery scanning and filesystem watching. |
 | `scan.git_only` | `Boolean` | `true` | Only scan folders that contain a .git directory. |
 | `auto_fetch_interval_mins` | `Integer` | `10` | Time interval in minutes to automatically run background fetches for all repositories. Set to `0` to disable. |
 | `show_system_stats` | `Boolean` | `false` | Display CPU and Memory utilization of the Gitwig process in the bottom status bar. |
