@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [Unreleased]
+### Fixed
+- ignore checkout folders created by maven release plugin ([38a9784](https://github.com/tareqmy/gitwig/commit/38a9784))
+
 ## [v2.4.8] - 2026-07-20
 ### Added
 - add Tile Layout Columns setting and fix tile grid layout visibility logic ([4b4e4c8](https://github.com/tareqmy/gitwig/commit/4b4e4c8))
