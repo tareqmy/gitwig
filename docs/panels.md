@@ -382,7 +382,7 @@ Floating modal components with search-as-you-type inputs. Matches are ranked and
 Modal text entry boxes for setting up configurations or typing messages.
 
 *   *Available dialogs*:
-    *   **Commit Message Dialog**: Type commit message and description.
+    *   **Commit Message Dialog**: Type commit message and description. Use `Ctrl+H` to select from history.
     *   **Branch / Tag / Stash Creation dialogs**: Enter new names.
     *   **Import / Remote Setup dialogs**: Enter URLs, names, and paths.
     *   **Worktree / Submodule Setup dialogs**: Enter paths, branches, or lock reasons.
