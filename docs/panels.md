@@ -319,6 +319,11 @@ Information about Gitwig, version details, and creator profile.
 *   *Shortcuts*:
     *   `Esc` / `ctrl-q` / `V` : Close about popup
 
+### App Usage Stats Popup (`Mode::StatsDashboard`)
+Dashboard detailing aggregated usage statistics such as session duration, total lines authored, repositories imported, branches/commits created, and network activities.
+*   *Shortcuts*:
+    *   `Esc` / `ctrl-q` / `U` : Close stats dashboard
+
 ### Search Columns Selector Popup (`Mode::SearchColumnPicker`)
 Picker to select columns to search by (SHA, Message, Author, Date) before entering fuzzy logs search.
 *   *Shortcuts*:

@@ -28,6 +28,7 @@
 | `V`                  | Normal          | Show about popup / creator profile |
 | `v`                  | Normal          | Cycle between standard cards, compact 1-row view, and tile grid view |
 | `h`                  | Normal          | Show signs & symbols legend popup |
+| `Shift+U`            | Normal          | Open App Usage Stats Dashboard    |
 | `u`                  | Normal          | Check for application updates manually |
 | `.`                  | Normal / Detail | Toggle status bar between collapsed and expanded view |
 | `Enter`              | Normal / Commits list | Open Detail view for selected item / Inspect selected commit |
