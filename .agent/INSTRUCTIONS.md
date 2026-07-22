@@ -56,6 +56,7 @@ The crate is organized so each file has a single clear responsibility.
     - `gitwig-core/`: Pure repository inspection (no UI).
 
 ## 5. Testing Mandate
+- **Method-Level Testing:** Whenever working on or creating a new method, you must add test cases for it.
 - **Test-Driven Additions:** Any new feature, action, or popup configuration must be accompanied by comprehensive tests in `src/app/tests.rs` or `src/ui/draw.rs` using headless rendering or temporary Git repositories.
 - **Coverage:** Maintain high code coverage. Never submit code that drops the overall test coverage.
 

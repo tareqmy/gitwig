@@ -159,6 +159,7 @@ pub fn draw(
             | Mode::MergeContinueConfirm
             | Mode::StashCreateInput
             | Mode::RemotePicker
+            | Mode::CommitHistoryPicker
             | Mode::CommitSearchInput
             | Mode::DiscardChangesConfirm
             | Mode::Inspect

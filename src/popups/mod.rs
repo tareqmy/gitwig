@@ -4,6 +4,7 @@
 pub mod about;
 pub mod add_remote;
 pub mod commit;
+pub mod commit_history;
 pub mod confirm;
 pub mod create_branch;
 pub mod create_tag;

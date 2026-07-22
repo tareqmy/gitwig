@@ -89,6 +89,8 @@ pub struct RepoConfig {
     pub editor: Option<String>,
     #[serde(default)]
     pub note: Option<String>,
+    #[serde(default)]
+    pub commit_history: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]

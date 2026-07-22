@@ -928,6 +928,16 @@ impl App {
                     self.refresh_detail();
                     self.refresh_selected_status();
 
+                    // Save commit message history
+                    let repo_key = path.to_string_lossy().to_string();
+                    let repo_config = self.config.repo_configs.entry(repo_key).or_insert_with(crate::config::RepoConfig::default);
+                    let mut history = repo_config.commit_history.clone().unwrap_or_default();
+                    history.retain(|x| x != &msg);
+                    history.insert(0, msg.clone());
+                    history.truncate(10);
+                    repo_config.commit_history = Some(history);
+                    let _ = crate::config::save_config(&self.config, &self.config_path);
+
                     self.commit_popup.input_buffer.clear();
                     self.commit_popup.cursor_idx = 0;
                     self.commit_popup.scroll.set(0);
@@ -945,5 +955,55 @@ impl App {
                 }
             }
         }
+    }
+
+    pub fn open_commit_history_picker(&mut self) {
+        if let Some(crate::repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+            let repo_key = resolved.to_string_lossy().to_string();
+            let history = self.config.repo_configs
+                .get(&repo_key)
+                .and_then(|c| c.commit_history.clone())
+                .unwrap_or_default();
+            
+            if !history.is_empty() {
+                self.commit_history_items = history;
+                self.commit_history_selection = 0;
+                self.mode = Mode::CommitHistoryPicker;
+            } else {
+                self.status_message = Some("No commit history available for this repository".to_string());
+            }
+        }
+    }
+
+    pub fn commit_history_up(&mut self) {
+        if self.commit_history_selection > 0 {
+            self.commit_history_selection -= 1;
+        } else if !self.commit_history_items.is_empty() {
+            self.commit_history_selection = self.commit_history_items.len() - 1;
+        }
+    }
+
+    pub fn commit_history_down(&mut self) {
+        if !self.commit_history_items.is_empty() {
+            if self.commit_history_selection < self.commit_history_items.len() - 1 {
+                self.commit_history_selection += 1;
+            } else {
+                self.commit_history_selection = 0;
+            }
+        }
+    }
+
+    pub fn commit_history_select(&mut self) {
+        if let Some(msg) = self.commit_history_items.get(self.commit_history_selection) {
+            self.commit_popup.input_buffer = msg.clone();
+            self.commit_popup.cursor_idx = msg.chars().count();
+        }
+        self.mode = Mode::CommitInput;
+        self.commit_popup.editing = true;
+    }
+
+    pub fn commit_history_cancel(&mut self) {
+        self.mode = Mode::CommitInput;
+        self.commit_popup.editing = true;
     }
 }

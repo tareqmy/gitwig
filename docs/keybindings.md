@@ -113,6 +113,7 @@
 | `?`                  | Detail          | Toggle detail help overlay        |
 | `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |
 | `⌃C`                 | CommitInput (Edit) | Finish editing commit message (switches to confirm state) |
+| `⌃H` (Ctrl+H)        | CommitInput (Edit) | Open commit history picker |
 | `⌃U` (Ctrl+U)        | CommitInput (Edit) | Clear entire commit message buffer |
 | `↵` (Enter)          | CommitInput (Edit) | Insert a newline                  |
 | `Backspace`          | CommitInput (Edit) | Erase one character from commit message |

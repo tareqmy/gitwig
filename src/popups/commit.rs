@@ -243,6 +243,10 @@ impl Component for CommitPopup {
                         self.editing = false;
                         return Ok(EventState::Consumed);
                     }
+                    KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        self.queue.push(InternalEvent::OpenCommitHistoryPicker);
+                        return Ok(EventState::Consumed);
+                    }
                     KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         self.maximized = !self.maximized;
                         return Ok(EventState::Consumed);
@@ -474,7 +478,7 @@ pub fn draw_commit_popup(
         if !editing {
             Span::styled(" (toggle: [a/space] | clear: [x])", muted_style())
         } else {
-            Span::styled(" (toggle: [⌃A] | clear: [⌃U])", muted_style())
+            Span::styled(" (toggle: [⌃A] | clear: [⌃U] | history: [⌃H])", muted_style())
         },
     ]);
     f.render_widget(Paragraph::new(checkbox_line), chunks[1]);

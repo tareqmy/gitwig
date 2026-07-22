@@ -1080,6 +1080,15 @@ pub fn draw(
                     );
                 }
             }
+            // Draw commit history picker popup on top when requested.
+            if matches!(mode, Mode::CommitHistoryPicker) {
+                crate::popups::commit_history::draw_commit_history_popup(
+                    f,
+                    &app.commit_history_items,
+                    app.commit_history_selection,
+                    body_area,
+                );
+            }
             // Draw discard changes popup on top when requested.
             if matches!(mode, Mode::DiscardChangesConfirm) {
                 crate::popups::confirm::draw_discard_changes_popup(f, discard_target, body_area);

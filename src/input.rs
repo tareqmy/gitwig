@@ -257,6 +257,11 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
+        Mode::CommitHistoryPicker => {
+            if crate::popups::commit_history::CommitHistoryPickerPopup::handle_event(app, key) {
+                return true;
+            }
+        }
 
         Mode::BranchDeleteConfirm
         | Mode::BranchPushConfirm

@@ -62,6 +62,11 @@ pub enum InternalEvent {
 
     CommitSelectionTop,
     CommitSelectionBottom,
+    OpenCommitHistoryPicker,
+    CommitHistoryPickerUp,
+    CommitHistoryPickerDown,
+    CommitHistoryPickerSelect,
+    CommitHistoryPickerCancel,
     LoadMoreCommits,
     CommitDetailsUp,
     CommitDetailsDown,

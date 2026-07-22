@@ -62,6 +62,8 @@ pub enum Mode {
     CommitInput,
     /// Typing a branch name to create.
     BranchCreateInput,
+    /// Picking from previous commit messages.
+    CommitHistoryPicker,
     /// Typing a tag name to create.
     TagCreateInput,
     /// Confirming deletion of a branch.
@@ -354,6 +356,8 @@ pub struct App {
     pub commit_popup: crate::popups::commit::CommitPopup,
     pub confirm_popup: crate::popups::confirm::ConfirmPopup,
     pub generic_input_popup: crate::popups::commit::GenericInputPopup,
+    pub commit_history_selection: usize,
+    pub commit_history_items: Vec<String>,
     /// Dynamic commit limit for pagination
 
     /// Active query for filtering commits in the commits panel
@@ -870,6 +874,11 @@ impl App {
                     self.search_column_selection = 0;
                     self.mode = Mode::SearchColumnPicker;
                 }
+                crate::queue::InternalEvent::OpenCommitHistoryPicker => self.open_commit_history_picker(),
+                crate::queue::InternalEvent::CommitHistoryPickerUp => self.commit_history_up(),
+                crate::queue::InternalEvent::CommitHistoryPickerDown => self.commit_history_down(),
+                crate::queue::InternalEvent::CommitHistoryPickerSelect => self.commit_history_select(),
+                crate::queue::InternalEvent::CommitHistoryPickerCancel => self.commit_history_cancel(),
                 crate::queue::InternalEvent::StartCommit => self.start_commit(),
                 crate::queue::InternalEvent::StartCommitAmend => self.start_commit_amend(),
                 crate::queue::InternalEvent::StartTagCreate => self.start_tag_create(),
@@ -1184,6 +1193,8 @@ impl App {
             commit_popup: crate::popups::commit::CommitPopup::new(queue.clone()),
             confirm_popup: crate::popups::confirm::ConfirmPopup::new(queue.clone()),
             generic_input_popup: crate::popups::commit::GenericInputPopup::new(queue.clone()),
+            commit_history_selection: 0,
+            commit_history_items: Vec::new(),
 
             repo_search_query: None,
 
