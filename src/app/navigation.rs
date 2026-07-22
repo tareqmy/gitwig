@@ -2632,6 +2632,7 @@ impl App {
                 self.persist("Scan exclude folders updated");
                 self.settings_editing = false;
                 self.input_buffer.clear();
+                self.setup_watcher();
             }
             9 => {
                 let trimmed_app = trimmed.to_string();

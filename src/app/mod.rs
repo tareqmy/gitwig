@@ -874,11 +874,17 @@ impl App {
                     self.search_column_selection = 0;
                     self.mode = Mode::SearchColumnPicker;
                 }
-                crate::queue::InternalEvent::OpenCommitHistoryPicker => self.open_commit_history_picker(),
+                crate::queue::InternalEvent::OpenCommitHistoryPicker => {
+                    self.open_commit_history_picker()
+                }
                 crate::queue::InternalEvent::CommitHistoryPickerUp => self.commit_history_up(),
                 crate::queue::InternalEvent::CommitHistoryPickerDown => self.commit_history_down(),
-                crate::queue::InternalEvent::CommitHistoryPickerSelect => self.commit_history_select(),
-                crate::queue::InternalEvent::CommitHistoryPickerCancel => self.commit_history_cancel(),
+                crate::queue::InternalEvent::CommitHistoryPickerSelect => {
+                    self.commit_history_select()
+                }
+                crate::queue::InternalEvent::CommitHistoryPickerCancel => {
+                    self.commit_history_cancel()
+                }
                 crate::queue::InternalEvent::StartCommit => self.start_commit(),
                 crate::queue::InternalEvent::StartCommitAmend => self.start_commit_amend(),
                 crate::queue::InternalEvent::StartTagCreate => self.start_tag_create(),
@@ -1551,12 +1557,21 @@ where
                             }
                         }
                         if inside_watch_dir {
-                            let git_dir = canon_target.join(".git");
-                            if git_dir.exists() && git_dir.is_dir() {
-                                let path_str = repo_path.to_string();
-                                app.auto_discover_add(path_str);
-                                app.status_message =
-                                    Some("Auto-discovered new repository".to_string());
+                            let mut is_excluded = false;
+                            for ex in &app.config.scan.excludes {
+                                if canon_target.components().any(|c| c.as_os_str() == ex.as_str()) {
+                                    is_excluded = true;
+                                    break;
+                                }
+                            }
+                            if !is_excluded {
+                                let git_dir = canon_target.join(".git");
+                                if git_dir.exists() && git_dir.is_dir() {
+                                    let path_str = repo_path.to_string();
+                                    app.auto_discover_add(path_str);
+                                    app.status_message =
+                                        Some("Auto-discovered new repository".to_string());
+                                }
                             }
                         }
                     }

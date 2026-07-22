@@ -2,9 +2,7 @@
 
 use crate::app::{App, Mode};
 use crate::ui::layout::centered_rect;
-use crate::ui::style::{
-    ACCENT, CARD_BORDER, accent_style, muted_style, primary_style,
-};
+use crate::ui::style::{ACCENT, CARD_BORDER, accent_style, muted_style, primary_style};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -13,12 +11,7 @@ use ratatui::widgets::{
     Block, BorderType, Borders, Clear, List, ListItem, ListState, Padding, Paragraph, Wrap,
 };
 
-pub fn draw_commit_history_popup(
-    f: &mut Frame,
-    items: &[String],
-    selection: usize,
-    area: Rect,
-) {
+pub fn draw_commit_history_popup(f: &mut Frame, items: &[String], selection: usize, area: Rect) {
     let popup_area = centered_rect(50, 60, area);
 
     f.render_widget(Clear, popup_area);
@@ -52,14 +45,11 @@ pub fn draw_commit_history_popup(
             } else {
                 primary_style()
             };
-            
+
             // Show only the first line of the commit message for the list
             let first_line = msg.lines().next().unwrap_or("").to_string();
-            
-            ListItem::new(Line::from(vec![
-                Span::raw("  "),
-                Span::styled(first_line, style),
-            ]))
+
+            ListItem::new(Line::from(vec![Span::raw("  "), Span::styled(first_line, style)]))
         })
         .collect();
 
@@ -83,10 +73,18 @@ impl CommitHistoryPickerPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
         let code = key.code;
         match code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => app.queue.push(crate::queue::InternalEvent::CommitHistoryPickerUp),
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => app.queue.push(crate::queue::InternalEvent::CommitHistoryPickerDown),
-            KeyCode::Enter => app.queue.push(crate::queue::InternalEvent::CommitHistoryPickerSelect),
-            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => app.queue.push(crate::queue::InternalEvent::CommitHistoryPickerCancel),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                app.queue.push(crate::queue::InternalEvent::CommitHistoryPickerUp)
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                app.queue.push(crate::queue::InternalEvent::CommitHistoryPickerDown)
+            }
+            KeyCode::Enter => {
+                app.queue.push(crate::queue::InternalEvent::CommitHistoryPickerSelect)
+            }
+            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                app.queue.push(crate::queue::InternalEvent::CommitHistoryPickerCancel)
+            }
             _ => {}
         }
         true

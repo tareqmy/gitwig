@@ -930,7 +930,11 @@ impl App {
 
                     // Save commit message history
                     let repo_key = path.to_string_lossy().to_string();
-                    let repo_config = self.config.repo_configs.entry(repo_key).or_insert_with(crate::config::RepoConfig::default);
+                    let repo_config = self
+                        .config
+                        .repo_configs
+                        .entry(repo_key)
+                        .or_default();
                     let mut history = repo_config.commit_history.clone().unwrap_or_default();
                     history.retain(|x| x != &msg);
                     history.insert(0, msg.clone());
@@ -960,17 +964,20 @@ impl App {
     pub fn open_commit_history_picker(&mut self) {
         if let Some(crate::repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
             let repo_key = resolved.to_string_lossy().to_string();
-            let history = self.config.repo_configs
+            let history = self
+                .config
+                .repo_configs
                 .get(&repo_key)
                 .and_then(|c| c.commit_history.clone())
                 .unwrap_or_default();
-            
+
             if !history.is_empty() {
                 self.commit_history_items = history;
                 self.commit_history_selection = 0;
                 self.mode = Mode::CommitHistoryPicker;
             } else {
-                self.status_message = Some("No commit history available for this repository".to_string());
+                self.status_message =
+                    Some("No commit history available for this repository".to_string());
             }
         }
     }
