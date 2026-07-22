@@ -194,6 +194,8 @@ pub enum Mode {
     GlobalSearch,
     /// Popup shown when the selected item is not a git repository.
     NotGitRepo,
+    /// App Usage Dashboard showing user activity statistics.
+    StatsDashboard,
 }
 
 /// Which panel in the detail view currently has keyboard focus.
@@ -607,6 +609,9 @@ pub struct App {
     pub graph_visible_height: std::cell::Cell<usize>,
     pub pending_add_repo: Option<String>,
     pub pending_bulk_add_repo: Option<String>,
+    pub stats: crate::stats::AppStats,
+    pub session_start: std::time::Instant,
+    pub last_stats_save: std::time::Instant,
 }
 
 #[derive(Clone, Debug)]
@@ -1356,6 +1361,9 @@ impl App {
             graph_visible_height: std::cell::Cell::new(0),
             pending_add_repo: None,
             pending_bulk_add_repo: None,
+            stats: crate::stats::load_stats(),
+            session_start: std::time::Instant::now(),
+            last_stats_save: std::time::Instant::now(),
         };
 
         if app.config.sort_by != SortOrder::Custom {
@@ -1673,6 +1681,13 @@ where
                             "Network Action: Operation succeeded: {}",
                             msg
                         ));
+                        if msg.starts_with("Pushed ") {
+                            app.stats.pushes += 1;
+                        } else if msg.starts_with("Fetched ") {
+                            app.stats.fetches += 1;
+                        } else if msg.starts_with("Pulled ") {
+                            app.stats.pulls += 1;
+                        }
                         app.status_message = Some(msg);
                     }
                     app.fetching = false;
@@ -2327,6 +2342,14 @@ where
         } else {
             std::time::Duration::from_millis(app.config.poll_interval_ms)
         };
+        let elapsed_since_save = app.last_stats_save.elapsed().as_secs();
+        if elapsed_since_save >= 60 {
+            app.stats.total_duration_secs += elapsed_since_save;
+            app.stats.track_daily_activity();
+            crate::stats::save_stats(&app.stats);
+            app.last_stats_save = std::time::Instant::now();
+        }
+
         if event::poll(poll_dur)? {
             match event::read()? {
                 Event::Key(key) => {

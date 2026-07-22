@@ -34,6 +34,7 @@ pub mod components;
 mod keys;
 pub mod popups;
 mod queue;
+pub mod stats;
 pub mod tabs;
 mod terminal;
 mod ui;

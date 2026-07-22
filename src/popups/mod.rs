@@ -24,5 +24,6 @@ pub mod search_columns;
 pub mod settings;
 pub mod stash_msg;
 pub mod stashing_ui;
+pub mod stats;
 pub mod submodule;
 pub mod worktree;

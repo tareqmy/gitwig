@@ -145,6 +145,13 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
+        Mode::StatsDashboard => match key.code {
+            KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                app.mode = Mode::Normal;
+                return true;
+            }
+            _ => {}
+        },
         Mode::Legend => {
             if crate::popups::legend::LegendPopup::handle_event(app, key) {
                 return true;

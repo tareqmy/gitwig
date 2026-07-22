@@ -928,13 +928,12 @@ impl App {
                     self.refresh_detail();
                     self.refresh_selected_status();
 
+                    self.stats.commits_made += 1;
+                    self.stats.track_active_repo(&path.to_string_lossy());
+
                     // Save commit message history
                     let repo_key = path.to_string_lossy().to_string();
-                    let repo_config = self
-                        .config
-                        .repo_configs
-                        .entry(repo_key)
-                        .or_default();
+                    let repo_config = self.config.repo_configs.entry(repo_key).or_default();
                     let mut history = repo_config.commit_history.clone().unwrap_or_default();
                     history.retain(|x| x != &msg);
                     history.insert(0, msg.clone());

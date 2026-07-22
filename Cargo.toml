@@ -36,6 +36,7 @@ git2 = { version = "0.21", default-features = false }
 libc = "0.2"
 notify = "6.1.1"
 sha2 = "0.10"
+chrono = "0.4"
 
 [profile.release]
 lto = true

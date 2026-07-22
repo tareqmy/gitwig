@@ -44,6 +44,7 @@ pub enum Action {
     HomeFetchAll,
     HomeSelect,
     HomeGlobalSearch,
+    HomeOpenStatsDashboard,
 
     // Detail / Workspace Tab Navigation
     CloseDetail,
@@ -218,6 +219,7 @@ impl Action {
             74 => Some(Action::HomeFetchAll),
             75 => Some(Action::HomeSelect),
             76 => Some(Action::HomeGlobalSearch),
+            79 => Some(Action::HomeOpenStatsDashboard),
 
             // Workspace
             100 => Some(Action::WorkspaceLoadMore),
@@ -376,6 +378,7 @@ impl Action {
             Action::HomeFetchAll => 74,
             Action::HomeSelect => 75,
             Action::HomeGlobalSearch => 76,
+            Action::HomeOpenStatsDashboard => 79,
 
             // Workspace
             Action::WorkspaceLoadMore => 100,
@@ -536,6 +539,7 @@ pub struct HomeKeybindings {
     pub fetch_all: Option<Keybind>,
     pub select: Option<Keybind>,
     pub global_search: Option<Keybind>,
+    pub open_stats_dashboard: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -873,6 +877,7 @@ impl KeybindingsConfig {
                 )),
                 select: Some(Keybind::new(&["space"], "Toggle selection for batch operations")),
                 global_search: Some(Keybind::new(&["ctrl-f"], "Open global code search popup")),
+                open_stats_dashboard: Some(Keybind::new(&["U"], "Open App Usage Dashboard")),
             },
             navigation: NavigationKeybindings {
                 close_detail: Some(Keybind::new(&["esc", "q", "Q"], "Close detail view / Go back")),
@@ -1091,6 +1096,7 @@ impl KeybindingsConfig {
             Action::HomeFetchAll => self.home.fetch_all.as_ref(),
             Action::HomeSelect => self.home.select.as_ref(),
             Action::HomeGlobalSearch => self.home.global_search.as_ref(),
+            Action::HomeOpenStatsDashboard => self.home.open_stats_dashboard.as_ref(),
 
             // Navigation
             Action::CloseDetail => self.navigation.close_detail.as_ref(),
@@ -1211,11 +1217,29 @@ impl KeybindingsConfig {
             Action::DetailEnd => self.detail.end.as_ref(),
         };
 
-        keys_opt.map(|k| k.keys.clone()).unwrap_or_default()
+        match keys_opt {
+            Some(k) if !k.keys.is_empty() => k.keys.clone(),
+            _ => {
+                let defaults = Self::default_config();
+                defaults.get(action).map(|k| k.keys.clone()).unwrap_or_default()
+            }
+        }
     }
 
     pub fn get_action_description(&self, action: Action) -> String {
-        let desc_opt = match action {
+        let desc_opt = self.get(action);
+
+        match desc_opt {
+            Some(k) if !k.description.is_empty() => k.description.clone(),
+            _ => {
+                let defaults = Self::default_config();
+                defaults.get(action).map(|k| k.description.clone()).unwrap_or_default()
+            }
+        }
+    }
+
+    pub fn get(&self, action: Action) -> Option<&Keybind> {
+        match action {
             // Global
             Action::ToggleStatusBar => self.global.toggle_status_bar.as_ref(),
             Action::Help => self.global.help.as_ref(),
@@ -1254,6 +1278,7 @@ impl KeybindingsConfig {
             Action::HomeFetchAll => self.home.fetch_all.as_ref(),
             Action::HomeSelect => self.home.select.as_ref(),
             Action::HomeGlobalSearch => self.home.global_search.as_ref(),
+            Action::HomeOpenStatsDashboard => self.home.open_stats_dashboard.as_ref(),
 
             // Navigation
             Action::CloseDetail => self.navigation.close_detail.as_ref(),
@@ -1372,9 +1397,7 @@ impl KeybindingsConfig {
             Action::DetailPageDown => self.detail.page_down.as_ref(),
             Action::DetailHome => self.detail.home.as_ref(),
             Action::DetailEnd => self.detail.end.as_ref(),
-        };
-
-        desc_opt.map(|k| k.description.clone()).unwrap_or_else(|| "".to_string())
+        }
     }
 
     pub fn format_action_keys(&self, action: Action, compatibility_mode: bool) -> String {
@@ -1483,6 +1506,7 @@ impl KeybindingsConfig {
             Action::HomeFetchAll,
             Action::HomeSelect,
             Action::HomeGlobalSearch,
+            Action::HomeOpenStatsDashboard,
             Action::CloseDetail,
             Action::DetailHelp,
             Action::CycleFocusForward,
@@ -1569,6 +1593,7 @@ impl KeybindingsConfig {
                 | Action::HomeFetchAll
                 | Action::HomeSelect
                 | Action::HomeGlobalSearch
+                | Action::HomeOpenStatsDashboard
         )
     }
 
@@ -1640,6 +1665,7 @@ impl KeybindingsConfig {
             Action::HomeFetchAll => self.home.fetch_all = keybind,
             Action::HomeSelect => self.home.select = keybind,
             Action::HomeGlobalSearch => self.home.global_search = keybind,
+            Action::HomeOpenStatsDashboard => self.home.open_stats_dashboard = keybind,
 
             // Navigation
             Action::CloseDetail => self.navigation.close_detail = keybind,

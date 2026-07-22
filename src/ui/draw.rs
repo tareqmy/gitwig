@@ -288,6 +288,10 @@ pub fn draw(
         crate::popups::about::draw_about_popup(f, area, app);
     }
 
+    if matches!(app.mode, Mode::StatsDashboard) {
+        crate::popups::stats::StatsPopup::draw(f, app, area);
+    }
+
     if matches!(app.mode, Mode::NotGitRepo) {
         draw_not_git_repo_popup(f, area, app);
     }

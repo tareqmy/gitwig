@@ -126,6 +126,8 @@ impl HomeTab {
                     app.settings_selected_index = 9;
                     app.settings_editing = false;
                     app.settings_focus_sidebar = true;
+                } else if app.is_bound(Action::HomeOpenStatsDashboard, key) {
+                    app.mode = Mode::StatsDashboard;
                 } else if app.is_bound(Action::HomeCheckUpdate, key) {
                     app.trigger_update_check();
                 } else if app.is_bound(Action::HomeImportRepo, key) {

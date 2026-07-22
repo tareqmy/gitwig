@@ -658,12 +658,14 @@ impl App {
                         Ok(()) => {
                             self.status_message =
                                 Some(format!("Created and switched to branch '{}'", branch_name));
+                            self.stats.branches_created += 1;
                         }
                         Err(e) => {
                             self.status_message = Some(format!(
                                 "Created branch '{}', but checkout failed: {}",
                                 branch_name, e
                             ));
+                            self.stats.branches_created += 1;
                         }
                     }
                     self.branch_list.local_branch_selection = 0;
@@ -767,6 +769,7 @@ impl App {
                     match res {
                         Ok(()) => {
                             self.status_message = Some(format!("Deleted branch '{}'", b_name));
+                            self.stats.branches_deleted += 1;
                             self.branch_list.local_branch_selection = 0;
                             self.branch_list.remote_branch_selection = 0;
                             self.resync_detail();
