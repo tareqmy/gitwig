@@ -164,3 +164,11 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Diff Summarizer:** Highlight a large diff/hunk and get a brief explanation of what the change does.
 - [ ] **Smart Conflict Explainer:** Provides a natural-language description of merge conflicts, highlighting the logical differences between "Ours" and "Theirs".
 - [ ] **Local LLM Support:** Integration with local Ollama instances for offline code analysis.
+
+## Phase 16: Usage Statistics & Insights
+- [ ] **App Usage Dashboard:** A dedicated view (e.g., accessed via a shortcut or from the settings) to show user activity and statistics within Gitwig.
+- [ ] **Time Tracking:** Track total duration spent in the application across all sessions.
+- [ ] **Commit Metrics:** Count total commits made, number of files modified, and identify the most active repositories.
+- [ ] **Operation Stats:** Track the number of branches created/deleted, merges, rebases, stashes, and network operations (fetches/pushes/pulls) performed inside Gitwig.
+- [ ] **Activity Heatmap:** Display a contribution-style calendar/heatmap showing the frequency of Gitwig usage over time.
+- [ ] **Forge Insights:** Track the number of pull requests reviewed and comments made through the Forge integration tab.
