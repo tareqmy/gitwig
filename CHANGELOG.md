@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Added
+- add commit history picker popup ([ece0271](https://github.com/tareqmy/gitwig/commit/ece0271))
+
+### Fixed
+- enforce excludes when auto-discovering repos ([42982c4](https://github.com/tareqmy/gitwig/commit/42982c4))
+
+### Documentation
+- sync documentation for commit history feature ([b419abd](https://github.com/tareqmy/gitwig/commit/b419abd))
+
+## [v2.4.9] - 2026-07-21
 ### Fixed
 - ignore checkout folders created by maven release plugin ([38a9784](https://github.com/tareqmy/gitwig/commit/38a9784))
 
