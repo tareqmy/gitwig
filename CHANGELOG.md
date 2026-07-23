@@ -7,6 +7,16 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Added
+- add stats dashboard to help overlay ([778e395](https://github.com/tareqmy/gitwig/commit/778e395))
+- implement app usage dashboard and fix keybinding fallback UI ([1b4528c](https://github.com/tareqmy/gitwig/commit/1b4528c))
+- added new goals in the roadmap ([696adbc](https://github.com/tareqmy/gitwig/commit/696adbc))
+- adding preview.png needed for terminal trove ([e30d2c0](https://github.com/tareqmy/gitwig/commit/e30d2c0))
+
+### Documentation
+- update roadmap and panels for app usage dashboard ([64f7b4e](https://github.com/tareqmy/gitwig/commit/64f7b4e))
+
+## [v2.4.10] - 2026-07-22
+### Added
 - add commit history picker popup ([ece0271](https://github.com/tareqmy/gitwig/commit/ece0271))
 
 ### Fixed
