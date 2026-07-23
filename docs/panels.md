@@ -320,7 +320,7 @@ Information about Gitwig, version details, and creator profile.
     *   `Esc` / `ctrl-q` / `V` : Close about popup
 
 ### App Usage Stats Popup (`Mode::StatsDashboard`)
-Dashboard detailing aggregated usage statistics such as session duration, total lines authored, repositories imported, branches/commits created, and network activities.
+Dashboard detailing aggregated usage statistics such as session duration, total lines authored, repositories imported, branches/commits created, network activities, and a visual 52-week Activity Heatmap.
 *   *Shortcuts*:
     *   `Esc` / `ctrl-q` / `U` : Close stats dashboard
 
