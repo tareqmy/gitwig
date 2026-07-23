@@ -100,6 +100,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     let fetch_all_key = kb.format_action_keys(Action::HomeFetchAll, is_compat);
     let select_key = kb.format_action_keys(Action::HomeSelect, is_compat);
     let global_search_key = kb.format_action_keys(Action::HomeGlobalSearch, is_compat);
+    let stats_key = kb.format_action_keys(Action::HomeOpenStatsDashboard, is_compat);
 
     let make_cat = |title: &'static str,
                     items: Vec<(&str, &'static str)>|
@@ -160,6 +161,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 (settings_key, "Open options/settings page"),
                 (labels_key, "Edit labels of selected item"),
                 (debug_key, "Open debug logs panel"),
+                (stats_key, "Open app usage stats dashboard"),
                 (update_key, "Check for application updates manually"),
                 ("⌫ [Backspace]".to_string(), "Erase character while typing"),
             ],
