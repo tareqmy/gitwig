@@ -170,5 +170,5 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] **Time Tracking:** Track total duration spent in the application across all sessions.
 - [x] **Commit Metrics:** Count total commits made, number of files modified, and identify the most active repositories.
 - [x] **Operation Stats:** Track the number of branches created/deleted, merges, rebases, stashes, and network operations (fetches/pushes/pulls) performed inside Gitwig.
-- [ ] **Activity Heatmap:** Display a contribution-style calendar/heatmap showing the frequency of Gitwig usage over time.
+- [x] **Activity Heatmap:** Display a contribution-style calendar/heatmap showing the frequency of Gitwig usage over time.
 - [ ] **Forge Insights:** Track the number of pull requests reviewed and comments made through the Forge integration tab.
