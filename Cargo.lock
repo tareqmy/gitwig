@@ -549,7 +549,7 @@ dependencies = [
 
 [[package]]
 name = "gitwig"
-version = "2.4.11"
+version = "2.4.12"
 dependencies = [
  "chrono",
  "crossterm",
@@ -566,7 +566,7 @@ dependencies = [
 
 [[package]]
 name = "gitwig-core"
-version = "2.4.11"
+version = "2.4.12"
 dependencies = [
  "dirs",
  "git2",

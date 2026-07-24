@@ -7,6 +7,14 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Added
+- implement activity heatmap in stats dashboard ([cb062e8](https://github.com/tareqmy/gitwig/commit/cb062e8))
+
+### Documentation
+- add website link to README ([3fb5cd9](https://github.com/tareqmy/gitwig/commit/3fb5cd9))
+- update features and panels docs for activity heatmap ([0b547f8](https://github.com/tareqmy/gitwig/commit/0b547f8))
+
+## [v2.4.11] - 2026-07-23
+### Added
 - add stats dashboard to help overlay ([778e395](https://github.com/tareqmy/gitwig/commit/778e395))
 - implement app usage dashboard and fix keybinding fallback UI ([1b4528c](https://github.com/tareqmy/gitwig/commit/1b4528c))
 - added new goals in the roadmap ([696adbc](https://github.com/tareqmy/gitwig/commit/696adbc))
