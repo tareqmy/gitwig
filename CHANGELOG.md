@@ -7,6 +7,13 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Added
+- **stats**: track Forge PRs reviewed and comments made ([4ee7644](https://github.com/tareqmy/gitwig/commit/4ee7644))
+
+### Documentation
+- update features.md with new usage statistics tracking ([126d2b2](https://github.com/tareqmy/gitwig/commit/126d2b2))
+
+## [v2.4.12] - 2026-07-24
+### Added
 - implement activity heatmap in stats dashboard ([cb062e8](https://github.com/tareqmy/gitwig/commit/cb062e8))
 
 ### Documentation
