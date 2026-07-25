@@ -172,3 +172,12 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] **Operation Stats:** Track the number of branches created/deleted, merges, rebases, stashes, and network operations (fetches/pushes/pulls) performed inside Gitwig.
 - [x] **Activity Heatmap:** Display a contribution-style calendar/heatmap showing the frequency of Gitwig usage over time.
 - [x] **Forge Insights:** Track the number of pull requests reviewed and comments made through the Forge integration tab.
+
+## Phase 17: Future Explorations & Quality of Life
+- [ ] **Interactive Git Bisect:** A guided, visual interface for `git bisect` to easily mark commits as good/bad and automatically navigate the commit history to find bugs.
+- [ ] **Inline Git Blame View:** An interactive file viewer with a left-hand gutter showing the author, date, and commit hash for every line, allowing instant navigation to the introducing commit.
+- [ ] **Command Palette:** A fuzzy-findable command palette (e.g., triggered by `Ctrl+P` or `:`) to execute actions without memorizing keyboard shortcuts.
+- [ ] **Custom Scripts & Macros:** Allow users to define custom shell commands/scripts in `config.toml` that can be triggered via shortcuts (e.g., linters, IDE launchers, `git clean`).
+- [ ] **External Mergetool/Difftool Integration:** A shortcut to instantly open the configured external GUI mergetool (like VSCode, KDiff3) for complex conflict resolution.
+- [ ] **Partial/Patch Stashing:** Extend hunk/line selection to stash operations, allowing users to stash specific lines or hunks instead of the whole file.
+- [ ] **Multi-Profile Workspaces:** Support grouping repositories by profile (Work, Personal) which can also contextually apply specific Git configurations (like `user.email`).
