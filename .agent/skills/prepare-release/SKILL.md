@@ -19,7 +19,7 @@ When you are asked to prepare a release, you must follow this exact process to e
    Run `cargo test` in the workspace root to ensure `Cargo.lock` is regenerated with the new versions and that all tests pass.
 
 3. **Changelog:**
-   Run `python3 scripts/generate_changelog.py` or manually update `CHANGELOG.md` following the "Keep a Changelog" formatting. Ensure all recent changes are accurately categorized.
+   Run `python3 scripts/generate_changelog.py` or manually update `CHANGELOG.md` following the "Keep a Changelog" formatting. Ensure all recent changes are accurately categorized. When asked to change files for a release version, the changelog must be updated to move the latest changes into a section for that specific version (rather than leaving them in "Unreleased"), because the subsequent commit will be tagged with that version.
 
 4. **Update Script Checksums:**
    If any installer scripts in `scripts/` were modified, recalculate their SHA-256 hashes and update the corresponding `.sha256` files.
