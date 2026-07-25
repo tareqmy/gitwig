@@ -1616,6 +1616,8 @@ where
                 } else if msg == "COMMENT_SUCCESS" {
                     app.fetching = false;
                     app.status_message = Some("Comment posted successfully".to_string());
+                    app.stats.forge_comments_made += 1;
+                    app.stats.forge_prs_reviewed += 1;
                     app.load_comments_for_selected_pr();
                 } else if let Some(err_msg) = msg.strip_prefix("COMMENT_ERROR:") {
                     app.fetching = false;

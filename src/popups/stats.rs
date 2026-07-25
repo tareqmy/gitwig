@@ -36,19 +36,20 @@ impl StatsPopup {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(1), // Title
-                Constraint::Length(1), // Spacer
-                Constraint::Length(9), // Stats list
-                Constraint::Length(1), // Spacer
-                Constraint::Length(1), // Heatmap Title
-                Constraint::Length(7), // Heatmap
-                Constraint::Min(0),    // Flexible space
-                Constraint::Length(1), // Footer instruction
+                Constraint::Length(1),  // Title
+                Constraint::Length(1),  // Spacer
+                Constraint::Length(11), // Stats list
+                Constraint::Length(1),  // Spacer
+                Constraint::Length(1),  // Heatmap Title
+                Constraint::Length(7),  // Heatmap
+                Constraint::Min(0),     // Flexible space
+                Constraint::Length(1),  // Footer instruction
             ])
             .margin(1)
             .split(inner);
 
-        let session_duration = std::time::Instant::now().duration_since(app.session_start).as_secs();
+        let session_duration =
+            std::time::Instant::now().duration_since(app.session_start).as_secs();
         let total_time_secs = app.stats.total_duration_secs + session_duration;
         let hours = total_time_secs / 3600;
         let minutes = (total_time_secs % 3600) / 60;
@@ -89,6 +90,14 @@ impl StatsPopup {
             Line::from(vec![
                 Span::styled("Fetches: ", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(format!("{}", app.stats.fetches)),
+            ]),
+            Line::from(vec![
+                Span::styled("PRs Reviewed: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(format!("{}", app.stats.forge_prs_reviewed)),
+            ]),
+            Line::from(vec![
+                Span::styled("Forge Comments: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(format!("{}", app.stats.forge_comments_made)),
             ]),
         ];
 
