@@ -238,6 +238,13 @@ Workspace layout for inspecting commits and diffs in details.
     *   `c` : Start commit message dialog
     *   `C` : Start commit message dialog with Amend
     *   `s` / `S` : Open stashing UI panel
+*   *Conflict Resolution Shortcuts (Conflicts Panel)*:
+    *   `o` : Accept OURS version of conflict
+    *   `t` : Accept THEIRS version of conflict
+    *   `r` : Mark conflict as resolved
+    *   `A` : Abort the merge
+    *   `C` : Continue the merge
+    *   `M` : Open external mergetool
 *   *Diff Viewer Panel Shortcuts*:
     *   `↑` / `k` / `K` / `↓` / `j` / `J` : Navigate lines / hunks (or scroll content)
     *   `PgUp` / `PgDn` / `Home` / `End` : Scroll diff viewer

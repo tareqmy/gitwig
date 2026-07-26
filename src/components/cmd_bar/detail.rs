@@ -45,6 +45,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                     v.push(("Accept Ours", "o"));
                     v.push(("Accept Theirs", "t"));
                     v.push(("Mark Resolved", "r"));
+                    v.push(("Mergetool", "M"));
                     v.push(("Abort Merge", "A"));
                     v.push(("Continue Merge", "C"));
                 }
@@ -55,6 +56,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                     v.push(("Accept Ours", "o"));
                     v.push(("Accept Theirs", "t"));
                     v.push(("Mark Resolved", "r"));
+                    v.push(("Mergetool", "M"));
                     v.push(("Abort Merge", "A"));
                     v.push(("Continue Merge", "C"));
                 }

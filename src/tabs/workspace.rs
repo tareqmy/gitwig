@@ -303,6 +303,22 @@ impl WorkspaceTab {
                         return true;
                     }
                 }
+                if app.is_bound(Action::ConflictMergeTool, key) {
+                    if detail_focus == DetailSection::Conflicts && app.is_uncommitted_selected() {
+                        let params = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => info
+                                .changes
+                                .conflicted
+                                .get(app.status_list.conflict_file_selection)
+                                .map(|f| f.path.clone()),
+                            _ => None,
+                        };
+                        if let Some(path) = params {
+                            app.pending_mergetool_file = Some(path);
+                        }
+                        return true;
+                    }
+                }
                 if app.is_bound(Action::ConflictAbort, key) {
                     if detail_focus == DetailSection::Conflicts && app.is_uncommitted_selected() {
                         app.mode = Mode::MergeAbortConfirm;

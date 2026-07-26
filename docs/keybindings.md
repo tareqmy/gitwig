@@ -109,6 +109,7 @@
 | `r`                  | Detail          | Mark conflict as resolved (Workspace tab Conflicts / ConflictDiff) |
 | `A`                  | Detail          | Abort the merge (Workspace tab Conflicts / ConflictDiff; asks confirmation) |
 | `C`                  | Detail          | Continue the merge (Workspace tab Conflicts / ConflictDiff; asks confirmation) |
+| `M`                  | Detail          | Open external mergetool (Workspace tab Conflicts / ConflictDiff) |
 | `f`                  | Detail          | Open search column picker and go to logs (Workspace tab) |
 | `R`                  | Detail          | Resync the active tab state       |
 | `?`                  | Detail          | Toggle detail help overlay        |

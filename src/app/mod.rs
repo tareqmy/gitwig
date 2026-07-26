@@ -466,6 +466,8 @@ pub struct App {
     pub pending_terminal: bool,
     /// Whether terminal editor launch is pending with a file path.
     pub pending_editor_file: Option<String>,
+    /// Whether external mergetool launch is pending with a file path.
+    pub pending_mergetool_file: Option<String>,
     /// Whether interactive rebase is pending.
     pub pending_interactive_rebase: Option<(PathBuf, String)>,
     /// Repository paths currently being fetched in bulk.
@@ -1262,6 +1264,7 @@ impl App {
             pending_git_app: false,
             pending_terminal: false,
             pending_editor_file: None,
+            pending_mergetool_file: None,
             pending_interactive_rebase: None,
             bulk_fetching: std::collections::HashSet::new(),
             bulk_fetch_results: std::collections::HashMap::new(),
@@ -2156,6 +2159,53 @@ where
                 app.refresh_detail();
             }
         }
+
+        if let Some(file_rel_path) = app.pending_mergetool_file.take() {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
+                let repo_path = resolved.clone();
+                let file_path = repo_path.join(&file_rel_path);
+
+                let raw_res = crossterm::terminal::disable_raw_mode();
+                let exec_res = crossterm::execute!(
+                    std::io::stdout(),
+                    crossterm::terminal::LeaveAlternateScreen,
+                    crossterm::event::DisableMouseCapture
+                );
+                let cursor_res = terminal.show_cursor();
+
+                if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+                    let mut cmd = if cfg!(target_os = "windows") {
+                        let mut c = std::process::Command::new("cmd");
+                        c.arg("/c").arg("git").arg("mergetool").arg(file_path);
+                        c
+                    } else {
+                        let mut c = std::process::Command::new("git");
+                        c.arg("mergetool").arg(file_path);
+                        c
+                    };
+                    cmd.current_dir(&repo_path);
+                    let _ = cmd.status();
+                }
+
+                let _ = crossterm::terminal::enable_raw_mode();
+                let _ = crossterm::execute!(
+                    std::io::stdout(),
+                    crossterm::terminal::EnterAlternateScreen,
+                    crossterm::event::EnableMouseCapture
+                );
+                let _ = terminal.hide_cursor();
+                let _ = terminal.clear();
+
+                if let Some(item) = app.config.items.get(app.selected_index) {
+                    let new_status = repo::inspect_summary(item);
+                    if let Some(slot) = app.statuses.get_mut(app.selected_index) {
+                        *slot = new_status;
+                    }
+                }
+                app.refresh_detail();
+            }
+        }
+
         if let Some(file_rel_path) = app.pending_editor_file.take() {
             if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
                 let repo_path = resolved.clone();

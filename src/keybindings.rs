@@ -155,6 +155,7 @@ pub enum Action {
     ConflictResolve,
     ConflictAbort,
     ConflictContinue,
+    ConflictMergeTool,
 
     // Detail navigation
     DetailMoveUp,
@@ -312,6 +313,7 @@ impl Action {
             222 => Some(Action::ConflictResolve),
             223 => Some(Action::ConflictAbort),
             224 => Some(Action::ConflictContinue),
+            225 => Some(Action::ConflictMergeTool),
 
             // Detail List Scroll
             230 => Some(Action::DetailMoveUp),
@@ -471,6 +473,7 @@ impl Action {
             Action::ConflictResolve => 222,
             Action::ConflictAbort => 223,
             Action::ConflictContinue => 224,
+            Action::ConflictMergeTool => 225,
 
             // Detail List Scroll
             Action::DetailMoveUp => 230,
@@ -676,6 +679,7 @@ pub struct ConflictKeybindings {
     pub resolve: Option<Keybind>,
     pub abort: Option<Keybind>,
     pub continue_merge: Option<Keybind>,
+    pub mergetool: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -1030,6 +1034,7 @@ impl KeybindingsConfig {
                 resolve: Some(Keybind::new(&["r"], "Mark conflict as resolved")),
                 abort: Some(Keybind::new(&["A"], "Abort merge")),
                 continue_merge: Some(Keybind::new(&["C"], "Continue merge")),
+                mergetool: Some(Keybind::new(&["M"], "Open external mergetool")),
             },
             detail: DetailKeybindings {
                 move_up: Some(Keybind::new(&["k", "up"], "Move selection up in detail panels")),
@@ -1207,6 +1212,7 @@ impl KeybindingsConfig {
             Action::ConflictResolve => self.conflict.resolve.as_ref(),
             Action::ConflictAbort => self.conflict.abort.as_ref(),
             Action::ConflictContinue => self.conflict.continue_merge.as_ref(),
+            Action::ConflictMergeTool => self.conflict.mergetool.as_ref(),
 
             // Detail
             Action::DetailMoveUp => self.detail.move_up.as_ref(),
@@ -1389,6 +1395,7 @@ impl KeybindingsConfig {
             Action::ConflictResolve => self.conflict.resolve.as_ref(),
             Action::ConflictAbort => self.conflict.abort.as_ref(),
             Action::ConflictContinue => self.conflict.continue_merge.as_ref(),
+            Action::ConflictMergeTool => self.conflict.mergetool.as_ref(),
 
             // Detail
             Action::DetailMoveUp => self.detail.move_up.as_ref(),
@@ -1776,6 +1783,7 @@ impl KeybindingsConfig {
             Action::ConflictResolve => self.conflict.resolve = keybind,
             Action::ConflictAbort => self.conflict.abort = keybind,
             Action::ConflictContinue => self.conflict.continue_merge = keybind,
+            Action::ConflictMergeTool => self.conflict.mergetool = keybind,
 
             // Detail
             Action::DetailMoveUp => self.detail.move_up = keybind,
