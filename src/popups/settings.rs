@@ -910,25 +910,31 @@ pub fn draw_settings_page(f: &mut Frame, app: &App, area: Rect) {
     let active_desc = if app.settings_focus_sidebar {
         match active_cat {
             0 => {
-                "Configuration for background polling intervals, default git executable, external text editor, caching TTL, and general UI display toggles."
+                "Configuration for background polling intervals, default git executable, external text editor, caching TTL, and general UI display toggles.".to_string()
             }
             1 => {
-                "Controls repository list sorting rules (alphabetical, custom, recent visits), list sorting direction, and limits on maximum parsed commits."
+                "Controls repository list sorting rules (alphabetical, custom, recent visits), list sorting direction, and limits on maximum parsed commits.".to_string()
             }
             2 => {
-                "Configures primary repository discovery paths, recursive search depths, directory exclusion lists, and watch paths for automatic workspace sync."
+                "Configures primary repository discovery paths, recursive search depths, directory exclusion lists, and watch paths for automatic workspace sync.".to_string()
             }
-            3 => "Select active TUI visual themes and cycle view layouts for list views.",
+            3 => "Select active TUI visual themes and cycle view layouts for list views.".to_string(),
             4 => {
-                "Custom key mappings and keyboard shortcuts for navigating repositories, committing changes, triggering git actions, and UI overlays."
+                "Custom key mappings and keyboard shortcuts for navigating repositories, committing changes, triggering git actions, and UI overlays.".to_string()
             }
-            _ => "",
+            _ => "".to_string(),
+        }
+    } else if active_cat == 4 {
+        if let Some(action) = index_to_action(app.settings_selected_index) {
+            app.keybindings.get_action_description(action)
+        } else {
+            "".to_string()
         }
     } else {
-        get_desc(app.settings_selected_index)
+        get_desc(app.settings_selected_index).to_string()
     };
     let desc_width = (desc_inner.width as usize).saturating_sub(2).max(10);
-    let desc_lines: Vec<Line> = wrap_str(active_desc, desc_width)
+    let desc_lines: Vec<Line> = wrap_str(&active_desc, desc_width)
         .into_iter()
         .map(|s| Line::from(Span::styled(s, muted_style())))
         .collect();
