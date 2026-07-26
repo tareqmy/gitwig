@@ -212,7 +212,7 @@ impl DebugLogsPopup {
 
         if app.debug_log_search_editing {
             match code {
-                KeyCode::Esc => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
                     if let Some(ref mut query) = app.debug_log_search_query {
                         if !query.is_empty() {
                             query.clear();
@@ -224,7 +224,7 @@ impl DebugLogsPopup {
                     app.debug_log_search_editing = false;
                     app.debug_log_scroll = 0;
                 }
-                KeyCode::Enter => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEnter, key) => {
                     app.debug_log_search_editing = false;
                 }
                 KeyCode::Backspace => {
@@ -249,20 +249,20 @@ impl DebugLogsPopup {
                 KeyCode::Up if app.debug_log_scroll > 0 => {
                     app.debug_log_scroll -= 1;
                 }
-                KeyCode::PageUp => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavPageUp, key) => {
                     app.debug_log_scroll =
                         app.debug_log_scroll.saturating_sub(app.config.page_size);
                 }
-                KeyCode::PageDown => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavPageDown, key) => {
                     let total_logs = get_filtered_logs_count(&app.debug_log_search_query);
                     let max_scroll = total_logs.saturating_sub(1);
                     app.debug_log_scroll =
                         (app.debug_log_scroll + app.config.page_size).min(max_scroll);
                 }
-                KeyCode::Home => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavHome, key) => {
                     app.debug_log_scroll = 0;
                 }
-                KeyCode::End => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEnd, key) => {
                     let total_logs = get_filtered_logs_count(&app.debug_log_search_query);
                     app.debug_log_scroll = total_logs.saturating_sub(1);
                 }
@@ -307,19 +307,19 @@ impl DebugLogsPopup {
             KeyCode::Up | KeyCode::Char('k') if app.debug_log_scroll > 0 => {
                 app.debug_log_scroll -= 1;
             }
-            KeyCode::PageUp => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavPageUp, key) => {
                 app.debug_log_scroll = app.debug_log_scroll.saturating_sub(app.config.page_size);
             }
-            KeyCode::PageDown => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavPageDown, key) => {
                 let total_logs = get_filtered_logs_count(&app.debug_log_search_query);
                 let max_scroll = total_logs.saturating_sub(1);
                 app.debug_log_scroll =
                     (app.debug_log_scroll + app.config.page_size).min(max_scroll);
             }
-            KeyCode::Home => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavHome, key) => {
                 app.debug_log_scroll = 0;
             }
-            KeyCode::End => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavEnd, key) => {
                 let total_logs = get_filtered_logs_count(&app.debug_log_search_query);
                 app.debug_log_scroll = total_logs.saturating_sub(1);
             }

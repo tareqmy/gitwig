@@ -1022,7 +1022,7 @@ impl SettingsPopup {
                     app.settings_theme_index = (app.settings_theme_index + app.config.page_size)
                         .min(app.settings_theme_list.len().saturating_sub(1));
                 }
-                KeyCode::Home => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavHome, key) => {
                     app.settings_theme_index = 0;
                 }
                 KeyCode::End if !app.settings_theme_list.is_empty() => {
@@ -1041,7 +1041,7 @@ impl SettingsPopup {
         } else {
             // Non-editing mode
             match code {
-                KeyCode::Esc => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
                     if !app.settings_focus_sidebar {
                         app.settings_focus_sidebar = true;
                     } else {
@@ -1051,10 +1051,10 @@ impl SettingsPopup {
                 KeyCode::Char('q') | KeyCode::Char('Q') => {
                     app.mode = Mode::Normal;
                 }
-                KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavLeft, key) => {
                     app.settings_focus_sidebar = true;
                 }
-                KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavRight, key) => {
                     app.settings_focus_sidebar = false;
                     let cat = get_active_category(app.settings_selected_index);
                     app.settings_selected_index = get_category_indices(cat)[0];
@@ -1084,7 +1084,7 @@ impl SettingsPopup {
                     app.settings_selected_index = ALL_KEYBINDINGS_SETTING_INDICES[0];
                     app.settings_focus_sidebar = false;
                 }
-                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavDown, key) => {
                     if app.settings_focus_sidebar {
                         let cat = get_active_category(app.settings_selected_index);
                         if cat + 1 < 5 {
@@ -1099,7 +1099,7 @@ impl SettingsPopup {
                         }
                     }
                 }
-                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavUp, key) => {
                     if app.settings_focus_sidebar {
                         let cat = get_active_category(app.settings_selected_index);
                         if cat > 0 {
@@ -1114,7 +1114,7 @@ impl SettingsPopup {
                         }
                     }
                 }
-                KeyCode::PageUp => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavPageUp, key) => {
                     if app.settings_focus_sidebar {
                         app.settings_selected_index = GENERAL_SETTING_INDICES[0];
                     } else {
@@ -1126,7 +1126,7 @@ impl SettingsPopup {
                         app.settings_selected_index = indices[new_sub];
                     }
                 }
-                KeyCode::PageDown => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavPageDown, key) => {
                     if app.settings_focus_sidebar {
                         app.settings_selected_index = ALL_KEYBINDINGS_SETTING_INDICES[0];
                     } else {
@@ -1138,7 +1138,7 @@ impl SettingsPopup {
                         app.settings_selected_index = indices[new_sub];
                     }
                 }
-                KeyCode::Home => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavHome, key) => {
                     if app.settings_focus_sidebar {
                         app.settings_selected_index = GENERAL_SETTING_INDICES[0];
                     } else {
@@ -1146,7 +1146,7 @@ impl SettingsPopup {
                         app.settings_selected_index = get_category_indices(cat)[0];
                     }
                 }
-                KeyCode::End => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEnd, key) => {
                     if app.settings_focus_sidebar {
                         app.settings_selected_index = ALL_KEYBINDINGS_SETTING_INDICES[0];
                     } else {

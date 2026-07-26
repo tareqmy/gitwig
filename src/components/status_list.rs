@@ -344,14 +344,18 @@ impl DrawableComponent for StatusListComponent {
 }
 
 impl Component for StatusListComponent {
-    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+    fn event(
+        &mut self,
+        ev: &Event,
+        keys: &crate::keybindings::KeybindingsConfig,
+    ) -> std::io::Result<EventState> {
         if let Event::Key(key) = ev {
             match key.code {
-                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                _ if keys.matches(crate::keybindings::Action::NavUp, *key) => {
                     self.queue.push(InternalEvent::StagingFileUp);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                _ if keys.matches(crate::keybindings::Action::NavDown, *key) => {
                     self.queue.push(InternalEvent::StagingFileDown);
                     return Ok(EventState::Consumed);
                 }
@@ -391,12 +395,42 @@ mod tests {
         let key = |code: KeyCode| Event::Key(KeyEvent::new(code, KeyModifiers::empty()));
 
         // Test event methods
-        assert!(component.event(&key(KeyCode::Up)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Down)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('a'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('x'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('X'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('s'))).unwrap().is_consumed());
+        assert!(
+            component
+                .event(&key(KeyCode::Up), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Down), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('a')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('x')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('X')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('s')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
 
         // Test draw
         let backend = ratatui::backend::TestBackend::new(80, 24);

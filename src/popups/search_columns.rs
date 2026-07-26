@@ -95,10 +95,10 @@ impl SearchColumnsPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
         let code = key.code;
         match code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavUp, key) => {
                 app.search_column_selection = app.search_column_selection.saturating_sub(1);
             }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavDown, key) => {
                 if app.search_column_selection < 3 {
                     app.search_column_selection += 1;
                 }
@@ -110,12 +110,12 @@ impl SearchColumnsPopup {
                 3 => app.search_columns_date = !app.search_columns_date,
                 _ => {}
             },
-            KeyCode::Enter => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavEnter, key) => {
                 app.input_buffer = app.commit_list.search_query.clone().unwrap_or_default();
                 app.in_logs_ui = true;
                 app.mode = Mode::LogsSearchInput;
             }
-            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
                 if app.in_logs_ui {
                     app.mode = Mode::Logs;
                 } else {

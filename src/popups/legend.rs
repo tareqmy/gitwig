@@ -286,19 +286,19 @@ impl LegendPopup {
                 app.legend_scroll_down();
                 return true;
             }
-            KeyCode::PageUp => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavPageUp, key) => {
                 app.legend_scroll_page_up(app.config.page_size);
                 return true;
             }
-            KeyCode::PageDown => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavPageDown, key) => {
                 app.legend_scroll_page_down(app.config.page_size);
                 return true;
             }
-            KeyCode::Home => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavHome, key) => {
                 app.legend_scroll_to_top();
                 return true;
             }
-            KeyCode::End => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavEnd, key) => {
                 app.legend_scroll_to_bottom();
                 return true;
             }

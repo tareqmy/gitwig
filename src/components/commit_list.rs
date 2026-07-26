@@ -471,7 +471,11 @@ use crate::queue::InternalEvent;
 use crossterm::event::{Event, KeyCode, KeyEvent};
 
 impl Component for CommitListComponent {
-    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+    fn event(
+        &mut self,
+        ev: &Event,
+        keys: &crate::keybindings::KeybindingsConfig,
+    ) -> std::io::Result<EventState> {
         if let Event::Key(key) = ev {
             match key.code {
                 KeyCode::Char('f') => {
@@ -510,15 +514,15 @@ impl Component for CommitListComponent {
                     self.queue.push(InternalEvent::RequestRevert);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Right | KeyCode::Enter => {
+                KeyCode::Right | _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
                     self.queue.push(InternalEvent::InspectCommit);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Home => {
+                _ if keys.matches(crate::keybindings::Action::NavHome, *key) => {
                     self.queue.push(InternalEvent::CommitSelectionTop);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::End => {
+                _ if keys.matches(crate::keybindings::Action::NavEnd, *key) => {
                     self.queue.push(InternalEvent::CommitSelectionBottom);
                     return Ok(EventState::Consumed);
                 }
@@ -526,19 +530,19 @@ impl Component for CommitListComponent {
                     self.queue.push(InternalEvent::LoadMoreCommits);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                _ if keys.matches(crate::keybindings::Action::NavUp, *key) => {
                     self.queue.push(InternalEvent::CommitSelectionUp);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                _ if keys.matches(crate::keybindings::Action::NavDown, *key) => {
                     self.queue.push(InternalEvent::CommitSelectionDown);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::PageUp => {
+                _ if keys.matches(crate::keybindings::Action::NavPageUp, *key) => {
                     self.queue.push(InternalEvent::CommitSelectionPageUp);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::PageDown => {
+                _ if keys.matches(crate::keybindings::Action::NavPageDown, *key) => {
                     self.queue.push(InternalEvent::CommitSelectionPageDown);
                     return Ok(EventState::Consumed);
                 }
@@ -574,23 +578,108 @@ mod tests {
         let key = |code: KeyCode| Event::Key(KeyEvent::new(code, KeyModifiers::empty()));
 
         // Test event methods
-        assert!(component.event(&key(KeyCode::Char('f'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('c'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('C'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('t'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('b'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('i'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('p'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('y'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('v'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Enter)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Home)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::End)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('G'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Up)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Down)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::PageUp)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::PageDown)).unwrap().is_consumed());
+        assert!(
+            component
+                .event(&key(KeyCode::Char('f')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('c')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('C')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('t')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('b')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('i')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('p')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('y')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('v')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Enter), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Home), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::End), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('G')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Up), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Down), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::PageUp), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::PageDown), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
 
         // Test draw
         let backend = ratatui::backend::TestBackend::new(80, 24);

@@ -308,7 +308,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             let ev = crossterm::event::Event::Key(key);
             if app
                 .confirm_popup
-                .event(&ev)
+                .event(&ev, &app.keybindings)
                 .unwrap_or(crate::components::EventState::NotConsumed)
                 .is_consumed()
             {
@@ -370,7 +370,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             let ev = crossterm::event::Event::Key(key);
             if app
                 .generic_input_popup
-                .event(&ev)
+                .event(&ev, &app.keybindings)
                 .unwrap_or(crate::components::EventState::NotConsumed)
                 .is_consumed()
             {
@@ -390,7 +390,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             let ev = crossterm::event::Event::Key(key);
             if app
                 .generic_input_popup
-                .event(&ev)
+                .event(&ev, &app.keybindings)
                 .unwrap_or(crate::components::EventState::NotConsumed)
                 .is_consumed()
             {
@@ -402,7 +402,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             let ev = crossterm::event::Event::Key(key);
             if app
                 .commit_popup
-                .event(&ev)
+                .event(&ev, &app.keybindings)
                 .unwrap_or(crate::components::EventState::NotConsumed)
                 .is_consumed()
             {

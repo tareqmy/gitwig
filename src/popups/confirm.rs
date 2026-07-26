@@ -1031,10 +1031,18 @@ impl ConfirmPopup {
                 _ => {}
             },
             crate::app::Mode::StashApplyConfirm => match code {
-                KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEnter, key)
+                    || key.code == KeyCode::Char('y')
+                    || key.code == KeyCode::Char('Y') =>
+                {
                     app.confirm_stash_apply()
                 }
-                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => app.cancel_stash_apply(),
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key)
+                    || key.code == KeyCode::Char('n')
+                    || key.code == KeyCode::Char('N') =>
+                {
+                    app.cancel_stash_apply()
+                }
                 KeyCode::Char('D') | KeyCode::Char(' ') | KeyCode::Char('A') => {
                     app.toggle_stash_apply_delete();
                 }
@@ -1053,14 +1061,24 @@ impl DrawableComponent for ConfirmPopup {
 }
 
 impl Component for ConfirmPopup {
-    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+    fn event(
+        &mut self,
+        ev: &Event,
+        keys: &crate::keybindings::KeybindingsConfig,
+    ) -> std::io::Result<EventState> {
         if let Event::Key(key) = ev {
             match key.code {
-                KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
+                _ if keys.matches(crate::keybindings::Action::NavEnter, *key)
+                    || key.code == KeyCode::Char('y')
+                    || key.code == KeyCode::Char('Y') =>
+                {
                     self.queue.push(InternalEvent::ConfirmYes);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                _ if keys.matches(crate::keybindings::Action::NavEsc, *key)
+                    || key.code == KeyCode::Char('n')
+                    || key.code == KeyCode::Char('N') =>
+                {
                     self.queue.push(InternalEvent::ConfirmNo);
                     return Ok(EventState::Consumed);
                 }
@@ -1136,7 +1154,9 @@ mod tests {
 
         // Test event handler
         let key_yes = KeyEvent::new(KeyCode::Enter, KeyModifiers::empty());
-        let res_yes = popup.event(&Event::Key(key_yes)).unwrap();
+        let res_yes = popup
+            .event(&Event::Key(key_yes), &crate::keybindings::KeybindingsConfig::default())
+            .unwrap();
         assert!(matches!(res_yes, EventState::Consumed));
 
         let event = queue.pop();
@@ -1144,7 +1164,9 @@ mod tests {
         assert!(matches!(event.unwrap(), InternalEvent::ConfirmYes));
 
         let key_no = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
-        let res_no = popup.event(&Event::Key(key_no)).unwrap();
+        let res_no = popup
+            .event(&Event::Key(key_no), &crate::keybindings::KeybindingsConfig::default())
+            .unwrap();
         assert!(matches!(res_no, EventState::Consumed));
     }
 }

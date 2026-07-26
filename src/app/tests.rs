@@ -7997,7 +7997,8 @@ fn test_commit_popups_comprehensive() {
 
     for key in keys_editing {
         commit_popup.editing = true;
-        let _ = commit_popup.event(&Event::Key(key));
+        let _ =
+            commit_popup.event(&Event::Key(key), &crate::keybindings::KeybindingsConfig::default());
     }
 
     // Test events while NOT editing
@@ -8015,7 +8016,8 @@ fn test_commit_popups_comprehensive() {
 
     for key in keys_not_editing {
         commit_popup.editing = false;
-        let _ = commit_popup.event(&Event::Key(key));
+        let _ =
+            commit_popup.event(&Event::Key(key), &crate::keybindings::KeybindingsConfig::default());
     }
 
     // Test GenericInputPopup
@@ -8035,7 +8037,8 @@ fn test_commit_popups_comprehensive() {
     ];
 
     for key in generic_keys {
-        let _ = generic_popup.event(&Event::Key(key));
+        let _ = generic_popup
+            .event(&Event::Key(key), &crate::keybindings::KeybindingsConfig::default());
     }
 }
 

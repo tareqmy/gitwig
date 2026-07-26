@@ -130,12 +130,12 @@ impl ImportPopup {
         let code = key.code;
         match app.mode {
             Mode::ImportUrlInput => match code {
-                KeyCode::Esc => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
                     crate::debug_log::info("Cancelled repository import");
                     app.mode = Mode::Normal;
                     app.input_buffer.clear();
                 }
-                KeyCode::Enter => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEnter, key) => {
                     app.import_url = app.input_buffer.clone();
                     app.input_buffer.clear();
 
@@ -159,11 +159,11 @@ impl ImportPopup {
                 _ => {}
             },
             Mode::ImportDestInput => match code {
-                KeyCode::Esc => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
                     app.mode = Mode::ImportUrlInput;
                     app.input_buffer = app.import_url.clone();
                 }
-                KeyCode::Enter => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEnter, key) => {
                     app.import_dest = app.input_buffer.clone();
                     app.input_buffer.clear();
 
@@ -181,11 +181,11 @@ impl ImportPopup {
                 _ => {}
             },
             Mode::ImportNameInput => match code {
-                KeyCode::Esc => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
                     app.mode = Mode::ImportDestInput;
                     app.input_buffer = app.import_dest.clone();
                 }
-                KeyCode::Enter => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEnter, key) => {
                     app.import_name = app.input_buffer.clone();
                     app.input_buffer.clear();
                     app.start_import_clone();

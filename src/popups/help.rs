@@ -290,22 +290,22 @@ impl HelpPopup {
             return true;
         }
         match code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavUp, key) => {
                 app.help_scroll_up();
             }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavDown, key) => {
                 app.help_scroll_down();
             }
-            KeyCode::PageUp => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavPageUp, key) => {
                 app.help_scroll_page_up(app.config.page_size);
             }
-            KeyCode::PageDown => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavPageDown, key) => {
                 app.help_scroll_page_down(app.config.page_size);
             }
-            KeyCode::Home => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavHome, key) => {
                 app.help_scroll_to_top();
             }
-            KeyCode::End => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavEnd, key) => {
                 app.help_scroll_to_bottom();
             }
             _ => {}
@@ -323,22 +323,22 @@ impl DetailHelpPopup {
             return true;
         }
         match code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavUp, key) => {
                 app.help_scroll_up();
             }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavDown, key) => {
                 app.help_scroll_down();
             }
-            KeyCode::PageUp => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavPageUp, key) => {
                 app.help_scroll_page_up(app.config.page_size);
             }
-            KeyCode::PageDown => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavPageDown, key) => {
                 app.help_scroll_page_down(app.config.page_size);
             }
-            KeyCode::Home => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavHome, key) => {
                 app.help_scroll_to_top();
             }
-            KeyCode::End => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavEnd, key) => {
                 app.help_scroll_to_bottom();
             }
             _ => {}

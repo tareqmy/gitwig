@@ -22,11 +22,11 @@ impl RepoSettingsPopup {
 
         if app.repo_settings_editing {
             match code {
-                KeyCode::Esc => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
                     app.repo_settings_editing = false;
                     return true;
                 }
-                KeyCode::Enter => {
+                _ if app.keybindings.matches(crate::keybindings::Action::NavEnter, key) => {
                     let mut repo_cfg =
                         app.config.repo_configs.get(&repo_path).cloned().unwrap_or_default();
                     match app.repo_settings_selected_index {
@@ -117,11 +117,11 @@ impl RepoSettingsPopup {
         }
 
         match code {
-            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
                 app.mode = Mode::Detail;
                 return true;
             }
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavUp, key) => {
                 app.repo_settings_selected_index = if app.repo_settings_selected_index == 0 {
                     8
                 } else {
@@ -129,15 +129,15 @@ impl RepoSettingsPopup {
                 };
                 return true;
             }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavDown, key) => {
                 app.repo_settings_selected_index = (app.repo_settings_selected_index + 1) % 9;
                 return true;
             }
-            KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavLeft, key) => {
                 Self::change_setting(app, &repo_path, false);
                 return true;
             }
-            KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavRight, key) => {
                 Self::change_setting(app, &repo_path, true);
                 return true;
             }

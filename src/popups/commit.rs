@@ -223,11 +223,15 @@ impl DrawableComponent for CommitPopup {
 }
 
 impl Component for CommitPopup {
-    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+    fn event(
+        &mut self,
+        ev: &Event,
+        keys: &crate::keybindings::KeybindingsConfig,
+    ) -> std::io::Result<EventState> {
         if let Event::Key(key) = ev {
             if self.editing {
                 match key.code {
-                    KeyCode::Esc => {
+                    _ if keys.matches(crate::keybindings::Action::NavEsc, *key) => {
                         self.queue.push(InternalEvent::ClosePopup);
                         return Ok(EventState::Consumed);
                     }
@@ -299,7 +303,7 @@ impl Component for CommitPopup {
                         self.delete_char();
                         return Ok(EventState::Consumed);
                     }
-                    KeyCode::Enter => {
+                    _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
                         self.insert_char('\n');
                         return Ok(EventState::Consumed);
                     }
@@ -325,11 +329,11 @@ impl Component for CommitPopup {
                         self.move_down();
                         return Ok(EventState::Consumed);
                     }
-                    KeyCode::Home => {
+                    _ if keys.matches(crate::keybindings::Action::NavHome, *key) => {
                         self.move_home();
                         return Ok(EventState::Consumed);
                     }
-                    KeyCode::End => {
+                    _ if keys.matches(crate::keybindings::Action::NavEnd, *key) => {
                         self.move_end();
                         return Ok(EventState::Consumed);
                     }
@@ -337,7 +341,7 @@ impl Component for CommitPopup {
                 }
             } else {
                 match key.code {
-                    KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                    _ if keys.matches(crate::keybindings::Action::NavEsc, *key) => {
                         self.queue.push(InternalEvent::ClosePopup);
                         return Ok(EventState::Consumed);
                     }
@@ -356,15 +360,15 @@ impl Component for CommitPopup {
                         self.maximized = !self.maximized;
                         return Ok(EventState::Consumed);
                     }
-                    KeyCode::Enter => {
+                    _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
                         self.queue.push(InternalEvent::Commit);
                         return Ok(EventState::Consumed);
                     }
-                    KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                    _ if keys.matches(crate::keybindings::Action::NavUp, *key) => {
                         self.scroll.set(self.scroll.get().saturating_sub(1));
                         return Ok(EventState::Consumed);
                     }
-                    KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                    _ if keys.matches(crate::keybindings::Action::NavDown, *key) => {
                         self.scroll.set(self.scroll.get().saturating_add(1));
                         return Ok(EventState::Consumed);
                     }
@@ -515,14 +519,18 @@ impl DrawableComponent for GenericInputPopup {
 }
 
 impl Component for GenericInputPopup {
-    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+    fn event(
+        &mut self,
+        ev: &Event,
+        keys: &crate::keybindings::KeybindingsConfig,
+    ) -> std::io::Result<EventState> {
         if let Event::Key(key) = ev {
             match key.code {
-                KeyCode::Esc => {
+                _ if keys.matches(crate::keybindings::Action::NavEsc, *key) => {
                     self.queue.push(InternalEvent::InputEsc);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Enter => {
+                _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
                     self.queue.push(InternalEvent::InputEnter);
                     return Ok(EventState::Consumed);
                 }

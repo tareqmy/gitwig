@@ -28,7 +28,11 @@ pub trait DrawableComponent {
 }
 
 pub trait Component: DrawableComponent {
-    fn event(&mut self, ev: &Event) -> Result<EventState>;
+    fn event(
+        &mut self,
+        ev: &Event,
+        keys: &crate::keybindings::KeybindingsConfig,
+    ) -> Result<EventState>;
     // fn commands(&self, out: &mut Vec<CommandInfo>, force_all: bool) -> CommandBlocking;
     fn focused(&self) -> bool {
         false
@@ -67,7 +71,11 @@ mod tests {
         }
     }
     impl Component for DummyComponent {
-        fn event(&mut self, _ev: &Event) -> Result<EventState> {
+        fn event(
+            &mut self,
+            _ev: &Event,
+            _keys: &crate::keybindings::KeybindingsConfig,
+        ) -> Result<EventState> {
             Ok(EventState::NotConsumed)
         }
     }

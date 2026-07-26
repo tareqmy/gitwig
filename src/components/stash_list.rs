@@ -280,34 +280,38 @@ impl DrawableComponent for StashListComponent {
 }
 
 impl Component for StashListComponent {
-    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+    fn event(
+        &mut self,
+        ev: &Event,
+        keys: &crate::keybindings::KeybindingsConfig,
+    ) -> std::io::Result<EventState> {
         if let Event::Key(key) = ev {
             match key.code {
-                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                _ if keys.matches(crate::keybindings::Action::NavUp, *key) => {
                     self.queue.push(InternalEvent::StashUp);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                _ if keys.matches(crate::keybindings::Action::NavDown, *key) => {
                     self.queue.push(InternalEvent::StashDown);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::PageUp => {
+                _ if keys.matches(crate::keybindings::Action::NavPageUp, *key) => {
                     self.queue.push(InternalEvent::StashPageUp);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::PageDown => {
+                _ if keys.matches(crate::keybindings::Action::NavPageDown, *key) => {
                     self.queue.push(InternalEvent::StashPageDown);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Home => {
+                _ if keys.matches(crate::keybindings::Action::NavHome, *key) => {
                     self.queue.push(InternalEvent::StashTop);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::End => {
+                _ if keys.matches(crate::keybindings::Action::NavEnd, *key) => {
                     self.queue.push(InternalEvent::StashBottom);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Enter => {
+                _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
                     self.queue.push(InternalEvent::RequestApplyStash);
                     return Ok(EventState::Consumed);
                 }
@@ -343,15 +347,60 @@ mod tests {
         let key = |code: KeyCode| Event::Key(KeyEvent::new(code, KeyModifiers::empty()));
 
         // Test event methods
-        assert!(component.event(&key(KeyCode::Up)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Down)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::PageUp)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::PageDown)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Home)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::End)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Enter)).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('D'))).unwrap().is_consumed());
-        assert!(component.event(&key(KeyCode::Char('s'))).unwrap().is_consumed());
+        assert!(
+            component
+                .event(&key(KeyCode::Up), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Down), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::PageUp), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::PageDown), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Home), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::End), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Enter), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('D')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('s')), &crate::keybindings::KeybindingsConfig::default())
+                .unwrap()
+                .is_consumed()
+        );
 
         // Test draw
         let backend = ratatui::backend::TestBackend::new(80, 24);

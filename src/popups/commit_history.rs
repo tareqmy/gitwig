@@ -73,16 +73,16 @@ impl CommitHistoryPickerPopup {
     pub fn handle_event(app: &mut crate::app::App, key: KeyEvent) -> bool {
         let code = key.code;
         match code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavUp, key) => {
                 app.queue.push(crate::queue::InternalEvent::CommitHistoryPickerUp)
             }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavDown, key) => {
                 app.queue.push(crate::queue::InternalEvent::CommitHistoryPickerDown)
             }
-            KeyCode::Enter => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavEnter, key) => {
                 app.queue.push(crate::queue::InternalEvent::CommitHistoryPickerSelect)
             }
-            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+            _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
                 app.queue.push(crate::queue::InternalEvent::CommitHistoryPickerCancel)
             }
             _ => {}

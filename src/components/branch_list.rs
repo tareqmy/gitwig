@@ -377,34 +377,38 @@ impl DrawableComponent for BranchListComponent {
 }
 
 impl Component for BranchListComponent {
-    fn event(&mut self, ev: &Event) -> std::io::Result<EventState> {
+    fn event(
+        &mut self,
+        ev: &Event,
+        keys: &crate::keybindings::KeybindingsConfig,
+    ) -> std::io::Result<EventState> {
         if let Event::Key(key) = ev {
             match key.code {
-                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                _ if keys.matches(crate::keybindings::Action::NavUp, *key) => {
                     self.queue.push(InternalEvent::LocalBranchUp);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                _ if keys.matches(crate::keybindings::Action::NavDown, *key) => {
                     self.queue.push(InternalEvent::LocalBranchDown);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::PageUp => {
+                _ if keys.matches(crate::keybindings::Action::NavPageUp, *key) => {
                     self.queue.push(InternalEvent::LocalBranchPageUp);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::PageDown => {
+                _ if keys.matches(crate::keybindings::Action::NavPageDown, *key) => {
                     self.queue.push(InternalEvent::LocalBranchPageDown);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Home => {
+                _ if keys.matches(crate::keybindings::Action::NavHome, *key) => {
                     self.queue.push(InternalEvent::LocalBranchTop);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::End => {
+                _ if keys.matches(crate::keybindings::Action::NavEnd, *key) => {
                     self.queue.push(InternalEvent::LocalBranchBottom);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Enter => {
+                _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
                     self.queue.push(InternalEvent::CheckoutBranch);
                     return Ok(EventState::Consumed);
                 }
