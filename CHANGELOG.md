@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+
+## [v2.4.14] - 2026-07-26
 ### Added
 - **workspace**: implement external mergetool integration for complex conflict resolution ([c5437cc](https://github.com/tareqmy/gitwig/commit/c5437cc))
 - **stats**: track Forge PRs reviewed and comments made ([4ee7644](https://github.com/tareqmy/gitwig/commit/4ee7644))
