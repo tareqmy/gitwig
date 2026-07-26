@@ -7,6 +7,7 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Added
+- **workspace**: implement external mergetool integration for complex conflict resolution ([c5437cc](https://github.com/tareqmy/gitwig/commit/c5437cc))
 - **stats**: track Forge PRs reviewed and comments made ([4ee7644](https://github.com/tareqmy/gitwig/commit/4ee7644))
 
 ### Documentation
