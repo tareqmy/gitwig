@@ -36,9 +36,9 @@ if ($arch -eq "AMD64") {
 # 2. Resolve version
 Write-Info "Querying latest version..."
 $version = ""
-if (Test-Path ".version") {
-    $version = (Get-Content ".version").Trim()
-    Write-Info "Found local .version file: $version"
+if ($env:VERSION) {
+    $version = $env:VERSION.Trim()
+    Write-Info "Using specified version: $version"
 } else {
     $version_url = "$github_raw_url/.version"
     $headers = @{}

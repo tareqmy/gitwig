@@ -303,7 +303,7 @@ impl Component for CommitPopup {
                         self.delete_char();
                         return Ok(EventState::Consumed);
                     }
-                    _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
+                    KeyCode::Enter => {
                         self.insert_char('\n');
                         return Ok(EventState::Consumed);
                     }
@@ -360,7 +360,7 @@ impl Component for CommitPopup {
                         self.maximized = !self.maximized;
                         return Ok(EventState::Consumed);
                     }
-                    _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
+                    KeyCode::Enter | _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
                         self.queue.push(InternalEvent::Commit);
                         return Ok(EventState::Consumed);
                     }
@@ -482,7 +482,7 @@ pub fn draw_commit_popup(
         if !editing {
             Span::styled(" (toggle: [a/space] | clear: [x])", muted_style())
         } else {
-            Span::styled(" (toggle: [⌃A] | clear: [⌃U] | history: [⌃H])", muted_style())
+            Span::styled(" (submit: [⌃S] | toggle amend: [⌃A] | history: [⌃H])", muted_style())
         },
     ]);
     f.render_widget(Paragraph::new(checkbox_line), chunks[1]);

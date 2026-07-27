@@ -81,7 +81,7 @@ resolve_version() {
         info "Querying latest version..."
         
         # Check if running locally in a cloned repo with .version
-        if [ -f ".version" ]; then
+        if [ -f ".version" ] && [ -d ".git" ] && grep -q "gitwig" Cargo.toml 2>/dev/null; then
             LATEST_RELEASE=$(cat .version)
             info "Found local .version file: ${LATEST_RELEASE}"
         else

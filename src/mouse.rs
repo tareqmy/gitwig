@@ -578,50 +578,65 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                     if app.config.compact_view { rect.y } else { rect.y + 1 };
 
                                 if pos.y == rect_y {
-                                    let mut current_x =
-                                        if app.config.compact_view { rect.x } else { rect.x + 2 };
-
-                                    let mark = if actual_index == app.selected_index {
-                                        app.sym("selection_mark")
-                                    } else {
-                                        "  "
-                                    };
-                                    current_x += mark.chars().count() as u16;
-
                                     let fallback = crate::repo::ItemStatus::Missing;
                                     let status =
                                         app.statuses.get(original_index).unwrap_or(&fallback);
                                     let is_git =
                                         matches!(status, crate::repo::ItemStatus::GitRepo(_));
-                                    if is_git {
-                                        current_x += app.sym("git_repo").chars().count() as u16;
-                                    }
 
-                                    let repo_name = std::path::Path::new(item.as_str())
-                                        .file_name()
-                                        .and_then(|s| s.to_str())
-                                        .unwrap_or(item.as_str());
-                                    current_x += repo_name.chars().count() as u16;
-
-                                    if let crate::repo::ItemStatus::GitRepo(Some(summary)) = status
-                                    {
-                                        let state_str = match summary.state {
-                                            crate::repo::RepoState::Merge => " ⚠ MERGE_HEAD",
-                                            crate::repo::RepoState::Rebase => " 🚧 REBASING",
-                                            crate::repo::RepoState::CherryPick => " ⚡ CHERRY-PICK",
-                                            crate::repo::RepoState::Revert => " ⚡ REVERTING",
-                                            crate::repo::RepoState::Bisect => " 🔍 BISECTING",
-                                            crate::repo::RepoState::ApplyMailbox => " 📬 APPLYING",
-                                            crate::repo::RepoState::Clean => " ✓ CLEAN",
-                                        };
-                                        current_x += state_str.chars().count() as u16;
-
-                                        if summary.staged > 0
-                                            && (summary.modified > 0 || summary.untracked > 0)
-                                        {
-                                            current_x += " ⚠ PARTIAL".chars().count() as u16;
+                                    let mut current_x = if app.config.compact_view {
+                                        let mut total_width: u16 = 0;
+                                        if let Some(lbls) = app.config.labels.get(item.as_str()) {
+                                            for lbl in lbls {
+                                                total_width += lbl.chars().count() as u16 + 3;
+                                            }
                                         }
-                                    }
+                                        let cols_0_width = rect.width.saturating_sub(50);
+                                        let cols_1_x = rect.x + cols_0_width;
+                                        let cols_1_width = 28.min(rect.width.saturating_sub(cols_0_width));
+                                        let cols_1_right = cols_1_x + cols_1_width;
+                                        cols_1_right.saturating_sub(total_width)
+                                    } else {
+                                        let mut x = rect.x + 1; // padding(Padding::horizontal(1))
+                                        let mark = if actual_index == app.selected_index {
+                                            app.sym("selection_mark")
+                                        } else {
+                                            "  "
+                                        };
+                                        x += mark.chars().count() as u16;
+
+                                        if is_git {
+                                            x += app.sym("git_repo").chars().count() as u16;
+                                        }
+
+                                        if !app.multi_selected.is_empty() {
+                                            x += 4; // "[x] " or "[ ] "
+                                        }
+
+                                        let repo_name = std::path::Path::new(item.as_str())
+                                            .file_name()
+                                            .and_then(|s| s.to_str())
+                                            .unwrap_or(item.as_str());
+                                        x += repo_name.chars().count() as u16;
+
+                                        if let crate::repo::ItemStatus::GitRepo(Some(summary)) = status {
+                                            let state_str = match summary.state {
+                                                crate::repo::RepoState::Merge => " ⚠ MERGE_HEAD",
+                                                crate::repo::RepoState::Rebase => " 🚧 REBASING",
+                                                crate::repo::RepoState::CherryPick => " ⚡ CHERRY-PICK",
+                                                crate::repo::RepoState::Revert => " ⚡ REVERTING",
+                                                crate::repo::RepoState::Bisect => " 🔍 BISECTING",
+                                                crate::repo::RepoState::ApplyMailbox => " 📬 APPLYING",
+                                                crate::repo::RepoState::Clean => " ✓ CLEAN",
+                                            };
+                                            x += state_str.chars().count() as u16;
+
+                                            if summary.staged > 0 && (summary.modified > 0 || summary.untracked > 0) {
+                                                x += " ⚠ PARTIAL".chars().count() as u16;
+                                            }
+                                        }
+                                        x
+                                    };
 
                                     if let Some(lbls) = app.config.labels.get(item.as_str()) {
                                         for lbl in lbls {
@@ -637,6 +652,9 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                                     lbl
                                                 ));
                                                 app.repo_search_query = Some(lbl.clone());
+                                                app.input_buffer.clear();
+                                                app.input_buffer.push_str(lbl);
+                                                app.mode = crate::app::Mode::RepoSearchInput;
                                                 app.selected_index = 0;
                                                 app.scroll_top = 0;
                                                 return;
