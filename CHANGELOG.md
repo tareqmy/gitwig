@@ -5,11 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
-## [Unreleased]
+## [v2.5.1] - 2026-07-27
+### Fixed
+- resolve Windows install failures and improve commit popup UX ([bc14bad](https://github.com/tareqmy/gitwig/commit/bc14bad))
+
+### Documentation
+- docs updated ([ac7859b](https://github.com/tareqmy/gitwig/commit/ac7859b))
+
+### Refactored
+- Centralize and consolidate keybindings ([581a6d6](https://github.com/tareqmy/gitwig/commit/581a6d6))
+
+### Others
+- Move keybinding descriptions to the side panel ([a483ab2](https://github.com/tareqmy/gitwig/commit/a483ab2))
 
 ## [v2.4.14] - 2026-07-26
 ### Added
-- **workspace**: implement external mergetool integration for complex conflict resolution ([c5437cc](https://github.com/tareqmy/gitwig/commit/c5437cc))
+- add external mergetool integration ([c5437cc](https://github.com/tareqmy/gitwig/commit/c5437cc))
+- added some more in roadmap ([50e3529](https://github.com/tareqmy/gitwig/commit/50e3529))
+
+### Documentation
+- update changelog and features for mergetool ([aaaf7e6](https://github.com/tareqmy/gitwig/commit/aaaf7e6))
+- add linux package management systems to roadmap ([50fd2cf](https://github.com/tareqmy/gitwig/commit/50fd2cf))
+
+### Refactored
+- cleanup ([a215dd8](https://github.com/tareqmy/gitwig/commit/a215dd8))
+
+## [v2.4.13] - 2026-07-25
+### Added
 - **stats**: track Forge PRs reviewed and comments made ([4ee7644](https://github.com/tareqmy/gitwig/commit/4ee7644))
 
 ### Documentation
