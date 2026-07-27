@@ -12,7 +12,9 @@ use ratatui::text::Span;
 pub(crate) fn commit_input_editing_entries() -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
     let entries_data = [
         ("Done Editing", "⌃C"),
+        ("Submit", "⌃S"),
         ("Toggle Amend", "⌃A"),
+        ("History", "⌃H"),
         ("Newline", "↵"),
         ("Cancel Commit", "⎋"),
         ("Max Size", "⌃D"),

@@ -401,7 +401,7 @@ Modal text entry boxes for setting up configurations or typing messages.
     *   **Label entry dialogs**: Prompt custom labels for repository grouping.
 *   *Shortcuts*:
     *   `Esc` : Cancel / close dialog
-    *   `Enter` : Submit entry (or `Ctrl+Enter` for multi-line inputs like the Commit Dialog)
+    *   `Enter` : Submit entry (for multi-line inputs like the Commit Dialog, use `Ctrl+S` to submit while editing, or `Ctrl+C` then `Enter`)
     *   `Backspace` : Erase character
     *   Character keys : Input characters
 

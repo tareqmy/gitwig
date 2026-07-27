@@ -114,7 +114,10 @@
 | `R`                  | Detail          | Resync the active tab state       |
 | `?`                  | Detail          | Toggle detail help overlay        |
 | `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |
-| `⌃C`                 | CommitInput (Edit) | Finish editing commit message (switches to confirm state) |
+| `⌃S` (Ctrl+S)        | CommitInput (Edit) | Submit / execute Git commit directly from edit mode |
+| `⌃A` (Ctrl+A)        | CommitInput (Edit) | Toggle amend last commit option |
+| `⌃D` (Ctrl+D)        | CommitInput (Edit) | Maximize / restore the popup window size |
+| `⌃C` (Ctrl+C)        | CommitInput (Edit) | Finish editing commit message (switches to confirm state) |
 | `⌃H` (Ctrl+H)        | CommitInput (Edit) | Open commit history picker |
 | `⌃U` (Ctrl+U)        | CommitInput (Edit) | Clear entire commit message buffer |
 | `↵` (Enter)          | CommitInput (Edit) | Insert a newline                  |
