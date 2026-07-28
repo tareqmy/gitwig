@@ -2824,6 +2824,20 @@ impl App {
         self.input_buffer.push(c);
     }
 
+    pub fn input_str(&mut self, s: &str) {
+        if matches!(self.mode, Mode::CommitInput) && self.commit_popup.editing {
+            self.commit_popup.insert_str(s);
+            return;
+        }
+        if matches!(self.mode, Mode::RepoSettings) && self.repo_settings_editing {
+            let clean: String = s.chars().filter(|c| *c != '\r' && *c != '\n').collect();
+            self.repo_settings_input.push_str(&clean);
+            return;
+        }
+        let clean: String = s.chars().filter(|c| *c != '\r' && *c != '\n').collect();
+        self.input_buffer.push_str(&clean);
+    }
+
     pub fn input_backspace(&mut self) {
         self.input_buffer.pop();
     }

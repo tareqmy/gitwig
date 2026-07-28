@@ -845,6 +845,7 @@ impl App {
                     }
                 },
                 crate::queue::InternalEvent::InputChar(c) => self.input_char(c),
+                crate::queue::InternalEvent::InputPaste(text) => self.input_str(&text),
                 crate::queue::InternalEvent::InputBackspace => self.input_backspace(),
                 crate::queue::InternalEvent::InputEnter => match self.mode {
                     Mode::BranchCreateInput => self.commit_branch_create(),
@@ -2414,6 +2415,9 @@ where
                 Event::Mouse(mouse) => {
                     crate::mouse::handle_mouse(&mut app, mouse);
                 }
+                Event::Paste(text) => {
+                    input::handle_paste(&mut app, &text);
+                }
                 _ => {}
             }
         }
@@ -2433,6 +2437,53 @@ fn is_tool_installed(name: &str) -> bool {
         .status()
         .map(|s| s.success())
         .unwrap_or(false)
+}
+
+pub(crate) fn get_from_clipboard() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        let output = std::process::Command::new("pbpaste").output().ok()?;
+        if output.status.success() {
+            return String::from_utf8(output.stdout).ok();
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let output = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", "Get-Clipboard"])
+            .output()
+            .ok()?;
+        if output.status.success() {
+            return String::from_utf8(output.stdout).ok();
+        }
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        if let Ok(output) = std::process::Command::new("wl-paste").output() {
+            if output.status.success() {
+                if let Ok(s) = String::from_utf8(output.stdout) {
+                    return Some(s);
+                }
+            }
+        }
+        if let Ok(output) =
+            std::process::Command::new("xclip").args(["-selection", "clipboard", "-o"]).output()
+        {
+            if output.status.success() {
+                if let Ok(s) = String::from_utf8(output.stdout) {
+                    return Some(s);
+                }
+            }
+        }
+        if let Ok(output) = std::process::Command::new("xsel").arg("-ob").output() {
+            if output.status.success() {
+                if let Ok(s) = String::from_utf8(output.stdout) {
+                    return Some(s);
+                }
+            }
+        }
+    }
+    None
 }
 
 pub(crate) fn copy_to_clipboard(text: &str) -> Result<(), String> {

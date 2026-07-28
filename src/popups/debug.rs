@@ -212,7 +212,7 @@ impl DebugLogsPopup {
 
         if app.debug_log_search_editing {
             match code {
-                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
+                KeyCode::Esc => {
                     if let Some(ref mut query) = app.debug_log_search_query {
                         if !query.is_empty() {
                             query.clear();

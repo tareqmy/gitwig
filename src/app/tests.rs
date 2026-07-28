@@ -2048,6 +2048,84 @@ fn test_remote_add_delete_flow() {
 }
 
 #[test]
+fn test_remote_add_paste_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config::default();
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_remote_paste.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::Detail;
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: std::path::PathBuf::from("."),
+        info: Box::new(repo::RepoInfo::default()),
+    });
+
+    // Trigger remote add
+    app.start_remote_add();
+    assert_eq!(app.mode, Mode::RemoteAddNameInput);
+
+    // Type remote name and hit enter
+    app.input_buffer = "origin".to_string();
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::RemoteAddUrlInput);
+    assert_eq!(app.remote_add_name, "origin");
+
+    // Paste remote URL with trailing newline
+    crate::input::handle_paste(&mut app, "git@github.com:tareqmy/ferronote.git\n");
+    assert_eq!(app.input_buffer, "git@github.com:tareqmy/ferronote.git");
+
+    // Submit URL with Enter
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(app.remote_add_url, "git@github.com:tareqmy/ferronote.git");
+}
+
+#[test]
+fn test_paste_sanitization_and_commit() {
+    let config = Config::default();
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_paste_sanitization.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Single line mode: BranchCreateInput
+    app.mode = Mode::BranchCreateInput;
+    app.input_str("feature/my-branch\r\n");
+    assert_eq!(app.input_buffer, "feature/my-branch");
+
+    // Multi line mode: CommitInput editing
+    app.mode = Mode::CommitInput;
+    app.commit_popup.editing = true;
+    app.input_str("feat: add feature\n\nDetailed body description");
+    assert_eq!(app.commit_popup.input_buffer, "feat: add feature\n\nDetailed body description");
+}
+
+#[test]
+fn test_typing_q_in_text_input_does_not_cancel() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config::default();
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_typing_q.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.mode = Mode::RemoteAddUrlInput;
+
+    // Type characters "tareq" one by one
+    for c in "tareq".chars() {
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char(c)), 10);
+        assert!(handled);
+    }
+
+    // Modal should NOT have cancelled or switched mode
+    assert_eq!(app.mode, Mode::RemoteAddUrlInput);
+    assert_eq!(app.input_buffer, "tareq");
+}
+
+#[test]
 fn test_workspace_tab_right_arrow_inspect() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());

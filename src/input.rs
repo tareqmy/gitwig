@@ -18,6 +18,37 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     result
 }
 
+/// Dispatch a paste event.
+pub fn handle_paste(app: &mut App, text: &str) {
+    app.drain_queue();
+    if app.mode != Mode::CommitInput {
+        crate::debug_log::info(format!("Paste event received: {} bytes", text.len()));
+    }
+    let ev = crossterm::event::Event::Paste(text.to_string());
+    match &app.mode {
+        Mode::BranchCreateInput
+        | Mode::TagCreateInput
+        | Mode::RemoteAddNameInput
+        | Mode::RemoteAddUrlInput
+        | Mode::WorktreeAddBranchInput
+        | Mode::WorktreeAddPathInput
+        | Mode::WorktreeLockReasonInput
+        | Mode::WorktreeRemoveConfirm
+        | Mode::SubmoduleAddUrlInput
+        | Mode::SubmoduleAddPathInput
+        | Mode::StashCreateInput => {
+            let _ = app.generic_input_popup.event(&ev, &app.keybindings);
+        }
+        Mode::CommitInput => {
+            let _ = app.commit_popup.event(&ev, &app.keybindings);
+        }
+        _ => {
+            app.input_str(text);
+        }
+    }
+    app.drain_queue();
+}
+
 fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     if app.mode != Mode::CommitInput {
         crate::debug_log::info(format!("Key pressed: {:?}", key.code));
@@ -99,6 +130,15 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     if !is_text_input && app.is_bound(crate::keybindings::Action::ToggleStatusBar, key) {
         app.toggle_status_expanded();
         return true;
+    }
+    if is_text_input
+        && key.code == KeyCode::Char('v')
+        && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL)
+    {
+        if let Some(text) = crate::app::get_from_clipboard() {
+            app.input_str(&text);
+            return true;
+        }
     }
     match &app.mode {
         Mode::Normal

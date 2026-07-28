@@ -22,7 +22,7 @@ impl RepoSettingsPopup {
 
         if app.repo_settings_editing {
             match code {
-                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
+                KeyCode::Esc => {
                     app.repo_settings_editing = false;
                     return true;
                 }

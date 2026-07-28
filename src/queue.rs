@@ -35,6 +35,7 @@ pub enum InternalEvent {
     ConfirmYes,
     ConfirmNo,
     InputChar(char),
+    InputPaste(String),
     InputBackspace,
     InputEnter,
     InputEsc,

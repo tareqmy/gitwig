@@ -514,7 +514,11 @@ impl Component for CommitListComponent {
                     self.queue.push(InternalEvent::RequestRevert);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Right | _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
+                KeyCode::Right => {
+                    self.queue.push(InternalEvent::InspectCommit);
+                    return Ok(EventState::Consumed);
+                }
+                _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
                     self.queue.push(InternalEvent::InspectCommit);
                     return Ok(EventState::Consumed);
                 }

@@ -71,6 +71,24 @@ impl CommitPopup {
         self.adjust_scroll();
     }
 
+    pub fn insert_str(&mut self, s: &str) {
+        let mut idx = 0;
+        let mut new_str = String::with_capacity(self.input_buffer.len() + s.len());
+        for ch in self.input_buffer.chars() {
+            if idx == self.cursor_idx {
+                new_str.push_str(s);
+            }
+            new_str.push(ch);
+            idx += 1;
+        }
+        if idx == self.cursor_idx {
+            new_str.push_str(s);
+        }
+        self.input_buffer = new_str;
+        self.cursor_idx += s.chars().count();
+        self.adjust_scroll();
+    }
+
     fn backspace(&mut self) {
         if self.cursor_idx > 0 {
             let mut new_str = String::with_capacity(self.input_buffer.len());
@@ -228,162 +246,179 @@ impl Component for CommitPopup {
         ev: &Event,
         keys: &crate::keybindings::KeybindingsConfig,
     ) -> std::io::Result<EventState> {
-        if let Event::Key(key) = ev {
-            if self.editing {
-                match key.code {
-                    _ if keys.matches(crate::keybindings::Action::NavEsc, *key) => {
-                        self.queue.push(InternalEvent::ClosePopup);
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.queue.push(InternalEvent::Commit);
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.amend = !self.amend;
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.editing = false;
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.queue.push(InternalEvent::OpenCommitHistoryPicker);
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.maximized = !self.maximized;
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.input_buffer.clear();
-                        self.cursor_idx = 0;
-                        self.scroll.set(0);
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.kill_line_after_cursor();
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('w') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.delete_word_before_cursor();
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('b') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        if self.cursor_idx > 0 {
-                            self.cursor_idx -= 1;
-                            self.adjust_scroll();
+        match ev {
+            Event::Key(key) => {
+                if self.editing {
+                    match key.code {
+                        KeyCode::Esc => {
+                            self.queue.push(InternalEvent::ClosePopup);
+                            return Ok(EventState::Consumed);
                         }
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        if self.cursor_idx < self.input_buffer.chars().count() {
-                            self.cursor_idx += 1;
-                            self.adjust_scroll();
+                        KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            if let Some(text) = crate::app::get_from_clipboard() {
+                                self.insert_str(&text);
+                            }
+                            return Ok(EventState::Consumed);
                         }
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.move_up();
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.move_down();
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char(c) => {
-                        self.insert_char(c);
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Backspace => {
-                        self.backspace();
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Delete => {
-                        self.delete_char();
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Enter => {
-                        self.insert_char('\n');
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Left => {
-                        if self.cursor_idx > 0 {
-                            self.cursor_idx -= 1;
-                            self.adjust_scroll();
+                        KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.queue.push(InternalEvent::Commit);
+                            return Ok(EventState::Consumed);
                         }
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Right => {
-                        if self.cursor_idx < self.input_buffer.chars().count() {
-                            self.cursor_idx += 1;
-                            self.adjust_scroll();
+                        KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.amend = !self.amend;
+                            return Ok(EventState::Consumed);
                         }
-                        return Ok(EventState::Consumed);
+                        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.editing = false;
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.queue.push(InternalEvent::OpenCommitHistoryPicker);
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.maximized = !self.maximized;
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.input_buffer.clear();
+                            self.cursor_idx = 0;
+                            self.scroll.set(0);
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.kill_line_after_cursor();
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('w') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.delete_word_before_cursor();
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('b') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            if self.cursor_idx > 0 {
+                                self.cursor_idx -= 1;
+                                self.adjust_scroll();
+                            }
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            if self.cursor_idx < self.input_buffer.chars().count() {
+                                self.cursor_idx += 1;
+                                self.adjust_scroll();
+                            }
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.move_up();
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.move_down();
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char(c) => {
+                            self.insert_char(c);
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Backspace => {
+                            self.backspace();
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Delete => {
+                            self.delete_char();
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Enter => {
+                            self.insert_char('\n');
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Left => {
+                            if self.cursor_idx > 0 {
+                                self.cursor_idx -= 1;
+                                self.adjust_scroll();
+                            }
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Right => {
+                            if self.cursor_idx < self.input_buffer.chars().count() {
+                                self.cursor_idx += 1;
+                                self.adjust_scroll();
+                            }
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Up => {
+                            self.move_up();
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Down => {
+                            self.move_down();
+                            return Ok(EventState::Consumed);
+                        }
+                        _ if keys.matches(crate::keybindings::Action::NavHome, *key) => {
+                            self.move_home();
+                            return Ok(EventState::Consumed);
+                        }
+                        _ if keys.matches(crate::keybindings::Action::NavEnd, *key) => {
+                            self.move_end();
+                            return Ok(EventState::Consumed);
+                        }
+                        _ => {}
                     }
-                    KeyCode::Up => {
-                        self.move_up();
-                        return Ok(EventState::Consumed);
+                } else {
+                    match key.code {
+                        _ if keys.matches(crate::keybindings::Action::NavEsc, *key) => {
+                            self.queue.push(InternalEvent::ClosePopup);
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('e') | KeyCode::Char('E') => {
+                            self.editing = true;
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('a') | KeyCode::Char(' ') => {
+                            self.amend = !self.amend;
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('d')
+                        | KeyCode::Char('D')
+                        | KeyCode::Char('m')
+                        | KeyCode::Char('M') => {
+                            self.maximized = !self.maximized;
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Enter => {
+                            self.queue.push(InternalEvent::Commit);
+                            return Ok(EventState::Consumed);
+                        }
+                        _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
+                            self.queue.push(InternalEvent::Commit);
+                            return Ok(EventState::Consumed);
+                        }
+                        _ if keys.matches(crate::keybindings::Action::NavUp, *key) => {
+                            self.scroll.set(self.scroll.get().saturating_sub(1));
+                            return Ok(EventState::Consumed);
+                        }
+                        _ if keys.matches(crate::keybindings::Action::NavDown, *key) => {
+                            self.scroll.set(self.scroll.get().saturating_add(1));
+                            return Ok(EventState::Consumed);
+                        }
+                        KeyCode::Char('x')
+                        | KeyCode::Char('X')
+                        | KeyCode::Char('u')
+                        | KeyCode::Char('U') => {
+                            self.input_buffer.clear();
+                            self.cursor_idx = 0;
+                            self.scroll.set(0);
+                            return Ok(EventState::Consumed);
+                        }
+                        _ => {}
                     }
-                    KeyCode::Down => {
-                        self.move_down();
-                        return Ok(EventState::Consumed);
-                    }
-                    _ if keys.matches(crate::keybindings::Action::NavHome, *key) => {
-                        self.move_home();
-                        return Ok(EventState::Consumed);
-                    }
-                    _ if keys.matches(crate::keybindings::Action::NavEnd, *key) => {
-                        self.move_end();
-                        return Ok(EventState::Consumed);
-                    }
-                    _ => {}
-                }
-            } else {
-                match key.code {
-                    _ if keys.matches(crate::keybindings::Action::NavEsc, *key) => {
-                        self.queue.push(InternalEvent::ClosePopup);
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('e') | KeyCode::Char('E') => {
-                        self.editing = true;
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('a') | KeyCode::Char(' ') => {
-                        self.amend = !self.amend;
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('d')
-                    | KeyCode::Char('D')
-                    | KeyCode::Char('m')
-                    | KeyCode::Char('M') => {
-                        self.maximized = !self.maximized;
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Enter | _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
-                        self.queue.push(InternalEvent::Commit);
-                        return Ok(EventState::Consumed);
-                    }
-                    _ if keys.matches(crate::keybindings::Action::NavUp, *key) => {
-                        self.scroll.set(self.scroll.get().saturating_sub(1));
-                        return Ok(EventState::Consumed);
-                    }
-                    _ if keys.matches(crate::keybindings::Action::NavDown, *key) => {
-                        self.scroll.set(self.scroll.get().saturating_add(1));
-                        return Ok(EventState::Consumed);
-                    }
-                    KeyCode::Char('x')
-                    | KeyCode::Char('X')
-                    | KeyCode::Char('u')
-                    | KeyCode::Char('U') => {
-                        self.input_buffer.clear();
-                        self.cursor_idx = 0;
-                        self.scroll.set(0);
-                        return Ok(EventState::Consumed);
-                    }
-                    _ => {}
                 }
             }
+            Event::Paste(text) if self.editing => {
+                self.insert_str(text);
+                return Ok(EventState::Consumed);
+            }
+            _ => {}
         }
         Ok(EventState::NotConsumed)
     }
@@ -524,9 +559,9 @@ impl Component for GenericInputPopup {
         ev: &Event,
         keys: &crate::keybindings::KeybindingsConfig,
     ) -> std::io::Result<EventState> {
-        if let Event::Key(key) = ev {
-            match key.code {
-                _ if keys.matches(crate::keybindings::Action::NavEsc, *key) => {
+        match ev {
+            Event::Key(key) => match key.code {
+                KeyCode::Esc => {
                     self.queue.push(InternalEvent::InputEsc);
                     return Ok(EventState::Consumed);
                 }
@@ -538,12 +573,25 @@ impl Component for GenericInputPopup {
                     self.queue.push(InternalEvent::InputBackspace);
                     return Ok(EventState::Consumed);
                 }
+                KeyCode::Char('v')
+                    if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+                {
+                    if let Some(text) = crate::app::get_from_clipboard() {
+                        self.queue.push(InternalEvent::InputPaste(text));
+                    }
+                    return Ok(EventState::Consumed);
+                }
                 KeyCode::Char(c) => {
                     self.queue.push(InternalEvent::InputChar(c));
                     return Ok(EventState::Consumed);
                 }
                 _ => {}
+            },
+            Event::Paste(text) => {
+                self.queue.push(InternalEvent::InputPaste(text.clone()));
+                return Ok(EventState::Consumed);
             }
+            _ => {}
         }
         Ok(EventState::NotConsumed)
     }

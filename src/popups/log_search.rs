@@ -10,7 +10,7 @@ impl LogSearchPopup {
         let code = key.code;
         match app.mode {
             Mode::LogsSearchInput => match code {
-                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
+                KeyCode::Esc => {
                     app.commit_list.search_query = None;
                     app.commit_list.selection = 0;
                     app.mode = Mode::Logs;

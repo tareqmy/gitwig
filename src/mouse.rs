@@ -593,7 +593,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                         }
                                         let cols_0_width = rect.width.saturating_sub(50);
                                         let cols_1_x = rect.x + cols_0_width;
-                                        let cols_1_width = 28.min(rect.width.saturating_sub(cols_0_width));
+                                        let cols_1_width =
+                                            28.min(rect.width.saturating_sub(cols_0_width));
                                         let cols_1_right = cols_1_x + cols_1_width;
                                         cols_1_right.saturating_sub(total_width)
                                     } else {
@@ -619,19 +620,27 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                                             .unwrap_or(item.as_str());
                                         x += repo_name.chars().count() as u16;
 
-                                        if let crate::repo::ItemStatus::GitRepo(Some(summary)) = status {
+                                        if let crate::repo::ItemStatus::GitRepo(Some(summary)) =
+                                            status
+                                        {
                                             let state_str = match summary.state {
                                                 crate::repo::RepoState::Merge => " ⚠ MERGE_HEAD",
                                                 crate::repo::RepoState::Rebase => " 🚧 REBASING",
-                                                crate::repo::RepoState::CherryPick => " ⚡ CHERRY-PICK",
+                                                crate::repo::RepoState::CherryPick => {
+                                                    " ⚡ CHERRY-PICK"
+                                                }
                                                 crate::repo::RepoState::Revert => " ⚡ REVERTING",
                                                 crate::repo::RepoState::Bisect => " 🔍 BISECTING",
-                                                crate::repo::RepoState::ApplyMailbox => " 📬 APPLYING",
+                                                crate::repo::RepoState::ApplyMailbox => {
+                                                    " 📬 APPLYING"
+                                                }
                                                 crate::repo::RepoState::Clean => " ✓ CLEAN",
                                             };
                                             x += state_str.chars().count() as u16;
 
-                                            if summary.staged > 0 && (summary.modified > 0 || summary.untracked > 0) {
+                                            if summary.staged > 0
+                                                && (summary.modified > 0 || summary.untracked > 0)
+                                            {
                                                 x += " ⚠ PARTIAL".chars().count() as u16;
                                             }
                                         }

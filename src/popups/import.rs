@@ -130,7 +130,7 @@ impl ImportPopup {
         let code = key.code;
         match app.mode {
             Mode::ImportUrlInput => match code {
-                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
+                KeyCode::Esc => {
                     crate::debug_log::info("Cancelled repository import");
                     app.mode = Mode::Normal;
                     app.input_buffer.clear();
@@ -155,11 +155,18 @@ impl ImportPopup {
                     app.mode = Mode::ImportDestInput;
                 }
                 KeyCode::Backspace => app.input_backspace(),
+                KeyCode::Char('v')
+                    if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+                {
+                    if let Some(text) = crate::app::get_from_clipboard() {
+                        app.input_str(&text);
+                    }
+                }
                 KeyCode::Char(c) => app.input_char(c),
                 _ => {}
             },
             Mode::ImportDestInput => match code {
-                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
+                KeyCode::Esc => {
                     app.mode = Mode::ImportUrlInput;
                     app.input_buffer = app.import_url.clone();
                 }
@@ -177,11 +184,18 @@ impl ImportPopup {
                     app.mode = Mode::ImportNameInput;
                 }
                 KeyCode::Backspace => app.input_backspace(),
+                KeyCode::Char('v')
+                    if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+                {
+                    if let Some(text) = crate::app::get_from_clipboard() {
+                        app.input_str(&text);
+                    }
+                }
                 KeyCode::Char(c) => app.input_char(c),
                 _ => {}
             },
             Mode::ImportNameInput => match code {
-                _ if app.keybindings.matches(crate::keybindings::Action::NavEsc, key) => {
+                KeyCode::Esc => {
                     app.mode = Mode::ImportDestInput;
                     app.input_buffer = app.import_dest.clone();
                 }
@@ -191,6 +205,13 @@ impl ImportPopup {
                     app.start_import_clone();
                 }
                 KeyCode::Backspace => app.input_backspace(),
+                KeyCode::Char('v')
+                    if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+                {
+                    if let Some(text) = crate::app::get_from_clipboard() {
+                        app.input_str(&text);
+                    }
+                }
                 KeyCode::Char(c) => app.input_char(c),
                 _ => {}
             },
