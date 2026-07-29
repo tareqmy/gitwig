@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [Unreleased]
+
+## [v2.5.2] - 2026-07-29
+### Fixed
+- **input**: prevent modal cancellation on typing 'q' and add paste support ([5f99b80](https://github.com/tareqmy/gitwig/commit/5f99b80))
+
+### Documentation
+- update keybindings, panels, codemap, and roadmap for clipboard paste and input modal behavior ([cbafe60](https://github.com/tareqmy/gitwig/commit/cbafe60))
+
 ## [v2.5.1] - 2026-07-27
 ### Fixed
 - resolve Windows install failures and improve commit popup UX ([bc14bad](https://github.com/tareqmy/gitwig/commit/bc14bad))
