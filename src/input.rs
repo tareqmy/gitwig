@@ -346,6 +346,14 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
 
+            if app.mode == Mode::TagPushConfirm
+                && (key.code == KeyCode::Char('f') || key.code == KeyCode::Char('F'))
+            {
+                app.tag_push_force = true;
+                app.confirm_tag_push();
+                return true;
+            }
+
             let ev = crossterm::event::Event::Key(key);
             if app
                 .confirm_popup

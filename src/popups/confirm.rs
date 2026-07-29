@@ -905,10 +905,12 @@ pub fn draw_tag_push_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
+            Span::styled("Push: ", muted_style()),
             Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Force Push (--force): ", muted_style()),
+            Span::styled("f", accent_style().add_modifier(Modifier::BOLD)),
             Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled("n / Esc", accent_style().add_modifier(Modifier::BOLD)),
         ]),
     ];
 

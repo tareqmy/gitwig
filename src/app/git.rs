@@ -545,18 +545,7 @@ impl App {
     pub fn request_tag_push(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if let Some(tag_info) = info.local_tags.get(self.tag_list.local_tag_selection) {
-                let is_on_remote = if info.remotes.is_empty() {
-                    false
-                } else if info.remote_tags_loaded {
-                    info.remote_tags.iter().any(|rt| rt.name == tag_info.name)
-                } else {
-                    false
-                };
-                if is_on_remote {
-                    self.status_message =
-                        Some(format!("Tag '{}' is already on the remote", tag_info.name));
-                    return;
-                }
+                self.tag_push_force = false;
                 if info.remotes.len() > 1 {
                     self.tag_push_target = Some(tag_info.name.clone());
                     self.remote_picker_action = Some(RemotePickerAction::PushTag);
@@ -572,8 +561,7 @@ impl App {
 
     pub fn confirm_tag_push(&mut self) {
         if let Some(tag_name) = self.tag_push_target.take() {
-            if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
-                let repo_path = resolved.clone();
+            if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
                 let remote_name = match info.remotes.first().map(|r| r.name.clone()) {
                     Some(name) => name,
                     None => {
@@ -583,47 +571,7 @@ impl App {
                         return;
                     }
                 };
-
-                self.fetching = true;
-                self.status_message =
-                    Some(format!("Pushing tag '{}' to '{}'...", tag_name, remote_name));
-                let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
-                std::thread::spawn(move || {
-                    let safe_remote = match safe_ref(&remote_name) {
-                        Ok(r) => r,
-                        Err(e) => {
-                            let _ = tx.send(format!("Invalid remote: {}", e));
-                            return;
-                        }
-                    };
-                    let safe_tag = match safe_ref(&tag_name) {
-                        Ok(t) => t,
-                        Err(e) => {
-                            let _ = tx.send(format!("Invalid tag: {}", e));
-                            return;
-                        }
-                    };
-                    let mut cmd = git_command();
-                    cmd.arg("push").arg(safe_remote).arg(safe_tag).current_dir(&repo_path);
-
-                    let output = match cmd.output() {
-                        Ok(o) => o,
-                        Err(e) => {
-                            let _ = tx.send(format!("Failed to run git push: {}", e));
-                            return;
-                        }
-                    };
-
-                    if output.status.success() {
-                        let _ = tx.send(format!(
-                            "Pushed tag '{}' to '{}' successfully",
-                            tag_name, remote_name
-                        ));
-                    } else {
-                        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
-                        let _ = tx.send(format!("Failed to push tag: {}", err_msg));
-                    }
-                });
+                self.execute_tag_push_to(&tag_name, &remote_name);
             }
         }
         self.mode = Mode::Detail;
@@ -631,6 +579,7 @@ impl App {
 
     pub fn cancel_tag_push(&mut self) {
         self.tag_push_target = None;
+        self.tag_push_force = false;
         self.mode = Mode::Detail;
     }
 
@@ -1481,6 +1430,8 @@ impl App {
 
     /// Push a single tag to a specific remote.
     fn execute_tag_push_to(&mut self, tag_name: &str, remote_name: &str) {
+        let force = self.tag_push_force;
+        self.tag_push_force = false;
         if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
             let repo_path = resolved.clone();
             let tag_name = tag_name.to_string();
@@ -1488,13 +1439,14 @@ impl App {
             let r_name = repo_path.file_name().and_then(|s| s.to_str()).unwrap_or("");
             let remote_url = repo::get_remote_url(&repo_path, &remote_name)
                 .unwrap_or_else(|| "(no url)".to_string());
+            let action_desc = if force { "Force pushing" } else { "Pushing" };
             crate::debug_log::info(format!(
-                "Network Action: Pushing tag '{}' to '{}' for repository '{}' [url: '{}'] (user triggered)",
-                tag_name, remote_name, r_name, remote_url
+                "Network Action: {} tag '{}' to '{}' for repository '{}' [url: '{}'] (user triggered)",
+                action_desc, tag_name, remote_name, r_name, remote_url
             ));
             self.fetching = true;
             self.status_message =
-                Some(format!("Pushing tag '{}' to '{}'...", tag_name, remote_name));
+                Some(format!("{} tag '{}' to '{}'...", action_desc, tag_name, remote_name));
             let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
             std::thread::spawn(move || {
                 let safe_remote = match safe_ref(&remote_name) {
@@ -1512,7 +1464,11 @@ impl App {
                     }
                 };
                 let mut cmd = git_command();
-                cmd.arg("push").arg(safe_remote).arg(safe_tag).current_dir(&repo_path);
+                cmd.arg("push").arg(safe_remote).arg(safe_tag);
+                if force {
+                    cmd.arg("--force");
+                }
+                cmd.current_dir(&repo_path);
                 let output = match cmd.output() {
                     Ok(o) => o,
                     Err(e) => {
@@ -1521,9 +1477,10 @@ impl App {
                     }
                 };
                 if output.status.success() {
+                    let verb = if force { "Force pushed" } else { "Pushed" };
                     let _ = tx.send(format!(
-                        "Pushed tag '{}' to '{}' successfully",
-                        tag_name, remote_name
+                        "{} tag '{}' to '{}' successfully",
+                        verb, tag_name, remote_name
                     ));
                 } else {
                     let _ = tx.send(format!(

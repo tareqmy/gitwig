@@ -556,8 +556,13 @@ pub(crate) fn get_status_layout_components(
         }
         Mode::TagPushConfirm => {
             let target = app.tag_push_target.as_deref().unwrap_or("");
-            let (msg_spans, entries) = confirm_tag_push_entries(target);
-            (msg_spans, entries)
+            let msg_spans = vec![
+                Span::styled("Push tag '", primary_style()),
+                Span::styled(target.to_string(), accent_style()),
+                Span::styled("' to remote?", primary_style()),
+            ];
+            let entries_data = [("Push", "y"), ("Force Push", "f"), ("Cancel", "n/Esc")];
+            (Some(msg_spans), build_status_entries(&entries_data))
         }
         Mode::TagPushAllConfirm => {
             let (msg_spans, entries) = confirm_tag_push_all_entries();
