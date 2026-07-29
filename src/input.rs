@@ -320,6 +320,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         | Mode::DiscardChangesConfirm
         | Mode::RevertConfirm
         | Mode::TagDeleteConfirm
+        | Mode::TagOverwriteConfirm
         | Mode::TagPushConfirm
         | Mode::TagPushAllConfirm
         | Mode::StashDeleteConfirm
@@ -417,8 +418,33 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
+        Mode::TagCreateInput => {
+            match key.code {
+                KeyCode::Tab | KeyCode::Down | KeyCode::Up => {
+                    app.tag_create_focus_message = !app.tag_create_focus_message;
+                    return true;
+                }
+                KeyCode::Char(c) if app.tag_create_focus_message => {
+                    app.tag_create_message.push(c);
+                    return true;
+                }
+                KeyCode::Backspace if app.tag_create_focus_message => {
+                    app.tag_create_message.pop();
+                    return true;
+                }
+                _ => {}
+            }
+            let ev = crossterm::event::Event::Key(key);
+            if app
+                .generic_input_popup
+                .event(&ev, &app.keybindings)
+                .unwrap_or(crate::components::EventState::NotConsumed)
+                .is_consumed()
+            {
+                return true;
+            }
+        }
         Mode::BranchCreateInput
-        | Mode::TagCreateInput
         | Mode::RemoteAddNameInput
         | Mode::RemoteAddUrlInput
         | Mode::WorktreeAddBranchInput

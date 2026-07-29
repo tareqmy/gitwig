@@ -8335,6 +8335,7 @@ fn test_drain_queue_confirmations_comprehensive() {
         Mode::DiscardChangesConfirm,
         Mode::RevertConfirm,
         Mode::TagDeleteConfirm,
+        Mode::TagOverwriteConfirm,
         Mode::TagPushConfirm,
         Mode::TagPushAllConfirm,
         Mode::StashDeleteConfirm,
@@ -10309,6 +10310,31 @@ fn test_git_cancels_coverage_boost() {
     app.request_branch_merge();
     app.request_branch_rebase();
     app.request_branch_interactive_rebase();
+}
+
+#[test]
+fn test_tag_create_annotated_and_overwrite_flow() {
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_tag_annotated_overwrite.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(Config::default(), temp_config_path);
+
+    app.tag_action_target_oid = Some("1234567890abcdef".to_string());
+    app.input_buffer = "v1.0.1".to_string();
+    app.tag_create_message = "Release v1.0.1".to_string();
+    app.commit_tag_create();
+
+    // If tag exists or is created, verify state cleanup
+    assert_eq!(app.tag_create_message, "");
+
+    app.tag_overwrite_target = Some((
+        "v1.0.1".to_string(),
+        "1234567890abcdef".to_string(),
+        Some("Release v1.0.1".to_string()),
+    ));
+    app.mode = Mode::TagOverwriteConfirm;
+    app.cancel_tag_overwrite();
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.tag_overwrite_target.is_none());
 }
 
 #[test]

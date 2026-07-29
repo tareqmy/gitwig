@@ -75,6 +75,7 @@ pub fn draw(
                 | Mode::BranchRebaseConfirm
                 | Mode::BranchInteractiveRebaseConfirm
                 | Mode::TagDeleteConfirm
+                | Mode::TagOverwriteConfirm
                 | Mode::TagPushConfirm
                 | Mode::TagPushAllConfirm
                 | Mode::StashDeleteConfirm
@@ -149,6 +150,7 @@ pub fn draw(
             | Mode::BranchRebaseConfirm
             | Mode::BranchInteractiveRebaseConfirm
             | Mode::TagDeleteConfirm
+            | Mode::TagOverwriteConfirm
             | Mode::TagPushConfirm
             | Mode::TagPushAllConfirm
             | Mode::StashDeleteConfirm
@@ -3313,6 +3315,7 @@ mod tests {
             Mode::BranchDeleteConfirm,
             Mode::BranchPushConfirm,
             Mode::TagDeleteConfirm,
+            Mode::TagOverwriteConfirm,
             Mode::TagPushConfirm,
             Mode::TagPushAllConfirm,
             Mode::StashDeleteConfirm,

@@ -66,6 +66,8 @@ pub enum Mode {
     CommitHistoryPicker,
     /// Typing a tag name to create.
     TagCreateInput,
+    /// Confirming force overwrite of an existing tag.
+    TagOverwriteConfirm,
     /// Confirming deletion of a branch.
     BranchDeleteConfirm,
     /// Confirming push of a branch.
@@ -497,6 +499,9 @@ pub struct App {
     pub commit_action_target_oid: Option<String>,
     /// Target commit OID for tag creation.
     pub tag_action_target_oid: Option<String>,
+    pub tag_create_message: String,
+    pub tag_create_focus_message: bool,
+    pub tag_overwrite_target: Option<(String, String, Option<String>)>,
     /// Target tag name and remote flag for deletion action.
     pub tag_delete_target: Option<(String, bool)>,
     /// Target tag name for checkout action.
@@ -504,6 +509,7 @@ pub struct App {
     pub commit_checkout_target: Option<String>,
     /// Target tag name for push action.
     pub tag_push_target: Option<String>,
+    pub tag_push_force: bool,
     /// Target file path and staged flag for discard/revert action.
     pub discard_target: Option<(String, bool)>,
     /// Target commit (hash, summary) for cherry-pick.
@@ -800,6 +806,7 @@ impl App {
                     Mode::DiscardChangesConfirm => self.confirm_discard_changes(),
                     Mode::RevertConfirm => self.confirm_revert(),
                     Mode::TagDeleteConfirm => self.confirm_tag_delete(),
+                    Mode::TagOverwriteConfirm => self.confirm_tag_overwrite(),
                     Mode::TagPushConfirm => self.confirm_tag_push(),
                     Mode::TagPushAllConfirm => self.confirm_tag_push_all(),
                     Mode::StashDeleteConfirm => self.confirm_stash_delete(),
@@ -826,6 +833,7 @@ impl App {
                     Mode::DiscardChangesConfirm => self.cancel_discard_changes(),
                     Mode::RevertConfirm => self.cancel_revert(),
                     Mode::TagDeleteConfirm => self.cancel_tag_delete(),
+                    Mode::TagOverwriteConfirm => self.cancel_tag_overwrite(),
                     Mode::TagPushConfirm => self.cancel_tag_push(),
                     Mode::TagPushAllConfirm => self.cancel_tag_push_all(),
                     Mode::StashDeleteConfirm => self.cancel_stash_delete(),
@@ -867,6 +875,7 @@ impl App {
                         Mode::BranchCreateInput => self.cancel_branch_create(),
                         Mode::TagCreateInput => {
                             self.tag_action_target_oid = None;
+                            self.tag_create_message.clear();
                             self.mode = Mode::Detail;
                         }
                         _ => {
@@ -1282,10 +1291,14 @@ impl App {
             branch_action_target: None,
             commit_action_target_oid: None,
             tag_action_target_oid: None,
+            tag_create_message: String::new(),
+            tag_create_focus_message: false,
+            tag_overwrite_target: None,
             tag_delete_target: None,
             tag_checkout_target: None,
             commit_checkout_target: None,
             tag_push_target: None,
+            tag_push_force: false,
             discard_target: None,
             cherry_pick_target: None,
             cherry_pick_dest_selection: 0,

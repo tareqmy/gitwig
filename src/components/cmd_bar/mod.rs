@@ -538,6 +538,17 @@ pub(crate) fn get_status_layout_components(
             let (msg_spans, entries) = confirm_tag_delete_entries(target, is_on_remote);
             (msg_spans, entries)
         }
+        Mode::TagOverwriteConfirm => {
+            let target =
+                app.tag_overwrite_target.as_ref().map(|(n, _, _)| n.as_str()).unwrap_or("");
+            let msg_spans = vec![
+                Span::styled("Force update tag '", primary_style()),
+                Span::styled(target.to_string(), accent_style()),
+                Span::styled("'?", primary_style()),
+            ];
+            let entries_data = [("Confirm", "y"), ("Cancel", "n/Esc")];
+            (Some(msg_spans), build_status_entries(&entries_data))
+        }
         Mode::SubmoduleDeleteConfirm => {
             let target = app.submodule_delete_target.as_deref().unwrap_or("");
             let (msg_spans, entries) = confirm_submodule_delete_entries(target);
@@ -1227,6 +1238,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         | Mode::BranchRebaseConfirm
         | Mode::BranchInteractiveRebaseConfirm
         | Mode::TagDeleteConfirm
+        | Mode::TagOverwriteConfirm
         | Mode::TagPushConfirm
         | Mode::TagPushAllConfirm
         | Mode::StashDeleteConfirm

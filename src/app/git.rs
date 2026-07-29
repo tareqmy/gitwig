@@ -311,6 +311,8 @@ impl App {
         if let Some(commit) = self.get_selected_commit() {
             self.tag_action_target_oid = Some(commit.oid.clone());
             self.input_buffer.clear();
+            self.tag_create_message.clear();
+            self.tag_create_focus_message = false;
             self.mode = Mode::TagCreateInput;
         }
     }
@@ -320,14 +322,29 @@ impl App {
         if tag_name.is_empty() {
             self.status_message = Some("Tag name cannot be empty".to_string());
             self.input_buffer.clear();
+            self.tag_create_message.clear();
             self.mode = Mode::Detail;
             return;
         }
+        let message = if self.tag_create_message.trim().is_empty() {
+            None
+        } else {
+            Some(self.tag_create_message.trim().to_string())
+        };
+
         if let Some(oid) = self.tag_action_target_oid.take() {
             if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
-                match repo::create_tag(resolved, &tag_name, &oid) {
+                if repo::tag_exists(resolved, &tag_name) {
+                    self.tag_overwrite_target = Some((tag_name, oid, message));
+                    self.mode = Mode::TagOverwriteConfirm;
+                    return;
+                }
+
+                match repo::create_tag(resolved, &tag_name, &oid, message.as_deref(), false) {
                     Ok(()) => {
-                        self.status_message = Some(format!("Created tag '{}'", tag_name));
+                        let msg_suffix = if message.is_some() { " (annotated)" } else { "" };
+                        self.status_message =
+                            Some(format!("Created tag '{}'{}", tag_name, msg_suffix));
                         self.resync_detail();
                     }
                     Err(e) => {
@@ -337,6 +354,35 @@ impl App {
             }
         }
         self.input_buffer.clear();
+        self.tag_create_message.clear();
+        self.mode = Mode::Detail;
+    }
+
+    pub fn confirm_tag_overwrite(&mut self) {
+        if let Some((tag_name, oid, message)) = self.tag_overwrite_target.take() {
+            if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+                match repo::create_tag(resolved, &tag_name, &oid, message.as_deref(), true) {
+                    Ok(()) => {
+                        let short_oid = if oid.len() >= 7 { &oid[..7] } else { &oid };
+                        self.status_message =
+                            Some(format!("Updated tag '{}' to commit {}", tag_name, short_oid));
+                        self.resync_detail();
+                    }
+                    Err(e) => {
+                        self.status_message = Some(format!("Failed to force update tag: {}", e));
+                    }
+                }
+            }
+        }
+        self.input_buffer.clear();
+        self.tag_create_message.clear();
+        self.mode = Mode::Detail;
+    }
+
+    pub fn cancel_tag_overwrite(&mut self) {
+        self.tag_overwrite_target = None;
+        self.input_buffer.clear();
+        self.tag_create_message.clear();
         self.mode = Mode::Detail;
     }
 

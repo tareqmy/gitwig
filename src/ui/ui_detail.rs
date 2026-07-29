@@ -902,6 +902,8 @@ pub fn draw(
                 crate::popups::create_tag::draw_tag_create_popup(
                     f,
                     input_buffer,
+                    &app.tag_create_message,
+                    app.tag_create_focus_message,
                     tag_action_target_oid.as_deref(),
                     body_area,
                 );
@@ -1010,6 +1012,13 @@ pub fn draw(
             // Draw tag delete popup on top when requested.
             if matches!(mode, Mode::TagDeleteConfirm) {
                 crate::popups::confirm::draw_tag_delete_popup(f, tag_delete_target, body_area);
+            }
+            if matches!(mode, Mode::TagOverwriteConfirm) {
+                crate::popups::confirm::draw_tag_overwrite_popup(
+                    f,
+                    &app.tag_overwrite_target,
+                    body_area,
+                );
             }
             // Draw tag push popup on top when requested.
             if matches!(mode, Mode::TagPushConfirm) {

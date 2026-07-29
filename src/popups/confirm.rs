@@ -916,6 +916,59 @@ pub fn draw_tag_push_popup(f: &mut Frame, target: &Option<String>, area: Rect) {
     f.render_widget(paragraph, popup_area);
 }
 
+pub fn draw_tag_overwrite_popup(
+    f: &mut Frame,
+    target: &Option<(String, String, Option<String>)>,
+    area: Rect,
+) {
+    let popup_area = centered_rect(55, 24, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(WARNING());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Force Update Tag", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let (tag_name, oid) = match target {
+        Some((name, oid, _)) => (name.as_str(), oid.as_str()),
+        None => ("", ""),
+    };
+    let short_oid = if oid.len() >= 7 { &oid[..7] } else { oid };
+
+    let content = vec![
+        Line::from(vec![
+            Span::styled("Tag ", primary_style()),
+            Span::styled(tag_name, accent_style()),
+            Span::styled(" already exists.", primary_style()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Force update tag (-f) to point to commit ", muted_style()),
+            Span::styled(short_oid, primary_style()),
+            Span::raw("?"),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n / Esc", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block).wrap(Wrap { trim: false });
+    f.render_widget(paragraph, popup_area);
+}
+
 pub fn draw_tag_push_all_popup(f: &mut Frame, remote: Option<&str>, area: Rect) {
     let popup_area = centered_rect(50, 20, area);
     f.render_widget(Clear, popup_area);

@@ -2567,17 +2567,46 @@ pub fn delete_remote_branch(repo_path: &Path, branch_name: &str) -> Result<(), g
     Ok(())
 }
 
-/// Creates a new lightweight tag pointing at the specified commit OID.
+/// Creates or updates a tag pointing at the specified commit OID with optional message and force flag.
 pub fn create_tag(
     repo_path: &Path,
     tag_name: &str,
     commit_oid_str: &str,
+    message: Option<&str>,
+    force: bool,
 ) -> Result<(), git2::Error> {
     let repo = Repository::open(repo_path)?;
     let oid = git2::Oid::from_str(commit_oid_str)?;
     let target_object = repo.find_object(oid, Some(git2::ObjectType::Commit))?;
-    repo.tag_lightweight(tag_name, &target_object, false)?;
+    if let Some(msg) = message.filter(|m| !m.trim().is_empty()) {
+        let tagger_sig = repo.signature();
+        let default_sig;
+        let tagger = match &tagger_sig {
+            Ok(s) => s,
+            Err(_) => {
+                if let Ok(sig) = git2::Signature::now("Gitwig", "gitwig@local") {
+                    default_sig = sig;
+                    &default_sig
+                } else {
+                    return Err(git2::Error::from_str("Failed to create signature"));
+                }
+            }
+        };
+        repo.tag(tag_name, &target_object, tagger, msg, force)?;
+    } else {
+        repo.tag_lightweight(tag_name, &target_object, force)?;
+    }
     Ok(())
+}
+
+/// Checks if a local tag exists in the repository.
+pub fn tag_exists(repo_path: &Path, tag_name: &str) -> bool {
+    if let Ok(repo) = Repository::open(repo_path) {
+        let ref_name = format!("refs/tags/{}", tag_name);
+        repo.find_reference(&ref_name).is_ok()
+    } else {
+        false
+    }
 }
 
 /// Deletes a local tag.
@@ -3875,7 +3904,7 @@ mod tests {
         let _ = create_branch(&temp_path, "new-branch-2");
         let _ = delete_local_branch(&temp_path, "new-branch-2");
         let _ = delete_remote_branch(&temp_path, "origin/new-branch-2");
-        let _ = create_tag(&temp_path, "v1.0.0", &head_oid);
+        let _ = create_tag(&temp_path, "v1.0.0", &head_oid, None, false);
         let _ = delete_remote_tag(&temp_path, "origin", "v1.0.0");
         let _ = get_remote_tags(&temp_path, "origin");
 
@@ -3918,6 +3947,48 @@ mod tests {
         let _ = add_pr_line_comment(&temp_path, 1, "sha", "file.txt", 10, "comment");
 
         // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_create_tag_annotated_and_force_update() {
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_tag_force_{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+
+        let repo = Repository::init(&temp_path).unwrap();
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+
+        let file_path = temp_path.join("test.txt");
+        std::fs::write(&file_path, "commit 1\n").unwrap();
+        stage_file(&temp_path, "test.txt").unwrap();
+        commit_changes(&temp_path, "commit 1").unwrap();
+
+        let head_commit1 = repo.head().unwrap().peel_to_commit().unwrap();
+        let oid1 = head_commit1.id().to_string();
+
+        assert!(!tag_exists(&temp_path, "v1.0.1"));
+        assert!(create_tag(&temp_path, "v1.0.1", &oid1, Some("Release v1.0.1"), false).is_ok());
+        assert!(tag_exists(&temp_path, "v1.0.1"));
+
+        // Creating without force should fail if tag exists
+        std::fs::write(&file_path, "commit 2\n").unwrap();
+        stage_file(&temp_path, "test.txt").unwrap();
+        commit_changes(&temp_path, "commit 2").unwrap();
+
+        let head_commit2 = repo.head().unwrap().peel_to_commit().unwrap();
+        let oid2 = head_commit2.id().to_string();
+
+        assert!(create_tag(&temp_path, "v1.0.1", &oid2, Some("Updated release"), false).is_err());
+
+        // Creating with force = true should succeed and update tag
+        assert!(create_tag(&temp_path, "v1.0.1", &oid2, Some("Updated release"), true).is_ok());
+
         let _ = std::fs::remove_dir_all(&temp_path);
     }
 
@@ -5155,7 +5226,7 @@ mod tests {
         let _ = checkout_tag(nonexistent, "tag");
         let _ = delete_local_branch(nonexistent, "branch");
         let _ = delete_remote_branch(nonexistent, "origin/branch");
-        let _ = create_tag(nonexistent, "tag", "sha");
+        let _ = create_tag(nonexistent, "tag", "sha", None, false);
         let _ = delete_remote_tag(nonexistent, "origin", "tag");
         let _ = get_remote_tags(nonexistent, "origin");
         let _ = apply_stash(nonexistent, 0);
