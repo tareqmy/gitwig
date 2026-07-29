@@ -496,6 +496,7 @@ pub struct App {
     pub search_columns_date: bool,
     /// Target branch name and remote flag for deletion/creation actions.
     pub branch_action_target: Option<(String, bool)>,
+    pub branch_push_tags: bool,
     pub commit_action_target_oid: Option<String>,
     /// Target commit OID for tag creation.
     pub tag_action_target_oid: Option<String>,
@@ -1289,6 +1290,7 @@ impl App {
             search_columns_author: true,
             search_columns_date: true,
             branch_action_target: None,
+            branch_push_tags: false,
             commit_action_target_oid: None,
             tag_action_target_oid: None,
             tag_create_message: String::new(),

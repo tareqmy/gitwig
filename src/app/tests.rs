@@ -10352,6 +10352,20 @@ fn test_force_tag_push_flow() {
 }
 
 #[test]
+fn test_branch_push_with_tags_flow() {
+    let temp_config_path = std::env::temp_dir().join("gitwig_test_branch_push_tags.toml");
+    let _guard = TestFileGuard { path: temp_config_path.clone() };
+    let mut app = App::new(Config::default(), temp_config_path);
+
+    app.branch_action_target = Some(("main".to_string(), false));
+    app.branch_push_tags = true;
+    app.cancel_branch_push();
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(!app.branch_push_tags);
+    assert!(app.branch_action_target.is_none());
+}
+
+#[test]
 fn test_navigation_boilerplates_coverage_boost() {
     let config = Config::default();
     let temp_config_path = std::env::temp_dir().join("gitwig_test_nav_boilerplates.toml");

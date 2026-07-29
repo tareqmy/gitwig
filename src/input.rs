@@ -346,6 +346,14 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
 
+            if app.mode == Mode::BranchPushConfirm
+                && (key.code == KeyCode::Char('t') || key.code == KeyCode::Char('T'))
+            {
+                app.branch_push_tags = true;
+                app.confirm_branch_push();
+                return true;
+            }
+
             if app.mode == Mode::TagPushConfirm
                 && (key.code == KeyCode::Char('f') || key.code == KeyCode::Char('F'))
             {

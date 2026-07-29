@@ -143,6 +143,7 @@ impl App {
                     return;
                 }
 
+                self.branch_push_tags = false;
                 if info.remotes.len() > 1 {
                     // Multiple remotes — ask user to pick.
                     self.branch_action_target = Some((branch_name, false));
@@ -170,6 +171,7 @@ impl App {
     /// Cancels the push operation.
     pub fn cancel_branch_push(&mut self) {
         self.branch_action_target = None;
+        self.branch_push_tags = false;
         self.mode = Mode::Detail;
     }
 
@@ -177,6 +179,8 @@ impl App {
     /// If no upstream is configured, it falls back to the first configured remote (typically origin)
     /// and sets upstream tracking (-u).
     pub fn execute_branch_push(&mut self, branch_name: &str) {
+        let push_tags = self.branch_push_tags;
+        self.branch_push_tags = false;
         if self.fetching {
             return;
         }
@@ -202,13 +206,14 @@ impl App {
             let r_name = repo_path.file_name().and_then(|s| s.to_str()).unwrap_or("");
             let remote_url = repo::get_remote_url(&repo_path, &remote_name)
                 .unwrap_or_else(|| "(no url)".to_string());
+            let tags_desc = if push_tags { " (with tags)" } else { "" };
             crate::debug_log::info(format!(
-                "Network Action: Pushing branch '{}' for repository '{}' [url: '{}'] (user triggered)",
-                branch_name, r_name, remote_url
+                "Network Action: Pushing branch '{}'{} for repository '{}' [url: '{}'] (user triggered)",
+                branch_name, tags_desc, r_name, remote_url
             ));
             self.fetching = true;
             self.status_message =
-                Some(format!("Pushing '{}' to '{}'...", branch_name, remote_name));
+                Some(format!("Pushing '{}'{} to '{}'...", branch_name, tags_desc, remote_name));
 
             let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
             std::thread::spawn(move || {
@@ -220,12 +225,19 @@ impl App {
                     if set_upstream {
                         cmd.arg("-u");
                     }
+                    if push_tags {
+                        cmd.arg("--tags");
+                    }
                     cmd.arg(safe_remote).arg(safe_branch).current_dir(&repo_path);
 
                     let output = cmd.output()?;
 
                     if output.status.success() {
-                        Ok(format!("Pushed '{}' to '{}' successfully", branch_name, remote_name))
+                        let tag_suffix = if push_tags { " (with tags)" } else { "" };
+                        Ok(format!(
+                            "Pushed '{}'{} to '{}' successfully",
+                            branch_name, tag_suffix, remote_name
+                        ))
                     } else {
                         let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
                         Err(format!("git push failed: {}", err_msg).into())
@@ -1371,6 +1383,8 @@ impl App {
 
     /// Push a branch to a specific remote by name (bypasses upstream detection).
     fn execute_branch_push_to(&mut self, branch_name: &str, remote_name: &str) {
+        let push_tags = self.branch_push_tags;
+        self.branch_push_tags = false;
         if self.fetching {
             return;
         }
@@ -1381,13 +1395,14 @@ impl App {
             let r_name = repo_path.file_name().and_then(|s| s.to_str()).unwrap_or("");
             let remote_url = repo::get_remote_url(&repo_path, &remote_name)
                 .unwrap_or_else(|| "(no url)".to_string());
+            let tags_desc = if push_tags { " (with tags)" } else { "" };
             crate::debug_log::info(format!(
-                "Network Action: Pushing branch '{}' to '{}' for repository '{}' [url: '{}'] (user triggered)",
-                branch_name, remote_name, r_name, remote_url
+                "Network Action: Pushing branch '{}'{} to '{}' for repository '{}' [url: '{}'] (user triggered)",
+                branch_name, tags_desc, remote_name, r_name, remote_url
             ));
             self.fetching = true;
             self.status_message =
-                Some(format!("Pushing '{}' to '{}'...", branch_name, remote_name));
+                Some(format!("Pushing '{}'{} to '{}'...", branch_name, tags_desc, remote_name));
             let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
             std::thread::spawn(move || {
                 let safe_remote = match safe_ref(&remote_name) {
@@ -1405,7 +1420,11 @@ impl App {
                     }
                 };
                 let mut cmd = git_command();
-                cmd.arg("push").arg("-u").arg(safe_remote).arg(safe_branch).current_dir(&repo_path);
+                cmd.arg("push").arg("-u");
+                if push_tags {
+                    cmd.arg("--tags");
+                }
+                cmd.arg(safe_remote).arg(safe_branch).current_dir(&repo_path);
                 let output = match cmd.output() {
                     Ok(o) => o,
                     Err(e) => {
@@ -1414,9 +1433,10 @@ impl App {
                     }
                 };
                 if output.status.success() {
+                    let tag_suffix = if push_tags { " (with tags)" } else { "" };
                     let _ = tx.send(format!(
-                        "Pushed '{}' to '{}' successfully",
-                        branch_name, remote_name
+                        "Pushed '{}'{} to '{}' successfully",
+                        branch_name, tag_suffix, remote_name
                     ));
                 } else {
                     let _ = tx.send(format!(

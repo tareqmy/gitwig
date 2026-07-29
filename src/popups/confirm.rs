@@ -541,10 +541,12 @@ pub fn draw_branch_push_popup(f: &mut Frame, target: &Option<(String, bool)>, ar
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Confirm: ", muted_style()),
+            Span::styled("Push: ", muted_style()),
             Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Push + Tags (--tags): ", muted_style()),
+            Span::styled("t", accent_style().add_modifier(Modifier::BOLD)),
             Span::styled(" / Cancel: ", muted_style()),
-            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled("n / Esc", accent_style().add_modifier(Modifier::BOLD)),
         ]),
     ];
 

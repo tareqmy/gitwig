@@ -499,8 +499,13 @@ pub(crate) fn get_status_layout_components(
         Mode::BranchPushConfirm => {
             let target =
                 app.branch_action_target.as_ref().map(|(name, _)| name.as_str()).unwrap_or("");
-            let (msg_spans, entries) = confirm_branch_push_entries(target);
-            (msg_spans, entries)
+            let msg_spans = vec![
+                Span::styled("Push branch '", primary_style()),
+                Span::styled(target.to_string(), accent_style()),
+                Span::styled("' to remote?", primary_style()),
+            ];
+            let entries_data = [("Push", "y"), ("Push + Tags", "t"), ("Cancel", "n/Esc")];
+            (Some(msg_spans), build_status_entries(&entries_data))
         }
         Mode::BranchMergeConfirm => {
             let (target, is_remote) = app
