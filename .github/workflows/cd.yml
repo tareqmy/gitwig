@@ -126,13 +126,13 @@ jobs:
           VERSION_NUM="${VERSION#v}"
           
           # Clone the tap repository manually using the token
-          git clone "https://oauth2:${{ secrets.TAP_GITHUB_TOKEN }}@github.com/tareqmy/homebrew-gitwig.git" homebrew-gitwig || {
+          git clone "https://oauth2:${{ secrets.TAP_GITHUB_TOKEN }}@github.com/tareqmy/homebrew-tap.git" homebrew-tap || {
             echo "Clone failed (possibly empty repository). Initializing new local repository..."
-            mkdir homebrew-gitwig
-            cd homebrew-gitwig
+            mkdir homebrew-tap
+            cd homebrew-tap
             git init
             git checkout -b main
-            git remote add origin "https://oauth2:${{ secrets.TAP_GITHUB_TOKEN }}@github.com/tareqmy/homebrew-gitwig.git"
+            git remote add origin "https://oauth2:${{ secrets.TAP_GITHUB_TOKEN }}@github.com/tareqmy/homebrew-tap.git"
             cd ..
           }
           
@@ -145,10 +145,10 @@ jobs:
           ARM_SHA=$(sha256sum gitwig-${VERSION}-aarch64-apple-darwin.tar.gz | cut -d' ' -f1)
           LINUX_SHA=$(sha256sum gitwig-${VERSION}-x86_64-unknown-linux-musl.tar.gz | cut -d' ' -f1)
           
-          mkdir -p homebrew-gitwig/Formula
+          mkdir -p homebrew-tap/Formula
           
           # Re-write the formula with new versions and hashes
-          cat <<EOF > homebrew-gitwig/Formula/gitwig.rb
+          cat <<EOF > homebrew-tap/Formula/gitwig.rb
           class Gitwig < Formula
             desc "Rust-based Terminal User Interface (TUI) for Git"
             homepage "https://github.com/tareqmy/gitwig"
@@ -180,7 +180,7 @@ jobs:
           end
           EOF
           
-          cd homebrew-gitwig
+          cd homebrew-tap
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Formula/gitwig.rb

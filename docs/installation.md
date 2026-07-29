@@ -14,11 +14,11 @@
 You can tap and install **Gitwig** using Homebrew:
 
 ```sh
-brew tap tareqmy/gitwig
+brew tap tareqmy/tap
 brew install gitwig
 ```
 
-*Note: If Homebrew prompts you with an "untrusted tap" error, run `brew trust tareqmy/gitwig` to trust it, and then run `brew install gitwig` again.*
+*Note: If Homebrew prompts you with an "untrusted tap" error, run `brew trust tareqmy/tap` to trust it, and then run `brew install gitwig` again.*
 
 ### Via Shell Script (macOS / Linux)
 
