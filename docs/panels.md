@@ -400,9 +400,10 @@ Modal text entry boxes for setting up configurations or typing messages.
     *   **Worktree / Submodule Setup dialogs**: Enter paths, branches, or lock reasons.
     *   **Label entry dialogs**: Prompt custom labels for repository grouping.
 *   *Shortcuts*:
-    *   `Esc` : Cancel / close dialog
+    *   `Esc` : Cancel / close dialog (note: only `Esc` cancels modal inputs; letters like `q`/`Q` are typed as regular input text)
     *   `Enter` : Submit entry (for multi-line inputs like the Commit Dialog, use `Ctrl+S` to submit while editing, or `Ctrl+C` then `Enter`)
     *   `Backspace` : Erase character
+    *   `Ctrl+V` / Terminal Paste : Paste text from system clipboard (single-line input dialogs automatically sanitize and strip trailing newlines)
     *   Character keys : Input characters
 
 ---

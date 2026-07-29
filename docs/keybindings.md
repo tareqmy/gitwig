@@ -35,8 +35,9 @@
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
 | `ctrl+q`             | Global / Anywhere | Quit application from anywhere    |
 | `Esc`                | Normal          | Clear active search filter or cancel all repository selections |
-| `Enter`              | Editing         | Save the typed text and persist   |
-| `Esc`                | Editing         | Cancel without saving             |
+| `Enter`              | Editing / Input Modals | Save / submit typed text and persist |
+| `Esc`                | Editing / Input Modals | Cancel modal input without saving (letters like `q`/`Q` are typed as regular input) |
+| `ctrl+v` / Terminal Paste | Editing / Input Modals | Paste text from system clipboard (strips newlines for single-line inputs) |
 | `Esc`                | RepoSearchInput | Clear repository search and return to Normal mode |
 | `Esc`                | GlobalSearch    | Return to Normal mode             |
 | `Tab`                | GlobalSearch    | Toggle focus between search query input and results |

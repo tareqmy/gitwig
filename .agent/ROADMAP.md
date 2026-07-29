@@ -136,6 +136,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Bulk Fetch All (`F`): Fetch all tracked repos concurrently from the home screen; show per-card progress.
 - [x] Open in Terminal (`t`): Spawn a new shell `cd`-ed into the selected repo path.
 - [x] Copy Path to Clipboard (`y`): Yank the selected repo's absolute path to the system clipboard.
+- [x] Clipboard & Bracketed Paste (`Ctrl+V`): Paste text from system clipboard or terminal bracketed paste across all input modals and popups.
 - [x] Per-Repo Note on Card: Display a one-line user-defined note below the branch line (ties into "Per Repository rule").
 
 ### Polish & UX

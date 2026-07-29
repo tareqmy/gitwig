@@ -70,8 +70,8 @@ Pane focus within tabs in `Mode::Detail` or `Mode::Inspect` is tracked by the `D
 
 When a user presses a key (e.g. staging all files with `a`):
 
-1. **Capture**: `App::run` (`src/app/mod.rs`) polls for `crossterm::event::Event::Key`.
-2. **Route**: Key event is passed to `handle_key` (`src/input.rs`), which delegates to the active tab (e.g., `WorkspaceTab::handle_event`).
+1. **Capture**: `App::run` (`src/app/mod.rs`) polls for `crossterm::event::Event::Key` and `crossterm::event::Event::Paste`.
+2. **Route**: Key and paste events are passed to `handle_key` / `handle_paste` (`src/input.rs`), which delegates to active popups/tabs or app input buffers. System clipboard fallback is handled via `get_from_clipboard()` for `Ctrl+V`.
 3. **Queue Event**: The tab pushes an `InternalEvent::StageAllChanges` onto the `Queue` (`src/queue.rs`).
 4. **Drain**: `App::drain_queue` (`src/app/mod.rs`) pops the event and triggers `App::stage_all_changes()` (`src/app/workspace.rs`).
 5. **Git Execute**: `App::stage_all_changes` executes the operation via the `git2` backend inside `gitwig-core`.
