@@ -7,6 +7,18 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [v2.5.3] - 2026-07-30
+### Added
+- add option to push tags with branch push ([75d496e](https://github.com/tareqmy/gitwig/commit/75d496e))
+- add force tag push support ([511757e](https://github.com/tareqmy/gitwig/commit/511757e))
+- add force tag update and annotated tag creation support ([28d58e0](https://github.com/tareqmy/gitwig/commit/28d58e0))
+
+### Documentation
+- update keybindings, panels, detail_view, and roadmap for tag features ([4e40329](https://github.com/tareqmy/gitwig/commit/4e40329))
+
+### Chore
+- **ci**: update homebrew tap repository name to homebrew-tap ([e23d546](https://github.com/tareqmy/gitwig/commit/e23d546))
+
 ## [v2.5.2] - 2026-07-29
 ### Fixed
 - **input**: prevent modal cancellation on typing 'q' and add paste support ([5f99b80](https://github.com/tareqmy/gitwig/commit/5f99b80))
