@@ -45,13 +45,15 @@ The **Branches** tab is split vertically into left and right panels:
 - **Remote Branches (right):** Lists remote tracking branches.
 
 You can focus either branch panel by pressing `w` / `W` or using the `←` / `→` arrow keys.
+- Press `P` (Shift+P) or `p` on a local branch to push it to the remote. In the push confirmation dialog, press `y` to push normally or `t` / `T` to push the branch with tags (`--tags`).
 
 ### Tags Tab
 
- the **Tags** tab lists both local tags and remote tags.
+The **Tags** tab lists both local tags and remote tags.
+- Press `c` / `C` to create a new tag at the selected commit. Supports both lightweight tags and annotated tags with optional messages (`-m`); use `Tab` to switch input focus between Tag Name and Tag Message. If the tag name already exists, Gitwig prompts to force update (`-f -a -m`).
 - Select a local tag and press `↵` (Enter) to checkout that tag.
 - Select any tag and press `D` to delete it (asks for confirmation).
-- Press `p` to push the selected tag to the remote (asks for confirmation).
+- Press `p` to push the selected tag to the remote. In the push confirmation dialog, press `y` to push normally or `f` / `F` to force push (`--force`).
 - Press `P` (Shift+P) to push all tags to the remote (asks for confirmation).
 
 ### Remotes Tab

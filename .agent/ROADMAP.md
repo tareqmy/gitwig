@@ -37,7 +37,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Checkout commits directly from Workspace commits list (shortcut `o`/`O` in Commits panel). Shows confirmation, stays in workspace view, blocks pushes on `"HEAD"` pseudo-branch, and highlights `[HEAD]` next to the checked out commit when detached.
 - [x] Create and delete branches.
 
-- [x] Dedicated Tags tab to list, check out local/remote tags, delete local tags, and push tag(s) with confirmation dialogs.
+- [x] Dedicated Tags tab to list, check out local/remote tags, delete local tags, create annotated tags with messages, force update existing tags (`-f -a -m`), force push tags (`--force`), and push tags with branch push (`--tags`).
 - [x] Merge and Rebase (basic support).
 
 - [x] Fetch and Push operations (Fetch via `f`/`F`, Push via `Shift+P` in Branches tab).

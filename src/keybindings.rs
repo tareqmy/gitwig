@@ -811,12 +811,9 @@ pub fn parse_key(s: &str) -> Option<(KeyCode, KeyModifiers)> {
         "comma" => KeyCode::Char(','),
         "dot" | "period" => KeyCode::Char('.'),
         _ => {
-            if let Some(c) = key_str.chars().next() {
-                if key_str.len() == 1 {
-                    KeyCode::Char(c)
-                } else {
-                    return None;
-                }
+            let c = key_str.chars().next()?;
+            if key_str.len() == 1 {
+                KeyCode::Char(c)
             } else {
                 return None;
             }

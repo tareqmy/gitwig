@@ -66,7 +66,10 @@
 | `PgUp` / `PgDn`      | DebugLogs       | Scroll debug logs list by page size |
 | `Home` / `End`       | DebugLogs       | Jump to top / bottom of debug logs |
 | `Backspace`          | Editing         | Erase one character               |
-| `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag, push branch/tag/all tags, abort/continue merge) |
+| `Tab`                | Tag Creation    | Switch focus between Tag Name and Tag Message input fields |
+| `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag, push branch/tag/all tags, tag overwrite, abort/continue merge) |
+| `f` / `F`            | Confirm Dialog  | Force push tag (`--force`) in Tag Push confirmation dialog |
+| `t` / `T`            | Confirm Dialog  | Push branch with tags (`--tags`) in Branch Push confirmation dialog |
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
 | `?` / `Esc` / `q`    | Help            | Close the help overlay            |
 | `Esc` / `q`          | Detail          | Return to the list                |

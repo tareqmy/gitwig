@@ -142,7 +142,7 @@ Triggered by opening a repository.
         *   `r` : Rebase current branch onto selected branch
         *   `i` / `I` : Interactive rebase of current branch onto selected branch
         *   `p` : Pull remote changes (for local branches)
-        *   `P` : Push selected branch to remote (for local branches)
+        *   `P` : Push selected branch to remote (for local branches; supports `y` Push, `t` Push + Tags `--tags`)
         *   `/` : Fuzzy search branches
 
 #### Tab 4: Tags Tab
@@ -150,9 +150,10 @@ Triggered by opening a repository.
     *   *Shortcuts*:
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate tag list
+        *   `c` / `C` : Create new tag (annotated `-m` or lightweight; Tab toggles input fields; prompts to force update `-f` if existing)
         *   `Enter` : Checkout selected tag
         *   `D` : Delete selected tag
-        *   `p` : Push selected tag to remote
+        *   `p` : Push selected tag to remote (supports `y` Push, `f` Force Push `--force`)
         *   `P` : Push all tags to remote
         *   `f` / `F` : Fetch remote tags
         *   `/` : Fuzzy search tags
@@ -427,9 +428,9 @@ To prevent accidental data loss due to muscle-memory `Enter` keypresses, Gitwig 
 *   **Branch Checkout (`Mode::BranchCheckoutConfirm`)**: Switching to another branch.
 *   **Commit Checkout (`Mode::CommitCheckoutConfirm`)**: Checking out a commit OID from the Workspace commits list.
 *   **Tag Checkout (`Mode::TagCheckoutConfirm`)**: Detaching HEAD to check out a tag.
-*   **Branch Push (`Mode::BranchPushConfirm`)**: Pushing commits to remote.
-
-*   **Tag Push (`Mode::TagPushConfirm` / `Mode::TagPushAllConfirm`)**: Pushing single or all tags to remote.
+*   **Branch Push (`Mode::BranchPushConfirm`)**: Pushing commits to remote (supports `y` Push, `t` Push + Tags `--tags`).
+*   **Tag Overwrite (`Mode::TagOverwriteConfirm`)**: Force updating an existing tag (`-f`).
+*   **Tag Push (`Mode::TagPushConfirm` / `Mode::TagPushAllConfirm`)**: Pushing single or all tags to remote (supports `y` Push, `f` Force Push `--force`).
 *   **Branch Merge (`Mode::BranchMergeConfirm`)**: Merging a branch into the active branch.
 *   **Rebase (`Mode::BranchRebaseConfirm` / `Mode::BranchInteractiveRebaseConfirm`)**: Rebasing the current branch.
 *   **Stash Apply (`Mode::StashApplyConfirm`)**: Applying a stash onto the working directory.
@@ -440,6 +441,8 @@ To prevent accidental data loss due to muscle-memory `Enter` keypresses, Gitwig 
 
 ### Shortcuts
 *   `y` / `Y` : Confirm action (required for destructive actions; works for all)
+*   `f` / `F` : Force push tag (`--force`) in Tag Push confirmation dialog
+*   `t` / `T` : Push branch with tags (`--tags`) in Branch Push confirmation dialog
 *   `Esc` / `n` / `N` : Cancel action / close popup
 *   `Enter` : Confirm action (only works for non-destructive actions; cancels for destructive actions)
 
