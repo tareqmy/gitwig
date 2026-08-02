@@ -45,6 +45,7 @@ show_stale_projects = true
 | Key | Type | Default | Description |
 | --- | ---- | ------- | ----------- |
 | `items` | `[String]` | `[]` | Paths shown in the main list. Managed by the in-app `a` (directory scan) / `e` / `d` shortcuts. |
+| `enable_watch_dirs` | `Boolean` | `true` | Enable or disable the Watch Directories automatic workspace sync functionality. |
 | `watch_dirs` | `[String]` | `[]` | Directories watched recursively for automatic workspace synchronization. When a new Git repository is cloned or created in these directories, it is automatically added to `items` and persisted. Paths matching `scan.excludes` are ignored. |
 | `poll_interval_ms` | `Integer` | `100` | How long (ms) the event loop waits between input checks. Lower feels snappier; higher saves CPU. |
 | `max_commits` | `Integer` | `0` | Maximum commits to load in workspace view. Set to `0` for unlimited. |

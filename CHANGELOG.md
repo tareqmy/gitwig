@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Added
+- add setting to enable/disable Watch Directories function
 
 ## [v2.5.3] - 2026-07-30
 ### Added
