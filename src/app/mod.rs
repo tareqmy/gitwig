@@ -2606,8 +2606,21 @@ impl App {
         false
     }
 
+    pub fn is_chocolatey_install(&self) -> bool {
+        if let Ok(exe_path) = std::env::current_exe() {
+            let path_str = exe_path.to_string_lossy().to_lowercase();
+            if path_str.contains("chocolatey") {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn can_self_update(&self) -> bool {
-        !self.is_msi_install() && !self.is_cargo_install() && !self.is_homebrew_install()
+        !self.is_msi_install()
+            && !self.is_cargo_install()
+            && !self.is_homebrew_install()
+            && !self.is_chocolatey_install()
     }
 
     pub fn refresh_blame_if_shown(&mut self) {
@@ -2718,7 +2731,7 @@ impl App {
         if self.is_msi_install() {
             self.error_message = Some(
                 "Self-update is disabled for system-wide Windows installations.\n\n\
-                 Please download the latest release from:\n\
+                 Please update via Chocolatey or download the latest release from:\n\
                  https://github.com/tareqmy/gitwig/releases"
                     .to_string(),
             );
@@ -2742,6 +2755,17 @@ impl App {
                 "Self-update is disabled for Homebrew installations.\n\n\
                  Please update by running:\n\
                  brew upgrade gitwig"
+                    .to_string(),
+            );
+            self.mode = self.previous_mode.take().unwrap_or(self.mode);
+            return;
+        }
+
+        if self.is_chocolatey_install() {
+            self.error_message = Some(
+                "Self-update is disabled for Chocolatey installations.\n\n\
+                 Please update by running:\n\
+                 choco upgrade gitwig"
                     .to_string(),
             );
             self.mode = self.previous_mode.take().unwrap_or(self.mode);
