@@ -152,6 +152,7 @@ impl Default for Config {
             show_system_stats: default_show_system_stats(),
             stale_threshold_months: default_stale_threshold_months(),
             show_stale_projects: default_show_stale_projects(),
+            enable_watch_dirs: default_enable_watch_dirs(),
         }
     }
 }
@@ -245,6 +246,9 @@ fn default_stale_threshold_months() -> u32 {
     1
 }
 fn default_show_stale_projects() -> bool {
+    true
+}
+fn default_enable_watch_dirs() -> bool {
     true
 }
 
@@ -365,6 +369,9 @@ pub struct Config {
     /// Hide stale projects if disabled.
     #[serde(default = "default_show_stale_projects")]
     pub show_stale_projects: bool,
+    /// Whether the Watch Directories auto-discovery feature is enabled.
+    #[serde(default = "default_enable_watch_dirs")]
+    pub enable_watch_dirs: bool,
 }
 
 impl Config {
@@ -489,6 +496,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         show_system_stats: default_show_system_stats(),
         stale_threshold_months: default_stale_threshold_months(),
         show_stale_projects: default_show_stale_projects(),
+        enable_watch_dirs: default_enable_watch_dirs(),
     };
 
     // Attempt to save the fallback back to the original path.
@@ -638,6 +646,7 @@ pub fn load_config(
                 show_system_stats: default_show_system_stats(),
                 stale_threshold_months: default_stale_threshold_months(),
                 show_stale_projects: default_show_stale_projects(),
+                enable_watch_dirs: default_enable_watch_dirs(),
             },
             path,
             None,
@@ -768,6 +777,7 @@ pub fn load_config(
         show_system_stats: default_show_system_stats(),
         stale_threshold_months: default_stale_threshold_months(),
         show_stale_projects: default_show_stale_projects(),
+        enable_watch_dirs: default_enable_watch_dirs(),
     };
     save_config(&fallback, &canonical)?;
 

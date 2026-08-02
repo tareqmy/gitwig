@@ -2529,6 +2529,11 @@ impl App {
                 self.config.show_stale_projects = !self.config.show_stale_projects;
                 self.persist("Show Stale Projects updated");
             }
+            83 => {
+                self.config.enable_watch_dirs = !self.config.enable_watch_dirs;
+                self.persist("Enable Watch Directories updated");
+                self.setup_watcher();
+            }
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {
                     self.settings_editing = true;

@@ -733,15 +733,20 @@ impl App {
             }
         }
 
-        for watch_dir in &self.config.watch_dirs {
-            let expanded = repo::expand_tilde(watch_dir);
-            let canon = match std::fs::canonicalize(&expanded) {
-                Ok(c) => c,
-                Err(_) => PathBuf::from(&expanded),
-            };
-            if canon.exists() && canon.is_dir() {
-                if let Err(e) = watcher.watch(&canon, RecursiveMode::Recursive) {
-                    crate::debug_log::warn(format!("Failed to watch directory {:?}: {}", canon, e));
+        if self.config.enable_watch_dirs {
+            for watch_dir in &self.config.watch_dirs {
+                let expanded = repo::expand_tilde(watch_dir);
+                let canon = match std::fs::canonicalize(&expanded) {
+                    Ok(c) => c,
+                    Err(_) => PathBuf::from(&expanded),
+                };
+                if canon.exists() && canon.is_dir() {
+                    if let Err(e) = watcher.watch(&canon, RecursiveMode::Recursive) {
+                        crate::debug_log::warn(format!(
+                            "Failed to watch directory {:?}: {}",
+                            canon, e
+                        ));
+                    }
                 }
             }
         }
@@ -1574,12 +1579,14 @@ where
                     } else {
                         // Check if it is inside one of the watched directories
                         let mut inside_watch_dir = false;
-                        for watch_dir in &app.config.watch_dirs {
-                            let expanded = repo::expand_tilde(watch_dir);
-                            if let Ok(canon_watch) = std::fs::canonicalize(&expanded) {
-                                if canon_target.starts_with(&canon_watch) {
-                                    inside_watch_dir = true;
-                                    break;
+                        if app.config.enable_watch_dirs {
+                            for watch_dir in &app.config.watch_dirs {
+                                let expanded = repo::expand_tilde(watch_dir);
+                                if let Ok(canon_watch) = std::fs::canonicalize(&expanded) {
+                                    if canon_target.starts_with(&canon_watch) {
+                                        inside_watch_dir = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
