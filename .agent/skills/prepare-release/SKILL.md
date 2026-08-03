@@ -14,6 +14,8 @@ When you are asked to prepare a release, you must follow this exact process to e
    - `Cargo.toml`
    - `gitwig-core/Cargo.toml`
    - `Formula/gitwig.rb`
+   - `dist/chocolatey/gitwig.nuspec`
+   - `dist/chocolatey/tools/chocolateyinstall.ps1`
 
 2. **Rebuild Lockfile:**
    Run `cargo test` in the workspace root to ensure `Cargo.lock` is regenerated with the new versions and that all tests pass.

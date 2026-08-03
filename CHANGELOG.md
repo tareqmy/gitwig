@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+
+## [v2.5.5] - 2026-08-03
 ### Added
 - restore chocolatey package support
 
