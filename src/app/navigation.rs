@@ -2629,11 +2629,15 @@ impl App {
                 }
             }
             8 => {
-                self.config.scan.excludes = trimmed
+                let mut excludes: Vec<String> = trimmed
                     .split(',')
                     .map(|s| s.trim().to_string())
                     .filter(|s| !s.is_empty())
                     .collect();
+                if excludes.is_empty() {
+                    excludes = crate::config::default_scan_excludes();
+                }
+                self.config.scan.excludes = excludes;
                 self.persist("Scan exclude folders updated");
                 self.settings_editing = false;
                 self.input_buffer.clear();

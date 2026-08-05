@@ -200,7 +200,7 @@ fn default_theme_name() -> String {
 fn default_scan_max_depth() -> usize {
     6
 }
-fn default_scan_excludes() -> Vec<String> {
+pub fn default_scan_excludes() -> Vec<String> {
     vec![
         "node_modules".to_string(),
         "target".to_string(),
@@ -521,8 +521,9 @@ fn load_and_parse_config(path: &Path) -> (Config, Option<String>) {
                     config.compact_view = false;
                 }
 
-                // Migrate checkout folder exclusion for existing configs
-                if config.scan.excludes.contains(&"target".to_string())
+                if config.scan.excludes.is_empty() {
+                    config.scan.excludes = default_scan_excludes();
+                } else if config.scan.excludes.contains(&"target".to_string())
                     && !config.scan.excludes.contains(&"checkout".to_string())
                 {
                     config.scan.excludes.push("checkout".to_string());
