@@ -5,15 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
-## [Unreleased]
+## [v2.5.6] - 2026-08-05
+### Fixed
+- reset empty exclude folders to defaults to prevent auto-adding internal git repos ([e0e1773](https://github.com/tareqmy/gitwig/commit/e0e1773))
+
+### Documentation
+- clarify scan.excludes fallback behavior ([61f14a6](https://github.com/tareqmy/gitwig/commit/61f14a6))
 
 ## [v2.5.5] - 2026-08-03
 ### Added
-- restore chocolatey package support
+- restore chocolatey package support ([92ab54d](https://github.com/tareqmy/gitwig/commit/92ab54d))
+
+### Documentation
+- sync docs and changelog for chocolatey package support ([2ce600d](https://github.com/tareqmy/gitwig/commit/2ce600d))
 
 ## [v2.5.4] - 2026-08-02
 ### Added
-- add setting to enable/disable Watch Directories function
+- Add setting to enable/disable Watch Directories ([7192c3b](https://github.com/tareqmy/gitwig/commit/7192c3b))
+
+### Documentation
+- update docs and changelog for watch directories setting ([6877e09](https://github.com/tareqmy/gitwig/commit/6877e09))
 
 ## [v2.5.3] - 2026-07-30
 ### Added
