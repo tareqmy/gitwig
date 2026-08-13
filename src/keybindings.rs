@@ -1971,13 +1971,16 @@ mod tests {
         // 2. save / load / check_conflicts
         let temp_dir = std::env::temp_dir().join(format!(
             "gitwig_kb_{}",
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("system clock should be after unix epoch")
+                .as_nanos()
         ));
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::create_dir_all(&temp_dir).expect("temp dir should be created");
 
         let config = KeybindingsConfig::default_config();
         config.check_conflicts();
-        config.save(&temp_dir).unwrap();
+        config.save(&temp_dir).expect("config should save");
 
         let loaded = KeybindingsConfig::load(&temp_dir);
         assert_eq!(

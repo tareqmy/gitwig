@@ -1213,17 +1213,17 @@ mod tests {
         let key_yes = KeyEvent::new(KeyCode::Enter, KeyModifiers::empty());
         let res_yes = popup
             .event(&Event::Key(key_yes), &crate::keybindings::KeybindingsConfig::default())
-            .unwrap();
+            .expect("event should be handled");
         assert!(matches!(res_yes, EventState::Consumed));
 
         let event = queue.pop();
         assert!(event.is_some());
-        assert!(matches!(event.unwrap(), InternalEvent::ConfirmYes));
+        assert!(matches!(event.expect("queue should have an event"), InternalEvent::ConfirmYes));
 
         let key_no = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
         let res_no = popup
             .event(&Event::Key(key_no), &crate::keybindings::KeybindingsConfig::default())
-            .unwrap();
+            .expect("event should be handled");
         assert!(matches!(res_no, EventState::Consumed));
     }
 }

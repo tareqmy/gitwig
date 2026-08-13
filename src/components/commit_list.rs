@@ -585,109 +585,109 @@ mod tests {
         assert!(
             component
                 .event(&key(KeyCode::Char('f')), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Char('c')), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Char('C')), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Char('t')), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Char('b')), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Char('i')), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Char('p')), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Char('y')), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Char('v')), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Enter), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Home), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::End), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Char('G')), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Up), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Down), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::PageUp), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::PageDown), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
 
         // Test draw
         let backend = ratatui::backend::TestBackend::new(80, 24);
-        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        let mut terminal = ratatui::Terminal::new(backend).expect("terminal should initialize");
         terminal
             .draw(|f| {
                 let mut areas = DetailAreas::default();
@@ -727,6 +727,6 @@ mod tests {
                 let app = App::new(config, std::path::PathBuf::from("test.toml"));
                 draw_logs_view(f, &info, 0, &None, &app, Rect::new(0, 0, 80, 24));
             })
-            .unwrap();
+            .expect("draw should succeed");
     }
 }

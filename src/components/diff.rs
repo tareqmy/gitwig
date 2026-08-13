@@ -479,43 +479,43 @@ mod tests {
         assert!(
             component
                 .event(&key(KeyCode::Up), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Down), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::PageUp), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::PageDown), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::Home), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
         assert!(
             component
                 .event(&key(KeyCode::End), &crate::keybindings::KeybindingsConfig::default())
-                .unwrap()
+                .expect("event should be handled")
                 .is_consumed()
         );
 
         // Test draw
         let backend = ratatui::backend::TestBackend::new(80, 24);
-        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        let mut terminal = ratatui::Terminal::new(backend).expect("terminal should initialize");
         terminal
             .draw(|f| {
                 let _ = component.draw(f, Rect::new(0, 0, 80, 24));
@@ -566,6 +566,6 @@ mod tests {
                     Rect::new(0, 0, 80, 24),
                 );
             })
-            .unwrap();
+            .expect("draw should succeed");
     }
 }

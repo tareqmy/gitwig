@@ -1733,7 +1733,7 @@ mod tests {
         // 6. read_file_content
         let temp_file = std::env::temp_dir().join("twig_ui_detail_test_file.txt");
         let _ = std::fs::write(&temp_file, "hello world");
-        let content = read_file_content(&temp_file).unwrap();
+        let content = read_file_content(&temp_file).expect("file content should be read");
         assert_eq!(content, "hello world");
         let _ = std::fs::remove_file(&temp_file);
     }
