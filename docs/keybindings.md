@@ -12,6 +12,7 @@
 | `l`                  | Normal          | Edit labels of the selected item  |
 | `R`                  | Normal          | Refresh status of selected item   |
 | `F`                  | Normal          | Bulk fetch all tracked repositories concurrently |
+| `E`                  | Normal          | Show why the selected repository's last fetch failed |
 | `f`                  | Normal          | Enter repository search mode      |
 | `ctrl+f`             | Normal          | Open global code search popup overlay |
 | `p`                  | Normal          | Toggle pin status of selected item |

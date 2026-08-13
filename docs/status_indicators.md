@@ -54,3 +54,23 @@ The high-level dashboard stats at the top of the homepage show:
 Items support `~` and `~/...` expansion, so `~/code/gitwig` resolves to your home directory. 
 
 Gitwig automatically refreshes all repository statuses in the background every **10 seconds** using non-blocking background threads, ensuring the home dashboard is always live and up-to-date. You can also press **`R`** to manually refresh the selected item's status immediately (e.g. after running a git command externally); the status bar briefly flashes `Refreshed` to confirm.
+
+### Fetch Outcome Indicators
+
+While a bulk fetch (`F`) is running, each card's status column shows a Braille spinner and `fetching...`. When the fetch finishes, the outcome replaces the status for about 30 seconds:
+
+| Indicator | Meaning |
+| :--- | :--- |
+| `✓ done` | The remote was reached and refs were updated. |
+| `✗ auth denied` | Credentials were rejected, or the account lacks permission on this remote. |
+| `✗ host key` | The remote's SSH host key is unknown, changed, or could not be verified. |
+| `✗ not found` | The remote URL resolves, but the repository does not exist or is not visible. |
+| `✗ unreachable` | DNS, routing, TLS, or proxy failure — the host could not be contacted. |
+| `✗ no remote` | The repository has no remote configured, so there is nothing to fetch. Shown in warning colour rather than error colour. |
+| `✗ timed out` | The remote accepted the connection but did not reply within `fetch_timeout_secs`. |
+| `✗ local error` | Git refused the fetch locally (lock file, unwritable ref, and similar). |
+| `✗ failed` | The failure did not match a known category; open the details for the raw output. |
+
+Successful results fade after the 30-second window and the card returns to its normal status. **Failures are kept** so an unreachable repository does not silently look healthy again — after the window the card shows its normal status with a small trailing `✗`.
+
+Press **`E`** on a failed repository to open the full, sanitised `git` output along with the remote URL and a suggested remedy. Gitwig never lets `git`, `ssh`, or a credential helper prompt on the terminal, so a private or unreachable remote can no longer corrupt the display or hang the app.

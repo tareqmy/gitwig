@@ -23,6 +23,11 @@ items = ["Repo A", "Repo B", "Side Project", "Test Repo"]
 # Lower → more responsive input, higher → less CPU usage. Sane range: 16–500.
 poll_interval_ms = 100
 
+# Seconds a background `git fetch` may run before it is cancelled (default: 30).
+# Prevents an unreachable remote from pinning a repository card forever.
+# Set to 0 to disable the limit.
+fetch_timeout_secs = 30
+
 # Sorting preferences for the main page list
 sort_by = "custom"
 sort_reverse = false
@@ -48,6 +53,7 @@ show_stale_projects = true
 | `enable_watch_dirs` | `Boolean` | `true` | Enable or disable the Watch Directories automatic workspace sync functionality. |
 | `watch_dirs` | `[String]` | `[]` | Directories watched recursively for automatic workspace synchronization. When a new Git repository is cloned or created in these directories, it is automatically added to `items` and persisted. Paths matching `scan.excludes` are ignored. |
 | `poll_interval_ms` | `Integer` | `100` | How long (ms) the event loop waits between input checks. Lower feels snappier; higher saves CPU. |
+| `fetch_timeout_secs` | `Integer` | `30` | Seconds a background fetch may run before Gitwig cancels it. Guards against remotes that accept a connection but never reply. `0` disables the limit; otherwise the minimum is `5`. |
 | `max_commits` | `Integer` | `0` | Maximum commits to load in workspace view. Set to `0` for unlimited. |
 | `page_size` | `Integer` | `10` | Number of lines/items scrolled by Page Up / Page Down. |
 | `sort_by` | `String` | `"custom"` | Main list sorting preference (`"custom"`, `"alphabetical"`, `"recent_visit"`, `"latest_changes"`). Managed by `o`. |

@@ -25,6 +25,7 @@ The primary dashboard shown when Gitwig starts up.
         *   `ctrl-f` : Open global code search across all repositories
         *   `R` : Refresh status of selected item manually
         *   `F` : Bulk fetch all repositories concurrently
+        *   `E` : Show why the selected repository's last fetch failed
         *   `o` : Cycle sorting criteria (Name, Path, Last Commit, Status)
         *   `O` : Toggle reverse sorting
         *   `v` : Cycle repository list layout (Normal/Compact/Tile)
