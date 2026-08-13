@@ -1289,8 +1289,7 @@ fn status_indicator_line(app: &App, status: &ItemStatus, item: &str) -> Line<'st
     if matches!(fetch_result, Some(Err(_))) {
         let (color, _) = fetch_failure_style(app, item);
         line.spans.push(Span::raw(" "));
-        line.spans
-            .push(Span::styled("✗", Style::default().fg(color).add_modifier(Modifier::BOLD)));
+        line.spans.push(Span::styled("✗", Style::default().fg(color).add_modifier(Modifier::BOLD)));
     }
 
     line
@@ -1306,11 +1305,8 @@ fn fetch_failure_style(app: &App, item: &str) -> (ratatui::style::Color, &'stati
         .get(item)
         .copied()
         .unwrap_or(crate::fetch_error::FetchFailure::Unknown);
-    let color = if failure == crate::fetch_error::FetchFailure::NoRemote {
-        WARNING()
-    } else {
-        DANGER()
-    };
+    let color =
+        if failure == crate::fetch_error::FetchFailure::NoRemote { WARNING() } else { DANGER() };
     (color, failure.label())
 }
 

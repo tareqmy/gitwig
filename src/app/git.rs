@@ -1141,18 +1141,16 @@ impl App {
                 } else {
                     self.increment_implicit_network();
                 }
-                std::thread::spawn(move || match repo::get_remote_tags(
-                    &repo_path,
-                    &remote_name,
-                    timeout,
-                ) {
-                    Ok(tags) => {
-                        let serialized = repo::serialize_tags(&tags);
-                        let _ = tx.send(format!("REMOTE_TAGS:{}", serialized));
-                    }
-                    Err(e) => {
-                        let _ =
-                            tx.send(format!("REMOTE_TAGS_ERR:Failed to get remote tags: {}", e));
+                std::thread::spawn(move || {
+                    match repo::get_remote_tags(&repo_path, &remote_name, timeout) {
+                        Ok(tags) => {
+                            let serialized = repo::serialize_tags(&tags);
+                            let _ = tx.send(format!("REMOTE_TAGS:{}", serialized));
+                        }
+                        Err(e) => {
+                            let _ = tx
+                                .send(format!("REMOTE_TAGS_ERR:Failed to get remote tags: {}", e));
+                        }
                     }
                 });
             }

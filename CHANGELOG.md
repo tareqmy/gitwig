@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [v2.5.7] - 2026-08-13
+### Fixed
+- bound all git push/pull/tag network calls with a timeout ([802ac20](https://github.com/tareqmy/gitwig/commit/802ac20))
+- handle unreachable remote fetch failures gracefully ([8d8ad5a](https://github.com/tareqmy/gitwig/commit/8d8ad5a))
+
+### Documentation
+- sync agent instructions and skills after adding Claude Code skills ([d8a2409](https://github.com/tareqmy/gitwig/commit/d8a2409))
+- sync docs for fetch failure indicators and fetch timeout setting ([f910f24](https://github.com/tareqmy/gitwig/commit/f910f24))
+
+### Chore
+- **claude**: add project skills for quality gates, docs, and releases ([6a00e2a](https://github.com/tareqmy/gitwig/commit/6a00e2a))
+
+### Others
+- ai commit message plan ([d44116d](https://github.com/tareqmy/gitwig/commit/d44116d))
+
 ## [v2.5.6] - 2026-08-05
 ### Fixed
 - reset empty exclude folders to defaults to prevent auto-adding internal git repos ([e0e1773](https://github.com/tareqmy/gitwig/commit/e0e1773))

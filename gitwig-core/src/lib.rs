@@ -3837,11 +3837,7 @@ mod tests {
         let elapsed = started.elapsed();
 
         assert!(res.is_err(), "expected a timeout error, got {:?}", res);
-        assert!(
-            elapsed < Duration::from_secs(10),
-            "child was not killed promptly: {:?}",
-            elapsed
-        );
+        assert!(elapsed < Duration::from_secs(10), "child was not killed promptly: {:?}", elapsed);
     }
 
     #[test]
