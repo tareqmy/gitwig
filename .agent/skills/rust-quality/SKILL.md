@@ -4,6 +4,8 @@ description: Runs Gitwig's mandatory code quality checks (formatting, linting, a
 ---
 # Rust Quality Checks
 
+_Mirrored for Claude Code at `.claude/skills/rust-quality/SKILL.md` — keep both in sync._
+
 Gitwig maintains strict performance, safety, and readability standards. Before committing any code, you must pass these quality gates.
 
 ## Process
@@ -12,7 +14,9 @@ Gitwig maintains strict performance, safety, and readability standards. Before c
    Run `cargo fmt` to apply the standard Rust formatting.
    
 2. **Lint Code:**
-   Run `cargo clippy`. You must fix any warnings or errors. Do not submit code that adds new Clippy warnings.
+   Run `make lint` (`cargo clippy --workspace --all-targets -- -D warnings -D clippy::unwrap_used`) —
+   plain `cargo clippy` misses the workspace/all-targets scope and the `unwrap_used` deny
+   that CI actually enforces. Fix every warning or error; do not submit code that adds new ones.
    
 3. **Run Tests:**
    Run `cargo test` to execute the test suite. All tests must pass.

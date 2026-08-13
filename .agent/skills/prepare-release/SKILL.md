@@ -4,6 +4,8 @@ description: Prepares a new release of Gitwig by updating versions, regenerating
 ---
 # Prepare Release
 
+_Mirrored for Claude Code at `.claude/skills/prepare-release/SKILL.md` — keep both in sync._
+
 When you are asked to prepare a release, you must follow this exact process to ensure all release artifacts are correct and in sync.
 
 ## Process
@@ -28,3 +30,6 @@ When you are asked to prepare a release, you must follow this exact process to e
 
 5. **Clean Test Artifacts:**
    Delete temporary configuration files like `dummy.toml` before staging any commits.
+
+## Before Committing
+Run the `rust-quality` skill's checks — a release commit is still a commit.

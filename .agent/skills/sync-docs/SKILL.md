@@ -4,6 +4,8 @@ description: Keeps documentation synchronized with code changes, ensuring UI upd
 ---
 # Sync Documentation
 
+_Mirrored for Claude Code at `.claude/skills/sync-docs/SKILL.md` — keep both in sync._
+
 Gitwig requires documentation to be kept in lockstep with code changes. 
 
 ## When to trigger
@@ -20,4 +22,5 @@ You **MUST** update the affected documentation in the same commit. Review the fo
 2. `.agent/ROADMAP.md`: Check off items that have been shipped or add new items if scope has shifted.
 3. `.agent/STYLE_GUIDE.md`: Update if you introduce new coding standards, modular components, or TUI patterns.
 4. `docs/panels.md`: Update if you added, removed, or changed UI directories, panels, or their associated keyboard shortcuts.
-5. `scripts/*.sha256`: If you modified any script in `scripts/`, recalculate the SHA-256 checksum and update its `.sha256` file.
+5. `docs/keybindings.md`: Update for any new, changed, or removed keybinding — see the `add-keybinding` skill for the full set of files a keybinding change touches.
+6. `scripts/*.sha256`: If you modified any script in `scripts/`, recalculate the SHA-256 checksum and update its `.sha256` file.

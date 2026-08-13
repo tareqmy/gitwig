@@ -36,4 +36,6 @@ Gitwig is a Rust-based Terminal User Interface (TUI) for Git, aiming to provide 
 - Keep documentation, READMEs, help overlays, legends, and shortcuts in lockstep with code — see `.agent/INSTRUCTIONS.md` for the rule.
 
 ## Agent Resources
-Detailed instructions and roadmap for AI agents can be found in the `.agent/` directory.
+Detailed instructions and roadmap for AI agents can be found in the `.agent/` directory,
+including reusable workflow skills in `.agent/skills/`. Claude Code mirrors these at
+`.claude/skills/`, the only path it auto-discovers — keep both in sync.

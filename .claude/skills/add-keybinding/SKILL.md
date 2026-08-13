@@ -5,6 +5,8 @@ description: Checklist for adding, rebinding, or removing a Gitwig keyboard shor
 
 # Add/Change a Keybinding
 
+Mirrors `.agent/skills/add-keybinding/SKILL.md` (read by other agents) — keep both in sync.
+
 Gitwig's key handling is mode-dependent (the `Mode` enum in `src/app/mod.rs` — don't
 assume its variants, read the source; the list is long and changes often). A keybinding
 isn't done when the key does the thing — it's done when every place a user could look to

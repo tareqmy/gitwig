@@ -35,7 +35,7 @@ Welcome, Agent. You are tasked with helping build **Gitwig**, a high-performance
     1. `src/input.rs` (`handle_key` route)
     2. `src/app/mod.rs` (State mutation)
     3. `src/popups/help.rs` or `detail_help.rs` (Help lines generator)
-    4. `src/components/cmd_bar.rs` (Status bar entries)
+    4. `src/components/cmd_bar/` (Status bar entries — `mod.rs`, or the mode-specific `main.rs` / `detail.rs` / `popups.rs`)
 - **Detail-View Focus:** When in `Mode::Detail`, the active tab is tracked by `App.detail_tab` and the focused panel by `App.detail_focus: DetailSection`. *Always read `src/app/mod.rs` for the current tab and focus variants.* Support cycling (`Tab`/`BackTab`, `w`/`W`) and dynamic terminal resizing constraints.
 - **Visual Theme:** Pull every color, border-type, and selection marker from the Theme constants in `src/ui/style.rs`. **Never hard-code plain white, gray, or black** — they invert on light/dark terminals. Leave standard foregrounds at `Style::default()` and use `Modifier::DIM` or `Modifier::BOLD`. Selection uses three synced layers: left `▌` marker, accent border color, and bold text.
 - **Item Statuses:** `App.statuses: Vec<ItemStatus>` runs parallel to `App.config.items`. Any mutation (add/edit/remove) **must** atomically update `statuses` at the same index in the same method to prevent visual drift.
@@ -80,3 +80,10 @@ When asked to prepare a release:
 ## 8. Communication
 - Be concise. Provide technical rationale for your decisions.
 - If you find a bug in the existing TUI logic while working, fix it proactively.
+
+## 9. Reusable Skills
+Recurring workflows — release prep, doc sync, quality gates, keybinding changes — are
+written up as triggerable skills in `.agent/skills/*/SKILL.md`. These are agent-agnostic;
+use them regardless of which tool you are. Claude Code additionally auto-discovers its
+own mirror at `.claude/skills/` (it only scans that path, not `.agent/skills/`) — when the
+underlying process changes, update both copies.
