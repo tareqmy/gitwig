@@ -1228,20 +1228,39 @@ fn status_indicator_line(app: &App, status: &ItemStatus, item: &str) -> Line<'st
             Span::styled("fetching...", Style::default().fg(ACCENT())),
         ]);
     }
-    if let Some(res) = app.bulk_fetch_results.get(item) {
-        return match res {
-            Ok(_) => Line::from(vec![
-                Span::styled("✓ ", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
-                Span::styled("done", Style::default().fg(SUCCESS())),
-            ]),
-            Err(_) => Line::from(vec![
-                Span::styled("✗ ", Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
-                Span::styled("failed", Style::default().fg(DANGER())),
-            ]),
-        };
+    // The fetch outcome only replaces the normal indicator while the result is
+    // fresh (i.e. until `bulk_fetch_completed_at` expires). Failures are retained
+    // past that point so they stay inspectable, but a stale failure must not keep
+    // hiding the repository's real staged/modified/ahead/behind counts — after the
+    // window it degrades to a small trailing marker instead.
+    let fetch_result = app.bulk_fetch_results.get(item);
+    // Also treat a round still in flight as fresh, so a repo that finishes early
+    // shows its outcome immediately instead of waiting for the slowest remote.
+    let fresh = app.bulk_fetch_completed_at.is_some() || !app.bulk_fetching.is_empty();
+
+    if let Some(res) = fetch_result {
+        match res {
+            Ok(_) if fresh => {
+                return Line::from(vec![
+                    Span::styled("✓ ", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD)),
+                    Span::styled("done", Style::default().fg(SUCCESS())),
+                ]);
+            }
+            // A bare "failed" tells the user nothing actionable, so show the
+            // classified cause. A missing remote is a configuration fact rather
+            // than a fault, so it is toned down to a warning.
+            Err(_) if fresh => {
+                let (color, label) = fetch_failure_style(app, item);
+                return Line::from(vec![
+                    Span::styled("✗ ", Style::default().fg(color).add_modifier(Modifier::BOLD)),
+                    Span::styled(label, Style::default().fg(color)),
+                ]);
+            }
+            _ => {}
+        }
     }
 
-    match status {
+    let mut line = match status {
         ItemStatus::Loading => Line::from(vec![
             Span::styled(app.sym("bullet_empty"), muted_style()),
             Span::raw(" "),
@@ -1263,7 +1282,36 @@ fn status_indicator_line(app: &App, status: &ItemStatus, item: &str) -> Line<'st
             Span::styled("?", muted_style()),
         ]),
         ItemStatus::GitRepo(Some(summary)) => repo_indicator_line(app, summary),
+    };
+
+    // Stale failure: keep the real status visible, but append a compact marker so
+    // the user can still tell this repository is not talking to its remote.
+    if matches!(fetch_result, Some(Err(_))) {
+        let (color, _) = fetch_failure_style(app, item);
+        line.spans.push(Span::raw(" "));
+        line.spans
+            .push(Span::styled("✗", Style::default().fg(color).add_modifier(Modifier::BOLD)));
     }
+
+    line
+}
+
+/// Colour and compact label for a repository's recorded fetch failure.
+///
+/// "No remote" is a configuration fact rather than a fault, so it renders as a
+/// warning instead of an error.
+fn fetch_failure_style(app: &App, item: &str) -> (ratatui::style::Color, &'static str) {
+    let failure = app
+        .bulk_fetch_failures
+        .get(item)
+        .copied()
+        .unwrap_or(crate::fetch_error::FetchFailure::Unknown);
+    let color = if failure == crate::fetch_error::FetchFailure::NoRemote {
+        WARNING()
+    } else {
+        DANGER()
+    };
+    (color, failure.label())
 }
 
 fn repo_indicator_line(app: &App, summary: &RepoSummary) -> Line<'static> {

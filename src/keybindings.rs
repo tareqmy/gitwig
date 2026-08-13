@@ -4,6 +4,13 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+/// Upper bound of the stable numeric ids used by [`Action::to_index`].
+///
+/// The id space is sparse and grouped by area (global 14–52, home 68–85, tabs 100+),
+/// so migrations walk it by index rather than by a hand-maintained action list.
+/// Raise this if an action is ever given a larger id.
+const MAX_ACTION_INDEX: usize = 255;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Action {
     // Global
@@ -42,6 +49,8 @@ pub enum Action {
     HomeYankPath,
     HomeJumpPicker,
     HomeFetchAll,
+    /// Show the classified reason the selected repository's last fetch failed.
+    HomeFetchDetails,
     HomeSelect,
     HomeGlobalSearch,
     HomeOpenStatsDashboard,
@@ -232,6 +241,7 @@ impl Action {
             75 => Some(Action::HomeSelect),
             76 => Some(Action::HomeGlobalSearch),
             79 => Some(Action::HomeOpenStatsDashboard),
+            85 => Some(Action::HomeFetchDetails),
 
             // Workspace
             100 => Some(Action::WorkspaceLoadMore),
@@ -399,6 +409,7 @@ impl Action {
             Action::HomeYankPath => 72,
             Action::HomeJumpPicker => 73,
             Action::HomeFetchAll => 74,
+            Action::HomeFetchDetails => 85,
             Action::HomeSelect => 75,
             Action::HomeGlobalSearch => 76,
             Action::HomeOpenStatsDashboard => 79,
@@ -571,6 +582,7 @@ pub struct HomeKeybindings {
     pub yank_path: Option<Keybind>,
     pub jump_picker: Option<Keybind>,
     pub fetch_all: Option<Keybind>,
+    pub fetch_details: Option<Keybind>,
     pub select: Option<Keybind>,
     pub global_search: Option<Keybind>,
     pub open_stats_dashboard: Option<Keybind>,
@@ -917,6 +929,10 @@ impl KeybindingsConfig {
                     &["F"],
                     "Fetch all tracked repositories concurrently",
                 )),
+                fetch_details: Some(Keybind::new(
+                    &["E"],
+                    "Show why the selected repository failed to fetch",
+                )),
                 select: Some(Keybind::new(&["space"], "Toggle selection for batch operations")),
                 global_search: Some(Keybind::new(&["ctrl-f"], "Open global code search popup")),
                 open_stats_dashboard: Some(Keybind::new(&["U"], "Open App Usage Dashboard")),
@@ -1150,6 +1166,7 @@ impl KeybindingsConfig {
             Action::HomeYankPath => self.home.yank_path.as_ref(),
             Action::HomeJumpPicker => self.home.jump_picker.as_ref(),
             Action::HomeFetchAll => self.home.fetch_all.as_ref(),
+            Action::HomeFetchDetails => self.home.fetch_details.as_ref(),
             Action::HomeSelect => self.home.select.as_ref(),
             Action::HomeGlobalSearch => self.home.global_search.as_ref(),
             Action::HomeOpenStatsDashboard => self.home.open_stats_dashboard.as_ref(),
@@ -1343,6 +1360,7 @@ impl KeybindingsConfig {
             Action::HomeYankPath => self.home.yank_path.as_ref(),
             Action::HomeJumpPicker => self.home.jump_picker.as_ref(),
             Action::HomeFetchAll => self.home.fetch_all.as_ref(),
+            Action::HomeFetchDetails => self.home.fetch_details.as_ref(),
             Action::HomeSelect => self.home.select.as_ref(),
             Action::HomeGlobalSearch => self.home.global_search.as_ref(),
             Action::HomeOpenStatsDashboard => self.home.open_stats_dashboard.as_ref(),
@@ -1582,6 +1600,7 @@ impl KeybindingsConfig {
             Action::HomeYankPath,
             Action::HomeJumpPicker,
             Action::HomeFetchAll,
+            Action::HomeFetchDetails,
             Action::HomeSelect,
             Action::HomeGlobalSearch,
             Action::HomeOpenStatsDashboard,
@@ -1669,6 +1688,7 @@ impl KeybindingsConfig {
                 | Action::HomeYankPath
                 | Action::HomeJumpPicker
                 | Action::HomeFetchAll
+                | Action::HomeFetchDetails
                 | Action::HomeSelect
                 | Action::HomeGlobalSearch
                 | Action::HomeOpenStatsDashboard
@@ -1741,6 +1761,7 @@ impl KeybindingsConfig {
             Action::HomeYankPath => self.home.yank_path = keybind,
             Action::HomeJumpPicker => self.home.jump_picker = keybind,
             Action::HomeFetchAll => self.home.fetch_all = keybind,
+            Action::HomeFetchDetails => self.home.fetch_details = keybind,
             Action::HomeSelect => self.home.select = keybind,
             Action::HomeGlobalSearch => self.home.global_search = keybind,
             Action::HomeOpenStatsDashboard => self.home.open_stats_dashboard = keybind,
@@ -1884,11 +1905,43 @@ impl KeybindingsConfig {
         Ok(())
     }
 
+    /// Fills in any binding absent from an older on-disk file, using the defaults.
+    ///
+    /// [`load`](Self::load) deserializes the user's file verbatim, so every action
+    /// introduced after that file was written would otherwise stay permanently
+    /// unbound and render as `-` in the help and status bar. Only `None` entries are
+    /// touched, so existing user overrides are never clobbered.
+    ///
+    /// Returns whether anything was added, so the caller can avoid a pointless write.
+    fn backfill_missing_defaults(&mut self) -> bool {
+        let defaults = Self::default_config();
+        let mut changed = false;
+        // Walk the action-id space rather than a hand-maintained list, so a future
+        // action is covered by this migration without anyone remembering to add it.
+        for idx in 0..=MAX_ACTION_INDEX {
+            let action = match Action::from_index(idx) {
+                Some(action) => action,
+                None => continue,
+            };
+            if self.get(action).is_some() {
+                continue;
+            }
+            if let Some(default) = defaults.get(action) {
+                self.update_action_keys(action, default.keys.clone());
+                changed = true;
+            }
+        }
+        changed
+    }
+
     pub fn load(config_dir: &Path) -> Self {
         let keybindings_path = config_dir.join("keybindings.toml");
         if keybindings_path.exists() {
             if let Ok(contents) = std::fs::read_to_string(&keybindings_path) {
-                if let Ok(cfg) = toml::from_str::<KeybindingsConfig>(&contents) {
+                if let Ok(mut cfg) = toml::from_str::<KeybindingsConfig>(&contents) {
+                    if cfg.backfill_missing_defaults() {
+                        let _ = cfg.save(config_dir);
+                    }
                     return cfg;
                 }
             }

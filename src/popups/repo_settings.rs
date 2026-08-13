@@ -252,7 +252,7 @@ impl RepoSettingsPopup {
     }
 
     fn track_lfs_pattern(repo_path: &str, pattern: &str) -> Result<String, String> {
-        let output = std::process::Command::new("git")
+        let output = crate::git_cmd::git_command()
             .arg("lfs")
             .arg("track")
             .arg(pattern)

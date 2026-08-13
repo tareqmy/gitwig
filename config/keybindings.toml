@@ -139,6 +139,10 @@ description = "Open fuzzy Jump-to-Repo picker overlay"
 keys = ["F"]
 description = "Fetch all tracked repositories concurrently"
 
+[home.fetch_details]
+keys = ["E"]
+description = "Show why the selected repository failed to fetch"
+
 [home.select]
 keys = ["space"]
 description = "Toggle selection for batch operations"

@@ -98,6 +98,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     let yank_key = kb.format_action_keys(Action::HomeYankPath, is_compat);
     let jump_picker_key = kb.format_action_keys(Action::HomeJumpPicker, is_compat);
     let fetch_all_key = kb.format_action_keys(Action::HomeFetchAll, is_compat);
+    let fetch_details_key = kb.format_action_keys(Action::HomeFetchDetails, is_compat);
     let select_key = kb.format_action_keys(Action::HomeSelect, is_compat);
     let global_search_key = kb.format_action_keys(Action::HomeGlobalSearch, is_compat);
     let stats_key = kb.format_action_keys(Action::HomeOpenStatsDashboard, is_compat);
@@ -142,6 +143,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 (global_search_key, "Open global code search popup overlay"),
                 (refresh_key, "Refresh status of selected item"),
                 (fetch_all_key, "Bulk fetch all tracked repositories concurrently"),
+                (fetch_details_key, "Show why the selected repository failed to fetch"),
                 (sort_key, "Cycle sorting mode / Toggle reverse sorting"),
                 (
                     compact_key,

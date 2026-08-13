@@ -10496,3 +10496,341 @@ fn test_navigation_boilerplates_coverage_boost() {
     app.legend_scroll_to_top();
     app.legend_scroll_to_bottom();
 }
+
+// ---------------------------------------------------------------------------
+// Remote fetch failure handling
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_fetch_error_classification() {
+    use crate::fetch_error::{FetchFailure, classify};
+
+    // Auth: the three shapes users actually hit — SSH key rejected, HTTPS token
+    // rejected, and git refusing to prompt because we disabled terminal prompts.
+    assert_eq!(
+        classify("git@github.com: Permission denied (publickey)."),
+        FetchFailure::Auth,
+        "ssh key rejection must read as auth, not network"
+    );
+    assert_eq!(
+        classify("fatal: Authentication failed for 'https://example.com/x.git/'"),
+        FetchFailure::Auth
+    );
+    assert_eq!(
+        classify(
+            "fatal: could not read Username for 'https://github.com': terminal prompts disabled",
+        ),
+        FetchFailure::Auth,
+        "the hardened no-prompt path must be reported as auth, not as an internal error"
+    );
+
+    assert_eq!(classify("Host key verification failed."), FetchFailure::HostKey);
+    assert_eq!(classify("ERROR: Repository not found."), FetchFailure::NotFound);
+    assert_eq!(
+        classify("fatal: unable to access 'https://x/': Could not resolve host: x"),
+        FetchFailure::Network
+    );
+    assert_eq!(
+        classify("fatal: 'origin' does not appear to be a git repository"),
+        FetchFailure::NotFound
+    );
+    assert_eq!(classify("fatal: No remote repository specified."), FetchFailure::NoRemote);
+    assert_eq!(classify("something nobody has seen before"), FetchFailure::Unknown);
+}
+
+#[test]
+fn test_fetch_timeout_message_classifies_as_timeout() {
+    use crate::fetch_error::{FetchFailure, classify};
+    use crate::git_cmd::GitRunError;
+
+    // The bulk fetch thread reports a cancelled child via GitRunError's Display.
+    // If that wording ever drifts from what `classify` matches, a timeout would
+    // silently be mislabelled as a network failure, so pin the two together.
+    let rendered = GitRunError::Timeout(std::time::Duration::from_secs(30)).to_string();
+    assert_eq!(classify(&rendered), FetchFailure::Timeout, "rendered: {}", rendered);
+}
+
+#[test]
+fn test_every_fetch_failure_has_distinct_nonempty_label() {
+    use crate::fetch_error::FetchFailure;
+
+    let all = [
+        FetchFailure::Auth,
+        FetchFailure::HostKey,
+        FetchFailure::NotFound,
+        FetchFailure::Network,
+        FetchFailure::NoRemote,
+        FetchFailure::Timeout,
+        FetchFailure::Local,
+        FetchFailure::Unknown,
+    ];
+    let mut seen = std::collections::HashSet::new();
+    for failure in all {
+        assert!(!failure.label().is_empty());
+        assert!(!failure.summary().is_empty());
+        // Card labels share a narrow column; keep them short enough not to wrap.
+        assert!(failure.label().len() <= 12, "label too wide: {}", failure.label());
+        assert!(seen.insert(failure.label()), "duplicate label: {}", failure.label());
+    }
+}
+
+#[test]
+fn test_fetch_error_sanitize_strips_ansi_and_progress_frames() {
+    use crate::fetch_error::sanitize;
+
+    // git redraws progress with \r and colours errors with CSI sequences; both
+    // would render as an unreadable smear inside the error popup.
+    let raw = "\u{1b}[31mfatal:\u{1b}[0m boom\nremote: Counting objects:  10%\rremote: Counting objects:  99%\r\n";
+    let cleaned = sanitize(raw);
+
+    assert!(!cleaned.contains('\u{1b}'), "escape sequences survived: {:?}", cleaned);
+    assert!(!cleaned.contains('\r'), "carriage returns survived: {:?}", cleaned);
+    assert!(cleaned.contains("fatal: boom"));
+    assert!(cleaned.contains("99%"), "final progress frame should survive: {:?}", cleaned);
+    assert!(!cleaned.contains("10%"), "superseded progress frame should be dropped: {:?}", cleaned);
+    assert_eq!(sanitize(""), "");
+}
+
+#[test]
+fn test_git_command_disables_every_interactive_prompt() {
+    // This is the actual bug being guarded: without these, ssh or a credential
+    // helper writes its prompt into the alternate screen and breaks the TUI.
+    let cmd = crate::git_cmd::git_command();
+    let envs: std::collections::HashMap<String, Option<String>> = cmd
+        .get_envs()
+        .map(|(k, v)| {
+            (k.to_string_lossy().into_owned(), v.map(|v| v.to_string_lossy().into_owned()))
+        })
+        .collect();
+
+    assert_eq!(envs.get("GIT_TERMINAL_PROMPT"), Some(&Some("0".to_string())));
+    assert_eq!(envs.get("GIT_ASKPASS"), Some(&Some(String::new())));
+    assert_eq!(envs.get("SSH_ASKPASS"), Some(&Some(String::new())));
+    assert!(envs.contains_key("GIT_SSH_COMMAND"));
+    assert!(
+        envs.get("GIT_SSH_COMMAND")
+            .and_then(|v| v.as_ref())
+            .map(|v| v.contains("StrictHostKeyChecking"))
+            .unwrap_or(false),
+        "ssh must never ask the user to confirm a host fingerprint"
+    );
+    assert_eq!(envs.get("GIT_ALLOW_PROTOCOL"), Some(&Some("https:ssh:git:file".to_string())));
+}
+
+#[test]
+fn test_run_git_with_timeout_kills_a_hanging_child() {
+    use crate::git_cmd::{GitRunError, run_git_with_timeout};
+
+    // Stand in for a remote that accepts the connection and never replies.
+    let mut cmd = if cfg!(target_os = "windows") {
+        let mut c = std::process::Command::new("cmd");
+        c.arg("/c").arg("timeout").arg("/t").arg("30").arg("/nobreak");
+        c
+    } else {
+        let mut c = std::process::Command::new("sleep");
+        c.arg("30");
+        c
+    };
+    cmd.stdin(std::process::Stdio::null());
+
+    let started = std::time::Instant::now();
+    let res = run_git_with_timeout(cmd, std::time::Duration::from_millis(300));
+    let elapsed = started.elapsed();
+
+    assert!(matches!(res, Err(GitRunError::Timeout(_))), "expected a timeout, got {:?}", res);
+    assert!(
+        elapsed < std::time::Duration::from_secs(10),
+        "child was not killed promptly: {:?}",
+        elapsed
+    );
+}
+
+#[test]
+fn test_run_git_with_timeout_returns_output_for_fast_commands() {
+    use crate::git_cmd::{git_command, run_git_with_timeout};
+
+    let mut cmd = git_command();
+    cmd.arg("--version");
+    let out = run_git_with_timeout(cmd, std::time::Duration::from_secs(30))
+        .expect("git --version should complete well inside the timeout");
+
+    assert!(out.status.success());
+    assert!(String::from_utf8_lossy(&out.stdout).contains("git"));
+}
+
+#[test]
+fn test_bulk_fetch_failure_state_and_details_popup() {
+    let config = crate::config::Config {
+        items: vec!["/tmp/gitwig_fetch_fail_repo".to_string()],
+        ..Default::default()
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_fetch_fail.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    let item = "/tmp/gitwig_fetch_fail_repo".to_string();
+    let stderr = "git@github.com: Permission denied (publickey).\nfatal: Could not read from remote repository.";
+
+    app.bulk_fetch_round.insert(item.clone());
+    app.bulk_fetch_results.insert(item.clone(), Err(stderr.to_string()));
+    app.bulk_fetch_failures.insert(item.clone(), crate::fetch_error::classify(stderr));
+
+    // The summary must report the failure rather than the old unconditional
+    // "Bulk fetch completed", which read as success even when nothing worked.
+    let summary = app.bulk_fetch_summary();
+    assert!(summary.contains("0 succeeded"), "{}", summary);
+    assert!(summary.contains("1 failed"), "{}", summary);
+
+    // Selecting the failed repository and asking for details must populate the
+    // shared error popup with the cause and the raw git output.
+    app.selected_index = 0;
+    app.show_fetch_failure_details();
+
+    let err = app.error_message.clone().expect("details should open the error popup");
+    assert!(err.contains("auth denied"), "{}", err);
+    assert!(err.contains("Permission denied"), "{}", err);
+    assert!(err.contains(&item), "{}", err);
+}
+
+#[test]
+fn test_show_fetch_failure_details_is_quiet_when_nothing_failed() {
+    let config = crate::config::Config {
+        items: vec!["/tmp/gitwig_fetch_ok_repo".to_string()],
+        ..Default::default()
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_fetch_ok.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.selected_index = 0;
+    app.show_fetch_failure_details();
+
+    assert!(app.error_message.is_none(), "a healthy repo must not raise an error popup");
+}
+
+#[test]
+fn test_bulk_fetch_summary_ignores_results_from_earlier_rounds() {
+    let config = crate::config::Config {
+        items: vec!["a".to_string(), "b".to_string()],
+        ..Default::default()
+    };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_fetch_round.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // "stale" failed in a previous round and is deliberately retained so the user
+    // can still inspect it; it must not be counted against this round.
+    app.bulk_fetch_results.insert("stale".to_string(), Err("boom".to_string()));
+    app.bulk_fetch_results.insert("a".to_string(), Ok("Fetched successfully".to_string()));
+    app.bulk_fetch_round.insert("a".to_string());
+
+    let summary = app.bulk_fetch_summary();
+    assert!(summary.contains("1 repositories up to date"), "{}", summary);
+}
+
+#[test]
+fn test_fetch_timeout_setting_rejects_unusably_short_values() {
+    let config = crate::config::Config::default();
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_fetch_timeout.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    app.settings_selected_index = 84;
+
+    // 0 means "no limit" and is allowed.
+    app.settings_editing = true;
+    app.input_buffer = "0".to_string();
+    app.commit_settings_edit();
+    assert_eq!(app.config.fetch_timeout_secs, 0);
+
+    // 1-4s is shorter than a TLS handshake and would fail every fetch.
+    app.settings_editing = true;
+    app.input_buffer = "3".to_string();
+    app.commit_settings_edit();
+    assert_eq!(app.config.fetch_timeout_secs, 0, "value below the floor must be rejected");
+    assert!(app.settings_editing, "rejected input should keep the editor open");
+
+    app.input_buffer = "45".to_string();
+    app.commit_settings_edit();
+    assert_eq!(app.config.fetch_timeout_secs, 45);
+}
+
+#[test]
+fn test_keybindings_backfill_adds_actions_missing_from_an_older_file() {
+    use crate::keybindings::{Action, KeybindingsConfig};
+
+    let dir = std::env::temp_dir().join(format!(
+        "gitwig_kb_backfill_{}",
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let _guard = TestDirGuard { path: dir.clone() };
+
+    // An older config that predates HomeFetchDetails, with a customised binding
+    // that the migration must not touch.
+    std::fs::write(
+        dir.join("keybindings.toml"),
+        "[home.fetch_all]\nkeys = [\"G\"]\ndescription = \"Fetch all\"\n",
+    )
+    .unwrap();
+
+    let loaded = KeybindingsConfig::load(&dir);
+
+    assert_eq!(
+        loaded.get_action_keys(Action::HomeFetchAll),
+        vec!["G".to_string()],
+        "user's own binding must survive the migration"
+    );
+    assert!(
+        !loaded.get_action_keys(Action::HomeFetchDetails).is_empty(),
+        "newly added action must be backfilled instead of rendering as '-'"
+    );
+}
+
+#[test]
+fn test_fetch_details_action_has_a_unique_default_binding() {
+    use crate::keybindings::{Action, KeybindingsConfig};
+
+    let kb = KeybindingsConfig::default_config();
+    let keys = kb.get_action_keys(Action::HomeFetchDetails);
+    assert!(!keys.is_empty());
+    assert!(
+        kb.find_conflict(Action::HomeFetchDetails, &keys).is_none(),
+        "default binding collides"
+    );
+}
+
+#[test]
+fn test_http_status_errors_are_not_mistaken_for_network_failures() {
+    use crate::fetch_error::{FetchFailure, classify};
+
+    // git wraps HTTP failures as "The requested URL returned error: NNN", which
+    // also contains "unable to access" — the network block would otherwise win and
+    // tell the user to check their VPN when the real problem is their token.
+    assert_eq!(
+        classify(
+            "fatal: unable to access 'https://github.com/x/y.git/': The requested URL returned error: 403"
+        ),
+        FetchFailure::Auth
+    );
+    assert_eq!(
+        classify(
+            "fatal: unable to access 'https://github.com/x/y.git/': The requested URL returned error: 404"
+        ),
+        FetchFailure::NotFound
+    );
+}
+
+#[test]
+fn test_sanitize_keeps_distinct_progress_counters() {
+    use crate::fetch_error::sanitize;
+
+    // Only redraws of the *same* counter should collapse; two different phases
+    // must both survive.
+    let raw = "remote: Counting objects: 100%\rremote: Compressing objects: 5%\rremote: Compressing objects: 100%\r";
+    let cleaned = sanitize(raw);
+
+    assert!(cleaned.contains("Counting objects: 100%"), "{:?}", cleaned);
+    assert!(cleaned.contains("Compressing objects: 100%"), "{:?}", cleaned);
+    assert!(!cleaned.contains("Compressing objects: 5%"), "{:?}", cleaned);
+}

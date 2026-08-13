@@ -478,6 +478,14 @@ pub struct App {
     pub bulk_fetch_results: std::collections::HashMap<String, Result<String, String>>,
     /// Timestamp when the last bulk fetch was completed.
     pub bulk_fetch_completed_at: Option<std::time::Instant>,
+    /// Classified reason for each failed fetch (path -> category), parallel to the
+    /// `Err` entries in `bulk_fetch_results`. Kept separate so the card indicator can
+    /// render a compact label without re-parsing stderr on every frame.
+    pub bulk_fetch_failures: std::collections::HashMap<String, crate::fetch_error::FetchFailure>,
+    /// Repository paths dispatched by the current bulk fetch round. `bulk_fetch_results`
+    /// deliberately outlives a round so failures stay inspectable, so the round summary
+    /// must be counted against this set rather than the whole result map.
+    pub bulk_fetch_round: std::collections::HashSet<String>,
     /// Repository paths currently selected for batch operations.
     pub multi_selected: std::collections::HashSet<String>,
     /// Whether we are currently viewing logs UI.
@@ -1284,6 +1292,8 @@ impl App {
             pending_interactive_rebase: None,
             bulk_fetching: std::collections::HashSet::new(),
             bulk_fetch_results: std::collections::HashMap::new(),
+            bulk_fetch_failures: std::collections::HashMap::new(),
+            bulk_fetch_round: std::collections::HashSet::new(),
             bulk_fetch_completed_at: None,
             multi_selected: std::collections::HashSet::new(),
             in_logs_ui: false,
@@ -1522,8 +1532,9 @@ where
                 }
                 app.bulk_fetch_results
                     .insert(success_path.to_string(), Ok("Fetched successfully".to_string()));
+                app.bulk_fetch_failures.remove(success_path);
                 if app.bulk_fetching.is_empty() {
-                    app.status_message = Some("Bulk fetch completed successfully".to_string());
+                    app.status_message = Some(app.bulk_fetch_summary());
                     app.bulk_fetch_completed_at = Some(std::time::Instant::now());
                 }
                 app.decrement_implicit_network();
@@ -1534,10 +1545,21 @@ where
                     let err_path = &error_data[..pos];
                     let err_msg = &error_data[pos + 3..];
                     app.bulk_fetching.remove(err_path);
+
+                    // Classify once, here, rather than on every render pass.
+                    let failure = crate::fetch_error::classify(err_msg);
+                    app.bulk_fetch_failures.insert(err_path.to_string(), failure);
                     app.bulk_fetch_results.insert(err_path.to_string(), Err(err_msg.to_string()));
+
+                    crate::debug_log::warn(format!(
+                        "Network Action: Fetch failed for '{}' ({}): {}",
+                        err_path,
+                        failure.label(),
+                        err_msg.replace('\n', " / ")
+                    ));
                 }
                 if app.bulk_fetching.is_empty() {
-                    app.status_message = Some("Bulk fetch completed".to_string());
+                    app.status_message = Some(app.bulk_fetch_summary());
                     app.bulk_fetch_completed_at = Some(std::time::Instant::now());
                 }
                 app.decrement_implicit_network();
@@ -2407,7 +2429,11 @@ where
 
         if let Some(completed_at) = app.bulk_fetch_completed_at {
             if completed_at.elapsed().as_secs() >= 30 {
-                app.bulk_fetch_results.clear();
+                // Successes are transient confirmation and fade out. Failures are
+                // retained until the next fetch replaces them, so a repo that is
+                // unreachable does not silently revert to looking healthy while the
+                // user is elsewhere in the app.
+                app.bulk_fetch_results.retain(|_, res| res.is_err());
                 app.bulk_fetch_completed_at = None;
             }
         }

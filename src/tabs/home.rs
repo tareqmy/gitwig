@@ -168,6 +168,8 @@ impl HomeTab {
                     return true;
                 } else if app.is_bound(Action::HomeFetchAll, key) {
                     app.bulk_fetch_all();
+                } else if app.is_bound(Action::HomeFetchDetails, key) {
+                    app.show_fetch_failure_details();
                 } else if app.is_bound(Action::HomeSelect, key) {
                     if let Some(path) = app.get_selected_item() {
                         let path_str = path.clone();

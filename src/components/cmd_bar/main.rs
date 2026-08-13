@@ -49,6 +49,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
     let labels_key = k(crate::keybindings::Action::HomeEditLabels);
     let refresh_key = k(crate::keybindings::Action::HomeRefresh);
     let fetch_key = k(crate::keybindings::Action::HomeFetchAll);
+    let fetch_details_key = k(crate::keybindings::Action::HomeFetchDetails);
     let select_key = k(crate::keybindings::Action::HomeSelect);
     let pin_key = k(crate::keybindings::Action::HomeTogglePin);
     let star_key = k(crate::keybindings::Action::HomeToggleStar);
@@ -80,6 +81,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
         ("Labels", &labels_key),
         ("Refresh", &refresh_key),
         ("Fetch All", &fetch_key),
+        ("Fetch Error", &fetch_details_key),
         ("Select", &select_key),
         ("Pin", &pin_key),
         ("Star", &star_key),

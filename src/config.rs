@@ -29,6 +29,15 @@ fn default_poll_interval_ms() -> u64 {
     100
 }
 
+/// How long a background `git fetch` may run before it is cancelled (seconds).
+///
+/// A remote that accepts the TCP connection but never replies — a firewall
+/// blackhole, a dead VPN route — would otherwise leave the card spinning forever
+/// with no way to clear it. `0` disables the limit.
+fn default_fetch_timeout_secs() -> u64 {
+    30
+}
+
 fn default_max_commits() -> usize {
     500
 }
@@ -122,6 +131,7 @@ impl Default for Config {
         Config {
             items: Vec::new(),
             poll_interval_ms: default_poll_interval_ms(),
+            fetch_timeout_secs: default_fetch_timeout_secs(),
             max_commits: default_max_commits(),
             graph_max_commits: default_graph_max_commits(),
             detail_cache_ttl_secs: default_detail_cache_ttl_secs(),
@@ -279,6 +289,10 @@ pub struct Config {
     /// Lower → more responsive, higher → less CPU. Sane range: 16–500.
     #[serde(default = "default_poll_interval_ms")]
     pub poll_interval_ms: u64,
+    /// Seconds a background `git fetch` may run before it is cancelled (default: 30).
+    /// `0` disables the limit. Raise it for slow remotes on high-latency links.
+    #[serde(default = "default_fetch_timeout_secs")]
+    pub fetch_timeout_secs: u64,
     /// Maximum commits to load in workspace view. Default is 0 (unlimited).
     #[serde(default = "default_max_commits")]
     pub max_commits: usize,
@@ -466,6 +480,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
     let fallback = Config {
         items: vec![],
         poll_interval_ms: default_poll_interval_ms(),
+        fetch_timeout_secs: default_fetch_timeout_secs(),
         max_commits: default_max_commits(),
         graph_max_commits: default_graph_max_commits(),
         detail_cache_ttl_secs: default_detail_cache_ttl_secs(),
@@ -617,6 +632,7 @@ pub fn load_config(
             Config {
                 items: vec![],
                 poll_interval_ms: default_poll_interval_ms(),
+                fetch_timeout_secs: default_fetch_timeout_secs(),
                 max_commits: default_max_commits(),
                 graph_max_commits: default_graph_max_commits(),
                 detail_cache_ttl_secs: default_detail_cache_ttl_secs(),
@@ -748,6 +764,7 @@ pub fn load_config(
             "Still looking... it's not here either.".to_string(),
         ],
         poll_interval_ms: default_poll_interval_ms(),
+        fetch_timeout_secs: default_fetch_timeout_secs(),
         max_commits: default_max_commits(),
         graph_max_commits: default_graph_max_commits(),
         detail_cache_ttl_secs: default_detail_cache_ttl_secs(),

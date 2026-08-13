@@ -26,6 +26,8 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 mod app;
 mod config;
 mod debug_log;
+pub mod fetch_error;
+pub mod git_cmd;
 mod input;
 pub mod keybindings;
 pub mod mouse;

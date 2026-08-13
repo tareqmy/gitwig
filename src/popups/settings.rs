@@ -16,7 +16,7 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wrap};
 
 const GENERAL_SETTING_INDICES: &[usize] =
-    &[9, 56, 55, 0, 60, 13, 65, 66, 12, 58, 62, 63, 7, 80, 81];
+    &[9, 56, 55, 0, 60, 84, 13, 65, 66, 12, 58, 62, 63, 7, 80, 81];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 8, 83, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3, 67, 82];
@@ -72,6 +72,8 @@ const HOME_SETTING_INDICES: &[usize] = &[
     29, // Home: Open About Dialog
     78, // Home: Signs & Symbols Legend
     57, // Home: Check Updates
+    74, // Home: Fetch All
+    85, // Home: Fetch Error Details
 ];
 const WORKSPACE_SETTING_INDICES: &[usize] =
     &[100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116];
@@ -87,7 +89,7 @@ const ALL_KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     16, 15, 14, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 68, 69,
     // Home Screen Keys
     17, 18, 19, 20, 21, 22, 38, 75, 33, 71, 72, 73, 76, 37, 30, 31, 32, 77, 23, 24, 35, 25, 26, 28,
-    70, 36, 27, 29, 78, 57, // Workspace Tab Keys
+    70, 36, 27, 29, 78, 57, 74, 85, // Workspace Tab Keys
     100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
     // Files & Branch Keys
     120, 121, 122, 123, 124, 125, 126, 127, 130, 131, 132, 133, 134, 135, 136, 137, 138,
@@ -207,6 +209,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         55 => "SSH Strict Host Checking",
         56 => "Editor Command",
         60 => "Auto-Fetch Interval (mins)",
+        84 => "Fetch Timeout (secs)",
         61 => "Watch Directories",
         62 => "Show CPU/MEM in Status Bar",
         63 => "Enable Commit Signatures",
@@ -265,6 +268,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         72 => "Home: Yank Path",
         73 => "Home: Jump Picker",
         74 => "Home: Fetch All",
+        85 => "Home: Fetch Error Details",
         75 => "Home: Toggle Selection",
         76 => "Home: Global Code Search",
         77 => "Home: Cycle View Mode",
@@ -424,6 +428,9 @@ fn get_desc(global_idx: usize) -> &'static str {
         83 => {
             "Enable/disable the background file watcher that auto-discovers new git repositories in Watch Directories."
         }
+        84 => {
+            "Seconds a background fetch may run before it is cancelled. Prevents an unreachable remote from hanging a repository card forever. Set to 0 to disable the limit."
+        }
         14 => "Toggles the status bar between collapsed and expanded view.",
         15 => "Opens the global help overlay.",
         16 => "Exits the application or closes the active settings/popup dialog.",
@@ -480,6 +487,7 @@ fn get_desc(global_idx: usize) -> &'static str {
         72 => "Yank absolute path of selected repository to clipboard.",
         73 => "Open fuzzy Jump-to-Repo picker overlay.",
         74 => "Bulk fetch all tracked repositories concurrently.",
+        85 => "Show the full git error explaining why the selected repository failed to fetch.",
         75 => "Toggle selection of repository for batch operations.",
         76 => "Open global code search popup overlay.",
         77 => "Cycles the repository list layout between Normal, Compact, and Tile views.",
@@ -636,6 +644,13 @@ pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
             }
             81 => app.config.show_stale_projects.to_string(),
             83 => app.config.enable_watch_dirs.to_string(),
+            84 => {
+                if is_selected && app.settings_editing {
+                    format!("{}█", app.input_buffer)
+                } else {
+                    app.config.fetch_timeout_secs.to_string()
+                }
+            }
             _ => String::new(),
         }
     }

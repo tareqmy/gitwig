@@ -67,7 +67,7 @@ impl App {
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
                         // 1. Checkout the destination branch
-                        let checkout_output = std::process::Command::new("git")
+                        let checkout_output = crate::git_cmd::git_command()
                             .arg("checkout")
                             .arg(&dest_branch)
                             .current_dir(&repo_path)
@@ -79,9 +79,7 @@ impl App {
                         }
 
                         // 2. Perform cherry-pick
-                        let output = std::process::Command::new("git")
-                            .env("GIT_TERMINAL_PROMPT", "0")
-                            .env("GIT_SSH_COMMAND", crate::config::ssh_command_val())
+                        let output = crate::git_cmd::git_command()
                             .arg("cherry-pick")
                             .arg(&commit_oid)
                             .current_dir(&repo_path)
@@ -147,9 +145,7 @@ impl App {
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                        let output = std::process::Command::new("git")
-                            .env("GIT_TERMINAL_PROMPT", "0")
-                            .env("GIT_SSH_COMMAND", crate::config::ssh_command_val())
+                        let output = crate::git_cmd::git_command()
                             .arg("revert")
                             .arg("--no-edit")
                             .arg(&commit_oid)

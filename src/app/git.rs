@@ -97,20 +97,20 @@ impl App {
             self.status_message = Some("Git LFS Pulling...".to_string());
 
             let repo_path = resolved.clone();
+            let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
             let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
             std::thread::spawn(move || {
                 let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                    let output = std::process::Command::new("git")
-                        .arg("lfs")
-                        .arg("pull")
-                        .current_dir(&repo_path)
-                        .output()?;
+                    let mut cmd = git_command();
+                    cmd.arg("lfs").arg("pull").current_dir(&repo_path);
+                    let output = crate::git_cmd::run_git_with_timeout(cmd, timeout)?;
 
                     if output.status.success() {
                         Ok("Git LFS files pulled successfully".to_string())
                     } else {
-                        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                        let err_msg =
+                            crate::fetch_error::sanitize(&String::from_utf8_lossy(&output.stderr));
                         Err(format!("git lfs pull failed: {}", err_msg).into())
                     }
                 })();
@@ -1168,22 +1168,23 @@ impl App {
 
             let repo_path = resolved.clone();
             let remote_name = remote_name.to_string();
+            let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
             let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
             std::thread::spawn(move || {
                 let res = (|| -> Result<String, Box<dyn std::error::Error>> {
                     let safe_remote = safe_ref(&remote_name)?;
-                    let output = git_command()
-                        .arg("fetch")
-                        .arg(safe_remote)
-                        .current_dir(&repo_path)
-                        .output()?;
+                    let mut cmd = git_command();
+                    cmd.arg("fetch").arg(safe_remote).current_dir(&repo_path);
+                    let output = crate::git_cmd::run_git_with_timeout(cmd, timeout)?;
 
                     if output.status.success() {
                         Ok(format!("Fetched remote '{}' successfully", remote_name))
                     } else {
-                        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
-                        Err(format!("git fetch failed: {}", err_msg).into())
+                        let err_msg =
+                            crate::fetch_error::sanitize(&String::from_utf8_lossy(&output.stderr));
+                        let failure = crate::fetch_error::classify(&err_msg);
+                        Err(format!("{} — {}", failure.summary(), err_msg).into())
                     }
                 })();
 
@@ -1276,51 +1277,7 @@ impl App {
             return;
         }
         crate::debug_log::info("Network Action: Bulk fetching all repositories (user triggered)");
-
-        let items = self.config.items.clone();
-        for (idx, item) in items.iter().enumerate() {
-            let status = self.statuses.get(idx);
-            let is_git = matches!(status, Some(repo::ItemStatus::GitRepo(_)));
-            if is_git {
-                let path = repo::expand_tilde(item);
-                let path_buf = PathBuf::from(&path);
-                if path_buf.exists() {
-                    let path_str = item.clone();
-                    let r_name = path_buf.file_name().and_then(|s| s.to_str()).unwrap_or(&path_str);
-                    let remote_url = repo::get_default_remote_url(&path_buf)
-                        .unwrap_or_else(|| "(no url)".to_string());
-                    crate::debug_log::info(format!(
-                        "Network Action: Fetching repository '{}' [url: '{}'] during bulk fetch (user triggered)",
-                        r_name, remote_url
-                    ));
-                    self.bulk_fetching.insert(path_str.clone());
-                    self.bulk_fetch_results.remove(&path_str);
-
-                    let tx = self.tx.clone();
-                    std::thread::spawn(move || {
-                        let output = std::process::Command::new("git")
-                            .arg("fetch")
-                            .current_dir(&path_buf)
-                            .output();
-
-                        let msg = match output {
-                            Ok(out) if out.status.success() => {
-                                format!("BULK_FETCH_SUCCESS:{}", path_str)
-                            }
-                            Ok(out) => {
-                                let err_msg =
-                                    String::from_utf8_lossy(&out.stderr).trim().to_string();
-                                format!("BULK_FETCH_ERROR:{}|||{}", path_str, err_msg)
-                            }
-                            Err(e) => {
-                                format!("BULK_FETCH_ERROR:{}|||{}", path_str, e)
-                            }
-                        };
-                        let _ = tx.send(msg);
-                    });
-                }
-            }
-        }
+        self.spawn_bulk_fetch(false);
 
         if !self.bulk_fetching.is_empty() {
             self.status_message =
@@ -1333,51 +1290,132 @@ impl App {
             return;
         }
         crate::debug_log::info("Network Action: Bulk fetching all repositories (scheduled)");
+        self.spawn_bulk_fetch(true);
+    }
+
+    /// One-line outcome of the most recent bulk fetch for the status bar.
+    ///
+    /// Replaces the old unconditional "Bulk fetch completed", which read as success
+    /// even when every remote had been refused.
+    pub fn bulk_fetch_summary(&self) -> String {
+        let round: Vec<&Result<String, String>> = self
+            .bulk_fetch_round
+            .iter()
+            .filter_map(|path| self.bulk_fetch_results.get(path))
+            .collect();
+        let failed = round.iter().filter(|r| r.is_err()).count();
+        let ok = round.len() - failed;
+
+        if failed == 0 {
+            return format!("Bulk fetch completed — {} repositories up to date", ok);
+        }
+
+        let key = self.keybindings.format_action_keys(
+            crate::keybindings::Action::HomeFetchDetails,
+            self.config.compatibility_mode,
+        );
+        format!("Bulk fetch: {} succeeded, {} failed (press {} for details)", ok, failed, key)
+    }
+
+    /// Opens the full, sanitised fetch error for the selected repository in the
+    /// shared error popup. No-op when the selection did not fail.
+    pub fn show_fetch_failure_details(&mut self) {
+        let item = match self.get_selected_item() {
+            Some(item) => item.clone(),
+            None => return,
+        };
+
+        let detail = match self.bulk_fetch_results.get(&item) {
+            Some(Err(err)) => err.clone(),
+            _ => {
+                self.status_message =
+                    Some("No fetch error recorded for this repository".to_string());
+                return;
+            }
+        };
+
+        let failure = self
+            .bulk_fetch_failures
+            .get(&item)
+            .copied()
+            .unwrap_or(crate::fetch_error::FetchFailure::Unknown);
+
+        let remote = repo::get_default_remote_url(&repo::expand_tilde(&item))
+            .unwrap_or_else(|| "(no remote configured)".to_string());
+
+        self.error_message = Some(format!(
+            "Fetch failed: {}\n\nRepository: {}\nRemote: {}\n\n{}\n\n--- git output ---\n{}",
+            failure.label(),
+            item,
+            remote,
+            failure.summary(),
+            detail
+        ));
+    }
+
+    /// Spawns one bounded background fetch per tracked git repository.
+    ///
+    /// Shared by the user-triggered (`F`) and scheduled auto-refresh paths, which
+    /// differ only in how the round is described in the debug log. Each thread uses
+    /// [`crate::git_cmd::git_command`] so an unreachable or permission-denied remote
+    /// can never open a prompt on the controlling terminal, and is bounded by
+    /// `config.fetch_timeout_secs` so a silent remote cannot pin the card spinner.
+    fn spawn_bulk_fetch(&mut self, scheduled: bool) {
+        let origin = if scheduled { "scheduled" } else { "user triggered" };
+        let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
+        self.bulk_fetch_round.clear();
+        // Otherwise a stale timestamp from a round that finished less than 30s ago
+        // can expire mid-round and wipe this round's results.
+        self.bulk_fetch_completed_at = None;
 
         let items = self.config.items.clone();
         for (idx, item) in items.iter().enumerate() {
-            let status = self.statuses.get(idx);
-            let is_git = matches!(status, Some(repo::ItemStatus::GitRepo(_)));
-            if is_git {
-                let path = repo::expand_tilde(item);
-                let path_buf = PathBuf::from(&path);
-                if path_buf.exists() {
-                    let path_str = item.clone();
-                    let r_name = path_buf.file_name().and_then(|s| s.to_str()).unwrap_or(&path_str);
-                    let remote_url = repo::get_default_remote_url(&path_buf)
-                        .unwrap_or_else(|| "(no url)".to_string());
-                    crate::debug_log::info(format!(
-                        "Network Action: Fetching repository '{}' [url: '{}'] during bulk fetch (scheduled)",
-                        r_name, remote_url
-                    ));
-                    self.bulk_fetching.insert(path_str.clone());
-                    self.bulk_fetch_results.remove(&path_str);
-                    self.increment_implicit_network();
-
-                    let tx = self.tx.clone();
-                    std::thread::spawn(move || {
-                        let output = std::process::Command::new("git")
-                            .arg("fetch")
-                            .current_dir(&path_buf)
-                            .output();
-
-                        let msg = match output {
-                            Ok(out) if out.status.success() => {
-                                format!("BULK_FETCH_SUCCESS:{}", path_str)
-                            }
-                            Ok(out) => {
-                                let err_msg =
-                                    String::from_utf8_lossy(&out.stderr).trim().to_string();
-                                format!("BULK_FETCH_ERROR:{}|||{}", path_str, err_msg)
-                            }
-                            Err(e) => {
-                                format!("BULK_FETCH_ERROR:{}|||{}", path_str, e)
-                            }
-                        };
-                        let _ = tx.send(msg);
-                    });
-                }
+            if !matches!(self.statuses.get(idx), Some(repo::ItemStatus::GitRepo(_))) {
+                continue;
             }
+            let path_buf = repo::expand_tilde(item);
+            if !path_buf.exists() {
+                continue;
+            }
+
+            let path_str = item.clone();
+            let r_name = path_buf.file_name().and_then(|s| s.to_str()).unwrap_or(&path_str);
+            let remote_url =
+                repo::get_default_remote_url(&path_buf).unwrap_or_else(|| "(no url)".to_string());
+            crate::debug_log::info(format!(
+                "Network Action: Fetching repository '{}' [url: '{}'] during bulk fetch ({})",
+                r_name, remote_url, origin
+            ));
+
+            self.bulk_fetching.insert(path_str.clone());
+            self.bulk_fetch_round.insert(path_str.clone());
+            self.bulk_fetch_results.remove(&path_str);
+            self.bulk_fetch_failures.remove(&path_str);
+            // Every dispatched fetch is decremented on completion in `drain_queue`,
+            // so both origins must increment or the counter underflows and the
+            // network-activity indicator goes dark while work is still running.
+            self.increment_implicit_network();
+
+            let tx = self.tx.clone();
+            std::thread::spawn(move || {
+                let mut cmd = crate::git_cmd::git_command();
+                cmd.arg("fetch").current_dir(&path_buf);
+
+                let msg = match crate::git_cmd::run_git_with_timeout(cmd, timeout) {
+                    Ok(out) if out.status.success() => {
+                        format!("BULK_FETCH_SUCCESS:{}", path_str)
+                    }
+                    Ok(out) => {
+                        let err_msg =
+                            crate::fetch_error::sanitize(&String::from_utf8_lossy(&out.stderr));
+                        format!("BULK_FETCH_ERROR:{}|||{}", path_str, err_msg)
+                    }
+                    // `GitRunError::Timeout`'s Display carries the wording that
+                    // `fetch_error::classify` recognises as a timeout.
+                    Err(e) => format!("BULK_FETCH_ERROR:{}|||{}", path_str, e),
+                };
+                let _ = tx.send(msg);
+            });
         }
     }
 
@@ -2023,13 +2061,10 @@ impl App {
     }
 }
 
+/// Re-export of the shared hardened builder so the call sites in this module keep
+/// their short local name. See [`crate::git_cmd::git_command`].
 fn git_command() -> std::process::Command {
-    let mut cmd = std::process::Command::new("git");
-    cmd.env("GIT_TERMINAL_PROMPT", "0");
-    cmd.env("GIT_SSH_COMMAND", crate::config::ssh_command_val());
-    cmd.env("GIT_ALLOW_PROTOCOL", "https:ssh:git:file");
-    cmd.env("GIT_PROTOCOL_FROM_USER", "0");
-    cmd
+    crate::git_cmd::git_command()
 }
 
 fn safe_ref(r: &str) -> Result<&str, String> {

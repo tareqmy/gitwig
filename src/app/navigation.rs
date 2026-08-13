@@ -2485,6 +2485,10 @@ impl App {
                 self.settings_editing = true;
                 self.input_buffer = self.config.auto_fetch_interval_mins.to_string();
             }
+            84 => {
+                self.settings_editing = true;
+                self.input_buffer = self.config.fetch_timeout_secs.to_string();
+            }
             61 => {
                 self.settings_editing = true;
                 self.input_buffer = self.config.watch_dirs.join(",");
@@ -2677,6 +2681,24 @@ impl App {
                     self.persist("Auto-fetch interval updated");
                     self.settings_editing = false;
                     self.input_buffer.clear();
+                } else {
+                    self.status_message = Some("Invalid integer".to_string());
+                }
+            }
+            84 => {
+                if let Ok(val) = trimmed.parse::<u64>() {
+                    // 0 disables the limit; anything between 1 and 4 seconds is
+                    // shorter than a normal TLS handshake and would fail every fetch.
+                    if val == 0 || val >= 5 {
+                        self.config.fetch_timeout_secs = val;
+                        self.persist("Fetch timeout updated");
+                        self.settings_editing = false;
+                        self.input_buffer.clear();
+                    } else {
+                        self.status_message = Some(
+                            "Fetch timeout must be 0 (disabled) or at least 5 seconds".to_string(),
+                        );
+                    }
                 } else {
                     self.status_message = Some("Invalid integer".to_string());
                 }
@@ -3835,13 +3857,10 @@ impl App {
     }
 }
 
+/// Re-export of the shared hardened builder so the call sites in this module keep
+/// their short local name. See [`crate::git_cmd::git_command`].
 fn git_command() -> std::process::Command {
-    let mut cmd = std::process::Command::new("git");
-    cmd.env("GIT_TERMINAL_PROMPT", "0");
-    cmd.env("GIT_SSH_COMMAND", crate::config::ssh_command_val());
-    cmd.env("GIT_ALLOW_PROTOCOL", "https:ssh:git:file");
-    cmd.env("GIT_PROTOCOL_FROM_USER", "0");
-    cmd
+    crate::git_cmd::git_command()
 }
 
 fn _safe_ref(r: &str) -> Result<&str, String> {
