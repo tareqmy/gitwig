@@ -15,7 +15,7 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::panic))]
 
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use git2::{Repository, StatusOptions, StatusShow};
 
@@ -493,6 +493,78 @@ fn git_command() -> std::process::Command {
     cmd.env("GIT_ALLOW_PROTOCOL", "https:ssh:git:file");
     cmd.env("GIT_PROTOCOL_FROM_USER", "0");
     cmd
+}
+
+/// How often the supervising thread checks whether the child has exited.
+const GIT_TIMEOUT_POLL_INTERVAL: Duration = Duration::from_millis(50);
+
+/// Runs `cmd` to completion, killing it if it exceeds `timeout`.
+///
+/// A remote that accepts the TCP connection but never replies would otherwise
+/// leave the caller blocked forever inside `Command::output()`. Mirrors
+/// `crate::git_cmd::run_git_with_timeout` in the `gitwig` binary crate, which
+/// this crate cannot depend on. A zero timeout means "no limit".
+fn run_git_with_timeout(
+    mut cmd: std::process::Command,
+    timeout: Duration,
+) -> Result<std::process::Output, Box<dyn std::error::Error>> {
+    if timeout.is_zero() {
+        return Ok(cmd.output()?);
+    }
+
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    let mut child = cmd.spawn()?;
+
+    let mut out_pipe = child.stdout.take();
+    let mut err_pipe = child.stderr.take();
+    let out_reader = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        if let Some(p) = out_pipe.as_mut() {
+            let _ = std::io::Read::read_to_end(p, &mut buf);
+        }
+        buf
+    });
+    let err_reader = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        if let Some(p) = err_pipe.as_mut() {
+            let _ = std::io::Read::read_to_end(p, &mut buf);
+        }
+        buf
+    });
+
+    let started = Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Some(status),
+            Ok(None) => {
+                if started.elapsed() >= timeout {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break None;
+                }
+                std::thread::sleep(GIT_TIMEOUT_POLL_INTERVAL);
+            }
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(e.into());
+            }
+        }
+    };
+
+    let stdout = out_reader.join().unwrap_or_default();
+    let stderr = err_reader.join().unwrap_or_default();
+
+    match status {
+        Some(status) => Ok(std::process::Output { status, stdout, stderr }),
+        None => {
+            Err(format!("git did not respond within {}s and was cancelled", timeout.as_secs())
+                .into())
+        }
+    }
 }
 
 pub fn safe_ref(r: &str) -> Result<&str, String> {
@@ -2621,16 +2693,13 @@ pub fn delete_remote_tag(
     repo_path: &Path,
     remote_name: &str,
     tag_name: &str,
+    timeout: Duration,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let safe_remote = safe_ref(remote_name)?;
     let safe_tag = safe_ref(tag_name)?;
-    let output = git_command()
-        .arg("push")
-        .arg(safe_remote)
-        .arg("--delete")
-        .arg(safe_tag)
-        .current_dir(repo_path)
-        .output()?;
+    let mut cmd = git_command();
+    cmd.arg("push").arg(safe_remote).arg("--delete").arg(safe_tag).current_dir(repo_path);
+    let output = run_git_with_timeout(cmd, timeout)?;
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
         return Err(err.into());
@@ -2658,14 +2727,12 @@ pub fn checkout_tag(repo_path: &Path, tag_name: &str) -> Result<(), git2::Error>
 pub fn get_remote_tags(
     repo_path: &Path,
     remote_name: &str,
+    timeout: Duration,
 ) -> Result<Vec<BranchInfo>, Box<dyn std::error::Error>> {
     let safe_remote = safe_ref(remote_name)?;
-    let output = git_command()
-        .arg("ls-remote")
-        .arg("--tags")
-        .arg(safe_remote)
-        .current_dir(repo_path)
-        .output()?;
+    let mut cmd = git_command();
+    cmd.arg("ls-remote").arg("--tags").arg(safe_remote).current_dir(repo_path);
+    let output = run_git_with_timeout(cmd, timeout)?;
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -3752,6 +3819,32 @@ mod tests {
     }
 
     #[test]
+    fn test_run_git_with_timeout_kills_a_hanging_child() {
+        // Stand in for a remote that accepts the connection and never replies.
+        let mut cmd = if cfg!(target_os = "windows") {
+            let mut c = std::process::Command::new("cmd");
+            c.arg("/c").arg("timeout").arg("/t").arg("30").arg("/nobreak");
+            c
+        } else {
+            let mut c = std::process::Command::new("sleep");
+            c.arg("30");
+            c
+        };
+        cmd.stdin(std::process::Stdio::null());
+
+        let started = Instant::now();
+        let res = run_git_with_timeout(cmd, Duration::from_millis(300));
+        let elapsed = started.elapsed();
+
+        assert!(res.is_err(), "expected a timeout error, got {:?}", res);
+        assert!(
+            elapsed < Duration::from_secs(10),
+            "child was not killed promptly: {:?}",
+            elapsed
+        );
+    }
+
+    #[test]
     fn test_get_lfs_info() {
         let mut temp_path = std::env::temp_dir();
         temp_path.push(format!(
@@ -3905,8 +3998,8 @@ mod tests {
         let _ = delete_local_branch(&temp_path, "new-branch-2");
         let _ = delete_remote_branch(&temp_path, "origin/new-branch-2");
         let _ = create_tag(&temp_path, "v1.0.0", &head_oid, None, false);
-        let _ = delete_remote_tag(&temp_path, "origin", "v1.0.0");
-        let _ = get_remote_tags(&temp_path, "origin");
+        let _ = delete_remote_tag(&temp_path, "origin", "v1.0.0", Duration::from_secs(5));
+        let _ = get_remote_tags(&temp_path, "origin", Duration::from_secs(5));
 
         // 6. Test serialize & deserialize tags
         let tag_info = vec![BranchInfo {
@@ -5227,8 +5320,8 @@ mod tests {
         let _ = delete_local_branch(nonexistent, "branch");
         let _ = delete_remote_branch(nonexistent, "origin/branch");
         let _ = create_tag(nonexistent, "tag", "sha", None, false);
-        let _ = delete_remote_tag(nonexistent, "origin", "tag");
-        let _ = get_remote_tags(nonexistent, "origin");
+        let _ = delete_remote_tag(nonexistent, "origin", "tag", Duration::from_secs(5));
+        let _ = get_remote_tags(nonexistent, "origin", Duration::from_secs(5));
         let _ = apply_stash(nonexistent, 0);
         let _ = delete_stash(nonexistent, 0);
         let _ = save_stash(nonexistent, "msg", false, false);

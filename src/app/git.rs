@@ -45,6 +45,7 @@ impl App {
 
                 let repo_path = resolved.clone();
                 let branch_name = branch_info.name.clone();
+                let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
                 let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
                 std::thread::spawn(move || {
@@ -55,7 +56,9 @@ impl App {
                         }
 
                         let _safe_branch = safe_ref(&branch_name)?;
-                        let output = git_command().arg("pull").current_dir(&repo_path).output()?;
+                        let mut cmd = git_command();
+                        cmd.arg("pull").current_dir(&repo_path);
+                        let output = crate::git_cmd::run_git_with_timeout(cmd, timeout)?;
 
                         if output.status.success() {
                             Ok(format!("Pulled successfully for '{}'", branch_name))
@@ -215,6 +218,7 @@ impl App {
             self.status_message =
                 Some(format!("Pushing '{}'{} to '{}'...", branch_name, tags_desc, remote_name));
 
+            let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
             let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
             std::thread::spawn(move || {
                 let res = (|| -> Result<String, Box<dyn std::error::Error>> {
@@ -230,7 +234,7 @@ impl App {
                     }
                     cmd.arg(safe_remote).arg(safe_branch).current_dir(&repo_path);
 
-                    let output = cmd.output()?;
+                    let output = crate::git_cmd::run_git_with_timeout(cmd, timeout)?;
 
                     if output.status.success() {
                         let tag_suffix = if push_tags { " (with tags)" } else { "" };
@@ -1121,6 +1125,7 @@ impl App {
             if let Some(remote) = remote {
                 let repo_path = resolved.clone();
                 let remote_name = remote.name.clone();
+                let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
                 let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
                 let reason = if show_progress { "user triggered" } else { "implicit refresh" };
                 let r_name = repo_path.file_name().and_then(|s| s.to_str()).unwrap_or("");
@@ -1136,7 +1141,11 @@ impl App {
                 } else {
                     self.increment_implicit_network();
                 }
-                std::thread::spawn(move || match repo::get_remote_tags(&repo_path, &remote_name) {
+                std::thread::spawn(move || match repo::get_remote_tags(
+                    &repo_path,
+                    &remote_name,
+                    timeout,
+                ) {
                     Ok(tags) => {
                         let serialized = repo::serialize_tags(&tags);
                         let _ = tx.send(format!("REMOTE_TAGS:{}", serialized));
@@ -1505,6 +1514,7 @@ impl App {
             self.fetching = true;
             self.status_message =
                 Some(format!("{} tag '{}' to '{}'...", action_desc, tag_name, remote_name));
+            let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
             let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
             std::thread::spawn(move || {
                 let safe_remote = match safe_ref(&remote_name) {
@@ -1527,7 +1537,7 @@ impl App {
                     cmd.arg("--force");
                 }
                 cmd.current_dir(&repo_path);
-                let output = match cmd.output() {
+                let output = match crate::git_cmd::run_git_with_timeout(cmd, timeout) {
                     Ok(o) => o,
                     Err(e) => {
                         let _ = tx.send(format!("Failed to run git push: {}", e));
@@ -1564,6 +1574,7 @@ impl App {
             ));
             self.fetching = true;
             self.status_message = Some(format!("Pushing all tags to '{}'...", remote_name));
+            let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
             let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
             std::thread::spawn(move || {
                 let safe_remote = match safe_ref(&remote_name) {
@@ -1575,7 +1586,7 @@ impl App {
                 };
                 let mut cmd = git_command();
                 cmd.arg("push").arg(safe_remote).arg("--tags").current_dir(&repo_path);
-                let output = match cmd.output() {
+                let output = match crate::git_cmd::run_git_with_timeout(cmd, timeout) {
                     Ok(o) => o,
                     Err(e) => {
                         let _ = tx.send(format!("Failed to run git push: {}", e));
@@ -1604,11 +1615,12 @@ impl App {
         };
         let tag_name = tag_name.to_string();
         let remote_name = remote_name.to_string();
+        let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
         let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
         self.fetching = true;
         self.status_message = Some(format!("Deleting remote tag '{}'...", tag_name));
         std::thread::spawn(move || {
-            match repo::delete_remote_tag(&repo_path, &remote_name, &tag_name) {
+            match repo::delete_remote_tag(&repo_path, &remote_name, &tag_name, timeout) {
                 Ok(()) => {
                     let _ = tx.send(format!("Deleted remote tag '{}'", tag_name));
                 }
