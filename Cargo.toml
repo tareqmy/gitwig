@@ -17,13 +17,17 @@ keywords = ["git", "cli", "terminal", "tui", "rust"]
 [workspace]
 members = [".", "gitwig-core"]
 
+[lib]
+name = "gitwig"
+path = "src/lib.rs"
+
 [[bin]]
 name = "gitwig"
 path = "src/main.rs"
 
 [[bin]]
 name = "gtg"
-path = "src/main.rs"
+path = "src/bin/gtg.rs"
 
 [dependencies]
 gitwig-core = { path = "gitwig-core", version = "2.5.7" }
