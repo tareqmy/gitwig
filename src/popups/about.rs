@@ -39,36 +39,32 @@ pub fn draw_about_popup(f: &mut Frame, area: Rect, app: &App) {
         ])
         .split(inner);
 
-    // Draw ASCII Leaf / Git Twig Logo on the left
+    // Draw the Gitwig sprout mark on the left: a single-color green twig
+    // curving into a leaf, with commit-node dots (mirrors the brand logo).
     let is_compat = app.config.compatibility_mode;
-    let leaf_style = if is_compat { Style::default() } else { Style::default().fg(Color::Green) };
-    let git_style = if is_compat { Style::default() } else { accent_style() };
+    let mark_style = if is_compat { Style::default() } else { Style::default().fg(Color::Green) };
 
+    // Note: the Paragraph below centers each line independently, so every
+    // line is padded to the same display width to keep the art aligned.
     let logo_text = if is_compat {
         vec![
             Line::from(""), // spacer
-            Line::from(Span::styled("    .-.-.", leaf_style)),
-            Line::from(Span::styled("   (_\\_/_)", leaf_style)),
-            Line::from(Span::styled("     | |", leaf_style)),
-            Line::from(Span::styled("     | /", leaf_style)),
-            Line::from(Span::styled("   .-*-/", git_style)),
-            Line::from(Span::styled("  /  | \\", git_style)),
-            Line::from(Span::styled(" o   |  o", git_style)),
-            Line::from(Span::styled("     o", git_style)),
+            Line::from(Span::styled("       _/ ", mark_style)),
+            Line::from(Span::styled("     .'   ", mark_style)),
+            Line::from(Span::styled("     |  o ", mark_style)),
+            Line::from(Span::styled("     |-'  ", mark_style)),
+            Line::from(Span::styled("     |    ", mark_style)),
+            Line::from(Span::styled("     o    ", mark_style)),
         ]
     } else {
         vec![
             Line::from(""), // spacer
-            Line::from(Span::styled("     ╭───╮", leaf_style)),
-            Line::from(Span::styled("   ╭─╯ 🌿 ╰─╮", leaf_style)),
-            Line::from(Span::styled("   ╰─╮   ╭──╯", leaf_style)),
-            Line::from(Span::styled("     ╰─┬─╯", leaf_style)),
-            Line::from(Span::styled("       │", git_style)),
-            Line::from(Span::styled("     ╭─┴─╮", git_style)),
-            Line::from(Span::styled("    ╭┴─●─╯", git_style)),
-            Line::from(Span::styled("   ╱   │   ╲", git_style)),
-            Line::from(Span::styled("  ●    │    ●", git_style)),
-            Line::from(Span::styled("       ●", git_style)),
+            Line::from(Span::styled("      ╭─🌿", mark_style)),
+            Line::from(Span::styled("     ╭╯   ", mark_style)),
+            Line::from(Span::styled("     │ ●  ", mark_style)),
+            Line::from(Span::styled("     ├─╯  ", mark_style)),
+            Line::from(Span::styled("     │    ", mark_style)),
+            Line::from(Span::styled("     ●    ", mark_style)),
         ]
     };
 
