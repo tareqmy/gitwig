@@ -13,7 +13,7 @@ Press `Enter` on a selected item to open a full-screen Detail view. The detail v
 - Directly jump to tabs using number keys:
   - In **Primary** group: Workspace (`1`), Files (`2`), Graph (`3`), Branches (`4`), Tags (`5`), Remotes (`6`), Stashes (`7`).
   - In **Advanced** group: Worktrees (`1`), Submodules (`2`), Reflog (`3`), Forge Issues (`4`), Forge PRs (`5`).
-- Press `v` from any tab to toggle the repository **Overview** full-screen overlay.
+- Press `O` from any tab to toggle the repository **Overview** full-screen overlay.
 - Alternatively, you can click on the visible tab headers directly with the mouse to switch tabs.
 Press `Esc` or `q` (from the Primary group) to return to the repository list.
 
@@ -109,7 +109,7 @@ The **Reflog** tab lists HEAD reflog entries for the repository, enabling easy r
 
 ### Overview Overlay
 
-Pressing `v` from any repository detail tab displays the **Overview** overlay, showing resolved paths, tracking info, and committer statistics. Press `Esc`, `q`, or `v` to return to your workspace. Press `s` inside the Overview overlay to open the Repository Settings page.
+Pressing `O` from any repository detail tab displays the **Overview** overlay, showing resolved paths, tracking info, and committer statistics. Press `Esc`, `q`, or `O` to return to your workspace. Press `s` inside the Overview overlay to open the Repository Settings page.
 
 ### Navigation & Interaction
 

@@ -72,5 +72,12 @@ show_stale_projects = true
 | `tab_ttl_secs` | `Integer` | `60` | How long in seconds lazy-loaded tab data remains cached in memory before automatic refresh. |
 | `stale_threshold_months` | `Integer` | `1` | Number of months inactive (no commits) for a repository to be considered stale. |
 | `show_stale_projects` | `Boolean` | `true` | Show or hide stale repositories in the list on the main page. |
+| `editor` | `String` | `""` | Custom terminal editor executable to open files with from the Files tab (`e`/`o`). |
+| `ssh_strict_host_checking` | `Boolean` | `false` | Enforce strict SSH host key checking (`StrictHostKeyChecking=yes`). |
+| `git_app` | `String` | `""` | Preferred external Git GUI application (e.g. `gitui` or `lazygit`), launched with `g`. |
+| `show_grouping` | `Boolean` | `true` | Enable or disable repository label grouping sidebar on the home page. |
+| `view_mode` | `String` | `"cards"` | Home page repository list layout mode (`"cards"`, `"compact"`, `"tile"`). Managed by `v`. |
+| `tile_columns` | `Integer` | `0` | Number of columns in tile layout mode (`0` = auto-calculate based on terminal width). |
+| `resync_on_tab_change` | `Boolean` | `false` | Automatically reload repository details from disk when switching tabs. |
 
 Gitwig writes back to whichever file it loaded from, so edits made in the UI persist across runs.

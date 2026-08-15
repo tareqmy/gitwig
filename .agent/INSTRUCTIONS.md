@@ -17,18 +17,7 @@ Welcome, Agent. You are tasked with helping build **Gitwig**, a high-performance
 - **Safety First:** Never perform destructive Git operations without user confirmation (e.g., hard reset, force push).
 - **Context Awareness:** Always check the current Git repository state before making changes or proposing UI updates.
 - **TUI Excellence:** Aim for a responsive UI. Avoid blocking the main thread with heavy Git operations.
-- **Terminal Safety:** Register a custom panic hook at the beginning of `main()` that disables raw mode and leaves the alternate screen before printing the backtrace. Ensure every early-return path (`?` operator or explicit errors) in `main()` runs a centralized clean-up routine to restore the terminal state:
-    ```rust
-    let original_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |panic_info| {
-        let _ = crossterm::terminal::disable_raw_mode();
-        let _ = crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen);
-        original_hook(panic_info);
-    }));
-    ```
-
-## 3. Working with the Codebase
-- **TUI Framework:** Use `ratatui` (currently 0.30) with the `crossterm_0_29` feature. Note that ratatui 0.30's `Backend` trait uses an associated `Error` type (not `io::Error`) — return `Result<(), Box<dyn Error>>` from functions that propagate it.
+- **Terminal Safety:** Terminal lifecycle and error cleanup are centralized in `src/terminal.rs` (`init_terminal`, `TerminalGuard`, `setup_panic_hook`). A custom panic hook disables raw mode and leaves the alternate screen before printing backtraces. The RAII `TerminalGuard` ensures every exit path (normal return, `?` propagation, or early exit) automatically restores terminal state.
 - **Git Integration & Boundary:** Use `git2-rs` for operations. **Never import `git2` directly into UI or rendering files.** All `git2` logic must be routed through the `gitwig-core` workspace crate or safely abstracted in `src/app/git.rs`.
 - **Git Subprocesses:** **Never write `Command::new("git")` directly.** Always build it with `crate::git_cmd::git_command()`, which disables terminal prompts, askpass helpers, and host-key confirmation, and nulls stdin. A bare command inherits the tty, so an unreachable or permission-denied remote lets `ssh` or a credential helper write its prompt into the alternate screen and corrupt the TUI. The only exception is a command that *deliberately* runs interactively after leaving the alternate screen (interactive rebase, mergetool). Any subprocess that touches a remote must additionally be run through `crate::git_cmd::run_git_with_timeout` with `config.fetch_timeout_secs`, so a silent remote cannot hang a background thread forever.
 - **Modal Input:** The app uses a `Mode` enum defined in `src/app/mod.rs`. *Do not assume the variants; always read the source file to check current definitions.* When adding a new keybinding, you must atomically update:
@@ -44,10 +33,13 @@ Welcome, Agent. You are tasked with helping build **Gitwig**, a high-performance
 
 ## 4. Architecture & Refactoring Thresholds
 The crate is organized so each file has a single clear responsibility.
-- **No Inline Main Blocks:** `src/main.rs` is an orchestrator (under ~80 lines). No state, layout, or key processing allowed here.
+- **No Inline Main Blocks:** `src/main.rs` and `src/bin/gtg.rs` are thin binary wrappers (under ~15 lines) calling `gitwig::run()`. Shared execution orchestration lives in `src/lib.rs`.
 - **Module Size Limits:** If any module file exceeds **~300 lines of code**, or if a single struct `impl` block contains more than **5 distinct methods**, you must split it out immediately.
 - **Granular Method Extraction:** Large monolithic blocks—especially nested `match` statements inside event loops (`src/input.rs`) or rendering sweeps—are strictly forbidden. Extract them into smaller, descriptive helper functions (e.g., `fn handle_navigation_keys(...)`).
 - **Standard Blueprint:**
+    - `src/main.rs` & `src/bin/gtg.rs`: Binary entrypoints.
+    - `src/lib.rs`: Shared application execution root (`run()`) and module definitions.
+    - `src/terminal.rs`: Terminal initialization, restore guard, panic hook, CLI options.
     - `src/app/`: Core orchestration, state, git mutations, workspace logic.
     - `src/input.rs` & `src/mouse.rs`: Event routing dispatchers.
     - `src/ui/`: Main rendering logic and layout themes.

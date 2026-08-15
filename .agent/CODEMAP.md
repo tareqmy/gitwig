@@ -10,7 +10,9 @@ Gitwig follows a synchronous, single-threaded model for UI rendering and input h
 
 ```mermaid
 graph TD
-    main[src/main.rs: entry point] --> app_run[src/app/mod.rs: App::run loop]
+    main[src/main.rs or src/bin/gtg.rs: entry point] --> lib_run[src/lib.rs: gitwig::run]
+    lib_run --> term_init[src/terminal.rs: init_terminal & panic hook]
+    lib_run --> app_run[src/app/mod.rs: App::run loop]
     app_run --> render[src/tabs/...: draw]
     app_run --> input[src/input.rs: handle_key]
     input --> event_dispatch[src/tabs/... or src/popups/...: handle_event]
@@ -29,15 +31,17 @@ The codebase is organized into modular single-responsibility crates and files:
 
 | Module / Folder | Location | Description |
 | :--- | :--- | :--- |
-| **Main Entry** | `src/main.rs` | Sets up terminal context, installs a panic hook to safely restore raw mode, and starts `app::run`. |
+| **Main Entries** | `src/main.rs`, `src/bin/gtg.rs` | Thin binary wrappers calling shared `gitwig::run()`. |
+| **Library Root** | `src/lib.rs` | Top-level execution orchestrator (`run`) setting up terminal, loading config, and starting `app::run`. |
+| **Terminal Setup** | `src/terminal.rs` | Terminal initialization, raw mode management, `TerminalGuard` RAII cleanup, custom panic hook, and CLI flags checking. |
 | **State Engine** | `src/app/` | Holds the core `App` struct and splits its method implementations across `mod.rs` (orchestration/drain_queue), `actions.rs` (home repository card mutations), `git.rs` (branches, tags, remotes, push/pull/fetch/rebase), `workspace.rs` (staging, commits, conflict resolution), `navigation.rs` (scrolling, sorting, settings), and `tests.rs` (the test suite). |
 | **Input Router** | `src/input.rs` | Captures keyboard events and delegates routing to the active tab or popup. |
 | **Mouse Handler** | `src/mouse.rs` | Listens to mouse clicks, scrolling, drag-to-resize splitters, and commit popup resize events. |
 | **Component Queue** | `src/queue.rs` | Defines a thread-safe, lock-free queue (`Queue` and `InternalEvent`) used by components to request state changes from the engine. |
 | **Theme & Style** | `src/ui/` | Contains the main rendering logic (`draw.rs`), styling/theme configurations (`style.rs`), layout helper utilities (`layout.rs`), and detailed inspection view (`ui_detail.rs`). |
-| **Modal Popups** | `src/popups/` | Modular modal components for user inputs and confirmations (e.g. `commit.rs`, `confirm.rs`, `settings.rs`, `help.rs`, `forge_comment.rs`). |
-| **Application Tabs**| `src/tabs/` | Drawing logic for the home screen list and individual repository tabs (`home.rs`, `workspace.rs`, `files.rs`, `branches.rs`, `tags.rs`, `stashes.rs`). |
-| **TUI Components** | `src/components/` | Reusable rendering widgets that maintain their own internal visual/table state (e.g. `file_tree.rs`, `commit_list.rs`, `branch_list.rs`, `diff.rs`, `submodule_list.rs`). |
+| **Modal Popups** | `src/popups/` | Modular modal components for user inputs and confirmations (e.g. `commit.rs`, `confirm.rs`, `settings.rs`, `help.rs`, `forge_comment.rs`, `about.rs`). |
+| **Application Tabs**| `src/tabs/` | Drawing logic for the home screen list and individual repository tabs (`home.rs`, `workspace.rs`, `files.rs`, `branches.rs`, `tags.rs`, `stashes.rs`, `worktrees.rs`, `submodules.rs`, `reflog.rs`, `forge.rs`). |
+| **TUI Components** | `src/components/` | Reusable rendering widgets that maintain their own internal visual/table state (e.g. `file_tree.rs`, `commit_list.rs`, `branch_list.rs`, `diff.rs`, `submodule_list.rs`, `cmd_bar/`). |
 | **Git Core Backend** | `gitwig-core/` | Workspace crate containing all libgit2 inspections, repo info collection (`RepoInfo`, `CommitEntry`, etc.), status summaries, and file loading logic. Completely isolated from UI dependencies. |
 | **Configuration** | `src/config.rs` | Manages loading, migrating, and saving TOML settings at `~/.gitwig/config.toml`. |
 
@@ -53,7 +57,12 @@ Keystrokes are interpreted conditionally depending on the active `Mode`:
 - `Mode::Inspect`: Fullscreen diff view (lines/hunks staging and discard).
 - `Mode::CommitInput`: Centered commit message entry dialog.
 - `Mode::BranchCreateInput` / `Mode::TagCreateInput`: Naming new branches/tags.
+- `Mode::TagOverwriteConfirm`: Confirming force update of existing tag.
+- `Mode::CommitCheckoutConfirm` / `Mode::BranchCheckoutConfirm` / `Mode::TagCheckoutConfirm`: Confirmations for checkout operations.
 - `Mode::MergeAbortConfirm` / `Mode::MergeContinueConfirm`: Confirmations for merge abort/continue.
+- `Mode::RepoJump` / `Mode::CommitFuzzySearch` / `Mode::BranchSearchInput` / `Mode::TagSearchInput` / `Mode::FileSearchInput`: Fuzzy search pickers.
+- `Mode::GlobalSearch`: Full-screen multi-repo keyword search.
+- `Mode::StatsDashboard`: App usage statistics and activity heatmap dashboard.
 - `Mode::ForgeCommentPathInput` / `Mode::ForgeCommentLineInput` / `Mode::ForgeCommentBodyInput`: Wizard step inputs for PR reviews.
 - `Mode::*Confirm`: Deleting, pushing, merging, or rebasing confirmations.
 
@@ -62,7 +71,14 @@ Pane focus within tabs in `Mode::Detail` or `Mode::Inspect` is tracked by the `D
 - **Workspace (Tab 0)**: `Commits`, `Staged`, `Unstaged`, `Conflicts`, `CommitDetails`, `StagingDetails`, `ConflictDiff`
 - **Files (Tab 1)**: `Files`, `FileContent`
 - **Branches (Tab 3)**: `LocalBranches`, `RemoteBranches`
+- **Tags (Tab 4)**: `LocalTags`, `RemoteTags`
+- **Remotes (Tab 5)**: `Remotes`
 - **Stashes (Tab 6)**: `Stashes`, `StashedFiles`, `StagingDetails`
+- **Worktrees (Tab 7)**: `Worktrees`
+- **Submodules (Tab 8)**: `Submodules`
+- **Reflog (Tab 9)**: `Reflog`
+- **Forge Issues (Tab 10)**: `ForgeIssues`, `ForgeIssueDetails`
+- **Forge PRs (Tab 11)**: `ForgePRs`, `ForgePRDetails`
 
 ---
 

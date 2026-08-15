@@ -78,7 +78,7 @@
 | `w` / `W`            | Detail          | Cycle panel focus forward (w) / backward (W) |
 | `1` - `7`            | Detail          | Jump directly to Primary tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7) |
 | `1` - `5`            | Detail          | Jump directly to Advanced tab: Worktrees (1), Submodules (2), Reflog (3), Issues (4), PRs (5) (when Advanced group is active) |
-| `X`                  | Detail          | Toggle between Primary and Advanced tab groups |
+| `Z`                  | Detail          | Toggle between Primary and Advanced tab groups |
 | `O`                  | Detail          | Toggle full-screen repository Overview overlay |
 | `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
