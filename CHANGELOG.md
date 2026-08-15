@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [v2.5.8] - 2026-08-15
+### Added
+- **branding**: adopt new sprout logo ([3106f02](https://github.com/tareqmy/gitwig/commit/3106f02))
+
+### Fixed
+- replace unwrap() with expect() in test code to satisfy clippy::unwrap_used ([fc58411](https://github.com/tareqmy/gitwig/commit/fc58411))
+- patch time crate DoS vulnerability (RUSTSEC-2026-0009) ([69f4623](https://github.com/tareqmy/gitwig/commit/69f4623))
+
+### Documentation
+- sync documentation, agent instructions, and configuration options ([bfefd57](https://github.com/tareqmy/gitwig/commit/bfefd57))
+
+### Refactored
+- extract main.rs into lib.rs to fix duplicate build target warning ([9bea5e8](https://github.com/tareqmy/gitwig/commit/9bea5e8))
+
+### Chore
+- migrate deny.toml to current cargo-deny config schema ([fc6a1e3](https://github.com/tareqmy/gitwig/commit/fc6a1e3))
+- **ci**: trigger workflow on master/develop instead of nonexistent main ([f5d9442](https://github.com/tareqmy/gitwig/commit/f5d9442))
+
 ## [v2.5.7] - 2026-08-13
 ### Fixed
 - bound all git push/pull/tag network calls with a timeout ([802ac20](https://github.com/tareqmy/gitwig/commit/802ac20))
