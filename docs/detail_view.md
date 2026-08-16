@@ -148,8 +148,8 @@ Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits`
 - Press `c` / `C` to create a new branch from the currently checked out branch (or HEAD). A popup dialog will prompt for the new branch name.
 - Select any local or remote-tracking branch and press `D` to delete it. A confirmation dialog will prompt before performing the deletion. (The currently checked out branch cannot be deleted).
 - **Commit Staged Changes / Amend Last Commit:** Press `c` from the Workspace tab or from the Inspect view to open a centered Commit popup window (active if there are staged changes OR a prior HEAD commit exists to amend). 
-- **Compose Mode:** Type your commit message. Press `Ctrl+C` to lock in the text and switch to confirmation state, press `Enter` to insert a newline, or `Esc` to cancel.
-- **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, `a` / `A` / `Space` to toggle the "Amend last commit" option, or `Esc`/`q` to close the popup. Toggling amend to active when the buffer is empty automatically populates the text box with the message from the last commit.
+- **Compose Mode:** Type your commit message. Press `Ctrl+S` to submit directly, `Ctrl+U` to clear the entire message buffer, `Ctrl+A` to toggle amend, `Ctrl+H` to pick previous messages from history, `Ctrl+D` to maximize/restore popup size, `Ctrl+C` to lock in the text and switch to confirmation state, press `Enter` to insert a newline, or `Esc` to cancel.
+- **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, `a` / `A` / `Space` to toggle the "Amend last commit" option, `x` / `u` to clear the message, `d` / `m` to maximize/restore popup size, or `Esc`/`q` to close the popup. Toggling amend to active when the buffer is empty automatically populates the text box with the message from the last commit.
 
 For a **plain directory** the view confirms the resolved path and explains that no `.git` entry was found.
 
