@@ -517,7 +517,10 @@ pub fn draw_commit_popup(
         if !editing {
             Span::styled(" (toggle: [a/space] | clear: [x])", muted_style())
         } else {
-            Span::styled(" (submit: [⌃S] | toggle amend: [⌃A] | history: [⌃H])", muted_style())
+            Span::styled(
+                " (submit: [⌃S] | clear: [⌃U] | toggle amend: [⌃A] | history: [⌃H])",
+                muted_style(),
+            )
         },
     ]);
     f.render_widget(Paragraph::new(checkbox_line), chunks[1]);

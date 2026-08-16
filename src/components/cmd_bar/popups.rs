@@ -13,6 +13,7 @@ pub(crate) fn commit_input_editing_entries() -> (Option<Vec<Span<'static>>>, Vec
     let entries_data = [
         ("Done Editing", "⌃C"),
         ("Submit", "⌃S"),
+        ("Clear", "⌃U"),
         ("Toggle Amend", "⌃A"),
         ("History", "⌃H"),
         ("Newline", "↵"),
@@ -30,6 +31,7 @@ pub(crate) fn commit_input_confirm_entries(
     let entries_data = [
         ("Submit Commit", "↵"),
         (amend_toggle_label, "a/space"),
+        ("Clear", "x"),
         ("Edit Message", "e"),
         ("Cancel", "⎋/q"),
         ("Max Size", "d"),
@@ -583,4 +585,28 @@ pub(crate) fn confirm_submodule_delete_entries(
         ]),
     ];
     (message_spans, entries)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_commit_input_entries_include_clear() {
+        let (_, editing_entries) = commit_input_editing_entries();
+        let editing_text: String = editing_entries
+            .iter()
+            .flat_map(|e| e.spans.iter().map(|s| s.content.as_ref()))
+            .collect();
+        assert!(editing_text.contains("Clear"));
+        assert!(editing_text.contains("⌃U"));
+
+        let (_, confirm_entries) = commit_input_confirm_entries(false);
+        let confirm_text: String = confirm_entries
+            .iter()
+            .flat_map(|e| e.spans.iter().map(|s| s.content.as_ref()))
+            .collect();
+        assert!(confirm_text.contains("Clear"));
+        assert!(confirm_text.contains("x"));
+    }
 }

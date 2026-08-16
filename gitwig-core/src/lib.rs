@@ -430,41 +430,31 @@ pub fn unstage_file(repo_path: &Path, file_path: &str) -> Result<(), String> {
 
 pub fn sanitize_text(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == 0x1B {
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1B' {
             // Escape character: let's skip the sequence
-            i += 1;
-            if i < bytes.len() && bytes[i] == b'[' {
-                i += 1;
-                while i < bytes.len() {
-                    let c = bytes[i];
-                    i += 1;
+            if let Some(&'[') = chars.peek() {
+                chars.next();
+                for seq_c in chars.by_ref() {
                     // ANSI escape sequences end with letters (A-Z, a-z)
-                    if c.is_ascii_alphabetic() {
+                    if seq_c.is_ascii_alphabetic() {
                         break;
                     }
                 }
             } else {
                 // Single ESC character or other VT100: skip it
-                while i < bytes.len() {
-                    let c = bytes[i];
-                    i += 1;
-                    if c == b' ' || c.is_ascii_alphabetic() {
+                for seq_c in chars.by_ref() {
+                    if seq_c == ' ' || seq_c.is_ascii_alphabetic() {
                         break;
                     }
                 }
             }
-        } else {
-            let c = bytes[i];
+        } else if (c < ' ' || c == '\x7F') && c != '\n' && c != '\r' && c != '\t' {
             // Replace non-printable control characters except \n, \r, \t
-            if c < 0x20 && c != b'\n' && c != b'\r' && c != b'\t' {
-                result.push(' ');
-            } else {
-                result.push(c as char);
-            }
-            i += 1;
+            result.push(' ');
+        } else {
+            result.push(c);
         }
     }
     result
@@ -1201,7 +1191,7 @@ fn collect_commits(
         let _ = std::fs::create_dir_all(dir);
     }
     let hash = hash_path(repo_path);
-    let cache_file = cache_dir.as_ref().map(|d| d.join(format!("{}.json", hash)));
+    let cache_file = cache_dir.as_ref().map(|d| d.join(format!("v2_{}.json", hash)));
     let mut cache: std::collections::HashMap<String, CachedCommit> = cache_file
         .as_ref()
         .and_then(|f| std::fs::read_to_string(f).ok())
@@ -5157,6 +5147,11 @@ mod tests {
         // 4. sanitize_text
         assert_eq!(sanitize_text("hello\nworld\r\t\x01"), "hello\nworld\r\t ");
         assert_eq!(sanitize_text("hello\x1B[31mworld\x1B B"), "helloworldB");
+        assert_eq!(sanitize_text("M4 — UAS"), "M4 — UAS");
+        assert_eq!(
+            sanitize_text("feat: support utf-8 — – … 🚀 日本語"),
+            "feat: support utf-8 — – … 🚀 日本語"
+        );
 
         // 5. safe_sha_slice
         assert_eq!(safe_sha_slice("12345", 10), "12345");
