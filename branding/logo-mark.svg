@@ -1,5 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64">
-  <path d="M38 13 L18 13 L18 37 L38 37" stroke="#4db08a" stroke-width="5.5" fill="none" stroke-linecap="square"></path>
-  <path d="M38 9 L38 45 L27 53" stroke="#4db08a" stroke-width="5.5" fill="none" stroke-linecap="square"></path>
-  <rect x="21" y="50" width="8" height="8" transform="rotate(45 25 54)" fill="#bd6b3d"></rect>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="674" viewBox="-16 24 88 116" role="img" aria-label="Gitwig">
+  <mask id="gitwig-mark" maskUnits="userSpaceOnUse" x="-16" y="24" width="88" height="116">
+    <rect x="-16" y="24" width="88" height="116" fill="#fff"/>
+    <!-- Leaf and ring interior are knocked out, so they read as true negative space. -->
+    <path d="M8 8 C21 7 29 15 27 40 C13 41 6 29 8 8 Z" transform="translate(13 40)" fill="#000"/>
+    <circle cx="13" cy="109" r="7" fill="#000"/>
+  </mask>
+  <g mask="url(#gitwig-mark)">
+    <path d="M28.2 93.24H24.24Q15 93.24 10.26 88.2Q5.52 83.16 5.52 73.68V54.36Q5.52 44.88 10.68 39.84Q15.84 34.8 25.32 34.8H53.04Q55.68 34.8 55.68 37.32V96.48Q55.68 105.84 50.46 110.88Q45.24 115.92 35.88 115.92H12.84Q11.4 115.92 10.86 115.38Q10.32 114.84 10.32 113.52V105.24Q10.32 102.72 12.84 102.72H33.36Q37.2 102.72 38.82 101.1Q40.44 99.48 40.44 95.76V86.64H39.96Q38.64 89.88 35.28 91.56Q31.92 93.24 28.2 93.24ZM40.44 70.92V49.32Q40.44 48 39 48H27.72Q23.88 48 22.32 49.62Q20.76 51.24 20.76 55.08V72.96Q20.76 76.8 22.32 78.36Q23.88 79.92 27.72 79.92H32.16Q40.44 79.92 40.44 70.92Z" fill="#4db08a"/>
+    <rect x="15" y="42" width="32" height="46" rx="12" fill="#4db08a"/>
+  </g>
+  <circle cx="13" cy="109" r="7" fill="none" stroke="#bd6b3d" stroke-width="4"/>
+  <circle cx="1" cy="120" r="3.5" fill="#bd6b3d" opacity="0.75"/>
+  <circle cx="-5.5" cy="128" r="2" fill="#bd6b3d" opacity="0.45"/>
 </svg>

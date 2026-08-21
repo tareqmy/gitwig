@@ -41,43 +41,62 @@ pub fn draw_about_popup(f: &mut Frame, area: Rect, app: &App) {
         ])
         .split(inner);
 
-    // Draw the Gitwig `g` mark on the left: the bowl and stem in box-drawing
-    // strokes, with the copper rivet on the tail tip (mirrors branding/logo-mark.svg).
+    // Draw the Gitwig `g` mark on the left: the bowl and tail in box-drawing
+    // strokes, the copper HEAD ring capping the tail, and two commits trailing
+    // off below it (mirrors branding/logo-mark.svg).
     let is_compat = app.config.compatibility_mode;
-    // Brand palette (Verdigris): verdigris #4db08a strokes, copper #bd6b3d rivet.
+    // Brand palette (Verdigris): verdigris #4db08a glyph, copper #bd6b3d nodes.
     let mark_style =
         if is_compat { Style::default() } else { Style::default().fg(BRAND_VERDIGRIS()) };
-    let rivet_style =
-        if is_compat { Style::default() } else { Style::default().fg(BRAND_COPPER()) };
+    let node_style = if is_compat { Style::default() } else { Style::default().fg(BRAND_COPPER()) };
+    // The furthest commit is at opacity 0.45 in the vector mark; DIM is the
+    // closest a terminal gets to that without assuming a background color.
+    let node_faint_style = node_style.add_modifier(Modifier::DIM);
 
     // Note: the Paragraph below centers each line independently, so every
     // line is padded to the same display width to keep the art aligned.
     let logo_text = if is_compat {
         vec![
             Line::from(""), // spacer
-            Line::from(Span::styled("     |   ", mark_style)),
-            Line::from(Span::styled("  ,--+   ", mark_style)),
-            Line::from(Span::styled("  |  |   ", mark_style)),
-            Line::from(Span::styled("  '--+   ", mark_style)),
-            Line::from(Span::styled("     |   ", mark_style)),
+            Line::from(Span::styled("   ,--. ", mark_style)),
+            Line::from(Span::styled("   |  | ", mark_style)),
+            Line::from(Span::styled("   '--+ ", mark_style)),
+            Line::from(Span::styled("      | ", mark_style)),
             Line::from(vec![
-                Span::styled("   ", mark_style),
-                Span::styled("*", rivet_style),
-                Span::styled("-'   ", mark_style),
+                Span::styled("  ", mark_style),
+                Span::styled("O", node_style),
+                Span::styled("---' ", mark_style),
+            ]),
+            Line::from(vec![
+                Span::styled(" ", mark_style),
+                Span::styled("o", node_style),
+                Span::styled("      ", mark_style),
+            ]),
+            Line::from(vec![
+                Span::styled(".", node_faint_style),
+                Span::styled("       ", mark_style),
             ]),
         ]
     } else {
         vec![
             Line::from(""), // spacer
-            Line::from(Span::styled("     │   ", mark_style)),
-            Line::from(Span::styled("  ╭──┤   ", mark_style)),
-            Line::from(Span::styled("  │  │   ", mark_style)),
-            Line::from(Span::styled("  ╰──┤   ", mark_style)),
-            Line::from(Span::styled("     │   ", mark_style)),
+            Line::from(Span::styled("   ╭──╮ ", mark_style)),
+            Line::from(Span::styled("   │  │ ", mark_style)),
+            Line::from(Span::styled("   ╰──┤ ", mark_style)),
+            Line::from(Span::styled("      │ ", mark_style)),
             Line::from(vec![
-                Span::styled("   ", mark_style),
-                Span::styled("◆", rivet_style),
-                Span::styled("─╯   ", mark_style),
+                Span::styled("  ", mark_style),
+                Span::styled("○", node_style),
+                Span::styled("───╯ ", mark_style),
+            ]),
+            Line::from(vec![
+                Span::styled(" ", mark_style),
+                Span::styled("●", node_style),
+                Span::styled("      ", mark_style),
+            ]),
+            Line::from(vec![
+                Span::styled("·", node_faint_style),
+                Span::styled("       ", mark_style),
             ]),
         ]
     };
