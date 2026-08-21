@@ -1,0 +1,27 @@
+{
+  "name": "Gitwig Verdigris",
+  "note": "Copper-patina palette on warm charcoal; deliberately distinct from Ferronote (cool #0f1419 ground, iron-orange accent).",
+  "palette": {
+    "ground": "#1b1614",
+    "terminal_bg": "#14100e",
+    "foreground": "#ece2d8",
+    "accent_verdigris": "#4db08a",
+    "accent_copper": "#bd6b3d",
+    "dim": "#7d746c",
+    "selection": "#1d2b23"
+  },
+  "roles": {
+    "branch_indicator": "#4db08a",
+    "ahead_behind": "#4db08a",
+    "status_ok": "#bd6b3d",
+    "modified": "#bd6b3d",
+    "added": "#4db08a",
+    "muted_text": "#7d746c",
+    "selected_row_bg": "#1d2b23",
+    "keybinding_hint": "#4db08a"
+  },
+  "type": {
+    "wordmark": "Rajdhani 700 (lowercase, 'wig' in accent_verdigris)",
+    "ui": "JetBrains Mono"
+  }
+}

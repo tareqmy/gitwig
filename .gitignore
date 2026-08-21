@@ -14,3 +14,5 @@
 # Local configuration files generated during testing or development
 /keybindings.toml
 /config.toml
+# Python venv used by branding/build-logos.py
+.venv/

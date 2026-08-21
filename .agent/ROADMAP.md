@@ -143,7 +143,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 ### Polish & UX
 - [x] Animated Fetch Spinner: Replace static status indicators with a Braille spinner while a background fetch is active for that repo.
 - [x] Empty State Onboarding Prompt: Welcoming centred panel when zero repos are tracked, listing key shortcuts to get started.
-- [x] Sprout Logo Branding: Modern sprout mark, vector and PNG asset suite under `branding/logo`, and updated ASCII/Unicode About art.
+- [x] Logo Branding: Verdigris `g` mark and vector asset suite under `branding/`, wired through the app icon, README lockup, and ASCII/Unicode About art.
 
 ## Phase 11: Forge Integrations (GitHub / GitLab / Gitea)
 - [x] PR/MR Viewer: View active Pull Requests, descriptions, CI/CD run statuses, and review comments directly in a dedicated tab.

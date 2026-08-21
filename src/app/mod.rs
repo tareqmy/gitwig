@@ -2048,7 +2048,7 @@ where
                             let _ = crossterm::execute!(
                                 std::io::stdout(),
                                 crossterm::terminal::SetTitle(format!(
-                                    "🌿 Gitwig Shell ({})",
+                                    "Gitwig Shell ({})",
                                     repo_name
                                 ))
                             );
@@ -2072,7 +2072,7 @@ where
                                     "│",
                                     "│",
                                     "└".to_string() + &"─".repeat(banner_width - 2) + "┘",
-                                    "🌿 Gitwig",
+                                    "Gitwig",
                                 )
                             };
 
@@ -2135,7 +2135,7 @@ where
                     } else {
                         let _ = crossterm::execute!(
                             std::io::stdout(),
-                            crossterm::terminal::SetTitle("🌿 Gitwig")
+                            crossterm::terminal::SetTitle("Gitwig")
                         );
                     }
 

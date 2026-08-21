@@ -2,10 +2,12 @@
 
 use crate::app::{App, Mode};
 use crate::ui::layout::centered_rect_fixed;
-use crate::ui::style::{CARD_BORDER, accent_style, muted_style, primary_style};
+use crate::ui::style::{
+    BRAND_COPPER, BRAND_VERDIGRIS, CARD_BORDER, accent_style, muted_style, primary_style,
+};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
@@ -39,32 +41,44 @@ pub fn draw_about_popup(f: &mut Frame, area: Rect, app: &App) {
         ])
         .split(inner);
 
-    // Draw the Gitwig sprout mark on the left: a single-color green twig
-    // curving into a leaf, with commit-node dots (mirrors the brand logo).
+    // Draw the Gitwig `g` mark on the left: the bowl and stem in box-drawing
+    // strokes, with the copper rivet on the tail tip (mirrors branding/logo-mark.svg).
     let is_compat = app.config.compatibility_mode;
-    let mark_style = if is_compat { Style::default() } else { Style::default().fg(Color::Green) };
+    // Brand palette (Verdigris): verdigris #4db08a strokes, copper #bd6b3d rivet.
+    let mark_style =
+        if is_compat { Style::default() } else { Style::default().fg(BRAND_VERDIGRIS()) };
+    let rivet_style =
+        if is_compat { Style::default() } else { Style::default().fg(BRAND_COPPER()) };
 
     // Note: the Paragraph below centers each line independently, so every
     // line is padded to the same display width to keep the art aligned.
     let logo_text = if is_compat {
         vec![
             Line::from(""), // spacer
-            Line::from(Span::styled("       _/ ", mark_style)),
-            Line::from(Span::styled("     .'   ", mark_style)),
-            Line::from(Span::styled("     |  o ", mark_style)),
-            Line::from(Span::styled("     |-'  ", mark_style)),
-            Line::from(Span::styled("     |    ", mark_style)),
-            Line::from(Span::styled("     o    ", mark_style)),
+            Line::from(Span::styled("     |   ", mark_style)),
+            Line::from(Span::styled("  ,--+   ", mark_style)),
+            Line::from(Span::styled("  |  |   ", mark_style)),
+            Line::from(Span::styled("  '--+   ", mark_style)),
+            Line::from(Span::styled("     |   ", mark_style)),
+            Line::from(vec![
+                Span::styled("   ", mark_style),
+                Span::styled("*", rivet_style),
+                Span::styled("-'   ", mark_style),
+            ]),
         ]
     } else {
         vec![
             Line::from(""), // spacer
-            Line::from(Span::styled("      ╭─🌿", mark_style)),
-            Line::from(Span::styled("     ╭╯   ", mark_style)),
-            Line::from(Span::styled("     │ ●  ", mark_style)),
-            Line::from(Span::styled("     ├─╯  ", mark_style)),
-            Line::from(Span::styled("     │    ", mark_style)),
-            Line::from(Span::styled("     ●    ", mark_style)),
+            Line::from(Span::styled("     │   ", mark_style)),
+            Line::from(Span::styled("  ╭──┤   ", mark_style)),
+            Line::from(Span::styled("  │  │   ", mark_style)),
+            Line::from(Span::styled("  ╰──┤   ", mark_style)),
+            Line::from(Span::styled("     │   ", mark_style)),
+            Line::from(vec![
+                Span::styled("   ", mark_style),
+                Span::styled("◆", rivet_style),
+                Span::styled("─╯   ", mark_style),
+            ]),
         ]
     };
 

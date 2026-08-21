@@ -1,0 +1,8 @@
+# Gitwig — Verdigris brand theme
+# verdigris carries the UI; copper marks activity; brick red only for conflicts
+# Palette source of truth: branding/theme.json
+accent = "#4db08a"
+warning = "#bd6b3d"
+danger = "#b2402e"
+success = "#3c8a6b"
+border_type = "rounded"

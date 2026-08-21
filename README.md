@@ -1,4 +1,4 @@
-# 🌿 Gitwig — Terminal Git UI & SourceTree Alternative (Built in Rust)
+# Gitwig — Terminal Git UI & SourceTree Alternative (Built in Rust)
 
 <p align="center">
   <picture>

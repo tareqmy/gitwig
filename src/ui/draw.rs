@@ -1144,10 +1144,14 @@ fn draw_empty_state(f: &mut Frame, area: Rect, app: &App) {
         .split(inner);
 
     let is_compat = app.config.compatibility_mode;
-    let welcome_glyph = if is_compat { "Welcome to Gitwig!" } else { "Welcome to Gitwig! 🌿" };
-    let header =
-        Line::from(Span::styled(welcome_glyph, primary_style().add_modifier(Modifier::BOLD)))
-            .alignment(Alignment::Center);
+    let mut header_spans =
+        vec![Span::styled("Welcome to Gitwig!", primary_style().add_modifier(Modifier::BOLD))];
+    if !is_compat {
+        // Copper rivet from the brand mark; omitted in compatibility mode because
+        // U+25C6 is ambiguous-width and can misalign on narrow terminals.
+        header_spans.push(Span::styled(" ◆", Style::default().fg(BRAND_COPPER())));
+    }
+    let header = Line::from(header_spans).alignment(Alignment::Center);
     f.render_widget(Paragraph::new(header), layout[0]);
 
     let desc = Line::from(Span::styled(

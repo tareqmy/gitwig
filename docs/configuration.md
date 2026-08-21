@@ -80,4 +80,21 @@ show_stale_projects = true
 | `tile_columns` | `Integer` | `0` | Number of columns in tile layout mode (`0` = auto-calculate based on terminal width). |
 | `resync_on_tab_change` | `Boolean` | `false` | Automatically reload repository details from disk when switching tabs. |
 
+### Themes
+
+The active theme is selected via the `theme` key and lives in `~/.gitwig/themes/<name>.theme`. A set of popular themes is written there on first launch (`catppuccin`, `cyberpunk`, `dracula`, `forest`, `gitwig`, `gruvbox`, `monokai`, `nord`, `oceanic`, `onedark`, `rosepine`, `solarized_dark`, `tokyonight`), alongside `default`. Themes are managed in-app via Settings `s`.
+
+A `.theme` file sets five keys:
+
+```toml
+# Gitwig — Verdigris brand theme (gitwig.theme)
+accent = "#4db08a"      # selections, focus borders, active tabs
+warning = "#bd6b3d"     # edit state, modified badges
+danger = "#b2402e"      # delete prompts, conflicts, removed lines
+success = "#3c8a6b"     # committed badges, added lines
+border_type = "rounded" # "plain", "rounded", "double", "thick"
+```
+
+Colors accept either one of the 16 named terminal colors (`"black"`, `"red"`, `"green"`, `"yellow"`, `"blue"`, `"magenta"`, `"cyan"`, `"gray"`, `"darkgray"`, `"lightred"`, `"lightgreen"`, `"lightyellow"`, `"lightblue"`, `"lightmagenta"`, `"lightcyan"`, `"white"`) or a true-color hex value like `"#4db08a"` (requires a terminal with true-color support).
+
 Gitwig writes back to whichever file it loaded from, so edits made in the UI persist across runs.

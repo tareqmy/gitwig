@@ -40,7 +40,32 @@ pub fn CARD_BORDER() -> BorderType {
     THEME.read().map(|l| l.border_type).unwrap_or(BorderType::Rounded)
 }
 
+// Fixed brand mark colors (Verdigris). Source of truth: `branding/theme.json`.
+// Deliberately independent of the active theme so the logo renders in brand
+// colors whichever theme the user has selected.
+#[allow(non_snake_case)]
+pub fn BRAND_VERDIGRIS() -> Color {
+    Color::Rgb(0x4d, 0xb0, 0x8a)
+}
+#[allow(non_snake_case)]
+pub fn BRAND_COPPER() -> Color {
+    Color::Rgb(0xbd, 0x6b, 0x3d)
+}
+
 pub fn parse_color(s: &str) -> Color {
+    let s = s.trim();
+    // True-color support: "#rrggbb" hex values (e.g. "#4db08a").
+    if let Some(hex) = s.strip_prefix('#') {
+        if hex.len() == 6 {
+            if let (Ok(r), Ok(g), Ok(b)) = (
+                u8::from_str_radix(&hex[0..2], 16),
+                u8::from_str_radix(&hex[2..4], 16),
+                u8::from_str_radix(&hex[4..6], 16),
+            ) {
+                return Color::Rgb(r, g, b);
+            }
+        }
+    }
     match s.to_lowercase().as_str() {
         "black" => Color::Black,
         "red" => Color::Red,
@@ -90,6 +115,7 @@ pub fn format_color(color: Color) -> String {
         Color::LightMagenta => "lightmagenta".to_string(),
         Color::LightCyan => "lightcyan".to_string(),
         Color::White => "white".to_string(),
+        Color::Rgb(r, g, b) => format!("#{:02x}{:02x}{:02x}", r, g, b),
         _ => "cyan".to_string(),
     }
 }

@@ -847,6 +847,12 @@ border_type = "rounded"
 "#,
         ),
         (
+            // Pulled straight from the checked-in theme file so the brand palette
+            // has exactly one source of truth; see `branding/theme.json`.
+            "gitwig",
+            include_str!("../config/themes/gitwig.theme"),
+        ),
+        (
             "gruvbox",
             r#"accent = "yellow"
 warning = "lightyellow"
@@ -1095,6 +1101,7 @@ border_type = "double"
         assert!(test_dir.join("cyberpunk.theme").exists());
         assert!(test_dir.join("dracula.theme").exists());
         assert!(test_dir.join("forest.theme").exists());
+        assert!(test_dir.join("gitwig.theme").exists());
         assert!(test_dir.join("gruvbox.theme").exists());
         assert!(test_dir.join("monokai.theme").exists());
         assert!(test_dir.join("nord.theme").exists());

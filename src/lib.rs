@@ -67,7 +67,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     if config.compatibility_mode {
         let _ = execute!(io::stdout(), SetTitle("[Gitwig]"));
     } else {
-        let _ = execute!(io::stdout(), SetTitle("🌿 Gitwig"));
+        let _ = execute!(io::stdout(), SetTitle("Gitwig"));
     }
 
     unsafe {
