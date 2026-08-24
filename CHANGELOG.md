@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [v2.5.10] - 2026-08-24
+### Added
+- **home**: cycle summary filter with Tab and render sections as tabs ([3fd500e](https://github.com/tareqmy/gitwig/commit/3fd500e))
+- **branding**: revise the mark to the leaf-counter g ([a7d7544](https://github.com/tareqmy/gitwig/commit/a7d7544))
+- **branding**: adopt the Verdigris logo and palette ([a0a56fa](https://github.com/tareqmy/gitwig/commit/a0a56fa))
+
 ## [v2.5.9] - 2026-08-16
 ### Fixed
 - preserve UTF-8 strings in sanitize_text and show clear shortcut in commit popup ([97ea8eb](https://github.com/tareqmy/gitwig/commit/97ea8eb))
