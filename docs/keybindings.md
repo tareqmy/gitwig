@@ -14,6 +14,7 @@
 | `F`                  | Normal          | Bulk fetch all tracked repositories concurrently |
 | `E`                  | Normal          | Show why the selected repository's last fetch failed |
 | `f`                  | Normal          | Enter repository search mode      |
+| `Tab` / `Shift+Tab`  | Normal          | Cycle summary-bar filter (repos → dirty → ahead → stale) forward / backward |
 | `ctrl+f`             | Normal          | Open global code search popup overlay |
 | `p`                  | Normal          | Toggle pin status of selected item |
 | `*`                  | Normal          | Toggle Favorite / Star status of selected item |

@@ -128,7 +128,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Favorite / Star Repos: Semantic ★ bookmark separate from positional pin; starred repos float to a dedicated section.
 
 ### At-a-Glance Stats
-- [x] Global Summary Header Bar: 1–2 row header showing aggregate counts (`N repos • M dirty • P ahead • Q stale`).
+- [x] Global Summary Header Bar: 1–2 row header showing aggregate counts as a tab strip (`N repos │ M dirty │ P ahead │ Q stale`). Tabs act as filters — clickable, and cycled with `Tab`/`Shift+Tab`.
 - [x] Uncommitted Work Warning Badge: Visually highlight cards with *both* staged and unstaged changes simultaneously.
 - [x] Background Auto-Refresh (Live Dashboard): Extend `poll_interval` to auto-refresh all repo statuses in the background.
 

@@ -5958,6 +5958,47 @@ fn test_global_summary_filtering() {
 }
 
 #[test]
+fn test_cycle_global_filter() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let config = Config { items: vec!["/path/to/repo_a".to_string()], ..Default::default() };
+    let temp_path = std::env::temp_dir().join("gitwig_test_cycle_global_filter.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Tab walks repos → dirty → ahead → stale → repos.
+    let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::empty());
+    assert_eq!(app.global_filter, None);
+    assert!(crate::input::handle_key(&mut app, tab, 1));
+    assert_eq!(app.global_filter, Some(GlobalFilter::Dirty));
+    assert!(crate::input::handle_key(&mut app, tab, 1));
+    assert_eq!(app.global_filter, Some(GlobalFilter::Ahead));
+    assert!(crate::input::handle_key(&mut app, tab, 1));
+    assert_eq!(app.global_filter, Some(GlobalFilter::Stale));
+    assert!(crate::input::handle_key(&mut app, tab, 1));
+    assert_eq!(app.global_filter, None);
+
+    // Shift+Tab (BackTab) walks the same ring in reverse.
+    let back_tab = KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT);
+    assert!(crate::input::handle_key(&mut app, back_tab, 1));
+    assert_eq!(app.global_filter, Some(GlobalFilter::Stale));
+    assert!(crate::input::handle_key(&mut app, back_tab, 1));
+    assert_eq!(app.global_filter, Some(GlobalFilter::Ahead));
+    assert!(crate::input::handle_key(&mut app, back_tab, 1));
+    assert_eq!(app.global_filter, Some(GlobalFilter::Dirty));
+    assert!(crate::input::handle_key(&mut app, back_tab, 1));
+    assert_eq!(app.global_filter, None);
+
+    // Cycling resets the selection to the top of the newly filtered list.
+    app.selected_index = 5;
+    app.scroll_top = 3;
+    app.cycle_global_filter(false);
+    assert_eq!(app.global_filter, Some(GlobalFilter::Dirty));
+    assert_eq!(app.selected_index, 0);
+    assert_eq!(app.scroll_top, 0);
+}
+
+#[test]
 fn test_reflog_tui_flows() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 

@@ -170,6 +170,10 @@ impl HomeTab {
                     app.bulk_fetch_all();
                 } else if app.is_bound(Action::HomeFetchDetails, key) {
                     app.show_fetch_failure_details();
+                } else if app.is_bound(Action::HomeCycleFilter, key) {
+                    app.cycle_global_filter(false);
+                } else if app.is_bound(Action::HomeCycleFilterBack, key) {
+                    app.cycle_global_filter(true);
                 } else if app.is_bound(Action::HomeSelect, key) {
                     if let Some(path) = app.get_selected_item() {
                         let path_str = path.clone();

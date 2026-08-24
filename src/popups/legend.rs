@@ -205,6 +205,10 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
         Span::styled(format!("  {}", pad("stale")), Style::default().fg(DANGER())),
         Span::raw("Repositories where the last commit is older than 30 days"),
     ]));
+    lines.push(Line::from(Span::styled(
+        "  Click a tab or press Tab/Shift+Tab to filter the list by it (Esc clears)",
+        muted_style(),
+    )));
 
     lines
 }

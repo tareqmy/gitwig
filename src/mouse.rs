@@ -447,108 +447,45 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         if is_click {
             if let Some(summary_rect) = app.global_summary_area {
                 if summary_rect.contains(pos) {
-                    let mut total_repos = 0;
-                    let mut dirty_count = 0;
-                    let mut ahead_count = 0;
-                    let mut stale_count = 0;
-
-                    let now = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map(|d| d.as_secs() as i64)
-                        .unwrap_or(0);
-                    let stale_threshold =
-                        (app.config.stale_threshold_months as i64) * 30 * 24 * 60 * 60;
-
-                    for status in &app.statuses {
-                        match status {
-                            crate::repo::ItemStatus::GitRepo(Some(summary)) => {
-                                total_repos += 1;
-                                if !summary.is_clean() {
-                                    dirty_count += 1;
-                                }
-                                if summary.ahead > 0 {
-                                    ahead_count += 1;
-                                }
-                                if let Some(t) = summary.last_commit_time {
-                                    if now - t > stale_threshold {
-                                        stale_count += 1;
-                                    }
-                                }
-                            }
-                            crate::repo::ItemStatus::GitRepo(None) => {
-                                total_repos += 1;
-                            }
-                            _ => {}
-                        }
-                    }
-
-                    let repos_width = format!(" {} ", total_repos).len() + 5;
-                    let dirty_width = format!(" {} ", dirty_count).len() + 5;
-                    let ahead_width = format!(" {} ", ahead_count).len() + 5;
-                    let stale_width = format!(" {} ", stale_count).len() + 5;
-                    let spacer_width = 5;
-
-                    let total_width = repos_width
-                        + spacer_width
-                        + dirty_width
-                        + spacer_width
-                        + ahead_width
-                        + spacer_width
-                        + stale_width;
+                    // Measure the exact captions the bar renders so click zones
+                    // track any caption change (filtered `v/t` counts, the wider
+                    // "stale (hidden)" label) automatically.
+                    let counts = crate::ui::draw::summary_counts(app);
+                    let parts = crate::ui::draw::summary_tab_parts(app, &counts);
+                    let widths: Vec<usize> = parts
+                        .iter()
+                        .map(|(count, label)| count.chars().count() + label.chars().count())
+                        .collect();
+                    let divider_width = crate::ui::draw::SUMMARY_TAB_DIVIDER.chars().count();
+                    let total_width =
+                        widths.iter().sum::<usize>() + divider_width * (widths.len() - 1);
 
                     let start_x = summary_rect.x
                         + (summary_rect.width.saturating_sub(total_width as u16) / 2);
                     if pos.x >= start_x && pos.x < start_x + total_width as u16 {
-                        let click_offset = (pos.x - start_x) as usize;
-                        if click_offset < repos_width {
-                            app.global_filter = None;
-                            app.selected_index = 0;
-                            app.scroll_top = 0;
-                            return;
-                        } else if click_offset < repos_width + spacer_width {
-                            // Spacer click
-                        } else if click_offset < repos_width + spacer_width + dirty_width {
-                            if app.global_filter == Some(GlobalFilter::Dirty) {
-                                app.global_filter = None;
-                            } else {
-                                app.global_filter = Some(GlobalFilter::Dirty);
+                        let filters = [
+                            None,
+                            Some(GlobalFilter::Dirty),
+                            Some(GlobalFilter::Ahead),
+                            Some(GlobalFilter::Stale),
+                        ];
+                        let mut offset = (pos.x - start_x) as usize;
+                        for (width, clicked) in widths.iter().zip(filters) {
+                            if offset < *width {
+                                app.global_filter =
+                                    if clicked.is_some() && app.global_filter == clicked {
+                                        None
+                                    } else {
+                                        clicked
+                                    };
+                                app.selected_index = 0;
+                                app.scroll_top = 0;
+                                return;
                             }
-                            app.selected_index = 0;
-                            app.scroll_top = 0;
-                            return;
-                        } else if click_offset
-                            < repos_width + spacer_width + dirty_width + spacer_width
-                        {
-                            // Spacer click
-                        } else if click_offset
-                            < repos_width + spacer_width + dirty_width + spacer_width + ahead_width
-                        {
-                            if app.global_filter == Some(GlobalFilter::Ahead) {
-                                app.global_filter = None;
-                            } else {
-                                app.global_filter = Some(GlobalFilter::Ahead);
+                            match offset.checked_sub(width + divider_width) {
+                                Some(next) => offset = next,
+                                None => return, // Divider click
                             }
-                            app.selected_index = 0;
-                            app.scroll_top = 0;
-                            return;
-                        } else if click_offset
-                            < repos_width
-                                + spacer_width
-                                + dirty_width
-                                + spacer_width
-                                + ahead_width
-                                + spacer_width
-                        {
-                            // Spacer click
-                        } else {
-                            if app.global_filter == Some(GlobalFilter::Stale) {
-                                app.global_filter = None;
-                            } else {
-                                app.global_filter = Some(GlobalFilter::Stale);
-                            }
-                            app.selected_index = 0;
-                            app.scroll_top = 0;
-                            return;
                         }
                     }
                 }
@@ -1703,5 +1640,69 @@ mod tests {
         };
         handle_mouse(&mut app, drag);
         assert_eq!(app.inspect_horizontal_split_pct, 30);
+    }
+
+    #[test]
+    fn test_summary_bar_tab_clicks() {
+        let config = crate::config::Config {
+            items: vec!["/path/to/repo_a".to_string()],
+            ..Default::default()
+        };
+        let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
+        app.statuses = vec![crate::repo::ItemStatus::GitRepo(Some(crate::repo::RepoSummary {
+            branch: Some("main".to_string()),
+            staged: 1,
+            modified: 0,
+            untracked: 0,
+            conflicted: 0,
+            ahead: 2,
+            behind: 0,
+            state: crate::repo::RepoState::Clean,
+            last_commit_time: Some(0), // very stale
+        }))];
+        app.global_summary_area = Some(Rect::new(0, 0, 80, 1));
+        // Keep the repos and stale captions stable across filter states so the
+        // click coordinates computed below stay valid for every click.
+        app.config.show_stale_projects = true;
+
+        // Recover the click zones from the same helpers the renderer and the
+        // hit-test use.
+        let counts = crate::ui::draw::summary_counts(&app);
+        let parts = crate::ui::draw::summary_tab_parts(&app, &counts);
+        let widths: Vec<usize> = parts
+            .iter()
+            .map(|(count, label)| count.chars().count() + label.chars().count())
+            .collect();
+        let divider = crate::ui::draw::SUMMARY_TAB_DIVIDER.chars().count();
+        let total: usize = widths.iter().sum::<usize>() + divider * 3;
+        let start_x = (80 - total as u16) / 2;
+
+        let click = |col: u16| MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: col,
+            row: 0,
+            modifiers: KeyModifiers::empty(),
+        };
+
+        // Clicking the dirty tab enables the filter; clicking it again clears it.
+        let dirty_x = start_x + (widths[0] + divider) as u16;
+        handle_mouse(&mut app, click(dirty_x));
+        assert_eq!(app.global_filter, Some(GlobalFilter::Dirty));
+        handle_mouse(&mut app, click(dirty_x));
+        assert_eq!(app.global_filter, None);
+
+        // The last column of the bar belongs to the stale tab.
+        let stale_x = start_x + total as u16 - 1;
+        handle_mouse(&mut app, click(stale_x));
+        assert_eq!(app.global_filter, Some(GlobalFilter::Stale));
+
+        // The repos tab always clears the filter.
+        handle_mouse(&mut app, click(start_x));
+        assert_eq!(app.global_filter, None);
+
+        // A divider click changes nothing.
+        app.global_filter = Some(GlobalFilter::Ahead);
+        handle_mouse(&mut app, click(start_x + widths[0] as u16));
+        assert_eq!(app.global_filter, Some(GlobalFilter::Ahead));
     }
 }

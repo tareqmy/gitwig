@@ -54,6 +54,8 @@ pub enum Action {
     HomeSelect,
     HomeGlobalSearch,
     HomeOpenStatsDashboard,
+    HomeCycleFilter,
+    HomeCycleFilterBack,
 
     // Detail / Workspace Tab Navigation
     CloseDetail,
@@ -242,6 +244,8 @@ impl Action {
             76 => Some(Action::HomeGlobalSearch),
             79 => Some(Action::HomeOpenStatsDashboard),
             85 => Some(Action::HomeFetchDetails),
+            86 => Some(Action::HomeCycleFilter),
+            87 => Some(Action::HomeCycleFilterBack),
 
             // Workspace
             100 => Some(Action::WorkspaceLoadMore),
@@ -413,6 +417,8 @@ impl Action {
             Action::HomeSelect => 75,
             Action::HomeGlobalSearch => 76,
             Action::HomeOpenStatsDashboard => 79,
+            Action::HomeCycleFilter => 86,
+            Action::HomeCycleFilterBack => 87,
 
             // Workspace
             Action::WorkspaceLoadMore => 100,
@@ -586,6 +592,8 @@ pub struct HomeKeybindings {
     pub select: Option<Keybind>,
     pub global_search: Option<Keybind>,
     pub open_stats_dashboard: Option<Keybind>,
+    pub cycle_filter: Option<Keybind>,
+    pub cycle_filter_back: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -936,6 +944,14 @@ impl KeybindingsConfig {
                 select: Some(Keybind::new(&["space"], "Toggle selection for batch operations")),
                 global_search: Some(Keybind::new(&["ctrl-f"], "Open global code search popup")),
                 open_stats_dashboard: Some(Keybind::new(&["U"], "Open App Usage Dashboard")),
+                cycle_filter: Some(Keybind::new(
+                    &["tab"],
+                    "Cycle summary filter (repos/dirty/ahead/stale)",
+                )),
+                cycle_filter_back: Some(Keybind::new(
+                    &["backtab", "shift-tab"],
+                    "Cycle summary filter backward",
+                )),
             },
             navigation: NavigationKeybindings {
                 nav_up: Some(Keybind::new(&["up", "k"], "Generic move up in lists/menus")),
@@ -1170,6 +1186,8 @@ impl KeybindingsConfig {
             Action::HomeSelect => self.home.select.as_ref(),
             Action::HomeGlobalSearch => self.home.global_search.as_ref(),
             Action::HomeOpenStatsDashboard => self.home.open_stats_dashboard.as_ref(),
+            Action::HomeCycleFilter => self.home.cycle_filter.as_ref(),
+            Action::HomeCycleFilterBack => self.home.cycle_filter_back.as_ref(),
 
             // Navigation
             Action::NavUp => self.navigation.nav_up.as_ref(),
@@ -1364,6 +1382,8 @@ impl KeybindingsConfig {
             Action::HomeSelect => self.home.select.as_ref(),
             Action::HomeGlobalSearch => self.home.global_search.as_ref(),
             Action::HomeOpenStatsDashboard => self.home.open_stats_dashboard.as_ref(),
+            Action::HomeCycleFilter => self.home.cycle_filter.as_ref(),
+            Action::HomeCycleFilterBack => self.home.cycle_filter_back.as_ref(),
 
             // Navigation
             Action::NavUp => self.navigation.nav_up.as_ref(),
@@ -1604,6 +1624,8 @@ impl KeybindingsConfig {
             Action::HomeSelect,
             Action::HomeGlobalSearch,
             Action::HomeOpenStatsDashboard,
+            Action::HomeCycleFilter,
+            Action::HomeCycleFilterBack,
             Action::CloseDetail,
             Action::DetailHelp,
             Action::CycleFocusForward,
@@ -1692,6 +1714,8 @@ impl KeybindingsConfig {
                 | Action::HomeSelect
                 | Action::HomeGlobalSearch
                 | Action::HomeOpenStatsDashboard
+                | Action::HomeCycleFilter
+                | Action::HomeCycleFilterBack
         )
     }
 
@@ -1765,6 +1789,8 @@ impl KeybindingsConfig {
             Action::HomeSelect => self.home.select = keybind,
             Action::HomeGlobalSearch => self.home.global_search = keybind,
             Action::HomeOpenStatsDashboard => self.home.open_stats_dashboard = keybind,
+            Action::HomeCycleFilter => self.home.cycle_filter = keybind,
+            Action::HomeCycleFilterBack => self.home.cycle_filter_back = keybind,
 
             // Navigation
             Action::NavUp => self.navigation.nav_up = keybind,

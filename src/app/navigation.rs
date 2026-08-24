@@ -287,6 +287,28 @@ impl App {
         }
     }
 
+    /// Steps the summary-bar filter through repos (no filter) → dirty → ahead →
+    /// stale, wrapping around; `backward` walks the same ring in reverse.
+    pub fn cycle_global_filter(&mut self, backward: bool) {
+        self.global_filter = if backward {
+            match self.global_filter {
+                None => Some(GlobalFilter::Stale),
+                Some(GlobalFilter::Stale) => Some(GlobalFilter::Ahead),
+                Some(GlobalFilter::Ahead) => Some(GlobalFilter::Dirty),
+                Some(GlobalFilter::Dirty) => None,
+            }
+        } else {
+            match self.global_filter {
+                None => Some(GlobalFilter::Dirty),
+                Some(GlobalFilter::Dirty) => Some(GlobalFilter::Ahead),
+                Some(GlobalFilter::Ahead) => Some(GlobalFilter::Stale),
+                Some(GlobalFilter::Stale) => None,
+            }
+        };
+        self.selected_index = 0;
+        self.scroll_top = 0;
+    }
+
     pub fn get_filtered_items(&self) -> Vec<(usize, &String)> {
         let base_items = self.get_active_items();
 

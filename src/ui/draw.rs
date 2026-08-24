@@ -556,11 +556,17 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
     final_rects
 }
 
-fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
-    let mut total_repos = 0;
-    let mut dirty_count = 0;
-    let mut ahead_count = 0;
-    let mut stale_count = 0;
+/// Aggregate counts backing the home summary tab bar.
+pub struct SummaryCounts {
+    pub total_repos: usize,
+    pub visible: usize,
+    pub dirty: usize,
+    pub ahead: usize,
+    pub stale: usize,
+}
+
+pub fn summary_counts(app: &App) -> SummaryCounts {
+    let mut counts = SummaryCounts { total_repos: 0, visible: 0, dirty: 0, ahead: 0, stale: 0 };
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -571,96 +577,87 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
     for status in &app.statuses {
         match status {
             ItemStatus::GitRepo(Some(summary)) => {
-                total_repos += 1;
+                counts.total_repos += 1;
                 if !summary.is_clean() {
-                    dirty_count += 1;
+                    counts.dirty += 1;
                 }
                 if summary.ahead > 0 {
-                    ahead_count += 1;
+                    counts.ahead += 1;
                 }
                 if let Some(t) = summary.last_commit_time {
                     if now - t > stale_threshold {
-                        stale_count += 1;
+                        counts.stale += 1;
                     }
                 }
             }
             ItemStatus::GitRepo(None) => {
-                total_repos += 1;
+                counts.total_repos += 1;
             }
             _ => {}
         }
     }
 
-    let visible_count = app.get_filtered_items().len();
-    let repos_text = if visible_count < total_repos {
-        format!(" {}/{} ", visible_count, total_repos)
-    } else {
-        format!(" {} ", total_repos)
-    };
+    counts.visible = app.get_filtered_items().len();
+    counts
+}
 
-    let dot = Span::styled("  •  ", muted_style());
-    let repos_style = if app.global_filter.is_none() {
-        primary_style().fg(ACCENT()).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
-    } else {
-        primary_style().fg(ACCENT())
-    };
-    let repos_label_style = if app.global_filter.is_none() {
-        primary_style().add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
-    } else {
-        muted_style()
-    };
-    let mut spans =
-        vec![Span::styled(repos_text, repos_style), Span::styled("repos", repos_label_style)];
+/// Divider drawn between summary tabs; its width is part of the click math.
+pub const SUMMARY_TAB_DIVIDER: &str = "│";
 
-    spans.push(dot.clone());
-    let is_dirty_active = app.global_filter == Some(crate::app::GlobalFilter::Dirty);
-    let dirty_color = if dirty_count > 0 { WARNING() } else { SUCCESS() };
-    let dirty_style = if is_dirty_active {
-        primary_style().fg(dirty_color).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
+/// Caption of each summary tab as (count, label) halves, in click order:
+/// repos, dirty, ahead, stale. Mouse hit-testing in `mouse.rs` measures these
+/// exact strings, so the rendered tabs and the click zones cannot drift apart.
+pub fn summary_tab_parts(app: &App, counts: &SummaryCounts) -> [(String, String); 4] {
+    let repos_count = if counts.visible < counts.total_repos {
+        format!(" {}/{} ", counts.visible, counts.total_repos)
     } else {
-        primary_style().fg(dirty_color)
+        format!(" {} ", counts.total_repos)
     };
-    let dirty_label_style = if is_dirty_active {
-        primary_style().fg(dirty_color).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
+    let stale_label = if !app.config.show_stale_projects && counts.stale > 0 {
+        "stale (hidden)"
     } else {
-        muted_style()
+        "stale"
     };
-    spans.push(Span::styled(format!(" {} ", dirty_count), dirty_style));
-    spans.push(Span::styled("dirty", dirty_label_style));
+    [
+        (repos_count, "repos ".to_string()),
+        (format!(" {} ", counts.dirty), "dirty ".to_string()),
+        (format!(" {} ", counts.ahead), "ahead ".to_string()),
+        (format!(" {} ", counts.stale), format!("{} ", stale_label)),
+    ]
+}
 
-    spans.push(dot.clone());
-    let is_ahead_active = app.global_filter == Some(crate::app::GlobalFilter::Ahead);
-    let ahead_color = if ahead_count > 0 { ACCENT() } else { ratatui::style::Color::Gray };
-    let ahead_style = if is_ahead_active {
-        primary_style().fg(ahead_color).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
-    } else {
-        primary_style().fg(ahead_color)
-    };
-    let ahead_label_style = if is_ahead_active {
-        primary_style().fg(ahead_color).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
-    } else {
-        muted_style()
-    };
-    spans.push(Span::styled(format!(" {} ", ahead_count), ahead_style));
-    spans.push(Span::styled("ahead", ahead_label_style));
+fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
+    let counts = summary_counts(app);
+    let parts = summary_tab_parts(app, &counts);
 
-    spans.push(dot);
-    let is_stale_active = app.global_filter == Some(crate::app::GlobalFilter::Stale);
-    let stale_color = if stale_count > 0 { DANGER() } else { SUCCESS() };
-    let stale_style = if is_stale_active {
-        primary_style().fg(stale_color).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
-    } else {
-        primary_style().fg(stale_color)
-    };
-    let stale_label_style = if is_stale_active {
-        primary_style().fg(stale_color).add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
-    } else {
-        muted_style()
-    };
-    let stale_label =
-        if !app.config.show_stale_projects && stale_count > 0 { "stale (hidden)" } else { "stale" };
-    spans.push(Span::styled(format!(" {} ", stale_count), stale_style));
-    spans.push(Span::styled(stale_label, stale_label_style));
+    let colors = [
+        ACCENT(),
+        if counts.dirty > 0 { WARNING() } else { SUCCESS() },
+        if counts.ahead > 0 { ACCENT() } else { ratatui::style::Color::Gray },
+        if counts.stale > 0 { DANGER() } else { SUCCESS() },
+    ];
+    let active = [
+        app.global_filter.is_none(),
+        app.global_filter == Some(crate::app::GlobalFilter::Dirty),
+        app.global_filter == Some(crate::app::GlobalFilter::Ahead),
+        app.global_filter == Some(crate::app::GlobalFilter::Stale),
+    ];
+
+    let mut spans = Vec::new();
+    for (i, (count_text, label_text)) in parts.iter().enumerate() {
+        if i > 0 {
+            spans.push(Span::styled(SUMMARY_TAB_DIVIDER, muted_style()));
+        }
+        if active[i] {
+            let tab_style =
+                primary_style().fg(colors[i]).add_modifier(Modifier::REVERSED | Modifier::BOLD);
+            spans.push(Span::styled(count_text.clone(), tab_style));
+            spans.push(Span::styled(label_text.clone(), tab_style));
+        } else {
+            spans.push(Span::styled(count_text.clone(), primary_style().fg(colors[i])));
+            spans.push(Span::styled(label_text.clone(), muted_style()));
+        }
+    }
 
     let line = Line::from(spans).alignment(Alignment::Center);
     f.render_widget(Paragraph::new(line), area);
@@ -3004,6 +3001,34 @@ mod tests {
         assert!(trimmed.contains("1 dirty"), "Buffer contents: {}", trimmed);
         assert!(trimmed.contains("1 ahead"), "Buffer contents: {}", trimmed);
         assert!(trimmed.contains("1 stale"), "Buffer contents: {}", trimmed);
+        assert!(trimmed.contains(SUMMARY_TAB_DIVIDER), "Buffer contents: {}", trimmed);
+
+        // With no filter, the repos tab is the active (reversed) one.
+        let repos_x = text.find("repos").unwrap();
+        assert!(
+            buffer[(repos_x as u16, 0)].style().add_modifier.contains(Modifier::REVERSED),
+            "repos tab should render as the active tab"
+        );
+
+        // Activating a filter moves the reversed highlight to that tab.
+        app.global_filter = Some(crate::app::GlobalFilter::Dirty);
+        terminal
+            .draw(|f| {
+                draw_global_summary_bar(f, Rect::new(0, 0, 80, 1), &app);
+            })
+            .unwrap();
+        let buffer = terminal.backend().buffer();
+        let text: String = (0..80).map(|x| buffer[(x, 0)].symbol()).collect();
+        let dirty_x = text.find("dirty").unwrap();
+        let repos_x = text.find("repos").unwrap();
+        assert!(
+            buffer[(dirty_x as u16, 0)].style().add_modifier.contains(Modifier::REVERSED),
+            "dirty tab should render as the active tab when the Dirty filter is on"
+        );
+        assert!(
+            !buffer[(repos_x as u16, 0)].style().add_modifier.contains(Modifier::REVERSED),
+            "repos tab should render inactive when the Dirty filter is on"
+        );
     }
 
     #[test]

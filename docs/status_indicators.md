@@ -50,6 +50,8 @@ The high-level dashboard stats at the top of the homepage show:
 - **ahead**: Repositories with local commits ahead of their remote tracking branch.
 - **stale**: Repositories where the last commit is older than the configured threshold (default is 1 month; configurable via `stale_threshold_months` in settings).
 
+The four sections render as tabs and double as filters: click one, or cycle with `Tab` / `Shift+Tab`, to show only the matching repositories. The active tab is drawn as a highlighted block, and `Esc` returns to the unfiltered list.
+
 ### Auto-Refresh & Manual Refresh
 Items support `~` and `~/...` expansion, so `~/code/gitwig` resolves to your home directory. 
 

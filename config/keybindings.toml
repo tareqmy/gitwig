@@ -151,6 +151,21 @@ description = "Toggle selection for batch operations"
 keys = ["ctrl-f"]
 description = "Open global code search popup"
 
+[home.open_stats_dashboard]
+keys = ["U"]
+description = "Open App Usage Dashboard"
+
+[home.cycle_filter]
+keys = ["tab"]
+description = "Cycle summary filter (repos/dirty/ahead/stale)"
+
+[home.cycle_filter_back]
+keys = [
+    "backtab",
+    "shift-tab",
+]
+description = "Cycle summary filter backward"
+
 [navigation.close_detail]
 keys = [
     "esc",

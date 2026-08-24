@@ -40,6 +40,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
         k(crate::keybindings::Action::HomeToggleSortReverse)
     );
     let search_key = k(crate::keybindings::Action::HomeSearchRepo);
+    let cycle_filter_key = k(crate::keybindings::Action::HomeCycleFilter);
     let jump_key = k(crate::keybindings::Action::HomeJumpPicker);
     let add_key = k(crate::keybindings::Action::HomeAddRepo);
     let bulk_add_key = k(crate::keybindings::Action::HomeBulkAdd);
@@ -72,6 +73,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
         ("Terminal", &terminal_key),
         (&sort_key_label, &sort_key),
         ("Find", &search_key),
+        ("Filter", &cycle_filter_key),
         ("Jump Picker", &jump_key),
         ("Add", &add_key),
         ("Bulk Add", &bulk_add_key),

@@ -3,7 +3,7 @@
 - **Fullscreen Terminal UI**: Designed using `ratatui` and `crossterm` with modern visual styling.
 - **Config-Driven Layout**: Driven by `config.toml` for persistence and custom configurations.
 - **In-App Card Management**: Add, edit, delete, and label items directly from the UI with automatic disk persistence.
-- **Global Summary Header Bar**: High-level dashboard stats showing aggregate counts of repos, dirty repos, ahead counts, and stale repos.
+- **Global Summary Header Bar**: High-level dashboard stats showing aggregate counts of repos, dirty repos, ahead counts, and stale repos as a row of tabs. Click a tab or press `Tab`/`Shift+Tab` to cycle the list filter through them.
 - **Background Auto-Refresh**: Non-blocking background status checking every 10 seconds to keep your repo cards live and up-to-date.
 - **Uncommitted Work Warning Badge**: Highlights repositories with a `⚠ PARTIAL` badge when staged and unstaged changes coexist simultaneously.
 - **Fuzzy Jump Picker**: Instantly jump to any repository by name using the `/` overlay.
