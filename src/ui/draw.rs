@@ -241,10 +241,25 @@ pub fn draw(
     } else if app.config.items.is_empty() {
         draw_empty_state(f, content_area, app);
     } else if app.get_items_len() == 0 {
+        // Repositories exist but the active view is empty: keep the summary
+        // tab bar visible (and clickable) so the user can see which filter is
+        // active and switch away, instead of a dead-end onboarding screen.
+        let layout_parts = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // Global summary bar
+                Constraint::Length(1), // Spacer
+                Constraint::Min(0),    // Empty-state message
+            ])
+            .split(content_area);
+
+        draw_global_summary_bar(f, layout_parts[0], app);
+        *global_summary_area = Some(layout_parts[0]);
+
         if let Some(ref query) = app.repo_search_query {
-            draw_search_empty_state(f, content_area, query);
+            draw_search_empty_state(f, layout_parts[2], query);
         } else {
-            draw_empty_state(f, content_area, app);
+            draw_filter_empty_state(f, layout_parts[2], app);
         }
     } else {
         let layout_parts = Layout::default()
@@ -652,7 +667,7 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
     let colors = [
         ACCENT(),
         if counts.dirty > 0 { WARNING() } else { SUCCESS() },
-        if counts.ahead > 0 { ACCENT() } else { ratatui::style::Color::Gray },
+        if counts.ahead > 0 { ACCENT() } else { SUCCESS() },
         if counts.stale > 0 { DANGER() } else { SUCCESS() },
     ];
     let active = [
@@ -1223,6 +1238,68 @@ fn draw_search_empty_state(f: &mut Frame, area: Rect, query: &str) {
             Span::raw("  to clear the search filter"),
         ]),
     ];
+
+    let p = Paragraph::new(lines).alignment(Alignment::Center);
+    f.render_widget(p, vert[1]);
+}
+
+/// Renders a centered message when repositories exist but the active filters
+/// (summary tab, sticky label filter, or hidden stale projects) leave nothing
+/// to show. Drawn below the summary tab bar, which stays visible.
+fn draw_filter_empty_state(f: &mut Frame, area: Rect, app: &App) {
+    let vert = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(25), Constraint::Min(0), Constraint::Percentage(40)])
+        .split(area);
+
+    let tab_name = match app.global_filter {
+        Some(crate::app::GlobalFilter::Dirty) => Some("dirty"),
+        Some(crate::app::GlobalFilter::Ahead) => Some("ahead"),
+        Some(crate::app::GlobalFilter::Stale) => Some("stale"),
+        None => None,
+    };
+
+    let headline = match (tab_name, &app.config.active_label_filter) {
+        (Some(tab), Some(label)) => {
+            format!("No {} repositories with label '{}'.", tab, label)
+        }
+        (Some(tab), None) => format!("No repositories in the {} tab right now.", tab),
+        (None, Some(label)) => format!("No repositories with label '{}'.", label),
+        (None, None) => "All repositories are currently hidden as stale.".to_string(),
+    };
+
+    let mut lines = vec![
+        Line::from(Span::styled(headline, primary_style().add_modifier(Modifier::BOLD))),
+        Line::from(""),
+    ];
+
+    if tab_name.is_some() {
+        lines.push(Line::from(vec![
+            Span::raw("Press  "),
+            Span::styled("Tab", accent_style()),
+            Span::raw("  to switch tabs, or  "),
+            Span::styled("Esc", accent_style()),
+            Span::raw("  to show all repositories"),
+        ]));
+    }
+    if app.config.active_label_filter.is_some() {
+        let label_key = app.keybindings.format_action_keys(
+            crate::keybindings::Action::HomeLabelPicker,
+            app.config.compatibility_mode,
+        );
+        lines.push(Line::from(vec![
+            Span::raw("Press  "),
+            Span::styled(label_key, accent_style()),
+            Span::raw("  to change or clear the label filter"),
+        ]));
+    }
+    if tab_name.is_none() && app.config.active_label_filter.is_none() {
+        lines.push(Line::from(vec![
+            Span::raw("Enable  "),
+            Span::styled("Show Stale Projects", accent_style()),
+            Span::raw("  in Settings to see them"),
+        ]));
+    }
 
     let p = Paragraph::new(lines).alignment(Alignment::Center);
     f.render_widget(p, vert[1]);
@@ -3139,6 +3216,101 @@ mod tests {
             !buffer[(repos_x as u16, 0)].style().add_modifier.contains(Modifier::REVERSED),
             "repos tab should render inactive when the Dirty filter is on"
         );
+    }
+
+    #[test]
+    fn test_filtered_empty_view_keeps_summary_bar() {
+        let config = Config { items: vec!["/path/to/repo_a".to_string()], ..Default::default() };
+        let mut app = App::new(config, PathBuf::from("dummy_filter_empty.toml"));
+
+        let clean = RepoSummary {
+            branch: Some("main".to_string()),
+            staged: 0,
+            modified: 0,
+            untracked: 0,
+            conflicted: 0,
+            ahead: 0,
+            behind: 0,
+            state: RepoState::Clean,
+            last_commit_time: Some(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64,
+            ),
+        };
+        app.statuses = vec![ItemStatus::GitRepo(Some(clean))];
+
+        // The dirty tab matches nothing.
+        app.global_filter = Some(crate::app::GlobalFilter::Dirty);
+        assert_eq!(app.get_items_len(), 0);
+
+        let backend = ratatui::backend::TestBackend::new(80, 20);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        let mut detail_areas = crate::ui_detail::DetailAreas::default();
+        let mut main_areas = Vec::new();
+        let mut global_summary_area = None;
+
+        let mut render = |app: &App, summary_area: &mut Option<Rect>| {
+            terminal
+                .draw(|f| {
+                    let size = f.area();
+                    super::draw(
+                        f,
+                        app,
+                        size,
+                        size,
+                        1,
+                        &mut detail_areas,
+                        &mut main_areas,
+                        summary_area,
+                    );
+                })
+                .unwrap();
+            let buffer = terminal.backend().buffer().clone();
+            let mut text = String::new();
+            for y in 0..20 {
+                for x in 0..80 {
+                    text.push_str(buffer[(x, y)].symbol());
+                }
+                text.push('\n');
+            }
+            (text, buffer)
+        };
+
+        let (text, _) = render(&app, &mut global_summary_area);
+        // The summary tab bar stays rendered and clickable, the onboarding
+        // screen does not appear, and the message names the empty tab.
+        assert!(global_summary_area.is_some());
+        assert!(text.contains("dirty"), "summary bar missing:\n{}", text);
+        assert!(!text.contains("Gitwig Onboarding"), "onboarding shown:\n{}", text);
+        assert!(text.contains("No repositories in the dirty tab"), "message missing:\n{}", text);
+
+        // The active ahead tab stays visible at zero count: reversed, in a
+        // theme color rather than the old hardcoded gray.
+        app.global_filter = Some(crate::app::GlobalFilter::Ahead);
+        let (text, buffer) = render(&app, &mut global_summary_area);
+        assert!(text.contains("No repositories in the ahead tab"), "message missing:\n{}", text);
+        // Locate the tab by scanning buffer cells (a byte-offset str::find would
+        // drift past the multi-byte border and divider glyphs on this row).
+        let bar_y = global_summary_area.unwrap().y;
+        let ahead_col = (0..76u16)
+            .find(|&x| {
+                (0..5).map(|i| buffer[(x + i, bar_y)].symbol()).collect::<String>() == "ahead"
+            })
+            .expect("ahead tab not rendered in summary bar");
+        let ahead_cell_style = buffer[(ahead_col, bar_y)].style();
+        assert!(ahead_cell_style.add_modifier.contains(Modifier::REVERSED));
+        assert_eq!(ahead_cell_style.fg, Some(SUCCESS()));
+
+        // An empty label filter names the label instead.
+        app.global_filter = None;
+        app.config.active_label_filter = Some("ghost".to_string());
+        assert_eq!(app.get_items_len(), 0);
+        let (text, _) = render(&app, &mut global_summary_area);
+        assert!(global_summary_area.is_some());
+        assert!(!text.contains("Gitwig Onboarding"), "onboarding shown:\n{}", text);
+        assert!(text.contains("No repositories with label 'ghost'"), "message missing:\n{}", text);
     }
 
     #[test]
