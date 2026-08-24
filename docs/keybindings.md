@@ -15,6 +15,10 @@
 | `E`                  | Normal          | Show why the selected repository's last fetch failed |
 | `f`                  | Normal          | Enter repository search mode      |
 | `Tab` / `Shift+Tab`  | Normal          | Cycle summary-bar filter (repos → dirty → ahead → stale) forward / backward |
+| `L`                  | Normal          | Open label picker: filter the list to one label (sticky until deselected; persists across restarts) |
+| `Esc`                | LabelPicker     | Close label picker without changing the filter |
+| `↑` / `↓`            | LabelPicker     | Navigate label list |
+| `Enter`              | LabelPicker     | Apply selected label (re-selecting the active label, or "All repositories", clears it) |
 | `ctrl+f`             | Normal          | Open global code search popup overlay |
 | `p`                  | Normal          | Toggle pin status of selected item |
 | `*`                  | Normal          | Toggle Favorite / Star status of selected item |

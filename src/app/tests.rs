@@ -5999,6 +5999,118 @@ fn test_cycle_global_filter() {
 }
 
 #[test]
+fn test_label_filter_project_view() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let mut config = Config {
+        items: vec![
+            "/path/to/frontend".to_string(),
+            "/path/to/backend".to_string(),
+            "/path/to/tools".to_string(),
+        ],
+        ..Default::default()
+    };
+    config.labels.insert("/path/to/frontend".to_string(), vec!["web".to_string()]);
+    config
+        .labels
+        .insert("/path/to/backend".to_string(), vec!["web".to_string(), "api".to_string()]);
+    let temp_path = std::env::temp_dir().join("gitwig_test_label_filter.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    // `L` opens the picker.
+    let l_key = KeyEvent::new(KeyCode::Char('L'), KeyModifiers::SHIFT);
+    assert!(crate::input::handle_key(&mut app, l_key, 1));
+    assert_eq!(app.mode, Mode::LabelPicker);
+
+    // Rows: "All repositories" first, then labels alphabetically with counts.
+    let matches = app.get_label_matches();
+    assert_eq!(matches.len(), 3);
+    assert_eq!(matches[0], (None, 3));
+    assert_eq!(matches[1], (Some("api".to_string()), 1));
+    assert_eq!(matches[2], (Some("web".to_string()), 2));
+
+    // Typing narrows the label rows (the All row stays).
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Char('w')), 1));
+    let matches = app.get_label_matches();
+    assert_eq!(matches.len(), 2);
+    assert_eq!(matches[1].0.as_deref(), Some("web"));
+
+    // Enter on "web" applies the sticky filter and closes the picker.
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Down), 1));
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert_eq!(app.mode, Mode::Normal);
+    assert_eq!(app.config.active_label_filter.as_deref(), Some("web"));
+    assert_eq!(app.get_filtered_items().len(), 2);
+
+    // Esc does NOT clear the label filter — it is sticky by design.
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Esc), 1));
+    assert_eq!(app.config.active_label_filter.as_deref(), Some("web"));
+
+    // Composes with the summary filter as an intersection.
+    let dirty = crate::repo::RepoSummary {
+        branch: Some("main".to_string()),
+        staged: 1,
+        modified: 0,
+        untracked: 0,
+        conflicted: 0,
+        ahead: 0,
+        behind: 0,
+        state: crate::repo::RepoState::Clean,
+        last_commit_time: Some(
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64,
+        ),
+    };
+    let clean = crate::repo::RepoSummary { staged: 0, ..dirty.clone() };
+    app.statuses = vec![
+        crate::repo::ItemStatus::GitRepo(Some(dirty)), // frontend: web, dirty
+        crate::repo::ItemStatus::GitRepo(Some(clean.clone())), // backend: web+api, clean
+        crate::repo::ItemStatus::GitRepo(Some(clean)), // tools: unlabeled, clean
+    ];
+    app.global_filter = Some(GlobalFilter::Dirty);
+    let visible = app.get_filtered_items();
+    assert_eq!(visible.len(), 1);
+    assert_eq!(visible[0].1, "/path/to/frontend");
+    app.global_filter = None;
+
+    // Re-selecting the active label in the picker toggles the filter off.
+    assert!(crate::input::handle_key(&mut app, l_key, 1));
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Down), 1));
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Down), 1));
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.get_filtered_items().len(), 3);
+
+    // The "All repositories" row clears an active filter too.
+    app.config.active_label_filter = Some("web".to_string());
+    assert!(crate::input::handle_key(&mut app, l_key, 1));
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert_eq!(app.config.active_label_filter, None);
+
+    // Esc closes the picker without touching the filter.
+    app.config.active_label_filter = Some("web".to_string());
+    assert!(crate::input::handle_key(&mut app, l_key, 1));
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Esc), 1));
+    assert_eq!(app.mode, Mode::Normal);
+    assert_eq!(app.config.active_label_filter.as_deref(), Some("web"));
+
+    // Auto-clear when the active label no longer exists on any repository.
+    app.config.active_label_filter = Some("api".to_string());
+    app.config.labels.insert("/path/to/backend".to_string(), vec!["web".to_string()]);
+    assert!(app.clear_label_filter_if_orphaned());
+    assert_eq!(app.config.active_label_filter, None);
+
+    // The filter persists through a config serialization roundtrip.
+    app.config.active_label_filter = Some("web".to_string());
+    let serialized = toml::to_string(&app.config).unwrap();
+    let loaded: Config = toml::from_str(&serialized).unwrap();
+    assert_eq!(loaded.active_label_filter.as_deref(), Some("web"));
+}
+
+#[test]
 fn test_reflog_tui_flows() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 

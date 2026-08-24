@@ -200,6 +200,10 @@ impl App {
     }
 
     pub fn get_active_items(&self) -> Vec<(usize, &String)> {
+        let label_ok = |path: &String| match &self.config.active_label_filter {
+            Some(label) => self.config.labels.get(path).is_some_and(|lbls| lbls.contains(label)),
+            None => true,
+        };
         if let Some(filter) = self.global_filter {
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -211,7 +215,10 @@ impl App {
                 .items
                 .iter()
                 .enumerate()
-                .filter(|&(idx, _)| {
+                .filter(|&(idx, item)| {
+                    if !label_ok(item) {
+                        return false;
+                    }
                     let status = self.statuses.get(idx);
                     match filter {
                         GlobalFilter::Dirty => {
@@ -262,6 +269,7 @@ impl App {
                 .collect()
         } else {
             let mut items: Vec<(usize, &String)> = self.config.items.iter().enumerate().collect();
+            items.retain(|&(_, path)| label_ok(path));
             if !self.config.show_stale_projects {
                 let now = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -307,6 +315,65 @@ impl App {
         };
         self.selected_index = 0;
         self.scroll_top = 0;
+    }
+
+    /// Rows for the label picker: a leading `None` ("All repositories") entry,
+    /// then every distinct label carried by a tracked repository with its repo
+    /// count, alphabetical, narrowed by the fuzzy query in `input_buffer`.
+    pub fn get_label_matches(&self) -> Vec<(Option<String>, usize)> {
+        let query = self.input_buffer.to_lowercase();
+        let mut counts: std::collections::BTreeMap<&String, usize> =
+            std::collections::BTreeMap::new();
+        for path in &self.config.items {
+            if let Some(labels) = self.config.labels.get(path) {
+                for label in labels {
+                    *counts.entry(label).or_insert(0) += 1;
+                }
+            }
+        }
+
+        let mut rows = vec![(None, self.config.items.len())];
+        rows.extend(
+            counts
+                .into_iter()
+                .filter(|(label, _)| query.is_empty() || label.to_lowercase().contains(&query))
+                .map(|(label, count)| (Some(label.clone()), count)),
+        );
+        rows
+    }
+
+    /// Applies the sticky label filter, toggling it off when the active label
+    /// is selected again (`None` always clears), and persists the choice.
+    pub fn select_label_filter(&mut self, label: Option<String>) {
+        let toggled_off = label.is_some() && self.config.active_label_filter == label;
+        self.config.active_label_filter = if toggled_off { None } else { label };
+        self.selected_index = 0;
+        self.scroll_top = 0;
+        match self.config.active_label_filter.clone() {
+            Some(l) => self.persist(&format!("Label filter: {}", l)),
+            None => self.persist("Label filter cleared"),
+        }
+    }
+
+    /// Drops the sticky label filter when its label no longer exists on any
+    /// tracked repository, so the home list cannot get stuck permanently empty.
+    /// Returns whether the filter was cleared.
+    pub fn clear_label_filter_if_orphaned(&mut self) -> bool {
+        let Some(active) = self.config.active_label_filter.clone() else {
+            return false;
+        };
+        let still_used = self
+            .config
+            .items
+            .iter()
+            .filter_map(|path| self.config.labels.get(path))
+            .any(|labels| labels.contains(&active));
+        if !still_used {
+            self.config.active_label_filter = None;
+            self.selected_index = 0;
+            self.scroll_top = 0;
+        }
+        !still_used
     }
 
     pub fn get_filtered_items(&self) -> Vec<(usize, &String)> {

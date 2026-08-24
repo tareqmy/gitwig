@@ -166,6 +166,10 @@ keys = [
 ]
 description = "Cycle summary filter backward"
 
+[home.label_picker]
+keys = ["L"]
+description = "Open label picker to filter repositories by label"
+
 [navigation.close_detail]
 keys = [
     "esc",

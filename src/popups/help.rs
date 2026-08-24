@@ -107,6 +107,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         kb.format_action_keys(Action::HomeCycleFilter, is_compat),
         kb.format_action_keys(Action::HomeCycleFilterBack, is_compat)
     );
+    let label_picker_key = kb.format_action_keys(Action::HomeLabelPicker, is_compat);
 
     let make_cat = |title: &'static str,
                     items: Vec<(&str, &'static str)>|
@@ -146,6 +147,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 (delete_key, "Delete selected item"),
                 (search_key, "Enter repository search mode"),
                 (cycle_filter_key, "Cycle summary filter (repos/dirty/ahead/stale)"),
+                (label_picker_key, "Pick a label to filter the list (sticky until deselected)"),
                 (global_search_key, "Open global code search popup overlay"),
                 (refresh_key, "Refresh status of selected item"),
                 (fetch_all_key, "Bulk fetch all tracked repositories concurrently"),

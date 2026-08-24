@@ -18,6 +18,23 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
             Span::styled("(Esc to clear) ", muted_style()),
         ]);
     }
+    // The label filter is sticky (Esc does not clear it), so keep a permanent
+    // chip visible whenever it is active.
+    if let Some(label) = &app.config.active_label_filter {
+        let label_key = app.keybindings.format_action_keys(
+            crate::keybindings::Action::HomeLabelPicker,
+            app.config.compatibility_mode,
+        );
+        let mut spans = vec![
+            Span::styled("Label: ", muted_style()),
+            Span::styled(format!("{} ", label), accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(format!("({} to change) ", label_key), muted_style()),
+        ];
+        if let Some(existing) = message_spans.take() {
+            spans.extend(existing);
+        }
+        message_spans = Some(spans);
+    }
     let sort_label = match app.config.sort_by {
         SortOrder::Custom => "Custom",
         SortOrder::Alphabetical => "Alphabetical",
@@ -41,6 +58,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
     );
     let search_key = k(crate::keybindings::Action::HomeSearchRepo);
     let cycle_filter_key = k(crate::keybindings::Action::HomeCycleFilter);
+    let label_picker_key = k(crate::keybindings::Action::HomeLabelPicker);
     let jump_key = k(crate::keybindings::Action::HomeJumpPicker);
     let add_key = k(crate::keybindings::Action::HomeAddRepo);
     let bulk_add_key = k(crate::keybindings::Action::HomeBulkAdd);
@@ -74,6 +92,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
         (&sort_key_label, &sort_key),
         ("Find", &search_key),
         ("Filter", &cycle_filter_key),
+        ("Label Filter", &label_picker_key),
         ("Jump Picker", &jump_key),
         ("Add", &add_key),
         ("Bulk Add", &bulk_add_key),

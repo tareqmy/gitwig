@@ -24,6 +24,7 @@ The primary dashboard shown when Gitwig starts up.
         *   `/` : Open fuzzy Jump-to-Repo picker
         *   `f` : Enter repository list search query input mode
         *   `Tab` / `Shift+Tab` : Cycle summary-bar filter (repos → dirty → ahead → stale) forward / backward
+        *   `L` : Open label picker to filter the list to one label ("project view"; sticky until deselected)
         *   `ctrl-f` : Open global code search across all repositories
         *   `R` : Refresh status of selected item manually
         *   `F` : Bulk fetch all repositories concurrently
@@ -50,6 +51,7 @@ The primary dashboard shown when Gitwig starts up.
     *   *Shortcuts*:
         *   `←` / `→` : Toggle focus between sidebar groups and repository list
         *   `Space` / `Enter` : Collapse / expand label groups (when focused on header)
+*   **Label Picker Overlay** (`L`): Floating fuzzy picker listing every label with its repository count, plus an "All repositories" row. Selecting a label filters the home list to it — a sticky "project view" that survives `Esc` and app restarts until deselected (re-select the active label or choose "All repositories"). The active label is marked with ● and shown as a `Label:` chip in the status bar; the summary tabs' counts scope to the selected label.
 *   **Bottom Command/Status Bar**: Reflects current keyboard context, active mode, background fetches, and CPU/memory statistics.
 
 ---

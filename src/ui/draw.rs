@@ -314,6 +314,10 @@ pub fn draw(
         draw_repo_jump_popup(f, app, area);
     }
 
+    if matches!(app.mode, Mode::LabelPicker) {
+        draw_label_picker_popup(f, app, area);
+    }
+
     if matches!(app.mode, Mode::RepoScanPicker) {
         draw_repo_scan_popup(f, app, area);
     }
@@ -574,7 +578,22 @@ pub fn summary_counts(app: &App) -> SummaryCounts {
         .unwrap_or(0);
     let stale_threshold = (app.config.stale_threshold_months as i64) * 30 * 24 * 60 * 60;
 
-    for status in &app.statuses {
+    // Scope the dashboard to the active label filter so the tabs describe the
+    // selected project, not the whole workspace.
+    let label_ok = |idx: usize| match &app.config.active_label_filter {
+        Some(label) => app
+            .config
+            .items
+            .get(idx)
+            .and_then(|path| app.config.labels.get(path))
+            .is_some_and(|lbls| lbls.contains(label)),
+        None => true,
+    };
+
+    for (idx, status) in app.statuses.iter().enumerate() {
+        if !label_ok(idx) {
+            continue;
+        }
         match status {
             ItemStatus::GitRepo(Some(summary)) => {
                 counts.total_repos += 1;
@@ -1711,6 +1730,97 @@ pub fn draw_repo_jump_popup(f: &mut Frame, app: &App, area: Rect) {
         Span::styled("↑↓ navigate  ", muted_style()),
         Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(" jump  ", muted_style()),
+        Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" cancel", muted_style()),
+    ]);
+    f.render_widget(Paragraph::new(hint), chunks[2]);
+}
+
+pub fn draw_label_picker_popup(f: &mut Frame, app: &App, area: Rect) {
+    let popup_area = crate::ui::layout::centered_rect(50, 50, area);
+    f.render_widget(ratatui::widgets::Clear, popup_area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(Style::default().fg(ACCENT()))
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled("Filter by Label", primary_style().add_modifier(Modifier::BOLD)),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::horizontal(1));
+
+    let inner = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3), // Input box
+            Constraint::Min(1),    // Label list
+            Constraint::Length(1), // Hint
+        ])
+        .split(inner);
+
+    let input_block =
+        Block::default().borders(Borders::ALL).border_style(muted_style()).title(" Search Labels ");
+    let input_p = Paragraph::new(Line::from(vec![
+        Span::raw("> "),
+        Span::styled(app.input_buffer.clone(), primary_style()),
+    ]))
+    .block(input_block);
+    f.render_widget(input_p, chunks[0]);
+
+    let matches = app.get_label_matches();
+    if matches.len() == 1 && app.input_buffer.is_empty() {
+        // Only the "All repositories" row exists: nothing is labeled yet.
+        let empty_hint = Paragraph::new(Line::from(Span::styled(
+            "No labels yet — press l on a repository to add labels",
+            muted_style(),
+        )));
+        f.render_widget(empty_hint, chunks[1]);
+    } else {
+        let active_marker = if app.config.compatibility_mode { "* " } else { "● " };
+        let list_items: Vec<ratatui::widgets::ListItem> = matches
+            .iter()
+            .enumerate()
+            .map(|(i, (label, count))| {
+                let marker =
+                    if *label == app.config.active_label_filter { active_marker } else { "  " };
+                let name = label.clone().unwrap_or_else(|| "All repositories".to_string());
+                let style = if i == app.label_picker_selection {
+                    accent_style().add_modifier(Modifier::BOLD | Modifier::REVERSED)
+                } else if label.is_none() {
+                    muted_style()
+                } else {
+                    primary_style()
+                };
+                let repos_word = if *count == 1 { "repo" } else { "repos" };
+                ratatui::widgets::ListItem::new(Line::from(vec![
+                    Span::styled(marker, accent_style()),
+                    Span::styled(name, style),
+                    Span::styled(format!("   {} {}", count, repos_word), muted_style()),
+                ]))
+            })
+            .collect();
+
+        let mut list_state = ratatui::widgets::ListState::default();
+        if !matches.is_empty() {
+            list_state.select(Some(app.label_picker_selection.min(matches.len() - 1)));
+        }
+        f.render_stateful_widget(
+            ratatui::widgets::List::new(list_items),
+            chunks[1],
+            &mut list_state,
+        );
+    }
+
+    let hint = Line::from(vec![
+        Span::styled("Type to filter  ", muted_style()),
+        Span::styled("↑↓ navigate  ", muted_style()),
+        Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" select/toggle  ", muted_style()),
         Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(" cancel", muted_style()),
     ]);
@@ -3368,6 +3478,7 @@ mod tests {
             Mode::Overview,
             Mode::RepoSettings,
             Mode::RepoJump,
+            Mode::LabelPicker,
             Mode::RepoScanPicker,
             Mode::BulkAddScanPicker,
             Mode::BranchSearchInput,

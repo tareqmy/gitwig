@@ -140,6 +140,7 @@ impl Default for Config {
             sort_by: default_sort_by(),
             visits: std::collections::HashMap::new(),
             labels: std::collections::HashMap::new(),
+            active_label_filter: None,
             repo_configs: std::collections::HashMap::new(),
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
@@ -317,6 +318,10 @@ pub struct Config {
     /// Map of repository paths to their labels.
     #[serde(default)]
     pub labels: std::collections::HashMap<String, Vec<String>>,
+    /// Sticky home-list label filter ("project view"); persists until the user
+    /// deselects it in the label picker.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_label_filter: Option<String>,
     /// Repository specific configurations.
     #[serde(default)]
     pub repo_configs: std::collections::HashMap<String, RepoConfig>,
@@ -489,6 +494,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         sort_by: default_sort_by(),
         visits: default_visits(),
         labels: std::collections::HashMap::new(),
+        active_label_filter: None,
         repo_configs: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -641,6 +647,7 @@ pub fn load_config(
                 sort_by: default_sort_by(),
                 visits: default_visits(),
                 labels: std::collections::HashMap::new(),
+                active_label_filter: None,
                 repo_configs: std::collections::HashMap::new(),
                 sort_reverse: false,
                 pinned: std::collections::HashSet::new(),
@@ -773,6 +780,7 @@ pub fn load_config(
         sort_by: default_sort_by(),
         visits: default_visits(),
         labels: std::collections::HashMap::new(),
+        active_label_filter: None,
         repo_configs: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),

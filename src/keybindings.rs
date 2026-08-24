@@ -56,6 +56,7 @@ pub enum Action {
     HomeOpenStatsDashboard,
     HomeCycleFilter,
     HomeCycleFilterBack,
+    HomeLabelPicker,
 
     // Detail / Workspace Tab Navigation
     CloseDetail,
@@ -246,6 +247,7 @@ impl Action {
             85 => Some(Action::HomeFetchDetails),
             86 => Some(Action::HomeCycleFilter),
             87 => Some(Action::HomeCycleFilterBack),
+            88 => Some(Action::HomeLabelPicker),
 
             // Workspace
             100 => Some(Action::WorkspaceLoadMore),
@@ -419,6 +421,7 @@ impl Action {
             Action::HomeOpenStatsDashboard => 79,
             Action::HomeCycleFilter => 86,
             Action::HomeCycleFilterBack => 87,
+            Action::HomeLabelPicker => 88,
 
             // Workspace
             Action::WorkspaceLoadMore => 100,
@@ -594,6 +597,7 @@ pub struct HomeKeybindings {
     pub open_stats_dashboard: Option<Keybind>,
     pub cycle_filter: Option<Keybind>,
     pub cycle_filter_back: Option<Keybind>,
+    pub label_picker: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -952,6 +956,10 @@ impl KeybindingsConfig {
                     &["backtab", "shift-tab"],
                     "Cycle summary filter backward",
                 )),
+                label_picker: Some(Keybind::new(
+                    &["L"],
+                    "Open label picker to filter repositories by label",
+                )),
             },
             navigation: NavigationKeybindings {
                 nav_up: Some(Keybind::new(&["up", "k"], "Generic move up in lists/menus")),
@@ -1188,6 +1196,7 @@ impl KeybindingsConfig {
             Action::HomeOpenStatsDashboard => self.home.open_stats_dashboard.as_ref(),
             Action::HomeCycleFilter => self.home.cycle_filter.as_ref(),
             Action::HomeCycleFilterBack => self.home.cycle_filter_back.as_ref(),
+            Action::HomeLabelPicker => self.home.label_picker.as_ref(),
 
             // Navigation
             Action::NavUp => self.navigation.nav_up.as_ref(),
@@ -1384,6 +1393,7 @@ impl KeybindingsConfig {
             Action::HomeOpenStatsDashboard => self.home.open_stats_dashboard.as_ref(),
             Action::HomeCycleFilter => self.home.cycle_filter.as_ref(),
             Action::HomeCycleFilterBack => self.home.cycle_filter_back.as_ref(),
+            Action::HomeLabelPicker => self.home.label_picker.as_ref(),
 
             // Navigation
             Action::NavUp => self.navigation.nav_up.as_ref(),
@@ -1626,6 +1636,7 @@ impl KeybindingsConfig {
             Action::HomeOpenStatsDashboard,
             Action::HomeCycleFilter,
             Action::HomeCycleFilterBack,
+            Action::HomeLabelPicker,
             Action::CloseDetail,
             Action::DetailHelp,
             Action::CycleFocusForward,
@@ -1716,6 +1727,7 @@ impl KeybindingsConfig {
                 | Action::HomeOpenStatsDashboard
                 | Action::HomeCycleFilter
                 | Action::HomeCycleFilterBack
+                | Action::HomeLabelPicker
         )
     }
 
@@ -1791,6 +1803,7 @@ impl KeybindingsConfig {
             Action::HomeOpenStatsDashboard => self.home.open_stats_dashboard = keybind,
             Action::HomeCycleFilter => self.home.cycle_filter = keybind,
             Action::HomeCycleFilterBack => self.home.cycle_filter_back = keybind,
+            Action::HomeLabelPicker => self.home.label_picker = keybind,
 
             // Navigation
             Action::NavUp => self.navigation.nav_up = keybind,

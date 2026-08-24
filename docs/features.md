@@ -10,6 +10,7 @@
 - **Favorite / Star Repositories**: Bookmark important repositories with `*` separate from pinned items.
 - **Home View Modes**: Press `v` to cycle between standard 4-row cards, a dense 1-row view (Compact), and a grid-based Tile view.
 - **Label / Group Collapsing**: Organize repositories on the home page with collapsible label headers.
+- **Label Filter / Project View**: Press `L` to pick a label from a fuzzy picker and stick the home list to that project until you deselect it — the filter survives Esc and app restarts, and the summary tabs scope their counts to it.
 - **Full-Screen Detail View**: Press `Enter` to open a multi-tab inspection interface (Workspace, Files tree with preview, Graph log, Branches, Tags, Remotes, Stashes, Worktrees, Submodules, Reflog). Tab headers dynamically fallback to their first character under restricted widths to prevent overflow.
 - **Mode-Aware Status Bar**: Shows contextual shortcuts dynamically with support for collapsed/expanded view (`.`). When expanded, it dynamically wraps the shortcut items and calculates the exact number of rows needed based on terminal width.
 - **Global Code Search**: Press `Ctrl-F` to search for string patterns across all tracked repositories using a fast, multithreaded offline file scanner. Hitting `Enter` on a result automatically jumps to and opens that repository.

@@ -171,6 +171,8 @@ pub enum Mode {
     Legend,
     /// Floating popup with ranked fuzzy matches for repository navigation.
     RepoJump,
+    /// Floating popup for picking a label to filter the home list ("project view").
+    LabelPicker,
     /// Floating popup for built-in repository scanning and selection.
     RepoScanPicker,
     /// Floating popup for built-in directory scanning for bulk adding.
@@ -400,6 +402,7 @@ pub struct App {
     pub legend_scroll: usize,
     pub collapsed_groups: std::collections::HashSet<String>,
     pub repo_jump_selection: usize,
+    pub label_picker_selection: usize,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
     pub detail_areas: DetailAreas,
     /// Main panel item bounding boxes recorded after each draw, used for mouse hit-testing.
@@ -1245,6 +1248,7 @@ impl App {
             overview_focus: OverviewFocus::default(),
             collapsed_groups: std::collections::HashSet::new(),
             repo_jump_selection: 0,
+            label_picker_selection: 0,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
             global_filter: None,

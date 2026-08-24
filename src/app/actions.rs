@@ -167,6 +167,7 @@ impl App {
                 self.config.visits.remove(&item);
                 self.config.pinned.remove(&item);
             }
+            self.clear_label_filter_if_orphaned();
             self.persist("Deleted selected repositories");
         } else if let Some(orig_idx) = self.get_selected_item_index() {
             if orig_idx < self.config.items.len() {
@@ -179,6 +180,7 @@ impl App {
                 }
                 self.config.visits.remove(&item);
                 self.config.pinned.remove(&item);
+                self.clear_label_filter_if_orphaned();
                 self.persist("Deleted");
             }
         }
@@ -219,7 +221,12 @@ impl App {
                     self.config.labels.insert(current.clone(), lbls);
                 }
             }
-            self.persist("Saved labels");
+            let filter_cleared = self.clear_label_filter_if_orphaned();
+            self.persist(if filter_cleared {
+                "Saved labels (label filter cleared)"
+            } else {
+                "Saved labels"
+            });
         }
         self.input_buffer.clear();
         self.mode = Mode::Normal;

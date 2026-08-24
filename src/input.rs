@@ -102,6 +102,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             | Mode::StashCreateInput
             | Mode::RepoSearchInput
             | Mode::RepoJump
+            | Mode::LabelPicker
             | Mode::RepoScanPicker
             | Mode::BulkAddScanPicker
             | Mode::BranchSearchInput
@@ -588,6 +589,40 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Char(c) => {
                     app.input_buffer.push(c);
                     app.repo_jump_selection = 0;
+                }
+                _ => {}
+            }
+            return true;
+        }
+        Mode::LabelPicker => {
+            let matches = app.get_label_matches();
+            match code {
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.mode = Mode::Normal;
+                }
+                KeyCode::Up => {
+                    app.label_picker_selection = app.label_picker_selection.saturating_sub(1);
+                }
+                KeyCode::Down => {
+                    if app.label_picker_selection + 1 < matches.len() {
+                        app.label_picker_selection += 1;
+                    }
+                }
+                KeyCode::Enter => {
+                    if let Some((label, _)) = matches.into_iter().nth(app.label_picker_selection) {
+                        app.select_label_filter(label);
+                    }
+                    app.input_buffer.clear();
+                    app.mode = Mode::Normal;
+                }
+                KeyCode::Backspace => {
+                    app.input_buffer.pop();
+                    app.label_picker_selection = 0;
+                }
+                KeyCode::Char(c) => {
+                    app.input_buffer.push(c);
+                    app.label_picker_selection = 0;
                 }
                 _ => {}
             }
