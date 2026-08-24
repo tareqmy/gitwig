@@ -7,7 +7,7 @@ This document lists and describes all the user interface panels, tabs, views, ov
 ## 1. Home Screen (Repository List View)
 The primary dashboard shown when Gitwig starts up.
 
-*   **Global Summary Header Bar**: Top row of four tabs showing aggregate counts: `repos │ dirty │ ahead │ stale`. Click a tab, or press `Tab` / `Shift+Tab`, to filter the repository list to that section; the active tab is drawn as a highlighted block and `Esc` clears the filter.
+*   **Global Summary Header Bar**: Top row of four tabs showing aggregate counts: `repos │ dirty │ ahead │ stale`. Click a tab, or press `Tab` / `Shift+Tab`, to filter the repository list to that section; the active tab is drawn as a highlighted block and `Esc` clears the filter. When a label filter is active, a `● label ▶` chip sits at the left of the tab strip (click it to reopen the label picker) and the tab counts scope to that label.
 *   **Repository List Panel**: Displays cards for all configured/scanned repositories. Supports Standard, Compact, and Tile grid layouts.
     *   *Shortcuts*:
         *   `↑` / `k` / `up` : Move selection up
@@ -51,7 +51,7 @@ The primary dashboard shown when Gitwig starts up.
     *   *Shortcuts*:
         *   `←` / `→` : Toggle focus between sidebar groups and repository list
         *   `Space` / `Enter` : Collapse / expand label groups (when focused on header)
-*   **Label Picker Overlay** (`L`): Floating fuzzy picker listing every label with its repository count, plus an "All repositories" row. Selecting a label filters the home list to it — a sticky "project view" that survives `Esc` and app restarts until deselected (re-select the active label or choose "All repositories"). The active label is marked with ● and shown as a `Label:` chip in the status bar; the summary tabs' counts scope to the selected label.
+*   **Label Picker Overlay** (`L`): Floating fuzzy picker listing every label with its repository count, plus an "All repositories" row. Selecting a label filters the home list to it — a sticky "project view" that survives `Esc` and app restarts until deselected (re-select the active label or choose "All repositories"). The active label is marked with ● in the picker, pinned as a `● label ▶` chip at the left of the summary tab strip (clickable to reopen the picker), and shown as a `Label:` chip in the status bar; the summary tabs' counts scope to the selected label.
 *   **Bottom Command/Status Bar**: Reflects current keyboard context, active mode, background fetches, and CPU/memory statistics.
 
 ---

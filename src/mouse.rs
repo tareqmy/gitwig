@@ -457,8 +457,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         .map(|(count, label)| count.chars().count() + label.chars().count())
                         .collect();
                     let divider_width = crate::ui::draw::SUMMARY_TAB_DIVIDER.chars().count();
-                    let total_width =
-                        widths.iter().sum::<usize>() + divider_width * (widths.len() - 1);
+                    let prefix_width = crate::ui::draw::summary_label_prefix(app)
+                        .map(|p| p.chars().count())
+                        .unwrap_or(0);
+                    let total_width = prefix_width
+                        + widths.iter().sum::<usize>()
+                        + divider_width * (widths.len() - 1);
 
                     let start_x = summary_rect.x
                         + (summary_rect.width.saturating_sub(total_width as u16) / 2);
@@ -470,6 +474,14 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                             Some(GlobalFilter::Stale),
                         ];
                         let mut offset = (pos.x - start_x) as usize;
+                        if offset < prefix_width {
+                            // Clicking the label chip reopens the label picker.
+                            app.input_buffer.clear();
+                            app.label_picker_selection = 0;
+                            app.mode = Mode::LabelPicker;
+                            return;
+                        }
+                        offset -= prefix_width;
                         for (width, clicked) in widths.iter().zip(filters) {
                             if offset < *width {
                                 app.global_filter =
@@ -1704,5 +1716,30 @@ mod tests {
         app.global_filter = Some(GlobalFilter::Ahead);
         handle_mouse(&mut app, click(start_x + widths[0] as u16));
         assert_eq!(app.global_filter, Some(GlobalFilter::Ahead));
+
+        // With a label filter active, the bar gains a prefix chip: clicking the
+        // chip reopens the label picker, and tab clicks shift past the prefix.
+        app.global_filter = None;
+        app.config.labels.insert("/path/to/repo_a".to_string(), vec!["web".to_string()]);
+        app.config.active_label_filter = Some("web".to_string());
+        let counts = crate::ui::draw::summary_counts(&app);
+        let parts = crate::ui::draw::summary_tab_parts(&app, &counts);
+        let tab_widths: Vec<usize> = parts
+            .iter()
+            .map(|(count, label)| count.chars().count() + label.chars().count())
+            .collect();
+        let prefix_width =
+            crate::ui::draw::summary_label_prefix(&app).expect("chip expected").chars().count();
+        let labeled_total = prefix_width + tab_widths.iter().sum::<usize>() + divider * 3;
+        let labeled_start_x = (80 - labeled_total as u16) / 2;
+
+        handle_mouse(&mut app, click(labeled_start_x));
+        assert_eq!(app.mode, Mode::LabelPicker);
+        app.mode = Mode::Normal;
+
+        let labeled_dirty_x = labeled_start_x + (prefix_width + tab_widths[0] + divider) as u16;
+        handle_mouse(&mut app, click(labeled_dirty_x));
+        assert_eq!(app.global_filter, Some(GlobalFilter::Dirty));
+        assert_eq!(app.config.active_label_filter.as_deref(), Some("web"));
     }
 }

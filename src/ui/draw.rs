@@ -638,6 +638,17 @@ pub fn summary_counts(app: &App) -> SummaryCounts {
 /// Divider drawn between summary tabs; its width is part of the click math.
 pub const SUMMARY_TAB_DIVIDER: &str = "│";
 
+/// Prefix chip naming the sticky label filter at the left edge of the summary
+/// tab strip; `None` when no label filter is active. Mouse hit-testing in
+/// `mouse.rs` measures this exact string, and a click on the chip reopens the
+/// label picker.
+pub fn summary_label_prefix(app: &App) -> Option<String> {
+    app.config
+        .active_label_filter
+        .as_ref()
+        .map(|label| format!("{} {} {}  ", app.sym("bullet_filled"), label, app.sym("arrow_right")))
+}
+
 /// Caption of each summary tab as (count, label) halves, in click order:
 /// repos, dirty, ahead, stale. Mouse hit-testing in `mouse.rs` measures these
 /// exact strings, so the rendered tabs and the click zones cannot drift apart.
@@ -678,6 +689,9 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
     ];
 
     let mut spans = Vec::new();
+    if let Some(prefix) = summary_label_prefix(app) {
+        spans.push(Span::styled(prefix, accent_style().add_modifier(Modifier::BOLD)));
+    }
     for (i, (count_text, label_text)) in parts.iter().enumerate() {
         if i > 0 {
             spans.push(Span::styled(SUMMARY_TAB_DIVIDER, muted_style()));
@@ -3303,14 +3317,18 @@ mod tests {
         assert!(ahead_cell_style.add_modifier.contains(Modifier::REVERSED));
         assert_eq!(ahead_cell_style.fg, Some(SUCCESS()));
 
-        // An empty label filter names the label instead.
+        // An empty label filter names the label instead, and the summary bar
+        // carries the label chip so the active project stays visible on top.
         app.global_filter = None;
         app.config.active_label_filter = Some("ghost".to_string());
         assert_eq!(app.get_items_len(), 0);
-        let (text, _) = render(&app, &mut global_summary_area);
+        let (text, buffer) = render(&app, &mut global_summary_area);
         assert!(global_summary_area.is_some());
         assert!(!text.contains("Gitwig Onboarding"), "onboarding shown:\n{}", text);
         assert!(text.contains("No repositories with label 'ghost'"), "message missing:\n{}", text);
+        let bar_y = global_summary_area.unwrap().y;
+        let bar_row: String = (0..80).map(|x| buffer[(x, bar_y)].symbol()).collect();
+        assert!(bar_row.contains("ghost"), "label chip missing from summary bar:\n{}", bar_row);
     }
 
     #[test]
