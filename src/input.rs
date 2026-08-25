@@ -9,6 +9,20 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::{App, DetailSection, Mode};
 use crate::components::Component;
 
+/// Shared Home/End/PageUp/PageDown handling for the fuzzy-picker popups'
+/// list selections (label picker, jump picker, repo scanners, branch/file/
+/// commit/tag searches). Returns whether the key was one of those.
+fn picker_list_nav(code: KeyCode, selection: &mut usize, len: usize, page: usize) -> bool {
+    match code {
+        KeyCode::Home => *selection = 0,
+        KeyCode::End => *selection = len.saturating_sub(1),
+        KeyCode::PageUp => *selection = selection.saturating_sub(page),
+        KeyCode::PageDown => *selection = (*selection + page).min(len.saturating_sub(1)),
+        _ => return false,
+    }
+    true
+}
+
 /// Dispatch a key press. Returns `false` if the user requested quit.
 /// The queue is always drained after every keypress, regardless of exit path.
 pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
@@ -558,6 +572,10 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         }
         Mode::RepoJump => {
             let matches = app.get_jump_matches();
+            let page = app.config.page_size;
+            if picker_list_nav(code, &mut app.repo_jump_selection, matches.len(), page) {
+                return true;
+            }
             match code {
                 KeyCode::Esc => {
                     app.input_buffer.clear();
@@ -596,6 +614,10 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         }
         Mode::LabelPicker => {
             let matches = app.get_label_matches();
+            let page = app.config.page_size;
+            if picker_list_nav(code, &mut app.label_picker_selection, matches.len(), page) {
+                return true;
+            }
             match code {
                 KeyCode::Esc => {
                     app.input_buffer.clear();
@@ -630,6 +652,10 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         }
         Mode::RepoScanPicker => {
             let matches = app.get_scan_matches();
+            let page = app.config.page_size;
+            if picker_list_nav(code, &mut app.repo_scan_selection, matches.len(), page) {
+                return true;
+            }
             match code {
                 KeyCode::Esc => {
                     app.input_buffer.clear();
@@ -670,6 +696,10 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         }
         Mode::BulkAddScanPicker => {
             let matches = app.get_scan_matches();
+            let page = app.config.page_size;
+            if picker_list_nav(code, &mut app.repo_scan_selection, matches.len(), page) {
+                return true;
+            }
             match code {
                 KeyCode::Esc => {
                     app.input_buffer.clear();
@@ -710,6 +740,10 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         }
         Mode::BranchSearchInput => {
             let matches = app.get_branch_search_matches();
+            let page = app.config.page_size;
+            if picker_list_nav(code, &mut app.branch_search_selection, matches.len(), page) {
+                return true;
+            }
             match code {
                 KeyCode::Esc => {
                     app.input_buffer.clear();
@@ -822,6 +856,10 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         }
         Mode::FileSearchInput => {
             let matches = app.get_file_search_matches();
+            let page = app.config.page_size;
+            if picker_list_nav(code, &mut app.file_search_selection, matches.len(), page) {
+                return true;
+            }
             match code {
                 KeyCode::Esc => {
                     app.input_buffer.clear();
@@ -881,6 +919,10 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         }
         Mode::CommitFuzzySearch => {
             let matches = app.get_commit_fuzzy_matches();
+            let page = app.config.page_size;
+            if picker_list_nav(code, &mut app.commit_search_selection, matches.len(), page) {
+                return true;
+            }
             match code {
                 KeyCode::Esc => {
                     app.input_buffer.clear();
@@ -921,6 +963,10 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         }
         Mode::TagSearchInput => {
             let matches = app.get_tag_search_matches();
+            let page = app.config.page_size;
+            if picker_list_nav(code, &mut app.tag_search_selection, matches.len(), page) {
+                return true;
+            }
             match code {
                 KeyCode::Esc => {
                     app.input_buffer.clear();

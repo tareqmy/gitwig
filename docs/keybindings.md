@@ -19,6 +19,7 @@
 | `Esc`                | LabelPicker     | Close label picker without changing the filter |
 | `↑` / `↓`            | LabelPicker     | Navigate label list |
 | `Enter`              | LabelPicker     | Apply selected label (re-selecting the active label, or "All repositories", clears it) |
+| `Home` / `End` / `PgUp` / `PgDn` | Fuzzy pickers | Jump to top / bottom or page through the match list. Works in all fuzzy picker overlays: label picker, Jump-to-Repo, add/bulk-add repo scanners, and branch/file/commit/tag searches |
 | `ctrl+f`             | Normal          | Open global code search popup overlay |
 | `p`                  | Normal          | Toggle pin status of selected item |
 | `*`                  | Normal          | Toggle Favorite / Star status of selected item |

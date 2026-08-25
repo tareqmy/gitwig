@@ -6111,6 +6111,62 @@ fn test_label_filter_project_view() {
 }
 
 #[test]
+fn test_picker_list_navigation_keys() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    // One repo carrying 15 labels: the picker shows 16 rows (All + 15), which
+    // gives PageUp/PageDown (page_size 10) room to move and clamp.
+    let mut config = Config { items: vec!["/path/to/repo_a".to_string()], ..Default::default() };
+    let labels: Vec<String> = (0..15).map(|i| format!("label{:02}", i)).collect();
+    config.labels.insert("/path/to/repo_a".to_string(), labels);
+    let temp_path = std::env::temp_dir().join("gitwig_test_picker_nav.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+    assert_eq!(app.config.page_size, 10);
+
+    let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    // Label picker: End / Home / PageDown / PageUp navigate and clamp.
+    assert!(crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Char('L'), KeyModifiers::SHIFT),
+        1
+    ));
+    assert_eq!(app.mode, Mode::LabelPicker);
+    assert_eq!(app.get_label_matches().len(), 16);
+
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::End), 1));
+    assert_eq!(app.label_picker_selection, 15);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Home), 1));
+    assert_eq!(app.label_picker_selection, 0);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::PageDown), 1));
+    assert_eq!(app.label_picker_selection, 10);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::PageDown), 1));
+    assert_eq!(app.label_picker_selection, 15); // clamped to the last row
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::PageUp), 1));
+    assert_eq!(app.label_picker_selection, 5);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::PageUp), 1));
+    assert_eq!(app.label_picker_selection, 0);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Esc), 1));
+
+    // Repo scan picker (add repo): same keys drive repo_scan_selection.
+    app.scanned_repos =
+        (0..12).map(|i| (format!("repo{:02}", i), format!("/scan/repo{:02}", i))).collect();
+    app.mode = Mode::RepoScanPicker;
+    app.repo_scan_selection = 0;
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::End), 1));
+    assert_eq!(app.repo_scan_selection, 11);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::PageUp), 1));
+    assert_eq!(app.repo_scan_selection, 1);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Home), 1));
+    assert_eq!(app.repo_scan_selection, 0);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::PageDown), 1));
+    assert_eq!(app.repo_scan_selection, 10);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Esc), 1));
+    assert_eq!(app.mode, Mode::Normal);
+}
+
+#[test]
 fn test_reflog_tui_flows() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
