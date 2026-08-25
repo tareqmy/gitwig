@@ -5,13 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
-## [Unreleased]
+## [v2.5.11] - 2026-08-25
 ### Added
 - **home**: pin active label as a clickable chip beside the summary tabs ([7c32435](https://github.com/tareqmy/gitwig/commit/7c32435))
 - **home**: sticky label filter with fuzzy picker (project view) ([c073904](https://github.com/tareqmy/gitwig/commit/c073904))
 
 ### Fixed
 - **home**: keep summary tabs visible when the active filter is empty ([51945c9](https://github.com/tareqmy/gitwig/commit/51945c9))
+
+### Documentation
+- sync configuration, changelog, and codemap for label filter work ([917605b](https://github.com/tareqmy/gitwig/commit/917605b))
 
 ## [v2.5.10] - 2026-08-24
 ### Added
