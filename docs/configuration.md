@@ -76,6 +76,8 @@ show_stale_projects = true
 | `ssh_strict_host_checking` | `Boolean` | `false` | Enforce strict SSH host key checking (`StrictHostKeyChecking=yes`). |
 | `git_app` | `String` | `""` | Preferred external Git GUI application (e.g. `gitui` or `lazygit`), launched with `g`. |
 | `show_grouping` | `Boolean` | `true` | Enable or disable repository label grouping sidebar on the home page. |
+| `labels` | `Map<String, [String]>` | `{}` | Repository path → list of labels. Managed by the in-app `l` shortcut. |
+| `active_label_filter` | `String` | *(unset)* | Sticky home-list label filter ("project view"). Managed by the `L` label picker; persists across restarts until deselected, and auto-clears if the label no longer exists on any tracked repository. |
 | `view_mode` | `String` | `"cards"` | Home page repository list layout mode (`"cards"`, `"compact"`, `"tile"`). Managed by `v`. |
 | `tile_columns` | `Integer` | `0` | Number of columns in tile layout mode (`0` = auto-calculate based on terminal width). |
 | `resync_on_tab_change` | `Boolean` | `false` | Automatically reload repository details from disk when switching tabs. |

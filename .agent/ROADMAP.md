@@ -126,7 +126,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Fuzzy Jump-to-Repo Overlay: `/`-triggered floating popup with ranked fuzzy matches across all repo names for instant navigation.
 - [x] Recently Opened MRU Stack: Persist most-recently-used repo history across sessions; surface in a dedicated `Recent` group.
 - [x] Favorite / Star Repos: Semantic ★ bookmark separate from positional pin; starred repos float to a dedicated section.
-- [x] Label Filter / Project View (`L`): fuzzy label picker applying a sticky, config-persisted label filter to the home list; summary tabs scope to it; auto-clears when the label disappears.
+- [x] Label Filter / Project View (`L`): fuzzy label picker applying a sticky, config-persisted label filter to the home list; summary tabs scope to it, the active label is pinned as a clickable chip beside them, and the filter auto-clears when the label disappears.
 
 ### At-a-Glance Stats
 - [x] Global Summary Header Bar: 1–2 row header showing aggregate counts as a tab strip (`N repos │ M dirty │ P ahead │ Q stale`). Tabs act as filters — clickable, and cycled with `Tab`/`Shift+Tab`.

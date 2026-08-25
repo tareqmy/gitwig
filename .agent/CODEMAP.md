@@ -60,7 +60,7 @@ Keystrokes are interpreted conditionally depending on the active `Mode`:
 - `Mode::TagOverwriteConfirm`: Confirming force update of existing tag.
 - `Mode::CommitCheckoutConfirm` / `Mode::BranchCheckoutConfirm` / `Mode::TagCheckoutConfirm`: Confirmations for checkout operations.
 - `Mode::MergeAbortConfirm` / `Mode::MergeContinueConfirm`: Confirmations for merge abort/continue.
-- `Mode::RepoJump` / `Mode::CommitFuzzySearch` / `Mode::BranchSearchInput` / `Mode::TagSearchInput` / `Mode::FileSearchInput`: Fuzzy search pickers.
+- `Mode::RepoJump` / `Mode::LabelPicker` / `Mode::CommitFuzzySearch` / `Mode::BranchSearchInput` / `Mode::TagSearchInput` / `Mode::FileSearchInput`: Fuzzy search pickers (`LabelPicker` applies the sticky home-list label filter).
 - `Mode::GlobalSearch`: Full-screen multi-repo keyword search.
 - `Mode::StatsDashboard`: App usage statistics and activity heatmap dashboard.
 - `Mode::ForgeCommentPathInput` / `Mode::ForgeCommentLineInput` / `Mode::ForgeCommentBodyInput`: Wizard step inputs for PR reviews.

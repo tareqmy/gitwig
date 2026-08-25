@@ -7,7 +7,7 @@ This document lists and describes all the user interface panels, tabs, views, ov
 ## 1. Home Screen (Repository List View)
 The primary dashboard shown when Gitwig starts up.
 
-*   **Global Summary Header Bar**: Top row of four tabs showing aggregate counts: `repos │ dirty │ ahead │ stale`. Click a tab, or press `Tab` / `Shift+Tab`, to filter the repository list to that section; the active tab is drawn as a highlighted block and `Esc` clears the filter. When a label filter is active, a `● label ▶` chip sits at the left of the tab strip (click it to reopen the label picker) and the tab counts scope to that label.
+*   **Global Summary Header Bar**: Top row of four tabs showing aggregate counts: `repos │ dirty │ ahead │ stale`. Click a tab, or press `Tab` / `Shift+Tab`, to filter the repository list to that section; the active tab is drawn as a highlighted block and `Esc` clears the filter. When a label filter is active, a `● label ▶` chip sits at the left of the tab strip (click it to reopen the label picker) and the tab counts scope to that label. If the active filters leave nothing to show, the tab strip stays visible above a message explaining which filter is empty and how to leave it.
 *   **Repository List Panel**: Displays cards for all configured/scanned repositories. Supports Standard, Compact, and Tile grid layouts.
     *   *Shortcuts*:
         *   `↑` / `k` / `up` : Move selection up
