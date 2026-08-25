@@ -16,3 +16,6 @@
 /config.toml
 # Python venv used by branding/build-logos.py
 .venv/
+
+# Nix build output symlink
+result

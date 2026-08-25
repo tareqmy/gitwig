@@ -187,6 +187,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Multi-Profile Workspaces:** Support grouping repositories by profile (Work, Personal) which can also contextually apply specific Git configurations (like `user.email`).
 
 ## Phase 18: Linux Package Management & Distribution
+- [x] **Nix (flake):** Ship a `flake.nix` building `gitwig`/`gtg` (version derived from `Cargo.toml`, lockfile-based vendoring) with a dev shell; installable via `nix profile install github:tareqmy/gitwig` or as a flake input.
 - [ ] **Debian/Ubuntu (`.deb` / APT):** Create a Debian package and host a PPA/APT repository for easier installation and updates on Debian-based systems.
 - [ ] **Red Hat/Fedora/CentOS (`.rpm` / DNF):** Create an RPM package and host a YUM/DNF repository for RPM-based distributions.
 - [ ] **Arch Linux (AUR):** Publish and maintain a `gitwig-bin` and `gitwig` package in the Arch User Repository (AUR).

@@ -58,6 +58,32 @@ You can install **Gitwig** directly from [crates.io](https://crates.io/crates/gi
 cargo install gitwig
 ```
 
+### Via Nix (flake)
+
+The repository ships a Nix flake building both the `gitwig` and `gtg` binaries. Run it directly without installing:
+
+```sh
+nix run github:tareqmy/gitwig
+```
+
+Or install it into your profile:
+
+```sh
+nix profile install github:tareqmy/gitwig
+```
+
+In a flake-based NixOS / home-manager configuration, add the flake as an input and reference its package:
+
+```nix
+inputs.gitwig.url = "github:tareqmy/gitwig";
+# ...
+environment.systemPackages = [ inputs.gitwig.packages.${pkgs.system}.default ];
+```
+
+A development shell with the Rust toolchain is also provided: `nix develop`.
+
+*Note: the in-app self-updater does not apply to Nix installs; update by bumping the flake input (`nix flake update gitwig`) or re-running `nix profile upgrade`.*
+
 ### Building from Source
 
 Alternatively, you can clone the repository and build it from source:
