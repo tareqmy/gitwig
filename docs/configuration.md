@@ -73,7 +73,7 @@ show_stale_projects = true
 | `stale_threshold_months` | `Integer` | `1` | Number of months inactive (no commits) for a repository to be considered stale. |
 | `show_stale_projects` | `Boolean` | `true` | Show or hide stale repositories in the list on the main page. |
 | `editor` | `String` | `""` | Custom terminal editor executable to open files with from the Files tab (`e`/`o`). |
-| `ssh_strict_host_checking` | `Boolean` | `false` | Enforce strict SSH host key checking (`StrictHostKeyChecking=yes`). |
+| `ssh_strict_host_checking` | `Boolean` | `false` | Enforce strict SSH host key checking (`StrictHostKeyChecking=yes`). All Gitwig SSH operations additionally run with `BatchMode=yes`: ssh can never prompt for passphrases or confirmations over the TUI — an operation needing interactive auth fails fast and the error is shown in the error popup (per-repo fetch failures show a compact `✗` marker; press `E` for details). Load your key into `ssh-agent` for passphrase-protected keys. |
 | `git_app` | `String` | `""` | Preferred external Git GUI application (e.g. `gitui` or `lazygit`), launched with `g`. |
 | `show_grouping` | `Boolean` | `true` | Enable or disable repository label grouping sidebar on the home page. |
 | `labels` | `Map<String, [String]>` | `{}` | Repository path → list of labels. Managed by the in-app `l` shortcut. |

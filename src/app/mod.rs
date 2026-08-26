@@ -1753,6 +1753,21 @@ where
                     app.resync_detail();
                 }
             } else {
+                // The operation's repo is no longer the open detail view, but a
+                // failure must still surface — silently dropping it would leave
+                // the user believing the operation succeeded.
+                let looks_like_error = msg.contains("failed") || msg.contains("Failed");
+                if looks_like_error {
+                    if let Some(path_str) = repo_path {
+                        let repo_name = std::path::Path::new(&path_str)
+                            .file_name()
+                            .map(|n| n.to_string_lossy().into_owned())
+                            .unwrap_or(path_str);
+                        app.set_error(format!("[{}] {}", repo_name, msg));
+                    } else {
+                        app.set_error(msg);
+                    }
+                }
                 app.fetching = false;
             }
         }
@@ -2201,7 +2216,7 @@ where
                         ));
                     }
                     Err(e) => {
-                        app.status_message = Some(format!("Failed to run git rebase: {}", e));
+                        app.set_error(format!("Failed to run git rebase: {}", e));
                     }
                 }
                 if let Some(item) = app.config.items.get(app.selected_index) {
@@ -2304,7 +2319,7 @@ where
                             app.refresh_selected_status();
                         }
                         Ok(_) => {
-                            app.status_message = Some(format!("{} exited with error", editor));
+                            app.set_error(format!("{} exited with error", editor));
                             app.refresh_selected_status();
                         }
                         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {

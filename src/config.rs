@@ -62,11 +62,16 @@ fn default_git_app() -> String {
     "gitui".to_string()
 }
 
+/// `BatchMode=yes` is load-bearing: without it, ssh bypasses the captured
+/// stdio pipes and prompts for passphrases or confirmations directly on
+/// `/dev/tty`, painting raw text over the TUI's alternate screen. With it,
+/// ssh fails immediately and the error is captured, classified, and shown
+/// through the normal error popup instead.
 pub fn ssh_command_val() -> &'static str {
     if std::env::var("GITWIG_SSH_STRICT").map(|v| v == "1").unwrap_or(false) {
-        "ssh -o StrictHostKeyChecking=yes"
+        "ssh -o BatchMode=yes -o StrictHostKeyChecking=yes"
     } else {
-        "ssh -o StrictHostKeyChecking=accept-new"
+        "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
     }
 }
 

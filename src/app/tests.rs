@@ -348,6 +348,12 @@ fn test_set_error_logging() {
     // Check if debug log contains the message
     let logs = crate::debug_log::get_logs();
     assert!(logs.iter().any(|log| log.contains("ERROR") && log.contains(&test_error_msg)));
+
+    // Raw ssh/git stderr is sanitized before display: ANSI escapes are
+    // stripped and carriage returns flattened so the popup can't tear the
+    // frame with control characters.
+    app.set_error("\x1b[31mPermission denied\x1b[0m (publickey).\rretry".to_string());
+    assert_eq!(app.error_message.as_deref(), Some("Permission denied (publickey).\nretry"));
 }
 
 #[test]
@@ -3093,6 +3099,13 @@ fn test_branch_and_tag_checkout_confirmation() {
     assert!(handled);
     assert_eq!(app.mode, Mode::Detail);
     assert_eq!(app.branch_action_target, None);
+
+    // The failed checkout surfaces as an error popup; dismiss it before
+    // continuing, as the next keypress would otherwise be consumed by it.
+    assert!(app.error_message.as_deref().unwrap_or("").contains("Checkout failed"));
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 10);
+    assert!(handled);
+    assert!(app.error_message.is_none());
 
     // Switch to Tags tab (detail_tab = 4)
     app.detail_tab = 4;
@@ -11010,6 +11023,13 @@ fn test_git_command_disables_every_interactive_prompt() {
             .map(|v| v.contains("StrictHostKeyChecking"))
             .unwrap_or(false),
         "ssh must never ask the user to confirm a host fingerprint"
+    );
+    assert!(
+        envs.get("GIT_SSH_COMMAND")
+            .and_then(|v| v.as_ref())
+            .map(|v| v.contains("BatchMode=yes"))
+            .unwrap_or(false),
+        "ssh must never prompt on /dev/tty over the TUI (passphrases included)"
     );
     assert_eq!(envs.get("GIT_ALLOW_PROTOCOL"), Some(&Some("https:ssh:git:file".to_string())));
 }

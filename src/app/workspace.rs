@@ -283,7 +283,7 @@ impl App {
                             prev_hunk_idx.min(new_hunk_count.saturating_sub(1));
                         self.scroll_to_selected_hunk();
                     }
-                    Err(e) => self.status_message = Some(format!("Stage hunk failed: {}", e)),
+                    Err(e) => self.set_error(format!("Stage hunk failed: {}", e)),
                 }
             }
         }
@@ -323,7 +323,7 @@ impl App {
                             prev_hunk_idx.min(new_hunk_count.saturating_sub(1));
                         self.scroll_to_selected_hunk();
                     }
-                    Err(e) => self.status_message = Some(format!("Unstage hunk failed: {}", e)),
+                    Err(e) => self.set_error(format!("Unstage hunk failed: {}", e)),
                 }
             }
         }
@@ -363,7 +363,7 @@ impl App {
                             prev_hunk_idx.min(new_hunk_count.saturating_sub(1));
                         self.scroll_to_selected_hunk();
                     }
-                    Err(e) => self.status_message = Some(format!("Discard hunk failed: {}", e)),
+                    Err(e) => self.set_error(format!("Discard hunk failed: {}", e)),
                 }
             }
         }
@@ -401,7 +401,7 @@ impl App {
                             self.status_message = Some(format!("Staged line from: {}", file_path));
                             self.refresh_detail_for_line_action();
                         }
-                        Err(e) => self.status_message = Some(format!("Stage line failed: {}", e)),
+                        Err(e) => self.set_error(format!("Stage line failed: {}", e)),
                     }
                 }
             }
@@ -445,7 +445,7 @@ impl App {
                                 Some(format!("Unstaged line from: {}", file_path));
                             self.refresh_detail_for_line_action();
                         }
-                        Err(e) => self.status_message = Some(format!("Unstage line failed: {}", e)),
+                        Err(e) => self.set_error(format!("Unstage line failed: {}", e)),
                     }
                 }
             }
@@ -489,7 +489,7 @@ impl App {
                                 Some(format!("Discarded line from: {}", file_path));
                             self.refresh_detail_for_line_action();
                         }
-                        Err(e) => self.status_message = Some(format!("Discard line failed: {}", e)),
+                        Err(e) => self.set_error(format!("Discard line failed: {}", e)),
                     }
                 }
             }
@@ -656,7 +656,7 @@ impl App {
                     self.status_message = Some(format!("Staged: {}", file_path));
                     self.refresh_detail();
                 }
-                Err(e) => self.status_message = Some(format!("Stage failed: {}", e)),
+                Err(e) => self.set_error(format!("Stage failed: {}", e)),
             }
         }
     }
@@ -677,7 +677,7 @@ impl App {
                     self.status_message = Some(format!("Unstaged: {}", file_path));
                     self.refresh_detail();
                 }
-                Err(e) => self.status_message = Some(format!("Unstage failed: {}", e)),
+                Err(e) => self.set_error(format!("Unstage failed: {}", e)),
             }
         }
     }
@@ -716,7 +716,7 @@ impl App {
                     self.clamp_conflict_selection();
                     self.refresh_staging_diff();
                 }
-                Err(e) => self.status_message = Some(format!("Resolve ours failed: {}", e)),
+                Err(e) => self.set_error(format!("Resolve ours failed: {}", e)),
             }
         }
     }
@@ -755,7 +755,7 @@ impl App {
                     self.clamp_conflict_selection();
                     self.refresh_staging_diff();
                 }
-                Err(e) => self.status_message = Some(format!("Resolve theirs failed: {}", e)),
+                Err(e) => self.set_error(format!("Resolve theirs failed: {}", e)),
             }
         }
     }
@@ -778,7 +778,7 @@ impl App {
                     self.clamp_conflict_selection();
                     self.refresh_staging_diff();
                 }
-                Err(e) => self.status_message = Some(format!("Mark resolved failed: {}", e)),
+                Err(e) => self.set_error(format!("Mark resolved failed: {}", e)),
             }
         }
     }
@@ -794,7 +794,7 @@ impl App {
                         self.detail_focus = DetailSection::Staged;
                     }
                 }
-                Err(e) => self.status_message = Some(format!("Stage all failed: {}", e)),
+                Err(e) => self.set_error(format!("Stage all failed: {}", e)),
             }
         }
     }
@@ -810,7 +810,7 @@ impl App {
                         self.detail_focus = DetailSection::Unstaged;
                     }
                 }
-                Err(e) => self.status_message = Some(format!("Unstage all failed: {}", e)),
+                Err(e) => self.set_error(format!("Unstage all failed: {}", e)),
             }
         }
     }
@@ -863,7 +863,7 @@ impl App {
                         self.refresh_detail();
                     }
                     Err(e) => {
-                        self.status_message = Some(format!("Discard failed: {}", e));
+                        self.set_error(format!("Discard failed: {}", e));
                     }
                 }
             }

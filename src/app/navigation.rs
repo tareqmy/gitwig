@@ -9,9 +9,15 @@ pub enum HomeRow {
 }
 
 impl App {
+    /// Records an error for the error popup. The text is sanitized because it
+    /// often carries raw `git`/`ssh` stderr — ANSI escapes or control
+    /// characters rendered into the buffer would tear the TUI frame.
     pub fn set_error(&mut self, msg: String) {
         crate::debug_log::error(&msg);
-        self.error_message = Some(msg);
+        // Carriage returns (progress-frame rewrites in git/ssh output) survive
+        // sanitize_text; flatten them so the popup shows clean lines.
+        let clean = crate::repo::sanitize_text(&msg).replace("\r\n", "\n").replace('\r', "\n");
+        self.error_message = Some(clean);
     }
 
     pub fn load_comments_for_selected_pr(&mut self) {
@@ -3204,10 +3210,10 @@ impl App {
     /// the save error) for the next render.
     pub fn persist(&mut self, success_msg: &str) {
         self.resolve_repo_themes();
-        self.status_message = match save_config(&self.config, &self.config_path) {
-            Ok(()) => Some(success_msg.to_string()),
-            Err(e) => Some(format!("Save failed: {}", e)),
-        };
+        match save_config(&self.config, &self.config_path) {
+            Ok(()) => self.status_message = Some(success_msg.to_string()),
+            Err(e) => self.set_error(format!("Save failed: {}", e)),
+        }
         self.setup_watcher();
     }
 
@@ -3700,7 +3706,7 @@ impl App {
                     self.status_message = Some(format!("Copied hash {:.7} to clipboard", hash));
                 }
                 Err(e) => {
-                    self.status_message = Some(format!("Failed to copy to clipboard: {}", e));
+                    self.set_error(format!("Failed to copy to clipboard: {}", e));
                 }
             }
         }
@@ -3718,7 +3724,7 @@ impl App {
                     self.status_message = Some(format!("Copied path '{}' to clipboard", abs_path));
                 }
                 Err(e) => {
-                    self.status_message = Some(format!("Failed to copy to clipboard: {}", e));
+                    self.set_error(format!("Failed to copy to clipboard: {}", e));
                 }
             }
         }

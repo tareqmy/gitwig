@@ -300,7 +300,7 @@ impl App {
                         self.resync_detail();
                     }
                     Err(e) => {
-                        self.status_message = Some(format!("Checkout failed: {}", e));
+                        self.set_error(format!("Checkout failed: {}", e));
                     }
                 }
             }
@@ -364,7 +364,7 @@ impl App {
                         self.resync_detail();
                     }
                     Err(e) => {
-                        self.status_message = Some(format!("Failed to create tag: {}", e));
+                        self.set_error(format!("Failed to create tag: {}", e));
                     }
                 }
             }
@@ -385,7 +385,7 @@ impl App {
                         self.resync_detail();
                     }
                     Err(e) => {
-                        self.status_message = Some(format!("Failed to force update tag: {}", e));
+                        self.set_error(format!("Failed to force update tag: {}", e));
                     }
                 }
             }
@@ -546,7 +546,7 @@ impl App {
                     }
                 }
                 Err(e) => {
-                    self.status_message = Some(format!("Failed to delete tag: {}", e));
+                    self.set_error(format!("Failed to delete tag: {}", e));
                 }
             }
         }
@@ -672,7 +672,7 @@ impl App {
                             self.stats.branches_created += 1;
                         }
                         Err(e) => {
-                            self.status_message = Some(format!(
+                            self.set_error(format!(
                                 "Created branch '{}', but checkout failed: {}",
                                 branch_name, e
                             ));
@@ -683,7 +683,7 @@ impl App {
                     self.resync_detail();
                 }
                 Err(e) => {
-                    self.status_message = Some(format!("Failed to create branch: {}", e));
+                    self.set_error(format!("Failed to create branch: {}", e));
                 }
             }
         }
@@ -786,7 +786,7 @@ impl App {
                             self.resync_detail();
                         }
                         Err(e) => {
-                            self.status_message = Some(format!("Failed to delete branch: {}", e));
+                            self.set_error(format!("Failed to delete branch: {}", e));
                         }
                     }
                 }
@@ -1189,7 +1189,7 @@ impl App {
                     }
                     self.refresh_staging_diff();
                 }
-                Err(e) => self.status_message = Some(format!("Abort merge failed: {}", e)),
+                Err(e) => self.set_error(format!("Abort merge failed: {}", e)),
             }
         }
     }
@@ -1212,7 +1212,7 @@ impl App {
                     self.refresh_staging_diff();
                 }
                 Err(e) => {
-                    self.status_message = Some(format!("Merge continue failed: {}", e));
+                    self.set_error(format!("Merge continue failed: {}", e));
                     self.refresh_detail();
                     self.refresh_staging_diff();
                 }
@@ -1766,7 +1766,7 @@ impl App {
                             self.resync_detail();
                         }
                         Err(e) => {
-                            self.status_message = Some(format!("Failed to delete stash: {}", e));
+                            self.set_error(format!("Failed to delete stash: {}", e));
                         }
                     }
                 } else {
@@ -1822,7 +1822,7 @@ impl App {
                             self.resync_detail();
                         }
                         Err(e) => {
-                            self.status_message = Some(format!("Failed to apply stash: {}", e));
+                            self.set_error(format!("Failed to apply stash: {}", e));
                         }
                     }
                 } else {
@@ -1861,7 +1861,7 @@ impl App {
                         self.resync_detail();
                     }
                     Err(e) => {
-                        self.status_message = Some(format!("Failed to checkout tag: {}", e));
+                        self.set_error(format!("Failed to checkout tag: {}", e));
                     }
                 }
             }
@@ -1895,7 +1895,7 @@ impl App {
                         self.resync_detail();
                     }
                     Err(e) => {
-                        self.status_message = Some(format!("Failed to checkout commit: {}", e));
+                        self.set_error(format!("Failed to checkout commit: {}", e));
                     }
                 }
             }
@@ -1941,7 +1941,7 @@ impl App {
                 self.resync_detail();
             }
             Err(e) => {
-                self.status_message = Some(format!("Failed to add worktree: {}", e));
+                self.set_error(format!("Failed to add worktree: {}", e));
             }
         }
         self.input_buffer.clear();
@@ -1966,7 +1966,7 @@ impl App {
                             self.resync_detail();
                         }
                         Err(e) => {
-                            self.status_message = Some(format!("Failed to lock: {}", e));
+                            self.set_error(format!("Failed to lock: {}", e));
                         }
                     }
                 }
@@ -1996,7 +1996,7 @@ impl App {
                         Ok(_) => {
                             if delete_folder && wt_path.exists() {
                                 if let Err(e) = std::fs::remove_dir_all(&wt_path) {
-                                    self.status_message = Some(format!(
+                                    self.set_error(format!(
                                         "Worktree removed, but failed to delete directory: {}",
                                         e
                                     ));
@@ -2010,7 +2010,7 @@ impl App {
                             self.resync_detail();
                         }
                         Err(e) => {
-                            self.status_message = Some(format!("Failed to remove worktree: {}", e));
+                            self.set_error(format!("Failed to remove worktree: {}", e));
                         }
                     }
                 }

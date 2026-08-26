@@ -468,11 +468,15 @@ pub fn safe_sha_slice(sha: &str, len: usize) -> &str {
     &sha[..end]
 }
 
+/// `BatchMode=yes` is load-bearing: without it, ssh bypasses the captured
+/// stdio pipes and prompts for passphrases or confirmations directly on
+/// `/dev/tty`, painting raw text over the TUI's alternate screen. With it,
+/// ssh fails immediately and the error is captured and reported normally.
 fn ssh_command_val() -> &'static str {
     if std::env::var("GITWIG_SSH_STRICT").map(|v| v == "1").unwrap_or(false) {
-        "ssh -o StrictHostKeyChecking=yes"
+        "ssh -o BatchMode=yes -o StrictHostKeyChecking=yes"
     } else {
-        "ssh -o StrictHostKeyChecking=accept-new"
+        "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
     }
 }
 
@@ -482,6 +486,12 @@ fn git_command() -> std::process::Command {
     cmd.env("GIT_SSH_COMMAND", ssh_command_val());
     cmd.env("GIT_ALLOW_PROTOCOL", "https:ssh:git:file");
     cmd.env("GIT_PROTOCOL_FROM_USER", "0");
+    // An askpass helper would pop a prompt *outside* the alternate screen.
+    cmd.env("GIT_ASKPASS", "");
+    cmd.env("SSH_ASKPASS", "");
+    cmd.env("GCM_INTERACTIVE", "Never");
+    // Anything that still tries to read gets EOF instead of the user's keys.
+    cmd.stdin(std::process::Stdio::null());
     cmd
 }
 
