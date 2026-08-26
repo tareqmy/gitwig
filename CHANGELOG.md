@@ -5,11 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
-## [Unreleased]
+## [v2.5.12] - 2026-08-26
 ### Added
 - **detail**: resize the focused panel with +/- keys ([e190dee](https://github.com/tareqmy/gitwig/commit/e190dee))
 - **nix**: add flake with package and dev shell ([f10b588](https://github.com/tareqmy/gitwig/commit/f10b588))
 - **pickers**: support Home/End/PgUp/PgDn in fuzzy picker popups ([30b3ff2](https://github.com/tareqmy/gitwig/commit/30b3ff2))
+
+### Documentation
+- sync detail-view, features, roadmap, and changelog for panel resize ([dcdc444](https://github.com/tareqmy/gitwig/commit/dcdc444))
 
 ## [v2.5.11] - 2026-08-25
 ### Added
