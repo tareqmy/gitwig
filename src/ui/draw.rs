@@ -713,12 +713,43 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(Paragraph::new(line), area);
 }
 
-fn draw_compact_headers(f: &mut Frame, area: Rect, _app: &App) {
+/// Width of the compact view's "Active Branch" column.
+///
+/// Historically a fixed 28 columns, which truncated long branch names even on
+/// wide terminals. Now grows to fit the longest visible branch line (branch
+/// symbol + name + relative-time suffix), floored at the legacy 28 so narrow
+/// terminals render exactly as before, and capped so the repository column
+/// always keeps room. Both the header row and the item rows size their
+/// columns through this, so they can never drift out of alignment.
+fn compact_branch_col_width(app: &App, total_width: u16) -> u16 {
+    const MIN_WIDTH: u16 = 28;
+    /// Columns reserved for the repository-name column at minimum.
+    const MIN_REPO_COL: u16 = 30;
+
+    let mut desired = MIN_WIDTH as usize;
+    for (idx, _) in app.get_filtered_items() {
+        if let Some(ItemStatus::GitRepo(Some(s))) = app.statuses.get(idx) {
+            if let Some(b) = &s.branch {
+                let time_len = s
+                    .last_commit_time
+                    .map(|t| format_relative_time(t).chars().count() + 3) // " (…)"
+                    .unwrap_or(0);
+                // branch symbol + space (2) + name + time + breathing room
+                desired = desired.max(2 + b.chars().count() + time_len + 1);
+            }
+        }
+    }
+
+    let cap = total_width.saturating_sub(STATUS_ZONE_WIDTH + MIN_REPO_COL).max(MIN_WIDTH);
+    (desired.min(u16::MAX as usize) as u16).clamp(MIN_WIDTH, cap)
+}
+
+fn draw_compact_headers(f: &mut Frame, area: Rect, app: &App) {
     let cols = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Min(0),
-            Constraint::Length(28),
+            Constraint::Length(compact_branch_col_width(app, area.width)),
             Constraint::Length(STATUS_ZONE_WIDTH),
         ])
         .split(area);
@@ -738,6 +769,8 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
     let rows = app.get_home_rows();
     let upper = (app.scroll_top + chunks.len()).min(rows.len());
     let visible_rows = &rows[app.scroll_top..upper];
+    let branch_col_width =
+        compact_branch_col_width(app, chunks.first().map(|c| c.width).unwrap_or(0));
 
     for (i, row) in visible_rows.iter().enumerate() {
         let display_index = i + app.scroll_top;
@@ -818,7 +851,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                         .direction(Direction::Horizontal)
                         .constraints([
                             Constraint::Min(0),
-                            Constraint::Length(28),
+                            Constraint::Length(branch_col_width),
                             Constraint::Length(STATUS_ZONE_WIDTH),
                         ])
                         .split(chunks[i]);
@@ -3331,6 +3364,51 @@ mod tests {
         let bar_y = global_summary_area.unwrap().y;
         let bar_row: String = (0..80).map(|x| buffer[(x, bar_y)].symbol()).collect();
         assert!(bar_row.contains("ghost"), "label chip missing from summary bar:\n{}", bar_row);
+    }
+
+    #[test]
+    fn test_compact_branch_col_width_adapts() {
+        let config = Config {
+            items: vec!["/path/to/repo_a".to_string(), "/path/to/repo_b".to_string()],
+            ..Default::default()
+        };
+        let mut app = App::new(config, PathBuf::from("dummy_branch_col.toml"));
+
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
+        let summary = |branch: &str| {
+            ItemStatus::GitRepo(Some(RepoSummary {
+                branch: Some(branch.to_string()),
+                staged: 0,
+                modified: 0,
+                untracked: 0,
+                conflicted: 0,
+                ahead: 0,
+                behind: 0,
+                state: RepoState::Clean,
+                last_commit_time: Some(now),
+            }))
+        };
+
+        // Short branches keep the legacy 28-column width.
+        app.statuses = vec![summary("main"), summary("develop")];
+        assert_eq!(compact_branch_col_width(&app, 200), 28);
+
+        // A long branch name widens the column when the terminal has room.
+        let long_branch = "feature/very-long-descriptive-branch-name";
+        app.statuses = vec![summary("main"), summary(long_branch)];
+        let width = compact_branch_col_width(&app, 200);
+        assert!(
+            width as usize > 2 + long_branch.chars().count(),
+            "column ({}) should fit the branch plus its symbol",
+            width
+        );
+
+        // On a narrow terminal the cap protects the repository column, and the
+        // width never drops below the legacy minimum.
+        assert_eq!(compact_branch_col_width(&app, 80), 28);
+        assert_eq!(compact_branch_col_width(&app, 0), 28);
     }
 
     #[test]
