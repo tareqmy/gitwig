@@ -125,7 +125,7 @@ You can navigate and interact with these panels in the following ways:
 - **Reflog tab:** `Reflog` (main table).
 Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Workspace tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab, `Worktrees` on Worktrees tab, `Submodules` on Submodules tab, `Reflog` on Reflog tab).
 - **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels, stashed files list, files list, and the files tab content preview panel) to focus it immediately.
-- **Resize Split Panels:** Left-click and drag the vertical or horizontal boundary splitter lines between panels to resize them dynamically. This is supported in:
+- **Resize Split Panels:** Left-click and drag the vertical or horizontal boundary splitter lines between panels to resize them dynamically, or press `+` / `-` to grow / shrink the currently focused panel from the keyboard (5% steps along the same splits, clamped to the same limits). Mouse dragging is supported in:
 - **Workspace / Inspect:** Main vertical split (commits vs details), bottom horizontal split (left list vs right diff), and left vertical split (staged vs unstaged or commit details vs files list).
 - **Files:** Horizontal split (repository files tree vs file content preview).
 - **Branches:** Horizontal split (local branches vs remote branches).
