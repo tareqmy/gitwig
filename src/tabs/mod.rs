@@ -68,6 +68,16 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
         return true;
     }
 
+    if app.is_bound(Action::GrowPanel, key) {
+        app.resize_focused_panel(true);
+        return true;
+    }
+
+    if app.is_bound(Action::ShrinkPanel, key) {
+        app.resize_focused_panel(false);
+        return true;
+    }
+
     if app.is_bound(Action::RefreshDetail, key) {
         app.resync_detail();
         app.status_message = Some("Refreshed".to_string());

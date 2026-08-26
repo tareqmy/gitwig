@@ -14,7 +14,8 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
 
     let entries_data = match app.detail_tab {
         0 => {
-            let mut v = vec![("Home", "⎋/q"), ("Tabs", "Tab/1-9"), ("Cycle Focus", "w/W")];
+            let mut v =
+                vec![("Home", "⎋/q"), ("Tabs", "Tab/1-9"), ("Cycle Focus", "w/W"), ("Resize", "")];
             if app.detail_focus == DetailSection::CommitDetails {
                 v.push(("Scroll Info", "↑↓"));
                 v.push(("Inspect", "→"));
@@ -96,6 +97,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 ("Home", "⎋/q"),
                 ("Tabs", "Tab/1-9"),
                 ("Cycle Focus", "w/W"),
+                ("Resize", ""),
                 ("Navigate/Scroll", "↑↓"),
                 ("Page", "⇟/⇞"),
                 ("Jump", "Home/End"),
@@ -140,6 +142,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 ("Home", "⎋/q"),
                 ("Tabs", "Tab/1-9"),
                 ("Cycle Focus", "w/W"),
+                ("Resize", ""),
                 ("Checkout", "↵"),
                 ("Create", "c"),
                 ("Delete", "D"),
@@ -193,6 +196,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 ("Home", "⎋/q"),
                 ("Tabs", "Tab/1-9"),
                 ("Cycle Focus", "w/W"),
+                ("Resize", ""),
                 ("Navigate", "↑↓"),
                 ("Page", "⇟/⇞"),
                 ("Jump", "Home/End"),
@@ -241,6 +245,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Home", "⎋/q"),
             ("Tabs", "Tab/0-9"),
             ("Cycle Focus", "w/W"),
+            ("Resize", ""),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
@@ -254,6 +259,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Home", "⎋/q"),
             ("Tabs", "Tab/0-9"),
             ("Cycle Focus", "w/W"),
+            ("Resize", ""),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
@@ -275,6 +281,11 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
     );
     let resync_key =
         app.keybindings.format_action_keys(crate::keybindings::Action::RefreshDetail, compat);
+    let resize_key = format!(
+        "{}/{}",
+        app.keybindings.format_action_keys(crate::keybindings::Action::GrowPanel, compat),
+        app.keybindings.format_action_keys(crate::keybindings::Action::ShrinkPanel, compat)
+    );
     let help_key =
         app.keybindings.format_action_keys(crate::keybindings::Action::DetailHelp, compat);
     let toggle_key =
@@ -283,6 +294,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
     let home_key_ref = home_key.as_str();
     let cycle_focus_key_ref = cycle_focus_key.as_str();
     let resync_key_ref = resync_key.as_str();
+    let resize_key_ref = resize_key.as_str();
     let help_key_ref = help_key.as_str();
     let toggle_key_ref = toggle_key.as_str();
 
@@ -296,6 +308,8 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             final_entries.push(("Home", home_key_ref));
         } else if label == "Cycle Focus" {
             final_entries.push(("Cycle Focus", cycle_focus_key_ref));
+        } else if label == "Resize" {
+            final_entries.push(("Resize", resize_key_ref));
         } else if label == "Resync" {
             final_entries.push(("Resync", resync_key_ref));
         } else if label == "Help" {

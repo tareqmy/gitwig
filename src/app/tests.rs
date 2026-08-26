@@ -6111,6 +6111,88 @@ fn test_label_filter_project_view() {
 }
 
 #[test]
+fn test_resize_focused_panel_keys() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let config = Config { items: vec!["/path/to/repo_a".to_string()], ..Default::default() };
+    // Own config dir: the shared $TMPDIR keybindings.toml may hold stale
+    // defaults from older builds, which would shadow the bindings under test.
+    let temp_dir = std::env::temp_dir().join("gitwig_test_resize_panel");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let temp_path = temp_dir.join("config.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+    app.mode = Mode::Detail;
+
+    let grow = KeyEvent::new(KeyCode::Char('+'), KeyModifiers::SHIFT);
+    let shrink = KeyEvent::new(KeyCode::Char('-'), KeyModifiers::empty());
+
+    // Workspace tab, commits panel owns the top (pct) side of the main split.
+    app.detail_tab = 0;
+    app.detail_focus = DetailSection::Commits;
+    let base = app.workspace_main_split_pct;
+    assert!(crate::input::handle_key(&mut app, grow, 10));
+    assert_eq!(app.workspace_main_split_pct, base + 5);
+    assert!(crate::input::handle_key(&mut app, shrink, 10));
+    assert_eq!(app.workspace_main_split_pct, base);
+
+    // '=' (unshifted '+' on many layouts) is deliberately not bound.
+    let eq_key = KeyEvent::new(KeyCode::Char('='), KeyModifiers::empty());
+    assert!(crate::input::handle_key(&mut app, eq_key, 10));
+    assert_eq!(app.workspace_main_split_pct, base);
+
+    // The diff panel sits on the complement side: growing it shrinks the pct.
+    app.detail_focus = DetailSection::StagingDetails;
+    let base = app.inspect_horizontal_split_pct;
+    assert!(crate::input::handle_key(&mut app, grow, 10));
+    assert_eq!(app.inspect_horizontal_split_pct, base - 5);
+    assert!(crate::input::handle_key(&mut app, shrink, 10));
+    assert_eq!(app.inspect_horizontal_split_pct, base);
+
+    // The same focus in the stashes tab resizes the stashes split instead.
+    app.detail_tab = 6;
+    let base = app.stashes_horizontal_split_pct;
+    assert!(crate::input::handle_key(&mut app, grow, 10));
+    assert_eq!(app.stashes_horizontal_split_pct, base - 5);
+    app.stashes_horizontal_split_pct = base;
+
+    // Clamped to the same 15..=85 range the mouse drag enforces.
+    app.detail_tab = 1;
+    app.detail_focus = DetailSection::Files;
+    app.files_horizontal_split_pct = 83;
+    assert!(crate::input::handle_key(&mut app, grow, 10));
+    assert_eq!(app.files_horizontal_split_pct, 85);
+    assert!(crate::input::handle_key(&mut app, grow, 10));
+    assert_eq!(app.files_horizontal_split_pct, 85);
+    app.files_horizontal_split_pct = 17;
+    assert!(crate::input::handle_key(&mut app, shrink, 10));
+    assert_eq!(app.files_horizontal_split_pct, 15);
+    assert!(crate::input::handle_key(&mut app, shrink, 10));
+    assert_eq!(app.files_horizontal_split_pct, 15);
+
+    // A focus without an adjustable split is a harmless no-op.
+    app.detail_tab = 4;
+    app.detail_focus = DetailSection::LocalTags;
+    let snapshot = (
+        app.workspace_main_split_pct,
+        app.inspect_horizontal_split_pct,
+        app.files_horizontal_split_pct,
+        app.branches_horizontal_split_pct,
+    );
+    assert!(crate::input::handle_key(&mut app, grow, 10));
+    assert_eq!(
+        snapshot,
+        (
+            app.workspace_main_split_pct,
+            app.inspect_horizontal_split_pct,
+            app.files_horizontal_split_pct,
+            app.branches_horizontal_split_pct,
+        )
+    );
+}
+
+#[test]
 fn test_picker_list_navigation_keys() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 

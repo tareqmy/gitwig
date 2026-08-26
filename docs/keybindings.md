@@ -82,6 +82,7 @@
 | `Esc` / `q`          | Detail          | Return to the list                |
 | `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs within the active group (Primary vs. Advanced) |
 | `w` / `W`            | Detail          | Cycle panel focus forward (w) / backward (W) |
+| `+` / `-`            | Detail          | Grow (`+`) or shrink (`-`) the focused panel by moving its layout split (same splits the mouse can drag) |
 | `1` - `7`            | Detail          | Jump directly to Primary tab: Workspace (1), Files (2), Graph (3), Branches (4), Tags (5), Remotes (6), Stashes (7) |
 | `1` - `5`            | Detail          | Jump directly to Advanced tab: Worktrees (1), Submodules (2), Reflog (3), Issues (4), PRs (5) (when Advanced group is active) |
 | `Z`                  | Detail          | Toggle between Primary and Advanced tab groups |

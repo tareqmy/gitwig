@@ -29,6 +29,8 @@ const GLOBAL_NAV_SETTING_INDICES: &[usize] = &[
     41, // Detail: Cycle Focus Fwd (CycleFocusForward)
     42, // Detail: Cycle Focus Bwd (CycleFocusBackward)
     43, // Detail: Refresh View (RefreshDetail)
+    53, // Detail: Grow Focused Panel (GrowPanel)
+    54, // Detail: Shrink Focused Panel (ShrinkPanel)
     44, // Detail: Cycle Tab Fwd (CycleTabForward)
     45, // Detail: Cycle Tab Bwd (CycleTabBackward)
     46, // Detail: Tab 1
@@ -89,7 +91,7 @@ const DIFF_CONFLICT_SETTING_INDICES: &[usize] = &[210, 211, 212, 213, 220, 221, 
 const SCROLL_NAV_SETTING_INDICES: &[usize] = &[230, 231, 232, 233, 234, 235];
 const ALL_KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     // Global & Nav Keys
-    16, 15, 14, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 68, 69,
+    16, 15, 14, 39, 40, 41, 42, 43, 53, 54, 44, 45, 46, 47, 48, 49, 50, 51, 52, 68, 69,
     // Home Screen Keys
     17, 18, 19, 20, 21, 22, 38, 75, 33, 71, 72, 73, 76, 37, 30, 31, 32, 77, 23, 24, 35, 25, 26, 28,
     70, 36, 27, 29, 78, 57, 74, 85, 86, 87, 88, // Workspace Tab Keys

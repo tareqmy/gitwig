@@ -66,6 +66,7 @@ Triggered by opening a repository.
         *   `?` : Toggle detail view shortcut help overlay
         *   `w` : Cycle focus forward through panels
         *   `W` : Cycle focus backward through panels
+        *   `+` / `-` : Grow (`+`) or shrink (`-`) the focused panel by moving its layout split (same splits the mouse can drag)
         *   `Tab` : Cycle tab forward
         *   `Shift+Tab` / `backtab` : Cycle tab backward
         *   `R` : Resync active tab details manually

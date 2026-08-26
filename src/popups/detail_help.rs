@@ -81,6 +81,12 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         .format_action_keys(crate::keybindings::Action::CycleFocusBackward, is_compat);
     let focus_key = format!("{} / {}", focus_fwd, focus_bwd);
 
+    let grow_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::GrowPanel, is_compat);
+    let shrink_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::ShrinkPanel, is_compat);
+    let resize_key = format!("{} / {}", grow_key, shrink_key);
+
     let resync_key =
         app.keybindings.format_action_keys(crate::keybindings::Action::RefreshDetail, is_compat);
 
@@ -122,6 +128,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 (cycle_tabs_key, "Cycle tabs within active group"),
                 (toggle_tabs_key, "Toggle between Primary and Advanced tab groups"),
                 (focus_key, "Cycle panel focus forward / backward"),
+                (resize_key, "Grow / shrink the focused panel (where the layout splits)"),
                 (resync_key, "Resync current tab state"),
                 (close_help_key, "Close this help"),
                 (back_key, "Back to repository list"),

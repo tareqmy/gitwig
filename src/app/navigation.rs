@@ -355,6 +355,49 @@ impl App {
         }
     }
 
+    /// Grows or shrinks the focused detail-view panel by nudging the split
+    /// percentage that directly borders it (the same splits the mouse drags),
+    /// clamped to the drag limits. Focuses without an adjustable split
+    /// (single-pane tabs, fixed-ratio stacks) are a no-op.
+    pub fn resize_focused_panel(&mut self, grow: bool) {
+        const STEP: u16 = 5;
+        let in_stashes_tab = self.detail_tab == 6;
+
+        // (split percentage, whether the focused panel owns the `pct` side).
+        let target: Option<(&mut u16, bool)> = match self.detail_focus {
+            DetailSection::Commits => Some((&mut self.workspace_main_split_pct, true)),
+            DetailSection::Staged | DetailSection::Unstaged | DetailSection::Conflicts => {
+                Some((&mut self.inspect_horizontal_split_pct, true))
+            }
+            DetailSection::CommitDetails => Some((&mut self.inspect_vertical_split_pct, false)),
+            DetailSection::ConflictDiff => Some((&mut self.inspect_horizontal_split_pct, false)),
+            DetailSection::StagingDetails if in_stashes_tab => {
+                Some((&mut self.stashes_horizontal_split_pct, false))
+            }
+            DetailSection::StagingDetails => Some((&mut self.inspect_horizontal_split_pct, false)),
+            DetailSection::Files => Some((&mut self.files_horizontal_split_pct, true)),
+            DetailSection::FileContent => Some((&mut self.files_horizontal_split_pct, false)),
+            DetailSection::LocalBranches => Some((&mut self.branches_horizontal_split_pct, true)),
+            DetailSection::RemoteBranches => Some((&mut self.branches_horizontal_split_pct, false)),
+            DetailSection::Stashes => Some((&mut self.stashes_vertical_split_pct, true)),
+            DetailSection::StashedFiles => Some((&mut self.stashes_vertical_split_pct, false)),
+            DetailSection::ForgeIssues => Some((&mut self.forge_vertical_split_pct, true)),
+            DetailSection::ForgeIssueDetails => Some((&mut self.forge_vertical_split_pct, false)),
+            DetailSection::ForgePRs => Some((&mut self.forge_pr_vertical_split_pct, true)),
+            DetailSection::ForgePRDetails => Some((&mut self.forge_pr_vertical_split_pct, false)),
+            _ => None,
+        };
+
+        if let Some((pct, owns_pct_side)) = target {
+            // Same clamp range the mouse drag uses.
+            if grow == owns_pct_side {
+                *pct = (*pct + STEP).min(85);
+            } else {
+                *pct = pct.saturating_sub(STEP).max(15);
+            }
+        }
+    }
+
     /// Drops the sticky label filter when its label no longer exists on any
     /// tracked repository, so the home list cannot get stuck permanently empty.
     /// Returns whether the filter was cleared.

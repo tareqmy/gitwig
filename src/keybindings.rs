@@ -75,6 +75,8 @@ pub enum Action {
     GoToTab7,
     Overview,
     ToggleAdvancedTabs,
+    GrowPanel,
+    ShrinkPanel,
 
     // Workspace
     WorkspaceLoadMore,
@@ -231,6 +233,8 @@ impl Action {
             50 => Some(Action::GoToTab5),
             51 => Some(Action::GoToTab6),
             52 => Some(Action::GoToTab7),
+            53 => Some(Action::GrowPanel),
+            54 => Some(Action::ShrinkPanel),
             57 => Some(Action::HomeCheckUpdate),
             77 => Some(Action::HomeCycleViewMode),
             78 => Some(Action::HomeSymbolsHelp),
@@ -405,6 +409,8 @@ impl Action {
             Action::GoToTab5 => 50,
             Action::GoToTab6 => 51,
             Action::GoToTab7 => 52,
+            Action::GrowPanel => 53,
+            Action::ShrinkPanel => 54,
             Action::HomeCycleViewMode => 77,
             Action::HomeSymbolsHelp => 78,
             Action::HomeCheckUpdate => 57,
@@ -628,6 +634,8 @@ pub struct NavigationKeybindings {
     pub go_to_tab_7: Option<Keybind>,
     pub overview: Option<Keybind>,
     pub toggle_advanced_tabs: Option<Keybind>,
+    pub grow_panel: Option<Keybind>,
+    pub shrink_panel: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -797,6 +805,11 @@ pub fn parse_key(s: &str) -> Option<(KeyCode, KeyModifiers)> {
     let s = s.trim();
     if s.is_empty() {
         return None;
+    }
+
+    // A bare "-" would otherwise be eaten by the modifier separator split.
+    if s == "-" {
+        return Some((KeyCode::Char('-'), KeyModifiers::empty()));
     }
 
     let parts: Vec<&str> = s.split('-').collect();
@@ -1003,6 +1016,8 @@ impl KeybindingsConfig {
                     &["Z"],
                     "Toggle between Primary and Advanced tab groups",
                 )),
+                grow_panel: Some(Keybind::new(&["+"], "Grow the focused panel")),
+                shrink_panel: Some(Keybind::new(&["-"], "Shrink the focused panel")),
             },
             workspace: WorkspaceKeybindings {
                 load_more: Some(Keybind::new(&["G"], "Load more commits")),
@@ -1225,6 +1240,8 @@ impl KeybindingsConfig {
             Action::GoToTab7 => self.navigation.go_to_tab_7.as_ref(),
             Action::Overview => self.navigation.overview.as_ref(),
             Action::ToggleAdvancedTabs => self.navigation.toggle_advanced_tabs.as_ref(),
+            Action::GrowPanel => self.navigation.grow_panel.as_ref(),
+            Action::ShrinkPanel => self.navigation.shrink_panel.as_ref(),
 
             // Workspace
             Action::WorkspaceLoadMore => self.workspace.load_more.as_ref(),
@@ -1422,6 +1439,8 @@ impl KeybindingsConfig {
             Action::GoToTab7 => self.navigation.go_to_tab_7.as_ref(),
             Action::Overview => self.navigation.overview.as_ref(),
             Action::ToggleAdvancedTabs => self.navigation.toggle_advanced_tabs.as_ref(),
+            Action::GrowPanel => self.navigation.grow_panel.as_ref(),
+            Action::ShrinkPanel => self.navigation.shrink_panel.as_ref(),
 
             // Workspace
             Action::WorkspaceLoadMore => self.workspace.load_more.as_ref(),
@@ -1653,6 +1672,8 @@ impl KeybindingsConfig {
             Action::GoToTab7,
             Action::Overview,
             Action::ToggleAdvancedTabs,
+            Action::GrowPanel,
+            Action::ShrinkPanel,
         ];
 
         for &other in &all_actions {
@@ -1750,6 +1771,8 @@ impl KeybindingsConfig {
                 | Action::GoToTab7
                 | Action::Overview
                 | Action::ToggleAdvancedTabs
+                | Action::GrowPanel
+                | Action::ShrinkPanel
         )
     }
 
@@ -1832,6 +1855,8 @@ impl KeybindingsConfig {
             Action::GoToTab7 => self.navigation.go_to_tab_7 = keybind,
             Action::Overview => self.navigation.overview = keybind,
             Action::ToggleAdvancedTabs => self.navigation.toggle_advanced_tabs = keybind,
+            Action::GrowPanel => self.navigation.grow_panel = keybind,
+            Action::ShrinkPanel => self.navigation.shrink_panel = keybind,
 
             // Workspace
             Action::WorkspaceLoadMore => self.workspace.load_more = keybind,

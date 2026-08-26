@@ -241,6 +241,14 @@ description = "Show repository Overview screen"
 keys = ["Z"]
 description = "Toggle between Primary and Advanced tab groups"
 
+[navigation.grow_panel]
+keys = ["+"]
+description = "Grow the focused panel"
+
+[navigation.shrink_panel]
+keys = ["-"]
+description = "Shrink the focused panel"
+
 [workspace.load_more]
 keys = ["G"]
 description = "Load more commits"
