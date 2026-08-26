@@ -82,6 +82,10 @@ show_stale_projects = true
 | `tile_columns` | `Integer` | `0` | Number of columns in tile layout mode (`0` = auto-calculate based on terminal width). |
 | `resync_on_tab_change` | `Boolean` | `false` | Automatically reload repository details from disk when switching tabs. |
 
+### Keybindings
+
+Keyboard shortcuts live in a separate `keybindings.toml` beside `config.toml`. Entries there override the built-in defaults and are preserved across upgrades — see [Customizing Keybindings](keybindings.md#customizing-keybindings) for the format and override semantics.
+
 ### Themes
 
 The active theme is selected via the `theme` key and lives in `~/.gitwig/themes/<name>.theme`. A set of popular themes is written there on first launch (`catppuccin`, `cyberpunk`, `dracula`, `forest`, `gitwig`, `gruvbox`, `monokai`, `nord`, `oceanic`, `onedark`, `rosepine`, `solarized_dark`, `tokyonight`), alongside `default`. Themes are managed in-app via Settings `s`.

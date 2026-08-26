@@ -164,3 +164,15 @@ When viewing the Repository Settings popup (entered via `s` on the repository Ov
 - `←` / `→` / `h` / `l` — Cycle options (Theme, Resync on Tab Change).
 - `Esc` / `q` — Close repository settings popup and return to repository Detail view.
 
+
+## Customizing Keybindings
+
+All bindings are stored in `keybindings.toml` next to your `config.toml` (e.g. `~/.gitwig/keybindings.toml` or `~/.config/gitwig/keybindings.toml`). Edit them in-app via Settings (`s`) → Keybindings, or in the file directly — each action holds a `keys` list, for example:
+
+```toml
+[navigation.grow_panel]
+keys = ["+"]
+description = "Grow the focused panel"
+```
+
+Entries in this file **override the built-in defaults**. Actions missing from the file are backfilled with their defaults on startup, but existing entries are never rewritten — so if a default changes in a newer Gitwig version (for example, panel grow was briefly bound to both `+` and `=` in development builds before settling on `+` alone), a previously written entry keeps the old keys until you edit it or delete the entry to re-adopt the default.
