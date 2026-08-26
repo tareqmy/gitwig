@@ -314,6 +314,62 @@ pub fn draw_branch_merge_popup(
     f.render_widget(paragraph, popup_area);
 }
 
+pub fn draw_branch_merge_into_popup(
+    f: &mut Frame,
+    target: &Option<(String, bool)>,
+    current_branch: Option<&str>,
+    area: Rect,
+) {
+    let popup_area = centered_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let border_style = Style::default().fg(ACCENT());
+    let title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled("Checkout & Merge Into", primary_style()),
+        Span::raw(" "),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(border_style)
+        .title(title)
+        .padding(Padding::horizontal(1));
+
+    let branch_name = match target {
+        Some((name, _)) => name.as_str(),
+        None => "",
+    };
+    let current = current_branch.unwrap_or("HEAD");
+
+    let content = vec![
+        Line::from(vec![
+            Span::styled("Checkout the branch ", primary_style()),
+            Span::styled(
+                format!("'{}'", branch_name),
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("and merge the current branch ", primary_style()),
+            Span::styled(format!("'{}'", current), accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" into it?", primary_style()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block);
+    f.render_widget(paragraph, popup_area);
+}
+
 pub fn draw_merge_abort_confirm_popup(f: &mut Frame, area: Rect) {
     let popup_area = centered_rect(45, 12, area);
     f.render_widget(Clear, popup_area);

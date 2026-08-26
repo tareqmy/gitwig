@@ -151,6 +151,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 ("Interactive Rebase", "i"),
             ];
             if app.detail_focus == DetailSection::LocalBranches {
+                v.push(("Merge Into", "⇧M"));
                 v.push(("Fuzzy Search", "/"));
                 v.push(("Fetch", "F"));
                 v.push(("Pull", "p"));

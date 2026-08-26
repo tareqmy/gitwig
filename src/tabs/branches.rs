@@ -21,6 +21,12 @@ impl BranchesTab {
             app.request_branch_delete();
             return true;
         }
+        if app.is_bound(Action::BranchesMergeInto, key)
+            && detail_focus == DetailSection::LocalBranches
+        {
+            app.request_branch_merge_into();
+            return true;
+        }
         if app.is_bound(Action::BranchesMerge, key) {
             app.request_branch_merge();
             return true;

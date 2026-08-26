@@ -144,7 +144,8 @@ Triggered by opening a repository.
         *   `Enter` : Checkout selected branch
         *   `c` / `C` : Create new branch
         *   `D` : Delete selected branch
-        *   `m` / `M` : Merge selected branch into current branch
+        *   `m` : Merge selected branch into current branch
+        *   `M` : Checkout selected local branch and merge the (previously) current branch into it
         *   `r` : Rebase current branch onto selected branch
         *   `i` / `I` : Interactive rebase of current branch onto selected branch
         *   `p` : Pull remote changes (for local branches)
@@ -438,6 +439,7 @@ To prevent accidental data loss due to muscle-memory `Enter` keypresses, Gitwig 
 *   **Tag Overwrite (`Mode::TagOverwriteConfirm`)**: Force updating an existing tag (`-f`).
 *   **Tag Push (`Mode::TagPushConfirm` / `Mode::TagPushAllConfirm`)**: Pushing single or all tags to remote (supports `y` Push, `f` Force Push `--force`).
 *   **Branch Merge (`Mode::BranchMergeConfirm`)**: Merging a branch into the active branch.
+*   **Checkout & Merge Into (`Mode::BranchMergeIntoConfirm`)**: Checking out the selected branch and merging the previously current branch into it.
 *   **Rebase (`Mode::BranchRebaseConfirm` / `Mode::BranchInteractiveRebaseConfirm`)**: Rebasing the current branch.
 *   **Stash Apply (`Mode::StashApplyConfirm`)**: Applying a stash onto the working directory.
 *   **Cherry-Pick (`Mode::CherryPickConfirm`)**: Cherry-picking a commit.

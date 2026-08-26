@@ -72,6 +72,7 @@ pub fn draw(
                 | Mode::CommitCheckoutConfirm
                 | Mode::BranchPushConfirm
                 | Mode::BranchMergeConfirm
+                | Mode::BranchMergeIntoConfirm
                 | Mode::BranchRebaseConfirm
                 | Mode::BranchInteractiveRebaseConfirm
                 | Mode::TagDeleteConfirm
@@ -147,6 +148,7 @@ pub fn draw(
             | Mode::CommitCheckoutConfirm
             | Mode::BranchPushConfirm
             | Mode::BranchMergeConfirm
+            | Mode::BranchMergeIntoConfirm
             | Mode::BranchRebaseConfirm
             | Mode::BranchInteractiveRebaseConfirm
             | Mode::TagDeleteConfirm
@@ -3698,6 +3700,7 @@ mod tests {
             Mode::StashingUI,
             Mode::RemotePicker,
             Mode::BranchMergeConfirm,
+            Mode::BranchMergeIntoConfirm,
             Mode::BranchRebaseConfirm,
             Mode::BranchInteractiveRebaseConfirm,
             Mode::DiscardChangesConfirm,

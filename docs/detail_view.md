@@ -46,6 +46,7 @@ The **Branches** tab is split vertically into left and right panels:
 
 You can focus either branch panel by pressing `w` / `W` or using the `←` / `→` arrow keys.
 - Press `P` (Shift+P) or `p` on a local branch to push it to the remote. In the push confirmation dialog, press `y` to push normally or `t` / `T` to push the branch with tags (`--tags`).
+- Press `m` to merge the selected branch into the current branch, or `M` (Shift+M) on a local branch to do the reverse: checkout the selected branch and merge the previously current branch into it (both ask for confirmation).
 
 ### Tags Tab
 

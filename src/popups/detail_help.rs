@@ -190,6 +190,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
             ("c", "Create branch"),
             ("⇧D [Shift+D]", "Delete selected branch / tag"),
             ("m", "Merge selected branch into current branch"),
+            ("⇧M [Shift+M]", "Checkout selected branch and merge the current branch into it"),
             ("r", "Rebase current branch onto selected branch / Interactive rebase"),
             ("p", "Pull branch (Branches) / Push tag (Tags)"),
             ("⇧P [Shift+P]", "Push branch (Branches) / Push all tags (Tags)"),

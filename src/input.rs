@@ -330,6 +330,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         | Mode::BranchMergeConfirm
         | Mode::MergeAbortConfirm
         | Mode::MergeContinueConfirm
+        | Mode::BranchMergeIntoConfirm
         | Mode::BranchRebaseConfirm
         | Mode::BranchInteractiveRebaseConfirm
         | Mode::DiscardChangesConfirm

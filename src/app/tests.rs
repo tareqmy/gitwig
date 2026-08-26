@@ -6111,6 +6111,112 @@ fn test_label_filter_project_view() {
 }
 
 #[test]
+fn test_branch_merge_into_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    // Real repo: one commit on the default branch, an "other" branch at that
+    // commit, then a second commit on the default branch so "other" is behind.
+    let uuid =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let temp_repo_path = std::env::temp_dir().join(format!("gitwig_test_merge_into_{}", uuid));
+    std::fs::create_dir_all(&temp_repo_path).unwrap();
+    let repo = git2::Repository::init(&temp_repo_path).unwrap();
+    let mut config_git = repo.config().unwrap();
+    config_git.set_str("user.name", "Test User").unwrap();
+    config_git.set_str("user.email", "test@test.com").unwrap();
+
+    let commit = |repo: &git2::Repository, file: &str, msg: &str| {
+        std::fs::write(temp_repo_path.join(file), msg).unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(std::path::Path::new(file)).unwrap();
+        index.write().unwrap();
+        let oid = index.write_tree().unwrap();
+        let tree = repo.find_tree(oid).unwrap();
+        let sig = repo.signature().unwrap();
+        let parent = repo.head().ok().and_then(|h| h.peel_to_commit().ok());
+        let parents: Vec<&git2::Commit> = parent.iter().collect();
+        repo.commit(Some("HEAD"), &sig, &sig, msg, &tree, &parents).unwrap()
+    };
+    commit(&repo, "a.txt", "first");
+    let first = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.branch("other", &first, false).unwrap();
+    let second_oid = commit(&repo, "b.txt", "second");
+
+    let config =
+        Config { items: vec![temp_repo_path.to_str().unwrap().to_string()], ..Default::default() };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    app.mode = Mode::Detail;
+    app.detail_tab = 3;
+    app.detail_focus = DetailSection::LocalBranches;
+
+    let mut info =
+        match crate::repo::inspect_detail(temp_repo_path.to_str().unwrap(), 100, 1000, false) {
+            crate::repo::ItemDetail::Repo { info, .. } => *info,
+            _ => panic!("expected repo detail"),
+        };
+    // Branch lists are lazy tab data; load them the way the branches tab does.
+    let (local, remote) = crate::repo::load_tab_branches(&temp_repo_path);
+    info.local_branches = crate::repo::TabData::Loaded(local.unwrap());
+    info.remote_branches = crate::repo::TabData::Loaded(remote.unwrap());
+    let current_name =
+        info.local_branches.iter().find(|b| b.is_head).map(|b| b.name.clone()).unwrap();
+    let other_idx = info.local_branches.iter().position(|b| b.name == "other").unwrap();
+    let head_idx = info.local_branches.iter().position(|b| b.is_head).unwrap();
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: temp_repo_path.clone(),
+        info: Box::new(info),
+    });
+
+    let m_key = KeyEvent::new(KeyCode::Char('M'), KeyModifiers::SHIFT);
+    let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    // Requesting on the checked-out branch itself is refused.
+    app.branch_list.local_branch_selection = head_idx;
+    assert!(crate::input::handle_key(&mut app, m_key, 10));
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.status_message.as_deref().unwrap_or("").contains("already checked out"));
+
+    // Requesting on "other" opens the confirmation; `n` cancels cleanly.
+    app.branch_list.local_branch_selection = other_idx;
+    assert!(crate::input::handle_key(&mut app, m_key, 10));
+    assert_eq!(app.mode, Mode::BranchMergeIntoConfirm);
+    assert_eq!(app.branch_action_target, Some(("other".to_string(), false)));
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Char('n')), 10));
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(app.branch_action_target, None);
+
+    // Confirming checks out "other" and merges the previous branch into it.
+    assert!(crate::input::handle_key(&mut app, m_key, 10));
+    assert_eq!(app.mode, Mode::BranchMergeIntoConfirm);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Char('y')), 10));
+    assert_eq!(app.mode, Mode::Detail);
+
+    // Other subsystems (e.g. the fs watcher) share the channel; scan until the
+    // merge-into thread reports.
+    let expected = format!("Checked out 'other' and merged '{}' into it", current_name);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    let mut seen = Vec::new();
+    loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        let msg = app.rx.recv_timeout(remaining).unwrap_or_else(|_| {
+            panic!("merge-into thread did not report; messages seen: {:?}", seen)
+        });
+        if msg.contains(&expected) {
+            break;
+        }
+        seen.push(msg);
+    }
+
+    let verify = git2::Repository::open(&temp_repo_path).unwrap();
+    let head = verify.head().unwrap();
+    assert_eq!(head.shorthand().ok(), Some("other"));
+    // Fast-forwarded: "other" now points at the second commit.
+    assert_eq!(head.peel_to_commit().unwrap().id(), second_oid);
+
+    let _ = std::fs::remove_dir_all(&temp_repo_path);
+}
+
+#[test]
 fn test_resize_focused_panel_keys() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 

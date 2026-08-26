@@ -407,11 +407,12 @@ keys = ["D"]
 description = "Delete selected branch"
 
 [branches.merge]
-keys = [
-    "m",
-    "M",
-]
+keys = ["m"]
 description = "Merge selected branch into current branch"
+
+[branches.merge_into]
+keys = ["M"]
+description = "Checkout selected branch and merge the current branch into it"
 
 [branches.rebase]
 keys = ["r"]

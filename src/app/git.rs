@@ -896,6 +896,116 @@ impl App {
         self.mode = Mode::Detail;
     }
 
+    /// Asks to check out the selected local branch and merge the currently
+    /// checked-out branch into it (the reverse of [`request_branch_merge`]).
+    pub fn request_branch_merge_into(&mut self) {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
+            if self.detail_focus != DetailSection::LocalBranches {
+                return;
+            }
+            let Some(branch_info) =
+                info.local_branches.get(self.branch_list.local_branch_selection)
+            else {
+                return;
+            };
+            if info.local_branches.iter().all(|b| !b.is_head) {
+                self.status_message =
+                    Some("No checked-out branch (detached HEAD). Cannot merge.".to_string());
+                return;
+            }
+            if branch_info.is_head {
+                self.status_message = Some("Selected branch is already checked out.".to_string());
+                return;
+            }
+            self.branch_action_target = Some((branch_info.name.clone(), false));
+            self.mode = Mode::BranchMergeIntoConfirm;
+        }
+    }
+
+    pub fn confirm_branch_merge_into(&mut self) {
+        let target = self.branch_action_target.take();
+        self.mode = Mode::Detail;
+
+        if let Some((branch_name, _)) = target {
+            if let Some(repo::ItemDetail::Repo { resolved, info }) = &self.current_detail {
+                let current_branch = match info.local_branches.iter().find(|b| b.is_head) {
+                    Some(b) => b.name.clone(),
+                    None => {
+                        self.status_message = Some(
+                            "No checked-out branch (detached HEAD). Cannot merge.".to_string(),
+                        );
+                        return;
+                    }
+                };
+                if branch_name == current_branch {
+                    self.status_message =
+                        Some("Selected branch is already checked out.".to_string());
+                    return;
+                }
+
+                self.fetching = true;
+                self.status_message = Some(format!(
+                    "Checking out '{}' and merging '{}' into it...",
+                    branch_name, current_branch
+                ));
+
+                let repo_path = resolved.clone();
+                let target_name = branch_name.clone();
+                let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
+
+                std::thread::spawn(move || {
+                    let res = (|| -> Result<String, Box<dyn std::error::Error>> {
+                        let safe_target = safe_ref(&target_name)?;
+                        let safe_source = safe_ref(&current_branch)?;
+
+                        let checkout = git_command()
+                            .arg("checkout")
+                            .arg(safe_target)
+                            .current_dir(&repo_path)
+                            .output()?;
+                        if !checkout.status.success() {
+                            let stderr =
+                                String::from_utf8_lossy(&checkout.stderr).trim().to_string();
+                            return Err(format!("git checkout failed: {}", stderr).into());
+                        }
+
+                        let merge = git_command()
+                            .arg("merge")
+                            .arg(safe_source)
+                            .current_dir(&repo_path)
+                            .output()?;
+                        if merge.status.success() {
+                            Ok(format!(
+                                "Checked out '{}' and merged '{}' into it",
+                                target_name, current_branch
+                            ))
+                        } else {
+                            let stdout = String::from_utf8_lossy(&merge.stdout).trim().to_string();
+                            let stderr = String::from_utf8_lossy(&merge.stderr).trim().to_string();
+                            let mut err_msg = if !stderr.is_empty() { stderr } else { stdout };
+                            if err_msg.contains("CONFLICT") {
+                                err_msg = "Merge conflicts detected. Please resolve conflicts."
+                                    .to_string();
+                            }
+                            Err(format!("git merge failed: {}", err_msg).into())
+                        }
+                    })();
+
+                    let msg = match res {
+                        Ok(success) => success,
+                        Err(e) => format!("Merge into failed: {}", e),
+                    };
+                    let _ = tx.send(msg);
+                });
+            }
+        }
+    }
+
+    pub fn cancel_branch_merge_into(&mut self) {
+        self.branch_action_target = None;
+        self.mode = Mode::Detail;
+    }
+
     pub fn request_branch_rebase(&mut self) {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if self.detail_focus == DetailSection::LocalBranches {

@@ -983,6 +983,15 @@ pub fn draw(
                     body_area,
                 );
             }
+            // Draw checkout-and-merge-into popup on top when requested.
+            if matches!(mode, Mode::BranchMergeIntoConfirm) {
+                crate::popups::confirm::draw_branch_merge_into_popup(
+                    f,
+                    branch_action_target,
+                    branch.as_deref(),
+                    body_area,
+                );
+            }
             // Draw merge abort popup on top when requested.
             if matches!(mode, Mode::MergeAbortConfirm) {
                 crate::popups::confirm::draw_merge_abort_confirm_popup(f, body_area);

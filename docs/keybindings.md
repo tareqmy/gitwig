@@ -115,6 +115,7 @@
 | `Ctrl+U`             | Input (Stash)   | Toggle "Stash untracked files" option (Stash Create popup)       |
 | `Ctrl+I`             | Input (Stash)   | Toggle "Keep index" option (Stash Create popup)                 |
 | `m`                  | Detail          | Merge selected branch into current branch (Branches tab; asks confirmation) |
+| `M`                  | Detail          | Checkout selected local branch and merge the current branch into it (Branches tab, Local panel; asks confirmation) |
 | `r`                  | Detail          | Rebase current branch onto selected branch (Branches tab; asks confirmation) |
 | `o` / `O`            | Detail          | Checkout selected commit (Workspace commits list), or Accept OURS version of conflict (Workspace tab Conflicts / ConflictDiff) |
 | `t`                  | Detail          | Accept THEIRS version of conflict (Workspace tab Conflicts / ConflictDiff) |

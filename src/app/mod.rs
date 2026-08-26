@@ -93,6 +93,9 @@ pub enum Mode {
     CommitSearchInput,
     /// Confirming merge of a branch.
     BranchMergeConfirm,
+    /// Confirming checkout of the selected branch plus merging the current
+    /// branch into it.
+    BranchMergeIntoConfirm,
     /// Confirming rebase onto a branch.
     BranchRebaseConfirm,
     /// Confirming interactive rebase onto a branch.
@@ -814,6 +817,7 @@ impl App {
                     Mode::BranchDeleteConfirm => self.confirm_branch_delete(),
                     Mode::BranchPushConfirm => self.confirm_branch_push(),
                     Mode::BranchMergeConfirm => self.confirm_branch_merge(),
+                    Mode::BranchMergeIntoConfirm => self.confirm_branch_merge_into(),
                     Mode::MergeAbortConfirm => self.confirm_abort_merge(),
                     Mode::MergeContinueConfirm => self.confirm_continue_merge(),
                     Mode::BranchRebaseConfirm => self.confirm_branch_rebase(),
@@ -839,6 +843,7 @@ impl App {
                     Mode::BranchDeleteConfirm => self.cancel_branch_delete(),
                     Mode::BranchPushConfirm => self.cancel_branch_push(),
                     Mode::BranchMergeConfirm => self.cancel_branch_merge(),
+                    Mode::BranchMergeIntoConfirm => self.cancel_branch_merge_into(),
                     Mode::MergeAbortConfirm => {
                         self.mode = Mode::Detail;
                     }

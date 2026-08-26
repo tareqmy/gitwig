@@ -113,6 +113,7 @@ pub enum Action {
     BranchesCreate,
     BranchesDelete,
     BranchesMerge,
+    BranchesMergeInto,
     BranchesRebase,
     BranchesInteractiveRebase,
     BranchesPull,
@@ -293,6 +294,7 @@ impl Action {
             136 => Some(Action::BranchesPull),
             137 => Some(Action::BranchesPush),
             138 => Some(Action::BranchesSearch),
+            139 => Some(Action::BranchesMergeInto),
 
             // Tags
             140 => Some(Action::TagsCheckout),
@@ -469,6 +471,7 @@ impl Action {
             Action::BranchesPull => 136,
             Action::BranchesPush => 137,
             Action::BranchesSearch => 138,
+            Action::BranchesMergeInto => 139,
 
             // Tags
             Action::TagsCheckout => 140,
@@ -678,6 +681,7 @@ pub struct BranchesKeybindings {
     pub create: Option<Keybind>,
     pub delete: Option<Keybind>,
     pub merge: Option<Keybind>,
+    pub merge_into: Option<Keybind>,
     pub rebase: Option<Keybind>,
     pub interactive_rebase: Option<Keybind>,
     pub pull: Option<Keybind>,
@@ -1062,7 +1066,11 @@ impl KeybindingsConfig {
                 checkout: Some(Keybind::new(&["enter"], "Checkout selected branch")),
                 create: Some(Keybind::new(&["c", "C"], "Create new branch")),
                 delete: Some(Keybind::new(&["D"], "Delete selected branch")),
-                merge: Some(Keybind::new(&["m", "M"], "Merge selected branch into current branch")),
+                merge: Some(Keybind::new(&["m"], "Merge selected branch into current branch")),
+                merge_into: Some(Keybind::new(
+                    &["M"],
+                    "Checkout selected branch and merge the current branch into it",
+                )),
                 rebase: Some(Keybind::new(&["r"], "Rebase current branch onto selected branch")),
                 interactive_rebase: Some(Keybind::new(
                     &["i", "I"],
@@ -1278,6 +1286,7 @@ impl KeybindingsConfig {
             Action::BranchesCreate => self.branches.create.as_ref(),
             Action::BranchesDelete => self.branches.delete.as_ref(),
             Action::BranchesMerge => self.branches.merge.as_ref(),
+            Action::BranchesMergeInto => self.branches.merge_into.as_ref(),
             Action::BranchesRebase => self.branches.rebase.as_ref(),
             Action::BranchesInteractiveRebase => self.branches.interactive_rebase.as_ref(),
             Action::BranchesPull => self.branches.pull.as_ref(),
@@ -1477,6 +1486,7 @@ impl KeybindingsConfig {
             Action::BranchesCreate => self.branches.create.as_ref(),
             Action::BranchesDelete => self.branches.delete.as_ref(),
             Action::BranchesMerge => self.branches.merge.as_ref(),
+            Action::BranchesMergeInto => self.branches.merge_into.as_ref(),
             Action::BranchesRebase => self.branches.rebase.as_ref(),
             Action::BranchesInteractiveRebase => self.branches.interactive_rebase.as_ref(),
             Action::BranchesPull => self.branches.pull.as_ref(),
@@ -1893,6 +1903,7 @@ impl KeybindingsConfig {
             Action::BranchesCreate => self.branches.create = keybind,
             Action::BranchesDelete => self.branches.delete = keybind,
             Action::BranchesMerge => self.branches.merge = keybind,
+            Action::BranchesMergeInto => self.branches.merge_into = keybind,
             Action::BranchesRebase => self.branches.rebase = keybind,
             Action::BranchesInteractiveRebase => self.branches.interactive_rebase = keybind,
             Action::BranchesPull => self.branches.pull = keybind,
