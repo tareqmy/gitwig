@@ -479,6 +479,16 @@ impl App {
             .unwrap_or(self.config.max_commits)
     }
 
+    /// Auto-fetch cadence in minutes for one repository: the per-repo override
+    /// when set, otherwise the global interval. `0` means disabled.
+    pub fn effective_auto_fetch_interval_mins(&self, path: &str) -> u64 {
+        self.config
+            .repo_configs
+            .get(path)
+            .and_then(|rc| rc.auto_fetch_interval_mins)
+            .unwrap_or(self.config.auto_fetch_interval_mins)
+    }
+
     pub fn get_current_resync_on_tab_change(&self) -> bool {
         self.get_selected_item()
             .and_then(|path| self.config.repo_configs.get(path))

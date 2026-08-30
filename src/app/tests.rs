@@ -5070,7 +5070,7 @@ fn test_repo_settings_flow() {
     let repo_cfg = app.config.repo_configs.get("/path/to/custom_repo").unwrap();
     assert_eq!(repo_cfg.page_size, Some(15));
 
-    // Go down to Editor Command (index 4)
+    // Go down to Auto Fetch (index 4)
     // Currently on index 1.
     // Down to 2
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 1);
@@ -5086,6 +5086,26 @@ fn test_repo_settings_flow() {
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 1);
     assert!(handled);
     assert_eq!(app.repo_settings_selected_index, 4);
+
+    // Enter to edit the per-repo auto-fetch interval, type "45" and confirm
+    let handled = crate::input::handle_key(&mut app, enter_press, 1);
+    assert!(handled);
+    assert!(app.repo_settings_editing);
+    for c in "45".chars() {
+        let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char(c)), 1);
+        assert!(handled);
+    }
+    assert_eq!(app.repo_settings_input, "45");
+    let handled = crate::input::handle_key(&mut app, enter_press, 1);
+    assert!(handled);
+    assert!(!app.repo_settings_editing);
+    let repo_cfg = app.config.repo_configs.get("/path/to/custom_repo").unwrap();
+    assert_eq!(repo_cfg.auto_fetch_interval_mins, Some(45));
+
+    // Down to 5 (Editor Command)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 1);
+    assert!(handled);
+    assert_eq!(app.repo_settings_selected_index, 5);
 
     // Enter to edit
     let handled = crate::input::handle_key(&mut app, enter_press, 1);
@@ -5108,10 +5128,10 @@ fn test_repo_settings_flow() {
     let repo_cfg = app.config.repo_configs.get("/path/to/custom_repo").unwrap();
     assert_eq!(repo_cfg.editor, Some("code".to_string()));
 
-    // Down to 5 (User Note)
+    // Down to 6 (User Note)
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Down), 1);
     assert!(handled);
-    assert_eq!(app.repo_settings_selected_index, 5);
+    assert_eq!(app.repo_settings_selected_index, 6);
 
     // Enter to edit note
     let handled = crate::input::handle_key(&mut app, enter_press, 1);
@@ -5168,6 +5188,7 @@ fn test_repo_settings_fallbacks() {
         page_size: Some(15),
         max_commits: Some(200),
         resync_on_tab_change: Some(false),
+        auto_fetch_interval_mins: Some(0),
         ..Default::default()
     };
     repo_configs.insert("/path/to/repo_a".to_string(), repo_cfg);
@@ -5176,6 +5197,7 @@ fn test_repo_settings_fallbacks() {
         page_size: 10,
         max_commits: 100,
         resync_on_tab_change: true,
+        auto_fetch_interval_mins: 25,
         items: vec!["/path/to/repo_a".to_string(), "/path/to/repo_b".to_string()],
         repo_configs,
         ..Default::default()
@@ -5194,6 +5216,10 @@ fn test_repo_settings_fallbacks() {
     assert_eq!(app.get_current_page_size(), 10);
     assert_eq!(app.get_current_max_commits(), 100);
     assert!(app.get_current_resync_on_tab_change());
+
+    // Auto-fetch cadence: repo_a is disabled by its override, repo_b inherits the global interval
+    assert_eq!(app.effective_auto_fetch_interval_mins("/path/to/repo_a"), 0);
+    assert_eq!(app.effective_auto_fetch_interval_mins("/path/to/repo_b"), 25);
 }
 
 #[test]
@@ -8337,7 +8363,7 @@ fn test_repo_settings_comprehensive() {
     );
 
     app.repo_settings_editing = true;
-    app.repo_settings_selected_index = 4; // editor
+    app.repo_settings_selected_index = 5; // editor
     crate::popups::repo_settings::RepoSettingsPopup::handle_event(
         &mut app,
         key_event(KeyCode::Char('n')),

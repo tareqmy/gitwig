@@ -627,7 +627,9 @@ pub struct App {
     pub status_refresh_tx: std::sync::mpsc::Sender<Vec<(usize, String, ItemStatus)>>,
     pub status_refresh_rx: std::sync::mpsc::Receiver<Vec<(usize, String, ItemStatus)>>,
     pub last_background_refresh: std::time::Instant,
-    pub last_background_fetch_all: std::time::Instant,
+    /// When each repository was last dispatched by the auto-fetch scheduler.
+    /// Missing entries mean "not fetched since startup" and are seeded lazily.
+    pub last_auto_fetch: std::collections::HashMap<String, std::time::Instant>,
     pub background_refresh_running: bool,
     pub graph_visible_height: std::cell::Cell<usize>,
     pub pending_add_repo: Option<String>,
@@ -1399,7 +1401,7 @@ impl App {
             status_refresh_tx,
             status_refresh_rx,
             last_background_refresh: std::time::Instant::now(),
-            last_background_fetch_all: std::time::Instant::now(),
+            last_auto_fetch: std::collections::HashMap::new(),
             background_refresh_running: false,
             graph_visible_height: std::cell::Cell::new(0),
             pending_add_repo: None,
@@ -1502,15 +1504,31 @@ where
             });
         }
 
-        // Trigger scheduled background fetch for all repositories
-        let auto_fetch_interval = app.config.auto_fetch_interval_mins;
-        if auto_fetch_interval > 0
-            && !app.config.items.is_empty()
-            && app.last_background_fetch_all.elapsed()
-                >= std::time::Duration::from_secs(auto_fetch_interval * 60)
-        {
-            app.last_background_fetch_all = std::time::Instant::now();
-            app.bulk_fetch_all_implicit();
+        // Trigger scheduled background fetch for every repository that is due.
+        // Each repo runs on its own cadence: its `repo_configs` override when set,
+        // otherwise the global `auto_fetch_interval_mins` (`0` disables either way).
+        if !app.config.items.is_empty() && app.bulk_fetching.is_empty() {
+            let now = std::time::Instant::now();
+            let mut due = std::collections::HashSet::new();
+            for item in app.config.items.clone() {
+                let interval = app.effective_auto_fetch_interval_mins(&item);
+                if interval == 0 {
+                    continue;
+                }
+                // A repo never fetched since startup is seeded here so the first
+                // auto-fetch happens one full interval after launch, as before.
+                let last = *app.last_auto_fetch.entry(item.clone()).or_insert(now);
+                if now.duration_since(last) >= std::time::Duration::from_secs(interval * 60) {
+                    // Stamped at dispatch time even if the fetch is later skipped
+                    // (non-git path, missing directory) so a skippable repo does
+                    // not come up due again on every poll tick.
+                    app.last_auto_fetch.insert(item.clone(), now);
+                    due.insert(item);
+                }
+            }
+            if !due.is_empty() {
+                app.bulk_fetch_due_implicit(&due);
+            }
         }
         while let Ok(raw_msg) = app.rx.try_recv() {
             if let Some(repo_info) = raw_msg.strip_prefix("REPO_SCAN_FOUND:") {

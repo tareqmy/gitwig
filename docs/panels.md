@@ -348,7 +348,7 @@ Picker to select columns to search by (SHA, Message, Author, Date) before enteri
     *   `Esc` / `q` / `Q` : Cancel and close columns selector
 
 ### Repository Settings Popup (`Mode::RepoSettings`)
-Custom per-repository config editor (Theme, Page Size, Max Commits, Editor path, custom Note, Git LFS Tracking/Pull). Accessed via `s` on the repository Overview screen.
+Custom per-repository config editor (Theme, Page Size, Max Commits, Resync on Tab Change, Auto Fetch interval, Editor path, custom Note, Git LFS Tracking/Pull). Accessed via `s` on the repository Overview screen. The Auto Fetch row overrides the global `auto_fetch_interval_mins` for just that repository — leave it empty to inherit the global cadence, or set `0` to exclude the repository from background fetching.
 *   *Shortcuts*:
     *   `Esc` : Cancel text edit (if editing) or return to Detail view (if in popup)
     *   `q` / `Q` : Return to Detail view

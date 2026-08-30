@@ -1394,7 +1394,7 @@ impl App {
             return;
         }
         crate::debug_log::info("Network Action: Bulk fetching all repositories (user triggered)");
-        self.spawn_bulk_fetch(false);
+        self.spawn_bulk_fetch(false, None);
 
         if !self.bulk_fetching.is_empty() {
             self.status_message =
@@ -1402,12 +1402,17 @@ impl App {
         }
     }
 
-    pub fn bulk_fetch_all_implicit(&mut self) {
+    /// Scheduled auto-fetch entry point: fetches only the repositories the
+    /// per-repo cadence scheduler marked as due this tick.
+    pub fn bulk_fetch_due_implicit(&mut self, due: &std::collections::HashSet<String>) {
         if !self.bulk_fetching.is_empty() {
             return;
         }
-        crate::debug_log::info("Network Action: Bulk fetching all repositories (scheduled)");
-        self.spawn_bulk_fetch(true);
+        crate::debug_log::info(format!(
+            "Network Action: Bulk fetching {} due repositories (scheduled)",
+            due.len()
+        ));
+        self.spawn_bulk_fetch(true, Some(due));
     }
 
     /// One-line outcome of the most recent bulk fetch for the status bar.
@@ -1477,7 +1482,14 @@ impl App {
     /// [`crate::git_cmd::git_command`] so an unreachable or permission-denied remote
     /// can never open a prompt on the controlling terminal, and is bounded by
     /// `config.fetch_timeout_secs` so a silent remote cannot pin the card spinner.
-    fn spawn_bulk_fetch(&mut self, scheduled: bool) {
+    ///
+    /// `only` restricts the round to a subset of tracked paths (the scheduler's
+    /// due set); `None` fetches every tracked repository.
+    fn spawn_bulk_fetch(
+        &mut self,
+        scheduled: bool,
+        only: Option<&std::collections::HashSet<String>>,
+    ) {
         let origin = if scheduled { "scheduled" } else { "user triggered" };
         let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
         self.bulk_fetch_round.clear();
@@ -1487,6 +1499,11 @@ impl App {
 
         let items = self.config.items.clone();
         for (idx, item) in items.iter().enumerate() {
+            if let Some(only) = only {
+                if !only.contains(item) {
+                    continue;
+                }
+            }
             if !matches!(self.statuses.get(idx), Some(repo::ItemStatus::GitRepo(_))) {
                 continue;
             }

@@ -99,6 +99,10 @@ pub struct RepoConfig {
     pub max_commits: Option<usize>,
     #[serde(default)]
     pub resync_on_tab_change: Option<bool>,
+    /// Per-repository auto-fetch cadence in minutes. `None` inherits the global
+    /// `auto_fetch_interval_mins`; `Some(0)` disables auto-fetch for this repo only.
+    #[serde(default)]
+    pub auto_fetch_interval_mins: Option<u64>,
     #[serde(default)]
     pub editor: Option<String>,
     #[serde(default)]

@@ -57,6 +57,19 @@ impl RepoSettingsPopup {
                             app.persist("Repository max commits updated");
                         }
                         4 => {
+                            let val_opt = if app.repo_settings_input.is_empty() {
+                                None
+                            } else if let Ok(val) = app.repo_settings_input.parse::<u64>() {
+                                Some(val)
+                            } else {
+                                app.repo_settings_editing = false;
+                                return true;
+                            };
+                            repo_cfg.auto_fetch_interval_mins = val_opt;
+                            app.config.repo_configs.insert(repo_path, repo_cfg);
+                            app.persist("Repository auto-fetch interval updated");
+                        }
+                        5 => {
                             let val_opt = if app.repo_settings_input.trim().is_empty() {
                                 None
                             } else {
@@ -66,7 +79,7 @@ impl RepoSettingsPopup {
                             app.config.repo_configs.insert(repo_path, repo_cfg);
                             app.persist("Repository editor updated");
                         }
-                        5 => {
+                        6 => {
                             let val_opt = if app.repo_settings_input.trim().is_empty() {
                                 None
                             } else {
@@ -76,7 +89,7 @@ impl RepoSettingsPopup {
                             app.config.repo_configs.insert(repo_path, repo_cfg);
                             app.persist("Repository note updated");
                         }
-                        6 => {
+                        7 => {
                             let pattern = app.repo_settings_input.trim();
                             if !pattern.is_empty() {
                                 match Self::track_lfs_pattern(&repo_path, pattern) {
@@ -100,9 +113,9 @@ impl RepoSettingsPopup {
                     return true;
                 }
                 KeyCode::Char(c)
-                    if app.repo_settings_selected_index == 4
-                        || app.repo_settings_selected_index == 5
-                        || app.repo_settings_selected_index == 6 =>
+                    if app.repo_settings_selected_index == 5
+                        || app.repo_settings_selected_index == 6
+                        || app.repo_settings_selected_index == 7 =>
                 {
                     app.repo_settings_input.push(c);
                     return true;
@@ -123,14 +136,14 @@ impl RepoSettingsPopup {
             }
             _ if app.keybindings.matches(crate::keybindings::Action::NavUp, key) => {
                 app.repo_settings_selected_index = if app.repo_settings_selected_index == 0 {
-                    8
+                    9
                 } else {
                     app.repo_settings_selected_index - 1
                 };
                 return true;
             }
             _ if app.keybindings.matches(crate::keybindings::Action::NavDown, key) => {
-                app.repo_settings_selected_index = (app.repo_settings_selected_index + 1) % 9;
+                app.repo_settings_selected_index = (app.repo_settings_selected_index + 1) % 10;
                 return true;
             }
             _ if app.keybindings.matches(crate::keybindings::Action::NavLeft, key) => {
@@ -163,24 +176,33 @@ impl RepoSettingsPopup {
                     4 => {
                         let repo_cfg =
                             app.config.repo_configs.get(&repo_path).cloned().unwrap_or_default();
-                        app.repo_settings_input = repo_cfg.editor.clone().unwrap_or_default();
+                        app.repo_settings_input = repo_cfg
+                            .auto_fetch_interval_mins
+                            .map(|v| v.to_string())
+                            .unwrap_or_default();
                         app.repo_settings_editing = true;
                     }
                     5 => {
                         let repo_cfg =
                             app.config.repo_configs.get(&repo_path).cloned().unwrap_or_default();
-                        app.repo_settings_input = repo_cfg.note.clone().unwrap_or_default();
+                        app.repo_settings_input = repo_cfg.editor.clone().unwrap_or_default();
                         app.repo_settings_editing = true;
                     }
                     6 => {
-                        app.repo_settings_input = String::new();
+                        let repo_cfg =
+                            app.config.repo_configs.get(&repo_path).cloned().unwrap_or_default();
+                        app.repo_settings_input = repo_cfg.note.clone().unwrap_or_default();
                         app.repo_settings_editing = true;
                     }
                     7 => {
+                        app.repo_settings_input = String::new();
+                        app.repo_settings_editing = true;
+                    }
+                    8 => {
                         app.lfs_pull();
                         app.mode = Mode::Detail;
                     }
-                    8 => {
+                    9 => {
                         app.resync_detail();
                     }
                     _ => {}
@@ -270,7 +292,7 @@ impl RepoSettingsPopup {
 
     pub fn draw(f: &mut Frame, app: &App, area: Rect) {
         let popup_width = 54;
-        let popup_height = 20;
+        let popup_height = 21;
         let popup_area = crate::ui::layout::centered_rect_fixed(popup_width, popup_height, area);
 
         let block = Block::default()
@@ -297,7 +319,7 @@ impl RepoSettingsPopup {
                 Constraint::Length(1), // Spacer
                 Constraint::Length(1), // Repository Name
                 Constraint::Length(1), // Spacer
-                Constraint::Min(9),    // Settings items list
+                Constraint::Min(10),   // Settings items list
                 Constraint::Length(1), // Spacer
                 Constraint::Length(1), // Shortcuts instructions
             ])
@@ -429,48 +451,65 @@ impl RepoSettingsPopup {
         };
         let resync_line = build_line(3, "Resync on Tab Change:", resync_val, false);
 
-        // Row 4: Editor Command
-        let editor_val = repo_cfg.editor.clone().unwrap_or_else(|| "default".to_string());
-        let editor_line = build_line(
+        // Row 4: Auto Fetch Interval
+        let auto_fetch_val = match repo_cfg.auto_fetch_interval_mins {
+            None => "default".to_string(),
+            Some(0) => "0 (disabled)".to_string(),
+            Some(v) => v.to_string(),
+        };
+        let auto_fetch_line = build_line(
             4,
-            "Editor Command:",
+            "Auto Fetch (mins):",
             if app.repo_settings_selected_index == 4 && app.repo_settings_editing {
                 &app.repo_settings_input
             } else {
-                &editor_val
+                &auto_fetch_val
             },
             app.repo_settings_selected_index == 4 && app.repo_settings_editing,
         );
 
-        // Row 5: User Note
-        let note_val = repo_cfg.note.clone().unwrap_or_else(|| "none".to_string());
-        let note_line = build_line(
+        // Row 5: Editor Command
+        let editor_val = repo_cfg.editor.clone().unwrap_or_else(|| "default".to_string());
+        let editor_line = build_line(
             5,
-            "User Note:",
+            "Editor Command:",
             if app.repo_settings_selected_index == 5 && app.repo_settings_editing {
                 &app.repo_settings_input
             } else {
-                &note_val
+                &editor_val
             },
             app.repo_settings_selected_index == 5 && app.repo_settings_editing,
         );
 
-        // Row 6: Git LFS Track Pattern
-        let track_line = build_line(
+        // Row 6: User Note
+        let note_val = repo_cfg.note.clone().unwrap_or_else(|| "none".to_string());
+        let note_line = build_line(
             6,
-            "Git LFS Track:",
+            "User Note:",
             if app.repo_settings_selected_index == 6 && app.repo_settings_editing {
                 &app.repo_settings_input
             } else {
-                "enter pattern (e.g. *.psd)"
+                &note_val
             },
             app.repo_settings_selected_index == 6 && app.repo_settings_editing,
         );
 
-        // Row 7: Git LFS Pull
-        let pull_line = build_line(7, "Git LFS Pull:", "press Enter to pull files", false);
+        // Row 7: Git LFS Track Pattern
+        let track_line = build_line(
+            7,
+            "Git LFS Track:",
+            if app.repo_settings_selected_index == 7 && app.repo_settings_editing {
+                &app.repo_settings_input
+            } else {
+                "enter pattern (e.g. *.psd)"
+            },
+            app.repo_settings_selected_index == 7 && app.repo_settings_editing,
+        );
 
-        // Row 8: LFS Storage Size
+        // Row 8: Git LFS Pull
+        let pull_line = build_line(8, "Git LFS Pull:", "press Enter to pull files", false);
+
+        // Row 9: LFS Storage Size
         let lfs_info = if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail
         {
             (info.lfs_installed, info.lfs_storage_size)
@@ -495,13 +534,14 @@ impl RepoSettingsPopup {
                 }
             }
         };
-        let lfs_size_line = build_line(8, "LFS Storage Size:", &lfs_size_str, false);
+        let lfs_size_line = build_line(9, "LFS Storage Size:", &lfs_size_str, false);
 
         let settings_lines = vec![
             theme_line,
             page_size_line,
             max_commits_line,
             resync_line,
+            auto_fetch_line,
             editor_line,
             note_line,
             track_line,
@@ -512,9 +552,9 @@ impl RepoSettingsPopup {
 
         // Shortcuts helper bar
         let helper_line = if app.repo_settings_editing {
-            if app.repo_settings_selected_index == 4
-                || app.repo_settings_selected_index == 5
+            if app.repo_settings_selected_index == 5
                 || app.repo_settings_selected_index == 6
+                || app.repo_settings_selected_index == 7
             {
                 Line::from(vec![
                     Span::styled(" [Text] ", accent_style()),

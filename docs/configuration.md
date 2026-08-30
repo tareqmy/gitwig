@@ -64,7 +64,7 @@ show_stale_projects = true
 | `scan.start_dir` | `String` | `"$HOME"` | Starting directory for interactive repository discovery scanning. |
 | `scan.excludes` | `[String]` | `["node_modules", "target", "venv", ".venv", "checkout"]` | Directory names excluded from discovery scanning and filesystem watching. If left empty, automatically resets to defaults. |
 | `scan.git_only` | `Boolean` | `true` | Only scan folders that contain a .git directory. |
-| `auto_fetch_interval_mins` | `Integer` | `10` | Time interval in minutes to automatically run background fetches for all repositories. Set to `0` to disable. |
+| `auto_fetch_interval_mins` | `Integer` | `10` | Time interval in minutes to automatically run background fetches for all repositories. Set to `0` to disable. Individual repositories can override this cadence (or opt out with `0`) via the Repository Settings popup (`s` on the Overview screen), stored under `repo_configs`. |
 | `show_system_stats` | `Boolean` | `false` | Display CPU and Memory utilization of the Gitwig process in the bottom status bar. |
 | `enable_commit_signatures` | `Boolean` | `false` | Verify GPG/SSH signatures on commits list (requires spawning git subprocesses). |
 | `graph_max_commits` | `Integer` | `1000` | Maximum commits visualized in the Graph tab history. Set to `0` for unlimited. |
