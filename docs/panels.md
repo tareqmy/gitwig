@@ -249,12 +249,13 @@ Workspace layout for inspecting commits and diffs in details.
     *   `X` : Discard all unstaged changes in repository (opens confirmation dialog)
     *   `c` : Start commit message dialog
     *   `C` : Start commit message dialog with Amend
-*   *Conflict Resolution Shortcuts (Conflicts Panel)*:
+*   *Conflict Resolution Shortcuts (Conflicts Panel and Conflict Diff Viewer)*:
     *   `o` : Accept OURS version of conflict
     *   `t` : Accept THEIRS version of conflict
     *   `r` : Mark conflict as resolved
     *   `A` : Abort the merge
     *   `C` : Continue the merge
+    *   `M` : Open external mergetool
 *   *Diff Viewer Panel Shortcuts*:
     *   `↑` / `k` / `K` / `↓` / `j` / `J` : Navigate lines / hunks (or scroll content)
     *   `PgUp` / `PgDn` / `Home` / `End` : Scroll diff viewer
@@ -276,7 +277,7 @@ Triggers when staging changes encounters merge conflicts.
     *   `r` : Mark conflict as resolved
     *   `A` : Abort merge (opens confirmation dialog)
     *   `C` : Continue merge (opens confirmation dialog)
-    *   `M` : Open external mergetool for the selected file (Conflicts file list or ConflictDiff pane of the Workspace tab)
+    *   `M` : Open external mergetool for the selected file (Conflicts file list or ConflictDiff pane, Workspace tab or Inspect view)
 
 ---
 

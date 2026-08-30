@@ -542,6 +542,25 @@ impl InspectPopup {
             }
         }
 
+        if app.is_bound(Action::ConflictMergeTool, key) && app.is_uncommitted_selected() {
+            if app.detail_focus == DetailSection::Conflicts
+                || app.detail_focus == DetailSection::ConflictDiff
+            {
+                let params = match &app.current_detail {
+                    Some(crate::repo::ItemDetail::Repo { info, .. }) => info
+                        .changes
+                        .conflicted
+                        .get(app.status_list.conflict_file_selection)
+                        .map(|f| f.path.clone()),
+                    _ => None,
+                };
+                if let Some(path) = params {
+                    app.pending_mergetool_file = Some(path);
+                }
+                return true;
+            }
+        }
+
         if app.is_bound(Action::ConflictAbort, key) && app.is_uncommitted_selected() {
             if app.detail_focus == DetailSection::Conflicts
                 || app.detail_focus == DetailSection::ConflictDiff
