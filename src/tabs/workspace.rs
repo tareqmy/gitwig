@@ -240,6 +240,16 @@ impl WorkspaceTab {
                         }
                         return true;
                     }
+                    // Mirror the Enter path so the advertised "Inspect ↵/→" works
+                    // from the Conflicts list too.
+                    if detail_focus == DetailSection::Conflicts {
+                        app.mode = Mode::Inspect;
+                        app.last_staging_focus = DetailSection::Conflicts;
+                        app.detail_focus = DetailSection::ConflictDiff;
+                        app.diff.diff_scroll = 0;
+                        app.refresh_staging_diff();
+                        return true;
+                    }
                 }
                 if app.is_bound(Action::WorkspaceStageAll, key) {
                     if app.is_uncommitted_selected() && detail_focus != DetailSection::Conflicts {
@@ -484,8 +494,18 @@ impl WorkspaceTab {
                         return true;
                     }
                 }
+                // Continue-merge must win over amend here: both default to `C`,
+                // and the conflict-diff pane advertises it as "Continue Merge".
+                if app.is_bound(Action::ConflictContinue, key) {
+                    if detail_focus == DetailSection::ConflictDiff && app.is_uncommitted_selected()
+                    {
+                        app.mode = Mode::MergeContinueConfirm;
+                        return true;
+                    }
+                }
                 if app.is_bound(Action::WorkspaceCommitAmend, key) {
-                    if app.is_uncommitted_selected() {
+                    if app.is_uncommitted_selected() && detail_focus != DetailSection::ConflictDiff
+                    {
                         app.start_commit_amend();
                         return true;
                     }
@@ -511,6 +531,23 @@ impl WorkspaceTab {
                 if app.is_bound(Action::ConflictAbort, key) {
                     if app.is_uncommitted_selected() {
                         app.mode = Mode::MergeAbortConfirm;
+                        return true;
+                    }
+                }
+                if app.is_bound(Action::ConflictMergeTool, key) {
+                    if detail_focus == DetailSection::ConflictDiff && app.is_uncommitted_selected()
+                    {
+                        let params = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => info
+                                .changes
+                                .conflicted
+                                .get(app.status_list.conflict_file_selection)
+                                .map(|f| f.path.clone()),
+                            _ => None,
+                        };
+                        if let Some(path) = params {
+                            app.pending_mergetool_file = Some(path);
+                        }
                         return true;
                     }
                 }

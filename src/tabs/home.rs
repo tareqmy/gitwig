@@ -268,7 +268,13 @@ impl HomeTab {
                 _ => {}
             },
             Mode::CloneRepoLabelInput => match code {
-                KeyCode::Esc => app.commit_add_label_input(),
+                // The clone already happened, so "cancel" here means skip the
+                // optional label step — discard the typed text, keep the repo.
+                // Matches the status bar's "Cancel [Esc]" hint.
+                KeyCode::Esc => {
+                    app.input_buffer.clear();
+                    app.commit_add_label_input()
+                }
                 KeyCode::Enter => app.commit_add_label_input(),
                 KeyCode::Backspace => app.input_backspace(),
                 KeyCode::Char(c) => app.input_char(c),

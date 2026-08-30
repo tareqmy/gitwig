@@ -21,7 +21,6 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 v.push(("Inspect", "→"));
             } else if app.detail_focus == DetailSection::Staged
                 || app.detail_focus == DetailSection::Unstaged
-                || app.detail_focus == DetailSection::StagingDetails
             {
                 v.push(("Navigate/Scroll", "↑↓"));
                 v.push(("Page", "⇟/⇞"));
@@ -38,6 +37,19 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                     v.push(("Stash", "s"));
                 }
                 v.push(("Inspect", "→"));
+            } else if app.detail_focus == DetailSection::StagingDetails {
+                v.push(("Navigate/Scroll", "↑↓"));
+                v.push(("Page", "⇟/⇞"));
+                v.push(("Jump", "Home/End"));
+                if app.is_uncommitted_selected() {
+                    v.push(("Line Mode", "l"));
+                    v.push(("Stage/Unstage Hunk", "↵"));
+                    v.push(("Stage", "s"));
+                    v.push(("Unstage", "u"));
+                    v.push(("Discard", "x"));
+                    v.push(("Discard All", "X"));
+                }
+                v.push(("Full Screen", "→"));
             } else if app.detail_focus == DetailSection::Conflicts {
                 v.push(("Navigate/Scroll", "↑↓"));
                 v.push(("Page", "⇟/⇞"));
@@ -61,7 +73,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                     v.push(("Abort Merge", "A"));
                     v.push(("Continue Merge", "C"));
                 }
-                v.push(("Back to List", "←/Esc"));
+                v.push(("Home", "⎋/q"));
             } else {
                 v.push(("Navigate/Scroll", "↑↓"));
                 v.push(("Page", "⇟/⇞"));
@@ -69,6 +81,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 v.push(("Inspect", "↵/→"));
                 v.push(("Checkout", "o"));
                 v.push(("Tag", "t"));
+                v.push(("Branch", "b"));
                 v.push(("Interactive Rebase", "i"));
                 v.push(("Cherry-pick", "p"));
                 v.push(("Revert", "v"));
@@ -103,7 +116,9 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 ("Jump", "Home/End"),
             ];
             if app.detail_focus == DetailSection::Files {
-                v.push(("Expand/Collapse", "←/→"));
+                v.push(("Expand/Toggle", "→/↵/>"));
+                v.push(("Collapse", "<"));
+                v.push(("Collapse All", "←"));
                 v.push(("Fuzzy Find", "/"));
                 v.push(("History", "⇧H"));
             } else if app.detail_focus == DetailSection::FileContent {
@@ -134,6 +149,8 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Scroll", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
+            ("Inspect", "↵"),
+            ("Yank Hash", "y"),
             ("Resync", "R"),
             ("Help", "?"),
         ],
@@ -168,6 +185,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         4 => vec![
             ("Home", "⎋/q"),
             ("Tabs", "Tab/1-9"),
+            ("Cycle Focus", "w/W"),
             ("Checkout", "↵"),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
@@ -215,6 +233,8 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Home", "⎋/q"),
             ("Tabs", "Tab/1-9"),
             ("Navigate", "↑↓"),
+            ("Page", "⇟/⇞"),
+            ("Jump", "Home/End"),
             ("Add", "a"),
             ("Delete", "D"),
             ("Lock/Unlock", "l"),
@@ -227,6 +247,8 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Home", "⎋/q"),
             ("Tabs", "Tab/0-9"),
             ("Navigate", "↑↓"),
+            ("Page", "⇟/⇞"),
+            ("Jump", "Home/End"),
             ("Add", "a"),
             ("Delete", "D"),
             ("Resync", "R"),

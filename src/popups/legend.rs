@@ -44,7 +44,7 @@ fn pad_right_visual(s: &str, width: usize) -> String {
 
 fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
-    let pad = |s: &str| -> String { pad_right_visual(s, 12) };
+    let pad = |s: &str| -> String { pad_right_visual(s, 15) };
 
     // Section 1: Status Indicators
     lines.push(Line::from(Span::styled(
@@ -114,6 +114,10 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
         ),
         Span::raw("N Commits behind remote"),
     ]));
+    lines.push(Line::from(vec![
+        Span::styled(format!("  {}", pad("[x] / [ ]")), accent_style()),
+        Span::raw("Multi-select checkbox (shown once any repository is selected)"),
+    ]));
 
     // Separator
     lines.push(Line::from(""));
@@ -131,42 +135,49 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            format!("  {}", pad("⚠ MERGE")),
+            format!("  {}", pad("⚠ PARTIAL")),
+            Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("Both staged and unstaged/untracked changes present"),
+    ]));
+    lines.push(Line::from(vec![
+        Span::styled(
+            format!("  {}", pad("⚠ MERGE_HEAD")),
             Style::default().fg(DANGER()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("Active Merge session (conflicts)"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            format!("  {}", pad("🚧 REBASE")),
+            format!("  {}", pad("🚧 REBASING")),
             Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("Active Interactive/Normal Rebase"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            format!("  {}", pad("⚡ CHERRY")),
+            format!("  {}", pad("⚡ CHERRY-PICK")),
             Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("Active Cherry-pick operation"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            format!("  {}", pad("⚡ REVERT")),
+            format!("  {}", pad("⚡ REVERTING")),
             Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("Active Revert operation"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            format!("  {}", pad("🔍 BISECT")),
+            format!("  {}", pad("🔍 BISECTING")),
             Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
         ),
         Span::raw("Active Bisect session"),
     ]));
     lines.push(Line::from(vec![
         Span::styled(
-            format!("  {}", pad("📬 APPLY")),
+            format!("  {}", pad("📬 APPLYING")),
             Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
         ),
         Span::raw("Applying patches (mailbox)"),
@@ -203,10 +214,20 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
     ]));
     lines.push(Line::from(vec![
         Span::styled(format!("  {}", pad("stale")), Style::default().fg(DANGER())),
-        Span::raw("Repositories where the last commit is older than 30 days"),
+        Span::raw(
+            "Repositories where the last commit is older than the configured stale threshold (default 1 month); shown as \"stale (hidden)\" when stale projects are hidden",
+        ),
     ]));
+    let compat = app.config.compatibility_mode;
+    let cycle_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::HomeCycleFilter, compat);
+    let cycle_back_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::HomeCycleFilterBack, compat);
     lines.push(Line::from(Span::styled(
-        "  Click a tab or press Tab/Shift+Tab to filter the list by it (Esc clears)",
+        format!(
+            "  Click a tab or press {}/{} to filter the list by it (Esc clears); an active label filter appears as a clickable chip before the tabs",
+            cycle_key, cycle_back_key
+        ),
         muted_style(),
     )));
 

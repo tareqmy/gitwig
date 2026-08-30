@@ -2901,7 +2901,11 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(entry_labels_sd.iter().any(|label| label.contains("Inspect [→]")));
+        assert!(entry_labels_sd.iter().any(|label| label.contains("Full Screen [→]")));
+        assert!(entry_labels_sd.iter().any(|label| label.contains("Line Mode [l]")));
+        assert!(entry_labels_sd.iter().any(|label| label.contains("Stage [s]")));
+        assert!(entry_labels_sd.iter().any(|label| label.contains("Unstage [u]")));
+        assert!(!entry_labels_sd.iter().any(|label| label.contains("Stash [s]")));
         assert!(!entry_labels_sd.iter().any(|label| label.contains("Tag [t]")));
 
         // Tab 1: Files - Files Focus
@@ -2915,7 +2919,8 @@ mod tests {
             })
             .collect();
         assert!(entry_labels_f1.iter().any(|label| label.contains("Fuzzy Find [/]")));
-        assert!(entry_labels_f1.iter().any(|label| label.contains("Expand/Collapse [←/→]")));
+        assert!(entry_labels_f1.iter().any(|label| label.contains("Expand/Toggle [→/↵/>]")));
+        assert!(entry_labels_f1.iter().any(|label| label.contains("Collapse All [←]")));
         assert!(entry_labels_f1.iter().any(|label| label.contains("History [⇧H]")));
         assert!(!entry_labels_f1.iter().any(|label| label.contains("Open in Editor [e/o]")));
 

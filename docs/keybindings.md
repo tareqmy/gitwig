@@ -59,8 +59,8 @@
 | `↑` / `↓` / `k` / `j` | Settings        | Navigate setting fields / categories |
 | `Enter` / `Space`    | Settings        | Toggle / Edit selected setting    |
 | `Tab` / `Shift+Tab`  | Settings        | Switch focus between category list (sidebar) and settings list |
-| `←` / `h` / `H`      | Settings        | Focus category list (sidebar)     |
-| `→` / `l` / `L` / `w` / `W` | Settings  | Focus settings list               |
+| `←` / `h`            | Settings        | Focus category list (sidebar)     |
+| `→` / `l` / `w` / `W` | Settings       | Focus settings list               |
 | `1` - `5`            | Settings        | Jump directly to category: General (1), Sorting (2), Scan (3), Theme (4), Keybindings (5) |
 | `Esc` / `q`          | DebugLogs       | Exit Debug Logs (or clear filter if active) and return to Home |
 | `c` / `C` / `x`      | DebugLogs       | Clear all debug logs and reset scroll |
@@ -91,24 +91,32 @@
 | `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
 | `PgUp` / `PgDn`      | Detail / Normal / Settings | Scroll list/diff/tree/settings by configured `page_size` |
 | `Home` / `End`       | Detail / Normal / Settings | Jump to top / bottom of list/diff/tree/settings |
-| `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), checkout tag (Tags tab), open worktree in new context (Worktrees tab), checkout commit (Reflog tab), or Inspect commit |
+| `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), checkout tag (Tags tab), open worktree in new context (Worktrees tab), checkout commit (Reflog tab; also `Space`), or Inspect commit |
 | `F` (or `f`/`F` in Remotes) | Detail   | Fetch remote repository (Branches / Tags / Remotes tabs) |
 | `p`                  | Detail          | Pull selected local branch from remote (Branches tab), Push selected tag (Tags tab; asks confirmation), or Prune stale worktree metadata (Worktrees tab) |
 | `Shift+P`            | Detail          | Push selected local branch to remote (Branches tab) or Push all tags (Tags tab; asks confirmation) |
-| `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) or Local/Remote tag (Tags tab) |
-| `←` / `→` or `<` / `>` or `,` / `.` | Detail | Collapse/Expand directory (Files tab) |
+| `←` / `→`            | Detail          | Focus Local/Remote branch list (Branches tab only; on the Tags tab switch local/remote focus with `w` / `W` or the mouse) |
+| `>` / `→` / `Enter`  | Detail          | Expand / toggle selected folder (Files tab) |
+| `<` / `,`            | Detail          | Collapse selected folder (Files tab) |
+| `←`                  | Detail          | Collapse all folders (Files tab)  |
 | `/`                  | Detail          | Fuzzy find files (Files tab) / commits (Workspace commits list / Logs view) / branches (Branches tab) / tags (Tags tab) |
 | `e` / `o`            | Detail          | Open selected file in configured terminal editor (Files tab)      |
 | `Shift+H`            | Detail          | View selected file's commit/revision history (Files tab) |
 | `c`                  | Detail          | Open commit prompt (Workspace tab or Inspect view), or Create branch from HEAD (Branches tab) |
-| `a`                  | Detail          | Toggle "Assigned to me" / "All Open" issues (Issues tab), Stage All (Workspace tab Unstaged focus) / Unstage All (Workspace tab Staged focus), Apply stash (Stashes tab), or Add worktree (Worktrees tab) |
-| `n`                  | Detail          | Add line comment to selected PR (PRs tab)                        |
-| `x`                  | Detail          | Discard selected file changes (Workspace tab or Inspect view; asks confirmation) |
+| `C`                  | Detail          | Open commit prompt with Amend (Workspace tab or Inspect view)    |
+| `a`                  | Detail          | Toggle "Assigned to me" / "All Open" issues (Issues tab), Stage All (Workspace tab Unstaged focus) / Unstage All (Workspace tab Staged focus), Apply stash (Stashes tab), Add worktree (Worktrees tab), Add remote (`a`/`A`, Remotes tab), or Add submodule (Submodules tab) |
+| `n`                  | Detail          | Add line comment to selected PR (PRs tab), or Toggle line numbers in content viewer (`n`/`N`, Files tab) |
+| `b` / `B`            | Detail          | Toggle git blame panel (Files tab), or Create branch at selected commit (Workspace commits list) |
+| `t` / `T`            | Detail          | Create tag at selected commit (Workspace commits list)           |
+| `y` / `Y`            | Detail          | Yank selected commit hash (Workspace commits list)               |
+| `v` / `V`            | Detail          | Revert selected commit (Workspace commits list; asks confirmation) |
+| `p` / `P`            | Detail          | Cherry-pick selected commit (Workspace commits list; asks confirmation) |
+| `x`                  | Detail          | Discard selected file changes (Workspace tab, Inspect view, or Files tab via `x`/`X`; asks confirmation) |
 | `X`                  | Detail          | Discard all changes in repository (Workspace tab or Inspect view; asks confirmation) |
-| `i`                  | Detail          | Interactive rebase from selected commit (Workspace tab commits list) |
+| `i` / `I`            | Detail          | Interactive rebase from selected commit (Workspace tab commits list) |
 | `G`                  | Detail          | Load more commits (Workspace commits list / Logs view)            |
-| `l`                  | Detail          | Open Logs view (Workspace tab commits list focus) or Toggle lock status (Worktrees tab; asks reason/unlocks) |
-| `D`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), stash (Stashes tab; asks confirmation), or remove worktree (Worktrees tab; asks confirmation) |
+| `l`                  | Detail          | Open Logs view (Workspace tab commits list focus), Toggle line-by-line staging mode (`l`/`L`, Workspace diff / Inspect StagingDetails focus), or Toggle lock status (Worktrees tab; asks reason/unlocks) |
+| `D`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), stash (Stashes tab; asks confirmation), remote (Remotes tab; asks confirmation), submodule (Submodules tab; asks confirmation), or remove worktree (Worktrees tab; asks confirmation) |
 | `s` / `S`            | Detail          | Stage selected hunk/line (Workspace tab StagingDetails focus), open Stashing UI overlay (Workspace tab files list focus), Prompt to save stash (Stashing UI / Stashes tab), or Open Repository Settings popup (Overview overlay) |
 | `u` / `U`            | Detail          | Unstage selected hunk/line (Workspace tab StagingDetails focus), or Toggle "Stash untracked files" option (Stashing UI) |
 | `i`                  | Detail          | Toggle "Keep index" option (Stashing UI)                         |
@@ -117,12 +125,12 @@
 | `m`                  | Detail          | Merge selected branch into current branch (Branches tab; asks confirmation) |
 | `M`                  | Detail          | Checkout selected local branch and merge the current branch into it (Branches tab, Local panel; asks confirmation) |
 | `r`                  | Detail          | Rebase current branch onto selected branch (Branches tab; asks confirmation) |
-| `o` / `O`            | Detail          | Checkout selected commit (Workspace commits list), or Accept OURS version of conflict (Workspace tab Conflicts / ConflictDiff) |
+| `o` / `O`            | Detail          | Checkout selected commit (Workspace commits list), Open selected issue/PR in web browser (`o`, Forge tabs), or Accept OURS version of conflict (Workspace tab Conflicts / ConflictDiff) |
 | `t`                  | Detail          | Accept THEIRS version of conflict (Workspace tab Conflicts / ConflictDiff) |
 | `r`                  | Detail          | Mark conflict as resolved (Workspace tab Conflicts / ConflictDiff) |
 | `A`                  | Detail          | Abort the merge (Workspace tab Conflicts / ConflictDiff; asks confirmation) |
 | `C`                  | Detail          | Continue the merge (Workspace tab Conflicts / ConflictDiff; asks confirmation) |
-| `M`                  | Detail          | Open external mergetool (Workspace tab Conflicts / ConflictDiff) |
+| `M`                  | Detail          | Open external mergetool (Workspace tab Conflicts file list / ConflictDiff pane) |
 | `f`                  | Detail          | Open search column picker and go to logs (Workspace tab) |
 | `R`                  | Detail          | Resync the active tab state       |
 | `?`                  | Detail          | Toggle detail help overlay        |
@@ -133,12 +141,17 @@
 | `⌃C` (Ctrl+C)        | CommitInput (Edit) | Finish editing commit message (switches to confirm state) |
 | `⌃H` (Ctrl+H)        | CommitInput (Edit) | Open commit history picker |
 | `⌃U` (Ctrl+U)        | CommitInput (Edit) | Clear entire commit message buffer |
+| `⌃K` (Ctrl+K)        | CommitInput (Edit) | Kill (delete) text from cursor to end of line |
+| `⌃W` (Ctrl+W)        | CommitInput (Edit) | Delete the word before the cursor |
+| `⌃B` / `⌃F` (Ctrl+B / Ctrl+F) | CommitInput (Edit) | Move cursor left / right |
+| `⌃P` / `⌃N` (Ctrl+P / Ctrl+N) | CommitInput (Edit) | Move cursor one line up / down |
 | `↵` (Enter)          | CommitInput (Edit) | Insert a newline                  |
 | `Backspace`          | CommitInput (Edit) | Erase one character from commit message |
-| `Esc`                | CommitInput     | Cancel commit and return to Detail view |
+| `Esc`                | CommitInput     | Cancel commit and return to Detail view (in confirm state `q` also closes) |
 | `↵` (Enter)          | CommitInput (Confirm) | Submit / execute Git commit      |
 | `e` / `E`            | CommitInput (Confirm) | Edit / resume typing commit message |
-| `a` / `A` / `Space`  | CommitInput (Confirm) | Toggle amend last commit option   |
+| `a` / `Space`        | CommitInput (Confirm) | Toggle amend last commit option   |
+| `d` / `D` / `m` / `M` | CommitInput (Confirm) | Maximize / restore the popup window size |
 | `x` / `X` / `u` / `U` | CommitInput (Confirm) | Clear entire commit message buffer |
 | `Left-Click` (Mouse) | Normal          | Select the clicked item           |
 | `Double-Click` (Mouse)| Normal         | Open Detail view for clicked item |
@@ -160,7 +173,7 @@ The selected item is marked with a left-edge `▌` accent, a colored border, and
 When viewing the Repository Settings popup (entered via `s` on the repository Overview page):
 - `↑` / `↓` / `j` / `k` — Navigate settings rows.
 - `Enter` / `Space` — Toggle/Edit the selected setting:
-  * For editable fields (Page Size, Max Commits, Editor Command, User Note, Git LFS Track): starts/enters editing mode (type and press `Enter` to confirm, `Esc` to cancel).
+  * For editable fields (Page Size, Max Commits, Auto Fetch interval, Editor Command, User Note, Git LFS Track): starts/enters editing mode (type and press `Enter` to confirm, `Esc` to cancel).
   * For action fields (Git LFS Pull, LFS Storage Size): triggers the pull background job or refreshes the storage size.
 - `←` / `→` / `h` / `l` — Cycle options (Theme, Resync on Tab Change).
 - `Esc` / `q` — Close repository settings popup and return to repository Detail view.

@@ -1156,7 +1156,11 @@ impl ConfirmPopup {
                 {
                     app.cancel_stash_apply()
                 }
-                KeyCode::Char('D') | KeyCode::Char(' ') | KeyCode::Char('A') => {
+                KeyCode::Char('d')
+                | KeyCode::Char('D')
+                | KeyCode::Char(' ')
+                | KeyCode::Char('a')
+                | KeyCode::Char('A') => {
                     app.toggle_stash_apply_delete();
                 }
                 _ => {}

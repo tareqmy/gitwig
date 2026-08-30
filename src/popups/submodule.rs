@@ -33,6 +33,13 @@ pub fn draw_submodule_add_url_popup(f: &mut Frame, input_buffer: &str, area: Rec
             Span::styled("> ", Style::default().fg(ACCENT())),
             Span::styled(input_buffer, Style::default()),
         ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("[Enter]", primary_style()),
+            Span::styled(" Next  ", muted_style()),
+            Span::styled("[Esc]", primary_style()),
+            Span::styled(" Cancel", muted_style()),
+        ]),
     ];
 
     let inner_area = block.inner(popup_area);
@@ -71,6 +78,13 @@ pub fn draw_submodule_add_path_popup(f: &mut Frame, input_buffer: &str, url: &st
         Line::from(vec![
             Span::styled("> ", Style::default().fg(ACCENT())),
             Span::styled(input_buffer, Style::default()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("[Enter]", primary_style()),
+            Span::styled(" Add  ", muted_style()),
+            Span::styled("[Esc]", primary_style()),
+            Span::styled(" Cancel", muted_style()),
         ]),
     ];
 

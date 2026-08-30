@@ -421,7 +421,7 @@ fn get_desc(global_idx: usize) -> &'static str {
         }
         56 => "Terminal text editor to open files with (e.g. vim, nano, or notepad).",
         60 => {
-            "Time interval in minutes to automatically run git fetch in the background for all repositories. Set to 0 to disable."
+            "Time interval in minutes to automatically run git fetch in the background for all repositories. Set to 0 to disable. Repositories can override this in their Repository Settings popup."
         }
         61 => {
             "Comma-separated list of directories watched recursively for automatic workspace synchronization (e.g. ~/development)."
@@ -1107,6 +1107,15 @@ impl SettingsPopup {
                     app.settings_focus_sidebar = false;
                     let cat = get_active_category(app.settings_selected_index);
                     app.settings_selected_index = get_category_indices(cat)[0];
+                }
+                KeyCode::Tab | KeyCode::BackTab => {
+                    if app.settings_focus_sidebar {
+                        app.settings_focus_sidebar = false;
+                        let cat = get_active_category(app.settings_selected_index);
+                        app.settings_selected_index = get_category_indices(cat)[0];
+                    } else {
+                        app.settings_focus_sidebar = true;
+                    }
                 }
                 KeyCode::Char('1') => {
                     app.settings_selected_index = GENERAL_SETTING_INDICES[0];

@@ -79,10 +79,12 @@ pub fn draw_search_column_picker(f: &mut Frame, app: &crate::app::App, area: Rec
     f.render_widget(Paragraph::new(lines), vertical_chunks[1]);
 
     let instructions = Line::from(vec![
-        Span::styled(" [Space]", accent_style()),
+        Span::styled(" [↑/↓]", accent_style()),
+        Span::raw(" Navigate  "),
+        Span::styled("[Space]", accent_style()),
         Span::raw(" Toggle  "),
         Span::styled("[Enter]", accent_style()),
-        Span::raw(" Confirm  "),
+        Span::raw(" Continue to search  "),
         Span::styled("[Esc]", accent_style()),
         Span::raw(" Cancel "),
     ]);

@@ -126,9 +126,11 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ("⇟ [PgDn]".to_string(), "Jump one page down"),
                 ("Home".to_string(), "Go to top / scroll to top"),
                 ("End".to_string(), "Go to bottom / scroll to bottom"),
+                ("⎋ [Esc]".to_string(), "Cancel input, clear search/filter, or cancel selections"),
+                (close_key, "Close dialog / leave detail view"),
                 (
-                    close_key,
-                    "Cancel input, close dialog, clear search, cancel selections, or leave detail view",
+                    kb.format_action_keys(Action::ToggleStatusBar, is_compat),
+                    "Toggle status bar visibility",
                 ),
                 (help_key, "Toggle this help overlay"),
                 (about_key, "Show about popup / creator profile"),
@@ -166,7 +168,11 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                     "← / → / Space / Enter".to_string(),
                     "Collapse/expand label group (on group header)",
                 ),
-                ("g".to_string(), "Launch preferred Git client for selected repository"),
+                ("← / →".to_string(), "Move selection horizontally (Tile view)"),
+                (
+                    kb.format_action_keys(Action::HomeOpenGitApp, is_compat),
+                    "Launch preferred Git client for selected repository",
+                ),
                 (terminal_key, "Spawn a new shell (Terminal) in the selected repository"),
                 (settings_key, "Open options/settings page"),
                 (labels_key, "Edit labels of selected item"),
@@ -181,10 +187,10 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     categories.push(make_cat(
         "Debug Logs Panel",
         vec![
-            ("Esc / q", "Exit debug logs panel"),
+            ("Esc / q / D / l / L", "Exit debug logs panel"),
             ("c / C / x", "Clear all debug logs"),
             ("/", "Fuzzy search/filter debug logs"),
-            ("Enter", "Focus/lock list scrolling"),
+            ("Enter", "Leave the search field to scroll results (while searching)"),
             ("↑ / ↓ / j / k", "Scroll log entries"),
         ],
     ));

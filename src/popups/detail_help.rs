@@ -89,6 +89,8 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
 
     let resync_key =
         app.keybindings.format_action_keys(crate::keybindings::Action::RefreshDetail, is_compat);
+    let status_bar_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::ToggleStatusBar, is_compat);
 
     let help_key =
         app.keybindings.format_action_keys(crate::keybindings::Action::DetailHelp, is_compat);
@@ -130,6 +132,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 (focus_key, "Cycle panel focus forward / backward"),
                 (resize_key, "Grow / shrink the focused panel (where the layout splits)"),
                 (resync_key, "Resync current tab state"),
+                (status_bar_key, "Toggle status bar visibility"),
                 (close_help_key, "Close this help"),
                 (back_key, "Back to repository list"),
             ],
@@ -158,26 +161,45 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
             ("⎋ [Esc]", "Back to workspace commits list (Inspect mode)"),
             ("c / C", "Commit (c) / Amend last commit (C)"),
             ("t", "Create tag (Workspace commits list)"),
+            ("b", "Create branch at selected commit (Workspace commits list)"),
+            ("p", "Cherry-pick selected commit (Workspace commits list)"),
+            ("i / I", "Interactive rebase from selected commit (Workspace commits list)"),
             ("y", "Yank selected commit hash"),
             ("a", "Stage/Unstage All"),
             ("x", "Discard changes in selected file"),
             ("X", "Discard all changes in repository"),
-            ("s", "Stash uncommitted changes"),
+            ("s", "Open the stashing panel (Workspace files list)"),
             ("v", "Revert selected commit (Workspace commits list)"),
             ("O", "Show repository Overview (from any tab)"),
             ("/", "Fuzzy search commits (History panel)"),
-            ("f", "Open search logs picker"),
+            ("f", "Open search column picker (choose SHA/Message/Author/Date)"),
             ("l", "Open Logs view (Full screen commits list)"),
             ("G", "Load more commits (Workspace / Logs view)"),
-            ("s", "Set repository theme (Overview only)"),
+            ("s", "Open Repository Settings (Overview only)"),
+            ("⇥ [Tab] / w / W", "Cycle pane focus (Overview only)"),
+        ],
+    ));
+
+    categories.push(make_cat(
+        "Diff & Hunk Staging (Workspace diff / Inspect)",
+        vec![
+            ("l / L", "Toggle line-by-line stage/discard mode"),
+            ("s / S", "Stage selected hunk/line"),
+            ("u / U", "Unstage selected hunk/line"),
+            ("x / Delete", "Discard selected hunk/line (immediate, no confirmation)"),
         ],
     ));
 
     categories.push(make_cat(
         "Files Tab",
         vec![
-            ("← / → or < / >", "Collapse/Expand folder"),
+            ("→ / ↵ or >", "Expand/toggle selected folder"),
+            ("<", "Collapse selected folder"),
+            ("←", "Collapse all folders"),
             ("/", "Fuzzy find files"),
+            ("b", "Toggle git blame panel"),
+            ("n", "Toggle line numbers in content viewer"),
+            ("x", "Discard changes in selected file"),
             ("⇧H [Shift+H]", "Show file history"),
             ("e / o", "Open file in terminal editor"),
         ],
@@ -191,19 +213,22 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
             ("⇧D [Shift+D]", "Delete selected branch / tag"),
             ("m", "Merge selected branch into current branch"),
             ("⇧M [Shift+M]", "Checkout selected branch and merge the current branch into it"),
-            ("r", "Rebase current branch onto selected branch / Interactive rebase"),
+            ("r", "Rebase current branch onto selected branch"),
+            ("i / I", "Interactive rebase of current branch onto selected branch"),
             ("p", "Pull branch (Branches) / Push tag (Tags)"),
             ("⇧P [Shift+P]", "Push branch (Branches) / Push all tags (Tags)"),
             ("/", "Fuzzy search branches / tags"),
-            ("F", "Fetch remote (Branches / Tags tabs)"),
+            ("f / F", "Fetch remote (Branches) / Fetch remote tags (Tags)"),
+            ("a", "Add new remote (Branches tab)"),
         ],
     ));
 
     categories.push(make_cat(
-        "Remotes, Stashes & Worktrees Tabs",
+        "Remotes, Stashes, Worktrees & Submodules Tabs",
         vec![
-            ("a", "Apply stash / Add worktree"),
-            ("⇧D [Shift+D]", "Delete stash / Remove worktree"),
+            ("a", "Apply stash / Add worktree / Add remote / Add submodule"),
+            ("s", "Create new stash (Stashes tab)"),
+            ("⇧D [Shift+D]", "Delete stash / Remove worktree / Delete remote / Delete submodule"),
             ("l", "Toggle lock status (Worktrees tab only)"),
             ("p", "Prune worktree metadata (Worktrees tab only)"),
             ("↵ [Enter]", "Open worktree in new context (Worktrees tab only)"),
@@ -219,6 +244,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
             ("r", "Mark conflict as resolved"),
             ("A", "Abort the merge"),
             ("C", "Continue the merge"),
+            ("M", "Open external mergetool (Conflicts file list / ConflictDiff pane)"),
         ],
     ));
 

@@ -19,7 +19,7 @@ pub(crate) fn commit_input_editing_entries() -> (Option<Vec<Span<'static>>>, Vec
         ("Newline", "↵"),
         ("Cancel Commit", "⎋"),
         ("Max Size", "⌃D"),
-        ("Scroll", "↑/↓"),
+        ("Move Cursor", "↑/↓"),
     ];
     (None, super::build_status_entries(&entries_data))
 }

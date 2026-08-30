@@ -913,7 +913,7 @@ impl KeybindingsConfig {
                 page_up: Some(Keybind::new(&["pageup"], "Scroll selection up by page")),
                 home: Some(Keybind::new(&["home"], "Go to top of list")),
                 end: Some(Keybind::new(&["end"], "Go to bottom of list")),
-                add_repo: Some(Keybind::new(&["a"], "Add repository path manually")),
+                add_repo: Some(Keybind::new(&["a"], "Add a repository via the directory scanner")),
                 bulk_add: Some(Keybind::new(&["A"], "Bulk add repositories in a directory")),
                 edit_repo: Some(Keybind::new(&["e"], "Edit selected repository details")),
                 delete_repo: Some(Keybind::new(&["D"], "Delete selected repository from config")),

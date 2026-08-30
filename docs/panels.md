@@ -16,7 +16,7 @@ The primary dashboard shown when Gitwig starts up.
         *   `PgDn` / `pagedown` : Jump one page down
         *   `Home` / `home` : Go to top of list
         *   `End` / `end` : Go to bottom of list
-        *   `Enter` / `→` / `right` : Open repository details
+        *   `Enter` / `→` / `right` : Open repository details (in Tile view `→` moves the selection right instead of opening the repository)
         *   `Space` : Toggle selection for batch actions
         *   `p` : Toggle pin status of selected item
         *   `*` : Toggle Starred / Favorite status of selected item
@@ -32,7 +32,7 @@ The primary dashboard shown when Gitwig starts up.
         *   `o` : Cycle sorting criteria (Name, Path, Last Commit, Status)
         *   `O` : Toggle reverse sorting
         *   `v` : Cycle repository list layout (Normal/Compact/Tile)
-        *   `a` : Add a repository path manually
+        *   `a` : Add a repository via the directory-scanner picker
         *   `A` : Bulk add subdirectories of a directory
         *   `i` : Import / clone a remote repository
         *   `e` : Edit selected repository entry
@@ -49,8 +49,8 @@ The primary dashboard shown when Gitwig starts up.
         *   `ctrl-q` : Quit Gitwig
 *   **Grouping Sidebar (Left)**: Visible when `Show Grouping` is enabled. Groups repositories into Recent, Starred, and custom Labels.
     *   *Shortcuts*:
-        *   `←` / `→` : Toggle focus between sidebar groups and repository list
-        *   `Space` / `Enter` : Collapse / expand label groups (when focused on header)
+        *   `←` / `→` : Collapse / expand the selected group (when on a group header row; there is no sidebar focus toggle)
+        *   `Space` / `Enter` : Toggle collapse / expand of label groups (when on a group header row)
 *   **Label Picker Overlay** (`L`): Floating fuzzy picker listing every label with its repository count, plus an "All repositories" row. Selecting a label filters the home list to it — a sticky "project view" that survives `Esc` and app restarts until deselected (re-select the active label or choose "All repositories"). The active label is marked with ● in the picker, pinned as a `● label ▶` chip at the left of the summary tab strip (clickable to reopen the picker), and shown as a `Label:` chip in the status bar; the summary tabs' counts scope to the selected label.
 *   **Bottom Command/Status Bar**: Reflects current keyboard context, active mode, background fetches, and CPU/memory statistics.
 
@@ -70,8 +70,8 @@ Triggered by opening a repository.
         *   `Tab` : Cycle tab forward
         *   `Shift+Tab` / `backtab` : Cycle tab backward
         *   `R` : Resync active tab details manually
-        *   `1` - `7` : Jump directly to Tabs 1-7 (or Tabs 8-11 in advanced group)
-        *   `Z` : Toggle Advanced Tab group (Worktrees, Submodules, Reflog, Forge)
+        *   `1` - `7` : Jump directly to Tabs 1-7 (or `1` - `5` for the five advanced tabs when the Advanced group is active)
+        *   `Z` : Toggle Advanced Tab group (Worktrees, Submodules, Reflog, Issues, PRs)
         *   `O` : Show repository Overview overlay
 
 ### Main Workspace Tabs
@@ -108,8 +108,9 @@ Triggered by opening a repository.
         *   `↓` / `j` / `J` : Move selection down
         *   `PgUp` / `PgDn` : Scroll file list
         *   `Home` / `End` : Jump to top / bottom of file tree
-        *   `>` / `.` : Expand folder in tree
-        *   `<` / `,` : Collapse folder in tree
+        *   `>` / `→` / `Enter` : Expand / toggle selected folder in tree
+        *   `<` / `,` : Collapse selected folder in tree
+        *   `←` : Collapse all folders in tree
         *   `b` / `B` : Toggle git blame panel
         *   `n` / `N` : Toggle line numbers in content viewer
         *   `e` / `o` : Open selected file in default terminal editor
@@ -150,6 +151,8 @@ Triggered by opening a repository.
         *   `i` / `I` : Interactive rebase of current branch onto selected branch
         *   `p` : Pull remote changes (for local branches)
         *   `P` : Push selected branch to remote (for local branches; supports `y` Push, `t` Push + Tags `--tags`)
+        *   `f` / `F` : Fetch remote
+        *   `a` / `A` : Add a new remote
         *   `/` : Fuzzy search branches
 
 #### Tab 4: Tags Tab
@@ -157,13 +160,13 @@ Triggered by opening a repository.
     *   *Shortcuts*:
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate tag list
-        *   `c` / `C` : Create new tag (annotated `-m` or lightweight; Tab toggles input fields; prompts to force update `-f` if existing)
         *   `Enter` : Checkout selected tag
         *   `D` : Delete selected tag
         *   `p` : Push selected tag to remote (supports `y` Push, `f` Force Push `--force`)
         *   `P` : Push all tags to remote
         *   `f` / `F` : Fetch remote tags
         *   `/` : Fuzzy search tags
+    *   *Note*: Tags are created with `t` / `T` from the Workspace tab's commits list (annotated `-m` or lightweight; Tab toggles input fields; prompts to force update `-f` if existing) — there is no create-tag key on this tab.
 
 #### Tab 5: Remotes Tab
 *   *Remotes List Panel*: Lists configured remote sources.
@@ -217,6 +220,7 @@ Triggered by opening a repository.
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate issues list
         *   `Enter` : Checkout branch corresponding to selected issue
         *   `o` : Open selected issue in web browser
+        *   `a` : Toggle between "Assigned to me" and all open issues
 
 #### Tab 11: Forge PRs Tab (Advanced Tab Group)
 *   *Forge Pull Requests Panel*: Displays PR list and details.
@@ -234,8 +238,8 @@ Workspace layout for inspecting commits and diffs in details.
 
 *   *General Shortcuts*:
     *   `Esc` / `q` / `Q` : Exit inspection, return to Workspace Tab
-    *   `Tab` / `w` : Cycle focus forward between Staged, Unstaged, Conflicts, and Diff viewer panels
-    *   `Shift+Tab` / `W` : Cycle focus backward between panels
+    *   `w` : Cycle focus forward between Staged, Unstaged, Conflicts, and Diff viewer panels
+    *   `W` : Cycle focus backward between panels
     *   `?` : Toggle inspect view shortcut help
 *   *Staging Lists Shortcuts (Staged/Unstaged/Conflicts)*:
     *   `↑` / `k` / `K` / `↓` / `j` / `J` : Navigate file lists
@@ -245,14 +249,12 @@ Workspace layout for inspecting commits and diffs in details.
     *   `X` : Discard all unstaged changes in repository (opens confirmation dialog)
     *   `c` : Start commit message dialog
     *   `C` : Start commit message dialog with Amend
-    *   `s` / `S` : Open stashing UI panel
 *   *Conflict Resolution Shortcuts (Conflicts Panel)*:
     *   `o` : Accept OURS version of conflict
     *   `t` : Accept THEIRS version of conflict
     *   `r` : Mark conflict as resolved
     *   `A` : Abort the merge
     *   `C` : Continue the merge
-    *   `M` : Open external mergetool
 *   *Diff Viewer Panel Shortcuts*:
     *   `↑` / `k` / `K` / `↓` / `j` / `J` : Navigate lines / hunks (or scroll content)
     *   `PgUp` / `PgDn` / `Home` / `End` : Scroll diff viewer
@@ -274,6 +276,7 @@ Triggers when staging changes encounters merge conflicts.
     *   `r` : Mark conflict as resolved
     *   `A` : Abort merge (opens confirmation dialog)
     *   `C` : Continue merge (opens confirmation dialog)
+    *   `M` : Open external mergetool for the selected file (Conflicts file list or ConflictDiff pane of the Workspace tab)
 
 ---
 
@@ -298,6 +301,25 @@ Commits history of selected file.
     *   `↑` / `k` / `K` / `↓` / `j` / `J` : Scroll list (when Revisions is focused) or scroll diff (when Diff is focused)
     *   `PgUp` / `PgDn` / `Home` / `End` : Scroll list / diff
 
+### Repository Overview Overlay (`Mode::Overview`)
+Full-screen overlay summarizing the current repository (opened with `O` from the Detail view), split into an Overview pane and a Stats pane.
+*   *Shortcuts*:
+    *   `Esc` / `q` / `Q` / `O` : Close overlay and return to Detail view
+    *   `s` / `S` : Open Repository Settings popup
+    *   `Tab` / `w` / `W` : Cycle pane focus between Overview and Stats
+    *   `↑` / `k` / `K` / `↓` / `j` / `J` : Scroll focused pane
+    *   `PgUp` / `PgDn` : Scroll focused pane by page
+    *   `Home` / `End` : Jump to top / bottom of focused pane
+
+### Stashing UI Panel (`Mode::StashingUI`)
+Overlay for reviewing what will be stashed before saving (opened with `s` / `S` from the Workspace tab's commits or files list).
+*   *Shortcuts*:
+    *   `s` / `S` : Save stash (opens stash message input)
+    *   `u` / `U` : Toggle "Stash untracked files" option
+    *   `i` / `I` : Toggle "Keep index" option
+    *   `↑` / `k` / `K` / `↓` / `j` / `J` : Navigate the file list
+    *   `Esc` / `q` / `Q` : Close and return to Detail view
+
 ### Debug Logs Panel (`Mode::DebugLogs`)
 App logs viewer.
 *   *Shortcuts*:
@@ -305,6 +327,8 @@ App logs viewer.
     *   `↑` / `k` / `↓` / `j` : Scroll logs line-by-line
     *   `PgUp` / `PgDown` : Scroll logs page-by-page
     *   `Home` / `End` : Scroll to top / bottom of debug logs
+    *   `/` : Enter fuzzy search query mode
+    *   `c` / `C` / `x` : Clear all debug logs and reset scroll
 
 ### Settings View (`Mode::Settings`)
 Full-screen configuration editor split into Categories and Fields.
@@ -312,10 +336,11 @@ Full-screen configuration editor split into Categories and Fields.
     *   `Esc` : Return to category sidebar (if in fields panel) or return to Home Screen (if in sidebar)
     *   `q` / `Q` : Return to Home Screen
     *   `1` - `5` : Jump directly to Category 1-5 (General, Sorting, Scan, Theme, Keybindings)
-    *   `←` / `h` / `H` : Focus category sidebar
-    *   `→` / `l` / `L` / `w` / `W` : Focus fields panel on the right
+    *   `←` / `h` : Focus category sidebar
+    *   `→` / `l` / `w` / `W` : Focus fields panel on the right
     *   `↑` / `k` / `K` / `↓` / `j` / `J` : Navigate categories (if focused on sidebar) or fields (if focused on fields)
     *   `PgUp` / `PgDown` : Jump selection to top / bottom of active category or fields
+    *   `Home` / `End` : Jump to the first / last item of the active list
     *   `Enter` : Edit selected setting field (or toggle switch)
     *   *Shortcuts when editing a field*:
         *   `Enter` : Save and commit changes
@@ -326,18 +351,18 @@ Full-screen configuration editor split into Categories and Fields.
 ### Signs & Symbols Legend Popup (`Mode::Legend`)
 Quick reference guide to badges, operations, and status indicators.
 *   *Shortcuts*:
-    *   `Esc` / `ctrl-q` / `h` : Close legend popup
+    *   `Esc` / `q` / `Q` / `h` : Close legend popup
     *   `↑` / `k` / `↓` / `j` / `PgUp` / `PgDown` / `Home` / `End` : Scroll legend content
 
 ### About Popup (`Mode::About`)
 Information about Gitwig, version details, and creator profile.
 *   *Shortcuts*:
-    *   `Esc` / `ctrl-q` / `V` : Close about popup
+    *   `Esc` / `q` / `Q` / `V` : Close about popup
 
 ### App Usage Stats Popup (`Mode::StatsDashboard`)
 Dashboard detailing aggregated usage statistics such as session duration, total lines authored, repositories imported, branches/commits created, network activities, and a visual 52-week Activity Heatmap.
 *   *Shortcuts*:
-    *   `Esc` / `ctrl-q` / `U` : Close stats dashboard
+    *   `Esc` / `Enter` / `q` / `Q` : Close stats dashboard
 
 ### Search Columns Selector Popup (`Mode::SearchColumnPicker`)
 Picker to select columns to search by (SHA, Message, Author, Date) before entering fuzzy logs search.
@@ -345,13 +370,27 @@ Picker to select columns to search by (SHA, Message, Author, Date) before enteri
     *   `↑` / `k` / `↓` / `j` : Navigate search columns (SHA, Message, Author, Date)
     *   `Space` : Toggle selected search column checkbox
     *   `Enter` : Confirm and open logs search input modal
-    *   `Esc` / `q` / `Q` : Cancel and close columns selector
+    *   `Esc` / `q` : Cancel and close columns selector
+
+### Remote Picker Popup (`Mode::RemotePicker`)
+Picker to select the target remote for sync/fetch operations when multiple remotes exist.
+*   *Shortcuts*:
+    *   `↑` / `k` / `K` / `↓` / `j` / `J` : Navigate remotes list
+    *   `Enter` : Confirm selected remote
+    *   `Esc` / `q` / `Q` : Cancel and close picker
+
+### Commit History Picker Popup (`Mode::CommitHistoryPicker`)
+Picker listing historical commit messages to reuse (opened with `Ctrl+H` from the Commit Message Dialog).
+*   *Shortcuts*:
+    *   `↑` / `k` / `↓` / `j` : Navigate commit messages
+    *   `Enter` : Select message and return to the commit dialog
+    *   `Esc` / `q` : Cancel and return to the commit dialog
 
 ### Repository Settings Popup (`Mode::RepoSettings`)
-Custom per-repository config editor (Theme, Page Size, Max Commits, Resync on Tab Change, Auto Fetch interval, Editor path, custom Note, Git LFS Tracking/Pull). Accessed via `s` on the repository Overview screen. The Auto Fetch row overrides the global `auto_fetch_interval_mins` for just that repository — leave it empty to inherit the global cadence, or set `0` to exclude the repository from background fetching.
+Custom per-repository config editor (Theme, Page Size, Max Commits, Resync on Tab Change, Auto Fetch interval, Editor path, custom Note, Git LFS Tracking/Pull, LFS Storage Size). Accessed via `s` on the repository Overview screen. The Auto Fetch row overrides the global `auto_fetch_interval_mins` for just that repository — leave it empty to inherit the global cadence, or set `0` to exclude the repository from background fetching.
 *   *Shortcuts*:
     *   `Esc` : Cancel text edit (if editing) or return to Detail view (if in popup)
-    *   `q` / `Q` : Return to Detail view
+    *   `q` : Return to Detail view
     *   `↑` / `k` / `↓` / `j` : Navigate settings rows
     *   `←` / `h` / `→` / `l` : Change values for option fields (Theme, Resync on Tab Change)
     *   `Enter` / `Space` : Edit/Toggle setting (toggles themes, enters text input for fields, runs LFS Pull, or refreshes LFS details)
@@ -389,6 +428,8 @@ Floating modal components with search-as-you-type inputs. Matches are ranked and
     *   **FileSearchInput**: Fuzzy file finder (`/` on Files Tab)
     *   **CommitFuzzySearch**: Fuzzy commit hash/message finder (`/` on Commits Tab or Logs View)
     *   **TagSearchInput**: Fuzzy tag checkout picker (`/` on Tags Tab)
+    *   **RemotePicker**: Target remote selector for sync/fetch operations (opens when multiple remotes exist)
+    *   **CommitHistoryPicker**: Historical commit message picker (`Ctrl+H` in the Commit Message Dialog)
 *   *Shortcuts inside overlays*:
     *   `Esc` : Cancel and close overlay
     *   `Enter` : Confirm selection
@@ -402,7 +443,7 @@ Floating modal components with search-as-you-type inputs. Matches are ranked and
 Modal text entry boxes for setting up configurations or typing messages.
 
 *   *Available dialogs*:
-    *   **Commit Message Dialog**: Compose/edit commit messages. Supports `Ctrl+S` (submit directly), `Ctrl+U` (clear message buffer), `Ctrl+A` (toggle amend), `Ctrl+H` (history picker), `Ctrl+D` (maximize popup), and `Ctrl+C` (finish typing to enter confirm mode with `x`/`u` to clear and `Enter` to commit).
+    *   **Commit Message Dialog**: Compose/edit commit messages. Supports `Ctrl+S` (submit directly), `Ctrl+U` (clear message buffer), `Ctrl+A` (toggle amend), `Ctrl+H` (history picker), `Ctrl+D` (maximize popup), `Ctrl+K` (kill to end of line), `Ctrl+W` (delete word before cursor), `Ctrl+B`/`Ctrl+F` (cursor left/right), `Ctrl+P`/`Ctrl+N` (line up/down), and `Ctrl+C` (finish typing to enter confirm mode with `x`/`u` to clear, `a`/`Space` to toggle amend, `d`/`D`/`m`/`M` to maximize/restore, `q` to close, and `Enter` to commit).
     *   **Branch / Tag / Stash Creation dialogs**: Enter new names.
     *   **Import / Remote Setup dialogs**: Enter URLs, names, and paths.
     *   **Worktree / Submodule Setup dialogs**: Enter paths, branches, or lock reasons.
@@ -423,7 +464,7 @@ Double-checks before executing hazardous or state-altering actions.
 To prevent accidental data loss due to muscle-memory `Enter` keypresses, Gitwig intercepts keystrokes on the router level. For any modal classified as a **Destructive Action**, pressing `Enter` defaults to **Cancel** (`ConfirmNo`). To confirm a destructive action, the user must explicitly press `y` or `Y`. For non-destructive actions, `Enter` acts normally to confirm.
 
 ### Destructive Actions (`Enter` acts as Cancel)
-*   **Discard Changes (`Mode::DiscardChangesConfirm`)**: Discarding unstaged/staged files, hunks, or lines.
+*   **Discard Changes (`Mode::DiscardChangesConfirm`)**: Discarding unstaged/staged files. Only file-level discards ask for confirmation — hunk/line discards (`x` / `Delete` in the diff viewer) apply immediately without a dialog.
 *   **Delete Branch (`Mode::BranchDeleteConfirm`)**: Deleting a local or remote tracking branch.
 *   **Delete Tag (`Mode::TagDeleteConfirm`)**: Deleting a Git tag locally or remotely.
 *   **Delete Stash (`Mode::StashDeleteConfirm`)**: Dropping/deleting a stash entry from the stashes list.

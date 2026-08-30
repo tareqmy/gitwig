@@ -515,10 +515,13 @@ pub fn draw_commit_popup(
         Span::styled(format!("{} ", checkbox), checkbox_style),
         Span::styled("Amend last commit", primary_style()),
         if !editing {
-            Span::styled(" (toggle: [a/space] | clear: [x])", muted_style())
+            Span::styled(
+                " (commit: [Enter] | edit: [e] | toggle: [a/space] | clear: [x])",
+                muted_style(),
+            )
         } else {
             Span::styled(
-                " (submit: [⌃S] | clear: [⌃U] | toggle amend: [⌃A] | history: [⌃H])",
+                " (submit: [⌃S] | done editing: [⌃C] | clear: [⌃U] | amend: [⌃A] | history: [⌃H] | max size: [⌃D])",
                 muted_style(),
             )
         },

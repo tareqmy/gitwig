@@ -77,6 +77,8 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
     let debug_key = k(crate::keybindings::Action::HomeOpenDebugLogs);
     let about_key = k(crate::keybindings::Action::HomeAbout);
     let compact_key = k(crate::keybindings::Action::HomeCycleViewMode);
+    let settings_key = k(crate::keybindings::Action::HomeOpenSettings);
+    let global_search_key = k(crate::keybindings::Action::HomeGlobalSearch);
     let stats_key = k(crate::keybindings::Action::HomeOpenStatsDashboard);
     let legend_key = k(crate::keybindings::Action::HomeSymbolsHelp);
     let help_key = k(crate::keybindings::Action::Help);
@@ -91,6 +93,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
         ("Terminal", &terminal_key),
         (&sort_key_label, &sort_key),
         ("Find", &search_key),
+        ("Code Search", &global_search_key),
         ("Filter", &cycle_filter_key),
         ("Label Filter", &label_picker_key),
         ("Jump Picker", &jump_key),
@@ -108,6 +111,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
         ("Star", &star_key),
         ("Yank Path", &yank_key),
         ("Check Update", &update_key),
+        ("Settings", &settings_key),
         ("Debug Logs", &debug_key),
         ("About", &about_key),
         ("Stats", &stats_key),

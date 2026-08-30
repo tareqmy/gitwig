@@ -341,7 +341,13 @@ pub(crate) fn get_status_layout_components(
                 "Importing Remote Repository  ",
                 Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
             )];
-            let entries_data = [("Cancel", "Esc")];
+            // Esc cancels only on the first (URL) step; on the later steps it
+            // goes back to the previous prompt.
+            let entries_data = if app.mode == Mode::ImportUrlInput {
+                [("Next", "Enter"), ("Cancel", "Esc")]
+            } else {
+                [("Next", "Enter"), ("Back", "Esc")]
+            };
             let mut entries = Vec::new();
             for (i, (label, key)) in entries_data.iter().enumerate() {
                 let mut spans = Vec::new();
@@ -682,8 +688,12 @@ pub(crate) fn get_status_layout_components(
                 ),
                 Span::styled("Choose columns to apply search on  ", muted_style()),
             ];
-            let entries_data =
-                [("Toggle", "Space"), ("Confirm & Search", "Enter"), ("Cancel", "Esc")];
+            let entries_data = [
+                ("Navigate", "↑↓"),
+                ("Toggle", "Space"),
+                ("Confirm & Search", "Enter"),
+                ("Cancel", "Esc"),
+            ];
             let mut entries = Vec::new();
             for (i, (label, key)) in entries_data.iter().enumerate() {
                 let mut spans = Vec::new();
@@ -827,7 +837,7 @@ pub(crate) fn get_status_layout_components(
                 Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
             )];
             let entries_data = if app.debug_log_search_editing {
-                vec![("Type to filter", ""), ("Focus List", "Enter"), ("Back", "Esc")]
+                vec![("Type to filter", ""), ("Focus List", "Enter"), ("Clear/Exit Search", "Esc")]
             } else if app.debug_log_search_query.is_some() {
                 vec![
                     ("Edit Query", "/"),

@@ -33,6 +33,13 @@ pub fn draw_worktree_add_branch_popup(f: &mut Frame, input_buffer: &str, area: R
             Span::styled("> ", Style::default().fg(ACCENT())),
             Span::styled(input_buffer, Style::default()),
         ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("[Enter]", primary_style()),
+            Span::styled(" Next  ", muted_style()),
+            Span::styled("[Esc]", primary_style()),
+            Span::styled(" Cancel", muted_style()),
+        ]),
     ];
 
     let inner_area = block.inner(popup_area);
@@ -80,6 +87,13 @@ pub fn draw_worktree_add_path_popup(
             Span::styled("> ", Style::default().fg(ACCENT())),
             Span::styled(input_buffer, Style::default()),
         ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("[Enter]", primary_style()),
+            Span::styled(" Create  ", muted_style()),
+            Span::styled("[Esc]", primary_style()),
+            Span::styled(" Cancel", muted_style()),
+        ]),
     ];
 
     let inner_area = block.inner(popup_area);
@@ -123,6 +137,13 @@ pub fn draw_worktree_lock_reason_popup(
         Line::from(vec![
             Span::styled("> ", Style::default().fg(ACCENT())),
             Span::styled(input_buffer, Style::default()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("[Enter]", primary_style()),
+            Span::styled(" Lock  ", muted_style()),
+            Span::styled("[Esc]", primary_style()),
+            Span::styled(" Cancel", muted_style()),
         ]),
     ];
 

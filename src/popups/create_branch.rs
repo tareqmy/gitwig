@@ -50,6 +50,13 @@ pub fn draw_branch_create_popup(
             Span::styled("New Branch Name: ", muted_style()),
             Span::styled(input_buffer, Style::default()),
         ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("[Enter]", primary_style()),
+            Span::styled(" Create  ", muted_style()),
+            Span::styled("[Esc]", primary_style()),
+            Span::styled(" Cancel", muted_style()),
+        ]),
     ];
 
     let inner_area = block.inner(popup_area);
