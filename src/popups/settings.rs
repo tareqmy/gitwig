@@ -73,6 +73,7 @@ const HOME_SETTING_INDICES: &[usize] = &[
     27, // Home: Open Debug Logs
     29, // Home: Open About Dialog
     78, // Home: Signs & Symbols Legend
+    79, // Home: Open Stats Dashboard
     57, // Home: Check Updates
     74, // Home: Fetch All
     85, // Home: Fetch Error Details
@@ -81,27 +82,28 @@ const HOME_SETTING_INDICES: &[usize] = &[
     88, // Home: Label Filter Picker
 ];
 const WORKSPACE_SETTING_INDICES: &[usize] =
-    &[100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116];
+    &[100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117];
 const FILES_BRANCHES_SETTING_INDICES: &[usize] =
     &[120, 121, 122, 123, 124, 125, 126, 127, 130, 131, 132, 133, 139, 134, 135, 136, 137, 138];
 const TAGS_REMOTES_STASHES_SETTING_INDICES: &[usize] =
     &[140, 141, 142, 143, 144, 145, 150, 151, 152, 160, 161, 162];
-const ADVANCED_TABS_SETTING_INDICES: &[usize] = &[170, 171, 172, 173, 174, 180, 181, 190, 200, 201];
-const DIFF_CONFLICT_SETTING_INDICES: &[usize] = &[210, 211, 212, 213, 220, 221, 222, 223, 224];
+const ADVANCED_TABS_SETTING_INDICES: &[usize] =
+    &[170, 171, 172, 173, 174, 180, 181, 190, 200, 201, 202, 203];
+const DIFF_CONFLICT_SETTING_INDICES: &[usize] = &[210, 211, 212, 213, 220, 221, 222, 223, 224, 225];
 const SCROLL_NAV_SETTING_INDICES: &[usize] = &[230, 231, 232, 233, 234, 235];
 const ALL_KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     // Global & Nav Keys
     16, 15, 14, 39, 40, 41, 42, 43, 53, 54, 44, 45, 46, 47, 48, 49, 50, 51, 52, 68, 69,
     // Home Screen Keys
     17, 18, 19, 20, 21, 22, 38, 75, 33, 71, 72, 73, 76, 37, 30, 31, 32, 77, 23, 24, 35, 25, 26, 28,
-    70, 36, 27, 29, 78, 57, 74, 85, 86, 87, 88, // Workspace Tab Keys
-    100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
+    70, 36, 27, 29, 78, 79, 57, 74, 85, 86, 87, 88, // Workspace Tab Keys
+    100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117,
     // Files & Branch Keys
     120, 121, 122, 123, 124, 125, 126, 127, 130, 131, 132, 133, 139, 134, 135, 136, 137, 138,
     // Tags, Remotes & Stashes
     140, 141, 142, 143, 144, 145, 150, 151, 152, 160, 161, 162, // Advanced Tabs Keys
-    170, 171, 172, 173, 174, 180, 181, 190, 200, 201, // Diff & Conflict Keys
-    210, 211, 212, 213, 220, 221, 222, 223, 224, // Scroll & Nav Keys
+    170, 171, 172, 173, 174, 180, 181, 190, 200, 201, 202, 203, // Diff & Conflict Keys
+    210, 211, 212, 213, 220, 221, 222, 223, 224, 225, // Scroll & Nav Keys
     230, 231, 232, 233, 234, 235,
 ];
 
@@ -280,6 +282,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         76 => "Home: Global Code Search",
         77 => "Home: Cycle View Mode",
         78 => "Home: Signs & Symbols Legend",
+        79 => "Home: Open Stats Dashboard",
         86 => "Home: Cycle Summary Filter",
         87 => "Home: Cycle Summary Filter Back",
         88 => "Home: Label Filter Picker",
@@ -303,6 +306,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         114 => "Workspace: Stage / Unstage All",
         115 => "Workspace: Discard Selected Change",
         116 => "Workspace: Discard All Changes",
+        117 => "Workspace: Checkout Commit",
 
         // Files
         120 => "Files: Blame Toggle",
@@ -361,6 +365,8 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         // Forge
         200 => "Forge: Checkout issue branch",
         201 => "Forge: Open issue in browser",
+        202 => "Forge: Toggle assigned filter",
+        203 => "Forge: Add PR comment",
 
         // Diff
         210 => "Diff: Toggle Line/Hunk Mode",
@@ -374,6 +380,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         222 => "Conflict: Mark Resolved",
         223 => "Conflict: Abort Merge",
         224 => "Conflict: Continue Merge",
+        225 => "Conflict: Open Mergetool",
 
         // Detail List Scroll
         230 => "Scroll: Move Up",
