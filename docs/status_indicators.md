@@ -5,9 +5,10 @@ Each repository card shows icons and badges reflecting its state:
 ### General Icons
 - `📌` (or `[P]`) — Pinned repository.
 - `★` (or `*`) — Starred / favorite repository.
-- `● git` (or `G  clean`) — Clean Git repository.
+- `● clean` (or `* clean`) — Clean Git repository (in sync, no changes).
 - `○ dir` (or `o dir`) — Directory exists but is not a git repository.
 - `✕ missing` (or `x missing`) — Path does not exist or is not a directory.
+- `[x]` / `[ ]` — Multi-select checkbox, shown on every card once at least one repository is selected with `Space`.
 
 ### Compact Status Suffixes
 For git repositories, the status indicator shows compact counts for any non-zero values:
@@ -29,12 +30,12 @@ When a repository has **both** staged changes and unstaged changes (modified or 
 ### Active Repository State Badges
 When a repository has an active Git operation or special state, Gitwig displays a colored status badge:
 - `✓ CLEAN` — No active Git state/operation.
-- `⚠ MERGE` — Active Merge session (contains conflicts).
-- `🚧 REBASE` — Active Interactive/Normal Rebase.
-- `⚡ CHERRY` — Active Cherry-pick operation.
-- `⚡ REVERT` — Active Revert operation.
-- `🔍 BISECT` — Active Bisect session.
-- `📬 APPLY` — Applying patches (mailbox).
+- `⚠ MERGE_HEAD` — Active Merge session (contains conflicts).
+- `🚧 REBASING` — Active Interactive/Normal Rebase.
+- `⚡ CHERRY-PICK` — Active Cherry-pick operation.
+- `⚡ REVERTING` — Active Revert operation.
+- `🔍 BISECTING` — Active Bisect session.
+- `📬 APPLYING` — Applying patches (mailbox).
 
 ### Git LFS Badges (`[LFS]`)
 Files tracked by Git LFS will display a blue `[LFS]` badge next to their names in:
@@ -59,7 +60,9 @@ Gitwig automatically refreshes all repository statuses in the background every *
 
 ### Fetch Outcome Indicators
 
-While a bulk fetch (`F`) is running, each card's status column shows a Braille spinner and `fetching...`. When the fetch finishes, the outcome replaces the status for about 30 seconds:
+Besides the manual bulk fetch (`F`), Gitwig also fetches repositories automatically in the background on a schedule: every `auto_fetch_interval_mins` minutes (default 10, `0` disables), with an optional per-repository interval override in the Repository Settings popup (`s` on the Overview screen).
+
+While a fetch round is running, each card's status column shows a Braille spinner and `fetching...`. When the fetch finishes, the outcome replaces the status for about 30 seconds:
 
 | Indicator | Meaning |
 | :--- | :--- |

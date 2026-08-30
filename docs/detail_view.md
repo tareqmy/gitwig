@@ -29,8 +29,8 @@ For a **git repository**, the **Workspace** tab is split into multiple rounded p
 The **Files** tab displays all tracked files in the repository as an interactive directory tree on the left, and a preview panel on the right.
 - Directory nodes are prefixed with `>` when collapsed and `▼` when expanded.
 - File nodes are prefixed with `📄`.
-- **Expand Folder:** Select a collapsed directory and press `>` or `.` or `Right-Arrow`.
-- **Collapse Folder:** Select an expanded directory and press `<` or `,` or `Left-Arrow`.
+- **Expand / Toggle Folder:** Select a directory and press `>`, `Right-Arrow`, or `Enter`.
+- **Collapse Folder:** Select an expanded directory and press `<` or `,`. Press `Left-Arrow` to collapse **all** folders at once.
 - **Preview Panel:** Selecting a file displays its content (up to 100 KB) on the right; selecting a directory displays a list of files and folders directly inside it.
 - **File History View:** Select any file in the tree and press `Shift+H` to open a history split-panel view, showing revisions on the left and the revision's diff on the right. Press `Tab` / `w` to cycle focus, and `Esc` / `q` to return.
 
@@ -51,7 +51,7 @@ You can focus either branch panel by pressing `w` / `W` or using the `←` / `�
 ### Tags Tab
 
 The **Tags** tab lists both local tags and remote tags.
-- Press `c` / `C` to create a new tag at the selected commit. Supports both lightweight tags and annotated tags with optional messages (`-m`); use `Tab` to switch input focus between Tag Name and Tag Message. If the tag name already exists, Gitwig prompts to force update (`-f -a -m`).
+- Tags are created with `t` / `T` from the **Workspace** commits list (at the selected commit). The creation dialog supports both lightweight tags and annotated tags with optional messages (`-m`); use `Tab` to switch input focus between Tag Name and Tag Message. If the tag name already exists, Gitwig prompts to force update (`-f -a -m`).
 - Select a local tag and press `↵` (Enter) to checkout that tag.
 - Select any tag and press `D` to delete it (asks for confirmation).
 - Press `p` to push the selected tag to the remote. In the push confirmation dialog, press `y` to push normally or `f` / `F` to force push (`--force`).
@@ -110,7 +110,7 @@ The **Reflog** tab lists HEAD reflog entries for the repository, enabling easy r
 
 ### Overview Overlay
 
-Pressing `O` from any repository detail tab displays the **Overview** overlay, showing resolved paths, tracking info, and committer statistics. Press `Esc`, `q`, or `O` to return to your workspace. Press `s` inside the Overview overlay to open the Repository Settings page.
+Pressing `O` from any repository detail tab displays the **Overview** overlay, showing resolved paths, tracking info, and committer statistics. Press `Tab` / `w` / `W` to cycle focus between the Overview and Stats panes, and `↑`/`↓`/`j`/`k`, `PgUp`/`PgDn`, `Home`/`End` to scroll the focused pane. Press `Esc`, `q`, or `O` to return to your workspace. Press `s` inside the Overview overlay to open the Repository Settings page.
 
 ### Navigation & Interaction
 
@@ -150,7 +150,7 @@ Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits`
 - Select any local or remote-tracking branch and press `D` to delete it. A confirmation dialog will prompt before performing the deletion. (The currently checked out branch cannot be deleted).
 - **Commit Staged Changes / Amend Last Commit:** Press `c` from the Workspace tab or from the Inspect view to open a centered Commit popup window (active if there are staged changes OR a prior HEAD commit exists to amend). 
 - **Compose Mode:** Type your commit message. Press `Ctrl+S` to submit directly, `Ctrl+U` to clear the entire message buffer, `Ctrl+A` to toggle amend, `Ctrl+H` to pick previous messages from history, `Ctrl+D` to maximize/restore popup size, `Ctrl+C` to lock in the text and switch to confirmation state, press `Enter` to insert a newline, or `Esc` to cancel.
-- **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, `a` / `A` / `Space` to toggle the "Amend last commit" option, `x` / `u` to clear the message, `d` / `m` to maximize/restore popup size, or `Esc`/`q` to close the popup. Toggling amend to active when the buffer is empty automatically populates the text box with the message from the last commit.
+- **Confirm Mode:** Press `Enter` to execute the commit, `e` to return to composing/editing the message, `a` / `Space` to toggle the "Amend last commit" option, `x` / `u` to clear the message, `d` / `m` to maximize/restore popup size, or `Esc`/`q` to close the popup. Toggling amend to active when the buffer is empty automatically populates the text box with the message from the last commit.
 
 For a **plain directory** the view confirms the resolved path and explains that no `.git` entry was found.
 
