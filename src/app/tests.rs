@@ -5450,6 +5450,56 @@ fn test_workspace_conflicts_shortcuts() {
 }
 
 #[test]
+fn test_conflict_diff_mergetool_and_continue_shortcuts() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let config = Config { items: vec!["a_repo".to_string()], ..Default::default() };
+    let temp_path = std::env::temp_dir().join("gitwig_test_config_conflict_diff.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    let mut changes = crate::repo::WorktreeChanges::default();
+    changes.conflicted.push(crate::repo::FileEntry { path: "dummy.txt".to_string(), label: "C" });
+    let info = crate::repo::RepoInfo {
+        branch: Some("main".to_string()),
+        summary: crate::repo::RepoSummary { modified: 1, ..Default::default() },
+        changes,
+        ..crate::repo::RepoInfo::default()
+    };
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.commit_list.selection = 0; // Selected uncommitted commit
+    assert!(app.is_uncommitted_selected());
+
+    // Mode::Detail with the ConflictDiff panel focused
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+    app.detail_focus = DetailSection::ConflictDiff;
+
+    // 'M' -> queue the selected conflicted file for the external mergetool
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('M')), 10);
+    assert!(handled);
+    assert_eq!(app.pending_mergetool_file.take(), Some("dummy.txt".to_string()));
+
+    // 'C' -> Mode::MergeContinueConfirm (not commit amend)
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('C')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::MergeContinueConfirm);
+
+    // Mode::Inspect with the ConflictDiff panel focused
+    app.mode = Mode::Inspect;
+    app.detail_focus = DetailSection::ConflictDiff;
+
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('M')), 10);
+    assert!(handled);
+    assert_eq!(app.pending_mergetool_file.take(), Some("dummy.txt".to_string()));
+
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('C')), 10);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::MergeContinueConfirm);
+}
+
+#[test]
 fn test_update_click_trigger() {
     use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
     let config = Config::default();

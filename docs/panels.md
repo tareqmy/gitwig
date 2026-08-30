@@ -246,7 +246,7 @@ Workspace layout for inspecting commits and diffs in details.
     *   `c` : Start commit message dialog
     *   `C` : Start commit message dialog with Amend
     *   `s` / `S` : Open stashing UI panel
-*   *Conflict Resolution Shortcuts (Conflicts Panel)*:
+*   *Conflict Resolution Shortcuts (Conflicts Panel and Conflict Diff Viewer)*:
     *   `o` : Accept OURS version of conflict
     *   `t` : Accept THEIRS version of conflict
     *   `r` : Mark conflict as resolved
@@ -274,6 +274,7 @@ Triggers when staging changes encounters merge conflicts.
     *   `r` : Mark conflict as resolved
     *   `A` : Abort merge (opens confirmation dialog)
     *   `C` : Continue merge (opens confirmation dialog)
+    *   `M` : Open external mergetool
 
 ---
 

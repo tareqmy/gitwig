@@ -117,12 +117,12 @@
 | `m`                  | Detail          | Merge selected branch into current branch (Branches tab; asks confirmation) |
 | `M`                  | Detail          | Checkout selected local branch and merge the current branch into it (Branches tab, Local panel; asks confirmation) |
 | `r`                  | Detail          | Rebase current branch onto selected branch (Branches tab; asks confirmation) |
-| `o` / `O`            | Detail          | Checkout selected commit (Workspace commits list), or Accept OURS version of conflict (Workspace tab Conflicts / ConflictDiff) |
-| `t`                  | Detail          | Accept THEIRS version of conflict (Workspace tab Conflicts / ConflictDiff) |
-| `r`                  | Detail          | Mark conflict as resolved (Workspace tab Conflicts / ConflictDiff) |
-| `A`                  | Detail          | Abort the merge (Workspace tab Conflicts / ConflictDiff; asks confirmation) |
-| `C`                  | Detail          | Continue the merge (Workspace tab Conflicts / ConflictDiff; asks confirmation) |
-| `M`                  | Detail          | Open external mergetool (Workspace tab Conflicts / ConflictDiff) |
+| `o` / `O`            | Detail          | Checkout selected commit (Workspace commits list), or Accept OURS version of conflict (Workspace tab or Inspect view, Conflicts / ConflictDiff) |
+| `t`                  | Detail          | Accept THEIRS version of conflict (Workspace tab or Inspect view, Conflicts / ConflictDiff) |
+| `r`                  | Detail          | Mark conflict as resolved (Workspace tab or Inspect view, Conflicts / ConflictDiff) |
+| `A`                  | Detail          | Abort the merge (Workspace tab or Inspect view, Conflicts / ConflictDiff; asks confirmation) |
+| `C`                  | Detail          | Continue the merge (Workspace tab or Inspect view, Conflicts / ConflictDiff; asks confirmation) |
+| `M`                  | Detail          | Open external mergetool (Workspace tab or Inspect view, Conflicts / ConflictDiff) |
 | `f`                  | Detail          | Open search column picker and go to logs (Workspace tab) |
 | `R`                  | Detail          | Resync the active tab state       |
 | `?`                  | Detail          | Toggle detail help overlay        |

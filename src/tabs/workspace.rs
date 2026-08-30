@@ -485,7 +485,8 @@ impl WorkspaceTab {
                     }
                 }
                 if app.is_bound(Action::WorkspaceCommitAmend, key) {
-                    if app.is_uncommitted_selected() {
+                    if app.is_uncommitted_selected() && detail_focus != DetailSection::ConflictDiff
+                    {
                         app.start_commit_amend();
                         return true;
                     }
@@ -508,9 +509,33 @@ impl WorkspaceTab {
                         return true;
                     }
                 }
+                if app.is_bound(Action::ConflictMergeTool, key) {
+                    if detail_focus == DetailSection::ConflictDiff && app.is_uncommitted_selected()
+                    {
+                        let params = match &app.current_detail {
+                            Some(crate::repo::ItemDetail::Repo { info, .. }) => info
+                                .changes
+                                .conflicted
+                                .get(app.status_list.conflict_file_selection)
+                                .map(|f| f.path.clone()),
+                            _ => None,
+                        };
+                        if let Some(path) = params {
+                            app.pending_mergetool_file = Some(path);
+                        }
+                        return true;
+                    }
+                }
                 if app.is_bound(Action::ConflictAbort, key) {
                     if app.is_uncommitted_selected() {
                         app.mode = Mode::MergeAbortConfirm;
+                        return true;
+                    }
+                }
+                if app.is_bound(Action::ConflictContinue, key) {
+                    if detail_focus == DetailSection::ConflictDiff && app.is_uncommitted_selected()
+                    {
+                        app.mode = Mode::MergeContinueConfirm;
                         return true;
                     }
                 }

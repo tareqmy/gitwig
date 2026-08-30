@@ -217,6 +217,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
             ("o", "Accept OURS version of conflict"),
             ("t", "Accept THEIRS version of conflict"),
             ("r", "Mark conflict as resolved"),
+            ("M", "Open external mergetool"),
             ("A", "Abort the merge"),
             ("C", "Continue the merge"),
         ],
