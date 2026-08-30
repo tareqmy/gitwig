@@ -96,7 +96,7 @@
 | `p`                  | Detail          | Pull selected local branch from remote (Branches tab), Push selected tag (Tags tab; asks confirmation), or Prune stale worktree metadata (Worktrees tab) |
 | `Shift+P`            | Detail          | Push selected local branch to remote (Branches tab) or Push all tags (Tags tab; asks confirmation) |
 | `←` / `→`            | Detail          | Focus Local/Remote branch (Branches tab) or Local/Remote tag (Tags tab) |
-| `←` / `→` or `<` / `>` or `,` / `.` | Detail | Collapse/Expand directory (Files tab) |
+| `←` / `→` or `<` / `>` (also `,` to collapse) | Detail | Collapse/Expand directory (Files tab) |
 | `/`                  | Detail          | Fuzzy find files (Files tab) / commits (Workspace commits list / Logs view) / branches (Branches tab) / tags (Tags tab) |
 | `e` / `o`            | Detail          | Open selected file in configured terminal editor (Files tab)      |
 | `Shift+H`            | Detail          | View selected file's commit/revision history (Files tab) |

@@ -108,7 +108,7 @@ Triggered by opening a repository.
         *   `↓` / `j` / `J` : Move selection down
         *   `PgUp` / `PgDn` : Scroll file list
         *   `Home` / `End` : Jump to top / bottom of file tree
-        *   `>` / `.` : Expand folder in tree
+        *   `>` : Expand folder in tree
         *   `<` / `,` : Collapse folder in tree
         *   `b` / `B` : Toggle git blame panel
         *   `n` / `N` : Toggle line numbers in content viewer

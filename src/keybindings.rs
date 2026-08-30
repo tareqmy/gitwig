@@ -1054,7 +1054,7 @@ impl KeybindingsConfig {
                 )),
                 history: Some(Keybind::new(&["H"], "View commit history of the selected file")),
                 search: Some(Keybind::new(&["/"], "Launch fuzzy file search picker")),
-                expand: Some(Keybind::new(&[">", "."], "Expand folder in tree")),
+                expand: Some(Keybind::new(&[">"], "Expand folder in tree")),
                 collapse: Some(Keybind::new(&["<", ","], "Collapse folder in tree")),
                 editor: Some(Keybind::new(&["e", "o"], "Open selected file in terminal editor")),
                 full_screen: Some(Keybind::new(
@@ -2064,5 +2064,17 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_default_dot_is_status_bar_not_files_expand() {
+        // The global ToggleStatusBar intercept runs before mode dispatch, so a
+        // "." default on any tab action would be dead. Guard against it coming back.
+        let config = KeybindingsConfig::default_config();
+        let dot = crossterm::event::KeyEvent::new(KeyCode::Char('.'), KeyModifiers::NONE);
+        let gt = crossterm::event::KeyEvent::new(KeyCode::Char('>'), KeyModifiers::SHIFT);
+        assert!(config.matches(Action::ToggleStatusBar, dot));
+        assert!(!config.matches(Action::FilesExpand, dot));
+        assert!(config.matches(Action::FilesExpand, gt));
     }
 }
