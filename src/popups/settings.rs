@@ -266,6 +266,8 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         50 => "Detail: Tab 5 (Tags)",
         51 => "Detail: Tab 6 (Remotes)",
         52 => "Detail: Tab 7 (Stashes)",
+        53 => "Detail: Grow Focused Panel",
+        54 => "Detail: Shrink Focused Panel",
 
         68 => "Detail: Show Overview",
         70 => "Home: Open Terminal",
@@ -278,6 +280,9 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         76 => "Home: Global Code Search",
         77 => "Home: Cycle View Mode",
         78 => "Home: Signs & Symbols Legend",
+        86 => "Home: Cycle Summary Filter",
+        87 => "Home: Cycle Summary Filter Back",
+        88 => "Home: Label Filter Picker",
         69 => "Detail: Toggle Advanced Tabs",
 
         // Workspace
@@ -314,6 +319,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         131 => "Branches: Create branch",
         132 => "Branches: Delete branch",
         133 => "Branches: Merge branch",
+        139 => "Branches: Merge current into selected",
         134 => "Branches: Rebase current",
         135 => "Branches: Interactive Rebase",
         136 => "Branches: Pull branch changes",
@@ -1197,5 +1203,24 @@ impl SettingsPopup {
             }
         }
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_keybinding_row_has_label_action_and_description() {
+        let defaults = crate::keybindings::KeybindingsConfig::default_config();
+        for &idx in ALL_KEYBINDINGS_SETTING_INDICES {
+            assert!(!get_label(idx).is_empty(), "index {idx} has no label in get_label");
+            let action = index_to_action(idx)
+                .unwrap_or_else(|| panic!("index {idx} does not map to an Action"));
+            assert!(
+                !defaults.get_action_description(action).is_empty(),
+                "index {idx} ({action:?}) has no default description"
+            );
+        }
     }
 }
