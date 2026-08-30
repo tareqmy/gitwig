@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## [v2.5.13] - 2026-08-30
+### Added
+- **settings**: allow per-repository auto-fetch interval override ([efb5965](https://github.com/tareqmy/gitwig/commit/efb5965))
+- **branches**: checkout selected branch and merge current into it (M) ([9ea3048](https://github.com/tareqmy/gitwig/commit/9ea3048))
+
+### Fixed
+- **conflicts**: make mergetool and continue-merge keys work in ConflictDiff pane ([1f91ba4](https://github.com/tareqmy/gitwig/commit/1f91ba4))
+- **keybindings**: drop shadowed "." from files.expand default ([ef5e549](https://github.com/tareqmy/gitwig/commit/ef5e549))
+- **ui**: sync status bars, help overlays, and legends with real keybindings ([fb150f1](https://github.com/tareqmy/gitwig/commit/fb150f1))
+- **settings**: surface five unrebindable actions in the Keybindings category ([e5120d5](https://github.com/tareqmy/gitwig/commit/e5120d5))
+- **settings**: name the keybinding rows that rendered without a label ([8d83249](https://github.com/tareqmy/gitwig/commit/8d83249))
+- **home**: size the compact view's branch column to its content ([69436a4](https://github.com/tareqmy/gitwig/commit/69436a4))
+- **errors**: surface every operation failure in the error popup ([1033a48](https://github.com/tareqmy/gitwig/commit/1033a48))
+
+### Documentation
+- sync remaining docs with actual badges and keybindings ([92b4704](https://github.com/tareqmy/gitwig/commit/92b4704))
+- document keybindings.toml override and backfill semantics ([afe1211](https://github.com/tareqmy/gitwig/commit/afe1211))
+
 ## [v2.5.12] - 2026-08-26
 ### Added
 - **detail**: resize the focused panel with +/- keys ([e190dee](https://github.com/tareqmy/gitwig/commit/e190dee))
