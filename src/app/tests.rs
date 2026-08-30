@@ -4036,12 +4036,12 @@ fn test_yank_selected_commit_hash() {
     app.commit_list.selection = 0;
     app.detail_tab = 0;
 
-    // Try yanking. Note: since standard clipboards might fail in some test/headless envs,
-    // we can test the behavior and see if it sets self.status_message to either success or error.
+    // Try yanking. Clipboard access fails in headless envs (CI); success lands
+    // in the status bar while failure goes to the error popup via set_error.
     app.yank_selected_commit_hash();
-    assert!(app.status_message.is_some());
-    let msg = app.status_message.as_ref().unwrap();
-    assert!(msg.contains("Copied hash abc1234") || msg.contains("Failed to copy"));
+    let success = app.status_message.as_ref().is_some_and(|m| m.contains("Copied hash abc1234"));
+    let failure = app.error_message.as_ref().is_some_and(|m| m.contains("Failed to copy"));
+    assert!(success || failure);
 }
 
 #[test]
@@ -4072,9 +4072,9 @@ fn test_yank_selected_repo_path() {
     app.selected_index = 0;
 
     app.yank_selected_repo_path();
-    assert!(app.status_message.is_some());
-    let msg = app.status_message.as_ref().unwrap();
-    assert!(msg.contains("Copied path") || msg.contains("Failed to copy"));
+    let success = app.status_message.as_ref().is_some_and(|m| m.contains("Copied path"));
+    let failure = app.error_message.as_ref().is_some_and(|m| m.contains("Failed to copy"));
+    assert!(success || failure);
 }
 
 #[test]
