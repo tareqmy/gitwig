@@ -64,7 +64,7 @@ show_stale_projects = true
 | `scan.start_dir` | `String` | `"$HOME"` | Starting directory for interactive repository discovery scanning. |
 | `scan.excludes` | `[String]` | `["node_modules", "target", "venv", ".venv", "checkout"]` | Directory names excluded from discovery scanning and filesystem watching. If left empty, automatically resets to defaults. |
 | `scan.git_only` | `Boolean` | `true` | Only scan folders that contain a .git directory. |
-| `auto_fetch_interval_mins` | `Integer` | `10` | Time interval in minutes to automatically run background fetches for all repositories. Set to `0` to disable. Individual repositories can override this cadence (or opt out with `0`) via the Repository Settings popup (`s` on the Overview screen), stored under `repo_configs`. |
+| `auto_fetch_interval_mins` | `Integer` | `10` | Time interval in minutes to automatically run background fetches for all repositories. Set to `0` to disable. Individual repositories can override this cadence (or opt out with `0`) via the Repository Settings popup (`s` on the Overview screen), stored under `repo_configs`; a whole label group can override it too via Label Settings, stored under `label_configs` (see [Per-label settings](#per-label-settings)). |
 | `show_system_stats` | `Boolean` | `false` | Display CPU and Memory utilization of the Gitwig process in the bottom status bar. |
 | `enable_commit_signatures` | `Boolean` | `false` | Verify GPG/SSH signatures on commits list (requires spawning git subprocesses). |
 | `graph_max_commits` | `Integer` | `1000` | Maximum commits visualized in the Graph tab history. Set to `0` for unlimited. |
@@ -78,6 +78,7 @@ show_stale_projects = true
 | `show_grouping` | `Boolean` | `true` | Enable or disable repository label grouping sidebar on the home page. |
 | `labels` | `Map<String, [String]>` | `{}` | Repository path → list of labels. Managed by the in-app `l` shortcut. |
 | `active_label_filter` | `String` | *(unset)* | Sticky home-list label filter ("project view"). Managed by the `L` label picker; persists across restarts until deselected, and auto-clears if the label no longer exists on any tracked repository. |
+| `label_configs` | `Map<String, Table>` | `{}` | Per-label settings shared by every repository carrying that label (see [Per-label settings](#per-label-settings)). Managed by the Label Settings popup (`→` on a label in the `L` picker). Auto-pruned when no repository carries the label. |
 | `view_mode` | `String` | `"cards"` | Home page repository list layout mode (`"cards"`, `"compact"`, `"tile"`). Managed by `v`. |
 | `tile_columns` | `Integer` | `0` | Number of columns in tile layout mode (`0` = auto-calculate based on terminal width). |
 | `resync_on_tab_change` | `Boolean` | `false` | Automatically reload repository details from disk when switching tabs. |
@@ -85,6 +86,27 @@ show_stale_projects = true
 ### Keybindings
 
 Keyboard shortcuts live in a separate `keybindings.toml` beside `config.toml`. Entries there override the built-in defaults and are preserved across upgrades — see [Customizing Keybindings](keybindings.md#customizing-keybindings) for the format and override semantics.
+
+### Per-label settings
+
+Settings can be attached to a **label** and are then shared by every repository carrying that label. They are the settings subset of the per-repository overrides — `theme`, `page_size`, `max_commits`, `resync_on_tab_change`, `auto_fetch_interval_mins`, and `editor` — and are edited in the **Label Settings** popup, opened with `→` on a highlighted label in the `L` label picker.
+
+Each setting resolves through three tiers, most specific first:
+
+1. **Per-repository override** (`repo_configs`, set in the Repository Settings popup).
+2. **Label** (`label_configs`) — the first of the repository's labels, in the order they are stored, that defines the setting.
+3. **Global default** (the top-level config key).
+
+A row left empty at one tier inherits the next tier down. `auto_fetch_interval_mins = 0` at the label tier opts the whole group out of background fetching (handy for an `archive` label). When a label sets a `theme`, the home repository-list view is tinted with that theme while that label's filter ("project view") is active. Entries are stored as `[label_configs.<label>]` tables and are pruned automatically once no repository carries the label.
+
+```toml
+[label_configs.work]
+theme = "nord"
+auto_fetch_interval_mins = 2
+
+[label_configs.archive]
+auto_fetch_interval_mins = 0
+```
 
 ### Themes
 

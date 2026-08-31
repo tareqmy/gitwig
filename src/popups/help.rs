@@ -150,6 +150,10 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 (search_key, "Enter repository search mode"),
                 (cycle_filter_key, "Cycle summary filter (repos/dirty/ahead/stale)"),
                 (label_picker_key, "Pick a label to filter the list (sticky until deselected)"),
+                (
+                    "→ [in label picker]".to_string(),
+                    "Open Label Settings for the highlighted label (shared by its repos)",
+                ),
                 (global_search_key, "Open global code search popup overlay"),
                 (refresh_key, "Refresh status of selected item"),
                 (fetch_all_key, "Bulk fetch all tracked repositories concurrently"),
