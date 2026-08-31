@@ -97,6 +97,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Native folder/file scanner fallback
 - [x] Git logs pagination
 - [x] Per repository settings, theme
+- [x] Per-label settings: a `[label_configs.<label>]` tier (theme, page size, max commits, resync-on-tab, auto-fetch interval, editor) shared by every repo carrying the label, resolved between the per-repo override and the global default (repo → label → global); edited via `→` in the label picker and pruned when the label is no longer used.
 - [x] Check version updates and notify the user and the option to update
 - [x] Keybindings
 - [x] Git Worktrees: Tab/view to list, create, and remove Git worktrees.

@@ -51,7 +51,7 @@ The primary dashboard shown when Gitwig starts up.
     *   *Shortcuts*:
         *   `←` / `→` : Collapse / expand the selected group (when on a group header row; there is no sidebar focus toggle)
         *   `Space` / `Enter` : Toggle collapse / expand of label groups (when on a group header row)
-*   **Label Picker Overlay** (`L`): Floating fuzzy picker listing every label with its repository count, plus an "All repositories" row. Selecting a label filters the home list to it — a sticky "project view" that survives `Esc` and app restarts until deselected (re-select the active label or choose "All repositories"). The active label is marked with ● in the picker, pinned as a `● label ▶` chip at the left of the summary tab strip (clickable to reopen the picker), and shown as a `Label:` chip in the status bar; the summary tabs' counts scope to the selected label.
+*   **Label Picker Overlay** (`L`): Floating fuzzy picker listing every label with its repository count, plus an "All repositories" row. Selecting a label filters the home list to it — a sticky "project view" that survives `Esc` and app restarts until deselected (re-select the active label or choose "All repositories"). The active label is marked with ● in the picker, pinned as a `● label ▶` chip at the left of the summary tab strip (clickable to reopen the picker), and shown as a `Label:` chip in the status bar; the summary tabs' counts scope to the selected label. Press `→` on a highlighted label to open its **Label Settings** popup (see below), where settings shared by every repository carrying that label are edited.
 *   **Bottom Command/Status Bar**: Reflects current keyboard context, active mode, background fetches, and CPU/memory statistics.
 
 ---
@@ -395,6 +395,14 @@ Custom per-repository config editor (Theme, Page Size, Max Commits, Resync on Ta
     *   `↑` / `k` / `↓` / `j` : Navigate settings rows
     *   `←` / `h` / `→` / `l` : Change values for option fields (Theme, Resync on Tab Change)
     *   `Enter` / `Space` : Edit/Toggle setting (toggles themes, enters text input for fields, runs LFS Pull, or refreshes LFS details)
+
+### Label Settings Popup (`Mode::LabelSettings`)
+Per-label config editor (Theme, Page Size, Max Commits, Resync on Tab Change, Auto Fetch interval, Editor path). Accessed via `→` on a highlighted label in the Label Picker Overlay. Settings chosen here apply to every repository carrying that label and are resolved between the per-repo override and the global default: a per-repo setting wins first, then the first of the repo's labels (in stored order) that defines the setting, then the global default. Each row left empty inherits the next tier down; the Auto Fetch row accepts `0` to exclude the whole label group from background fetching (handy for an `archive` label). Label settings persist to `[label_configs.<label>]` in `config.toml`, and a label's settings are pruned automatically once no repository carries it.
+*   *Shortcuts*:
+    *   `↑` / `k` / `↓` / `j` : Navigate settings rows
+    *   `←` / `h` / `→` / `l` : Change values for option fields (Theme, Resync on Tab Change)
+    *   `Enter` / `Space` : Edit/Toggle setting (toggles themes or enters text input for fields)
+    *   `Esc` : Cancel text edit (if editing), otherwise return to the label picker
 
 ### Not Git Repository Popup (`Mode::NotGitRepo`)
 Warning dialog shown when selecting a directory that is not a valid Git repository.

@@ -19,6 +19,7 @@
 | `Esc`                | LabelPicker     | Close label picker without changing the filter |
 | `↑` / `↓`            | LabelPicker     | Navigate label list |
 | `Enter`              | LabelPicker     | Apply selected label (re-selecting the active label, or "All repositories", clears it) |
+| `→`                  | LabelPicker     | Open Label Settings for the highlighted label (no-op on the "All repositories" row) |
 | `Home` / `End` / `PgUp` / `PgDn` | Fuzzy pickers | Jump to top / bottom or page through the match list. Works in all fuzzy picker overlays: label picker, Jump-to-Repo, add/bulk-add repo scanners, and branch/file/commit/tag searches |
 | `ctrl+f`             | Normal          | Open global code search popup overlay |
 | `p`                  | Normal          | Toggle pin status of selected item |
@@ -177,6 +178,14 @@ When viewing the Repository Settings popup (entered via `s` on the repository Ov
   * For action fields (Git LFS Pull, LFS Storage Size): triggers the pull background job or refreshes the storage size.
 - `←` / `→` / `h` / `l` — Cycle options (Theme, Resync on Tab Change).
 - `Esc` / `q` — Close repository settings popup and return to repository Detail view.
+
+### Label Settings Popup controls:
+When viewing the Label Settings popup (entered via `→` on a highlighted label in the label picker). Settings chosen here apply to every repository carrying that label, resolved between the per-repo override and the global default (repo → label → global):
+- `↑` / `↓` / `j` / `k` — Navigate settings rows.
+- `Enter` / `Space` — Toggle/Edit the selected setting:
+  * For editable fields (Page Size, Max Commits, Auto Fetch interval, Editor Command): starts/enters editing mode (type and press `Enter` to confirm, `Esc` to cancel).
+- `←` / `→` / `h` / `l` — Cycle options (Theme, Resync on Tab Change).
+- `Esc` — Return to the label picker.
 
 
 ## Customizing Keybindings

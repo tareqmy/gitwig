@@ -11327,3 +11327,289 @@ fn test_sanitize_keeps_distinct_progress_counters() {
     assert!(cleaned.contains("Compressing objects: 100%"), "{:?}", cleaned);
     assert!(!cleaned.contains("Compressing objects: 5%"), "{:?}", cleaned);
 }
+
+// ── Per-label settings ────────────────────────────────────────────────────
+
+/// Builds an app whose single repo `/repo` carries `labels`, with the given
+/// per-repo and per-label config entries wired in. `temp` disambiguates the
+/// scratch config path so persist-based tests don't collide.
+fn label_test_app(
+    temp: &str,
+    labels: Vec<&str>,
+    repo_cfg: Option<RepoConfig>,
+    label_cfgs: Vec<(&str, crate::config::LabelConfig)>,
+) -> (App, PathBuf) {
+    let mut config =
+        Config { items: vec!["/repo".to_string()], show_grouping: false, ..Default::default() };
+    if !labels.is_empty() {
+        config.labels.insert("/repo".to_string(), labels.into_iter().map(String::from).collect());
+    }
+    if let Some(rc) = repo_cfg {
+        config.repo_configs.insert("/repo".to_string(), rc);
+    }
+    for (label, lc) in label_cfgs {
+        config.label_configs.insert(label.to_string(), lc);
+    }
+    let temp_path = std::env::temp_dir().join(format!("gitwig_test_{}.toml", temp));
+    let app = App::new(config, temp_path.clone());
+    (app, temp_path)
+}
+
+#[test]
+fn test_label_settings_repo_beats_label_beats_global() {
+    // Global page_size = 10, label "work" sets 20, repo override sets 30.
+    let repo_cfg = RepoConfig { page_size: Some(30), ..Default::default() };
+    let label_cfg = crate::config::LabelConfig { page_size: Some(20), ..Default::default() };
+    let (mut app, _p) =
+        label_test_app("lbl_precedence", vec!["work"], Some(repo_cfg), vec![("work", label_cfg)]);
+    app.config.page_size = 10;
+    app.selected_index = 0;
+    // Repo override wins.
+    assert_eq!(app.get_current_page_size(), 30);
+
+    // Drop the repo override: the label value applies.
+    app.config.repo_configs.clear();
+    assert_eq!(app.get_current_page_size(), 20);
+
+    // Drop the label config: fall back to the global default.
+    app.config.label_configs.clear();
+    assert_eq!(app.get_current_page_size(), 10);
+}
+
+#[test]
+fn test_label_settings_first_label_with_value_wins() {
+    // Repo carries [a, b] in that order. Only b sets max_commits → b applies.
+    // Then a also sets it → a (first) wins.
+    let cfg_b = crate::config::LabelConfig { max_commits: Some(50), ..Default::default() };
+    let (mut app, _p) =
+        label_test_app("lbl_order", vec!["a", "b"], None, vec![("b", cfg_b.clone())]);
+    app.config.max_commits = 500;
+    app.selected_index = 0;
+    assert_eq!(app.get_current_max_commits(), 50);
+
+    app.config
+        .label_configs
+        .insert("a".to_string(), crate::config::LabelConfig { max_commits: Some(7), ..cfg_b });
+    assert_eq!(app.get_current_max_commits(), 7);
+}
+
+#[test]
+fn test_label_auto_fetch_disabled_via_label() {
+    // A label can turn off auto-fetch for the whole group with Some(0).
+    let label_cfg =
+        crate::config::LabelConfig { auto_fetch_interval_mins: Some(0), ..Default::default() };
+    let (mut app, _p) =
+        label_test_app("lbl_autofetch", vec!["archive"], None, vec![("archive", label_cfg)]);
+    app.config.auto_fetch_interval_mins = 10;
+    assert_eq!(app.effective_auto_fetch_interval_mins("/repo"), 0);
+
+    // A repo with no matching label still inherits the global cadence.
+    assert_eq!(app.effective_auto_fetch_interval_mins("/other"), 10);
+}
+
+#[test]
+fn test_effective_theme_name_resolution() {
+    let repo_cfg = RepoConfig { theme: Some("dracula".to_string()), ..Default::default() };
+    let label_cfg =
+        crate::config::LabelConfig { theme: Some("nord".to_string()), ..Default::default() };
+    let (mut app, _p) =
+        label_test_app("lbl_theme", vec!["work"], Some(repo_cfg), vec![("work", label_cfg)]);
+    // Repo override wins.
+    assert_eq!(app.effective_theme_name("/repo").as_deref(), Some("dracula"));
+
+    // Without a repo override, the label theme applies.
+    app.config.repo_configs.clear();
+    assert_eq!(app.effective_theme_name("/repo").as_deref(), Some("nord"));
+
+    // With neither, there is no per-repo theme (global default renders).
+    app.config.label_configs.clear();
+    assert_eq!(app.effective_theme_name("/repo"), None);
+}
+
+#[test]
+fn test_effective_editor_resolution() {
+    let label_cfg =
+        crate::config::LabelConfig { editor: Some("nano".to_string()), ..Default::default() };
+    let (mut app, _p) = label_test_app("lbl_editor", vec!["work"], None, vec![("work", label_cfg)]);
+    app.config.editor = "vim".to_string();
+    assert_eq!(app.effective_editor("/repo"), "nano");
+
+    // Repo override beats the label.
+    app.config.repo_configs.insert(
+        "/repo".to_string(),
+        RepoConfig { editor: Some("hx".to_string()), ..Default::default() },
+    );
+    assert_eq!(app.effective_editor("/repo"), "hx");
+
+    // Unlabeled repo falls back to global.
+    assert_eq!(app.effective_editor("/other"), "vim");
+}
+
+#[test]
+fn test_prune_orphaned_label_configs_on_persist() {
+    // "work" is live (carried by /repo); "dead" is carried by nobody.
+    let (mut app, path) = label_test_app(
+        "lbl_prune",
+        vec!["work"],
+        None,
+        vec![
+            ("work", crate::config::LabelConfig { page_size: Some(5), ..Default::default() }),
+            ("dead", crate::config::LabelConfig { page_size: Some(9), ..Default::default() }),
+        ],
+    );
+    let _guard = TestFileGuard { path };
+    app.persist("saved");
+    assert!(app.config.label_configs.contains_key("work"));
+    assert!(!app.config.label_configs.contains_key("dead"), "orphaned label config must be pruned");
+}
+
+#[test]
+fn test_label_config_toml_roundtrip() {
+    let mut config = Config { items: vec!["/repo".to_string()], ..Default::default() };
+    config.label_configs.insert(
+        "work".to_string(),
+        crate::config::LabelConfig {
+            theme: Some("nord".to_string()),
+            page_size: Some(25),
+            auto_fetch_interval_mins: Some(0),
+            resync_on_tab_change: Some(true),
+            ..Default::default()
+        },
+    );
+    let serialized = toml::to_string_pretty(&config).unwrap();
+    assert!(serialized.contains("[label_configs.work]"));
+    let parsed: Config = toml::from_str(&serialized).unwrap();
+    let lc = parsed.label_configs.get("work").unwrap();
+    assert_eq!(lc.theme.as_deref(), Some("nord"));
+    assert_eq!(lc.page_size, Some(25));
+    assert_eq!(lc.auto_fetch_interval_mins, Some(0));
+    assert_eq!(lc.resync_on_tab_change, Some(true));
+    assert_eq!(lc.max_commits, None);
+}
+
+#[test]
+fn test_label_settings_popup_open_from_picker() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let (mut app, _p) = label_test_app(
+        "lbl_open",
+        vec!["web"],
+        None,
+        vec![("web", crate::config::LabelConfig::default())],
+    );
+    app.mode = Mode::LabelPicker;
+    // Matches are [(None, "All"), (Some("web"), 1)]; highlight the label row.
+    app.label_picker_selection = 1;
+
+    let right = KeyEvent::new(KeyCode::Right, KeyModifiers::empty());
+    crate::input::handle_key(&mut app, right, 1);
+    assert_eq!(app.mode, Mode::LabelSettings);
+    assert_eq!(app.label_settings_target.as_deref(), Some("web"));
+
+    // Right on the "All repositories" row does not open settings.
+    app.mode = Mode::LabelPicker;
+    app.label_settings_target = None;
+    app.label_picker_selection = 0;
+    crate::input::handle_key(&mut app, right, 1);
+    assert_eq!(app.mode, Mode::LabelPicker);
+    assert!(app.label_settings_target.is_none());
+}
+
+#[test]
+fn test_label_settings_popup_edit_and_toggle() {
+    use crate::popups::label_settings::LabelSettingsPopup;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let (mut app, path) = label_test_app("lbl_edit", vec!["web"], None, vec![]);
+    let _guard = TestFileGuard { path };
+    app.mode = Mode::LabelSettings;
+    app.label_settings_target = Some("web".to_string());
+    app.label_settings_selected_index = 0;
+
+    // Navigate down to Resync (row 3) and toggle it right: None → Yes.
+    for _ in 0..3 {
+        LabelSettingsPopup::handle_event(
+            &mut app,
+            KeyEvent::new(KeyCode::Down, KeyModifiers::empty()),
+        );
+    }
+    assert_eq!(app.label_settings_selected_index, 3);
+    LabelSettingsPopup::handle_event(
+        &mut app,
+        KeyEvent::new(KeyCode::Right, KeyModifiers::empty()),
+    );
+    assert_eq!(app.config.label_configs.get("web").unwrap().resync_on_tab_change, Some(true));
+
+    // Edit Page Size (row 1): open editor, type 42, confirm.
+    app.label_settings_selected_index = 1;
+    LabelSettingsPopup::handle_event(
+        &mut app,
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+    );
+    assert!(app.label_settings_editing);
+    for c in ['4', '2'] {
+        LabelSettingsPopup::handle_event(
+            &mut app,
+            KeyEvent::new(KeyCode::Char(c), KeyModifiers::empty()),
+        );
+    }
+    LabelSettingsPopup::handle_event(
+        &mut app,
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+    );
+    assert!(!app.label_settings_editing);
+    assert_eq!(app.config.label_configs.get("web").unwrap().page_size, Some(42));
+
+    // Esc returns to the label picker.
+    LabelSettingsPopup::handle_event(&mut app, KeyEvent::new(KeyCode::Esc, KeyModifiers::empty()));
+    assert_eq!(app.mode, Mode::LabelPicker);
+}
+
+#[test]
+fn test_label_settings_theme_cycle_reaches_all_themes() {
+    // Regression: cycling the Theme row must reach every installed theme, not
+    // just the ones sorting before "default". A duplicate "default" in the
+    // cycle list used to snap `position` back to index 0 mid-cycle, so themes
+    // sorting after "default" (like "zzz") were unreachable.
+    use crate::popups::label_settings::LabelSettingsPopup;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let dir = std::env::temp_dir().join(format!("gitwig_test_theme_cycle_{}", std::process::id()));
+    let themes_dir = dir.join("themes");
+    std::fs::create_dir_all(&themes_dir).unwrap();
+    // Names chosen to straddle "default" alphabetically: alpha < default < zzz.
+    for name in ["default", "alpha", "zzz"] {
+        std::fs::write(themes_dir.join(format!("{}.theme", name)), "accent = \"cyan\"\n").unwrap();
+    }
+    let _guard = TestDirGuard { path: dir.clone() };
+
+    let mut config =
+        Config { items: vec!["/repo".to_string()], show_grouping: false, ..Default::default() };
+    config.labels.insert("/repo".to_string(), vec!["web".to_string()]);
+    let mut app = App::new(config, dir.join("config.toml"));
+    app.mode = Mode::LabelSettings;
+    app.label_settings_target = Some("web".to_string());
+    app.label_settings_selected_index = 0; // Theme row.
+
+    // Cycle right several times, recording each theme the label lands on.
+    let mut seen = std::collections::HashSet::new();
+    for _ in 0..6 {
+        LabelSettingsPopup::handle_event(
+            &mut app,
+            KeyEvent::new(KeyCode::Right, KeyModifiers::empty()),
+        );
+        let theme = app
+            .config
+            .label_configs
+            .get("web")
+            .and_then(|lc| lc.theme.clone())
+            .unwrap_or_else(|| "default".to_string());
+        seen.insert(theme);
+    }
+
+    // All three themes must be reachable — crucially "zzz", which sorts after
+    // "default" and was unreachable before the fix.
+    assert!(seen.contains("alpha"), "reachable themes: {:?}", seen);
+    assert!(seen.contains("default"), "reachable themes: {:?}", seen);
+    assert!(seen.contains("zzz"), "reachable themes: {:?}", seen);
+}

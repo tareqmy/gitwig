@@ -152,6 +152,9 @@ pub enum Mode {
     LabelInput,
     /// Choosing custom settings for the repository inside Overview.
     RepoSettings,
+    /// Choosing settings shared by every repository carrying a label, opened
+    /// from the label picker.
+    LabelSettings,
     /// Confirming self-update of the application.
     UpdateConfirm,
     /// Typing a branch name for a new worktree.
@@ -466,6 +469,14 @@ pub struct App {
     pub repo_settings_editing: bool,
     /// Temporary text input buffer for repository settings.
     pub repo_settings_input: String,
+    /// Row selection index for the label settings popup.
+    pub label_settings_selected_index: usize,
+    /// Whether we are currently text-editing a label setting.
+    pub label_settings_editing: bool,
+    /// Temporary text input buffer for label settings.
+    pub label_settings_input: String,
+    /// The label whose settings the label settings popup is editing.
+    pub label_settings_target: Option<String>,
     /// Loaded user/default keybindings configuration.
     pub keybindings: crate::keybindings::KeybindingsConfig,
     /// Whether external Git application launch is pending.
@@ -677,16 +688,22 @@ impl App {
         if !themes_dir.exists() {
             return;
         }
-        for (repo_path, repo_cfg) in &self.config.repo_configs {
-            if let Some(theme_name) = &repo_cfg.theme {
-                let theme_path = themes_dir.join(format!("{}.theme", theme_name));
-                if theme_path.exists() {
-                    if let Ok(theme_contents) = std::fs::read_to_string(&theme_path) {
-                        if let Ok(theme) =
-                            toml::from_str::<crate::config::ThemeConfig>(&theme_contents)
-                        {
-                            self.repo_theme_cache.insert(repo_path.clone(), theme);
-                        }
+        // Resolve each repo's effective theme (repo override → first label →
+        // none) up front so the borrow of `self` ends before we mutate the
+        // cache. Every repo that resolves to a theme name gets an entry.
+        let resolved: Vec<(String, String)> = self
+            .config
+            .items
+            .iter()
+            .filter_map(|path| self.effective_theme_name(path).map(|theme| (path.clone(), theme)))
+            .collect();
+        for (repo_path, theme_name) in resolved {
+            let theme_path = themes_dir.join(format!("{}.theme", theme_name));
+            if theme_path.exists() {
+                if let Ok(theme_contents) = std::fs::read_to_string(&theme_path) {
+                    if let Ok(theme) = toml::from_str::<crate::config::ThemeConfig>(&theme_contents)
+                    {
+                        self.repo_theme_cache.insert(repo_path, theme);
                     }
                 }
             }
@@ -1295,6 +1312,10 @@ impl App {
             repo_settings_selected_index: 0,
             repo_settings_editing: false,
             repo_settings_input: String::new(),
+            label_settings_selected_index: 0,
+            label_settings_editing: false,
+            label_settings_input: String::new(),
+            label_settings_target: None,
             keybindings,
             pending_git_app: false,
             pending_terminal: false,
@@ -2298,12 +2319,7 @@ where
                 let repo_path = resolved.clone();
                 let file_path = repo_path.join(&file_rel_path);
                 let repo_path_str = repo_path.to_string_lossy().to_string();
-                let editor = app
-                    .config
-                    .repo_configs
-                    .get(&repo_path_str)
-                    .and_then(|c| c.editor.clone())
-                    .unwrap_or_else(|| app.config.editor.clone());
+                let editor = app.effective_editor(&repo_path_str);
 
                 let raw_res = crossterm::terminal::disable_raw_mode();
                 let exec_res = crossterm::execute!(

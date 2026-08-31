@@ -261,6 +261,11 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
         }
+        Mode::LabelSettings => {
+            if crate::popups::label_settings::LabelSettingsPopup::handle_event(app, key) {
+                return true;
+            }
+        }
         Mode::Overview => {
             if app.is_bound(crate::keybindings::Action::Overview, key) {
                 app.mode = Mode::Detail;
@@ -630,6 +635,20 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 KeyCode::Down => {
                     if app.label_picker_selection + 1 < matches.len() {
                         app.label_picker_selection += 1;
+                    }
+                }
+                KeyCode::Right => {
+                    // Drill into per-label settings for the highlighted label.
+                    // The "All repositories" row (None) has no settings.
+                    if let Some((Some(label), _)) = matches.get(app.label_picker_selection) {
+                        app.label_settings_target = Some(label.clone());
+                        app.label_settings_selected_index = 0;
+                        app.label_settings_editing = false;
+                        app.label_settings_input = String::new();
+                        app.mode = Mode::LabelSettings;
+                    } else {
+                        app.status_message =
+                            Some("Select a label to edit its settings".to_string());
                     }
                 }
                 KeyCode::Enter => {

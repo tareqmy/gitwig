@@ -335,6 +335,10 @@ pub fn draw(
         draw_label_picker_popup(f, app, area);
     }
 
+    if matches!(app.mode, Mode::LabelSettings) {
+        crate::popups::label_settings::LabelSettingsPopup::draw(f, app, area);
+    }
+
     if matches!(app.mode, Mode::RepoScanPicker) {
         draw_repo_scan_popup(f, app, area);
     }
@@ -1947,6 +1951,8 @@ pub fn draw_label_picker_popup(f: &mut Frame, app: &App, area: Rect) {
         Span::styled("↑↓ navigate  ", muted_style()),
         Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(" select/toggle  ", muted_style()),
+        Span::styled("→", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" settings  ", muted_style()),
         Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(" cancel", muted_style()),
     ]);
@@ -3754,6 +3760,7 @@ mod tests {
             Mode::RepoSettings,
             Mode::RepoJump,
             Mode::LabelPicker,
+            Mode::LabelSettings,
             Mode::RepoScanPicker,
             Mode::BulkAddScanPicker,
             Mode::BranchSearchInput,
