@@ -411,6 +411,38 @@ pub(crate) fn get_status_layout_components(
             }
             (Some(msg_spans), entries)
         }
+        Mode::LabelSettings => {
+            let label = app.label_settings_target.as_deref().unwrap_or("");
+            let msg_spans = vec![
+                Span::styled(
+                    format!("Label Settings: {}  ", label),
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "Use arrow keys / j / k to select, Enter / Space / Left / Right to edit",
+                    muted_style(),
+                ),
+            ];
+            let entries_data = if app.label_settings_editing {
+                vec![("Confirm", "Enter"), ("Cancel", "Esc")]
+            } else {
+                vec![("Back", "Esc")]
+            };
+            let mut entries = Vec::new();
+            for (i, (label, key)) in entries_data.iter().enumerate() {
+                let mut spans = Vec::new();
+                if i > 0 {
+                    spans.push(Span::styled(" ", muted_style()));
+                }
+                spans.push(Span::raw((*label).to_string()));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("[", muted_style()));
+                spans.push(Span::styled((*key).to_string(), accent_style()));
+                spans.push(Span::styled("]", muted_style()));
+                entries.push(StatusEntry::new(spans));
+            }
+            (Some(msg_spans), entries)
+        }
         Mode::Detail => {
             let (msg_spans, entries) = detail_dismiss_entries(app);
             (msg_spans, entries)
@@ -1232,6 +1264,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         Mode::About => ("ABOUT", Color::Rgb(150, 150, 150)),
         Mode::Legend => ("LEGEND", Color::Rgb(150, 150, 150)),
         Mode::RepoSettings => ("REPO SETTINGS", Color::Rgb(135, 0, 135)),
+        Mode::LabelSettings => ("LABEL SETTINGS", Color::Rgb(135, 0, 135)),
         Mode::Adding
         | Mode::BulkAddInput
         | Mode::Editing
