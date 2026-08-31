@@ -111,6 +111,33 @@ pub struct RepoConfig {
     pub commit_history: Option<Vec<String>>,
 }
 
+/// Settings that can be attached to a label and shared by every repository
+/// carrying that label. This is the *settings* subset of [`RepoConfig`] — it
+/// deliberately excludes per-repo data like `note` and `commit_history`, which
+/// describe one repository rather than a group.
+///
+/// Resolution is three-tier: a per-repo override in [`RepoConfig`] wins first,
+/// then the first of the repo's labels (in stored order) that defines the
+/// setting, then the global [`Config`] default.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
+pub struct LabelConfig {
+    #[serde(default)]
+    pub theme: Option<String>,
+    #[serde(default)]
+    pub page_size: Option<usize>,
+    #[serde(default)]
+    pub max_commits: Option<usize>,
+    #[serde(default)]
+    pub resync_on_tab_change: Option<bool>,
+    /// Auto-fetch cadence in minutes for repos with this label. `None` inherits
+    /// the global `auto_fetch_interval_mins`; `Some(0)` disables auto-fetch for
+    /// the whole group.
+    #[serde(default)]
+    pub auto_fetch_interval_mins: Option<u64>,
+    #[serde(default)]
+    pub editor: Option<String>,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct ScanConfig {
     #[serde(default = "default_scan_max_depth")]
@@ -151,6 +178,7 @@ impl Default for Config {
             labels: std::collections::HashMap::new(),
             active_label_filter: None,
             repo_configs: std::collections::HashMap::new(),
+            label_configs: std::collections::HashMap::new(),
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
             starred: std::collections::HashSet::new(),
@@ -334,6 +362,10 @@ pub struct Config {
     /// Repository specific configurations.
     #[serde(default)]
     pub repo_configs: std::collections::HashMap<String, RepoConfig>,
+    /// Per-label settings shared by every repository carrying that label.
+    /// Resolved between the per-repo override and the global default.
+    #[serde(default)]
+    pub label_configs: std::collections::HashMap<String, LabelConfig>,
     /// Whether sorting should be reversed.
     #[serde(default)]
     pub sort_reverse: bool,
@@ -505,6 +537,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         labels: std::collections::HashMap::new(),
         active_label_filter: None,
         repo_configs: std::collections::HashMap::new(),
+        label_configs: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         starred: std::collections::HashSet::new(),
@@ -658,6 +691,7 @@ pub fn load_config(
                 labels: std::collections::HashMap::new(),
                 active_label_filter: None,
                 repo_configs: std::collections::HashMap::new(),
+                label_configs: std::collections::HashMap::new(),
                 sort_reverse: false,
                 pinned: std::collections::HashSet::new(),
                 starred: std::collections::HashSet::new(),
@@ -791,6 +825,7 @@ pub fn load_config(
         labels: std::collections::HashMap::new(),
         active_label_filter: None,
         repo_configs: std::collections::HashMap::new(),
+        label_configs: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         starred: std::collections::HashSet::new(),

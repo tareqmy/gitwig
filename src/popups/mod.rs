@@ -15,6 +15,7 @@ pub mod forge_comment;
 pub mod help;
 pub mod import;
 pub mod inspect;
+pub mod label_settings;
 pub mod legend;
 pub mod loading;
 pub mod log_search;

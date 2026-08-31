@@ -465,35 +465,104 @@ impl App {
         }
     }
 
+    /// Resolves one setting for `path` through the three tiers: the per-repo
+    /// override wins first, then the first of the repo's labels (in stored
+    /// order) that defines the setting, then the global default. Keeping the
+    /// precedence in a single place means every caller stays consistent.
+    pub fn resolve_setting<T>(
+        &self,
+        path: &str,
+        from_repo: impl Fn(&crate::config::RepoConfig) -> Option<T>,
+        from_label: impl Fn(&crate::config::LabelConfig) -> Option<T>,
+        global: T,
+    ) -> T {
+        if let Some(v) = self.config.repo_configs.get(path).and_then(&from_repo) {
+            return v;
+        }
+        if let Some(labels) = self.config.labels.get(path) {
+            for label in labels {
+                if let Some(v) = self.config.label_configs.get(label).and_then(&from_label) {
+                    return v;
+                }
+            }
+        }
+        global
+    }
+
+    /// The effective theme name for `path`: the per-repo override, else the
+    /// first label (in stored order) that sets a theme, else `None` (global).
+    pub fn effective_theme_name(&self, path: &str) -> Option<String> {
+        if let Some(theme) = self.config.repo_configs.get(path).and_then(|rc| rc.theme.clone()) {
+            return Some(theme);
+        }
+        if let Some(labels) = self.config.labels.get(path) {
+            for label in labels {
+                if let Some(theme) =
+                    self.config.label_configs.get(label).and_then(|lc| lc.theme.clone())
+                {
+                    return Some(theme);
+                }
+            }
+        }
+        None
+    }
+
+    /// The editor command for `path`, resolved through repo → label → global.
+    pub fn effective_editor(&self, path: &str) -> String {
+        self.resolve_setting(
+            path,
+            |rc| rc.editor.clone(),
+            |lc| lc.editor.clone(),
+            self.config.editor.clone(),
+        )
+    }
+
     pub fn get_current_page_size(&self) -> usize {
-        self.get_selected_item()
-            .and_then(|path| self.config.repo_configs.get(path))
-            .and_then(|rc| rc.page_size)
-            .unwrap_or(self.config.page_size)
+        match self.get_selected_item() {
+            Some(path) => self.resolve_setting(
+                path,
+                |rc| rc.page_size,
+                |lc| lc.page_size,
+                self.config.page_size,
+            ),
+            None => self.config.page_size,
+        }
     }
 
     pub fn get_current_max_commits(&self) -> usize {
-        self.get_selected_item()
-            .and_then(|path| self.config.repo_configs.get(path))
-            .and_then(|rc| rc.max_commits)
-            .unwrap_or(self.config.max_commits)
+        match self.get_selected_item() {
+            Some(path) => self.resolve_setting(
+                path,
+                |rc| rc.max_commits,
+                |lc| lc.max_commits,
+                self.config.max_commits,
+            ),
+            None => self.config.max_commits,
+        }
     }
 
     /// Auto-fetch cadence in minutes for one repository: the per-repo override
-    /// when set, otherwise the global interval. `0` means disabled.
+    /// when set, otherwise the first label that sets it, otherwise the global
+    /// interval. `0` means disabled.
     pub fn effective_auto_fetch_interval_mins(&self, path: &str) -> u64 {
-        self.config
-            .repo_configs
-            .get(path)
-            .and_then(|rc| rc.auto_fetch_interval_mins)
-            .unwrap_or(self.config.auto_fetch_interval_mins)
+        self.resolve_setting(
+            path,
+            |rc| rc.auto_fetch_interval_mins,
+            |lc| lc.auto_fetch_interval_mins,
+            self.config.auto_fetch_interval_mins,
+        )
     }
 
     pub fn get_current_resync_on_tab_change(&self) -> bool {
-        self.get_selected_item()
-            .and_then(|path| self.config.repo_configs.get(path))
-            .and_then(|rc| rc.resync_on_tab_change)
-            .unwrap_or(self.config.resync_on_tab_change)
+        match self.get_selected_item() {
+            Some(path) => self.resolve_setting(
+                path,
+                |rc| rc.resync_on_tab_change,
+                |lc| lc.resync_on_tab_change,
+                self.config.resync_on_tab_change,
+            ),
+            None => self.config.resync_on_tab_change,
+        }
     }
 
     pub fn get_selected_item_index(&self) -> Option<usize> {
@@ -3216,9 +3285,24 @@ impl App {
         self.mode = Mode::Normal;
     }
 
+    /// Removes label settings whose label is no longer carried by any tracked
+    /// repository. The app already treats a label as gone once no repo uses it
+    /// (see `clear_label_filter_if_orphaned`); pruning its settings here keeps
+    /// the two consistent and stops orphaned `label_configs` sections from
+    /// silently reattaching if the label name is reused later.
+    fn prune_orphaned_label_configs(&mut self) {
+        if self.config.label_configs.is_empty() {
+            return;
+        }
+        let live: std::collections::HashSet<&String> =
+            self.config.items.iter().filter_map(|p| self.config.labels.get(p)).flatten().collect();
+        self.config.label_configs.retain(|label, _| live.contains(label));
+    }
+
     /// Persists `self.config` and records a status message (success or
     /// the save error) for the next render.
     pub fn persist(&mut self, success_msg: &str) {
+        self.prune_orphaned_label_configs();
         self.resolve_repo_themes();
         match save_config(&self.config, &self.config_path) {
             Ok(()) => self.status_message = Some(success_msg.to_string()),

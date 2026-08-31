@@ -218,8 +218,12 @@ impl RepoSettingsPopup {
         let mut repo_cfg = app.config.repo_configs.get(repo_path).cloned().unwrap_or_default();
         match app.repo_settings_selected_index {
             0 => {
-                let mut themes = vec!["default".to_string()];
-                themes.extend(app.get_available_themes());
+                // `get_available_themes` already contains "default" exactly
+                // once (and every installed theme, sorted). Do NOT prepend
+                // another "default": the duplicate makes `position` snap back to
+                // index 0 mid-cycle, truncating the reachable set to its first
+                // few entries.
+                let themes = app.get_available_themes();
                 let current_theme = repo_cfg.theme.as_deref().unwrap_or("default");
                 let current_idx = themes.iter().position(|t| t == current_theme).unwrap_or(0);
                 let next_idx = if right {
