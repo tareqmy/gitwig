@@ -6,12 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+
+## [v2.5.14] - 2026-08-31
 ### Added
 - **settings**: per-label settings resolved between per-repo and global — a `[label_configs.<label>]` tier (theme, page size, max commits, resync-on-tab, auto-fetch interval, editor) shared by every repository carrying the label, edited with `→` in the label picker and pruned when the label is no longer used ([205850b](https://github.com/tareqmy/gitwig/commit/205850b))
 - **labels**: tint the home repo-list view with the active label's theme while its filter ("project view") is active ([3a4990f](https://github.com/tareqmy/gitwig/commit/3a4990f))
 
 ### Fixed
 - **settings**: theme cycling in the Repository and Label Settings popups reached only the themes sorting before "default"; a duplicate "default" in the cycle list snapped the selection back to index 0 mid-cycle ([205850b](https://github.com/tareqmy/gitwig/commit/205850b))
+- **tests**: accept the error-popup path in the yank tests so they pass on headless CI runners, unbreaking the v2.5.13 release CI ([f148453](https://github.com/tareqmy/gitwig/commit/f148453))
+
+### Documentation
+- **labels**: document per-label settings across the help overlay, status bar, configuration/features/keybindings/panels docs, and roadmap ([509730a](https://github.com/tareqmy/gitwig/commit/509730a))
 
 ## [v2.5.13] - 2026-08-30
 ### Added
