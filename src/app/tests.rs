@@ -11613,3 +11613,32 @@ fn test_label_settings_theme_cycle_reaches_all_themes() {
     assert!(seen.contains("default"), "reachable themes: {:?}", seen);
     assert!(seen.contains("zzz"), "reachable themes: {:?}", seen);
 }
+
+#[test]
+fn test_label_theme_cache_populated_for_active_filter() {
+    // A label that sets a theme gets its ThemeConfig cached (keyed by label) so
+    // the home list can be tinted while that label filter is active.
+    let dir = std::env::temp_dir().join(format!("gitwig_test_label_theme_{}", std::process::id()));
+    let themes_dir = dir.join("themes");
+    std::fs::create_dir_all(&themes_dir).unwrap();
+    std::fs::write(themes_dir.join("nord.theme"), "accent = \"lightblue\"\n").unwrap();
+    let _guard = TestDirGuard { path: dir.clone() };
+
+    let mut config =
+        Config { items: vec!["/repo".to_string()], show_grouping: false, ..Default::default() };
+    config.labels.insert("/repo".to_string(), vec!["web".to_string()]);
+    config.label_configs.insert(
+        "web".to_string(),
+        crate::config::LabelConfig { theme: Some("nord".to_string()), ..Default::default() },
+    );
+    let mut app = App::new(config, dir.join("config.toml"));
+    app.resolve_repo_themes();
+
+    let cached = app.label_theme_cache.get("web").expect("web label theme should be cached");
+    assert_eq!(cached.accent, "lightblue");
+
+    // A label with no theme set is absent from the cache.
+    app.config.label_configs.insert("plain".to_string(), crate::config::LabelConfig::default());
+    app.resolve_repo_themes();
+    assert!(!app.label_theme_cache.contains_key("plain"));
+}

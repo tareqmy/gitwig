@@ -37,6 +37,66 @@ const STATUS_ZONE_WIDTH: u16 = 22;
 
 const UNSELECTED_INDENT: &str = "  ";
 
+/// Whether `mode` draws the repository detail view as its base (as opposed to
+/// the home list, Settings, File History, or Debug Logs). Mirrors the mode set
+/// that routes to `ui_detail::draw` below; used to decide when the home-list
+/// label tint may apply.
+fn is_detail_base_mode(mode: &Mode) -> bool {
+    matches!(
+        mode,
+        Mode::Detail
+            | Mode::DetailHelp
+            | Mode::CommitInput
+            | Mode::BranchCreateInput
+            | Mode::TagCreateInput
+            | Mode::StashingUI
+            | Mode::WorktreeAddBranchInput
+            | Mode::WorktreeAddPathInput
+            | Mode::WorktreeLockReasonInput
+            | Mode::WorktreeRemoveConfirm
+            | Mode::BranchDeleteConfirm
+            | Mode::BranchCheckoutConfirm
+            | Mode::SubmoduleAddUrlInput
+            | Mode::SubmoduleAddPathInput
+            | Mode::SubmoduleDeleteConfirm
+            | Mode::TagCheckoutConfirm
+            | Mode::CommitCheckoutConfirm
+            | Mode::BranchPushConfirm
+            | Mode::BranchMergeConfirm
+            | Mode::BranchMergeIntoConfirm
+            | Mode::BranchRebaseConfirm
+            | Mode::BranchInteractiveRebaseConfirm
+            | Mode::TagDeleteConfirm
+            | Mode::TagOverwriteConfirm
+            | Mode::TagPushConfirm
+            | Mode::TagPushAllConfirm
+            | Mode::StashDeleteConfirm
+            | Mode::StashApplyConfirm
+            | Mode::CherryPickConfirm
+            | Mode::RevertConfirm
+            | Mode::MergeAbortConfirm
+            | Mode::MergeContinueConfirm
+            | Mode::StashCreateInput
+            | Mode::RemotePicker
+            | Mode::CommitHistoryPicker
+            | Mode::CommitSearchInput
+            | Mode::DiscardChangesConfirm
+            | Mode::Inspect
+            | Mode::SearchColumnPicker
+            | Mode::Logs
+            | Mode::LogsSearchInput
+            | Mode::RemoteAddNameInput
+            | Mode::RemoteAddUrlInput
+            | Mode::RemoteDeleteConfirm
+            | Mode::RepoSettings
+            | Mode::Overview
+            | Mode::BranchSearchInput
+            | Mode::FileSearchInput
+            | Mode::CommitFuzzySearch
+            | Mode::TagSearchInput
+    )
+}
+
 /// Top-level draw entry point invoked from inside `terminal.draw`.
 pub fn draw(
     f: &mut Frame,
@@ -115,6 +175,35 @@ pub fn draw(
 
                 // Swap with repo-specific theme
                 crate::ui::update_theme(repo_theme);
+                swapped_theme = Some(current_theme_config);
+            }
+        }
+    }
+
+    // Home list with an active label filter ("project view"): tint the whole
+    // view with that label's theme when one is set. Skipped when a repo detail
+    // view (which applies the repo's own resolved theme) or a non-home base
+    // like Settings is showing, so the tint stays a home-list concept.
+    if swapped_theme.is_none()
+        && app.loading_repo_path.is_none()
+        && !is_detail_base_mode(&app.mode)
+        && !matches!(app.mode, Mode::FileHistory | Mode::Settings | Mode::DebugLogs)
+        && !(app.mode == Mode::UpdateConfirm && app.current_detail.is_some())
+    {
+        if let Some(label) = &app.config.active_label_filter {
+            if let Some(label_theme) = app.label_theme_cache.get(label) {
+                let current_theme_config = {
+                    let lock =
+                        crate::ui::style::THEME.read().expect("theme lock should be acquired");
+                    crate::config::ThemeConfig {
+                        accent: crate::ui::style::format_color(lock.accent),
+                        warning: crate::ui::style::format_color(lock.warning),
+                        danger: crate::ui::style::format_color(lock.danger),
+                        success: crate::ui::style::format_color(lock.success),
+                        border_type: crate::ui::style::format_border_type(lock.border_type),
+                    }
+                };
+                crate::ui::update_theme(label_theme);
                 swapped_theme = Some(current_theme_config);
             }
         }
