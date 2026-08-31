@@ -510,6 +510,9 @@ pub struct App {
     /// Cached resolved ThemeConfigs for repositories.
     /// Keyed by repository absolute path.
     pub repo_theme_cache: std::collections::HashMap<String, crate::config::ThemeConfig>,
+    /// Cached ThemeConfigs for labels that set a theme, keyed by label name.
+    /// Used to tint the home list when a label filter ("project view") is active.
+    pub label_theme_cache: std::collections::HashMap<String, crate::config::ThemeConfig>,
     /// Whether we are in full-screen diff mode under inspect view.
     pub inspect_full_diff: bool,
     /// Selection in search column picker.
@@ -684,9 +687,28 @@ mod workspace;
 impl App {
     pub fn resolve_repo_themes(&mut self) {
         self.repo_theme_cache.clear();
+        self.label_theme_cache.clear();
         let themes_dir = self.config_path.parent().unwrap_or(&self.config_path).join("themes");
         if !themes_dir.exists() {
             return;
+        }
+        // Cache each label's own theme (independent of per-repo resolution) so
+        // the home list can be tinted while that label filter is active.
+        let label_themes: Vec<(String, String)> = self
+            .config
+            .label_configs
+            .iter()
+            .filter_map(|(label, lc)| lc.theme.clone().map(|theme| (label.clone(), theme)))
+            .collect();
+        for (label, theme_name) in label_themes {
+            let theme_path = themes_dir.join(format!("{}.theme", theme_name));
+            if theme_path.exists() {
+                if let Ok(contents) = std::fs::read_to_string(&theme_path) {
+                    if let Ok(theme) = toml::from_str::<crate::config::ThemeConfig>(&contents) {
+                        self.label_theme_cache.insert(label, theme);
+                    }
+                }
+            }
         }
         // Resolve each repo's effective theme (repo override → first label →
         // none) up front so the borrow of `self` ends before we mutate the
@@ -1330,6 +1352,7 @@ impl App {
             multi_selected: std::collections::HashSet::new(),
             in_logs_ui: false,
             repo_theme_cache: std::collections::HashMap::new(),
+            label_theme_cache: std::collections::HashMap::new(),
             inspect_full_diff: false,
             search_column_selection: 0,
             search_columns_sha: true,
