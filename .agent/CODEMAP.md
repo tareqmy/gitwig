@@ -34,14 +34,15 @@ The codebase is organized into modular single-responsibility crates and files:
 | **Main Entries** | `src/main.rs`, `src/bin/gtg.rs` | Thin binary wrappers calling shared `gitwig::run()`. |
 | **Library Root** | `src/lib.rs` | Top-level execution orchestrator (`run`) setting up terminal, loading config, and starting `app::run`. |
 | **Terminal Setup** | `src/terminal.rs` | Terminal initialization, raw mode management, `TerminalGuard` RAII cleanup, custom panic hook, and CLI flags checking. |
-| **State Engine** | `src/app/` | Holds the core `App` struct and splits its method implementations across `mod.rs` (orchestration/drain_queue), `actions.rs` (home repository card mutations), `git.rs` (branches, tags, remotes, push/pull/fetch/rebase), `workspace.rs` (staging, commits, conflict resolution), `navigation.rs` (scrolling, sorting, settings), and `tests.rs` (the test suite). |
+| **Embedded Terminal** | `src/terminal_session.rs` | PTY-backed shell session for the embedded terminal panel: `TerminalSession` (portable-pty + vt100 parser fed by a detached reader thread), keystroke-to-bytes encoding (`encode_key`), and Drop-based child kill/reap. |
+| **State Engine** | `src/app/` | Holds the core `App` struct and splits its method implementations across `mod.rs` (orchestration/drain_queue), `actions.rs` (home repository card mutations), `git.rs` (branches, tags, remotes, push/pull/fetch/rebase), `workspace.rs` (staging, commits, conflict resolution), `navigation.rs` (scrolling, sorting, settings), `term_panel.rs` (embedded terminal panel open/hide/close and geometry), and `tests.rs` (the test suite). |
 | **Input Router** | `src/input.rs` | Captures keyboard events and delegates routing to the active tab or popup. |
 | **Mouse Handler** | `src/mouse.rs` | Listens to mouse clicks, scrolling, drag-to-resize splitters, and commit popup resize events. |
 | **Component Queue** | `src/queue.rs` | Defines a thread-safe, lock-free queue (`Queue` and `InternalEvent`) used by components to request state changes from the engine. |
 | **Theme & Style** | `src/ui/` | Contains the main rendering logic (`draw.rs`), styling/theme configurations (`style.rs`), layout helper utilities (`layout.rs`), and detailed inspection view (`ui_detail.rs`). |
 | **Modal Popups** | `src/popups/` | Modular modal components for user inputs and confirmations (e.g. `commit.rs`, `confirm.rs`, `settings.rs`, `help.rs`, `forge_comment.rs`, `about.rs`). |
 | **Application Tabs**| `src/tabs/` | Drawing logic for the home screen list and individual repository tabs (`home.rs`, `workspace.rs`, `files.rs`, `branches.rs`, `tags.rs`, `stashes.rs`, `worktrees.rs`, `submodules.rs`, `reflog.rs`, `forge.rs`). |
-| **TUI Components** | `src/components/` | Reusable rendering widgets that maintain their own internal visual/table state (e.g. `file_tree.rs`, `commit_list.rs`, `branch_list.rs`, `diff.rs`, `submodule_list.rs`, `cmd_bar/`). |
+| **TUI Components** | `src/components/` | Reusable rendering widgets that maintain their own internal visual/table state (e.g. `file_tree.rs`, `commit_list.rs`, `branch_list.rs`, `diff.rs`, `submodule_list.rs`, `terminal_panel.rs`, `cmd_bar/`). |
 | **Git Core Backend** | `gitwig-core/` | Workspace crate containing all libgit2 inspections, repo info collection (`RepoInfo`, `CommitEntry`, etc.), status summaries, and file loading logic. Completely isolated from UI dependencies. |
 | **Configuration** | `src/config.rs` | Manages loading, migrating, and saving TOML settings at `~/.gitwig/config.toml`. |
 
