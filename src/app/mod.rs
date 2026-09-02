@@ -1539,6 +1539,15 @@ pub fn run<B: ratatui::backend::Backend>(
 where
     <B as ratatui::backend::Backend>::Error: 'static,
 {
+    // Dirty-frame tracking: the draw pass is skipped on iterations where the
+    // poll timed out and nothing below marks the frame dirty. State mutations
+    // that must reach the screen set `needs_redraw`; the embedded terminal is
+    // covered separately by its generation counter, and animated states
+    // (fetch spinner, bulk-fetch spinners) force a draw while active.
+    let mut needs_redraw = true;
+    let mut last_drawn_size: Option<(u16, u16)> = None;
+    let mut last_drawn_terminal_gen: Option<u64> = None;
+    let mut last_draw_at = std::time::Instant::now();
     loop {
         // Trigger background status auto-refresh if 10 seconds have elapsed
         if !app.background_refresh_running
@@ -1587,11 +1596,15 @@ where
         }
         // Reap the embedded terminal's shell once its PTY reader saw EOF.
         if let Some(session) = app.terminal_panel.session.as_mut() {
-            if session.poll_exit() && !app.terminal_panel.visible {
-                app.status_message = Some("Terminal session ended".to_string());
+            if session.poll_exit() {
+                needs_redraw = true;
+                if !app.terminal_panel.visible {
+                    app.status_message = Some("Terminal session ended".to_string());
+                }
             }
         }
         while let Ok(raw_msg) = app.rx.try_recv() {
+            needs_redraw = true;
             if let Some(repo_info) = raw_msg.strip_prefix("REPO_SCAN_FOUND:") {
                 if let Some(pos) = repo_info.find("|||") {
                     let name = repo_info[..pos].to_string();
@@ -1852,6 +1865,7 @@ where
         }
 
         while let Ok((path, detail)) = app.detail_rx.try_recv() {
+            needs_redraw = true;
             app.detail_cache.insert(
                 path.clone(),
                 DetailCache { detail: detail.clone(), loaded_at: std::time::Instant::now() },
@@ -1880,6 +1894,7 @@ where
         }
 
         while let Ok(updates) = app.status_refresh_rx.try_recv() {
+            needs_redraw = true;
             app.background_refresh_running = false;
             for (idx, path, status) in updates {
                 if app.config.items.get(idx) == Some(&path) {
@@ -1891,6 +1906,7 @@ where
         }
 
         while let Ok(results) = app.global_search_rx.try_recv() {
+            needs_redraw = true;
             app.global_search_results = results;
             app.global_search_running = false;
             app.global_search_focus_input = false;
@@ -1899,6 +1915,7 @@ where
 
         let mut tab_updated = false;
         while let Ok((path, tab_idx, payload)) = app.tab_rx.try_recv() {
+            needs_redraw = true;
             crate::debug_log::info(format!(
                 "Received tab payload: tab_idx={}, path={}",
                 tab_idx, path
@@ -2018,6 +2035,7 @@ where
 
         if app.pending_git_app {
             app.pending_git_app = false;
+            needs_redraw = true;
             if let Some(item) = app.config.items.get(app.selected_index) {
                 let path = repo::expand_tilde(item);
 
@@ -2071,6 +2089,7 @@ where
 
         if app.pending_terminal {
             app.pending_terminal = false;
+            needs_redraw = true;
 
             let mut paths_to_open = Vec::new();
             if !app.multi_selected.is_empty() {
@@ -2257,6 +2276,7 @@ where
         }
 
         if let Some((repo_path, target)) = app.pending_interactive_rebase.take() {
+            needs_redraw = true;
             let raw_res = crossterm::terminal::disable_raw_mode();
             let exec_res = crossterm::execute!(
                 std::io::stdout(),
@@ -2309,6 +2329,7 @@ where
         }
 
         if let Some(file_rel_path) = app.pending_mergetool_file.take() {
+            needs_redraw = true;
             if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
                 let repo_path = resolved.clone();
                 let file_path = repo_path.join(&file_rel_path);
@@ -2355,6 +2376,7 @@ where
         }
 
         if let Some(file_rel_path) = app.pending_editor_file.take() {
+            needs_redraw = true;
             if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
                 let repo_path = resolved.clone();
                 let file_path = repo_path.join(&file_rel_path);
@@ -2503,25 +2525,51 @@ where
 
         app.trigger_tab_load_if_needed(app.detail_tab);
 
-        // Capture panel rects from the draw pass for mouse hit-testing.
-        let mut detail_areas = DetailAreas::default();
-        let mut main_areas = Vec::new();
-        let mut global_summary_area = None;
-        terminal.draw(|f| {
-            ui::draw(
-                f,
-                &app,
-                area,
-                inner_area,
-                visible_count,
-                &mut detail_areas,
-                &mut main_areas,
-                &mut global_summary_area,
-            )
-        })?;
-        app.detail_areas = detail_areas;
-        app.main_areas = main_areas;
-        app.global_summary_area = global_summary_area;
+        // These states animate every frame (spinners, live system stats), so
+        // the frame-skip below must not engage while any of them is active.
+        let frame_animating = app.fetching
+            || app.implicit_network_count > 0
+            || !app.bulk_fetching.is_empty()
+            || app.repo_scan_active;
+        // The status-bar mem/cpu readout refreshes on a 2s cadence.
+        let stats_refresh_due = app.config.show_system_stats
+            && last_draw_at.elapsed() >= std::time::Duration::from_secs(2);
+        let terminal_gen = app
+            .terminal_panel
+            .session
+            .as_ref()
+            .map(crate::terminal_session::TerminalSession::generation);
+
+        if needs_redraw
+            || frame_animating
+            || stats_refresh_due
+            || last_drawn_size != Some((size.width, size.height))
+            || terminal_gen != last_drawn_terminal_gen
+        {
+            // Capture panel rects from the draw pass for mouse hit-testing.
+            let mut detail_areas = DetailAreas::default();
+            let mut main_areas = Vec::new();
+            let mut global_summary_area = None;
+            terminal.draw(|f| {
+                ui::draw(
+                    f,
+                    &app,
+                    area,
+                    inner_area,
+                    visible_count,
+                    &mut detail_areas,
+                    &mut main_areas,
+                    &mut global_summary_area,
+                )
+            })?;
+            app.detail_areas = detail_areas;
+            app.main_areas = main_areas;
+            app.global_summary_area = global_summary_area;
+            needs_redraw = false;
+            last_drawn_size = Some((size.width, size.height));
+            last_drawn_terminal_gen = terminal_gen;
+            last_draw_at = std::time::Instant::now();
+        }
 
         // Transient feedback disappears after one frame, unless we are fetching.
         if app.fetching || app.implicit_network_count > 0 {
@@ -2530,10 +2578,13 @@ where
             }
             app.fetch_progress = (app.fetch_progress + 5) % 105;
         } else {
-            if !app.fetching && app.mode != Mode::Settings {
-                app.status_message = None;
+            if !app.fetching && app.mode != Mode::Settings && app.status_message.take().is_some() {
+                needs_redraw = true;
             }
-            app.fetch_progress = 0;
+            if app.fetch_progress != 0 {
+                app.fetch_progress = 0;
+                needs_redraw = true;
+            }
         }
 
         if let Some(completed_at) = app.bulk_fetch_completed_at {
@@ -2544,6 +2595,7 @@ where
                 // user is elsewhere in the app.
                 app.bulk_fetch_results.retain(|_, res| res.is_err());
                 app.bulk_fetch_completed_at = None;
+                needs_redraw = true;
             }
         }
 
@@ -2566,6 +2618,9 @@ where
         }
 
         if event::poll(poll_dur)? {
+            // Any event — key, mouse, paste, resize, focus — may change what
+            // the next frame shows; never skip the redraw after one.
+            needs_redraw = true;
             match event::read()? {
                 Event::Key(key) => {
                     if key.kind == crossterm::event::KeyEventKind::Press

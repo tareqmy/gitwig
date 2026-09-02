@@ -5,7 +5,7 @@
 //! the run loop polls `poll_exit` each frame and the draw pass renders the
 //! parser's screen. Dropping the session kills and reaps the shell.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -43,6 +43,10 @@ pub struct TerminalSession {
     child: Box<dyn portable_pty::Child + Send + Sync>,
     /// Set by the reader thread on EOF/read error, or here on write failure.
     exited: Arc<AtomicBool>,
+    /// Bumped by the reader thread after every `process()` (and on any local
+    /// screen mutation), so the run loop can skip redraws while the shell is
+    /// quiet instead of repainting on every poll tick.
+    generation: Arc<AtomicU64>,
     exit_status: Option<portable_pty::ExitStatus>,
     /// Last (rows, cols) applied to master + parser; skips no-op resizes.
     size: (u16, u16),
@@ -97,7 +101,8 @@ impl TerminalSession {
 
         let parser = Arc::new(Mutex::new(vt100::Parser::new(rows, cols, SCROLLBACK_LINES)));
         let exited = Arc::new(AtomicBool::new(false));
-        spawn_reader(reader, Arc::clone(&parser), Arc::clone(&exited));
+        let generation = Arc::new(AtomicU64::new(0));
+        spawn_reader(reader, Arc::clone(&parser), Arc::clone(&exited), Arc::clone(&generation));
 
         Ok(Self {
             parser,
@@ -105,6 +110,7 @@ impl TerminalSession {
             writer,
             child,
             exited,
+            generation,
             exit_status: None,
             size: (rows, cols),
             repo_label,
@@ -132,6 +138,16 @@ impl TerminalSession {
             pixel_height: 0,
         });
         self.lock_parser().screen_mut().set_size(rows, cols);
+        self.bump_generation();
+    }
+
+    /// Monotonic counter of screen mutations; unchanged means nothing new to draw.
+    pub fn generation(&self) -> u64 {
+        self.generation.load(Ordering::Relaxed)
+    }
+
+    fn bump_generation(&self) {
+        self.generation.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Whether the shell is gone (reader saw EOF, or a write failed).
@@ -182,6 +198,7 @@ impl TerminalSession {
         let app_cursor = self.lock_parser().screen().application_cursor();
         if let Some(bytes) = encode_key(key, app_cursor) {
             self.lock_parser().screen_mut().set_scrollback(0);
+            self.bump_generation();
             self.send_bytes(&bytes);
         }
     }
@@ -193,6 +210,7 @@ impl TerminalSession {
         let sanitized = text.replace("\x1b[201~", "");
         let bracketed = self.lock_parser().screen().bracketed_paste();
         self.lock_parser().screen_mut().set_scrollback(0);
+        self.bump_generation();
         if bracketed {
             self.send_bytes(b"\x1b[200~");
             let payload = sanitized.into_bytes();
@@ -214,6 +232,8 @@ impl TerminalSession {
             current.saturating_sub(delta.unsigned_abs())
         };
         screen.set_scrollback(next);
+        drop(guard);
+        self.bump_generation();
     }
 }
 
@@ -234,6 +254,7 @@ fn spawn_reader(
     mut reader: Box<dyn std::io::Read + Send>,
     parser: Arc<Mutex<vt100::Parser>>,
     exited: Arc<AtomicBool>,
+    generation: Arc<AtomicU64>,
 ) {
     std::thread::spawn(move || {
         let mut buf = [0u8; 4096];
@@ -242,10 +263,13 @@ fn spawn_reader(
                 Ok(0) | Err(_) => break,
                 Ok(n) => {
                     parser.lock().unwrap_or_else(PoisonError::into_inner).process(&buf[..n]);
+                    generation.fetch_add(1, Ordering::Relaxed);
                 }
             }
         }
         exited.store(true, Ordering::Relaxed);
+        // The exit banner needs one more frame even though no bytes arrived.
+        generation.fetch_add(1, Ordering::Relaxed);
     });
 }
 
@@ -470,6 +494,37 @@ mod tests {
     fn unmapped_keys_are_swallowed() {
         assert_eq!(encode_key(key(KeyCode::CapsLock), false), None);
         assert_eq!(encode_key(key(KeyCode::F(20)), false), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn pty_output_bumps_generation_and_quiet_shell_holds_it() {
+        let mut cmd = portable_pty::CommandBuilder::new("/bin/sh");
+        cmd.args(["-c", "printf gitwig_gen_test; sleep 5"]);
+        let mut session = TerminalSession::spawn_command(cmd, "test".to_string(), 10, 60)
+            .expect("spawn PTY session");
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        loop {
+            let contents = session.lock_parser().screen().contents();
+            if contents.contains("gitwig_gen_test") {
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline, "output never arrived: {contents:?}");
+            std::thread::sleep(std::time::Duration::from_millis(25));
+        }
+        assert!(session.generation() > 0, "reader output did not bump the generation");
+
+        // Let any straggler reads land, then verify a quiet shell holds the
+        // counter steady — this is what lets the run loop skip redraws.
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        let settled = session.generation();
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        assert_eq!(session.generation(), settled, "generation moved with no PTY output");
+
+        // Local screen mutations must invalidate the frame too.
+        session.scroll_by(1);
+        assert!(session.generation() > settled, "scroll_by did not bump the generation");
     }
 
     #[cfg(unix)]
