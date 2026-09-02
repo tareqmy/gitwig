@@ -44,6 +44,27 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
 
     let pos = Position { x: mouse.column, y: mouse.row };
 
+    // Terminal panel: click focuses it, wheel browses scrollback; a click
+    // anywhere else drops focus and falls through to normal handling.
+    if let Some(term_rect) = app.terminal_panel_area.get() {
+        if term_rect.contains(pos) {
+            if is_click {
+                app.terminal_focused = true;
+            } else if is_scroll_up || is_scroll_down {
+                let delta = if is_scroll_up { 3 } else { -3 };
+                if let Some(session) = app.terminal_panel.session.as_mut() {
+                    if !session.exited() {
+                        session.scroll_by(delta);
+                    }
+                }
+            }
+            return;
+        }
+        if is_click && app.terminal_focused {
+            app.terminal_focused = false;
+        }
+    }
+
     if is_click && pos.y == 0 {
         if let Some(ref latest) = app.update_available {
             let (mut width, _) = crossterm::terminal::size().unwrap_or((80, 24));

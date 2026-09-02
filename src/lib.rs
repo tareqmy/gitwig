@@ -40,6 +40,7 @@ mod queue;
 pub mod stats;
 pub mod tabs;
 mod terminal;
+pub mod terminal_session;
 mod ui;
 pub use crate::ui::ui_detail;
 

@@ -94,6 +94,8 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
 
     // New actions
     let terminal_key = kb.format_action_keys(Action::HomeOpenTerminal, is_compat);
+    let external_shell_key = kb.format_action_keys(Action::HomeOpenExternalShell, is_compat);
+    let terminal_toggle_key = kb.format_action_keys(Action::ToggleTerminalPanel, is_compat);
     let star_key = kb.format_action_keys(Action::HomeToggleStar, is_compat);
     let yank_key = kb.format_action_keys(Action::HomeYankPath, is_compat);
     let jump_picker_key = kb.format_action_keys(Action::HomeJumpPicker, is_compat);
@@ -132,6 +134,8 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                     kb.format_action_keys(Action::ToggleStatusBar, is_compat),
                     "Toggle status bar visibility",
                 ),
+                (terminal_toggle_key, "Toggle the embedded terminal panel (also unfocuses it)"),
+                ("Shift+PgUp/PgDn".to_string(), "Scroll terminal panel history (while focused)"),
                 (help_key, "Toggle this help overlay"),
                 (about_key, "Show about popup / creator profile"),
                 (legend_key, "Show signs & symbols legend popup"),
@@ -177,7 +181,8 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                     kb.format_action_keys(Action::HomeOpenGitApp, is_compat),
                     "Launch preferred Git client for selected repository",
                 ),
-                (terminal_key, "Spawn a new shell (Terminal) in the selected repository"),
+                (terminal_key, "Open embedded terminal panel in the selected repository"),
+                (external_shell_key, "Suspend the TUI and open a full-screen shell"),
                 (settings_key, "Open options/settings page"),
                 (labels_key, "Edit labels of selected item"),
                 (debug_key, "Open debug logs panel"),

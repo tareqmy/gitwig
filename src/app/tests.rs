@@ -4104,13 +4104,117 @@ fn test_pending_terminal_trigger() {
     let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
     app.selected_index = 0;
 
+    // `T` (external shell) keeps the pre-panel suspend-and-spawn behavior.
     let key = crossterm::event::KeyEvent::new(
-        crossterm::event::KeyCode::Char('t'),
-        crossterm::event::KeyModifiers::empty(),
+        crossterm::event::KeyCode::Char('T'),
+        crossterm::event::KeyModifiers::SHIFT,
     );
     let handled = crate::input::handle_key(&mut app, key, 1);
     assert!(handled);
     assert!(app.pending_terminal);
+}
+
+#[test]
+fn test_terminal_panel_open_without_repo() {
+    let config = Config { items: vec![], ..Default::default() };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+
+    let key = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('t'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    assert!(crate::input::handle_key(&mut app, key, 1));
+    assert!(app.terminal_panel.session.is_none());
+    assert!(!app.terminal_panel.visible);
+    assert!(!app.terminal_focused);
+    assert_eq!(app.status_message.as_deref(), Some("No repository selected"));
+}
+
+#[test]
+fn test_terminal_panel_focused_swallows_keys() {
+    let config = Config { items: vec!["/dummy/repo".to_string()], ..Default::default() };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    app.terminal_panel.visible = true;
+    app.terminal_focused = true;
+
+    // With no live session, the first key closes the dead panel — and must
+    // not fall through to the home handler (`q`, `t`, etc. do nothing else).
+    let key = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('q'),
+        crossterm::event::KeyModifiers::empty(),
+    );
+    assert!(crate::input::handle_key(&mut app, key, 1));
+    assert!(!app.terminal_panel.visible);
+    assert!(!app.terminal_focused);
+    assert_eq!(app.mode, Mode::Normal);
+}
+
+#[test]
+fn test_terminal_panel_toggle_key_hides_while_focused() {
+    let config = Config { items: vec!["/dummy/repo".to_string()], ..Default::default() };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    app.terminal_panel.visible = true;
+    app.terminal_focused = true;
+
+    let key = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('t'),
+        crossterm::event::KeyModifiers::CONTROL,
+    );
+    assert!(crate::input::handle_key(&mut app, key, 1));
+    assert!(!app.terminal_panel.visible);
+    assert!(!app.terminal_focused);
+}
+
+#[test]
+fn test_terminal_panel_global_quit_wins_while_focused() {
+    let config = Config { items: vec!["/dummy/repo".to_string()], ..Default::default() };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    app.terminal_panel.visible = true;
+    app.terminal_focused = true;
+
+    let key = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('q'),
+        crossterm::event::KeyModifiers::CONTROL,
+    );
+    assert!(!crate::input::handle_key(&mut app, key, 1));
+}
+
+#[test]
+fn test_terminal_panel_error_popup_wins_while_focused() {
+    let config = Config { items: vec!["/dummy/repo".to_string()], ..Default::default() };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    app.terminal_panel.visible = true;
+    app.terminal_focused = true;
+    app.error_message = Some("boom".to_string());
+
+    let key = crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Esc,
+        crossterm::event::KeyModifiers::empty(),
+    );
+    assert!(crate::input::handle_key(&mut app, key, 1));
+    assert!(app.error_message.is_none());
+    // The key dismissed the error; the panel state is untouched.
+    assert!(app.terminal_panel.visible);
+    assert!(app.terminal_focused);
+}
+
+#[test]
+fn test_terminal_panel_geometry() {
+    let config = Config { items: vec![], ..Default::default() };
+    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+
+    // Hidden panel takes no height and yields no grid.
+    assert_eq!(app.terminal_panel_outer_height(40), 0);
+    assert!(app.terminal_grid_size(ratatui::layout::Rect::new(0, 0, 80, 40)).is_none());
+
+    app.terminal_panel.visible = true;
+    app.terminal_panel.height = 12;
+    assert_eq!(app.terminal_panel_outer_height(40), 12);
+    // Grid excludes the 2 border rows/cols.
+    assert_eq!(app.terminal_grid_size(ratatui::layout::Rect::new(0, 0, 80, 40)), Some((10, 78)));
+
+    // A tiny window clamps the panel but never below the 5-row minimum.
+    assert_eq!(app.terminal_panel_outer_height(8), 5);
 }
 
 #[test]

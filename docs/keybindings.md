@@ -24,13 +24,16 @@
 | `ctrl+f`             | Normal          | Open global code search popup overlay |
 | `p`                  | Normal          | Toggle pin status of selected item |
 | `*`                  | Normal          | Toggle Favorite / Star status of selected item |
-| `Space`              | Normal          | Toggle selection of item for batch operations (fetch, delete, terminal) |
+| `Space`              | Normal          | Toggle selection of item for batch operations (fetch, delete, external shell) |
 | `y`                  | Normal          | Yank absolute path of selected item to clipboard |
 | `/`                  | Normal          | Open fuzzy Jump-to-Repo picker overlay |
 | `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes) |
 | `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed) |
 | `g`                  | Normal          | Launch the preferred Git client for selected repository (configurable in settings, default is gitui) |
-| `t`                  | Normal          | Spawn a new shell (Terminal) in the selected repository's directory |
+| `t`                  | Normal          | Open the embedded terminal panel in the selected repository's directory |
+| `T`                  | Normal          | Suspend the TUI and spawn a full-screen shell in the selected repository's directory |
+| `ctrl+t`             | Global / Anywhere | Toggle the embedded terminal panel (show + focus / hide; also unfocuses it) |
+| `Shift+PgUp` / `Shift+PgDn` | Terminal panel (focused) | Scroll the terminal's output history; any keystroke snaps back to live view |
 | `s`                  | Normal          | Open options/settings page        |
 | `d`                  | Normal          | Open debug logs panel             |
 | `V`                  | Normal          | Show about popup / creator profile |

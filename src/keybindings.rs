@@ -17,6 +17,8 @@ pub enum Action {
     ToggleStatusBar,
     Help,
     Close,
+    /// Toggle the embedded terminal panel (show+focus / hide).
+    ToggleTerminalPanel,
 
     // Home Page
     HomeMoveDown,
@@ -45,6 +47,8 @@ pub enum Action {
     HomeCheckUpdate,
     HomeCycleViewMode,
     HomeOpenTerminal,
+    /// Suspend the TUI and open a full-screen shell (the pre-panel behavior).
+    HomeOpenExternalShell,
     HomeToggleStar,
     HomeYankPath,
     HomeJumpPicker,
@@ -196,6 +200,8 @@ impl Action {
     pub fn from_index(idx: usize) -> Option<Self> {
         match idx {
             14 => Some(Action::ToggleStatusBar),
+            250 => Some(Action::ToggleTerminalPanel),
+            251 => Some(Action::HomeOpenExternalShell),
             15 => Some(Action::Help),
             16 => Some(Action::Close),
             17 => Some(Action::HomeMoveDown),
@@ -375,6 +381,8 @@ impl Action {
             Action::ToggleStatusBar => 14,
             Action::Help => 15,
             Action::Close => 16,
+            Action::ToggleTerminalPanel => 250,
+            Action::HomeOpenExternalShell => 251,
             Action::HomeMoveDown => 17,
             Action::HomeMoveUp => 18,
             Action::HomePageDown => 19,
@@ -566,6 +574,7 @@ pub struct GlobalKeybindings {
     pub toggle_status_bar: Option<Keybind>,
     pub help: Option<Keybind>,
     pub close: Option<Keybind>,
+    pub toggle_terminal_panel: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -596,6 +605,7 @@ pub struct HomeKeybindings {
     pub check_update: Option<Keybind>,
     pub cycle_view_mode: Option<Keybind>,
     pub open_terminal: Option<Keybind>,
+    pub open_external_shell: Option<Keybind>,
     pub toggle_star: Option<Keybind>,
     pub yank_path: Option<Keybind>,
     pub jump_picker: Option<Keybind>,
@@ -905,6 +915,10 @@ impl KeybindingsConfig {
                 toggle_status_bar: Some(Keybind::new(&["."], "Toggle status bar visibility")),
                 help: Some(Keybind::new(&["?"], "Show help overlay")),
                 close: Some(Keybind::new(&["ctrl-q"], "Quit Gitwig")),
+                toggle_terminal_panel: Some(Keybind::new(
+                    &["ctrl-t"],
+                    "Toggle the embedded terminal panel",
+                )),
             },
             home: HomeKeybindings {
                 move_down: Some(Keybind::new(&["j", "down"], "Move selection down")),
@@ -947,7 +961,11 @@ impl KeybindingsConfig {
                     &["v"],
                     "Cycle repository list layout (Normal/Compact/Tile)",
                 )),
-                open_terminal: Some(Keybind::new(&["t"], "Open terminal shell at repository path")),
+                open_terminal: Some(Keybind::new(&["t"], "Open terminal panel at repository path")),
+                open_external_shell: Some(Keybind::new(
+                    &["T"],
+                    "Open full-screen external shell at repository path",
+                )),
                 toggle_star: Some(Keybind::new(
                     &["*"],
                     "Toggle Starred/Favorite status of repository",
@@ -1181,6 +1199,7 @@ impl KeybindingsConfig {
             Action::ToggleStatusBar => self.global.toggle_status_bar.as_ref(),
             Action::Help => self.global.help.as_ref(),
             Action::Close => self.global.close.as_ref(),
+            Action::ToggleTerminalPanel => self.global.toggle_terminal_panel.as_ref(),
 
             // Home
             Action::HomeMoveDown => self.home.move_down.as_ref(),
@@ -1209,6 +1228,7 @@ impl KeybindingsConfig {
             Action::HomeCheckUpdate => self.home.check_update.as_ref(),
             Action::HomeCycleViewMode => self.home.cycle_view_mode.as_ref(),
             Action::HomeOpenTerminal => self.home.open_terminal.as_ref(),
+            Action::HomeOpenExternalShell => self.home.open_external_shell.as_ref(),
             Action::HomeToggleStar => self.home.toggle_star.as_ref(),
             Action::HomeYankPath => self.home.yank_path.as_ref(),
             Action::HomeJumpPicker => self.home.jump_picker.as_ref(),
@@ -1381,6 +1401,7 @@ impl KeybindingsConfig {
             Action::ToggleStatusBar => self.global.toggle_status_bar.as_ref(),
             Action::Help => self.global.help.as_ref(),
             Action::Close => self.global.close.as_ref(),
+            Action::ToggleTerminalPanel => self.global.toggle_terminal_panel.as_ref(),
 
             // Home
             Action::HomeMoveDown => self.home.move_down.as_ref(),
@@ -1409,6 +1430,7 @@ impl KeybindingsConfig {
             Action::HomeCheckUpdate => self.home.check_update.as_ref(),
             Action::HomeCycleViewMode => self.home.cycle_view_mode.as_ref(),
             Action::HomeOpenTerminal => self.home.open_terminal.as_ref(),
+            Action::HomeOpenExternalShell => self.home.open_external_shell.as_ref(),
             Action::HomeToggleStar => self.home.toggle_star.as_ref(),
             Action::HomeYankPath => self.home.yank_path.as_ref(),
             Action::HomeJumpPicker => self.home.jump_picker.as_ref(),
@@ -1629,6 +1651,7 @@ impl KeybindingsConfig {
             Action::ToggleStatusBar,
             Action::Help,
             Action::Close,
+            Action::ToggleTerminalPanel,
             Action::HomeMoveDown,
             Action::HomeMoveUp,
             Action::HomePageDown,
@@ -1655,6 +1678,7 @@ impl KeybindingsConfig {
             Action::HomeCheckUpdate,
             Action::HomeCycleViewMode,
             Action::HomeOpenTerminal,
+            Action::HomeOpenExternalShell,
             Action::HomeToggleStar,
             Action::HomeYankPath,
             Action::HomeJumpPicker,
@@ -1716,7 +1740,10 @@ impl KeybindingsConfig {
     }
 
     fn is_global_action(&self, action: Action) -> bool {
-        matches!(action, Action::ToggleStatusBar | Action::Help | Action::Close)
+        matches!(
+            action,
+            Action::ToggleStatusBar | Action::Help | Action::Close | Action::ToggleTerminalPanel
+        )
     }
 
     fn is_home_action(&self, action: Action) -> bool {
@@ -1748,6 +1775,7 @@ impl KeybindingsConfig {
                 | Action::HomeCheckUpdate
                 | Action::HomeCycleViewMode
                 | Action::HomeOpenTerminal
+                | Action::HomeOpenExternalShell
                 | Action::HomeToggleStar
                 | Action::HomeYankPath
                 | Action::HomeJumpPicker
@@ -1796,6 +1824,7 @@ impl KeybindingsConfig {
         match action {
             // Global
             Action::ToggleStatusBar => self.global.toggle_status_bar = keybind,
+            Action::ToggleTerminalPanel => self.global.toggle_terminal_panel = keybind,
             Action::Help => self.global.help = keybind,
             Action::Close => self.global.close = keybind,
 
@@ -1826,6 +1855,7 @@ impl KeybindingsConfig {
             Action::HomeCheckUpdate => self.home.check_update = keybind,
             Action::HomeCycleViewMode => self.home.cycle_view_mode = keybind,
             Action::HomeOpenTerminal => self.home.open_terminal = keybind,
+            Action::HomeOpenExternalShell => self.home.open_external_shell = keybind,
             Action::HomeToggleStar => self.home.toggle_star = keybind,
             Action::HomeYankPath => self.home.yank_path = keybind,
             Action::HomeJumpPicker => self.home.jump_picker = keybind,

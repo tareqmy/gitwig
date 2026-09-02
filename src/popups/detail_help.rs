@@ -91,6 +91,9 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         app.keybindings.format_action_keys(crate::keybindings::Action::RefreshDetail, is_compat);
     let status_bar_key =
         app.keybindings.format_action_keys(crate::keybindings::Action::ToggleStatusBar, is_compat);
+    let terminal_toggle_key = app
+        .keybindings
+        .format_action_keys(crate::keybindings::Action::ToggleTerminalPanel, is_compat);
 
     let help_key =
         app.keybindings.format_action_keys(crate::keybindings::Action::DetailHelp, is_compat);
@@ -133,6 +136,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 (resize_key, "Grow / shrink the focused panel (where the layout splits)"),
                 (resync_key, "Resync current tab state"),
                 (status_bar_key, "Toggle status bar visibility"),
+                (terminal_toggle_key, "Toggle the embedded terminal panel"),
                 (close_help_key, "Close this help"),
                 (back_key, "Back to repository list"),
             ],

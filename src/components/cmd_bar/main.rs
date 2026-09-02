@@ -51,6 +51,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
     let detail_key = k(crate::keybindings::Action::HomeOpenDetail);
     let git_app_key = k(crate::keybindings::Action::HomeOpenGitApp);
     let terminal_key = k(crate::keybindings::Action::HomeOpenTerminal);
+    let shell_key = k(crate::keybindings::Action::HomeOpenExternalShell);
     let sort_key = format!(
         "{}/{}",
         k(crate::keybindings::Action::HomeCycleSort),
@@ -91,6 +92,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
         ("Detail", &detail_key),
         (&app.config.git_app, &git_app_key),
         ("Terminal", &terminal_key),
+        ("Shell", &shell_key),
         (&sort_key_label, &sort_key),
         ("Find", &search_key),
         ("Code Search", &global_search_key),

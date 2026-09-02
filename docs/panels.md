@@ -38,7 +38,8 @@ The primary dashboard shown when Gitwig starts up.
         *   `e` : Edit selected repository entry
         *   `D` : Delete selected repository entry
         *   `l` : Edit custom labels of selected item
-        *   `t` : Open terminal shell in repository path
+        *   `t` : Open the embedded terminal panel in repository path
+        *   `T` : Open a full-screen external shell in repository path
         *   `g` : Launch preferred external Git GUI client
         *   `d` : Open debug logs panel
         *   `V` : Open about dialog
@@ -53,6 +54,10 @@ The primary dashboard shown when Gitwig starts up.
         *   `Space` / `Enter` : Toggle collapse / expand of label groups (when on a group header row)
 *   **Label Picker Overlay** (`L`): Floating fuzzy picker listing every label with its repository count, plus an "All repositories" row. Selecting a label filters the home list to it — a sticky "project view" that survives `Esc` and app restarts until deselected (re-select the active label or choose "All repositories"). The active label is marked with ● in the picker, pinned as a `● label ▶` chip at the left of the summary tab strip (clickable to reopen the picker), and shown as a `Label:` chip in the status bar; the summary tabs' counts scope to the selected label. Press `→` on a highlighted label to open its **Label Settings** popup (see below), where settings shared by every repository carrying that label are edited. If the active label has a theme set in its Label Settings, the home repo-list view is tinted with that theme while the filter is active.
 *   **Bottom Command/Status Bar**: Reflects current keyboard context, active mode, background fetches, and CPU/memory statistics.
+*   **Embedded Terminal Panel** (`t` on Home, `ctrl+t` anywhere): An IDE-style integrated terminal docked above the status bar, available from both the Home list and the Detail view. It runs your `$SHELL` in a PTY, starting in the selected repository's directory, and every other view shrinks to make room while it is open.
+    *   A single shell session is kept per app run: hiding the panel (`ctrl+t`) leaves the shell and anything running in it alive; reopening shows it exactly where you left off. The session ends when the shell exits (a placeholder then invites any key to close) or when Gitwig quits.
+    *   While the panel is focused (accent border), every key is forwarded to the shell except `ctrl+t` (hide), `ctrl+q` (quit Gitwig), and `Shift+PgUp`/`Shift+PgDn` (scrollback, 1000 lines kept; the title shows `[+N]` while scrolled back). Clicking the panel focuses it; clicking anywhere else unfocuses it while keeping it visible; the mouse wheel scrolls history.
+    *   The environment variables `GITWIG=1` and `GITWIG_SHELL=1` are set in the shell, and `TERM` is `xterm-256color`.
 
 ---
 

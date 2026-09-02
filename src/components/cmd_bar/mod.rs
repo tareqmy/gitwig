@@ -64,6 +64,26 @@ pub(crate) use popups::{
 };
 
 pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
+    // A focused terminal panel forwards nearly every key to the shell, so
+    // show only the ways out instead of the current mode's entries.
+    if app.terminal_focused {
+        let toggle = app.keybindings.format_action_keys(
+            crate::keybindings::Action::ToggleTerminalPanel,
+            app.config.compatibility_mode,
+        );
+        let quit = app
+            .keybindings
+            .format_action_keys(crate::keybindings::Action::Close, app.config.compatibility_mode);
+        let entries_data = [
+            ("Hide Terminal", toggle.as_str()),
+            ("Scrollback", "Shift+PgUp/PgDn"),
+            ("Quit", quit.as_str()),
+        ];
+        let entries = build_status_entries(&entries_data);
+        draw_status_layout(f, area, None, entries, app);
+        return;
+    }
+
     if app.loading_repo_path.is_some() {
         let msg_spans = vec![Span::styled(
             "Loading Repository...  ",

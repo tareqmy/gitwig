@@ -41,6 +41,9 @@ libc = "0.2"
 notify = "6.1.1"
 sha2 = "0.10"
 chrono = "0.4"
+portable-pty = "0.9"
+vt100 = "0.16"
+tui-term = { version = "0.3.4", default-features = false, features = ["vt100"] }
 
 [profile.release]
 lto = true

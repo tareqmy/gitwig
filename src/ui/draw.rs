@@ -214,6 +214,20 @@ pub fn draw(
     // Always reserve the bottom row for the status bar, regardless of mode.
     let (content_area, status_chunk) = content_and_status_chunks(inner_area, app.status_height());
 
+    // The embedded terminal panel sits between the content and the status
+    // bar in every base mode; the content shrinks to make room.
+    let terminal_height = app.terminal_panel_outer_height(inner_area.height);
+    let (content_area, terminal_area) = if terminal_height > 0 {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(terminal_height)])
+            .split(content_area);
+        (chunks[0], Some(chunks[1]))
+    } else {
+        (content_area, None)
+    };
+    app.terminal_panel_area.set(terminal_area);
+
     if app.loading_repo_path.is_some() {
         crate::popups::loading::draw_loading_screen(f, content_area, app);
     } else if matches!(
@@ -384,6 +398,10 @@ pub fn draw(
         let list_chunks = item_chunks(list_area, visible_count, app);
         *main_areas = list_chunks.clone();
         draw_items(f, app, &list_chunks);
+    }
+
+    if let Some(term_area) = terminal_area {
+        crate::components::terminal_panel::draw_terminal_panel(f, app, term_area);
     }
 
     crate::components::cmd_bar::draw_status_bar(f, app, status_chunk);

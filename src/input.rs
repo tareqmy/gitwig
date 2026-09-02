@@ -35,6 +35,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
 /// Dispatch a paste event.
 pub fn handle_paste(app: &mut App, text: &str) {
     app.drain_queue();
+    if app.terminal_focused {
+        if let Some(session) = app.terminal_panel.session.as_mut() {
+            session.send_paste(text);
+        }
+        app.drain_queue();
+        return;
+    }
     if app.mode != Mode::CommitInput {
         crate::debug_log::info(format!("Paste event received: {} bytes", text.len()));
     }
@@ -64,7 +71,7 @@ pub fn handle_paste(app: &mut App, text: &str) {
 }
 
 fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
-    if app.mode != Mode::CommitInput {
+    if app.mode != Mode::CommitInput && !app.terminal_focused {
         crate::debug_log::info(format!("Key pressed: {:?}", key.code));
     }
     let code = key.code;
@@ -99,6 +106,31 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         // Allow Esc / q / Q to cancel repository loading and go back.
         if matches!(code, KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q')) {
             app.close_detail();
+        }
+        return true;
+    }
+
+    // A focused terminal panel swallows every key: the toggle binding hides
+    // it, Shift+PageUp/PageDown browse scrollback, and everything else is
+    // forwarded to the shell. Only the global quit above escapes this block.
+    if app.terminal_focused {
+        if app.is_bound(crate::keybindings::Action::ToggleTerminalPanel, key) {
+            app.hide_terminal_panel();
+            return true;
+        }
+        let session_gone = app.terminal_panel.session.as_ref().is_none_or(|s| s.exited());
+        if session_gone {
+            app.close_terminal_session();
+            return true;
+        }
+        let half_page = (app.terminal_panel.height.saturating_sub(2) / 2).max(1) as isize;
+        let shift = key.modifiers.contains(crossterm::event::KeyModifiers::SHIFT);
+        if let Some(session) = app.terminal_panel.session.as_mut() {
+            match code {
+                KeyCode::PageUp if shift => session.scroll_by(half_page),
+                KeyCode::PageDown if shift => session.scroll_by(-half_page),
+                _ => session.send_key(key),
+            }
         }
         return true;
     }
@@ -144,6 +176,10 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         || (matches!(app.mode, Mode::DebugLogs) && app.debug_log_search_editing);
     if !is_text_input && app.is_bound(crate::keybindings::Action::ToggleStatusBar, key) {
         app.toggle_status_expanded();
+        return true;
+    }
+    if !is_text_input && app.is_bound(crate::keybindings::Action::ToggleTerminalPanel, key) {
+        app.toggle_terminal_panel();
         return true;
     }
     if is_text_input

@@ -10,6 +10,10 @@ description = "Show help overlay"
 keys = ["ctrl-q"]
 description = "Quit Gitwig"
 
+[global.toggle_terminal_panel]
+keys = ["ctrl-t"]
+description = "Toggle the embedded terminal panel"
+
 [home.move_down]
 keys = [
     "j",
@@ -121,7 +125,11 @@ description = "Cycle repository list layout (Normal/Compact/Tile)"
 
 [home.open_terminal]
 keys = ["t"]
-description = "Open terminal shell at repository path"
+description = "Open terminal panel at repository path"
+
+[home.open_external_shell]
+keys = ["T"]
+description = "Open full-screen external shell at repository path"
 
 [home.toggle_star]
 keys = ["*"]

@@ -3947,7 +3947,9 @@ impl App {
                     let inner_vertical_margin = 2;
                     let inner_height = (size.1 as usize).saturating_sub(inner_vertical_margin);
                     let available_height =
-                        inner_height.saturating_sub(self.status_height() as usize);
+                        inner_height.saturating_sub(self.status_height() as usize).saturating_sub(
+                            self.terminal_panel_outer_height(inner_height as u16) as usize,
+                        );
                     let mut lh = if self.config.view_mode == crate::config::HomeViewMode::Compact {
                         available_height.saturating_sub(1)
                     } else {

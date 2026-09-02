@@ -21,65 +21,67 @@ const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 8, 83, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3, 67, 82];
 const GLOBAL_NAV_SETTING_INDICES: &[usize] = &[
-    16, // Quit / Close Dialog (Close)
-    15, // Help (Help)
-    14, // Toggle Status Bar (ToggleStatusBar)
-    39, // Detail: Close View (CloseDetail)
-    40, // Detail: Help (DetailHelp)
-    41, // Detail: Cycle Focus Fwd (CycleFocusForward)
-    42, // Detail: Cycle Focus Bwd (CycleFocusBackward)
-    43, // Detail: Refresh View (RefreshDetail)
-    53, // Detail: Grow Focused Panel (GrowPanel)
-    54, // Detail: Shrink Focused Panel (ShrinkPanel)
-    44, // Detail: Cycle Tab Fwd (CycleTabForward)
-    45, // Detail: Cycle Tab Bwd (CycleTabBackward)
-    46, // Detail: Tab 1
-    47, // Detail: Tab 2
-    48, // Detail: Tab 3
-    49, // Detail: Tab 4
-    50, // Detail: Tab 5
-    51, // Detail: Tab 6
-    52, // Detail: Tab 7
-    68, // Detail: Show Overview (Overview)
-    69, // Detail: Toggle Advanced Tabs (ToggleAdvancedTabs)
+    16,  // Quit / Close Dialog (Close)
+    15,  // Help (Help)
+    14,  // Toggle Status Bar (ToggleStatusBar)
+    250, // Toggle Terminal Panel (ToggleTerminalPanel)
+    39,  // Detail: Close View (CloseDetail)
+    40,  // Detail: Help (DetailHelp)
+    41,  // Detail: Cycle Focus Fwd (CycleFocusForward)
+    42,  // Detail: Cycle Focus Bwd (CycleFocusBackward)
+    43,  // Detail: Refresh View (RefreshDetail)
+    53,  // Detail: Grow Focused Panel (GrowPanel)
+    54,  // Detail: Shrink Focused Panel (ShrinkPanel)
+    44,  // Detail: Cycle Tab Fwd (CycleTabForward)
+    45,  // Detail: Cycle Tab Bwd (CycleTabBackward)
+    46,  // Detail: Tab 1
+    47,  // Detail: Tab 2
+    48,  // Detail: Tab 3
+    49,  // Detail: Tab 4
+    50,  // Detail: Tab 5
+    51,  // Detail: Tab 6
+    52,  // Detail: Tab 7
+    68,  // Detail: Show Overview (Overview)
+    69,  // Detail: Toggle Advanced Tabs (ToggleAdvancedTabs)
 ];
 const HOME_SETTING_INDICES: &[usize] = &[
-    17, // Home: Move Down
-    18, // Home: Move Up
-    19, // Home: Page Down
-    20, // Home: Page Up
-    21, // Home: Go to Top
-    22, // Home: Go to Bottom
-    38, // Home: Open Details
-    75, // Home: Toggle Selection
-    33, // Home: Toggle Pin
-    71, // Home: Toggle Star
-    72, // Home: Yank Path
-    73, // Home: Jump Picker
-    76, // Home: Global Code Search
-    37, // Home: Search Repository
-    30, // Home: Refresh Status
-    31, // Home: Cycle Sort Order
-    32, // Home: Toggle Sort Reverse
-    77, // Home: Cycle View Mode
-    23, // Home: Add Repository
-    24, // Home: Bulk Add
-    35, // Home: Import Repository
-    25, // Home: Edit Repository
-    26, // Home: Delete Repository
-    28, // Home: Edit Labels
-    70, // Home: Open Terminal
-    36, // Home: Open Git App
-    27, // Home: Open Debug Logs
-    29, // Home: Open About Dialog
-    78, // Home: Signs & Symbols Legend
-    79, // Home: Open Stats Dashboard
-    57, // Home: Check Updates
-    74, // Home: Fetch All
-    85, // Home: Fetch Error Details
-    86, // Home: Cycle Summary Filter
-    87, // Home: Cycle Summary Filter Backward
-    88, // Home: Label Filter Picker
+    17,  // Home: Move Down
+    18,  // Home: Move Up
+    19,  // Home: Page Down
+    20,  // Home: Page Up
+    21,  // Home: Go to Top
+    22,  // Home: Go to Bottom
+    38,  // Home: Open Details
+    75,  // Home: Toggle Selection
+    33,  // Home: Toggle Pin
+    71,  // Home: Toggle Star
+    72,  // Home: Yank Path
+    73,  // Home: Jump Picker
+    76,  // Home: Global Code Search
+    37,  // Home: Search Repository
+    30,  // Home: Refresh Status
+    31,  // Home: Cycle Sort Order
+    32,  // Home: Toggle Sort Reverse
+    77,  // Home: Cycle View Mode
+    23,  // Home: Add Repository
+    24,  // Home: Bulk Add
+    35,  // Home: Import Repository
+    25,  // Home: Edit Repository
+    26,  // Home: Delete Repository
+    28,  // Home: Edit Labels
+    70,  // Home: Open Terminal
+    251, // Home: Open External Shell
+    36,  // Home: Open Git App
+    27,  // Home: Open Debug Logs
+    29,  // Home: Open About Dialog
+    78,  // Home: Signs & Symbols Legend
+    79,  // Home: Open Stats Dashboard
+    57,  // Home: Check Updates
+    74,  // Home: Fetch All
+    85,  // Home: Fetch Error Details
+    86,  // Home: Cycle Summary Filter
+    87,  // Home: Cycle Summary Filter Backward
+    88,  // Home: Label Filter Picker
 ];
 const WORKSPACE_SETTING_INDICES: &[usize] =
     &[100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117];
@@ -93,10 +95,10 @@ const DIFF_CONFLICT_SETTING_INDICES: &[usize] = &[210, 211, 212, 213, 220, 221, 
 const SCROLL_NAV_SETTING_INDICES: &[usize] = &[230, 231, 232, 233, 234, 235];
 const ALL_KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     // Global & Nav Keys
-    16, 15, 14, 39, 40, 41, 42, 43, 53, 54, 44, 45, 46, 47, 48, 49, 50, 51, 52, 68, 69,
+    16, 15, 14, 250, 39, 40, 41, 42, 43, 53, 54, 44, 45, 46, 47, 48, 49, 50, 51, 52, 68, 69,
     // Home Screen Keys
     17, 18, 19, 20, 21, 22, 38, 75, 33, 71, 72, 73, 76, 37, 30, 31, 32, 77, 23, 24, 35, 25, 26, 28,
-    70, 36, 27, 29, 78, 79, 57, 74, 85, 86, 87, 88, // Workspace Tab Keys
+    70, 251, 36, 27, 29, 78, 79, 57, 74, 85, 86, 87, 88, // Workspace Tab Keys
     100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117,
     // Files & Branch Keys
     120, 121, 122, 123, 124, 125, 126, 127, 130, 131, 132, 133, 139, 134, 135, 136, 137, 138,
@@ -229,6 +231,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         81 => "Show Stale Projects",
         83 => "Enable Watch Directories",
         14 => "Toggle Status Bar",
+        250 => "Toggle Terminal Panel",
         15 => "Help",
         16 => "Quit / Close Dialog",
         17 => "Home: Move Down",
@@ -272,7 +275,8 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         54 => "Detail: Shrink Focused Panel",
 
         68 => "Detail: Show Overview",
-        70 => "Home: Open Terminal",
+        70 => "Home: Open Terminal Panel",
+        251 => "Home: Open External Shell",
         71 => "Home: Toggle Star",
         72 => "Home: Yank Path",
         73 => "Home: Jump Picker",
@@ -450,6 +454,7 @@ fn get_desc(global_idx: usize) -> &'static str {
             "Seconds a background fetch may run before it is cancelled. Prevents an unreachable remote from hanging a repository card forever. Set to 0 to disable the limit."
         }
         14 => "Toggles the status bar between collapsed and expanded view.",
+        250 => "Shows and focuses the embedded terminal panel, or hides it.",
         15 => "Opens the global help overlay.",
         16 => "Exits the application or closes the active settings/popup dialog.",
         17 => "Moves repository list selection cursor down.",
@@ -500,7 +505,8 @@ fn get_desc(global_idx: usize) -> &'static str {
 
         68 => "Shows the repository Overview overlay from any tab.",
         69 => "Toggles between Primary and Advanced tab groups.",
-        70 => "Spawn a new shell (Terminal) in the selected repository.",
+        70 => "Open the embedded terminal panel in the selected repository.",
+        251 => "Suspend the TUI and spawn a full-screen shell in the selected repository.",
         71 => "Toggle Star / Favorite status of selected repository.",
         72 => "Yank absolute path of selected repository to clipboard.",
         73 => "Open fuzzy Jump-to-Repo picker overlay.",

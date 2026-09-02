@@ -58,6 +58,7 @@ pub mod stash_list;
 pub mod status_list;
 pub mod submodule_list;
 pub mod tag_list;
+pub mod terminal_panel;
 pub mod worktree_list;
 
 #[cfg(test)]

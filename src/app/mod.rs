@@ -651,6 +651,13 @@ pub struct App {
     pub stats: crate::stats::AppStats,
     pub session_start: std::time::Instant,
     pub last_stats_save: std::time::Instant,
+    /// Embedded terminal panel: session, visibility, and preferred height.
+    pub terminal_panel: crate::terminal_session::TerminalPanelState,
+    /// While true, keystrokes are forwarded to the embedded terminal.
+    pub terminal_focused: bool,
+    /// Panel rect captured during draw for mouse hit-testing (interior
+    /// mutability because the draw pass borrows `App` immutably).
+    pub terminal_panel_area: std::cell::Cell<Option<Rect>>,
 }
 
 #[derive(Clone, Debug)]
@@ -679,6 +686,7 @@ enum LogsNavDirection {
 mod actions;
 mod git;
 mod navigation;
+mod term_panel;
 pub use navigation::HomeRow;
 #[cfg(test)]
 mod tests;
@@ -1341,6 +1349,9 @@ impl App {
             keybindings,
             pending_git_app: false,
             pending_terminal: false,
+            terminal_panel: crate::terminal_session::TerminalPanelState::default(),
+            terminal_focused: false,
+            terminal_panel_area: std::cell::Cell::new(None),
             pending_editor_file: None,
             pending_mergetool_file: None,
             pending_interactive_rebase: None,
@@ -1572,6 +1583,12 @@ where
             }
             if !due.is_empty() {
                 app.bulk_fetch_due_implicit(&due);
+            }
+        }
+        // Reap the embedded terminal's shell once its PTY reader saw EOF.
+        if let Some(session) = app.terminal_panel.session.as_mut() {
+            if session.poll_exit() && !app.terminal_panel.visible {
+                app.status_message = Some("Terminal session ended".to_string());
             }
         }
         while let Ok(raw_msg) = app.rx.try_recv() {
@@ -2398,7 +2415,18 @@ where
         let area = Rect::new(0, 0, size.width, size.height);
         let inner_area = area.inner(Margin { vertical: 1, horizontal: 1 });
 
-        let available_height = inner_area.height.saturating_sub(app.status_height());
+        // Keep the PTY grid in sync with the panel geometry before drawing,
+        // so the parser is never rendered at a stale size.
+        if let Some((rows, cols)) = app.terminal_grid_size(inner_area) {
+            if let Some(session) = app.terminal_panel.session.as_mut() {
+                session.resize(rows, cols);
+            }
+        }
+
+        let available_height = inner_area
+            .height
+            .saturating_sub(app.status_height())
+            .saturating_sub(app.terminal_panel_outer_height(inner_area.height));
         let mut list_height = if app.config.view_mode == crate::config::HomeViewMode::Compact {
             available_height.saturating_sub(1)
         } else {
@@ -2519,7 +2547,12 @@ where
             }
         }
 
-        let poll_dur = if !app.bulk_fetching.is_empty() || app.fetching {
+        let terminal_hot = app.terminal_panel.visible
+            && app.terminal_panel.session.as_ref().is_some_and(|s| !s.exited());
+        let poll_dur = if terminal_hot {
+            // Bound shell output-to-screen latency while the panel is live.
+            std::time::Duration::from_millis(30)
+        } else if !app.bulk_fetching.is_empty() || app.fetching {
             std::time::Duration::from_millis(80)
         } else {
             std::time::Duration::from_millis(app.config.poll_interval_ms)
