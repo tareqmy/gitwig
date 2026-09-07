@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Added
+- **labels**: quick-label chips under the home summary bar — up to nine labels as numbered chips, assigned FIFO (a label takes the next free slot the first time it is viewed and keeps it; the oldest is evicted once all nine are taken; persisted as `label_slots`, empty on first run); `1`-`9` or a click applies that label as the sticky filter, pressing the active slot again clears it, and the label picker shows each slot's key
 
 ## [v2.5.15] - 2026-09-07
 ### Added

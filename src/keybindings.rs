@@ -9,7 +9,7 @@ use std::path::Path;
 /// The id space is sparse and grouped by area (global 14–52, home 68–85, tabs 100+),
 /// so migrations walk it by index rather than by a hand-maintained action list.
 /// Raise this if an action is ever given a larger id.
-const MAX_ACTION_INDEX: usize = 255;
+const MAX_ACTION_INDEX: usize = 270;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Action {
@@ -61,6 +61,18 @@ pub enum Action {
     HomeCycleFilter,
     HomeCycleFilterBack,
     HomeLabelPicker,
+    /// Apply the label in quick-label slot N (1-9, assigned in the order
+    /// labels were first viewed) as the home filter. Pressing the active
+    /// slot clears it.
+    HomeLabelSlot1,
+    HomeLabelSlot2,
+    HomeLabelSlot3,
+    HomeLabelSlot4,
+    HomeLabelSlot5,
+    HomeLabelSlot6,
+    HomeLabelSlot7,
+    HomeLabelSlot8,
+    HomeLabelSlot9,
 
     // Detail / Workspace Tab Navigation
     CloseDetail,
@@ -196,12 +208,40 @@ pub enum Action {
     DetailEnd,
 }
 
+/// Number of quick-label slots on the home screen (keys `1`-`9` by default).
+pub const HOME_LABEL_SLOTS: usize = 9;
+
 impl Action {
+    /// The quick-label action for zero-based `slot`, or `None` past the last slot.
+    pub fn home_label_slot(slot: usize) -> Option<Self> {
+        Some(match slot {
+            0 => Action::HomeLabelSlot1,
+            1 => Action::HomeLabelSlot2,
+            2 => Action::HomeLabelSlot3,
+            3 => Action::HomeLabelSlot4,
+            4 => Action::HomeLabelSlot5,
+            5 => Action::HomeLabelSlot6,
+            6 => Action::HomeLabelSlot7,
+            7 => Action::HomeLabelSlot8,
+            8 => Action::HomeLabelSlot9,
+            _ => return None,
+        })
+    }
+
     pub fn from_index(idx: usize) -> Option<Self> {
         match idx {
             14 => Some(Action::ToggleStatusBar),
             250 => Some(Action::ToggleTerminalPanel),
             251 => Some(Action::HomeOpenExternalShell),
+            252 => Some(Action::HomeLabelSlot1),
+            253 => Some(Action::HomeLabelSlot2),
+            254 => Some(Action::HomeLabelSlot3),
+            255 => Some(Action::HomeLabelSlot4),
+            256 => Some(Action::HomeLabelSlot5),
+            257 => Some(Action::HomeLabelSlot6),
+            258 => Some(Action::HomeLabelSlot7),
+            259 => Some(Action::HomeLabelSlot8),
+            260 => Some(Action::HomeLabelSlot9),
             15 => Some(Action::Help),
             16 => Some(Action::Close),
             17 => Some(Action::HomeMoveDown),
@@ -383,6 +423,15 @@ impl Action {
             Action::Close => 16,
             Action::ToggleTerminalPanel => 250,
             Action::HomeOpenExternalShell => 251,
+            Action::HomeLabelSlot1 => 252,
+            Action::HomeLabelSlot2 => 253,
+            Action::HomeLabelSlot3 => 254,
+            Action::HomeLabelSlot4 => 255,
+            Action::HomeLabelSlot5 => 256,
+            Action::HomeLabelSlot6 => 257,
+            Action::HomeLabelSlot7 => 258,
+            Action::HomeLabelSlot8 => 259,
+            Action::HomeLabelSlot9 => 260,
             Action::HomeMoveDown => 17,
             Action::HomeMoveUp => 18,
             Action::HomePageDown => 19,
@@ -617,6 +666,15 @@ pub struct HomeKeybindings {
     pub cycle_filter: Option<Keybind>,
     pub cycle_filter_back: Option<Keybind>,
     pub label_picker: Option<Keybind>,
+    pub label_slot_1: Option<Keybind>,
+    pub label_slot_2: Option<Keybind>,
+    pub label_slot_3: Option<Keybind>,
+    pub label_slot_4: Option<Keybind>,
+    pub label_slot_5: Option<Keybind>,
+    pub label_slot_6: Option<Keybind>,
+    pub label_slot_7: Option<Keybind>,
+    pub label_slot_8: Option<Keybind>,
+    pub label_slot_9: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -995,6 +1053,15 @@ impl KeybindingsConfig {
                     &["L"],
                     "Open label picker to filter repositories by label",
                 )),
+                label_slot_1: Some(Keybind::new(&["1"], "Filter by quick label 1")),
+                label_slot_2: Some(Keybind::new(&["2"], "Filter by quick label 2")),
+                label_slot_3: Some(Keybind::new(&["3"], "Filter by quick label 3")),
+                label_slot_4: Some(Keybind::new(&["4"], "Filter by quick label 4")),
+                label_slot_5: Some(Keybind::new(&["5"], "Filter by quick label 5")),
+                label_slot_6: Some(Keybind::new(&["6"], "Filter by quick label 6")),
+                label_slot_7: Some(Keybind::new(&["7"], "Filter by quick label 7")),
+                label_slot_8: Some(Keybind::new(&["8"], "Filter by quick label 8")),
+                label_slot_9: Some(Keybind::new(&["9"], "Filter by quick label 9")),
             },
             navigation: NavigationKeybindings {
                 nav_up: Some(Keybind::new(&["up", "k"], "Generic move up in lists/menus")),
@@ -1240,6 +1307,15 @@ impl KeybindingsConfig {
             Action::HomeCycleFilter => self.home.cycle_filter.as_ref(),
             Action::HomeCycleFilterBack => self.home.cycle_filter_back.as_ref(),
             Action::HomeLabelPicker => self.home.label_picker.as_ref(),
+            Action::HomeLabelSlot1 => self.home.label_slot_1.as_ref(),
+            Action::HomeLabelSlot2 => self.home.label_slot_2.as_ref(),
+            Action::HomeLabelSlot3 => self.home.label_slot_3.as_ref(),
+            Action::HomeLabelSlot4 => self.home.label_slot_4.as_ref(),
+            Action::HomeLabelSlot5 => self.home.label_slot_5.as_ref(),
+            Action::HomeLabelSlot6 => self.home.label_slot_6.as_ref(),
+            Action::HomeLabelSlot7 => self.home.label_slot_7.as_ref(),
+            Action::HomeLabelSlot8 => self.home.label_slot_8.as_ref(),
+            Action::HomeLabelSlot9 => self.home.label_slot_9.as_ref(),
 
             // Navigation
             Action::NavUp => self.navigation.nav_up.as_ref(),
@@ -1442,6 +1518,15 @@ impl KeybindingsConfig {
             Action::HomeCycleFilter => self.home.cycle_filter.as_ref(),
             Action::HomeCycleFilterBack => self.home.cycle_filter_back.as_ref(),
             Action::HomeLabelPicker => self.home.label_picker.as_ref(),
+            Action::HomeLabelSlot1 => self.home.label_slot_1.as_ref(),
+            Action::HomeLabelSlot2 => self.home.label_slot_2.as_ref(),
+            Action::HomeLabelSlot3 => self.home.label_slot_3.as_ref(),
+            Action::HomeLabelSlot4 => self.home.label_slot_4.as_ref(),
+            Action::HomeLabelSlot5 => self.home.label_slot_5.as_ref(),
+            Action::HomeLabelSlot6 => self.home.label_slot_6.as_ref(),
+            Action::HomeLabelSlot7 => self.home.label_slot_7.as_ref(),
+            Action::HomeLabelSlot8 => self.home.label_slot_8.as_ref(),
+            Action::HomeLabelSlot9 => self.home.label_slot_9.as_ref(),
 
             // Navigation
             Action::NavUp => self.navigation.nav_up.as_ref(),
@@ -1607,6 +1692,14 @@ impl KeybindingsConfig {
             .join("/")
     }
 
+    /// Compact caption for the quick-label slot keys, e.g. `1-9` — the first
+    /// and last slot's keys joined with a dash — for the status bar and help.
+    pub fn format_label_slot_keys(&self, compatibility_mode: bool) -> String {
+        let first = self.format_action_keys(Action::HomeLabelSlot1, compatibility_mode);
+        let last = self.format_action_keys(Action::HomeLabelSlot9, compatibility_mode);
+        format!("{}-{}", first, last)
+    }
+
     pub fn matches(&self, action: Action, key: KeyEvent) -> bool {
         let user_keys = self.get_action_keys(action);
         let mut matched = false;
@@ -1690,6 +1783,15 @@ impl KeybindingsConfig {
             Action::HomeCycleFilter,
             Action::HomeCycleFilterBack,
             Action::HomeLabelPicker,
+            Action::HomeLabelSlot1,
+            Action::HomeLabelSlot2,
+            Action::HomeLabelSlot3,
+            Action::HomeLabelSlot4,
+            Action::HomeLabelSlot5,
+            Action::HomeLabelSlot6,
+            Action::HomeLabelSlot7,
+            Action::HomeLabelSlot8,
+            Action::HomeLabelSlot9,
             Action::CloseDetail,
             Action::DetailHelp,
             Action::CycleFocusForward,
@@ -1787,6 +1889,15 @@ impl KeybindingsConfig {
                 | Action::HomeCycleFilter
                 | Action::HomeCycleFilterBack
                 | Action::HomeLabelPicker
+                | Action::HomeLabelSlot1
+                | Action::HomeLabelSlot2
+                | Action::HomeLabelSlot3
+                | Action::HomeLabelSlot4
+                | Action::HomeLabelSlot5
+                | Action::HomeLabelSlot6
+                | Action::HomeLabelSlot7
+                | Action::HomeLabelSlot8
+                | Action::HomeLabelSlot9
         )
     }
 
@@ -1867,6 +1978,15 @@ impl KeybindingsConfig {
             Action::HomeCycleFilter => self.home.cycle_filter = keybind,
             Action::HomeCycleFilterBack => self.home.cycle_filter_back = keybind,
             Action::HomeLabelPicker => self.home.label_picker = keybind,
+            Action::HomeLabelSlot1 => self.home.label_slot_1 = keybind,
+            Action::HomeLabelSlot2 => self.home.label_slot_2 = keybind,
+            Action::HomeLabelSlot3 => self.home.label_slot_3 = keybind,
+            Action::HomeLabelSlot4 => self.home.label_slot_4 = keybind,
+            Action::HomeLabelSlot5 => self.home.label_slot_5 = keybind,
+            Action::HomeLabelSlot6 => self.home.label_slot_6 = keybind,
+            Action::HomeLabelSlot7 => self.home.label_slot_7 = keybind,
+            Action::HomeLabelSlot8 => self.home.label_slot_8 = keybind,
+            Action::HomeLabelSlot9 => self.home.label_slot_9 = keybind,
 
             // Navigation
             Action::NavUp => self.navigation.nav_up = keybind,
@@ -2072,6 +2192,20 @@ mod tests {
         let parsed = Action::from_index(idx);
         assert_eq!(parsed, Some(action));
         assert!(Action::from_index(9999).is_none());
+
+        // Quick-label slots: 1-9 by default, indexed contiguously, home-scoped
+        // so they never conflict with the detail view's tab digits.
+        let config = KeybindingsConfig::default_config();
+        for slot in 0..HOME_LABEL_SLOTS {
+            let action = Action::home_label_slot(slot).expect("slot action");
+            assert_eq!(Action::from_index(action.to_index()), Some(action));
+            assert!(action.to_index() <= MAX_ACTION_INDEX);
+            assert_eq!(config.get_action_keys(action), vec![(slot + 1).to_string()]);
+            assert!(config.is_home_action(action));
+            assert!(config.find_conflict(action, &[(slot + 1).to_string()]).is_none());
+        }
+        assert!(Action::home_label_slot(HOME_LABEL_SLOTS).is_none());
+        assert_eq!(config.format_label_slot_keys(false), "1-9");
 
         // 2. save / load / check_conflicts
         let temp_dir = std::env::temp_dir().join(format!(

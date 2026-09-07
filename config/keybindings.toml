@@ -178,6 +178,42 @@ description = "Cycle summary filter backward"
 keys = ["L"]
 description = "Open label picker to filter repositories by label"
 
+[home.label_slot_1]
+keys = ["1"]
+description = "Filter by quick label 1"
+
+[home.label_slot_2]
+keys = ["2"]
+description = "Filter by quick label 2"
+
+[home.label_slot_3]
+keys = ["3"]
+description = "Filter by quick label 3"
+
+[home.label_slot_4]
+keys = ["4"]
+description = "Filter by quick label 4"
+
+[home.label_slot_5]
+keys = ["5"]
+description = "Filter by quick label 5"
+
+[home.label_slot_6]
+keys = ["6"]
+description = "Filter by quick label 6"
+
+[home.label_slot_7]
+keys = ["7"]
+description = "Filter by quick label 7"
+
+[home.label_slot_8]
+keys = ["8"]
+description = "Filter by quick label 8"
+
+[home.label_slot_9]
+keys = ["9"]
+description = "Filter by quick label 9"
+
 [navigation.close_detail]
 keys = [
     "esc",

@@ -176,6 +176,10 @@ impl HomeTab {
                     app.input_buffer.clear();
                     app.label_picker_selection = 0;
                     app.mode = Mode::LabelPicker;
+                } else if let Some(slot) = (0..crate::keybindings::HOME_LABEL_SLOTS).find(|&slot| {
+                    Action::home_label_slot(slot).is_some_and(|a| app.is_bound(a, key))
+                }) {
+                    app.select_label_slot(slot);
                 } else if app.is_bound(Action::HomeCycleFilter, key) {
                     app.cycle_global_filter(false);
                 } else if app.is_bound(Action::HomeCycleFilterBack, key) {

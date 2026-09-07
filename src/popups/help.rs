@@ -110,6 +110,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         kb.format_action_keys(Action::HomeCycleFilterBack, is_compat)
     );
     let label_picker_key = kb.format_action_keys(Action::HomeLabelPicker, is_compat);
+    let label_slot_keys = kb.format_label_slot_keys(is_compat);
 
     let make_cat = |title: &'static str,
                     items: Vec<(&str, &'static str)>|
@@ -154,6 +155,10 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 (search_key, "Enter repository search mode"),
                 (cycle_filter_key, "Cycle summary filter (repos/dirty/ahead/stale)"),
                 (label_picker_key, "Pick a label to filter the list (sticky until deselected)"),
+                (
+                    label_slot_keys,
+                    "Filter by quick-label slot (numbered chips under the summary bar, filled in the order labels are first viewed; press again to clear)",
+                ),
                 (
                     "→ [in label picker]".to_string(),
                     "Open Label Settings for the highlighted label (shared by its repos)",

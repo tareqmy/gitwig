@@ -16,6 +16,7 @@
 | `f`                  | Normal          | Enter repository search mode      |
 | `Tab` / `Shift+Tab`  | Normal          | Cycle summary-bar filter (repos → dirty → ahead → stale) forward / backward |
 | `L`                  | Normal          | Open label picker: filter the list to one label (sticky until deselected; persists across restarts) |
+| `1` … `9`            | Normal          | Quick label: apply the label in slot N as the sticky filter, matching the numbered chips under the summary bar. Slots are assigned in the order labels are first viewed (FIFO) and never reorder; press the active slot again to clear it |
 | `Esc`                | LabelPicker     | Close label picker without changing the filter |
 | `↑` / `↓`            | LabelPicker     | Navigate label list |
 | `Enter`              | LabelPicker     | Apply selected label (re-selecting the active label, or "All repositories", clears it) |

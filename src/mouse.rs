@@ -524,6 +524,37 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 }
             }
 
+            if let Some(chip_rect) = app.quick_label_area {
+                if chip_rect.contains(pos) {
+                    // Same centered-strip math as the summary tabs, measured
+                    // from the exact chip captions the bar renders.
+                    let parts = crate::ui::draw::quick_label_parts(app);
+                    let widths: Vec<usize> = parts
+                        .iter()
+                        .map(|(key, name)| key.chars().count() + name.chars().count())
+                        .collect();
+                    let gap_width = crate::ui::draw::QUICK_LABEL_GAP.chars().count();
+                    let total_width =
+                        widths.iter().sum::<usize>() + gap_width * widths.len().saturating_sub(1);
+                    let start_x =
+                        chip_rect.x + (chip_rect.width.saturating_sub(total_width as u16) / 2);
+                    if pos.x >= start_x && pos.x < start_x + total_width as u16 {
+                        let mut offset = (pos.x - start_x) as usize;
+                        for (slot, width) in widths.iter().enumerate() {
+                            if offset < *width {
+                                app.select_label_slot(slot);
+                                return;
+                            }
+                            match offset.checked_sub(width + gap_width) {
+                                Some(next) => offset = next,
+                                None => return, // Gap click
+                            }
+                        }
+                    }
+                    return;
+                }
+            }
+
             for (i, rect) in app.main_areas.iter().enumerate() {
                 if rect.contains(pos) {
                     let actual_index = i + app.scroll_top;
@@ -1673,6 +1704,59 @@ mod tests {
         };
         handle_mouse(&mut app, drag);
         assert_eq!(app.inspect_horizontal_split_pct, 30);
+    }
+
+    #[test]
+    fn test_quick_label_chip_clicks() {
+        let mut config = crate::config::Config {
+            items: vec!["/path/to/repo_a".to_string(), "/path/to/repo_b".to_string()],
+            ..Default::default()
+        };
+        config.labels.insert("/path/to/repo_a".to_string(), vec!["web".to_string()]);
+        config
+            .labels
+            .insert("/path/to/repo_b".to_string(), vec!["web".to_string(), "api".to_string()]);
+        // Selecting a chip persists the config, so keep the file out of the repo.
+        let temp_path = std::env::temp_dir().join("gitwig_test_quick_label_chips.toml");
+        let mut app = App::new(config, temp_path.clone());
+        // Viewed web first, then api → slot 1 = web, slot 2 = api.
+        app.config.label_slots = vec!["web".to_string(), "api".to_string()];
+        app.quick_label_area = Some(Rect::new(0, 1, 80, 1));
+
+        let parts = crate::ui::draw::quick_label_parts(&app);
+        let widths: Vec<usize> =
+            parts.iter().map(|(key, name)| key.chars().count() + name.chars().count()).collect();
+        let gap = crate::ui::draw::QUICK_LABEL_GAP.chars().count();
+        let total = widths.iter().sum::<usize>() + gap;
+        let start_x = (80 - total as u16) / 2;
+
+        let click = |col: u16| MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: col,
+            row: 1,
+            modifiers: KeyModifiers::empty(),
+        };
+
+        // First chip applies the label in slot 1.
+        handle_mouse(&mut app, click(start_x));
+        assert_eq!(app.config.active_label_filter.as_deref(), Some("web"));
+
+        // Second chip switches to slot 2; the slots do not reorder.
+        handle_mouse(&mut app, click(start_x + (widths[0] + gap) as u16));
+        assert_eq!(app.config.active_label_filter.as_deref(), Some("api"));
+        assert_eq!(app.config.label_slots, vec!["web".to_string(), "api".to_string()]);
+
+        // Clicking the active chip toggles the filter off.
+        handle_mouse(&mut app, click(start_x + (widths[0] + gap) as u16));
+        assert_eq!(app.config.active_label_filter, None);
+
+        // The gap between chips and the margin outside the strip are inert.
+        handle_mouse(&mut app, click(start_x + widths[0] as u16));
+        assert_eq!(app.config.active_label_filter, None);
+        handle_mouse(&mut app, click(start_x.saturating_sub(1)));
+        assert_eq!(app.config.active_label_filter, None);
+        assert_eq!(app.mode, Mode::Normal);
+        let _ = std::fs::remove_file(temp_path);
     }
 
     #[test]

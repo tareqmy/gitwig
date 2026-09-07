@@ -350,13 +350,17 @@ impl App {
 
     /// Applies the sticky label filter, toggling it off when the active label
     /// is selected again (`None` always clears), and persists the choice.
+    /// Viewing a label for the first time also gives it a quick-label slot.
     pub fn select_label_filter(&mut self, label: Option<String>) {
         let toggled_off = label.is_some() && self.config.active_label_filter == label;
         self.config.active_label_filter = if toggled_off { None } else { label };
         self.selected_index = 0;
         self.scroll_top = 0;
         match self.config.active_label_filter.clone() {
-            Some(l) => self.persist(&format!("Label filter: {}", l)),
+            Some(l) => {
+                self.record_label_slot(&l);
+                self.persist(&format!("Label filter: {}", l));
+            }
             None => self.persist("Label filter cleared"),
         }
     }
@@ -400,6 +404,76 @@ impl App {
                 *pct = (*pct + STEP).min(85);
             } else {
                 *pct = pct.saturating_sub(STEP).max(15);
+            }
+        }
+    }
+
+    /// The quick-label slots in FIFO order: slot 1 is the label that was
+    /// viewed first, and each label keeps its slot until evicted (see
+    /// `record_label_slot`). Each entry carries its repository count; labels
+    /// no longer carried by any tracked repository are skipped. Empty until
+    /// the first label view, so the strip starts clean.
+    pub fn quick_labels(&self) -> Vec<(String, usize)> {
+        let count_of = |label: &str| {
+            self.config
+                .items
+                .iter()
+                .filter_map(|path| self.config.labels.get(path))
+                .filter(|labels| labels.iter().any(|l| l == label))
+                .count()
+        };
+        self.config
+            .label_slots
+            .iter()
+            .map(|label| (label.clone(), count_of(label)))
+            .filter(|(_, count)| *count > 0)
+            .take(crate::keybindings::HOME_LABEL_SLOTS)
+            .collect()
+    }
+
+    /// Zero-based quick-label slot index of `label`, if it holds one.
+    pub fn quick_label_slot(&self, label: &str) -> Option<usize> {
+        self.quick_labels().iter().position(|(l, _)| l == label)
+    }
+
+    /// Gives `label` the next free quick-label slot on its first view. A label
+    /// that already holds a slot keeps it (viewing never reorders the strip);
+    /// when all slots are taken, the oldest entry is evicted and the rest
+    /// shift down one so the new label lands in the last slot.
+    fn record_label_slot(&mut self, label: &str) {
+        if self.config.label_slots.iter().any(|l| l == label) {
+            return;
+        }
+        self.config.label_slots.push(label.to_string());
+        while self.config.label_slots.len() > crate::keybindings::HOME_LABEL_SLOTS {
+            self.config.label_slots.remove(0);
+        }
+    }
+
+    /// Drops quick-label slots whose label no repository carries any more, so
+    /// a deleted label cannot linger in the strip.
+    pub fn prune_label_slots(&mut self) {
+        let used: std::collections::HashSet<&String> = self
+            .config
+            .items
+            .iter()
+            .filter_map(|path| self.config.labels.get(path))
+            .flatten()
+            .collect();
+        let keep: Vec<String> =
+            self.config.label_slots.iter().filter(|l| used.contains(l)).cloned().collect();
+        self.config.label_slots = keep;
+    }
+
+    /// Applies the label held by zero-based `slot` as the sticky filter
+    /// (toggling it off when it is already active, like the picker).
+    /// An empty slot only reports a status message so the list never changes
+    /// under a mistyped key.
+    pub fn select_label_slot(&mut self, slot: usize) {
+        match self.quick_labels().into_iter().nth(slot) {
+            Some((label, _)) => self.select_label_filter(Some(label)),
+            None => {
+                self.status_message = Some(format!("No label in quick slot {}", slot + 1));
             }
         }
     }
@@ -3303,6 +3377,7 @@ impl App {
     /// the save error) for the next render.
     pub fn persist(&mut self, success_msg: &str) {
         self.prune_orphaned_label_configs();
+        self.prune_label_slots();
         self.resolve_repo_themes();
         match save_config(&self.config, &self.config_path) {
             Ok(()) => self.status_message = Some(success_msg.to_string()),

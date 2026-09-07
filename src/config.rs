@@ -177,6 +177,7 @@ impl Default for Config {
             visits: std::collections::HashMap::new(),
             labels: std::collections::HashMap::new(),
             active_label_filter: None,
+            label_slots: Vec::new(),
             repo_configs: std::collections::HashMap::new(),
             label_configs: std::collections::HashMap::new(),
             sort_reverse: false,
@@ -359,6 +360,12 @@ pub struct Config {
     /// deselects it in the label picker.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_label_filter: Option<String>,
+    /// Quick-label slots for the home screen's `1`-`9` keys, in FIFO order:
+    /// a label takes the next free slot the first time it is viewed through
+    /// the label filter and keeps it; once all nine are taken, the oldest
+    /// entry is evicted. Empty until the first label view.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub label_slots: Vec<String>,
     /// Repository specific configurations.
     #[serde(default)]
     pub repo_configs: std::collections::HashMap<String, RepoConfig>,
@@ -536,6 +543,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         visits: default_visits(),
         labels: std::collections::HashMap::new(),
         active_label_filter: None,
+        label_slots: Vec::new(),
         repo_configs: std::collections::HashMap::new(),
         label_configs: std::collections::HashMap::new(),
         sort_reverse: false,
@@ -690,6 +698,7 @@ pub fn load_config(
                 visits: default_visits(),
                 labels: std::collections::HashMap::new(),
                 active_label_filter: None,
+                label_slots: Vec::new(),
                 repo_configs: std::collections::HashMap::new(),
                 label_configs: std::collections::HashMap::new(),
                 sort_reverse: false,
@@ -824,6 +833,7 @@ pub fn load_config(
         visits: default_visits(),
         labels: std::collections::HashMap::new(),
         active_label_filter: None,
+        label_slots: Vec::new(),
         repo_configs: std::collections::HashMap::new(),
         label_configs: std::collections::HashMap::new(),
         sort_reverse: false,

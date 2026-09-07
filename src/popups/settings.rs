@@ -82,6 +82,15 @@ const HOME_SETTING_INDICES: &[usize] = &[
     86,  // Home: Cycle Summary Filter
     87,  // Home: Cycle Summary Filter Backward
     88,  // Home: Label Filter Picker
+    252, // Home: Quick Label 1
+    253, // Home: Quick Label 2
+    254, // Home: Quick Label 3
+    255, // Home: Quick Label 4
+    256, // Home: Quick Label 5
+    257, // Home: Quick Label 6
+    258, // Home: Quick Label 7
+    259, // Home: Quick Label 8
+    260, // Home: Quick Label 9
 ];
 const WORKSPACE_SETTING_INDICES: &[usize] =
     &[100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117];
@@ -98,7 +107,8 @@ const ALL_KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     16, 15, 14, 250, 39, 40, 41, 42, 43, 53, 54, 44, 45, 46, 47, 48, 49, 50, 51, 52, 68, 69,
     // Home Screen Keys
     17, 18, 19, 20, 21, 22, 38, 75, 33, 71, 72, 73, 76, 37, 30, 31, 32, 77, 23, 24, 35, 25, 26, 28,
-    70, 251, 36, 27, 29, 78, 79, 57, 74, 85, 86, 87, 88, // Workspace Tab Keys
+    70, 251, 36, 27, 29, 78, 79, 57, 74, 85, 86, 87, 88, 252, 253, 254, 255, 256, 257, 258, 259,
+    260, // Workspace Tab Keys
     100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117,
     // Files & Branch Keys
     120, 121, 122, 123, 124, 125, 126, 127, 130, 131, 132, 133, 139, 134, 135, 136, 137, 138,
@@ -277,6 +287,15 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         68 => "Detail: Show Overview",
         70 => "Home: Open Terminal Panel",
         251 => "Home: Open External Shell",
+        252 => "Home: Quick Label 1",
+        253 => "Home: Quick Label 2",
+        254 => "Home: Quick Label 3",
+        255 => "Home: Quick Label 4",
+        256 => "Home: Quick Label 5",
+        257 => "Home: Quick Label 6",
+        258 => "Home: Quick Label 7",
+        259 => "Home: Quick Label 8",
+        260 => "Home: Quick Label 9",
         71 => "Home: Toggle Star",
         72 => "Home: Yank Path",
         73 => "Home: Jump Picker",

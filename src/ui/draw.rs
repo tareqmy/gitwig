@@ -107,8 +107,10 @@ pub fn draw(
     detail_areas: &mut crate::ui_detail::DetailAreas,
     main_areas: &mut Vec<Rect>,
     global_summary_area: &mut Option<Rect>,
+    quick_label_area: &mut Option<Rect>,
 ) {
     *global_summary_area = None;
+    *quick_label_area = None;
     let mut swapped_theme = None;
     if let Some(repo_path) = app.get_selected_item() {
         if matches!(
@@ -349,36 +351,29 @@ pub fn draw(
         // Repositories exist but the active view is empty: keep the summary
         // tab bar visible (and clickable) so the user can see which filter is
         // active and switch away, instead of a dead-end onboarding screen.
-        let layout_parts = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(1), // Global summary bar
-                Constraint::Length(1), // Spacer
-                Constraint::Min(0),    // Empty-state message
-            ])
-            .split(content_area);
+        let (summary_area, chips_area, body_area) = home_header_layout(content_area, app);
 
-        draw_global_summary_bar(f, layout_parts[0], app);
-        *global_summary_area = Some(layout_parts[0]);
+        draw_global_summary_bar(f, summary_area, app);
+        *global_summary_area = Some(summary_area);
+        if let Some(chips) = chips_area {
+            draw_quick_label_bar(f, chips, app);
+            *quick_label_area = Some(chips);
+        }
 
         if let Some(ref query) = app.repo_search_query {
-            draw_search_empty_state(f, layout_parts[2], query);
+            draw_search_empty_state(f, body_area, query);
         } else {
-            draw_filter_empty_state(f, layout_parts[2], app);
+            draw_filter_empty_state(f, body_area, app);
         }
     } else {
-        let layout_parts = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(1), // Global summary bar
-                Constraint::Length(1), // Spacer
-                Constraint::Min(0),    // Rest of content
-            ])
-            .split(content_area);
+        let (summary_area, chips_area, list_area_parent) = home_header_layout(content_area, app);
 
-        draw_global_summary_bar(f, layout_parts[0], app);
-        *global_summary_area = Some(layout_parts[0]);
-        let list_area_parent = layout_parts[2];
+        draw_global_summary_bar(f, summary_area, app);
+        *global_summary_area = Some(summary_area);
+        if let Some(chips) = chips_area {
+            draw_quick_label_bar(f, chips, app);
+            *quick_label_area = Some(chips);
+        }
 
         let (header_area, list_area) =
             if app.config.view_mode == crate::config::HomeViewMode::Compact {
@@ -820,6 +815,77 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
         }
     }
 
+    let line = Line::from(spans).alignment(Alignment::Center);
+    f.render_widget(Paragraph::new(line), area);
+}
+
+/// Gap drawn between quick-label chips; its width is part of the click math.
+pub const QUICK_LABEL_GAP: &str = "  ";
+
+/// Caption of each quick-label chip as (key, name) halves, in slot order.
+/// Mouse hit-testing in `mouse.rs` measures these exact strings, so the
+/// rendered chips and the click zones cannot drift apart.
+pub fn quick_label_parts(app: &App) -> Vec<(String, String)> {
+    app.quick_labels()
+        .into_iter()
+        .enumerate()
+        .map(|(slot, (label, _))| {
+            let key = crate::keybindings::Action::home_label_slot(slot)
+                .map(|a| app.keybindings.format_action_keys(a, app.config.compatibility_mode))
+                .unwrap_or_default();
+            (format!(" {} ", key), format!("{} ", label))
+        })
+        .collect()
+}
+
+/// Splits the home content area into the summary bar, the quick-label chip
+/// strip (only once a label has been viewed), a spacer, and the body.
+fn home_header_layout(area: Rect, app: &App) -> (Rect, Option<Rect>, Rect) {
+    if app.quick_labels().is_empty() {
+        let parts = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // Global summary bar
+                Constraint::Length(1), // Spacer
+                Constraint::Min(0),    // Body
+            ])
+            .split(area);
+        (parts[0], None, parts[2])
+    } else {
+        let parts = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // Global summary bar
+                Constraint::Length(1), // Quick-label chips
+                Constraint::Length(1), // Spacer
+                Constraint::Min(0),    // Body
+            ])
+            .split(area);
+        (parts[0], Some(parts[1]), parts[3])
+    }
+}
+
+/// One-row strip of the quick-label slots as numbered chips (`1 web  2 api …`,
+/// in the order the labels were first viewed) under the summary bar; the
+/// active label filter's chip is drawn as a highlighted block, mirroring the
+/// summary tabs.
+fn draw_quick_label_bar(f: &mut Frame, area: Rect, app: &App) {
+    let parts = quick_label_parts(app);
+    let labels = app.quick_labels();
+    let mut spans = Vec::new();
+    for (i, ((key_text, name_text), (label, _))) in parts.iter().zip(labels.iter()).enumerate() {
+        if i > 0 {
+            spans.push(Span::raw(QUICK_LABEL_GAP));
+        }
+        if app.config.active_label_filter.as_deref() == Some(label.as_str()) {
+            let chip = accent_style().add_modifier(Modifier::REVERSED | Modifier::BOLD);
+            spans.push(Span::styled(key_text.clone(), chip));
+            spans.push(Span::styled(name_text.clone(), chip));
+        } else {
+            spans.push(Span::styled(key_text.clone(), accent_style().add_modifier(Modifier::BOLD)));
+            spans.push(Span::styled(name_text.clone(), muted_style()));
+        }
+    }
     let line = Line::from(spans).alignment(Alignment::Center);
     f.render_widget(Paragraph::new(line), area);
 }
@@ -2019,12 +2085,21 @@ pub fn draw_label_picker_popup(f: &mut Frame, app: &App, area: Rect) {
         f.render_widget(empty_hint, chunks[1]);
     } else {
         let active_marker = if app.config.compatibility_mode { "* " } else { "● " };
+        let quick = app.quick_labels();
         let list_items: Vec<ratatui::widgets::ListItem> = matches
             .iter()
             .enumerate()
             .map(|(i, (label, count))| {
                 let marker =
                     if *label == app.config.active_label_filter { active_marker } else { "  " };
+                // Quick-label slots get their key so the picker teaches the shortcut.
+                let slot_key = label
+                    .as_deref()
+                    .and_then(|l| quick.iter().position(|(q, _)| q == l))
+                    .and_then(crate::keybindings::Action::home_label_slot)
+                    .map(|a| app.keybindings.format_action_keys(a, app.config.compatibility_mode));
+                let slot_text =
+                    slot_key.map(|k| format!("{} ", k)).unwrap_or_else(|| "  ".to_string());
                 let name = label.clone().unwrap_or_else(|| "All repositories".to_string());
                 let style = if i == app.label_picker_selection {
                     accent_style().add_modifier(Modifier::BOLD | Modifier::REVERSED)
@@ -2036,6 +2111,7 @@ pub fn draw_label_picker_popup(f: &mut Frame, app: &App, area: Rect) {
                 let repos_word = if *count == 1 { "repo" } else { "repos" };
                 ratatui::widgets::ListItem::new(Line::from(vec![
                     Span::styled(marker, accent_style()),
+                    Span::styled(slot_text, accent_style().add_modifier(Modifier::BOLD)),
                     Span::styled(name, style),
                     Span::styled(format!("   {} {}", count, repos_word), muted_style()),
                 ]))
@@ -3298,6 +3374,57 @@ mod tests {
     }
 
     #[test]
+    fn test_draw_quick_label_bar_marks_active_chip() {
+        let mut config = Config {
+            items: vec!["/path/to/repo_a".to_string(), "/path/to/repo_b".to_string()],
+            ..Default::default()
+        };
+        config.labels.insert("/path/to/repo_a".to_string(), vec!["web".to_string()]);
+        config
+            .labels
+            .insert("/path/to/repo_b".to_string(), vec!["web".to_string(), "api".to_string()]);
+        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+        // Viewed api first, then web → slot 1 = api, slot 2 = web.
+        app.config.label_slots = vec!["api".to_string(), "web".to_string()];
+        app.config.active_label_filter = Some("api".to_string());
+
+        let backend = ratatui::backend::TestBackend::new(80, 1);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw_quick_label_bar(f, Rect::new(0, 0, 80, 1), &app)).unwrap();
+
+        let buffer = terminal.backend().buffer();
+        let text: String = (0..80).map(|x| buffer[(x, 0)].symbol()).collect();
+        let trimmed = text.trim();
+        // Slots keep first-view order: api before web.
+        assert!(trimmed.contains("1 api"), "Buffer contents: {}", trimmed);
+        assert!(trimmed.contains("2 web"), "Buffer contents: {}", trimmed);
+        assert!(text.find("1 api").unwrap() < text.find("2 web").unwrap());
+
+        // The active label's chip is the highlighted (reversed) one.
+        let api_x = text.find("api").unwrap() as u16;
+        let web_x = text.find("web").unwrap() as u16;
+        assert!(buffer[(api_x, 0)].style().add_modifier.contains(Modifier::REVERSED));
+        assert!(!buffer[(web_x, 0)].style().add_modifier.contains(Modifier::REVERSED));
+
+        // The parts helper describes exactly what was drawn (click math relies on it).
+        let parts = quick_label_parts(&app);
+        assert_eq!(
+            parts,
+            vec![(" 1 ".to_string(), "api ".to_string()), (" 2 ".to_string(), "web ".to_string())]
+        );
+
+        // With no viewed labels the header layout has no chip row; with some it does.
+        let area = Rect::new(0, 0, 80, 20);
+        let (_, chips, body) = home_header_layout(area, &app);
+        assert_eq!(chips, Some(Rect::new(0, 1, 80, 1)));
+        assert_eq!(body.y, 3);
+        app.config.label_slots.clear();
+        let (_, chips, body) = home_header_layout(area, &app);
+        assert_eq!(chips, None);
+        assert_eq!(body.y, 2);
+    }
+
+    #[test]
     fn test_draw_global_summary_bar() {
         let config = Config {
             items: vec!["/path/to/repo_a".to_string(), "/path/to/repo_b".to_string()],
@@ -3431,6 +3558,7 @@ mod tests {
                         &mut detail_areas,
                         &mut main_areas,
                         summary_area,
+                        &mut None,
                     );
                 })
                 .unwrap();
@@ -3796,6 +3924,7 @@ mod tests {
                         &mut detail_areas,
                         &mut main_areas,
                         &mut global_summary_area,
+                        &mut None,
                     );
                 })
                 .unwrap();
@@ -3852,6 +3981,7 @@ mod tests {
                             &mut detail_areas,
                             &mut main_areas,
                             &mut global_summary_area,
+                            &mut None,
                         );
                     })
                     .unwrap();
@@ -3949,6 +4079,7 @@ mod tests {
                         &mut detail_areas,
                         &mut main_areas,
                         &mut global_summary_area,
+                        &mut None,
                     );
                 })
                 .unwrap();
@@ -3970,6 +4101,7 @@ mod tests {
                     &mut detail_areas,
                     &mut main_areas,
                     &mut global_summary_area,
+                    &mut None,
                 );
             })
             .unwrap();
@@ -3989,6 +4121,7 @@ mod tests {
                     &mut detail_areas,
                     &mut main_areas,
                     &mut global_summary_area,
+                    &mut None,
                 );
             })
             .unwrap();

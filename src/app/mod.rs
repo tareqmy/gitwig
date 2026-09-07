@@ -415,6 +415,8 @@ pub struct App {
     pub main_areas: Vec<Rect>,
     pub global_filter: Option<GlobalFilter>,
     pub global_summary_area: Option<Rect>,
+    /// Row of quick-label chips under the summary bar (mouse hit-testing).
+    pub quick_label_area: Option<Rect>,
 
     pub status_list: crate::components::status_list::StatusListComponent,
 
@@ -1307,6 +1309,7 @@ impl App {
             main_areas: Vec::new(),
             global_filter: None,
             global_summary_area: None,
+            quick_label_area: None,
 
             status_list: crate::components::status_list::StatusListComponent::new(queue.clone()),
 
@@ -2550,6 +2553,7 @@ where
             let mut detail_areas = DetailAreas::default();
             let mut main_areas = Vec::new();
             let mut global_summary_area = None;
+            let mut quick_label_area = None;
             terminal.draw(|f| {
                 ui::draw(
                     f,
@@ -2560,11 +2564,13 @@ where
                     &mut detail_areas,
                     &mut main_areas,
                     &mut global_summary_area,
+                    &mut quick_label_area,
                 )
             })?;
             app.detail_areas = detail_areas;
             app.main_areas = main_areas;
             app.global_summary_area = global_summary_area;
+            app.quick_label_area = quick_label_area;
             needs_redraw = false;
             last_drawn_size = Some((size.width, size.height));
             last_drawn_terminal_gen = terminal_gen;

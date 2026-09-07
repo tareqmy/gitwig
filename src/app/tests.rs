@@ -6304,6 +6304,137 @@ fn test_label_filter_project_view() {
 }
 
 #[test]
+fn test_quick_labels_fill_slots_fifo_and_evict_oldest_past_nine() {
+    let mut config = Config {
+        items: (0..12).map(|i| format!("/path/to/repo{}", i)).collect(),
+        ..Default::default()
+    };
+    for i in 0..12 {
+        config.labels.insert(format!("/path/to/repo{}", i), vec![format!("l{}", i)]);
+    }
+    config.labels.entry("/path/to/repo0".to_string()).or_default().push("l1".to_string());
+    let temp_path = std::env::temp_dir().join("gitwig_test_quick_labels_fifo.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Initially clean: labels exist, but none has been viewed yet.
+    assert!(app.quick_labels().is_empty());
+    assert_eq!(app.quick_label_slot("l0"), None);
+
+    // The first label viewed takes slot 1, the next takes slot 2, and so on.
+    app.select_label_filter(Some("l0".to_string()));
+    app.select_label_filter(Some("l1".to_string()));
+    let names =
+        |app: &App| -> Vec<String> { app.quick_labels().into_iter().map(|(l, _)| l).collect() };
+    assert_eq!(names(&app), vec!["l0", "l1"]);
+    assert_eq!(app.quick_labels()[1], ("l1".to_string(), 2));
+    assert_eq!(app.quick_label_slot("l1"), Some(1));
+
+    // Viewing a label that already holds a slot never reorders the strip.
+    app.select_label_filter(Some("l1".to_string()));
+    app.select_label_filter(Some("l0".to_string()));
+    assert_eq!(names(&app), vec!["l0", "l1"]);
+
+    // Clearing the filter (toggle off) keeps the slots intact.
+    app.select_label_filter(Some("l0".to_string()));
+    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(names(&app), vec!["l0", "l1"]);
+
+    // Slots fill up to nine; the tenth distinct label evicts the oldest
+    // (slot 1) and everything shifts down one, so it lands in slot 9.
+    for i in 2..9 {
+        app.select_label_filter(Some(format!("l{}", i)));
+    }
+    assert_eq!(names(&app), vec!["l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7", "l8"]);
+    app.select_label_filter(Some("l9".to_string()));
+    assert_eq!(app.config.label_slots.len(), crate::keybindings::HOME_LABEL_SLOTS);
+    assert_eq!(names(&app), vec!["l1", "l2", "l3", "l4", "l5", "l6", "l7", "l8", "l9"]);
+    app.select_label_filter(Some("l10".to_string()));
+    assert_eq!(names(&app), vec!["l2", "l3", "l4", "l5", "l6", "l7", "l8", "l9", "l10"]);
+
+    // The slots persist in config.toml in slot order.
+    let saved = std::fs::read_to_string(&app.config_path).expect("config persisted");
+    assert!(saved.contains("label_slots = "), "saved: {}", saved);
+    let reloaded: Config = toml::from_str(&saved).expect("config parses");
+    assert_eq!(reloaded.label_slots, app.config.label_slots);
+
+    // A label nobody carries any more drops out of the strip and, on the
+    // next save, out of the stored slots.
+    app.config.labels.remove("/path/to/repo10");
+    assert_eq!(names(&app).last().map(String::as_str), Some("l9"));
+    app.prune_label_slots();
+    assert!(!app.config.label_slots.contains(&"l10".to_string()));
+
+    // A fresh config starts with no slots at all.
+    assert!(Config::default().label_slots.is_empty());
+}
+
+#[test]
+fn test_home_quick_label_keys_apply_toggle_and_ignore_empty_slots() {
+    let mut config = Config {
+        items: vec![
+            "/path/to/frontend".to_string(),
+            "/path/to/backend".to_string(),
+            "/path/to/tools".to_string(),
+        ],
+        ..Default::default()
+    };
+    config.labels.insert("/path/to/frontend".to_string(), vec!["web".to_string()]);
+    config
+        .labels
+        .insert("/path/to/backend".to_string(), vec!["web".to_string(), "api".to_string()]);
+    let temp_path = std::env::temp_dir().join("gitwig_test_quick_label_keys.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key = |c: char| KeyEvent::new(KeyCode::Char(c), KeyModifiers::empty());
+
+    // Nothing viewed yet: every slot is empty, so digits are a no-op with a hint.
+    assert!(crate::input::handle_key(&mut app, key('1'), 1));
+    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.status_message.as_deref(), Some("No label in quick slot 1"));
+
+    // Viewing labels through the filter fills the slots in order:
+    // web (viewed first) → slot 1, api (viewed second) → slot 2.
+    app.select_label_filter(Some("web".to_string()));
+    app.select_label_filter(Some("api".to_string()));
+    app.select_label_filter(None);
+    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.config.label_slots, vec!["web".to_string(), "api".to_string()]);
+
+    // Slot 2 applies "api"; the slots stay exactly where they were.
+    assert!(crate::input::handle_key(&mut app, key('2'), 1));
+    assert_eq!(app.mode, Mode::Normal);
+    assert_eq!(app.config.active_label_filter.as_deref(), Some("api"));
+    assert_eq!(app.get_filtered_items().len(), 1);
+    assert_eq!(app.config.label_slots, vec!["web".to_string(), "api".to_string()]);
+
+    // Slot 1 switches to "web": the filter is replaced, not stacked.
+    assert!(crate::input::handle_key(&mut app, key('1'), 1));
+    assert_eq!(app.config.active_label_filter.as_deref(), Some("web"));
+    assert_eq!(app.get_filtered_items().len(), 2);
+    assert_eq!(app.config.label_slots, vec!["web".to_string(), "api".to_string()]);
+
+    // Pressing the active slot again clears the filter, like the picker.
+    assert!(crate::input::handle_key(&mut app, key('1'), 1));
+    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.get_filtered_items().len(), 3);
+
+    // An unfilled slot leaves the filter alone and explains why.
+    app.status_message = None;
+    assert!(crate::input::handle_key(&mut app, key('9'), 1));
+    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.status_message.as_deref(), Some("No label in quick slot 9"));
+
+    // Quick-label keys are a home-screen concept: in the detail view the
+    // same digits still switch tabs and never touch the label filter.
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+    assert!(crate::input::handle_key(&mut app, key('2'), 1));
+    assert_eq!(app.detail_tab, 1);
+    assert_eq!(app.config.active_label_filter, None);
+}
+#[test]
 fn test_branch_merge_into_flow() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 

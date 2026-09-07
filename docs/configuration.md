@@ -78,6 +78,7 @@ show_stale_projects = true
 | `show_grouping` | `Boolean` | `true` | Enable or disable repository label grouping sidebar on the home page. |
 | `labels` | `Map<String, [String]>` | `{}` | Repository path → list of labels. Managed by the in-app `l` shortcut. |
 | `active_label_filter` | `String` | *(unset)* | Sticky home-list label filter ("project view"). Managed by the `L` label picker; persists across restarts until deselected, and auto-clears if the label no longer exists on any tracked repository. |
+| `label_slots` | `Array<String>` | `[]` | Quick-label slots backing the numbered chips and the `1`-`9` keys on the home screen, in slot order. Managed automatically, FIFO: a label takes the next free slot the first time it is viewed through the label filter and keeps it; once all nine are taken the oldest entry is evicted; labels no repository carries are pruned on save. |
 | `label_configs` | `Map<String, Table>` | `{}` | Per-label settings shared by every repository carrying that label (see [Per-label settings](#per-label-settings)). Managed by the Label Settings popup (`→` on a label in the `L` picker). Auto-pruned when no repository carries the label. |
 | `view_mode` | `String` | `"cards"` | Home page repository list layout mode (`"cards"`, `"compact"`, `"tile"`). Managed by `v`. |
 | `tile_columns` | `Integer` | `0` | Number of columns in tile layout mode (`0` = auto-calculate based on terminal width). |
