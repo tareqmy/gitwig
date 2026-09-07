@@ -128,10 +128,11 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Fuzzy Jump-to-Repo Overlay: `/`-triggered floating popup with ranked fuzzy matches across all repo names for instant navigation.
 - [x] Recently Opened MRU Stack: Persist most-recently-used repo history across sessions; surface in a dedicated `Recent` group.
 - [x] Favorite / Star Repos: Semantic ★ bookmark separate from positional pin; starred repos float to a dedicated section.
-- [x] Label Filter / Project View (`L`): fuzzy label picker applying a sticky, config-persisted label filter to the home list; summary tabs scope to it, the active label is pinned as a clickable chip beside them, and the filter auto-clears when the label disappears.
+- [x] Label Filter / Project View (`L`): fuzzy label picker applying a sticky, config-persisted label filter to the home list; summary tabs scope to it, the active label is pinned as a clickable `● label` badge centered in the frame's top border, and the filter auto-clears when the label disappears.
+- [x] Quick-Label Slots (`1`-`9`): up to nine labels as numbered chips under the summary bar, assigned FIFO on first view (a label keeps its slot; the oldest is evicted once all nine are taken) and persisted as `label_slots`; the digit or a click applies that label's project view, the active slot again clears it, and the picker shows each slot's key.
 
 ### At-a-Glance Stats
-- [x] Global Summary Header Bar: 1–2 row header showing aggregate counts as a tab strip (`N repos │ M dirty │ P ahead │ Q stale`). Tabs act as filters — clickable, and cycled with `Tab`/`Shift+Tab`.
+- [x] Global Summary Header Bar: header showing aggregate counts as a tab strip (`N repos │ M dirty │ P ahead │ Q stale`). Tabs act as filters — clickable, and cycled with `Tab`/`Shift+Tab`. The header is framed by dim dashed rules: one between the tabs and the quick-label strip, and a closing one above the list that carries the sort caption (`Sort: …`), which moved there from the top frame border.
 - [x] Uncommitted Work Warning Badge: Visually highlight cards with *both* staged and unstaged changes simultaneously.
 - [x] Background Auto-Refresh (Live Dashboard): Extend `poll_interval` to auto-refresh all repo statuses in the background.
 

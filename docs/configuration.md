@@ -43,6 +43,11 @@ stale_threshold_months = 1
 
 # Hide/show stale projects on the main page list
 show_stale_projects = true
+
+# Managed by the app: the sticky label filter ("project view") and the
+# quick-label slots behind the 1-9 keys, in slot order (FIFO on first view).
+# active_label_filter = "work"
+# label_slots = ["work", "oss", "archive"]
 ```
 
 ### Config keys
