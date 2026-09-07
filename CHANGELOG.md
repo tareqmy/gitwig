@@ -7,6 +7,16 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [v2.5.15] - 2026-09-07
+### Added
+- **terminal**: embedded IDE-style terminal panel docked above the status bar — `t` on the home screen opens a persistent `$SHELL` PTY session (portable-pty + vt100 + tui-term) that works from both the home list and the detail view and survives hide/show; `T` keeps the old full-screen external shell and `ctrl-t` toggles the panel from anywhere. The focused panel forwards keys with xterm encoding (arrows, ctrl/alt chords, F-keys, bracketed paste), Shift+PgUp/PgDn browse 1000 lines of scrollback, and click-to-focus plus mouse-wheel scrolling are wired in ([ba2a776](https://github.com/tareqmy/gitwig/commit/ba2a776))
+
+### Performance
+- **terminal**: skip idle redraws with a dirty-frame signal — the panel's 30ms poll loop no longer repaints unconditionally, dropping idle CPU with the panel open from ~3.2% to ~0.6% ([bd42cd5](https://github.com/tareqmy/gitwig/commit/bd42cd5))
+
+### Documentation
+- **terminal**: sync features, CODEMAP, agent guides, and roadmap with the terminal panel's modules, key-routing guard, and child-process cleanup rules ([4b4b217](https://github.com/tareqmy/gitwig/commit/4b4b217))
+
 ## [v2.5.14] - 2026-08-31
 ### Added
 - **settings**: per-label settings resolved between per-repo and global — a `[label_configs.<label>]` tier (theme, page size, max commits, resync-on-tab, auto-fetch interval, editor) shared by every repository carrying the label, edited with `→` in the label picker and pruned when the label is no longer used ([205850b](https://github.com/tareqmy/gitwig/commit/205850b))
