@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Changed
+- **home**: the active label filter is drawn as a highlighted `● label` badge beside the summary tabs instead of a plain `● label ▶` chip, and the quick-label strip beneath uses the same divider-separated segment style as the tabs with a thin rule between the two rows and a closing rule beneath, so the header reads as one unit
+- **home**: the sort caption (`Sort: Custom`, `Sort: Alphabetical (Rev)`, …) moved from the top frame border into the rule that closes the home header, directly above the list
+
 ### Added
 - **labels**: quick-label chips under the home summary bar — up to nine labels as numbered chips, assigned FIFO (a label takes the next free slot the first time it is viewed and keeps it; the oldest is evicted once all nine are taken; persisted as `label_slots`, empty on first run); `1`-`9` or a click applies that label as the sticky filter, pressing the active slot again clears it, and the label picker shows each slot's key
 

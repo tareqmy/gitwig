@@ -533,7 +533,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         .iter()
                         .map(|(key, name)| key.chars().count() + name.chars().count())
                         .collect();
-                    let gap_width = crate::ui::draw::QUICK_LABEL_GAP.chars().count();
+                    let gap_width = crate::ui::draw::QUICK_LABEL_DIVIDER.chars().count();
                     let total_width =
                         widths.iter().sum::<usize>() + gap_width * widths.len().saturating_sub(1);
                     let start_x =
@@ -547,7 +547,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                             }
                             match offset.checked_sub(width + gap_width) {
                                 Some(next) => offset = next,
-                                None => return, // Gap click
+                                None => return, // Divider click
                             }
                         }
                     }
@@ -1726,7 +1726,7 @@ mod tests {
         let parts = crate::ui::draw::quick_label_parts(&app);
         let widths: Vec<usize> =
             parts.iter().map(|(key, name)| key.chars().count() + name.chars().count()).collect();
-        let gap = crate::ui::draw::QUICK_LABEL_GAP.chars().count();
+        let gap = crate::ui::draw::QUICK_LABEL_DIVIDER.chars().count();
         let total = widths.iter().sum::<usize>() + gap;
         let start_x = (80 - total as u16) / 2;
 
@@ -1750,7 +1750,7 @@ mod tests {
         handle_mouse(&mut app, click(start_x + (widths[0] + gap) as u16));
         assert_eq!(app.config.active_label_filter, None);
 
-        // The gap between chips and the margin outside the strip are inert.
+        // The divider between chips and the margin outside the strip are inert.
         handle_mouse(&mut app, click(start_x + widths[0] as u16));
         assert_eq!(app.config.active_label_filter, None);
         handle_mouse(&mut app, click(start_x.saturating_sub(1)));

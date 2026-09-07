@@ -351,29 +351,18 @@ pub fn draw(
         // Repositories exist but the active view is empty: keep the summary
         // tab bar visible (and clickable) so the user can see which filter is
         // active and switch away, instead of a dead-end onboarding screen.
-        let (summary_area, chips_area, body_area) = home_header_layout(content_area, app);
-
-        draw_global_summary_bar(f, summary_area, app);
-        *global_summary_area = Some(summary_area);
-        if let Some(chips) = chips_area {
-            draw_quick_label_bar(f, chips, app);
-            *quick_label_area = Some(chips);
-        }
+        let header = home_header_layout(content_area, app);
+        draw_home_header(f, &header, app, global_summary_area, quick_label_area);
 
         if let Some(ref query) = app.repo_search_query {
-            draw_search_empty_state(f, body_area, query);
+            draw_search_empty_state(f, header.body, query);
         } else {
-            draw_filter_empty_state(f, body_area, app);
+            draw_filter_empty_state(f, header.body, app);
         }
     } else {
-        let (summary_area, chips_area, list_area_parent) = home_header_layout(content_area, app);
-
-        draw_global_summary_bar(f, summary_area, app);
-        *global_summary_area = Some(summary_area);
-        if let Some(chips) = chips_area {
-            draw_quick_label_bar(f, chips, app);
-            *quick_label_area = Some(chips);
-        }
+        let header = home_header_layout(content_area, app);
+        draw_home_header(f, &header, app, global_summary_area, quick_label_area);
+        let list_area_parent = header.body;
 
         let (header_area, list_area) =
             if app.config.view_mode == crate::config::HomeViewMode::Compact {
@@ -481,18 +470,6 @@ pub fn draw(
 }
 
 fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
-    let show_sort = matches!(
-        app.mode,
-        Mode::Normal
-            | Mode::Adding
-            | Mode::Editing
-            | Mode::ConfirmDelete
-            | Mode::Help
-            | Mode::About
-            | Mode::Legend
-            | Mode::BulkAddInput
-    );
-
     let mut block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER())
@@ -505,29 +482,6 @@ fn draw_outer_frame(f: &mut Frame, area: Rect, app: &App) {
             ])
             .alignment(Alignment::Left),
         );
-
-    if show_sort {
-        let sort_label = match app.config.sort_by {
-            SortOrder::Custom => "Sort: Custom",
-            SortOrder::Alphabetical => "Sort: Alphabetical",
-            SortOrder::RecentVisit => "Sort: Recent Visit",
-            SortOrder::LatestChanges => "Sort: Latest Changes",
-        };
-        let sort_label_with_dir = if app.config.sort_reverse {
-            format!("{} (Rev)", sort_label)
-        } else {
-            sort_label.to_string()
-        };
-
-        block = block.title(
-            Line::from(vec![
-                Span::raw(" "),
-                Span::styled(sort_label_with_dir, accent_style()),
-                Span::raw(" "),
-            ])
-            .alignment(Alignment::Center),
-        );
-    }
 
     let mut right_spans =
         vec![Span::styled(format!(" v{} ", env!("CARGO_PKG_VERSION")), muted_style())];
@@ -746,15 +700,24 @@ pub fn summary_counts(app: &App) -> SummaryCounts {
 /// Divider drawn between summary tabs; its width is part of the click math.
 pub const SUMMARY_TAB_DIVIDER: &str = "│";
 
-/// Prefix chip naming the sticky label filter at the left edge of the summary
-/// tab strip; `None` when no label filter is active. Mouse hit-testing in
-/// `mouse.rs` measures this exact string, and a click on the chip reopens the
-/// label picker.
-pub fn summary_label_prefix(app: &App) -> Option<String> {
+/// Gap between the label badge and the summary tabs; part of the prefix width.
+pub const SUMMARY_BADGE_GAP: &str = "  ";
+
+/// Badge naming the sticky label filter (` ● label `), drawn as a highlighted
+/// block at the left edge of the summary tab strip; `None` when no label
+/// filter is active.
+pub fn summary_label_badge(app: &App) -> Option<String> {
     app.config
         .active_label_filter
         .as_ref()
-        .map(|label| format!("{} {} {}  ", app.sym("bullet_filled"), label, app.sym("arrow_right")))
+        .map(|label| format!(" {} {} ", app.sym("bullet_filled"), label))
+}
+
+/// Badge plus trailing gap: everything drawn before the first summary tab.
+/// Mouse hit-testing in `mouse.rs` measures this exact string, and a click
+/// anywhere on it reopens the label picker.
+pub fn summary_label_prefix(app: &App) -> Option<String> {
+    summary_label_badge(app).map(|badge| format!("{}{}", badge, SUMMARY_BADGE_GAP))
 }
 
 /// Caption of each summary tab as (count, label) halves, in click order:
@@ -797,8 +760,12 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
     ];
 
     let mut spans = Vec::new();
-    if let Some(prefix) = summary_label_prefix(app) {
-        spans.push(Span::styled(prefix, accent_style().add_modifier(Modifier::BOLD)));
+    if let Some(badge) = summary_label_badge(app) {
+        spans.push(Span::styled(
+            badge,
+            accent_style().add_modifier(Modifier::REVERSED | Modifier::BOLD),
+        ));
+        spans.push(Span::raw(SUMMARY_BADGE_GAP));
     }
     for (i, (count_text, label_text)) in parts.iter().enumerate() {
         if i > 0 {
@@ -819,8 +786,9 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(Paragraph::new(line), area);
 }
 
-/// Gap drawn between quick-label chips; its width is part of the click math.
-pub const QUICK_LABEL_GAP: &str = "  ";
+/// Divider drawn between quick-label chips (the same glyph as the summary
+/// tabs, so the two header rows read as one unit); part of the click math.
+pub const QUICK_LABEL_DIVIDER: &str = SUMMARY_TAB_DIVIDER;
 
 /// Caption of each quick-label chip as (key, name) halves, in slot order.
 /// Mouse hit-testing in `mouse.rs` measures these exact strings, so the
@@ -838,52 +806,131 @@ pub fn quick_label_parts(app: &App) -> Vec<(String, String)> {
         .collect()
 }
 
-/// Splits the home content area into the summary bar, the quick-label chip
-/// strip (only once a label has been viewed), a spacer, and the body.
-fn home_header_layout(area: Rect, app: &App) -> (Rect, Option<Rect>, Rect) {
+/// Home header rows: the summary bar, the quick-label chip strip (only once
+/// a label has been viewed, set off from the summary bar by a thin rule),
+/// the closing rule that carries the sort caption, and the body below it.
+struct HomeHeaderLayout {
+    summary: Rect,
+    chips: Option<Rect>,
+    sort_rule: Rect,
+    body: Rect,
+}
+
+fn home_header_layout(area: Rect, app: &App) -> HomeHeaderLayout {
     if app.quick_labels().is_empty() {
         let parts = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(1), // Global summary bar
-                Constraint::Length(1), // Spacer
+                Constraint::Length(1), // Closing rule with the sort caption
                 Constraint::Min(0),    // Body
             ])
             .split(area);
-        (parts[0], None, parts[2])
+        HomeHeaderLayout { summary: parts[0], chips: None, sort_rule: parts[1], body: parts[2] }
     } else {
         let parts = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(1), // Global summary bar
+                Constraint::Length(1), // Rule between summary and chips
                 Constraint::Length(1), // Quick-label chips
-                Constraint::Length(1), // Spacer
+                Constraint::Length(1), // Closing rule with the sort caption
                 Constraint::Min(0),    // Body
             ])
             .split(area);
-        (parts[0], Some(parts[1]), parts[3])
+        HomeHeaderLayout {
+            summary: parts[0],
+            chips: Some(parts[2]),
+            sort_rule: parts[3],
+            body: parts[4],
+        }
     }
 }
 
-/// One-row strip of the quick-label slots as numbered chips (`1 web  2 api …`,
-/// in the order the labels were first viewed) under the summary bar; the
-/// active label filter's chip is drawn as a highlighted block, mirroring the
-/// summary tabs.
+/// Caption for the active list sort, e.g. `Sort: Alphabetical (Rev)`.
+pub fn sort_caption(app: &App) -> String {
+    let sort_label = match app.config.sort_by {
+        SortOrder::Custom => "Sort: Custom",
+        SortOrder::Alphabetical => "Sort: Alphabetical",
+        SortOrder::RecentVisit => "Sort: Recent Visit",
+        SortOrder::LatestChanges => "Sort: Latest Changes",
+    };
+    if app.config.sort_reverse { format!("{} (Rev)", sort_label) } else { sort_label.to_string() }
+}
+
+/// Draws every header row and records the clickable rects for `mouse.rs`.
+fn draw_home_header(
+    f: &mut Frame,
+    header: &HomeHeaderLayout,
+    app: &App,
+    global_summary_area: &mut Option<Rect>,
+    quick_label_area: &mut Option<Rect>,
+) {
+    draw_global_summary_bar(f, header.summary, app);
+    *global_summary_area = Some(header.summary);
+    if let Some(chips) = header.chips {
+        draw_header_rule(f, Rect::new(chips.x, chips.y.saturating_sub(1), chips.width, 1), app);
+        draw_quick_label_bar(f, chips, app);
+        *quick_label_area = Some(chips);
+    }
+    draw_sort_rule(f, header.sort_rule, app);
+}
+
+/// Style of the header rules: dimmed, and drawn with a light dashed glyph so
+/// they separate the rows without competing with the frame border.
+fn rule_style() -> Style {
+    muted_style()
+}
+
+/// Thin muted rule drawn between the summary bar and the quick-label strip.
+fn draw_header_rule(f: &mut Frame, area: Rect, app: &App) {
+    let rule = app.sym("rule").repeat(area.width as usize);
+    f.render_widget(Paragraph::new(Line::from(Span::styled(rule, rule_style()))), area);
+}
+
+/// Closing rule under the header with the sort caption set into it, the way
+/// the outer frame carries its titles.
+fn draw_sort_rule(f: &mut Frame, area: Rect, app: &App) {
+    let border_set = ratatui::symbols::border::Set {
+        horizontal_top: app.sym("rule"),
+        ..ratatui::symbols::border::PLAIN
+    };
+    let block = Block::default()
+        .borders(Borders::TOP)
+        .border_set(border_set)
+        .border_style(rule_style())
+        .title(
+            Line::from(vec![
+                Span::raw(" "),
+                Span::styled(sort_caption(app), accent_style()),
+                Span::raw(" "),
+            ])
+            .alignment(Alignment::Center),
+        );
+    f.render_widget(block, area);
+}
+
+/// One-row strip of the quick-label slots as numbered chips
+/// (`1 web │ 2 api │ 3 infra`, in the order the labels were first viewed)
+/// under the summary bar, styled like the summary tabs: divider-separated
+/// segments with the active label drawn as a highlighted block.
 fn draw_quick_label_bar(f: &mut Frame, area: Rect, app: &App) {
     let parts = quick_label_parts(app);
     let labels = app.quick_labels();
     let mut spans = Vec::new();
     for (i, ((key_text, name_text), (label, _))) in parts.iter().zip(labels.iter()).enumerate() {
         if i > 0 {
-            spans.push(Span::raw(QUICK_LABEL_GAP));
+            spans.push(Span::styled(QUICK_LABEL_DIVIDER, muted_style()));
         }
         if app.config.active_label_filter.as_deref() == Some(label.as_str()) {
             let chip = accent_style().add_modifier(Modifier::REVERSED | Modifier::BOLD);
             spans.push(Span::styled(key_text.clone(), chip));
             spans.push(Span::styled(name_text.clone(), chip));
         } else {
+            // Key in accent so the shortcut pops; name in the default
+            // foreground so the label itself stays readable.
             spans.push(Span::styled(key_text.clone(), accent_style().add_modifier(Modifier::BOLD)));
-            spans.push(Span::styled(name_text.clone(), muted_style()));
+            spans.push(Span::styled(name_text.clone(), primary_style()));
         }
     }
     let line = Line::from(spans).alignment(Alignment::Center);
@@ -3414,14 +3461,31 @@ mod tests {
         );
 
         // With no viewed labels the header layout has no chip row; with some it does.
+        // Either way the closing rule (carrying the sort caption) sits right above the body.
         let area = Rect::new(0, 0, 80, 20);
-        let (_, chips, body) = home_header_layout(area, &app);
-        assert_eq!(chips, Some(Rect::new(0, 1, 80, 1)));
-        assert_eq!(body.y, 3);
+        let header = home_header_layout(area, &app);
+        // Row 1 is the rule between the summary bar and the chips.
+        assert_eq!(header.chips, Some(Rect::new(0, 2, 80, 1)));
+        assert_eq!(header.sort_rule, Rect::new(0, 3, 80, 1));
+        assert_eq!(header.body.y, 4);
         app.config.label_slots.clear();
-        let (_, chips, body) = home_header_layout(area, &app);
-        assert_eq!(chips, None);
-        assert_eq!(body.y, 2);
+        let header = home_header_layout(area, &app);
+        assert_eq!(header.chips, None);
+        assert_eq!(header.sort_rule, Rect::new(0, 1, 80, 1));
+        assert_eq!(header.body.y, 2);
+
+        // The sort caption is set into the closing rule, not the outer frame.
+        app.config.sort_by = SortOrder::Alphabetical;
+        app.config.sort_reverse = true;
+        let backend = ratatui::backend::TestBackend::new(80, 1);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw_sort_rule(f, Rect::new(0, 0, 80, 1), &app)).unwrap();
+        let buffer = terminal.backend().buffer();
+        let rule: String = (0..80).map(|x| buffer[(x, 0)].symbol()).collect();
+        assert!(rule.contains("Sort: Alphabetical (Rev)"), "rule: {}", rule);
+        let dash = app.sym("rule");
+        assert!(rule.starts_with(&format!("{dash}{dash}")), "rule: {}", rule);
+        assert!(buffer[(0, 0)].style().add_modifier.contains(Modifier::DIM));
     }
 
     #[test]
