@@ -7,7 +7,7 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Changed
-- **home**: the active label filter is drawn as a highlighted `● label` badge beside the summary tabs instead of a plain `● label ▶` chip, and the quick-label strip beneath uses the same divider-separated segment style as the tabs with a thin rule between the two rows and a closing rule beneath, so the header reads as one unit
+- **home**: the active label filter is drawn as a highlighted `● label` badge centered in the frame's top border (where the sort caption used to sit) instead of a plain `● label ▶` chip beside the summary tabs, and the quick-label strip beneath uses the same divider-separated segment style as the tabs with a thin rule between the two rows and a closing rule beneath, so the header reads as one unit
 - **home**: the sort caption (`Sort: Custom`, `Sort: Alphabetical (Rev)`, …) moved from the top frame border into the rule that closes the home header, directly above the list
 
 ### Added

@@ -464,6 +464,14 @@ pub fn draw(
         crate::popups::loading::draw_progress_popup(f, area, app);
     }
 
+    // The active-label badge lives on the frame's top border, but only while
+    // the home header (summary bar) is showing beneath it.
+    if global_summary_area.is_some() {
+        draw_label_badge(f, area, app);
+    } else {
+        app.label_badge_area.set(None);
+    }
+
     if let Some(original_theme) = swapped_theme {
         crate::ui::update_theme(&original_theme);
     }
@@ -700,24 +708,37 @@ pub fn summary_counts(app: &App) -> SummaryCounts {
 /// Divider drawn between summary tabs; its width is part of the click math.
 pub const SUMMARY_TAB_DIVIDER: &str = "│";
 
-/// Gap between the label badge and the summary tabs; part of the prefix width.
-pub const SUMMARY_BADGE_GAP: &str = "  ";
-
-/// Badge naming the sticky label filter (` ● label `), drawn as a highlighted
-/// block at the left edge of the summary tab strip; `None` when no label
-/// filter is active.
-pub fn summary_label_badge(app: &App) -> Option<String> {
+/// Badge naming the sticky label filter (` ● label `), set into the outer
+/// frame's top border where the sort caption used to sit; `None` when no
+/// label filter is active.
+pub fn label_badge_text(app: &App) -> Option<String> {
     app.config
         .active_label_filter
         .as_ref()
         .map(|label| format!(" {} {} ", app.sym("bullet_filled"), label))
 }
 
-/// Badge plus trailing gap: everything drawn before the first summary tab.
-/// Mouse hit-testing in `mouse.rs` measures this exact string, and a click
-/// anywhere on it reopens the label picker.
-pub fn summary_label_prefix(app: &App) -> Option<String> {
-    summary_label_badge(app).map(|badge| format!("{}{}", badge, SUMMARY_BADGE_GAP))
+/// Draws the active-label badge centered on the frame's top border and
+/// records its rect in `app.label_badge_area` so a click on it reopens the
+/// label picker. Called only while the home header is showing.
+fn draw_label_badge(f: &mut Frame, area: Rect, app: &App) {
+    let Some(text) = label_badge_text(app) else {
+        app.label_badge_area.set(None);
+        return;
+    };
+    // Keep off the frame corners; center the badge on the border line.
+    let usable = area.width.saturating_sub(2);
+    let width = (text.chars().count() as u16).min(usable);
+    let x = area.x + 1 + (usable - width) / 2;
+    let badge = Rect::new(x, area.y, width, 1);
+    f.render_widget(
+        Paragraph::new(Line::from(Span::styled(
+            text,
+            accent_style().add_modifier(Modifier::REVERSED | Modifier::BOLD),
+        ))),
+        badge,
+    );
+    app.label_badge_area.set(Some(badge));
 }
 
 /// Caption of each summary tab as (count, label) halves, in click order:
@@ -760,13 +781,6 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
     ];
 
     let mut spans = Vec::new();
-    if let Some(badge) = summary_label_badge(app) {
-        spans.push(Span::styled(
-            badge,
-            accent_style().add_modifier(Modifier::REVERSED | Modifier::BOLD),
-        ));
-        spans.push(Span::raw(SUMMARY_BADGE_GAP));
-    }
     for (i, (count_text, label_text)) in parts.iter().enumerate() {
         if i > 0 {
             spans.push(Span::styled(SUMMARY_TAB_DIVIDER, muted_style()));
@@ -3613,11 +3627,14 @@ mod tests {
             terminal
                 .draw(|f| {
                     let size = f.area();
+                    // Same geometry as the run loop: the frame takes the outer
+                    // rect and content draws inside its one-cell border.
+                    let inner = size.inner(ratatui::layout::Margin { vertical: 1, horizontal: 1 });
                     super::draw(
                         f,
                         app,
                         size,
-                        size,
+                        inner,
                         1,
                         &mut detail_areas,
                         &mut main_areas,
@@ -3662,8 +3679,8 @@ mod tests {
         assert!(ahead_cell_style.add_modifier.contains(Modifier::REVERSED));
         assert_eq!(ahead_cell_style.fg, Some(SUCCESS()));
 
-        // An empty label filter names the label instead, and the summary bar
-        // carries the label chip so the active project stays visible on top.
+        // An empty label filter names the label instead, and the frame's top
+        // border carries the label badge so the active project stays visible.
         app.global_filter = None;
         app.config.active_label_filter = Some("ghost".to_string());
         assert_eq!(app.get_items_len(), 0);
@@ -3673,7 +3690,27 @@ mod tests {
         assert!(text.contains("No repositories with label 'ghost'"), "message missing:\n{}", text);
         let bar_y = global_summary_area.unwrap().y;
         let bar_row: String = (0..80).map(|x| buffer[(x, bar_y)].symbol()).collect();
-        assert!(bar_row.contains("ghost"), "label chip missing from summary bar:\n{}", bar_row);
+        assert!(
+            !bar_row.contains("ghost"),
+            "badge should not sit in the summary bar:\n{}",
+            bar_row
+        );
+        let top_row: String = (0..80).map(|x| buffer[(x, 0)].symbol()).collect();
+        assert!(top_row.contains("ghost"), "label badge missing from frame border:\n{}", top_row);
+        let badge = app.label_badge_area.get().expect("badge rect recorded");
+        assert_eq!(badge.y, 0);
+        assert!(
+            badge.x > 0 && badge.x + badge.width < 80,
+            "badge {:?} should sit inside the border",
+            badge
+        );
+        assert!(buffer[(badge.x, 0)].style().add_modifier.contains(Modifier::REVERSED));
+        // Frame drawn without the home header (e.g. no repositories): no badge rect.
+        app.config.items.clear();
+        app.statuses.clear();
+        let _ = render(&app, &mut global_summary_area);
+        assert!(global_summary_area.is_none());
+        assert!(app.label_badge_area.get().is_none());
     }
 
     #[test]

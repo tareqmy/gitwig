@@ -660,6 +660,9 @@ pub struct App {
     /// Panel rect captured during draw for mouse hit-testing (interior
     /// mutability because the draw pass borrows `App` immutably).
     pub terminal_panel_area: std::cell::Cell<Option<Rect>>,
+    /// Active-label badge on the frame's top border (mouse hit-testing);
+    /// set during draw, `None` whenever the home header is not showing.
+    pub label_badge_area: std::cell::Cell<Option<Rect>>,
 }
 
 #[derive(Clone, Debug)]
@@ -1355,6 +1358,7 @@ impl App {
             terminal_panel: crate::terminal_session::TerminalPanelState::default(),
             terminal_focused: false,
             terminal_panel_area: std::cell::Cell::new(None),
+            label_badge_area: std::cell::Cell::new(None),
             pending_editor_file: None,
             pending_mergetool_file: None,
             pending_interactive_rebase: None,
