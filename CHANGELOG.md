@@ -6,12 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
-### Changed
-- **home**: the active label filter is drawn as a highlighted `● label` badge centered in the frame's top border (where the sort caption used to sit) instead of a plain `● label ▶` chip beside the summary tabs, and the quick-label strip beneath uses the same divider-separated segment style as the tabs with a thin rule between the two rows and a closing rule beneath, so the header reads as one unit
-- **home**: the sort caption (`Sort: Custom`, `Sort: Alphabetical (Rev)`, …) moved from the top frame border into the rule that closes the home header, directly above the list
 
+## [v2.5.16] - 2026-09-08
 ### Added
-- **labels**: quick-label chips under the home summary bar — up to nine labels as numbered chips, assigned FIFO (a label takes the next free slot the first time it is viewed and keeps it; the oldest is evicted once all nine are taken; persisted as `label_slots`, empty on first run); `1`-`9` or a click applies that label as the sticky filter, pressing the active slot again clears it, and the label picker shows each slot's key
+- **labels**: quick-label chips under the home summary bar — up to nine labels as numbered chips, assigned FIFO (a label takes the next free slot the first time it is viewed and keeps it; the oldest is evicted once all nine are taken; persisted as `label_slots`, empty on first run); `1`-`9` or a click applies that label as the sticky filter, pressing the active slot again clears it, and the label picker shows each slot's key ([c4dcb70](https://github.com/tareqmy/gitwig/commit/c4dcb70))
+
+### Changed
+- **home**: the active label filter is drawn as a highlighted `● label` badge centered in the frame's top border (where the sort caption used to sit) instead of a plain `● label ▶` chip beside the summary tabs, and the quick-label strip beneath uses the same divider-separated segment style as the tabs with a thin rule between the two rows and a closing rule beneath, so the header reads as one unit ([5c8dc5e](https://github.com/tareqmy/gitwig/commit/5c8dc5e), [f22f7b4](https://github.com/tareqmy/gitwig/commit/f22f7b4))
+- **home**: the sort caption (`Sort: Custom`, `Sort: Alphabetical (Rev)`, …) moved from the top frame border into the rule that closes the home header, directly above the list ([5c8dc5e](https://github.com/tareqmy/gitwig/commit/5c8dc5e))
+
+### Documentation
+- **home**: sync roadmap, style guide, CODEMAP, and the sample config with the framed home header and quick-label slots ([46bba96](https://github.com/tareqmy/gitwig/commit/46bba96))
 
 ## [v2.5.15] - 2026-09-07
 ### Added
