@@ -7,6 +7,16 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [v2.5.17] - 2026-09-12
+### Added
+- **home**: starting Gitwig from inside a Git repository that is not tracked yet now offers to add it. The prompt walks up from the working directory to the repository root, so launching from any subdirectory adds the right path, and `.git` is matched as a file as well as a directory so a linked worktree or submodule reports its own root. `y` adds, `n`/`Esc` skips; `prompt_cwd_repo = false` (or the matching row in Settings) turns it off for good ([d12e6c8](https://github.com/tareqmy/gitwig/commit/d12e6c8))
+
+### Fixed
+- **input**: the shared text inputs had no caret — `Left` did nothing, so a label in the middle of a comma-separated list could not be reached and only the last one could be trimmed. `Left`/`Right`/`Home`/`End`/`Delete` now move and edit at the caret across the label, add/edit, branch, tag, remote and worktree fields, and the drawn cursor follows it. The caret counts characters rather than bytes, so multi-byte labels cannot split a `char` boundary. Fuzzy pickers keep their arrows for moving the selection ([9fee6a4](https://github.com/tareqmy/gitwig/commit/9fee6a4))
+
+### Documentation
+- document the launch-directory prompt in Features, mark the config keys Gitwig writes for itself (`visits`, `pinned`, `starred`, `labels`, `label_slots`, `repo_configs`, `label_configs`) as app-managed, flag `compact_view` as deprecated in favour of `view_mode`, and note the input caret in the CODEMAP key-flow ([2de903f](https://github.com/tareqmy/gitwig/commit/2de903f))
+
 ## [v2.5.16] - 2026-09-08
 ### Added
 - **labels**: quick-label chips under the home summary bar — up to nine labels as numbered chips, assigned FIFO (a label takes the next free slot the first time it is viewed and keeps it; the oldest is evicted once all nine are taken; persisted as `label_slots`, empty on first run); `1`-`9` or a click applies that label as the sticky filter, pressing the active slot again clears it, and the label picker shows each slot's key ([c4dcb70](https://github.com/tareqmy/gitwig/commit/c4dcb70))
