@@ -115,6 +115,19 @@ auto_fetch_interval_mins = 2
 auto_fetch_interval_mins = 0
 ```
 
+### Keys Gitwig manages for you
+
+These appear in `config.toml` but are written by the app, not meant to be edited by hand:
+
+| Key | Written when |
+| :--- | :--- |
+| `visits` | A repository is opened — feeds the `recent_visit` sort and the Recent group. |
+| `pinned` / `starred` | You pin (`p`) or star (`*`) a repository. |
+| `labels` / `label_slots` / `active_label_filter` | You edit labels, view a label filter, or pick a quick-label slot. |
+| `repo_configs` / `label_configs` | You change a setting in Repository Settings or Label Settings. |
+
+`compact_view` is **deprecated**. It is read once on load, converted to `view_mode = "compact"`, and then cleared — set `view_mode` instead.
+
 ### Themes
 
 The active theme is selected via the `theme` key and lives in `~/.gitwig/themes/<name>.theme`. A set of popular themes is written there on first launch (`catppuccin`, `cyberpunk`, `dracula`, `forest`, `gitwig`, `gruvbox`, `monokai`, `nord`, `oceanic`, `onedark`, `rosepine`, `solarized_dark`, `tokyonight`), alongside `default`. Themes are managed in-app via Settings `s`.
