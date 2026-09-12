@@ -354,6 +354,16 @@ pub struct App {
     pub scroll_top: usize,
     pub mode: Mode,
     pub input_buffer: String,
+    /// Caret position within `input_buffer`, counted in characters (not bytes,
+    /// so multi-byte input stays safe). Read it through
+    /// `App::input_cursor_clamped`, never directly.
+    pub input_cursor: usize,
+    /// Buffer length the caret was last synced against. `input_buffer` is
+    /// assigned directly from well over a hundred places; when the length no
+    /// longer matches, the buffer was replaced behind the caret's back and the
+    /// caret snaps to the end — which is where a user expects it in a field
+    /// that just opened pre-filled.
+    pub input_cursor_len: usize,
     pub status_message: Option<String>,
     pub error_message: Option<String>,
     pub current_detail: Option<ItemDetail>,
@@ -1281,6 +1291,8 @@ impl App {
             scroll_top: 0,
             mode: Mode::Normal,
             input_buffer: String::new(),
+            input_cursor: 0,
+            input_cursor_len: 0,
             status_message: None,
             error_message: None,
             current_detail: None,

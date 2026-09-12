@@ -191,6 +191,36 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             return true;
         }
     }
+
+    // Caret movement for the shared input buffer. Without this every field was
+    // append-only: you could not step back into a comma-separated label list to
+    // remove one entry. Popups that drive their own editor (the commit popup,
+    // and the pickers whose arrows move a selection) are excluded below.
+    if is_text_input && !uses_arrows_for_selection(&app.mode) {
+        match key.code {
+            KeyCode::Left => {
+                app.input_left();
+                return true;
+            }
+            KeyCode::Right => {
+                app.input_right();
+                return true;
+            }
+            KeyCode::Home => {
+                app.input_home();
+                return true;
+            }
+            KeyCode::End => {
+                app.input_end();
+                return true;
+            }
+            KeyCode::Delete => {
+                app.input_delete();
+                return true;
+            }
+            _ => {}
+        }
+    }
     match &app.mode {
         Mode::Normal
         | Mode::RepoSearchInput
@@ -1073,6 +1103,26 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         }
     }
     true
+}
+
+/// Text-input modes whose arrow keys already drive a list selection rather than
+/// a caret. These keep their existing behaviour; caret movement would steal the
+/// keys used to pick a result.
+fn uses_arrows_for_selection(mode: &Mode) -> bool {
+    matches!(
+        mode,
+        Mode::RepoJump
+            | Mode::LabelPicker
+            | Mode::RepoScanPicker
+            | Mode::BulkAddScanPicker
+            | Mode::BranchSearchInput
+            | Mode::FileSearchInput
+            | Mode::CommitFuzzySearch
+            | Mode::TagSearchInput
+            | Mode::GlobalSearch
+            | Mode::RepoSearchInput
+            | Mode::WorktreeRemoveConfirm
+    )
 }
 
 #[cfg(test)]

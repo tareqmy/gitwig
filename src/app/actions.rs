@@ -11,7 +11,7 @@ impl App {
     pub fn start_edit(&mut self) {
         if let Some(current) = self.get_selected_item() {
             crate::debug_log::info(format!("Editing repository entry: {}", current));
-            self.input_buffer = current.clone();
+            self.set_input_buffer(current.clone());
             self.mode = Mode::Editing;
         }
     }
@@ -234,7 +234,7 @@ impl App {
                 .get(current.as_str())
                 .map(|lbls| lbls.join(", "))
                 .unwrap_or_default();
-            self.input_buffer = current_labels;
+            self.set_input_buffer(current_labels);
             self.mode = Mode::LabelInput;
         }
     }

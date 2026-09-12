@@ -193,7 +193,10 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 (debug_key, "Open debug logs panel"),
                 (stats_key, "Open app usage stats dashboard"),
                 (update_key, "Check for application updates manually"),
-                ("⌫ [Backspace]".to_string(), "Erase character while typing"),
+                ("⌫ [Backspace]".to_string(), "Erase character before the caret while typing"),
+                ("← → [Arrows]".to_string(), "Move the caret while typing"),
+                ("Home / End".to_string(), "Jump the caret to the start / end of the field"),
+                ("Del [Delete]".to_string(), "Erase character under the caret while typing"),
             ],
         ),
     ];

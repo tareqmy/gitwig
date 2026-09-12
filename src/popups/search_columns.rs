@@ -113,7 +113,7 @@ impl SearchColumnsPopup {
                 _ => {}
             },
             _ if app.keybindings.matches(crate::keybindings::Action::NavEnter, key) => {
-                app.input_buffer = app.commit_list.search_query.clone().unwrap_or_default();
+                app.set_input_buffer(app.commit_list.search_query.clone().unwrap_or_default());
                 app.in_logs_ui = true;
                 app.mode = Mode::LogsSearchInput;
             }

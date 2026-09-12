@@ -11998,3 +11998,129 @@ fn test_settings_toggles_prompt_cwd_repo() {
     app.toggle_or_edit_setting();
     assert!(app.config.prompt_cwd_repo, "selecting it again should turn the prompt back on");
 }
+
+/// The reported case: editing a repo's labels and removing one from the middle
+/// of the comma-separated list. Before caret support the field was append-only,
+/// so `Left` did nothing and only the last label could be trimmed.
+#[test]
+fn test_label_input_caret_edits_middle_of_list() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let cfg_path = std::env::temp_dir().join("gitwig_test_label_caret.toml");
+    let _guard = TestFileGuard { path: cfg_path.clone() };
+    let mut app =
+        App::new(Config { items: vec!["/dummy/repo".to_string()], ..Default::default() }, cfg_path);
+    app.mode = Mode::LabelInput;
+    app.set_input_buffer("work,rust,cli".to_string());
+    assert_eq!(
+        app.input_cursor_clamped(),
+        13,
+        "a pre-filled field opens with the caret at the end"
+    );
+
+    let press = |app: &mut App, code| {
+        crate::input::handle_key(app, KeyEvent::new(code, KeyModifiers::empty()), 0)
+    };
+
+    // Step back over "cli" and its comma, then delete "rust," with backspace.
+    for _ in 0..4 {
+        assert!(press(&mut app, KeyCode::Left), "Left must be consumed by the input");
+    }
+    assert_eq!(app.input_cursor_clamped(), 9);
+    for _ in 0..5 {
+        press(&mut app, KeyCode::Backspace);
+    }
+    assert_eq!(app.input_buffer, "work,cli", "the middle label should be gone");
+    assert_eq!(app.input_cursor_clamped(), 4, "caret stays where the text was removed");
+
+    // Typing inserts at the caret rather than appending.
+    for c in ",go".chars() {
+        press(&mut app, KeyCode::Char(c));
+    }
+    assert_eq!(app.input_buffer, "work,go,cli", "a new label lands mid-list, not at the end");
+
+    // Home/End jump the caret; Delete removes forwards.
+    assert!(press(&mut app, KeyCode::Home));
+    assert_eq!(app.input_cursor_clamped(), 0);
+    press(&mut app, KeyCode::Delete);
+    assert_eq!(app.input_buffer, "ork,go,cli", "Delete removes the character under the caret");
+    assert!(press(&mut app, KeyCode::End));
+    assert_eq!(app.input_cursor_clamped(), app.input_buffer.chars().count());
+
+    // Backspace at the start and Delete at the end are no-ops, not panics.
+    press(&mut app, KeyCode::Delete);
+    assert_eq!(app.input_buffer, "ork,go,cli");
+    press(&mut app, KeyCode::Home);
+    press(&mut app, KeyCode::Backspace);
+    assert_eq!(app.input_buffer, "ork,go,cli");
+}
+
+/// The caret counts characters, so multi-byte labels must not split a `char`
+/// boundary (which would panic on `String::remove`/`insert`).
+#[test]
+fn test_input_caret_is_utf8_safe() {
+    let cfg_path = std::env::temp_dir().join("gitwig_test_caret_utf8.toml");
+    let _guard = TestFileGuard { path: cfg_path.clone() };
+    let mut app = App::new(Config { items: vec![], ..Default::default() }, cfg_path);
+    app.mode = Mode::LabelInput;
+    app.set_input_buffer("café,naïve,日本".to_string());
+
+    app.input_home();
+    for _ in 0..4 {
+        app.input_right();
+    }
+    app.input_backspace();
+    assert_eq!(app.input_buffer, "caf,naïve,日本", "the accented char is removed whole");
+
+    app.input_end();
+    app.input_backspace();
+    assert_eq!(app.input_buffer, "caf,naïve,日");
+
+    app.input_home();
+    app.input_char('é');
+    assert_eq!(app.input_buffer, "écaf,naïve,日");
+}
+
+/// `input_buffer` is assigned directly from well over a hundred places. When
+/// that happens the caret must land at the end of the new text instead of
+/// pointing into the old one.
+#[test]
+fn test_caret_snaps_to_end_when_buffer_replaced_directly() {
+    let cfg_path = std::env::temp_dir().join("gitwig_test_caret_external.toml");
+    let _guard = TestFileGuard { path: cfg_path.clone() };
+    let mut app = App::new(Config { items: vec![], ..Default::default() }, cfg_path);
+    app.mode = Mode::LabelInput;
+
+    // Caret parked at 0 by a cleared field, then a pre-filled value arrives.
+    app.cancel_input();
+    app.mode = Mode::LabelInput;
+    app.input_buffer = "alpha,beta".to_string();
+    assert_eq!(app.input_cursor_clamped(), 10, "caret should follow an external assignment");
+
+    app.input_backspace();
+    assert_eq!(app.input_buffer, "alpha,bet", "backspace must act on the end, not the start");
+}
+
+/// Fuzzy pickers use the arrow keys to move their selection. Caret handling
+/// must not swallow those.
+#[test]
+fn test_caret_keys_do_not_hijack_picker_arrows() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let cfg_path = std::env::temp_dir().join("gitwig_test_caret_pickers.toml");
+    let _guard = TestFileGuard { path: cfg_path.clone() };
+    let mut app = App::new(Config { items: vec![], ..Default::default() }, cfg_path);
+
+    for mode in [Mode::RepoJump, Mode::LabelPicker, Mode::GlobalSearch, Mode::RepoSearchInput] {
+        app.mode = mode;
+        app.set_input_buffer("abc".to_string());
+        app.input_cursor = 3;
+        crate::input::handle_key(&mut app, KeyEvent::new(KeyCode::Left, KeyModifiers::empty()), 0);
+        assert_eq!(
+            app.input_cursor_clamped(),
+            3,
+            "{:?} uses arrows for selection; the caret must not move",
+            mode
+        );
+    }
+}

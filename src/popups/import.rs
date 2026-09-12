@@ -147,9 +147,9 @@ impl ImportPopup {
                     };
 
                     if let Some(home) = dirs::home_dir() {
-                        app.input_buffer = home.join(&repo_name).to_string_lossy().to_string();
+                        app.set_input_buffer(home.join(&repo_name).to_string_lossy().to_string());
                     } else {
-                        app.input_buffer = format!("./{}", repo_name);
+                        app.set_input_buffer(format!("./{}", repo_name));
                     }
 
                     app.mode = Mode::ImportDestInput;
@@ -168,7 +168,7 @@ impl ImportPopup {
             Mode::ImportDestInput => match code {
                 KeyCode::Esc => {
                     app.mode = Mode::ImportUrlInput;
-                    app.input_buffer = app.import_url.clone();
+                    app.set_input_buffer(app.import_url.clone());
                 }
                 _ if app.keybindings.matches(crate::keybindings::Action::NavEnter, key) => {
                     app.import_dest = app.input_buffer.clone();
@@ -180,7 +180,7 @@ impl ImportPopup {
                     } else {
                         "repo".to_string()
                     };
-                    app.input_buffer = repo_name;
+                    app.set_input_buffer(repo_name);
                     app.mode = Mode::ImportNameInput;
                 }
                 KeyCode::Backspace => app.input_backspace(),
@@ -197,7 +197,7 @@ impl ImportPopup {
             Mode::ImportNameInput => match code {
                 KeyCode::Esc => {
                     app.mode = Mode::ImportDestInput;
-                    app.input_buffer = app.import_dest.clone();
+                    app.set_input_buffer(app.import_dest.clone());
                 }
                 _ if app.keybindings.matches(crate::keybindings::Action::NavEnter, key) => {
                     app.import_name = app.input_buffer.clone();

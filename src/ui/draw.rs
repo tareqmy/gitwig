@@ -1745,6 +1745,7 @@ pub(crate) fn draw_input_status(
     verb: &str,
     buffer: &str,
     is_compat: bool,
+    cursor: usize,
 ) {
     let mut spans = Vec::new();
 
@@ -1785,7 +1786,10 @@ pub(crate) fn draw_input_status(
 
     // Cursor position calculation includes the Mode Badge (5 chars) and Mode Sep (3 chars)
     let badge_offset = 5 + 3;
-    let cursor_offset = (badge_offset + prefix.chars().count() + buffer.chars().count()) as u16;
+    // Caret sits at `cursor` characters into the buffer, not at its end, so the
+    // terminal cursor tracks arrow-key movement.
+    let caret = cursor.min(buffer.chars().count());
+    let cursor_offset = (badge_offset + prefix.chars().count() + caret) as u16;
     let cursor_x = area.x.saturating_add(cursor_offset.min(area.width.saturating_sub(1)));
     f.set_cursor_position(Position::new(cursor_x, area.y));
 }
@@ -3362,7 +3366,7 @@ mod tests {
 
         // During editing
         app.settings_editing = true;
-        app.input_buffer = "nano".to_string();
+        app.set_input_buffer("nano".to_string());
         let val_editor_edit = crate::popups::settings::get_val_str(&app, 56);
         assert_eq!(val_editor_edit, "nano█");
     }

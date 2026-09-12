@@ -2574,7 +2574,7 @@ impl App {
 
     #[allow(dead_code)]
     pub fn start_commit_search(&mut self) {
-        self.input_buffer = self.commit_list.search_query.clone().unwrap_or_default();
+        self.set_input_buffer(self.commit_list.search_query.clone().unwrap_or_default());
         self.mode = Mode::CommitSearchInput;
     }
 
@@ -2664,7 +2664,7 @@ impl App {
         if self.commit_popup.amend && self.commit_popup.input_buffer.trim().is_empty() {
             if let Some(ItemDetail::Repo { resolved, .. }) = &self.current_detail {
                 if let Some(last_msg) = repo::get_last_commit_message(resolved) {
-                    self.input_buffer = last_msg;
+                    self.set_input_buffer(last_msg);
                 }
             }
         }
@@ -2688,7 +2688,7 @@ impl App {
         match self.settings_selected_index {
             0 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.poll_interval_ms.to_string();
+                self.set_input_buffer(self.config.poll_interval_ms.to_string());
             }
             1 => {
                 self.config.sort_by = match self.config.sort_by {
@@ -2720,27 +2720,27 @@ impl App {
             }
             4 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.scan.max_depth.to_string();
+                self.set_input_buffer(self.config.scan.max_depth.to_string());
             }
             5 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.scan.start_dir.clone();
+                self.set_input_buffer(self.config.scan.start_dir.clone());
             }
             6 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.max_commits.to_string();
+                self.set_input_buffer(self.config.max_commits.to_string());
             }
             7 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.page_size.to_string();
+                self.set_input_buffer(self.config.page_size.to_string());
             }
             8 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.scan.excludes.join(",");
+                self.set_input_buffer(self.config.scan.excludes.join(","));
             }
             9 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.git_app.clone();
+                self.set_input_buffer(self.config.git_app.clone());
             }
             10 => {
                 // Scan Git Only is now always enabled; this setting has been removed.
@@ -2770,19 +2770,19 @@ impl App {
             }
             56 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.editor.clone();
+                self.set_input_buffer(self.config.editor.clone());
             }
             60 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.auto_fetch_interval_mins.to_string();
+                self.set_input_buffer(self.config.auto_fetch_interval_mins.to_string());
             }
             84 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.fetch_timeout_secs.to_string();
+                self.set_input_buffer(self.config.fetch_timeout_secs.to_string());
             }
             61 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.watch_dirs.join(",");
+                self.set_input_buffer(self.config.watch_dirs.join(","));
             }
             62 => {
                 self.config.show_system_stats = !self.config.show_system_stats;
@@ -2794,15 +2794,15 @@ impl App {
             }
             64 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.graph_max_commits.to_string();
+                self.set_input_buffer(self.config.graph_max_commits.to_string());
             }
             65 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.detail_cache_ttl_secs.to_string();
+                self.set_input_buffer(self.config.detail_cache_ttl_secs.to_string());
             }
             66 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.tab_ttl_secs.to_string();
+                self.set_input_buffer(self.config.tab_ttl_secs.to_string());
             }
             67 => {
                 self.config.view_mode = match self.config.view_mode {
@@ -2814,11 +2814,11 @@ impl App {
             }
             82 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.tile_columns.to_string();
+                self.set_input_buffer(self.config.tile_columns.to_string());
             }
             80 => {
                 self.settings_editing = true;
-                self.input_buffer = self.config.stale_threshold_months.to_string();
+                self.set_input_buffer(self.config.stale_threshold_months.to_string());
             }
             81 => {
                 self.config.show_stale_projects = !self.config.show_stale_projects;
@@ -2836,7 +2836,7 @@ impl App {
             idx if idx >= 14 => {
                 if let Some(action) = crate::keybindings::Action::from_index(idx) {
                     self.settings_editing = true;
-                    self.input_buffer = self.keybindings.get_action_keys(action).join(", ");
+                    self.set_input_buffer(self.keybindings.get_action_keys(action).join(", "));
                 }
             }
             _ => {}
@@ -3143,11 +3143,80 @@ impl App {
 
     pub fn cancel_input(&mut self) {
         self.input_buffer.clear();
+        self.sync_cursor(0);
         self.mode = Mode::Normal;
     }
 
+    /// Seed the shared input buffer and park the caret at the end, which is
+    /// where a user expects it when a field opens pre-filled.
+    pub fn set_input_buffer(&mut self, text: String) {
+        let len = text.chars().count();
+        self.input_buffer = text;
+        self.sync_cursor(len);
+    }
+
+    /// Record the caret and the buffer length it is valid for.
+    fn sync_cursor(&mut self, at: usize) {
+        let len = self.input_buffer.chars().count();
+        self.input_cursor = at.min(len);
+        self.input_cursor_len = len;
+    }
+
+    /// Caret position for the current buffer.
+    ///
+    /// If the buffer length no longer matches what the caret was synced
+    /// against, something assigned `input_buffer` directly; the caret is then
+    /// reported at the end rather than wherever it happened to be, so typing
+    /// and backspace act on the end of the new text.
+    pub fn input_cursor_clamped(&self) -> usize {
+        let len = self.input_buffer.chars().count();
+        if self.input_cursor_len != len { len } else { self.input_cursor.min(len) }
+    }
+
+    /// Byte offset of the (clamped) caret, for slicing `input_buffer`.
+    fn input_cursor_byte(&self) -> usize {
+        let chars = self.input_cursor_clamped();
+        self.input_buffer
+            .char_indices()
+            .nth(chars)
+            .map(|(i, _)| i)
+            .unwrap_or(self.input_buffer.len())
+    }
+
+    pub fn input_left(&mut self) {
+        let at = self.input_cursor_clamped().saturating_sub(1);
+        self.sync_cursor(at);
+    }
+
+    pub fn input_right(&mut self) {
+        let at = self.input_cursor_clamped() + 1;
+        self.sync_cursor(at);
+    }
+
+    pub fn input_home(&mut self) {
+        self.sync_cursor(0);
+    }
+
+    pub fn input_end(&mut self) {
+        let len = self.input_buffer.chars().count();
+        self.sync_cursor(len);
+    }
+
+    /// Delete the character *under* the caret, leaving the caret in place.
+    pub fn input_delete(&mut self) {
+        let at = self.input_cursor_clamped();
+        if at < self.input_buffer.chars().count() {
+            let byte = self.input_cursor_byte();
+            self.input_buffer.remove(byte);
+            self.sync_cursor(at);
+        }
+    }
+
     pub fn input_char(&mut self, c: char) {
-        self.input_buffer.push(c);
+        let byte = self.input_cursor_byte();
+        let at = self.input_cursor_clamped() + 1;
+        self.input_buffer.insert(byte, c);
+        self.sync_cursor(at);
     }
 
     pub fn input_str(&mut self, s: &str) {
@@ -3161,11 +3230,22 @@ impl App {
             return;
         }
         let clean: String = s.chars().filter(|c| *c != '\r' && *c != '\n').collect();
-        self.input_buffer.push_str(&clean);
+        let byte = self.input_cursor_byte();
+        let at = self.input_cursor_clamped() + clean.chars().count();
+        self.input_buffer.insert_str(byte, &clean);
+        self.sync_cursor(at);
     }
 
+    /// Delete the character *before* the caret and step back over it.
     pub fn input_backspace(&mut self) {
-        self.input_buffer.pop();
+        let at = self.input_cursor_clamped();
+        if at == 0 {
+            return;
+        }
+        self.sync_cursor(at - 1);
+        let byte = self.input_cursor_byte();
+        self.input_buffer.remove(byte);
+        self.sync_cursor(at - 1);
     }
 
     pub(super) fn canonical_path(p: &std::path::Path) -> PathBuf {

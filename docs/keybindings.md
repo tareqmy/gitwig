@@ -77,7 +77,10 @@
 | `↑` / `↓` / `k` / `j` | DebugLogs       | Scroll debug logs list            |
 | `PgUp` / `PgDn`      | DebugLogs       | Scroll debug logs list by page size |
 | `Home` / `End`       | DebugLogs       | Jump to top / bottom of debug logs |
-| `Backspace`          | Editing         | Erase one character               |
+| `Backspace`          | Editing         | Erase the character before the caret |
+| `←` / `→`            | Editing / Input Modals | Move the caret within the field. Fuzzy pickers keep the arrows for moving their selection. |
+| `Home` / `End`       | Editing / Input Modals | Move the caret to the start / end of the field |
+| `Delete`             | Editing / Input Modals | Erase the character under the caret |
 | `Tab`                | Tag Creation    | Switch focus between Tag Name and Tag Message input fields |
 | `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag, push branch/tag/all tags, tag overwrite, abort/continue merge, track launch directory) |
 | `f` / `F`            | Confirm Dialog  | Force push tag (`--force`) in Tag Push confirmation dialog |

@@ -100,7 +100,14 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
     } else {
         match &app.mode {
             Mode::Adding => {
-                draw_input_status(f, area, "Add", &app.input_buffer, app.config.compatibility_mode);
+                draw_input_status(
+                    f,
+                    area,
+                    "Add",
+                    &app.input_buffer,
+                    app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
+                );
             }
             Mode::BulkAddInput => {
                 draw_input_status(
@@ -109,6 +116,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Bulk Add (Tab for Scan)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::Editing => {
@@ -118,6 +126,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Edit",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::LabelInput => {
@@ -127,6 +136,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Labels",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::AddRepoLabelInput => {
@@ -136,6 +146,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Add Repository Labels (comma-separated, optional)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::BulkAddRepoLabelInput => {
@@ -145,6 +156,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Bulk Add Repository Labels (comma-separated, optional)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::CloneRepoLabelInput => {
@@ -154,6 +166,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Add Repository Labels (comma-separated, optional)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::RepoSearchInput => {
@@ -163,6 +176,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Find",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::BranchCreateInput => {
@@ -172,6 +186,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Create Branch",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::TagCreateInput => {
@@ -181,6 +196,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Create Tag",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::RemoteAddNameInput => {
@@ -190,6 +206,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Add Remote (Name)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::RemoteAddUrlInput => {
@@ -199,6 +216,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Add Remote (URL)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::StashCreateInput => {
@@ -208,6 +226,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Stash Changes",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::WorktreeAddBranchInput => {
@@ -217,6 +236,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Add Worktree (Branch/Commit)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::WorktreeAddPathInput => {
@@ -226,6 +246,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Add Worktree (Path)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::WorktreeLockReasonInput => {
@@ -235,6 +256,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Lock Worktree (Reason)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::WorktreeRemoveConfirm => {
@@ -244,6 +266,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Remove Worktree (1: Metadata only, 2: Delete folder & metadata)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::SubmoduleAddUrlInput => {
@@ -253,6 +276,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Add Submodule (URL)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::SubmoduleAddPathInput => {
@@ -262,6 +286,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Add Submodule (Path)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::LogsSearchInput => {
@@ -271,6 +296,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Search Logs",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             Mode::CommitSearchInput => {
@@ -280,6 +306,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                     "Search Commits",
                     &app.input_buffer,
                     app.config.compatibility_mode,
+                    app.input_cursor_clamped(),
                 );
             }
             _ => {}
