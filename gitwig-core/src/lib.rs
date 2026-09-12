@@ -1075,6 +1075,23 @@ pub fn expand_tilde(s: &str) -> PathBuf {
     PathBuf::from(s)
 }
 
+/// Walk up from `start` and return the first directory containing a `.git`
+/// entry, or `None` if there is no repository above it.
+///
+/// `.git` is matched as either a directory (an ordinary clone) or a file (a
+/// linked worktree or a submodule, where it holds a `gitdir:` pointer), so a
+/// worktree checkout reports its own root rather than the main one.
+pub fn discover_repo_root(start: &Path) -> Option<PathBuf> {
+    let mut dir = if start.is_dir() { Some(start) } else { start.parent() };
+    while let Some(current) = dir {
+        if current.join(".git").exists() {
+            return Some(current.to_path_buf());
+        }
+        dir = current.parent();
+    }
+    None
+}
+
 /// Add a new git remote.
 pub fn remote_add(repo_path: &std::path::Path, name: &str, url: &str) -> Result<(), git2::Error> {
     let repo = Repository::open(repo_path)?;

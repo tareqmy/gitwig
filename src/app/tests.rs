@@ -11877,3 +11877,124 @@ fn test_label_theme_cache_populated_for_active_filter() {
     app.resolve_repo_themes();
     assert!(!app.label_theme_cache.contains_key("plain"));
 }
+
+/// The startup prompt must fire only when there is something to add: inside a
+/// repository, not already tracked, and not switched off in config.
+#[test]
+fn test_detect_cwd_repo_startup_prompt() {
+    let base = std::env::temp_dir().join("gitwig_test_cwd_repo_prompt");
+    let _ = std::fs::remove_dir_all(&base);
+    let repo_root = base.join("myrepo");
+    let nested = repo_root.join("src").join("deep");
+    std::fs::create_dir_all(&nested).expect("temp dirs should be creatable");
+    std::fs::create_dir_all(repo_root.join(".git")).expect(".git should be creatable");
+    let plain_dir = base.join("not_a_repo");
+    std::fs::create_dir_all(&plain_dir).expect("temp dir should be creatable");
+
+    let cfg_path = std::env::temp_dir().join("gitwig_test_cwd_repo_prompt.toml");
+    let _guard = TestFileGuard { path: cfg_path.clone() };
+    let new_app = || App::new(Config { items: vec![], ..Default::default() }, cfg_path.clone());
+
+    // Launched from a nested directory: the prompt offers the repo *root*.
+    let mut app = new_app();
+    app.detect_cwd_repo(&nested);
+    assert_eq!(app.mode, Mode::AddCwdRepoConfirm);
+    assert_eq!(
+        App::canonical_path(std::path::Path::new(
+            app.pending_cwd_repo.as_deref().expect("a repo should be pending")
+        )),
+        App::canonical_path(&repo_root),
+        "the prompt should offer the repository root, not the launch directory"
+    );
+
+    // Accepting adds it and returns to the list.
+    app.confirm_add_cwd_repo();
+    assert_eq!(app.mode, Mode::Normal);
+    assert_eq!(app.config.items.len(), 1);
+    assert!(app.pending_cwd_repo.is_none());
+
+    // Already tracked: no prompt the next time.
+    let tracked = app.config.items[0].clone();
+    let mut app = App::new(Config { items: vec![tracked], ..Default::default() }, cfg_path.clone());
+    app.detect_cwd_repo(&nested);
+    assert_eq!(app.mode, Mode::Normal, "an already-tracked repo must not prompt");
+    assert!(app.pending_cwd_repo.is_none());
+
+    // Outside any repository: no prompt.
+    let mut app = new_app();
+    app.detect_cwd_repo(&plain_dir);
+    assert_eq!(app.mode, Mode::Normal);
+
+    // Declining clears the pending path.
+    let mut app = new_app();
+    app.detect_cwd_repo(&nested);
+    assert_eq!(app.mode, Mode::AddCwdRepoConfirm);
+    app.dismiss_cwd_repo();
+    assert_eq!(app.mode, Mode::Normal);
+    assert!(app.pending_cwd_repo.is_none());
+    assert!(app.config.items.is_empty(), "declining must not add the repo");
+
+    // Switched off in config: never prompts.
+    let mut app = App::new(
+        Config { items: vec![], prompt_cwd_repo: false, ..Default::default() },
+        cfg_path.clone(),
+    );
+    app.detect_cwd_repo(&nested);
+    assert_eq!(app.mode, Mode::Normal, "prompt_cwd_repo = false must suppress the prompt");
+
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// `.git` as a *file* marks a linked worktree or submodule; it must be
+/// discovered the same as a `.git` directory.
+#[test]
+fn test_discover_repo_root_handles_gitfile_and_missing() {
+    let base = std::env::temp_dir().join("gitwig_test_discover_root");
+    let _ = std::fs::remove_dir_all(&base);
+    let wt = base.join("worktree");
+    std::fs::create_dir_all(wt.join("sub")).expect("temp dirs should be creatable");
+    std::fs::write(wt.join(".git"), "gitdir: /elsewhere/.git/worktrees/wt")
+        .expect(".git file should be writable");
+
+    assert_eq!(
+        crate::repo::discover_repo_root(&wt.join("sub")).map(|p| App::canonical_path(&p)),
+        Some(App::canonical_path(&wt)),
+        "a .git file should mark the root"
+    );
+
+    let orphan = base.join("orphan");
+    std::fs::create_dir_all(&orphan).expect("temp dir should be creatable");
+    // Nothing above a temp dir is a repo, so discovery walks to the filesystem
+    // root and gives up rather than looping.
+    let found = crate::repo::discover_repo_root(&orphan);
+    assert!(
+        found.is_none() || !App::canonical_path(&found.unwrap_or_default()).starts_with(&orphan),
+        "a directory outside any repo must not report itself as a root"
+    );
+
+    let _ = std::fs::remove_dir_all(&base);
+}
+
+/// The Settings row for the startup prompt must toggle the real config flag.
+/// Settings ids are hand-assigned and the handler ends in an `idx >= 14`
+/// catch-all that routes to keybindings, so a new id has to be both unused and
+/// below that threshold — this pins the wiring.
+#[test]
+fn test_settings_toggles_prompt_cwd_repo() {
+    let cfg_path = std::env::temp_dir().join("gitwig_test_settings_prompt_cwd.toml");
+    let _guard = TestFileGuard { path: cfg_path.clone() };
+    let mut app = App::new(Config { items: vec![], ..Default::default() }, cfg_path);
+
+    assert!(app.config.prompt_cwd_repo, "the prompt should default to on");
+
+    app.settings_selected_index = 11;
+    app.toggle_or_edit_setting();
+    assert!(!app.config.prompt_cwd_repo, "selecting the row should turn the prompt off");
+    assert!(
+        !app.settings_editing,
+        "a boolean row toggles in place; it must not drop into text-edit mode"
+    );
+
+    app.toggle_or_edit_setting();
+    assert!(app.config.prompt_cwd_repo, "selecting it again should turn the prompt back on");
+}

@@ -30,15 +30,7 @@ impl App {
     pub fn commit_add_with_labels(&mut self, path: String, labels: Vec<String>) {
         let trimmed = path.trim().to_string();
         if !trimmed.is_empty() {
-            let new_expanded = repo::expand_tilde(&trimmed);
-            let new_canonical = Self::canonical_path(&new_expanded);
-            let already_exists = self.config.items.iter().any(|item| {
-                let item_expanded = repo::expand_tilde(item);
-                item.trim() == trimmed
-                    || item_expanded == new_expanded
-                    || Self::canonical_path(&item_expanded) == new_canonical
-            });
-            if already_exists {
+            if self.is_repo_tracked(&trimmed) {
                 self.status_message = Some("Repository already added".to_string());
                 self.input_buffer.clear();
                 self.mode = Mode::Normal;
@@ -79,18 +71,62 @@ impl App {
         self.commit_add_with_labels(path, labels);
     }
 
+    /// Whether `path` already resolves to one of the tracked items.
+    ///
+    /// Matches on the raw string, the tilde-expanded path, and the canonical
+    /// path, so `~/dev/x`, `/Users/me/dev/x` and a symlink to it all count as
+    /// the same repository.
+    pub fn is_repo_tracked(&self, path: &str) -> bool {
+        let trimmed = path.trim();
+        let expanded = repo::expand_tilde(trimmed);
+        let canonical = Self::canonical_path(&expanded);
+        self.config.items.iter().any(|item| {
+            let item_expanded = repo::expand_tilde(item);
+            item.trim() == trimmed
+                || item_expanded == expanded
+                || Self::canonical_path(&item_expanded) == canonical
+        })
+    }
+
+    /// Offer to track the repository Gitwig was launched from.
+    ///
+    /// Does nothing when the prompt is switched off, when `cwd` is not inside a
+    /// repository, or when that repository is already listed — so the prompt
+    /// only ever appears when there is something to add.
+    pub fn detect_cwd_repo(&mut self, cwd: &std::path::Path) {
+        if !self.config.prompt_cwd_repo {
+            return;
+        }
+        let Some(root) = repo::discover_repo_root(cwd) else {
+            return;
+        };
+        let root_str = root.to_string_lossy().to_string();
+        if self.is_repo_tracked(&root_str) {
+            return;
+        }
+        crate::debug_log::info(format!("Offering to track launch directory repo: {}", root_str));
+        self.pending_cwd_repo = Some(root_str);
+        self.mode = Mode::AddCwdRepoConfirm;
+    }
+
+    /// Accept the startup prompt and track the launch directory's repository.
+    pub fn confirm_add_cwd_repo(&mut self) {
+        self.mode = Mode::Normal;
+        if let Some(path) = self.pending_cwd_repo.take() {
+            self.add_repo_path(path);
+        }
+    }
+
+    /// Decline the startup prompt and return to the list.
+    pub fn dismiss_cwd_repo(&mut self) {
+        self.pending_cwd_repo = None;
+        self.mode = Mode::Normal;
+    }
+
     pub fn add_repo_path(&mut self, path: String) {
         let trimmed = path.trim().to_string();
         if !trimmed.is_empty() {
-            let new_expanded = repo::expand_tilde(&trimmed);
-            let new_canonical = Self::canonical_path(&new_expanded);
-            let already_exists = self.config.items.iter().any(|item| {
-                let item_expanded = repo::expand_tilde(item);
-                item.trim() == trimmed
-                    || item_expanded == new_expanded
-                    || Self::canonical_path(&item_expanded) == new_canonical
-            });
-            if already_exists {
+            if self.is_repo_tracked(&trimmed) {
                 self.status_message = Some("Repository already added".to_string());
                 return;
             }

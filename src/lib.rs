@@ -84,6 +84,13 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         app.status_message = Some(warn);
     }
 
+    // Offer to track the repository the user launched from, if it is not on the
+    // list yet. Read the working directory before the TUI takes over so the
+    // prompt is on screen from the first frame.
+    if let Ok(cwd) = env::current_dir() {
+        app.detect_cwd_repo(&cwd);
+    }
+
     let res = run_app(&mut terminal, app);
 
     drop(guard);

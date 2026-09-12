@@ -412,6 +412,12 @@ Per-label config editor (Theme, Page Size, Max Commits, Resync on Tab Change, Au
     *   `Enter` / `Space` : Edit/Toggle setting (toggles themes or enters text input for fields)
     *   `Esc` : Cancel text edit (if editing), otherwise return to the label picker
 
+### Track Launch Directory Popup (`Mode::AddCwdRepoConfirm`)
+Shown at startup when the working directory sits inside a Git repository that is not tracked yet. Walks up from the launch directory to the repository root, so starting Gitwig anywhere inside a repo offers the root. Suppressed entirely by `prompt_cwd_repo = false`.
+*   *Shortcuts*:
+    *   `y` : Add the repository and return to the Home Screen
+    *   `n` / `Esc` / `Enter` : Dismiss without adding
+
 ### Not Git Repository Popup (`Mode::NotGitRepo`)
 Warning dialog shown when selecting a directory that is not a valid Git repository.
 *   *Shortcuts*:

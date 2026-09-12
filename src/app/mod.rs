@@ -194,6 +194,9 @@ pub enum Mode {
     CommitFuzzySearch,
     /// Floating popup for fuzzy tag search.
     TagSearchInput,
+    /// Offering to track the repository Gitwig was launched from, when the
+    /// working directory sits inside a repo that is not on the list yet.
+    AddCwdRepoConfirm,
     /// Prompting for labels when adding a single repository.
     AddRepoLabelInput,
     /// Prompting for labels when bulk adding repositories.
@@ -650,6 +653,9 @@ pub struct App {
     pub graph_visible_height: std::cell::Cell<usize>,
     pub pending_add_repo: Option<String>,
     pub pending_bulk_add_repo: Option<String>,
+    /// Repository root Gitwig was launched from, held while the startup
+    /// "track this repo?" prompt is open. `None` once answered.
+    pub pending_cwd_repo: Option<String>,
     pub stats: crate::stats::AppStats,
     pub session_start: std::time::Instant,
     pub last_stats_save: std::time::Instant,
@@ -1468,6 +1474,7 @@ impl App {
             graph_visible_height: std::cell::Cell::new(0),
             pending_add_repo: None,
             pending_bulk_add_repo: None,
+            pending_cwd_repo: None,
             stats: crate::stats::load_stats(),
             session_start: std::time::Instant::now(),
             last_stats_save: std::time::Instant::now(),

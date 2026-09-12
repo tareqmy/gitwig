@@ -2824,6 +2824,10 @@ impl App {
                 self.config.show_stale_projects = !self.config.show_stale_projects;
                 self.persist("Show Stale Projects updated");
             }
+            11 => {
+                self.config.prompt_cwd_repo = !self.config.prompt_cwd_repo;
+                self.persist("Prompt To Track Launch Directory updated");
+            }
             83 => {
                 self.config.enable_watch_dirs = !self.config.enable_watch_dirs;
                 self.persist("Enable Watch Directories updated");

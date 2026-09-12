@@ -190,6 +190,7 @@ impl Default for Config {
             git_app: default_git_app(),
             compatibility_mode: default_compatibility_mode(),
             resync_on_tab_change: default_resync_on_tab_change(),
+            prompt_cwd_repo: default_prompt_cwd_repo(),
             enable_commit_signatures: default_enable_commit_signatures(),
             ssh_strict_host_checking: default_ssh_strict_host_checking(),
             editor: default_editor(),
@@ -300,6 +301,9 @@ fn default_show_stale_projects() -> bool {
 fn default_enable_watch_dirs() -> bool {
     true
 }
+fn default_prompt_cwd_repo() -> bool {
+    true
+}
 
 fn default_scan() -> ScanConfig {
     ScanConfig {
@@ -403,6 +407,10 @@ pub struct Config {
     /// Whether to resync the repository details from disk on tab change.
     #[serde(default = "default_resync_on_tab_change")]
     pub resync_on_tab_change: bool,
+    /// Whether to offer to track the repository Gitwig was launched from, when
+    /// the working directory sits inside a repo that is not on the list yet.
+    #[serde(default = "default_prompt_cwd_repo")]
+    pub prompt_cwd_repo: bool,
     /// Whether to enable commit GPG/SSH signatures collection (spawns a git shell process).
     #[serde(default = "default_enable_commit_signatures")]
     pub enable_commit_signatures: bool,
@@ -569,6 +577,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         show_system_stats: default_show_system_stats(),
         stale_threshold_months: default_stale_threshold_months(),
         show_stale_projects: default_show_stale_projects(),
+        prompt_cwd_repo: default_prompt_cwd_repo(),
         enable_watch_dirs: default_enable_watch_dirs(),
     };
 
@@ -724,6 +733,7 @@ pub fn load_config(
                 show_system_stats: default_show_system_stats(),
                 stale_threshold_months: default_stale_threshold_months(),
                 show_stale_projects: default_show_stale_projects(),
+                prompt_cwd_repo: default_prompt_cwd_repo(),
                 enable_watch_dirs: default_enable_watch_dirs(),
             },
             path,
@@ -859,6 +869,7 @@ pub fn load_config(
         show_system_stats: default_show_system_stats(),
         stale_threshold_months: default_stale_threshold_months(),
         show_stale_projects: default_show_stale_projects(),
+        prompt_cwd_repo: default_prompt_cwd_repo(),
         enable_watch_dirs: default_enable_watch_dirs(),
     };
     save_config(&fallback, &canonical)?;

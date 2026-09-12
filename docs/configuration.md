@@ -88,6 +88,7 @@ show_stale_projects = true
 | `view_mode` | `String` | `"cards"` | Home page repository list layout mode (`"cards"`, `"compact"`, `"tile"`). Managed by `v`. |
 | `tile_columns` | `Integer` | `0` | Number of columns in tile layout mode (`0` = auto-calculate based on terminal width). |
 | `resync_on_tab_change` | `Boolean` | `false` | Automatically reload repository details from disk when switching tabs. |
+| `prompt_cwd_repo` | `Boolean` | `true` | On startup, offer to track the repository you launched Gitwig from when it is not on the list yet. Set to `false` to never prompt. |
 
 ### Keybindings
 

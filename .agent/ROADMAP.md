@@ -165,6 +165,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 
 ## Phase 14: Repository Search & Discovery Enhancements
 - [x] Global Code Search: Search for string patterns across all tracked repositories using a fast, multithreaded search fallback from the homepage.
+- [x] Track Launch Directory: On startup, offer to add the repository Gitwig was launched from when the working directory sits inside an untracked repo (`prompt_cwd_repo`).
 - [x] Automatic Workspace Sync: Watch a specified directory (e.g., `~/development`) and automatically add new repositories as they are created or cloned.
 
 ## Phase 15: Intelligent AI Integrations (Optional/Configurable)

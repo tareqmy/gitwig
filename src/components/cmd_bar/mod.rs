@@ -1137,6 +1137,29 @@ pub(crate) fn get_status_layout_components(
             }
             (Some(msg_spans), entries)
         }
+        Mode::AddCwdRepoConfirm => {
+            let msg_spans = vec![Span::styled(
+                "Untracked repository  ",
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+            )];
+            let entries = vec![
+                StatusEntry::new(vec![
+                    Span::raw("Add"),
+                    Span::raw(" "),
+                    Span::styled("[", muted_style()),
+                    Span::styled("y", accent_style()),
+                    Span::styled("]", muted_style()),
+                ]),
+                StatusEntry::new(vec![
+                    Span::raw("Not now"),
+                    Span::raw(" "),
+                    Span::styled("[", muted_style()),
+                    Span::styled("n/Esc", accent_style()),
+                    Span::styled("]", muted_style()),
+                ]),
+            ];
+            (Some(msg_spans), entries)
+        }
         Mode::NotGitRepo => {
             let msg_spans = vec![Span::styled(
                 "Not a Git Repository  ",

@@ -406,6 +406,10 @@ pub fn draw(
         draw_not_git_repo_popup(f, area, app);
     }
 
+    if matches!(app.mode, Mode::AddCwdRepoConfirm) {
+        crate::popups::confirm::draw_add_cwd_repo_popup(f, area, app);
+    }
+
     if matches!(app.mode, Mode::Legend) {
         crate::popups::legend::draw_legend_popup(f, area, app);
     }

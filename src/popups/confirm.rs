@@ -1259,6 +1259,64 @@ pub fn draw_update_confirm_popup(f: &mut Frame, latest_version: &str, area: Rect
     f.render_widget(paragraph, popup_area);
 }
 
+/// Startup prompt offering to track the repository Gitwig was launched from.
+///
+/// Shown only when the working directory sits inside a repository that is not
+/// on the list yet; see `App::detect_cwd_repo`.
+pub fn draw_add_cwd_repo_popup(f: &mut Frame, area: Rect, app: &App) {
+    let popup_area = centered_rect_fixed(64, 10, area);
+    f.render_widget(Clear, popup_area);
+
+    let is_compat = app.config.compatibility_mode;
+    let icon = if is_compat { "[+] " } else { "◆  " };
+    let border_style = Style::default().fg(ACCENT());
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(border_style)
+        .title(
+            Line::from(vec![
+                Span::raw(" "),
+                Span::styled(
+                    format!("{}Track this repository?", icon),
+                    border_style.add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" "),
+            ])
+            .alignment(Alignment::Center),
+        );
+
+    let path = app.pending_cwd_repo.clone().unwrap_or_default();
+
+    let body = Text::from(vec![
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "You started Gitwig inside a Git repository",
+            Style::default(),
+        )]),
+        Line::from(vec![Span::styled("that is not on your list yet.", muted_style())]),
+        Line::from(""),
+        Line::from(vec![Span::styled(path, accent_style().add_modifier(Modifier::BOLD))]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("[", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled("] add it     ", muted_style()),
+            Span::styled("[", muted_style()),
+            Span::styled("n / Esc", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled("] not now", muted_style()),
+        ]),
+    ]);
+
+    f.render_widget(block.clone(), popup_area);
+    let inner = block.inner(popup_area);
+    f.render_widget(
+        Paragraph::new(body).alignment(Alignment::Center).wrap(Wrap { trim: true }),
+        inner,
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

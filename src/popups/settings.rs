@@ -18,7 +18,7 @@ use ratatui::widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Wr
 const GENERAL_SETTING_INDICES: &[usize] =
     &[9, 56, 55, 0, 60, 84, 13, 65, 66, 12, 58, 62, 63, 7, 80, 81];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
-const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 8, 83, 61];
+const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 8, 83, 11, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3, 67, 82];
 const GLOBAL_NAV_SETTING_INDICES: &[usize] = &[
     16,  // Quit / Close Dialog (Close)
@@ -240,6 +240,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         80 => "Stale Threshold (months)",
         81 => "Show Stale Projects",
         83 => "Enable Watch Directories",
+        11 => "Prompt To Track Launch Directory",
         14 => "Toggle Status Bar",
         250 => "Toggle Terminal Panel",
         15 => "Help",
@@ -469,6 +470,9 @@ fn get_desc(global_idx: usize) -> &'static str {
         83 => {
             "Enable/disable the background file watcher that auto-discovers new git repositories in Watch Directories."
         }
+        11 => {
+            "On startup, offer to track the repository Gitwig was launched from when it is not on the list yet. Turn off to never be prompted."
+        }
         84 => {
             "Seconds a background fetch may run before it is cancelled. Prevents an unreachable remote from hanging a repository card forever. Set to 0 to disable the limit."
         }
@@ -687,6 +691,7 @@ pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
             }
             81 => app.config.show_stale_projects.to_string(),
             83 => app.config.enable_watch_dirs.to_string(),
+            11 => app.config.prompt_cwd_repo.to_string(),
             84 => {
                 if is_selected && app.settings_editing {
                     format!("{}█", app.input_buffer)

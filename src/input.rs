@@ -255,6 +255,17 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             _ => {}
         },
+        Mode::AddCwdRepoConfirm => match key.code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                app.confirm_add_cwd_repo();
+                return true;
+            }
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc | KeyCode::Enter => {
+                app.dismiss_cwd_repo();
+                return true;
+            }
+            _ => {}
+        },
         Mode::Detail => {
             if crate::tabs::route_detail_event(app, key) {
                 return true;
