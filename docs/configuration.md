@@ -2,6 +2,8 @@
 
 Gitwig stores its config in `~/.gitwig/config.toml`. The directory is created automatically on first launch.
 
+Settings you choose live in `config.toml`. Things that change just by using the app — when you last opened each repository, your recent commit messages, the quick-label slots and the sticky label filter — live in a separate `state.toml` beside it (see [Usage state](#usage-state-statetoml)), so opening a repository or committing never rewrites the file you edit by hand.
+
 ### First-run migration
 
 If `~/.gitwig/config.toml` doesn't exist yet, Gitwig looks for an existing config to migrate from:
@@ -43,11 +45,6 @@ stale_threshold_months = 1
 
 # Hide/show stale projects on the main page list
 show_stale_projects = true
-
-# Managed by the app: the sticky label filter ("project view") and the
-# quick-label slots behind the 1-9 keys, in slot order (FIFO on first view).
-# active_label_filter = "work"
-# label_slots = ["work", "oss", "archive"]
 ```
 
 ### Config keys
@@ -82,8 +79,6 @@ show_stale_projects = true
 | `git_app` | `String` | `""` | Preferred external Git GUI application (e.g. `gitui` or `lazygit`), launched with `g`. |
 | `show_grouping` | `Boolean` | `true` | Enable or disable repository label grouping sidebar on the home page. |
 | `labels` | `Map<String, [String]>` | `{}` | Repository path → list of labels. Managed by the in-app `l` shortcut. |
-| `active_label_filter` | `String` | *(unset)* | Sticky home-list label filter ("project view"). Managed by the `L` label picker; persists across restarts until deselected, and auto-clears if the label no longer exists on any tracked repository. |
-| `label_slots` | `Array<String>` | `[]` | Quick-label slots backing the numbered chips and the `1`-`9` keys on the home screen, in slot order. Managed automatically, FIFO: a label takes the next free slot the first time it is viewed through the label filter and keeps it; once all nine are taken the oldest entry is evicted; labels no repository carries are pruned on save. |
 | `label_configs` | `Map<String, Table>` | `{}` | Per-label settings shared by every repository carrying that label (see [Per-label settings](#per-label-settings)). Managed by the Label Settings popup (`→` on a label in the `L` picker). Auto-pruned when no repository carries the label. |
 | `view_mode` | `String` | `"cards"` | Home page repository list layout mode (`"cards"`, `"compact"`, `"tile"`). Managed by `v`. |
 | `tile_columns` | `Integer` | `0` | Number of columns in tile layout mode (`0` = auto-calculate based on terminal width). |
@@ -117,16 +112,39 @@ auto_fetch_interval_mins = 0
 
 ### Keys Gitwig manages for you
 
-These appear in `config.toml` but are written by the app, not meant to be edited by hand:
+These appear in `config.toml` but are written by the app, not meant to be edited by hand. They record deliberate choices you make in the UI, which is why they stay with the rest of your settings:
 
 | Key | Written when |
 | :--- | :--- |
-| `visits` | A repository is opened — feeds the `recent_visit` sort and the Recent group. |
 | `pinned` / `starred` | You pin (`p`) or star (`*`) a repository. |
-| `labels` / `label_slots` / `active_label_filter` | You edit labels, view a label filter, or pick a quick-label slot. |
-| `repo_configs` / `label_configs` | You change a setting in Repository Settings or Label Settings. |
+| `labels` | You edit a repository's labels (`l`). |
+| `repo_configs` / `label_configs` | You change a setting (or a repository note) in Repository Settings or Label Settings. |
 
 `compact_view` is **deprecated**. It is read once on load, converted to `view_mode = "compact"`, and then cleared — set `view_mode` instead.
+
+### Usage state: `state.toml`
+
+Anything that changes as a side effect of simply using Gitwig is kept out of `config.toml` and written to `state.toml` in the same directory (`~/.gitwig/state.toml`, or beside whichever config file you passed on the command line). It is entirely app-managed; deleting it only forgets the history below.
+
+| Key | Written when |
+| :--- | :--- |
+| `visits` | A repository is opened — repository path → last-visit time; feeds the `recent_visit` sort and the Recent group. |
+| `commit_history` | You commit — resolved repository path → its ten most recent commit messages, newest first, backing the commit-history picker in the commit dialog. |
+| `active_label_filter` | You pick a label in the `L` picker (or a quick slot). The sticky "project view"; persists across restarts until deselected, and auto-clears if the label no longer exists on any tracked repository. |
+| `label_slots` | You view a label through the filter for the first time. The quick-label slots behind the numbered chips and the `1`-`9` keys, in slot order (FIFO: once all nine are taken the oldest is evicted; labels no repository carries are pruned on save). |
+
+```toml
+active_label_filter = "work"
+label_slots = ["work", "oss"]
+
+[visits]
+"~/development/gitwig" = 1757600000
+
+[commit_history]
+"/Users/me/development/gitwig" = ["fix(input): give the shared text inputs a caret", "release v2.5.17"]
+```
+
+**Upgrading:** versions before this one stored these keys in `config.toml` (`commit_history` under each `[repo_configs.<path>]` table). On the first launch that finds them there, Gitwig moves them into `state.toml` — without overriding anything `state.toml` already holds — and rewrites `config.toml` without them. On an upgrade both files are backed up first, as `config.toml.bak` and `state.toml.bak`.
 
 ### Themes
 

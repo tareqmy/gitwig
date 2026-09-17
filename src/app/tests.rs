@@ -36,7 +36,6 @@ fn test_stash_creation_flow() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -122,7 +121,6 @@ fn test_network_action_progress_and_error_handling() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -188,7 +186,6 @@ fn test_remote_tags_progress_and_error_handling() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -251,7 +248,6 @@ fn test_remote_fetch_progress_and_error_handling() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -320,7 +316,6 @@ fn test_set_error_logging() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -364,7 +359,6 @@ fn test_sorting_logic() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -408,9 +402,9 @@ fn test_sorting_logic() {
 
     // Cycle to recent visit
     // Set visit times: a_repo visited at 10, z_repo at 20, m_repo at 5
-    app.config.visits.insert("a_repo".to_string(), 10);
-    app.config.visits.insert("z_repo".to_string(), 20);
-    app.config.visits.insert("m_repo".to_string(), 5);
+    app.state.visits.insert("a_repo".to_string(), 10);
+    app.state.visits.insert("z_repo".to_string(), 20);
+    app.state.visits.insert("m_repo".to_string(), 5);
 
     app.cycle_sort_order();
     assert_eq!(app.config.sort_by, SortOrder::RecentVisit);
@@ -428,7 +422,6 @@ fn test_duplicate_prevention() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -525,7 +518,6 @@ fn test_bulk_add_folders() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -579,7 +571,6 @@ fn test_add_repo_with_labels_flow() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -654,7 +645,6 @@ fn test_pinning_and_sorting() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Alphabetical,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -740,7 +730,6 @@ fn test_commit_input_scroll() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -784,7 +773,6 @@ fn test_commit_popup_maximized_toggle() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -828,7 +816,6 @@ fn test_cherry_pick_and_revert_flow() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -904,7 +891,6 @@ fn test_commit_amend_flow() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -969,7 +955,6 @@ fn test_splitter_dragging() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -1243,7 +1228,6 @@ fn test_mouse_row_selection_in_detail_panels() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -1714,7 +1698,6 @@ fn test_settings_mode_navigation_and_editing() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -1985,7 +1968,6 @@ fn test_remote_add_delete_flow() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -2141,7 +2123,6 @@ fn test_workspace_tab_right_arrow_inspect() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -2219,7 +2200,6 @@ fn test_commit_enter_key_inspect() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -2277,7 +2257,6 @@ fn test_inspect_commit_shortcut() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -2335,7 +2314,6 @@ fn test_workspace_all_changes_shortcuts() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -2399,7 +2377,6 @@ fn test_inspect_workspace_all_changes_shortcuts() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -2484,7 +2461,6 @@ fn test_workspace_all_changes_focus_transitions() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -2528,7 +2504,6 @@ fn test_workspace_tab_focus_cycle_skips_empty_panels() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -2629,7 +2604,6 @@ fn test_git_app_shortcut_triggers_pending() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -2667,7 +2641,6 @@ fn test_files_search_shortcut_triggers_popup() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -2706,7 +2679,6 @@ fn test_logs_search_picker_flow() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -2916,7 +2888,6 @@ fn test_detail_view_sync_on_tab_change_and_refresh() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3016,7 +2987,6 @@ fn test_branch_and_tag_checkout_confirmation() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3134,7 +3104,6 @@ fn test_repo_search_filtering() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3200,7 +3169,6 @@ fn test_normal_mode_right_arrow_detail() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3254,7 +3222,6 @@ fn test_inspect_full_screen_diff_toggle() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3311,7 +3278,6 @@ fn test_files_tab_full_screen_toggle() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3369,7 +3335,6 @@ fn test_scan_flow() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3416,7 +3381,6 @@ fn test_initial_setup_and_migration() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3497,7 +3461,6 @@ fn test_about_popup_flow() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3569,7 +3532,6 @@ fn test_tag_fetch_attempt_and_dismiss_flow() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3681,7 +3643,6 @@ fn test_tag_push_all_confirmation_flow() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3788,7 +3749,6 @@ fn test_detail_cache_ttl_behavior() {
 
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3856,7 +3816,6 @@ fn test_tab_ttl_behavior() {
         tab_ttl_secs: 1, // 1s TTL
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3927,7 +3886,6 @@ fn test_commit_popup_mouse_resize() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -3997,7 +3955,6 @@ fn test_yank_selected_commit_hash() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -4052,7 +4009,6 @@ fn test_yank_selected_repo_path() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -4085,7 +4041,6 @@ fn test_pending_terminal_trigger() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -4229,7 +4184,6 @@ fn test_bulk_fetch_all_trigger() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -4267,7 +4221,6 @@ fn test_multi_select_toggle() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -4355,7 +4308,6 @@ fn test_cherry_pick_destination_branches() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -4456,7 +4408,6 @@ fn test_graph_tab_scrolling() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -4539,7 +4490,6 @@ fn test_commit_popup_custom_keys() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -4636,7 +4586,6 @@ fn test_settings_panel_organization() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -4700,7 +4649,6 @@ fn test_help_popup_flow() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -4775,7 +4723,6 @@ fn test_detail_help_popup_flow() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -4846,7 +4793,6 @@ fn test_max_commits_limit_setting() {
         max_commits: 45, // Set limit to 45 commits
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -4894,7 +4840,6 @@ fn test_file_history_view_flow() {
         max_commits: 10,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -5005,7 +4950,6 @@ fn test_repository_labels_flow() {
         max_commits: 10,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -5540,7 +5484,6 @@ fn test_workspace_conflicts_shortcuts() {
         max_commits: 0,
         page_size: 10,
         sort_by: SortOrder::Custom,
-        visits: HashMap::new(),
         labels: std::collections::HashMap::new(),
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
@@ -6235,12 +6178,12 @@ fn test_label_filter_project_view() {
     assert!(crate::input::handle_key(&mut app, key(KeyCode::Down), 1));
     assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
     assert_eq!(app.mode, Mode::Normal);
-    assert_eq!(app.config.active_label_filter.as_deref(), Some("web"));
+    assert_eq!(app.state.active_label_filter.as_deref(), Some("web"));
     assert_eq!(app.get_filtered_items().len(), 2);
 
     // Esc does NOT clear the label filter — it is sticky by design.
     assert!(crate::input::handle_key(&mut app, key(KeyCode::Esc), 1));
-    assert_eq!(app.config.active_label_filter.as_deref(), Some("web"));
+    assert_eq!(app.state.active_label_filter.as_deref(), Some("web"));
 
     // Composes with the summary filter as an intersection.
     let dirty = crate::repo::RepoSummary {
@@ -6274,32 +6217,32 @@ fn test_label_filter_project_view() {
     assert!(crate::input::handle_key(&mut app, key(KeyCode::Down), 1));
     assert!(crate::input::handle_key(&mut app, key(KeyCode::Down), 1));
     assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
-    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.state.active_label_filter, None);
     assert_eq!(app.get_filtered_items().len(), 3);
 
     // The "All repositories" row clears an active filter too.
-    app.config.active_label_filter = Some("web".to_string());
+    app.state.active_label_filter = Some("web".to_string());
     assert!(crate::input::handle_key(&mut app, l_key, 1));
     assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
-    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.state.active_label_filter, None);
 
     // Esc closes the picker without touching the filter.
-    app.config.active_label_filter = Some("web".to_string());
+    app.state.active_label_filter = Some("web".to_string());
     assert!(crate::input::handle_key(&mut app, l_key, 1));
     assert!(crate::input::handle_key(&mut app, key(KeyCode::Esc), 1));
     assert_eq!(app.mode, Mode::Normal);
-    assert_eq!(app.config.active_label_filter.as_deref(), Some("web"));
+    assert_eq!(app.state.active_label_filter.as_deref(), Some("web"));
 
     // Auto-clear when the active label no longer exists on any repository.
-    app.config.active_label_filter = Some("api".to_string());
+    app.state.active_label_filter = Some("api".to_string());
     app.config.labels.insert("/path/to/backend".to_string(), vec!["web".to_string()]);
     assert!(app.clear_label_filter_if_orphaned());
-    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.state.active_label_filter, None);
 
-    // The filter persists through a config serialization roundtrip.
-    app.config.active_label_filter = Some("web".to_string());
-    let serialized = toml::to_string(&app.config).unwrap();
-    let loaded: Config = toml::from_str(&serialized).unwrap();
+    // The filter persists through a state serialization roundtrip.
+    app.state.active_label_filter = Some("web".to_string());
+    let serialized = toml::to_string(&app.state).unwrap();
+    let loaded: AppState = toml::from_str(&serialized).unwrap();
     assert_eq!(loaded.active_label_filter.as_deref(), Some("web"));
 }
 
@@ -6313,9 +6256,17 @@ fn test_quick_labels_fill_slots_fifo_and_evict_oldest_past_nine() {
         config.labels.insert(format!("/path/to/repo{}", i), vec![format!("l{}", i)]);
     }
     config.labels.entry("/path/to/repo0".to_string()).or_default().push("l1".to_string());
-    let temp_path = std::env::temp_dir().join("gitwig_test_quick_labels_fifo.toml");
-    let _guard = TestFileGuard { path: temp_path.clone() };
-    let mut app = App::new(config, temp_path);
+    let temp_dir = std::env::temp_dir().join(format!(
+        "gitwig_test_quick_labels_fifo_{}_{}",
+        std::process::id(),
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let _guard = TestDirGuard { path: temp_dir.clone() };
+    let mut app = App::new(config, temp_dir.join("config.toml"));
+    // The constructor's first-run version check writes config.toml once;
+    // viewing labels afterwards must never rewrite it.
+    let config_before = std::fs::read_to_string(&app.config_path).unwrap();
 
     // Initially clean: labels exist, but none has been viewed yet.
     assert!(app.quick_labels().is_empty());
@@ -6337,7 +6288,7 @@ fn test_quick_labels_fill_slots_fifo_and_evict_oldest_past_nine() {
 
     // Clearing the filter (toggle off) keeps the slots intact.
     app.select_label_filter(Some("l0".to_string()));
-    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.state.active_label_filter, None);
     assert_eq!(names(&app), vec!["l0", "l1"]);
 
     // Slots fill up to nine; the tenth distinct label evicts the oldest
@@ -6347,26 +6298,83 @@ fn test_quick_labels_fill_slots_fifo_and_evict_oldest_past_nine() {
     }
     assert_eq!(names(&app), vec!["l0", "l1", "l2", "l3", "l4", "l5", "l6", "l7", "l8"]);
     app.select_label_filter(Some("l9".to_string()));
-    assert_eq!(app.config.label_slots.len(), crate::keybindings::HOME_LABEL_SLOTS);
+    assert_eq!(app.state.label_slots.len(), crate::keybindings::HOME_LABEL_SLOTS);
     assert_eq!(names(&app), vec!["l1", "l2", "l3", "l4", "l5", "l6", "l7", "l8", "l9"]);
     app.select_label_filter(Some("l10".to_string()));
     assert_eq!(names(&app), vec!["l2", "l3", "l4", "l5", "l6", "l7", "l8", "l9", "l10"]);
 
-    // The slots persist in config.toml in slot order.
-    let saved = std::fs::read_to_string(&app.config_path).expect("config persisted");
+    // The slots persist in state.toml in slot order — and viewing labels is
+    // usage, so config.toml is never written for it.
+    let saved = std::fs::read_to_string(app.state_path()).expect("state persisted");
     assert!(saved.contains("label_slots = "), "saved: {}", saved);
-    let reloaded: Config = toml::from_str(&saved).expect("config parses");
-    assert_eq!(reloaded.label_slots, app.config.label_slots);
+    let reloaded: AppState = toml::from_str(&saved).expect("state parses");
+    assert_eq!(reloaded.label_slots, app.state.label_slots);
+    assert_eq!(
+        std::fs::read_to_string(&app.config_path).unwrap(),
+        config_before,
+        "label views must not rewrite config.toml"
+    );
 
     // A label nobody carries any more drops out of the strip and, on the
     // next save, out of the stored slots.
     app.config.labels.remove("/path/to/repo10");
     assert_eq!(names(&app).last().map(String::as_str), Some("l9"));
     app.prune_label_slots();
-    assert!(!app.config.label_slots.contains(&"l10".to_string()));
+    assert!(!app.state.label_slots.contains(&"l10".to_string()));
 
-    // A fresh config starts with no slots at all.
-    assert!(Config::default().label_slots.is_empty());
+    // A fresh state starts with no slots at all.
+    assert!(AppState::default().label_slots.is_empty());
+}
+
+#[test]
+fn test_usage_state_is_saved_beside_the_config_without_touching_it() {
+    let temp_dir = std::env::temp_dir().join(format!(
+        "gitwig_test_state_split_{}_{}",
+        std::process::id(),
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let _guard = TestDirGuard { path: temp_dir.clone() };
+    let config_path = temp_dir.join("config.toml");
+    let config = Config {
+        items: vec!["/path/to/frontend".to_string(), "/path/to/backend".to_string()],
+        ..Default::default()
+    };
+    let mut app = App::new(config, config_path.clone());
+    assert_eq!(app.state_path(), temp_dir.join("state.toml"));
+    // The constructor's first-run version check writes config.toml once;
+    // everything after this must leave it byte-for-byte alone.
+    let config_before = std::fs::read_to_string(&config_path).unwrap();
+    let state_before = std::fs::read_to_string(app.state_path()).unwrap_or_default();
+
+    // Recording a visit and a commit message only writes state.toml.
+    app.state.visits.insert("/path/to/frontend".to_string(), 1234);
+    app.state.record_commit_message("/path/to/frontend", "feat: first");
+    app.persist_state("Opened repository");
+    assert_eq!(app.status_message.as_deref(), Some("Opened repository"));
+    assert_ne!(std::fs::read_to_string(app.state_path()).unwrap(), state_before);
+    assert_eq!(std::fs::read_to_string(&config_path).unwrap(), config_before);
+
+    let (reloaded, warning) = crate::state::load_state(&app.state_path());
+    assert!(warning.is_none());
+    assert_eq!(reloaded.visits.get("/path/to/frontend"), Some(&1234));
+    assert_eq!(reloaded.commit_history_for("/path/to/frontend"), vec!["feat: first".to_string()]);
+
+    // A real settings save writes config.toml, and it stays free of state keys.
+    app.persist("Saved");
+    let saved = std::fs::read_to_string(&config_path).unwrap();
+    assert!(saved.contains("items = "));
+    for key in ["visits", "commit_history", "label_slots", "active_label_filter"] {
+        assert!(!saved.contains(key), "config.toml must not contain `{}`:\n{}", key, saved);
+    }
+
+    // Loading through the real loader hands the state back to the app.
+    let (config, state, path, warning) = crate::config::load_config(Some(config_path)).unwrap();
+    assert!(warning.is_none());
+    assert_eq!(config.items.len(), 2);
+    assert_eq!(state.visits.get("/path/to/frontend"), Some(&1234));
+    let app = App::with_state(config, state, path);
+    assert_eq!(app.state.commit_history_for("/path/to/frontend"), vec!["feat: first".to_string()]);
 }
 
 #[test]
@@ -6391,7 +6399,7 @@ fn test_home_quick_label_keys_apply_toggle_and_ignore_empty_slots() {
 
     // Nothing viewed yet: every slot is empty, so digits are a no-op with a hint.
     assert!(crate::input::handle_key(&mut app, key('1'), 1));
-    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.state.active_label_filter, None);
     assert_eq!(app.status_message.as_deref(), Some("No label in quick slot 1"));
 
     // Viewing labels through the filter fills the slots in order:
@@ -6399,31 +6407,31 @@ fn test_home_quick_label_keys_apply_toggle_and_ignore_empty_slots() {
     app.select_label_filter(Some("web".to_string()));
     app.select_label_filter(Some("api".to_string()));
     app.select_label_filter(None);
-    assert_eq!(app.config.active_label_filter, None);
-    assert_eq!(app.config.label_slots, vec!["web".to_string(), "api".to_string()]);
+    assert_eq!(app.state.active_label_filter, None);
+    assert_eq!(app.state.label_slots, vec!["web".to_string(), "api".to_string()]);
 
     // Slot 2 applies "api"; the slots stay exactly where they were.
     assert!(crate::input::handle_key(&mut app, key('2'), 1));
     assert_eq!(app.mode, Mode::Normal);
-    assert_eq!(app.config.active_label_filter.as_deref(), Some("api"));
+    assert_eq!(app.state.active_label_filter.as_deref(), Some("api"));
     assert_eq!(app.get_filtered_items().len(), 1);
-    assert_eq!(app.config.label_slots, vec!["web".to_string(), "api".to_string()]);
+    assert_eq!(app.state.label_slots, vec!["web".to_string(), "api".to_string()]);
 
     // Slot 1 switches to "web": the filter is replaced, not stacked.
     assert!(crate::input::handle_key(&mut app, key('1'), 1));
-    assert_eq!(app.config.active_label_filter.as_deref(), Some("web"));
+    assert_eq!(app.state.active_label_filter.as_deref(), Some("web"));
     assert_eq!(app.get_filtered_items().len(), 2);
-    assert_eq!(app.config.label_slots, vec!["web".to_string(), "api".to_string()]);
+    assert_eq!(app.state.label_slots, vec!["web".to_string(), "api".to_string()]);
 
     // Pressing the active slot again clears the filter, like the picker.
     assert!(crate::input::handle_key(&mut app, key('1'), 1));
-    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.state.active_label_filter, None);
     assert_eq!(app.get_filtered_items().len(), 3);
 
     // An unfilled slot leaves the filter alone and explains why.
     app.status_message = None;
     assert!(crate::input::handle_key(&mut app, key('9'), 1));
-    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.state.active_label_filter, None);
     assert_eq!(app.status_message.as_deref(), Some("No label in quick slot 9"));
 
     // Quick-label keys are a home-screen concept: in the detail view the
@@ -6432,7 +6440,7 @@ fn test_home_quick_label_keys_apply_toggle_and_ignore_empty_slots() {
     app.detail_tab = 0;
     assert!(crate::input::handle_key(&mut app, key('2'), 1));
     assert_eq!(app.detail_tab, 1);
-    assert_eq!(app.config.active_label_filter, None);
+    assert_eq!(app.state.active_label_filter, None);
 }
 #[test]
 fn test_branch_merge_into_flow() {

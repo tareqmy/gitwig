@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Changed
+- **config**: usage state that changes just by using the app — last-visit times (`visits`), per-repository commit-message history (`commit_history`), the quick-label slots (`label_slots`) and the sticky label filter (`active_label_filter`) — moved out of `config.toml` into a separate `~/.gitwig/state.toml` (beside whichever config file is in use), so opening a repository, committing, or viewing a label never rewrites hand-edited settings. Keys still found in an older `config.toml` are migrated into `state.toml` on the next launch, merged without overriding what it already holds, and `config.toml` is rewritten without them; an upgrade backs both files up as `.toml.bak`. Deliberate choices (`pinned`, `starred`, `labels`, `repo_configs`, `label_configs`) stay in `config.toml`.
+
+### Fixed
+- **config**: atomic saves use a per-process, per-write temporary file name so two writers aiming at the same file (a second Gitwig instance, parallel tests) can no longer rename each other's temp file away and fail the save.
 
 ## [v2.5.17] - 2026-09-12
 ### Added

@@ -32,6 +32,7 @@ pub mod git_cmd;
 mod input;
 pub mod keybindings;
 pub mod mouse;
+mod state;
 pub use gitwig_core as repo;
 pub mod components;
 mod keys;
@@ -62,7 +63,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let (config, config_path, warning) = load_config(config_path)?;
+    let (config, state, config_path, warning) = load_config(config_path)?;
 
     // Set terminal title
     if config.compatibility_mode {
@@ -79,7 +80,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let mut app = App::new(config, config_path);
+    let mut app = App::with_state(config, state, config_path);
     if let Some(warn) = warning {
         app.status_message = Some(warn);
     }

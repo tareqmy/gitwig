@@ -59,7 +59,7 @@ impl App {
         let filtered = self.get_filtered_items();
         let mut recent_repos = Vec::new();
         for (actual_index, item) in filtered.iter() {
-            if let Some(&time) = self.config.visits.get(*item) {
+            if let Some(&time) = self.state.visits.get(*item) {
                 if time > 0 {
                     recent_repos.push((time, *actual_index, (*item).clone()));
                 }
@@ -206,7 +206,7 @@ impl App {
     }
 
     pub fn get_active_items(&self) -> Vec<(usize, &String)> {
-        let label_ok = |path: &String| match &self.config.active_label_filter {
+        let label_ok = |path: &String| match &self.state.active_label_filter {
             Some(label) => self.config.labels.get(path).is_some_and(|lbls| lbls.contains(label)),
             None => true,
         };
@@ -352,16 +352,16 @@ impl App {
     /// is selected again (`None` always clears), and persists the choice.
     /// Viewing a label for the first time also gives it a quick-label slot.
     pub fn select_label_filter(&mut self, label: Option<String>) {
-        let toggled_off = label.is_some() && self.config.active_label_filter == label;
-        self.config.active_label_filter = if toggled_off { None } else { label };
+        let toggled_off = label.is_some() && self.state.active_label_filter == label;
+        self.state.active_label_filter = if toggled_off { None } else { label };
         self.selected_index = 0;
         self.scroll_top = 0;
-        match self.config.active_label_filter.clone() {
+        match self.state.active_label_filter.clone() {
             Some(l) => {
                 self.record_label_slot(&l);
-                self.persist(&format!("Label filter: {}", l));
+                self.persist_state(&format!("Label filter: {}", l));
             }
-            None => self.persist("Label filter cleared"),
+            None => self.persist_state("Label filter cleared"),
         }
     }
 
@@ -422,7 +422,7 @@ impl App {
                 .filter(|labels| labels.iter().any(|l| l == label))
                 .count()
         };
-        self.config
+        self.state
             .label_slots
             .iter()
             .map(|label| (label.clone(), count_of(label)))
@@ -441,12 +441,12 @@ impl App {
     /// when all slots are taken, the oldest entry is evicted and the rest
     /// shift down one so the new label lands in the last slot.
     fn record_label_slot(&mut self, label: &str) {
-        if self.config.label_slots.iter().any(|l| l == label) {
+        if self.state.label_slots.iter().any(|l| l == label) {
             return;
         }
-        self.config.label_slots.push(label.to_string());
-        while self.config.label_slots.len() > crate::keybindings::HOME_LABEL_SLOTS {
-            self.config.label_slots.remove(0);
+        self.state.label_slots.push(label.to_string());
+        while self.state.label_slots.len() > crate::keybindings::HOME_LABEL_SLOTS {
+            self.state.label_slots.remove(0);
         }
     }
 
@@ -461,8 +461,8 @@ impl App {
             .flatten()
             .collect();
         let keep: Vec<String> =
-            self.config.label_slots.iter().filter(|l| used.contains(l)).cloned().collect();
-        self.config.label_slots = keep;
+            self.state.label_slots.iter().filter(|l| used.contains(l)).cloned().collect();
+        self.state.label_slots = keep;
     }
 
     /// Applies the label held by zero-based `slot` as the sticky filter
@@ -482,7 +482,7 @@ impl App {
     /// tracked repository, so the home list cannot get stuck permanently empty.
     /// Returns whether the filter was cleared.
     pub fn clear_label_filter_if_orphaned(&mut self) -> bool {
-        let Some(active) = self.config.active_label_filter.clone() else {
+        let Some(active) = self.state.active_label_filter.clone() else {
             return false;
         };
         let still_used = self
@@ -492,7 +492,7 @@ impl App {
             .filter_map(|path| self.config.labels.get(path))
             .any(|labels| labels.contains(&active));
         if !still_used {
-            self.config.active_label_filter = None;
+            self.state.active_label_filter = None;
             self.selected_index = 0;
             self.scroll_top = 0;
         }
@@ -841,7 +841,7 @@ impl App {
                 z
             }
             SortOrder::RecentVisit => {
-                let visits = &self.config.visits;
+                let visits = &self.state.visits;
                 let mut z: Vec<(String, ItemStatus)> =
                     self.config.items.drain(..).zip(self.statuses.drain(..)).collect();
                 z.sort_by(|a, b| {
@@ -994,8 +994,8 @@ impl App {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs();
-            self.config.visits.insert(item.clone(), now);
-            self.persist("Opened repository");
+            self.state.visits.insert(item.clone(), now);
+            self.persist_state("Opened repository");
 
             if self.config.sort_by == SortOrder::RecentVisit {
                 self.sort_items_in_place();
@@ -3457,17 +3457,31 @@ impl App {
         self.config.label_configs.retain(|label, _| live.contains(label));
     }
 
-    /// Persists `self.config` and records a status message (success or
-    /// the save error) for the next render.
+    /// Persists `self.config` (and, since pruning may have touched it,
+    /// `self.state`) and records a status message (success or the save
+    /// error) for the next render.
     pub fn persist(&mut self, success_msg: &str) {
         self.prune_orphaned_label_configs();
         self.prune_label_slots();
         self.resolve_repo_themes();
-        match save_config(&self.config, &self.config_path) {
+        let saved = save_config(&self.config, &self.config_path)
+            .and_then(|_| save_state(&self.state, &self.state_path()));
+        match saved {
             Ok(()) => self.status_message = Some(success_msg.to_string()),
             Err(e) => self.set_error(format!("Save failed: {}", e)),
         }
         self.setup_watcher();
+    }
+
+    /// Persists only `self.state` — for changes that happen as a side effect
+    /// of using the app (opening a repository, viewing a label) — so they
+    /// never rewrite `config.toml` or restart the directory watcher.
+    pub fn persist_state(&mut self, success_msg: &str) {
+        self.prune_label_slots();
+        match save_state(&self.state, &self.state_path()) {
+            Ok(()) => self.status_message = Some(success_msg.to_string()),
+            Err(e) => self.set_error(format!("Save failed: {}", e)),
+        }
     }
 
     /// Rebuilds the flattened list of visible tree nodes in the Files tab.

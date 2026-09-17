@@ -20,7 +20,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
     }
     // The label filter is sticky (Esc does not clear it), so keep a permanent
     // chip visible whenever it is active.
-    if let Some(label) = &app.config.active_label_filter {
+    if let Some(label) = &app.state.active_label_filter {
         let label_key = app.keybindings.format_action_keys(
             crate::keybindings::Action::HomeLabelPicker,
             app.config.compatibility_mode,

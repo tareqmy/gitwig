@@ -31,6 +31,7 @@ Welcome, Agent. You are tasked with helping build **Gitwig**, a high-performance
 - **Item Statuses:** `App.statuses: Vec<ItemStatus>` runs parallel to `App.config.items`. Any mutation (add/edit/remove) **must** atomically update `statuses` at the same index in the same method to prevent visual drift.
 - **File Status Labels:** Restricted to a single character width (`FILE_LABEL_WIDTH = 2`): `"N"`, `"D"`, `"M"`, `"R"`, `"T"`, `"C"`, `"?"`.
 - **Config Persistence:** The shared `App::persist` helper is the canonical way to save configs. Any UI mutation of `Config` must call this to prevent disk/memory drift.
+- **Usage State vs. Settings:** Data that changes as a side effect of using the app (last-visit times, commit-message history, quick-label slots, the sticky label filter) belongs in `AppState` (`src/state.rs`, persisted to `state.toml`), never in `Config`. Mutations that touch only `App.state` call `App::persist_state`, which writes `state.toml` alone; `App::persist` writes both. Adding a new key to `config.toml` that the app writes without the user editing a setting is the wrong place — put it in `AppState`.
 
 ## 4. Architecture & Refactoring Thresholds
 The crate is organized so each file has a single clear responsibility.

@@ -16,6 +16,7 @@ use ratatui::layout::{Margin, Rect};
 use crate::config::{Config, SortOrder, save_config};
 use crate::input;
 use crate::repo::{self, ItemDetail, ItemStatus};
+use crate::state::{AppState, save_state};
 use crate::ui;
 use crate::ui_detail::DetailAreas;
 
@@ -343,6 +344,9 @@ pub struct SearchResult {
 /// All mutable session state.
 pub struct App {
     pub config: Config,
+    /// Usage state (visits, commit history, label slots, sticky filter),
+    /// persisted to `state.toml` beside the config — see `crate::state`.
+    pub state: AppState,
     pub config_path: PathBuf,
     pub overview_scroll: usize,
     pub stats_scroll: usize,
@@ -1267,7 +1271,19 @@ impl App {
         self.keybindings.matches(action, key)
     }
 
+    /// Builds the app with an empty usage state. Production code goes through
+    /// [`App::with_state`] so the state loaded from `state.toml` is in place
+    /// before the initial sort.
     pub fn new(config: Config, config_path: PathBuf) -> Self {
+        Self::with_state(config, AppState::default(), config_path)
+    }
+
+    /// `state.toml` next to the config file this app writes back to.
+    pub fn state_path(&self) -> PathBuf {
+        AppState::path_for(&self.config_path)
+    }
+
+    pub fn with_state(config: Config, state: AppState, config_path: PathBuf) -> Self {
         crate::debug_log::info("Initializing Gitwig application state");
         crate::ui::update_theme(&config.theme);
         let config_dir = config_path.parent().unwrap_or(&config_path);
@@ -1285,6 +1301,7 @@ impl App {
             queue: queue.clone(),
             original_items,
             config,
+            state,
             config_path,
             statuses,
             selected_index: 0,
@@ -1517,6 +1534,12 @@ impl App {
                     "Backed up configuration to {:?}",
                     app.config_path.with_extension("toml.bak")
                 ));
+            }
+            let state_path = app.state_path();
+            if !is_first_run && state_path.exists() {
+                let backup_path = state_path.with_extension("toml.bak");
+                let _ = std::fs::copy(&state_path, &backup_path);
+                crate::debug_log::info(format!("Backed up usage state to {:?}", backup_path));
             }
 
             // 2. Perform updates or auto-detections

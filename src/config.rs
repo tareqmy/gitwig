@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::state::{AppState, load_state, save_state};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SortOrder {
@@ -17,10 +19,6 @@ pub enum SortOrder {
 
 fn default_sort_by() -> SortOrder {
     SortOrder::Custom
-}
-
-fn default_visits() -> std::collections::HashMap<String, u64> {
-    std::collections::HashMap::new()
 }
 
 /// How long the event loop waits for input before re-drawing (milliseconds).
@@ -107,14 +105,13 @@ pub struct RepoConfig {
     pub editor: Option<String>,
     #[serde(default)]
     pub note: Option<String>,
-    #[serde(default)]
-    pub commit_history: Option<Vec<String>>,
 }
 
 /// Settings that can be attached to a label and shared by every repository
 /// carrying that label. This is the *settings* subset of [`RepoConfig`] — it
-/// deliberately excludes per-repo data like `note` and `commit_history`, which
-/// describe one repository rather than a group.
+/// deliberately excludes per-repo data like `note`, which describes one
+/// repository rather than a group. (Commit-message history, which older
+/// versions also kept here, now lives in `state.toml`; see `crate::state`.)
 ///
 /// Resolution is three-tier: a per-repo override in [`RepoConfig`] wins first,
 /// then the first of the repo's labels (in stored order) that defines the
@@ -174,10 +171,7 @@ impl Default for Config {
             tab_ttl_secs: default_tab_ttl_secs(),
             page_size: default_page_size(),
             sort_by: default_sort_by(),
-            visits: std::collections::HashMap::new(),
             labels: std::collections::HashMap::new(),
-            active_label_filter: None,
-            label_slots: Vec::new(),
             repo_configs: std::collections::HashMap::new(),
             label_configs: std::collections::HashMap::new(),
             sort_reverse: false,
@@ -354,22 +348,9 @@ pub struct Config {
     /// Sort mode for the main page.
     #[serde(default = "default_sort_by")]
     pub sort_by: SortOrder,
-    /// Map of repository items to their last visit time.
-    #[serde(default = "default_visits")]
-    pub visits: std::collections::HashMap<String, u64>,
     /// Map of repository paths to their labels.
     #[serde(default)]
     pub labels: std::collections::HashMap<String, Vec<String>>,
-    /// Sticky home-list label filter ("project view"); persists until the user
-    /// deselects it in the label picker.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub active_label_filter: Option<String>,
-    /// Quick-label slots for the home screen's `1`-`9` keys, in FIFO order:
-    /// a label takes the next free slot the first time it is viewed through
-    /// the label filter and keeps it; once all nine are taken, the oldest
-    /// entry is evicted. Empty until the first label view.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub label_slots: Vec<String>,
     /// Repository specific configurations.
     #[serde(default)]
     pub repo_configs: std::collections::HashMap<String, RepoConfig>,
@@ -550,10 +531,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         tab_ttl_secs: default_tab_ttl_secs(),
         page_size: default_page_size(),
         sort_by: default_sort_by(),
-        visits: default_visits(),
         labels: std::collections::HashMap::new(),
-        active_label_filter: None,
-        label_slots: Vec::new(),
         repo_configs: std::collections::HashMap::new(),
         label_configs: std::collections::HashMap::new(),
         sort_reverse: false,
@@ -594,41 +572,55 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
     (fallback, Some(msg))
 }
 
-fn load_and_parse_config(path: &Path) -> (Config, Option<String>) {
-    match fs::read_to_string(path) {
-        Ok(contents) => match toml::from_str::<Config>(&contents) {
-            Ok(mut config) => {
-                if config.compact_view && config.view_mode == HomeViewMode::Normal {
-                    config.view_mode = HomeViewMode::Compact;
-                    config.compact_view = false;
-                }
+/// Parses `path` into a [`Config`]. Usage state that older versions kept in
+/// `config.toml` (`visits`, `label_slots`, `active_label_filter`, and each
+/// repo's `commit_history`) is lifted out and returned separately so
+/// `load_config` can fold it into `state.toml`.
+fn load_and_parse_config(path: &Path) -> (Config, Option<AppState>, Option<String>) {
+    let parsed = fs::read_to_string(path).map_err(|e| e.into()).and_then(|contents| {
+        toml::from_str::<toml::Table>(&contents).map_err(|e| e.into()).and_then(|mut table| {
+            let legacy = AppState::take_legacy(&mut table);
+            toml::Value::Table(table)
+                .try_into::<Config>()
+                .map(|config| (config, legacy))
+                .map_err(|e| e.into())
+        })
+    });
+    match parsed {
+        Ok((config, legacy)) => {
+            let (config, warning) = sanitize_config(config);
+            (config, legacy, warning)
+        }
+        Err(err) => {
+            let (config, warning) = handle_parse_error(path, err);
+            (config, None, warning)
+        }
+    }
+}
 
-                if config.scan.excludes.is_empty() {
-                    config.scan.excludes = default_scan_excludes();
-                } else if config.scan.excludes.contains(&"target".to_string())
-                    && !config.scan.excludes.contains(&"checkout".to_string())
-                {
-                    config.scan.excludes.push("checkout".to_string());
-                }
+/// Applies the one-off migrations and validations a freshly parsed config needs.
+fn sanitize_config(mut config: Config) -> (Config, Option<String>) {
+    if config.compact_view && config.view_mode == HomeViewMode::Normal {
+        config.view_mode = HomeViewMode::Compact;
+        config.compact_view = false;
+    }
 
-                let allowed = ["git", "gitui", "lazygit"];
-                if !allowed.contains(&config.git_app.as_str()) {
-                    let old_val = config.git_app.clone();
-                    config.git_app = "gitui".to_string();
-                    (
-                        config,
-                        Some(format!(
-                            "Invalid preferred Git client '{}' reset to 'gitui'",
-                            old_val
-                        )),
-                    )
-                } else {
-                    (config, None)
-                }
-            }
-            Err(err) => handle_parse_error(path, err.into()),
-        },
-        Err(err) => handle_parse_error(path, err.into()),
+    if config.scan.excludes.is_empty() {
+        config.scan.excludes = default_scan_excludes();
+    } else if config.scan.excludes.contains(&"target".to_string())
+        && !config.scan.excludes.contains(&"checkout".to_string())
+    {
+        config.scan.excludes.push("checkout".to_string());
+    }
+
+    let allowed = ["git", "gitui", "lazygit"];
+    if !allowed.contains(&config.git_app.as_str()) {
+        let old_val = config.git_app.clone();
+        config.git_app = "gitui".to_string();
+        let warning = format!("Invalid preferred Git client '{}' reset to 'gitui'", old_val);
+        (config, Some(warning))
+    } else {
+        (config, None)
     }
 }
 
@@ -645,15 +637,51 @@ fn load_and_parse_config(path: &Path) -> (Config, Option<String>) {
 /// 4. No prior config anywhere: write a default config to
 ///    `~/.gitwig/config.toml` so the next run is an ordinary case 2.
 ///
+/// Whichever file the config came from, the usage state is read from the
+/// `state.toml` beside it. State keys still found inside `config.toml`
+/// (written by older versions) are moved across: merged into `state.toml`
+/// without overriding what it already holds, and dropped from `config.toml`
+/// by rewriting it.
+///
 /// # Returns
-/// `Ok((Config, PathBuf, Option<String>))` — the parsed config, its write-back path, and an optional recovery warning.
-pub fn load_config(
-    cli_path: Option<PathBuf>,
-) -> Result<(Config, PathBuf, Option<String>), Box<dyn Error>> {
+/// `Ok((Config, AppState, PathBuf, Option<String>))` — the parsed config, the
+/// usage state, the config's write-back path, and an optional recovery warning.
+pub fn load_config(cli_path: Option<PathBuf>) -> Result<LoadedConfig, Box<dyn Error>> {
+    let (config, legacy, path, warning) = load_config_file(cli_path)?;
+    let state_path = AppState::path_for(&path);
+    let (mut state, state_warning) = load_state(&state_path);
+
+    if let Some(legacy) = legacy {
+        state.absorb(legacy);
+        // Move the keys across for good: state.toml first, then a clean
+        // config.toml. A failure here is not fatal — the next run retries.
+        if save_state(&state, &state_path).is_ok() {
+            let _ = save_config(&config, &path);
+        }
+    }
+
+    let warning = match (warning, state_warning) {
+        (Some(a), Some(b)) => Some(format!("{}; {}", a, b)),
+        (a, b) => a.or(b),
+    };
+    Ok((config, state, path, warning))
+}
+
+/// What [`load_config`] hands back: the config, the usage state, the config's
+/// write-back path, and an optional recovery warning for the status bar.
+pub type LoadedConfig = (Config, AppState, PathBuf, Option<String>);
+
+/// What [`load_config_file`] hands back: the config, any legacy usage state
+/// found inside the file, the config's write-back path, and a recovery warning.
+type LoadedConfigFile = (Config, Option<AppState>, PathBuf, Option<String>);
+
+/// The config-file half of [`load_config`]: finds, migrates and parses the
+/// config, returning any legacy usage state found inside it alongside.
+fn load_config_file(cli_path: Option<PathBuf>) -> Result<LoadedConfigFile, Box<dyn Error>> {
     // ── 1. CLI override ───────────────────────────────────────────────────
     if let Some(path) = cli_path {
         if path.exists() {
-            let (mut config, warning) = load_and_parse_config(&path);
+            let (mut config, legacy, warning) = load_and_parse_config(&path);
 
             let themes_dir = path.parent().unwrap_or(&path).join("themes");
             let _ = fs::create_dir_all(&themes_dir);
@@ -682,7 +710,7 @@ pub fn load_config(
                 }
             }
 
-            return Ok((config, path, warning));
+            return Ok((config, legacy, path, warning));
         }
         let fallback_theme = default_theme();
         let fallback_theme_name = default_theme_name();
@@ -706,10 +734,7 @@ pub fn load_config(
                 tab_ttl_secs: default_tab_ttl_secs(),
                 page_size: default_page_size(),
                 sort_by: default_sort_by(),
-                visits: default_visits(),
                 labels: std::collections::HashMap::new(),
-                active_label_filter: None,
-                label_slots: Vec::new(),
                 repo_configs: std::collections::HashMap::new(),
                 label_configs: std::collections::HashMap::new(),
                 sort_reverse: false,
@@ -736,6 +761,7 @@ pub fn load_config(
                 prompt_cwd_repo: default_prompt_cwd_repo(),
                 enable_watch_dirs: default_enable_watch_dirs(),
             },
+            None,
             path,
             None,
         ));
@@ -769,7 +795,7 @@ pub fn load_config(
 
     // ── 2. Canonical file already present ─────────────────────────────────
     if canonical.exists() {
-        let (mut config, warning) = load_and_parse_config(&canonical);
+        let (mut config, legacy, warning) = load_and_parse_config(&canonical);
 
         let theme_path = themes_dir.join(format!("{}.theme", config.theme_name));
         if theme_path.exists() {
@@ -794,13 +820,13 @@ pub fn load_config(
             }
         }
 
-        return Ok((config, canonical, warning));
+        return Ok((config, legacy, canonical, warning));
     }
 
     // ── 3. First run: migrate an existing config into ~/.gitwig/ ──────────
     if let Some(source) = find_legacy_config() {
         fs::copy(&source, &canonical)?;
-        let (mut config, warning) = load_and_parse_config(&canonical);
+        let (mut config, legacy, warning) = load_and_parse_config(&canonical);
 
         let theme_path = themes_dir.join(format!("{}.theme", config.theme_name));
         if theme_path.exists() {
@@ -825,7 +851,7 @@ pub fn load_config(
             }
         }
 
-        return Ok((config, canonical, warning));
+        return Ok((config, legacy, canonical, warning));
     }
 
     // ── 4. No config anywhere: write a default and use it ─────────────────
@@ -842,10 +868,7 @@ pub fn load_config(
         tab_ttl_secs: default_tab_ttl_secs(),
         page_size: default_page_size(),
         sort_by: default_sort_by(),
-        visits: default_visits(),
         labels: std::collections::HashMap::new(),
-        active_label_filter: None,
-        label_slots: Vec::new(),
         repo_configs: std::collections::HashMap::new(),
         label_configs: std::collections::HashMap::new(),
         sort_reverse: false,
@@ -879,7 +902,7 @@ pub fn load_config(
         let _ = fs::write(&theme_path, theme_serialized);
     }
 
-    Ok((fallback, canonical, None))
+    Ok((fallback, None, canonical, None))
 }
 
 /// Writes the popular themes to the themes directory if they don't already exist.
@@ -1052,6 +1075,14 @@ fn find_legacy_config() -> Option<PathBuf> {
 /// Serializes the config back to TOML and writes it to `path`, creating any
 /// missing parent directories first.
 pub fn save_config(config: &Config, path: &Path) -> Result<(), Box<dyn Error>> {
+    let serialized = toml::to_string_pretty(config)?;
+    write_toml_atomic(path, &serialized)
+}
+
+/// Writes `serialized` to `path` atomically (via a `.tmp` sibling and a
+/// rename), creating any missing parent directories first and keeping both
+/// the directory and the file private to the user.
+pub(crate) fn write_toml_atomic(path: &Path, serialized: &str) -> Result<(), Box<dyn Error>> {
     if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
             fs::create_dir_all(parent)?;
@@ -1066,10 +1097,16 @@ pub fn save_config(config: &Config, path: &Path) -> Result<(), Box<dyn Error>> {
             }
         }
     }
-    let serialized = toml::to_string_pretty(config)?;
-
-    // Write atomically: write to a .tmp file first, then rename.
-    let tmp_path = path.with_extension("toml.tmp");
+    // Write atomically: write to a .tmp file first, then rename. The tmp name
+    // is unique per process and write so two writers aiming at the same file
+    // (parallel tests, two Gitwig instances) cannot rename each other's tmp
+    // away mid-flight; the loser simply gets overwritten by the final rename.
+    static TMP_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let tmp_path = path.with_extension(format!(
+        "toml.tmp-{}-{}",
+        std::process::id(),
+        TMP_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
     if let Err(e) = fs::write(&tmp_path, serialized) {
         let _ = fs::remove_file(&tmp_path);
         return Err(e.into());
@@ -1118,7 +1155,7 @@ mod tests {
         let theme_path = themes_dir.join("default.theme");
 
         // 1. Initial load when files do not exist (should write themes/default.theme but not config.toml in CLI mode)
-        let (config, path, _) = load_config(Some(config_path.clone())).unwrap();
+        let (config, _, path, _) = load_config(Some(config_path.clone())).unwrap();
         assert_eq!(path, config_path);
         assert!(!config_path.exists());
         assert!(theme_path.exists());
@@ -1148,7 +1185,7 @@ success = "green"
 border_type = "double"
 "#;
         fs::write(&theme_path, custom_theme).unwrap();
-        let (loaded_config, _, _) = load_config(Some(config_path.clone())).unwrap();
+        let (loaded_config, _, _, _) = load_config(Some(config_path.clone())).unwrap();
         assert_eq!(loaded_config.theme.accent, "magenta");
         assert_eq!(loaded_config.theme.border_type, "double");
 
@@ -1204,7 +1241,7 @@ border_type = "double"
         fs::write(&config_path, "items = [").unwrap();
 
         // Load config (should move to .corrupt-<ts>, create default config and return warning)
-        let (config, path, warning) = load_config(Some(config_path.clone())).unwrap();
+        let (config, _, path, warning) = load_config(Some(config_path.clone())).unwrap();
         assert_eq!(path, config_path);
         assert!(config_path.exists());
         assert!(warning.is_some());
@@ -1253,7 +1290,7 @@ enable_commit_signatures = false
 "#;
         fs::write(&config_path, config_toml).unwrap();
 
-        let (config, path, warning) = load_config(Some(config_path.clone())).unwrap();
+        let (config, _, path, warning) = load_config(Some(config_path.clone())).unwrap();
         assert_eq!(path, config_path);
         assert_eq!(config.git_app, "gitui");
         assert!(warning.is_some());
@@ -1287,5 +1324,97 @@ enable_commit_signatures = false
 
         // 4. find_legacy_config
         let _legacy = find_legacy_config();
+    }
+
+    #[test]
+    fn test_state_keys_migrate_out_of_config_toml() {
+        let unique_id = get_unique_id();
+        let test_dir =
+            std::env::temp_dir().join(format!("gitwig_test_state_migrate_{}", unique_id));
+        fs::create_dir_all(&test_dir).unwrap();
+        let config_path = test_dir.join("config.toml");
+        let state_path = AppState::path_for(&config_path);
+
+        // A config written by a version that still kept usage state inline.
+        let legacy_config = r#"
+items = ["/a", "/b"]
+sort_by = "recent_visit"
+active_label_filter = "work"
+label_slots = ["work", "oss"]
+
+[visits]
+"/a" = 10
+"/b" = 20
+
+[labels]
+"/a" = ["work"]
+
+[repo_configs."/a"]
+page_size = 5
+commit_history = ["second", "first"]
+"#;
+        fs::write(&config_path, legacy_config).unwrap();
+        assert!(!state_path.exists());
+
+        let (config, state, path, warning) = load_config(Some(config_path.clone())).unwrap();
+        assert_eq!(path, config_path);
+        assert!(warning.is_none());
+
+        // Settings survive untouched...
+        assert_eq!(config.items, vec!["/a".to_string(), "/b".to_string()]);
+        assert_eq!(config.sort_by, SortOrder::RecentVisit);
+        assert_eq!(config.repo_configs["/a"].page_size, Some(5));
+        assert_eq!(config.labels["/a"], vec!["work".to_string()]);
+
+        // ...and the usage state comes back through `AppState`.
+        assert_eq!(state.visits.get("/a"), Some(&10));
+        assert_eq!(state.visits.get("/b"), Some(&20));
+        assert_eq!(state.active_label_filter.as_deref(), Some("work"));
+        assert_eq!(state.label_slots, vec!["work".to_string(), "oss".to_string()]);
+        assert_eq!(state.commit_history_for("/a"), vec!["second".to_string(), "first".to_string()]);
+
+        // The move is made permanent on disk: state.toml exists and config.toml
+        // was rewritten without the state keys but with everything else.
+        assert!(state_path.exists());
+        let rewritten = fs::read_to_string(&config_path).unwrap();
+        for key in ["visits", "active_label_filter", "label_slots", "commit_history"] {
+            assert!(!rewritten.contains(key), "`{}` still in config.toml:\n{}", key, rewritten);
+        }
+        assert!(rewritten.contains("page_size = 5"), "rewritten: {}", rewritten);
+        let (from_disk, _) = load_state(&state_path);
+        assert_eq!(from_disk, state);
+
+        // A second load is an ordinary run: nothing left to migrate, same result.
+        let (_, state_again, _, warning) = load_config(Some(config_path.clone())).unwrap();
+        assert!(warning.is_none());
+        assert_eq!(state_again, state);
+
+        let _ = fs::remove_dir_all(&test_dir);
+    }
+
+    #[test]
+    fn test_state_toml_wins_over_stale_keys_left_in_config_toml() {
+        let unique_id = get_unique_id();
+        let test_dir = std::env::temp_dir().join(format!("gitwig_test_state_merge_{}", unique_id));
+        fs::create_dir_all(&test_dir).unwrap();
+        let config_path = test_dir.join("config.toml");
+        let state_path = AppState::path_for(&config_path);
+
+        fs::write(
+            &config_path,
+            "items = [\"/a\"]\nactive_label_filter = \"old\"\n[visits]\n\"/a\" = 1\n\"/b\" = 2\n",
+        )
+        .unwrap();
+        let mut existing = AppState::default();
+        existing.visits.insert("/a".to_string(), 99);
+        existing.active_label_filter = Some("new".to_string());
+        save_state(&existing, &state_path).unwrap();
+
+        let (_, state, _, _) = load_config(Some(config_path.clone())).unwrap();
+        assert_eq!(state.visits.get("/a"), Some(&99), "state.toml value kept");
+        assert_eq!(state.visits.get("/b"), Some(&2), "missing entry filled from config");
+        assert_eq!(state.active_label_filter.as_deref(), Some("new"));
+
+        let _ = fs::remove_dir_all(&test_dir);
     }
 }

@@ -927,15 +927,14 @@ impl App {
                     self.stats.commits_made += 1;
                     self.stats.track_active_repo(&path.to_string_lossy());
 
-                    // Save commit message history
+                    // Remember the message for the commit-history picker. This
+                    // is usage state, so only state.toml is touched — the
+                    // commit's own status message stays on screen.
                     let repo_key = path.to_string_lossy().to_string();
-                    let repo_config = self.config.repo_configs.entry(repo_key).or_default();
-                    let mut history = repo_config.commit_history.clone().unwrap_or_default();
-                    history.retain(|x| x != &msg);
-                    history.insert(0, msg.clone());
-                    history.truncate(10);
-                    repo_config.commit_history = Some(history);
-                    let _ = crate::config::save_config(&self.config, &self.config_path);
+                    self.state.record_commit_message(&repo_key, &msg);
+                    if let Err(e) = crate::state::save_state(&self.state, &self.state_path()) {
+                        crate::debug_log::info(format!("Failed to save commit history: {}", e));
+                    }
 
                     self.commit_popup.input_buffer.clear();
                     self.commit_popup.cursor_idx = 0;
@@ -959,12 +958,7 @@ impl App {
     pub fn open_commit_history_picker(&mut self) {
         if let Some(crate::repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
             let repo_key = resolved.to_string_lossy().to_string();
-            let history = self
-                .config
-                .repo_configs
-                .get(&repo_key)
-                .and_then(|c| c.commit_history.clone())
-                .unwrap_or_default();
+            let history = self.state.commit_history_for(&repo_key);
 
             if !history.is_empty() {
                 self.commit_history_items = history;

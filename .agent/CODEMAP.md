@@ -21,6 +21,7 @@ graph TD
     drain_queue --> state_mutation[src/app/git.rs or src/app/workspace.rs: state changes]
     state_mutation --> core_inspect[gitwig-core: inspect_summary / inspect_detail]
     state_mutation --> config_save[src/config.rs: Config TOML persist]
+    state_mutation --> state_save[src/state.rs: AppState TOML persist]
 ```
 
 ---
@@ -44,7 +45,8 @@ The codebase is organized into modular single-responsibility crates and files:
 | **Application Tabs**| `src/tabs/` | Drawing logic for the home screen list and individual repository tabs (`home.rs`, `workspace.rs`, `files.rs`, `branches.rs`, `tags.rs`, `stashes.rs`, `worktrees.rs`, `submodules.rs`, `reflog.rs`, `forge.rs`). |
 | **TUI Components** | `src/components/` | Reusable rendering widgets that maintain their own internal visual/table state (e.g. `file_tree.rs`, `commit_list.rs`, `branch_list.rs`, `diff.rs`, `submodule_list.rs`, `terminal_panel.rs`, `cmd_bar/`). |
 | **Git Core Backend** | `gitwig-core/` | Workspace crate containing all libgit2 inspections, repo info collection (`RepoInfo`, `CommitEntry`, etc.), status summaries, and file loading logic. Completely isolated from UI dependencies. |
-| **Configuration** | `src/config.rs` | Manages loading, migrating, and saving TOML settings at `~/.gitwig/config.toml`. |
+| **Configuration** | `src/config.rs` | Manages loading, migrating, and saving TOML settings at `~/.gitwig/config.toml`. `load_config` also lifts any usage-state keys an older version left in `config.toml` into `state.toml`. |
+| **Usage State** | `src/state.rs` | `AppState` — visits, per-repo commit-message history, quick-label slots, and the sticky label filter — persisted to `~/.gitwig/state.toml` beside the config so passive use never rewrites hand-edited settings. `App::persist_state` saves it alone; `App::persist` saves both. |
 
 ---
 

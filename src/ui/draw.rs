@@ -192,7 +192,7 @@ pub fn draw(
         && !matches!(app.mode, Mode::FileHistory | Mode::Settings | Mode::DebugLogs)
         && !(app.mode == Mode::UpdateConfirm && app.current_detail.is_some())
     {
-        if let Some(label) = &app.config.active_label_filter {
+        if let Some(label) = &app.state.active_label_filter {
             if let Some(label_theme) = app.label_theme_cache.get(label) {
                 let current_theme_config = {
                     let lock =
@@ -669,7 +669,7 @@ pub fn summary_counts(app: &App) -> SummaryCounts {
 
     // Scope the dashboard to the active label filter so the tabs describe the
     // selected project, not the whole workspace.
-    let label_ok = |idx: usize| match &app.config.active_label_filter {
+    let label_ok = |idx: usize| match &app.state.active_label_filter {
         Some(label) => app
             .config
             .items
@@ -716,7 +716,7 @@ pub const SUMMARY_TAB_DIVIDER: &str = "│";
 /// frame's top border where the sort caption used to sit; `None` when no
 /// label filter is active.
 pub fn label_badge_text(app: &App) -> Option<String> {
-    app.config
+    app.state
         .active_label_filter
         .as_ref()
         .map(|label| format!(" {} {} ", app.sym("bullet_filled"), label))
@@ -940,7 +940,7 @@ fn draw_quick_label_bar(f: &mut Frame, area: Rect, app: &App) {
         if i > 0 {
             spans.push(Span::styled(QUICK_LABEL_DIVIDER, muted_style()));
         }
-        if app.config.active_label_filter.as_deref() == Some(label.as_str()) {
+        if app.state.active_label_filter.as_deref() == Some(label.as_str()) {
             let chip = accent_style().add_modifier(Modifier::REVERSED | Modifier::BOLD);
             spans.push(Span::styled(key_text.clone(), chip));
             spans.push(Span::styled(name_text.clone(), chip));
@@ -1550,7 +1550,7 @@ fn draw_filter_empty_state(f: &mut Frame, area: Rect, app: &App) {
         None => None,
     };
 
-    let headline = match (tab_name, &app.config.active_label_filter) {
+    let headline = match (tab_name, &app.state.active_label_filter) {
         (Some(tab), Some(label)) => {
             format!("No {} repositories with label '{}'.", tab, label)
         }
@@ -1573,7 +1573,7 @@ fn draw_filter_empty_state(f: &mut Frame, area: Rect, app: &App) {
             Span::raw("  to show all repositories"),
         ]));
     }
-    if app.config.active_label_filter.is_some() {
+    if app.state.active_label_filter.is_some() {
         let label_key = app.keybindings.format_action_keys(
             crate::keybindings::Action::HomeLabelPicker,
             app.config.compatibility_mode,
@@ -1584,7 +1584,7 @@ fn draw_filter_empty_state(f: &mut Frame, area: Rect, app: &App) {
             Span::raw("  to change or clear the label filter"),
         ]));
     }
-    if tab_name.is_none() && app.config.active_label_filter.is_none() {
+    if tab_name.is_none() && app.state.active_label_filter.is_none() {
         lines.push(Line::from(vec![
             Span::raw("Enable  "),
             Span::styled("Show Stale Projects", accent_style()),
@@ -2160,7 +2160,7 @@ pub fn draw_label_picker_popup(f: &mut Frame, app: &App, area: Rect) {
             .enumerate()
             .map(|(i, (label, count))| {
                 let marker =
-                    if *label == app.config.active_label_filter { active_marker } else { "  " };
+                    if *label == app.state.active_label_filter { active_marker } else { "  " };
                 // Quick-label slots get their key so the picker teaches the shortcut.
                 let slot_key = label
                     .as_deref()
@@ -2911,7 +2911,6 @@ mod tests {
     use crate::components::cmd_bar::{detail_dismiss_entries, inspect_dismiss_entries};
     use crate::config::{Config, ScanConfig, SortOrder, ThemeConfig};
     use crate::repo::{FileEntry, ItemDetail, RepoInfo};
-    use std::collections::HashMap;
     use std::path::PathBuf;
 
     #[test]
@@ -2922,7 +2921,6 @@ mod tests {
             max_commits: 0,
             page_size: 10,
             sort_by: SortOrder::Custom,
-            visits: HashMap::new(),
             labels: std::collections::HashMap::new(),
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
@@ -3083,7 +3081,6 @@ mod tests {
             max_commits: 0,
             page_size: 10,
             sort_by: SortOrder::Custom,
-            visits: HashMap::new(),
             labels: std::collections::HashMap::new(),
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
@@ -3454,8 +3451,8 @@ mod tests {
             .insert("/path/to/repo_b".to_string(), vec!["web".to_string(), "api".to_string()]);
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
         // Viewed api first, then web → slot 1 = api, slot 2 = web.
-        app.config.label_slots = vec!["api".to_string(), "web".to_string()];
-        app.config.active_label_filter = Some("api".to_string());
+        app.state.label_slots = vec!["api".to_string(), "web".to_string()];
+        app.state.active_label_filter = Some("api".to_string());
 
         let backend = ratatui::backend::TestBackend::new(80, 1);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
@@ -3490,7 +3487,7 @@ mod tests {
         assert_eq!(header.chips, Some(Rect::new(0, 2, 80, 1)));
         assert_eq!(header.sort_rule, Rect::new(0, 3, 80, 1));
         assert_eq!(header.body.y, 4);
-        app.config.label_slots.clear();
+        app.state.label_slots.clear();
         let header = home_header_layout(area, &app);
         assert_eq!(header.chips, None);
         assert_eq!(header.sort_rule, Rect::new(0, 1, 80, 1));
@@ -3690,7 +3687,7 @@ mod tests {
         // An empty label filter names the label instead, and the frame's top
         // border carries the label badge so the active project stays visible.
         app.global_filter = None;
-        app.config.active_label_filter = Some("ghost".to_string());
+        app.state.active_label_filter = Some("ghost".to_string());
         assert_eq!(app.get_items_len(), 0);
         let (text, buffer) = render(&app, &mut global_summary_area);
         assert!(global_summary_area.is_some());

@@ -159,8 +159,8 @@ impl App {
                         self.original_items[pos] = trimmed.clone();
                     }
 
-                    if let Some(time) = self.config.visits.remove(&old_item) {
-                        self.config.visits.insert(trimmed.clone(), time);
+                    if let Some(time) = self.state.visits.remove(&old_item) {
+                        self.state.visits.insert(trimmed.clone(), time);
                     }
 
                     if self.config.pinned.remove(&old_item) {
@@ -200,7 +200,7 @@ impl App {
                 if let Some(pos) = self.original_items.iter().position(|x| x == &item) {
                     self.original_items.remove(pos);
                 }
-                self.config.visits.remove(&item);
+                self.state.visits.remove(&item);
                 self.config.pinned.remove(&item);
             }
             self.clear_label_filter_if_orphaned();
@@ -214,7 +214,7 @@ impl App {
                 if let Some(pos) = self.original_items.iter().position(|x| x == &item) {
                     self.original_items.remove(pos);
                 }
-                self.config.visits.remove(&item);
+                self.state.visits.remove(&item);
                 self.config.pinned.remove(&item);
                 self.clear_label_filter_if_orphaned();
                 self.persist("Deleted");

@@ -1719,7 +1719,7 @@ mod tests {
         let temp_path = std::env::temp_dir().join("gitwig_test_quick_label_chips.toml");
         let mut app = App::new(config, temp_path.clone());
         // Viewed web first, then api → slot 1 = web, slot 2 = api.
-        app.config.label_slots = vec!["web".to_string(), "api".to_string()];
+        app.state.label_slots = vec!["web".to_string(), "api".to_string()];
         app.quick_label_area = Some(Rect::new(0, 1, 80, 1));
 
         let parts = crate::ui::draw::quick_label_parts(&app);
@@ -1738,22 +1738,22 @@ mod tests {
 
         // First chip applies the label in slot 1.
         handle_mouse(&mut app, click(start_x));
-        assert_eq!(app.config.active_label_filter.as_deref(), Some("web"));
+        assert_eq!(app.state.active_label_filter.as_deref(), Some("web"));
 
         // Second chip switches to slot 2; the slots do not reorder.
         handle_mouse(&mut app, click(start_x + (widths[0] + gap) as u16));
-        assert_eq!(app.config.active_label_filter.as_deref(), Some("api"));
-        assert_eq!(app.config.label_slots, vec!["web".to_string(), "api".to_string()]);
+        assert_eq!(app.state.active_label_filter.as_deref(), Some("api"));
+        assert_eq!(app.state.label_slots, vec!["web".to_string(), "api".to_string()]);
 
         // Clicking the active chip toggles the filter off.
         handle_mouse(&mut app, click(start_x + (widths[0] + gap) as u16));
-        assert_eq!(app.config.active_label_filter, None);
+        assert_eq!(app.state.active_label_filter, None);
 
         // The divider between chips and the margin outside the strip are inert.
         handle_mouse(&mut app, click(start_x + widths[0] as u16));
-        assert_eq!(app.config.active_label_filter, None);
+        assert_eq!(app.state.active_label_filter, None);
         handle_mouse(&mut app, click(start_x.saturating_sub(1)));
-        assert_eq!(app.config.active_label_filter, None);
+        assert_eq!(app.state.active_label_filter, None);
         assert_eq!(app.mode, Mode::Normal);
         let _ = std::fs::remove_file(temp_path);
     }
@@ -1826,7 +1826,7 @@ mod tests {
         // the tab click zones are unchanged because the bar carries no prefix.
         app.global_filter = None;
         app.config.labels.insert("/path/to/repo_a".to_string(), vec!["web".to_string()]);
-        app.config.active_label_filter = Some("web".to_string());
+        app.state.active_label_filter = Some("web".to_string());
         app.label_badge_area.set(Some(Rect::new(36, 0, 7, 1)));
 
         let badge_click = MouseEvent {
@@ -1850,7 +1850,7 @@ mod tests {
         let labeled_dirty_x = labeled_start_x + (tab_widths[0] + divider) as u16;
         handle_mouse(&mut app, click(labeled_dirty_x));
         assert_eq!(app.global_filter, Some(GlobalFilter::Dirty));
-        assert_eq!(app.config.active_label_filter.as_deref(), Some("web"));
+        assert_eq!(app.state.active_label_filter.as_deref(), Some("web"));
 
         // Outside the home header the badge rect is cleared, so the same
         // click on the border row does nothing.
