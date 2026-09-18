@@ -58,7 +58,11 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
         k(crate::keybindings::Action::HomeToggleSortReverse)
     );
     let search_key = k(crate::keybindings::Action::HomeSearchRepo);
-    let cycle_filter_key = k(crate::keybindings::Action::HomeCycleFilter);
+    let cycle_filter_key = format!(
+        "{}/{}",
+        k(crate::keybindings::Action::HomeCycleFilter),
+        k(crate::keybindings::Action::HomeCycleFilterBack)
+    );
     let label_picker_key = k(crate::keybindings::Action::HomeLabelPicker);
     let label_slot_keys = kb.format_label_slot_keys(compat);
     let jump_key = k(crate::keybindings::Action::HomeJumpPicker);

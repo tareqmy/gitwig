@@ -3101,6 +3101,9 @@ mod tests {
             ..Default::default()
         };
         let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+        // The captions below assert on the shipped defaults, so do not let a
+        // keybindings.toml left behind by an earlier run leak into them.
+        app.keybindings = crate::keybindings::KeybindingsConfig::default_config();
 
         // Tab 0: Workspace, Commits focus (default)
         app.detail_tab = 0;
@@ -3113,9 +3116,30 @@ mod tests {
             })
             .collect();
         assert!(entry_labels_w.iter().any(|label| label.contains("Inspect [↵/→]")));
-        assert!(entry_labels_w.iter().any(|label| label.contains("Tag [t]")));
+        assert!(entry_labels_w.iter().any(|label| label.contains("Tag [t/T]")));
+        assert!(entry_labels_w.iter().any(|label| label.contains("Checkout [o]")));
+        assert!(entry_labels_w.iter().any(|label| label.contains("Cherry-pick [p/P]")));
         assert!(entry_labels_w.iter().any(|label| label.contains("Load More [G]")));
-        assert!(entry_labels_w.iter().any(|label| label.contains("Yank Hash [y]")));
+        assert!(entry_labels_w.iter().any(|label| label.contains("Yank Hash [y/Y]")));
+
+        // The captions follow the live keybindings, not a stale literal.
+        app.keybindings.update_action_keys(
+            crate::keybindings::Action::WorkspaceCreateTag,
+            vec!["ctrl-t".to_string()],
+        );
+        let (_, entries_rebound) = detail_dismiss_entries(&app);
+        let entry_labels_rebound: Vec<String> = entries_rebound
+            .iter()
+            .map(|entry| {
+                entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
+            })
+            .collect();
+        assert!(entry_labels_rebound.iter().any(|label| label.contains("Tag [ctrl-t]")));
+        assert!(!entry_labels_rebound.iter().any(|label| label.contains("Tag [t/T]")));
+        app.keybindings.update_action_keys(
+            crate::keybindings::Action::WorkspaceCreateTag,
+            vec!["t".to_string(), "T".to_string()],
+        );
 
         // Setup uncommitted changes mock for Tab 0 uncommitted shortcuts
         let mut info = RepoInfo::default();
@@ -3135,9 +3159,9 @@ mod tests {
             })
             .collect();
         assert!(entry_labels_s.iter().any(|label| label.contains("Inspect [→]")));
-        assert!(entry_labels_s.iter().any(|label| label.contains("Unstage All [a]")));
+        assert!(entry_labels_s.iter().any(|label| label.contains("Unstage All [a/A]")));
         assert!(entry_labels_s.iter().any(|label| label.contains("Discard All [X]")));
-        assert!(!entry_labels_s.iter().any(|label| label.contains("Tag [t]")));
+        assert!(!entry_labels_s.iter().any(|label| label.contains("Tag [t/T]")));
 
         // Tab 0: Workspace, Unstaged focus
         app.detail_focus = DetailSection::Unstaged;
@@ -3148,7 +3172,7 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(entry_labels_u.iter().any(|label| label.contains("Stage All [a]")));
+        assert!(entry_labels_u.iter().any(|label| label.contains("Stage All [a/A]")));
         assert!(entry_labels_u.iter().any(|label| label.contains("Discard All [X]")));
 
         // Tab 0: Workspace, StagingDetails focus
@@ -3161,11 +3185,11 @@ mod tests {
             })
             .collect();
         assert!(entry_labels_sd.iter().any(|label| label.contains("Full Screen [→]")));
-        assert!(entry_labels_sd.iter().any(|label| label.contains("Line Mode [l]")));
-        assert!(entry_labels_sd.iter().any(|label| label.contains("Stage [s]")));
-        assert!(entry_labels_sd.iter().any(|label| label.contains("Unstage [u]")));
-        assert!(!entry_labels_sd.iter().any(|label| label.contains("Stash [s]")));
-        assert!(!entry_labels_sd.iter().any(|label| label.contains("Tag [t]")));
+        assert!(entry_labels_sd.iter().any(|label| label.contains("Line Mode [l/L]")));
+        assert!(entry_labels_sd.iter().any(|label| label.contains("Stage [s/S]")));
+        assert!(entry_labels_sd.iter().any(|label| label.contains("Unstage [u/U]")));
+        assert!(!entry_labels_sd.iter().any(|label| label.contains("Stash [s/S]")));
+        assert!(!entry_labels_sd.iter().any(|label| label.contains("Tag [t/T]")));
 
         // Tab 1: Files - Files Focus
         app.detail_tab = 1;
@@ -3180,7 +3204,8 @@ mod tests {
         assert!(entry_labels_f1.iter().any(|label| label.contains("Fuzzy Find [/]")));
         assert!(entry_labels_f1.iter().any(|label| label.contains("Expand/Toggle [→/↵/>]")));
         assert!(entry_labels_f1.iter().any(|label| label.contains("Collapse All [←]")));
-        assert!(entry_labels_f1.iter().any(|label| label.contains("History [⇧H]")));
+        assert!(entry_labels_f1.iter().any(|label| label.contains("History [H]")));
+        assert!(entry_labels_f1.iter().any(|label| label.contains("Discard [x/X]")));
         assert!(!entry_labels_f1.iter().any(|label| label.contains("Open in Editor [e/o]")));
 
         // Add a file tree item that is a directory
@@ -3230,7 +3255,7 @@ mod tests {
             .collect();
         assert!(!entry_labels_f2.iter().any(|label| label.contains("Fuzzy Find [f]")));
         assert!(!entry_labels_f2.iter().any(|label| label.contains("Expand/Collapse [←/→]")));
-        assert!(!entry_labels_f2.iter().any(|label| label.contains("History [⇧H]")));
+        assert!(!entry_labels_f2.iter().any(|label| label.contains("History [H]")));
         assert!(entry_labels_f2.iter().any(|label| label.contains("Full Screen [→]")));
         assert!(entry_labels_f2.iter().any(|label| label.contains("Open in Editor [e/o]")));
 
@@ -3243,7 +3268,7 @@ mod tests {
             })
             .collect();
         assert!(
-            entry_labels_f2_full.iter().any(|label| label.contains("Exit Full Screen [←/⎋/q]"))
+            entry_labels_f2_full.iter().any(|label| label.contains("Exit Full Screen [←/⎋/q/Q]"))
         );
         app.inspect_full_diff = false;
 
@@ -3258,9 +3283,13 @@ mod tests {
             })
             .collect();
         assert!(entry_labels_b1.iter().any(|label| label.contains("Fuzzy Search [/]")));
-        assert!(entry_labels_b1.iter().any(|label| label.contains("Fetch [F]")));
+        assert!(entry_labels_b1.iter().any(|label| label.contains("Fetch [f/F]")));
+        assert!(entry_labels_b1.iter().any(|label| label.contains("Add Remote [a/A]")));
+        assert!(entry_labels_b1.iter().any(|label| label.contains("Create [c/C]")));
+        assert!(entry_labels_b1.iter().any(|label| label.contains("Interactive Rebase [i/I]")));
+        assert!(entry_labels_b1.iter().any(|label| label.contains("Merge Into [M]")));
         assert!(entry_labels_b1.iter().any(|label| label.contains("Pull [p]")));
-        assert!(entry_labels_b1.iter().any(|label| label.contains("Push [⇧P]")));
+        assert!(entry_labels_b1.iter().any(|label| label.contains("Push [P]")));
 
         // Tab 3: Branches - RemoteBranches Focus
         app.detail_focus = DetailSection::RemoteBranches;
@@ -3271,9 +3300,13 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(!entry_labels_b2.iter().any(|label| label.contains("Fetch [f/F]")));
+        // Fetch and Add Remote are not focus-gated (src/components/branch_list.rs),
+        // so they stay visible from the remote panel too.
+        assert!(entry_labels_b2.iter().any(|label| label.contains("Fetch [f/F]")));
+        assert!(entry_labels_b2.iter().any(|label| label.contains("Add Remote [a/A]")));
+        assert!(!entry_labels_b2.iter().any(|label| label.contains("Merge Into [M]")));
         assert!(!entry_labels_b2.iter().any(|label| label.contains("Pull [p]")));
-        assert!(!entry_labels_b2.iter().any(|label| label.contains("Push [⇧P]")));
+        assert!(!entry_labels_b2.iter().any(|label| label.contains("Push [P]")));
 
         // Tab 6: Stashes - Stashes Focus
         app.detail_tab = 6;
@@ -3285,7 +3318,7 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(entry_labels_s1.iter().any(|label| label.contains("Apply [a]")));
+        assert!(entry_labels_s1.iter().any(|label| label.contains("Apply [a/A]")));
         assert!(entry_labels_s1.iter().any(|label| label.contains("Delete [D]")));
 
         // Tab 6: Stashes - StashedFiles Focus
@@ -3297,7 +3330,7 @@ mod tests {
                 entry.spans.iter().map(|s| s.content.as_ref()).collect::<Vec<&str>>().join("")
             })
             .collect();
-        assert!(!entry_labels_s2.iter().any(|label| label.contains("Apply [a]")));
+        assert!(!entry_labels_s2.iter().any(|label| label.contains("Apply [a/A]")));
         assert!(!entry_labels_s2.iter().any(|label| label.contains("Delete [D]")));
 
         // Tab 4: Tags
@@ -3310,7 +3343,7 @@ mod tests {
             })
             .collect();
         assert!(entry_labels_tags.iter().any(|label| label.contains("Fuzzy Search [/]")));
-        assert!(entry_labels_tags.iter().any(|label| label.contains("Fetch [F]")));
+        assert!(entry_labels_tags.iter().any(|label| label.contains("Fetch [f/F]")));
     }
 
     #[test]

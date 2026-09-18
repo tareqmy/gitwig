@@ -12586,3 +12586,45 @@ fn test_command_palette_action_is_registered_like_every_other_global() {
         assert!(Action::from_index(idx).is_some(), "settings index {} resolves to nothing", idx);
     }
 }
+
+#[test]
+fn test_tags_tab_keys_follow_the_tags_bindings_and_the_palette_reaches_them() {
+    use crate::keybindings::Action;
+    let (mut app, _guard) = palette_test_app("tags_bindings");
+    app.mode = Mode::Detail;
+    app.detail_tab = 4; // Tags
+    let key = |c: char| KeyEvent::new(KeyCode::Char(c), KeyModifiers::empty());
+
+    // Default `/` opens the tag search.
+    assert!(crate::input::handle_key(&mut app, key('/'), 5));
+    assert_eq!(app.mode, Mode::TagSearchInput);
+    app.mode = Mode::Detail;
+
+    // Rebinding tags.search is honoured: the old key no longer opens it, the new one does.
+    app.keybindings.update_action_keys(Action::TagsSearch, vec!["ctrl-s".to_string()]);
+    crate::input::handle_key(&mut app, key('/'), 5);
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL),
+        5
+    ));
+    assert_eq!(app.mode, Mode::TagSearchInput);
+    app.mode = Mode::Detail;
+
+    // The palette runs the Tags entries through the same route.
+    app.keybindings.update_action_keys(Action::TagsSearch, vec!["/".to_string()]);
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    let label = app.keybindings.get_action_description(Action::TagsSearch).to_lowercase();
+    type_into_palette(&mut app, &label);
+    assert_eq!(
+        app.command_palette.as_ref().unwrap().selected().map(|e| e.action),
+        Some(Action::TagsSearch)
+    );
+    assert!(crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        5
+    ));
+    assert_eq!(app.mode, Mode::TagSearchInput);
+}

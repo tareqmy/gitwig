@@ -197,19 +197,19 @@ impl Component for TagListComponent {
                     self.queue.push(InternalEvent::CheckoutTag);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Char('D') => {
+                _ if keys.matches(crate::keybindings::Action::TagsDelete, *key) => {
                     self.queue.push(InternalEvent::RequestDeleteTag);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Char('p') => {
+                _ if keys.matches(crate::keybindings::Action::TagsPush, *key) => {
                     self.queue.push(InternalEvent::RequestPushTag);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Char('P') => {
+                _ if keys.matches(crate::keybindings::Action::TagsPushAll, *key) => {
                     self.queue.push(InternalEvent::RequestPushAllTags);
                     return Ok(EventState::Consumed);
                 }
-                KeyCode::Char('f') | KeyCode::Char('F') => {
+                _ if keys.matches(crate::keybindings::Action::TagsFetch, *key) => {
                     self.queue.push(InternalEvent::FetchRemoteTags);
                     return Ok(EventState::Consumed);
                 }

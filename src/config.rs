@@ -323,14 +323,15 @@ pub struct Config {
     /// Repository/directory paths shown in the main list.
     pub items: Vec<String>,
     /// Event-loop poll interval in milliseconds (default: 100).
-    /// Lower → more responsive, higher → less CPU. Sane range: 16–500.
+    /// Lower → more responsive, higher → less CPU. Sane range: 16–500;
+    /// the Settings editor refuses anything below 10.
     #[serde(default = "default_poll_interval_ms")]
     pub poll_interval_ms: u64,
     /// Seconds a background `git fetch` may run before it is cancelled (default: 30).
     /// `0` disables the limit. Raise it for slow remotes on high-latency links.
     #[serde(default = "default_fetch_timeout_secs")]
     pub fetch_timeout_secs: u64,
-    /// Maximum commits to load in workspace view. Default is 0 (unlimited).
+    /// Maximum commits to load in workspace view. Default: 500; 0 = unlimited.
     #[serde(default = "default_max_commits")]
     pub max_commits: usize,
     /// Maximum commits visualised in the Graph tab (0 = unlimited; default 1000)

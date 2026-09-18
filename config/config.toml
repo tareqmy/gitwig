@@ -10,10 +10,11 @@ pinned = [
 
 # Event-loop poll interval in milliseconds.
 # Lower → more responsive, higher → less CPU. Default: 100. Sane range: 16–500.
-poll_interval_ms = 500
+# The in-app Settings editor refuses values below 10.
+poll_interval_ms = 100
 
-# Maximum commits to load in workspace view. Set to 0 for unlimited.
-max_commits = 100
+# Maximum commits to load in workspace view. Default: 500; 0 = unlimited.
+max_commits = 500
 
 # Number of lines/items to scroll when PageUp or PageDown is pressed.
 page_size = 10
@@ -26,7 +27,8 @@ sort_by = "custom"
 sort_reverse = false
 
 # Active theme name selection.
-# Maps to config/themes/<theme_name>.theme (e.g. "default" -> config/themes/default.theme)
+# Resolves to themes/<theme_name>.theme beside the loaded config file
+# (normally ~/.gitwig/themes/, e.g. "default" -> ~/.gitwig/themes/default.theme).
 theme = "default"
 
 # Configuration for interactive repository search and scanning.
@@ -37,9 +39,12 @@ max_depth = 6
 # Starting directory for interactive repository discovery.
 start_dir = "~/"
 
-# Directory paths to prune/exclude from scans to keep search fast.
-excludes = []
+# Directory names to prune/exclude from scans and watch directories to keep search fast.
+# An empty list is reset to these defaults on load, and "checkout" is added
+# automatically whenever "target" is present.
+excludes = ["node_modules", "target", "venv", ".venv", "checkout"]
 
-# If true, repository discovery will filter and show only folders that contain a .git directory.
-git_only = true
+# Deprecated: repository discovery is always git-only. The key is still accepted
+# but ignored.
+# git_only = true
 

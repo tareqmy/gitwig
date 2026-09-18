@@ -10,8 +10,8 @@ Follow this exact process so every release artifact stays in sync. Mirrors
 
 ## Process
 
-1. **Update versions** — bump the version string in every file that carries one (verified
-   against the current release, `2.5.17`):
+1. **Update versions** — bump the version string in every file that carries one (the
+   current release is the version in `.version`):
    - `.version`
    - `Cargo.toml`
    - `gitwig-core/Cargo.toml`

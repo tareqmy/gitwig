@@ -1123,7 +1123,7 @@ impl KeybindingsConfig {
                 create_tag: Some(Keybind::new(&["t", "T"], "Create tag at selected commit")),
                 create_branch: Some(Keybind::new(&["b", "B"], "Create branch at selected commit")),
                 yank_hash: Some(Keybind::new(&["y", "Y"], "Yank selected commit hash")),
-                checkout: Some(Keybind::new(&["o", "O"], "Checkout selected commit")),
+                checkout: Some(Keybind::new(&["o"], "Checkout selected commit")),
                 revert: Some(Keybind::new(&["v", "V"], "Revert selected commit")),
                 cherry_pick: Some(Keybind::new(&["p", "P"], "Cherry-pick selected commit")),
                 interactive_rebase: Some(Keybind::new(

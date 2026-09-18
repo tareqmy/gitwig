@@ -6,7 +6,7 @@
 - **`git`**: A system installation of `git` is required in your `PATH` for operations like staging, diffing, pushing, pulling, and network syncing.
 - **`ssh`**: Required if you use SSH-based Git remotes for network operations.
   > [!NOTE]
-  > **SSH Host Key Policy:** To prevent connection hangs in the non-interactive TUI context, Gitwig executes git commands with `GIT_SSH_COMMAND` set to `ssh -o StrictHostKeyChecking=accept-new`. This automatically trusts and saves new host keys, while verifying existing ones to protect against MITM attacks. If you require a different SSH policy, make sure to add host keys to your `known_hosts` beforehand.
+  > **SSH Host Key Policy:** To prevent connection hangs in the non-interactive TUI context, Gitwig executes git commands with `GIT_SSH_COMMAND` set to `ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new`. `accept-new` automatically trusts and saves new host keys while verifying existing ones to protect against MITM attacks; set `ssh_strict_host_checking = true` in `config.toml` (or toggle it in Settings) to use `-o StrictHostKeyChecking=yes` instead, in which case add host keys to your `known_hosts` beforehand. `BatchMode=yes` stops ssh from prompting on the terminal for passphrases or confirmations (which would paint over the TUI), so an SSH key that needs a passphrase must be loaded into `ssh-agent` first — otherwise the connection fails immediately and the error is shown in-app.
 
 
 ### Via Homebrew (macOS / Linux)
@@ -18,7 +18,7 @@ brew tap tareqmy/tap
 brew install gitwig
 ```
 
-*Note: If Homebrew prompts you with an "untrusted tap" error, run `brew trust tareqmy/tap` to trust it, and then run `brew install gitwig` again.*
+*Note: `brew install gitwig` only resolves the formula once the tap is added — if Homebrew reports "No available formula", run `brew tap tareqmy/tap` first and then `brew install gitwig` again.*
 
 ### Via Shell Script (macOS / Linux)
 

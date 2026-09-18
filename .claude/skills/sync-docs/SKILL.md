@@ -6,7 +6,7 @@ description: Keeps documentation in lockstep with code changes — README, roadm
 # Sync Documentation
 
 Gitwig requires docs to be updated in the **same commit** as the change that makes them
-stale (`.agent/INSTRUCTIONS.md` §6). Mirrors `.agent/skills/sync-docs/SKILL.md`.
+stale (`.agent/INSTRUCTIONS.md` §5). Mirrors `.agent/skills/sync-docs/SKILL.md`.
 
 ## When to trigger
 Whenever a change modifies:

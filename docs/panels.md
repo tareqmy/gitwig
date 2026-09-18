@@ -33,7 +33,7 @@ The primary dashboard shown when Gitwig starts up.
         *   `R` : Refresh status of selected item manually
         *   `F` : Bulk fetch all repositories concurrently
         *   `E` : Show why the selected repository's last fetch failed
-        *   `o` : Cycle sorting criteria (Name, Path, Last Commit, Status)
+        *   `o` : Cycle sorting criteria (Custom → Alphabetical → Recent → Changes)
         *   `O` : Toggle reverse sorting
         *   `v` : Cycle repository list layout (Normal/Compact/Tile)
         *   `a` : Add a repository via the directory-scanner picker
@@ -97,7 +97,7 @@ Triggered by opening a repository.
         *   `t` / `T` : Create tag at selected commit
         *   `b` / `B` : Create new branch at selected commit
         *   `y` / `Y` : Yank selected commit hash
-        *   `o` / `O` : Checkout selected commit (detached HEAD)
+        *   `o` : Checkout selected commit (detached HEAD; `O` opens the Overview overlay instead)
         *   `v` / `V` : Revert selected commit
         *   `p` / `P` : Cherry-pick selected commit
         *   `i` / `I` : Run interactive rebase from selected commit
@@ -110,6 +110,25 @@ Triggered by opening a repository.
         *   `G` : Load more commits
 *   *Commit Info Panel (Top Right)*: Metadata and descriptions of the selected commit.
 *   *Files List Panel (Bottom Right)*: List of changed files in the selected commit. Displays inline diff on selection.
+*   *Staged / Unstaged / Conflicts Panels*: Shown while the "Uncommitted changes" item is selected; the same panels as the Commit Inspection Layout, driven from the Workspace tab.
+    *   *Shortcuts*:
+        *   `↑` / `k` / `K` / `↓` / `j` / `J` : Navigate file lists
+        *   `PgUp` / `PgDn` / `Home` / `End` : Page through / jump to top or bottom of the focused list
+        *   `Enter` : Stage selected file (if in Unstaged list) or Unstage selected file (if in Staged list); in the Conflicts list, open the conflict diff in the Commit Inspection Layout
+        *   `→` : Open the selected file's diff in the Commit Inspection Layout (Staged / Unstaged / Conflicts)
+        *   `a` / `A` : Stage all changes (if in Unstaged) or Unstage all changes (if in Staged)
+        *   `x` : Discard changes in selected file (Staged / Unstaged; opens confirmation dialog)
+        *   `X` : Discard all unstaged changes in repository (opens confirmation dialog)
+        *   `s` / `S` : Open stashing UI panel
+        *   `c` : Start commit message dialog
+        *   `C` : Start commit message dialog with Amend (Staged / Unstaged only)
+    *   *Conflict Resolution Shortcuts (Conflicts panel only)*:
+        *   `o` : Accept OURS version of conflict
+        *   `t` : Accept THEIRS version of conflict
+        *   `r` : Mark conflict as resolved
+        *   `A` : Abort the merge (opens confirmation dialog)
+        *   `C` : Continue the merge (opens confirmation dialog)
+        *   `M` : Open external mergetool
 
 #### Tab 1: Files Tab (Working Directory Browser)
 *   *File Tree Panel (Left)*: Lists all files in the current workspace directory.
@@ -125,6 +144,7 @@ Triggered by opening a repository.
         *   `n` / `N` : Toggle line numbers in content viewer
         *   `e` / `o` : Open selected file in default terminal editor
         *   `H` : View commit history of the selected file
+        *   `x` / `X` : Discard changes in the selected file (asks confirmation)
         *   `/` : Launch fuzzy file search picker
 *   *File Content Viewer (Right)*: Displays code content of the selected file. Supports git blame when toggled.
     *   *Shortcuts when focused*:
@@ -156,7 +176,7 @@ Triggered by opening a repository.
         *   `c` / `C` : Create new branch
         *   `D` : Delete selected branch
         *   `m` : Merge selected branch into current branch
-        *   `M` : Checkout selected local branch and merge the (previously) current branch into it
+        *   `M` : Checkout selected local branch and merge the (previously) current branch into it (Local list only; with the Remote list focused `M` falls through to a plain merge, same as `m`)
         *   `r` : Rebase current branch onto selected branch
         *   `i` / `I` : Interactive rebase of current branch onto selected branch
         *   `p` : Pull remote changes (for local branches)
@@ -213,6 +233,7 @@ Triggered by opening a repository.
 *   *Submodules List Panel*: Lists submodules.
     *   *Shortcuts*:
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
+        *   `PgUp` / `PgDn` / `Home` / `End` : Navigate submodules list
         *   `a` : Add new submodule
         *   `D` : Delete selected submodule
 
@@ -310,7 +331,8 @@ Commits history of selected file.
     *   `Esc` / `q` / `Q` : Return to detail view
     *   `Tab` / `w` / `W` / `←` / `→` : Toggle keyboard focus between Revisions list and Diff panel
     *   `↑` / `k` / `K` / `↓` / `j` / `J` : Scroll list (when Revisions is focused) or scroll diff (when Diff is focused)
-    *   `PgUp` / `PgDn` / `Home` / `End` : Scroll list / diff
+    *   `Home` / `End` : Jump to the first / last revision (Revisions focused) or to the top / bottom of the diff (Diff focused)
+    *   `PgUp` / `PgDn` : Scroll the diff by 10 lines (Diff focused only; the Revisions list has no paging keys)
 
 ### Repository Overview Overlay (`Mode::Overview`)
 Full-screen overlay summarizing the current repository (opened with `O` from the Detail view), split into an Overview pane and a Stats pane.
@@ -344,8 +366,8 @@ App logs viewer.
 ### Settings View (`Mode::Settings`)
 Full-screen configuration editor split into Categories and Fields.
 *   *Shortcuts*:
-    *   `Esc` : Return to category sidebar (if in fields panel) or return to Home Screen (if in sidebar)
-    *   `q` / `Q` : Return to Home Screen
+    *   `Esc` / `q` : Return to category sidebar (if in fields panel) or return to Home Screen (if in sidebar)
+    *   `Q` : Return to Home Screen directly
     *   `1` - `5` : Jump directly to Category 1-5 (General, Sorting, Scan, Theme, Keybindings)
     *   `←` / `h` : Focus category sidebar
     *   `→` / `l` / `w` / `W` : Focus fields panel on the right
@@ -428,7 +450,7 @@ Warning dialog shown when selecting a directory that is not a valid Git reposito
 ### Help Overlay (`Mode::Help` / `Mode::DetailHelp`)
 Floating keyboard shortcut reference popup shown on top of the Home Screen or Detail View.
 *   *Shortcuts*:
-    *   `Esc` / `q` / `?` : Dismiss help overlay
+    *   `Esc` / `q` / `Q` / `?` : Dismiss help overlay
 
 ### Global Search View (`Mode::GlobalSearch`)
 Full-screen dashboard to search for keywords/code across all tracked repositories simultaneously.
@@ -460,8 +482,9 @@ Floating modal components with search-as-you-type inputs. Matches are ranked and
     *   `Esc` : Cancel and close overlay
     *   `Enter` : Confirm selection
     *   `↑` / `↓` : Navigate matched items list
+    *   `Home` / `End` / `PgUp` / `PgDn` : Jump to top / bottom or page through the match list
     *   `Backspace` : Delete search query character
-    *   Character keys : Input fuzzy search query query
+    *   Character keys : Input fuzzy search query
 
 ---
 
@@ -515,9 +538,9 @@ To prevent accidental data loss due to muscle-memory `Enter` keypresses, Gitwig 
 *   **Self-Update (`Mode::UpdateConfirm`)**: Confirming a self-update.
 
 ### Shortcuts
-*   `y` / `Y` : Confirm action (required for destructive actions; works for all)
+*   `y` / `Y` : Confirm action (required for destructive actions; works for all except Cherry-Pick, which confirms with `Enter` only)
 *   `f` / `F` : Force push tag (`--force`) in Tag Push confirmation dialog
 *   `t` / `T` : Push branch with tags (`--tags`) in Branch Push confirmation dialog
-*   `Esc` / `n` / `N` : Cancel action / close popup
+*   `Esc` / `n` / `N` : Cancel action / close popup (Cherry-Pick cancels with `Esc` / `q` / `Q` instead; `n` does nothing there)
 *   `Enter` : Confirm action (only works for non-destructive actions; cancels for destructive actions)
 

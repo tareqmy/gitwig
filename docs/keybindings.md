@@ -20,7 +20,7 @@
 | `Esc`                | LabelPicker     | Close label picker without changing the filter |
 | `↑` / `↓`            | LabelPicker     | Navigate label list |
 | `Enter`              | LabelPicker     | Apply selected label (re-selecting the active label, or "All repositories", clears it) |
-| `→`                  | LabelPicker     | Open Label Settings for the highlighted label (no-op on the "All repositories" row) |
+| `→`                  | LabelPicker     | Open Label Settings for the highlighted label (on the "All repositories" row it only shows a "Select a label to edit its settings" status hint) |
 | `Home` / `End` / `PgUp` / `PgDn` | Fuzzy pickers | Jump to top / bottom or page through the match list. Works in all fuzzy picker overlays: label picker, Jump-to-Repo, add/bulk-add repo scanners, and branch/file/commit/tag searches |
 | `ctrl+f`             | Normal          | Open global code search popup overlay |
 | `p`                  | Normal          | Toggle pin status of selected item |
@@ -44,10 +44,10 @@
 | `V`                  | Normal          | Show about popup / creator profile |
 | `v`                  | Normal          | Cycle between standard cards, compact 1-row view, and tile grid view |
 | `h`                  | Normal          | Show signs & symbols legend popup |
-| `Shift+U`            | Normal          | Open App Usage Stats Dashboard    |
+| `U`            | Normal          | Open App Usage Stats Dashboard    |
 | `u`                  | Normal          | Check for application updates manually |
 | `.`                  | Normal / Detail | Toggle status bar between collapsed and expanded view |
-| `Enter`              | Normal / Commits list | Open Detail view for selected item / Inspect selected commit |
+| `Enter` / `→`        | Normal / Commits list | Open Detail view for selected item (in Tile view `→` moves the selection right instead) / Inspect selected commit |
 | `?`                  | Normal / Help   | Toggle the shortcut overlay       |
 | `ctrl+q`             | Global / Anywhere | Quit application from anywhere    |
 | `Esc`                | Normal          | Clear active search filter or cancel all repository selections |
@@ -64,7 +64,8 @@
 | `Backspace`          | GlobalSearch    | Erase query character (when input is focused) |
 | `Enter`              | Settings (Edit) | Save settings edit                |
 | `Esc`                | Settings (Edit) | Cancel settings edit              |
-| `Esc` / `q`          | Settings        | Exit Settings and return to Home  |
+| `Esc` / `q`          | Settings        | Return to the category sidebar (from the fields panel), or to Home if the sidebar is already focused |
+| `Q`                  | Settings        | Exit Settings and return to Home  |
 | `↑` / `↓` / `k` / `j` | Settings        | Navigate setting fields / categories |
 | `Enter` / `Space`    | Settings        | Toggle / Edit selected setting    |
 | `Tab` / `Shift+Tab`  | Settings        | Switch focus between category list (sidebar) and settings list |
@@ -85,13 +86,13 @@
 | `←` / `→`            | Editing / Input Modals | Move the caret within the field. Fuzzy pickers keep the arrows for moving their selection. |
 | `Home` / `End`       | Editing / Input Modals | Move the caret to the start / end of the field |
 | `Delete`             | Editing / Input Modals | Erase the character under the caret |
-| `Tab`                | Tag Creation    | Switch focus between Tag Name and Tag Message input fields |
+| `Tab` / `↑` / `↓`    | Tag Creation    | Switch focus between Tag Name and Tag Message input fields |
 | `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag, push branch/tag/all tags, tag overwrite, abort/continue merge, track launch directory) |
 | `f` / `F`            | Confirm Dialog  | Force push tag (`--force`) in Tag Push confirmation dialog |
 | `t` / `T`            | Confirm Dialog  | Push branch with tags (`--tags`) in Branch Push confirmation dialog |
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
-| `?` / `Esc` / `q`    | Help            | Close the help overlay            |
-| `Esc` / `q`          | Detail          | Return to the list                |
+| `?` / `Esc` / `q` / `Q` | Help         | Close the help overlay            |
+| `Esc` / `q` / `Q`    | Detail          | Return to the list                |
 | `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs within the active group (Primary vs. Advanced) |
 | `w` / `W`            | Detail          | Cycle panel focus forward (w) / backward (W) |
 | `+` / `-`            | Detail          | Grow (`+`) or shrink (`-`) the focused panel by moving its layout split (same splits the mouse can drag) |
@@ -104,7 +105,7 @@
 | `PgUp` / `PgDn`      | Detail / Normal / Settings | Scroll list/diff/tree/settings by configured `page_size` |
 | `Home` / `End`       | Detail / Normal / Settings | Jump to top / bottom of list/diff/tree/settings |
 | `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), checkout tag (Tags tab), open worktree in new context (Worktrees tab), checkout commit (Reflog tab; also `Space`), or Inspect commit |
-| `F` (or `f`/`F` in Remotes) | Detail   | Fetch remote repository (Branches / Tags / Remotes tabs) |
+| `f` / `F`            | Detail          | Fetch remote repository (Branches / Tags / Remotes tabs) |
 | `p`                  | Detail          | Pull selected local branch from remote (Branches tab), Push selected tag (Tags tab; asks confirmation), or Prune stale worktree metadata (Worktrees tab) |
 | `Shift+P`            | Detail          | Push selected local branch to remote (Branches tab) or Push all tags (Tags tab; asks confirmation) |
 | `←` / `→`            | Detail          | Focus Local/Remote branch list (Branches tab only; on the Tags tab switch local/remote focus with `w` / `W` or the mouse) |
@@ -116,16 +117,16 @@
 | `Shift+H`            | Detail          | View selected file's commit/revision history (Files tab) |
 | `c`                  | Detail          | Open commit prompt (Workspace tab or Inspect view), or Create branch from HEAD (Branches tab) |
 | `C`                  | Detail          | Open commit prompt with Amend (Workspace tab or Inspect view)    |
-| `a`                  | Detail          | Toggle "Assigned to me" / "All Open" issues (Issues tab), Stage All (Workspace tab Unstaged focus) / Unstage All (Workspace tab Staged focus), Apply stash (Stashes tab), Add worktree (Worktrees tab), Add remote (`a`/`A`, Remotes tab), or Add submodule (Submodules tab) |
+| `a`                  | Detail          | Toggle "Assigned to me" / "All Open" issues (Issues tab), Stage All (`a`/`A`, Workspace tab Unstaged focus) / Unstage All (`a`/`A`, Workspace tab Staged focus), Apply stash (Stashes tab), Add worktree (Worktrees tab), Add remote (`a`/`A`, Remotes tab), or Add submodule (Submodules tab) |
 | `n`                  | Detail          | Add line comment to selected PR (PRs tab), or Toggle line numbers in content viewer (`n`/`N`, Files tab) |
 | `b` / `B`            | Detail          | Toggle git blame panel (Files tab), or Create branch at selected commit (Workspace commits list) |
 | `t` / `T`            | Detail          | Create tag at selected commit (Workspace commits list)           |
 | `y` / `Y`            | Detail          | Yank selected commit hash (Workspace commits list)               |
 | `v` / `V`            | Detail          | Revert selected commit (Workspace commits list; asks confirmation) |
 | `p` / `P`            | Detail          | Cherry-pick selected commit (Workspace commits list; asks confirmation) |
-| `x`                  | Detail          | Discard selected file changes (Workspace tab, Inspect view, or Files tab via `x`/`X`; asks confirmation) |
+| `x`                  | Detail          | Discard selected file changes (Workspace tab, Inspect view, or Files tab via `x`/`X`; asks confirmation), or discard the selected hunk/line (`x` / `Delete`, Workspace diff / Inspect StagingDetails focus; applies immediately) |
 | `X`                  | Detail          | Discard all changes in repository (Workspace tab or Inspect view; asks confirmation) |
-| `i` / `I`            | Detail          | Interactive rebase from selected commit (Workspace tab commits list) |
+| `i` / `I`            | Detail          | Interactive rebase from selected commit (Workspace tab commits list), or interactive rebase of the current branch onto the selected branch (Branches tab; asks confirmation) |
 | `G`                  | Detail          | Load more commits (Workspace commits list / Logs view)            |
 | `l`                  | Detail          | Open Logs view (Workspace tab commits list focus), Toggle line-by-line staging mode (`l`/`L`, Workspace diff / Inspect StagingDetails focus), or Toggle lock status (Worktrees tab; asks reason/unlocks) |
 | `D`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), stash (Stashes tab; asks confirmation), remote (Remotes tab; asks confirmation), submodule (Submodules tab; asks confirmation), or remove worktree (Worktrees tab; asks confirmation) |
@@ -135,9 +136,9 @@
 | `Ctrl+U`             | Input (Stash)   | Toggle "Stash untracked files" option (Stash Create popup)       |
 | `Ctrl+I`             | Input (Stash)   | Toggle "Keep index" option (Stash Create popup)                 |
 | `m`                  | Detail          | Merge selected branch into current branch (Branches tab; asks confirmation) |
-| `M`                  | Detail          | Checkout selected local branch and merge the current branch into it (Branches tab, Local panel; asks confirmation) |
+| `M`                  | Detail          | Checkout selected local branch and merge the current branch into it (Branches tab, Local panel; asks confirmation). With the Remote panel focused, `M` falls through to a plain merge of the selected branch, same as `m` |
 | `r`                  | Detail          | Rebase current branch onto selected branch (Branches tab; asks confirmation) |
-| `o` / `O`            | Detail          | Checkout selected commit (Workspace commits list), Open selected issue/PR in web browser (`o`, Forge tabs), or Accept OURS version of conflict (Workspace tab or Inspect view, Conflicts / ConflictDiff) |
+| `o`                  | Detail          | Checkout selected commit (Workspace commits list; asks confirmation), Open selected issue/PR in web browser (Forge tabs), or Accept OURS version of conflict (Workspace tab or Inspect view, Conflicts / ConflictDiff). `O` is reserved for the Overview overlay |
 | `t`                  | Detail          | Accept THEIRS version of conflict (Workspace tab or Inspect view, Conflicts / ConflictDiff) |
 | `r`                  | Detail          | Mark conflict as resolved (Workspace tab or Inspect view, Conflicts / ConflictDiff) |
 | `A`                  | Detail          | Abort the merge (Workspace tab or Inspect view, Conflicts / ConflictDiff; asks confirmation) |
@@ -146,7 +147,7 @@
 | `f`                  | Detail          | Open search column picker and go to logs (Workspace tab) |
 | `R`                  | Detail          | Resync the active tab state       |
 | `?`                  | Detail          | Toggle detail help overlay        |
-| `Esc` / `q` / `?`    | DetailHelp      | Close detail help overlay         |
+| `Esc` / `q` / `Q` / `?` | DetailHelp   | Close detail help overlay         |
 | `⌃S` (Ctrl+S)        | CommitInput (Edit) | Submit / execute Git commit directly from edit mode |
 | `⌃A` (Ctrl+A)        | CommitInput (Edit) | Toggle amend last commit option |
 | `⌃D` (Ctrl+D)        | CommitInput (Edit) | Maximize / restore the popup window size |
@@ -210,3 +211,9 @@ description = "Grow the focused panel"
 ```
 
 Entries in this file **override the built-in defaults**. Actions missing from the file are backfilled with their defaults on startup, but existing entries are never rewritten — so if a default changes in a newer Gitwig version (for example, panel grow was briefly bound to both `+` and `=` in development builds before settling on `+` alone), a previously written entry keeps the old keys until you edit it or delete the entry to re-adopt the default.
+
+Not every key is configurable yet. The following views still match their keys in code and ignore `keybindings.toml` (only their generic navigation keys — `↑`/`↓`/`PgUp`/`PgDn`/`Home`/`End`/`Enter`/`Esc` — follow the `[navigation]` section):
+
+- On the Branches tab, fetch (`f`/`F`) and add remote (`a`/`A`) are hard-coded (there is no `[branches]` entry for them).
+- On the Files tab, the tree's `Enter`/`→` folder toggle, `←` collapse-all, and `x`/`X` discard are hard-coded; `>`, `<`/`,`, and the rest of the `[files]` section are configurable.
+- The full-screen Logs view (`l`/`L` from the commits list) and the per-file History view (`H` from the Files tab) hard-code every key they handle.

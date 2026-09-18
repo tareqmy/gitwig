@@ -11,11 +11,11 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Per-item filesystem status indicator (missing / directory / git repo) using a lightweight `.git`-existence check; supports `~` expansion.
 - [x] Integrate `git2` for the per-item detail view: branch, HEAD commit, remotes, working-tree status (staged / modified / untracked / conflicted). Snapshot is captured once on Enter.
 - [x] Detail view modal (Enter to open, Esc/q to close) with mode-aware status bar (`DETAIL` badge).
-- [x] Manual status refresh — `r` in Normal mode re-runs `repo::inspect_summary` for the selected item and flashes "Refreshed".
-- [x] Per-card compound indicator: `● clean` for a fully in-sync repo, or `● N+ N! N? N↑ N↓` showing staged / modified / untracked / conflicted / ahead / behind counts (only non-zero values shown). `status.rs` was folded into `repo.rs`; a shared `collect_summary` helper ensures the card and Detail view always agree.
+- [x] Manual status refresh — `R` in Normal mode re-runs `repo::inspect_summary` (the `gitwig-core` crate, re-exported as `repo`) for the selected item and flashes "Refreshed".
+- [x] Per-card compound indicator: `● clean` for a fully in-sync repo, or `● N+ N! N? N↑ N↓` showing staged / modified / untracked / conflicted / ahead / behind counts (only non-zero values shown). `status.rs` was folded into what is now the `gitwig-core` crate (`gitwig-core/src/lib.rs`); a shared `collect_summary` helper ensures the card and Detail view always agree.
 - [x] Detail view gains **Upstream** and **Sync** rows (powered by `branch_upstream_name` + `graph_ahead_behind`); shows `(not configured)` when the branch has no tracking branch.
 - [x] Detail view restructured into named rounded panels: `Commits` (top 50%) and `Staging Area` / `Staging Details` side-by-side (bottom 50%). Breadcrumb header shows item name (left) and active branch name with `` glyph (right).
-- [x] Detail view panel focus cycling via `Tab`: `Commits → Staged → Unstaged → Staging Details → Commits`. Focused panel highlighted with accent border; `Tab  cycle focus` shown in status bar.
+- [x] Detail view panel focus cycling via `w`/`W` (`Tab`/`BackTab` cycle tabs). The original Phase-1 section set was `Commits → Staged → Unstaged → Staging Details → Commits`; today's per-tab sections are listed in `.agent/CODEMAP.md`. Focused panel highlighted with accent border; the cycle-focus hint is shown in the status bar.
 - [x] Support `Esc` key in addition to `q` to quit the application from the home page.
 
 ## Phase 2: Working Tree & Status
@@ -34,13 +34,14 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 ## Phase 4: Branch Management
 - [x] List local and remote branches.
 - [x] Checkout branches (shortcut `Enter` in Branches tab).
-- [x] Checkout commits directly from Workspace commits list (shortcut `o`/`O` in Commits panel). Shows confirmation, stays in workspace view, blocks pushes on `"HEAD"` pseudo-branch, and highlights `[HEAD]` next to the checked out commit when detached.
+- [x] Checkout commits directly from Workspace commits list (shortcut `o` in Commits panel; `O` is reserved for the Overview). Shows confirmation, stays in workspace view, blocks pushes on `"HEAD"` pseudo-branch, and highlights `[HEAD]` next to the checked out commit when detached.
 - [x] Create and delete branches.
 
 - [x] Dedicated Tags tab to list, check out local/remote tags, delete local tags, create annotated tags with messages, force update existing tags (`-f -a -m`), force push tags (`--force`), and push tags with branch push (`--tags`).
 - [x] Merge and Rebase (basic support).
 
-- [x] Fetch and Push operations (Fetch via `f`/`F`, Push via `Shift+P` in Branches tab).
+## Phase 5: Remote Operations
+- [x] Fetch and Push operations (Fetch via `f`/`F` in the Tags and Remotes tabs — and on the Branches tab's remote list via `branch_list.rs` — plus `F` fetch-all on the home screen; Push via `Shift+P` in Branches tab).
 - [x] Pull operations (shortcut `p` in Branches tab).
 - [x] Manage multiple remotes.
 - [x] Progress bars for network operations.
@@ -55,7 +56,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Stash list (dedicated Stashes detail tab).
 - [x] Stashing actions: apply and delete stash (Details / Stashes).
 - [x] Main page sorting (Alphabetical, Recent Visit, Latest Changes, Custom) and direction toggle (o / O).
-- [x] Commit amending support (a / A / Space in confirmation mode).
+- [x] Commit amending support (`a` / `Space` toggle amend in the commit popup's confirm mode, `Ctrl+A` in editing mode; `C` in the Workspace tab opens the popup with amend pre-set).
 - [x] Interactive directory scanner picker to add items (a).
 - [x] Search and filter in history and file lists (commit search).
 - [x] Interactive Rebase.
@@ -113,7 +114,6 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [ ] **Per Repository rule**
 
 ## Phase 9: Homepage Enhancements
-> Full details and implementation priority table: see `.agent/homepage_feature_suggestions.md`
 
 ### Visual Enhancements
 - [x] Repo Health / State Indicators: Show repo HEAD state as a badge on each card (`⚠ MERGE_HEAD`, `🚧 REBASING`, `⚡ CHERRY-PICK`, `✓ CLEAN`).
@@ -184,8 +184,8 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] **Forge Insights:** Track the number of pull requests reviewed and comments made through the Forge integration tab.
 
 ## Phase 17: Future Explorations & Quality of Life
-- [ ] **Interactive Git Bisect:** A guided, visual interface for `git bisect` to easily mark commits as good/bad and automatically navigate the commit history to find bugs.
-- [ ] **Inline Git Blame View:** An interactive file viewer with a left-hand gutter showing the author, date, and commit hash for every line, allowing instant navigation to the introducing commit.
+- [ ] **Interactive Git Bisect:** A guided, visual interface for `git bisect` to easily mark commits as good/bad and automatically navigate the commit history to find bugs (state detection via `RepoState::Bisect` and the `BISECTING` card badge already exist).
+- [x] **Inline Git Blame View:** `b`/`B` in the Files tab (`Action::FilesBlame`, `src/tabs/files.rs`, `App::load_blame_for_selected_file`) toggles a blame gutter beside the file preview showing the author, date, and commit hash for every line.
 - [x] **Command Palette:** `Ctrl+P` on the home screen or in the repository view opens a fuzzy picker over every action available in the current context (home, or repository plus the active tab, plus the globals), showing each action's current key; `Enter` runs it through the same handler as the key — with `App.forced_action` set for that one dispatch — so custom bindings work too.
 - [ ] **Custom Scripts & Macros:** Allow users to define custom shell commands/scripts in `config.toml` that can be triggered via shortcuts (e.g., linters, IDE launchers, `git clean`).
 - [x] **External Mergetool/Difftool Integration:** A shortcut to instantly open the configured external GUI mergetool (like VSCode, KDiff3) for complex conflict resolution.

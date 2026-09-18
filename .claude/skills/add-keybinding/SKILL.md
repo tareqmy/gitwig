@@ -12,15 +12,22 @@ assume its variants, read the source; the list is long and changes often). A key
 isn't done when the key does the thing — it's done when every place a user could look to
 learn about it agrees with the code.
 
-## Files to update atomically (`.agent/INSTRUCTIONS.md` §3)
+## Files to update atomically (`.agent/INSTRUCTIONS.md` §2 "Modal Input")
 
-1. **`src/input.rs`** — the `handle_key` route that matches the key to an action for the
+1. **`src/keybindings.rs`** — bindings are data-driven. Add the `Action` variant, its
+   entries in `Action::from_index` and `Action::to_index`, a field on the relevant
+   `*Keybindings` struct, a default in `default_config()`, and the match arms in
+   `get_action_keys`, `get`, and `update_action_keys` (plus `find_conflict`'s list, and
+   `is_global_action` if it is a global). Then add the new index to the category list in
+   `src/popups/settings.rs` (`*_SETTING_INDICES` / `ALL_KEYBINDINGS_SETTING_INDICES`) so
+   it shows on the Settings page.
+2. **`src/input.rs`** — the `handle_key` route that matches the key to an action for the
    relevant `Mode`.
-2. **The relevant `src/app/*.rs`** (`mod.rs`, `actions.rs`, `git.rs`, `workspace.rs`, or
+3. **The relevant `src/app/*.rs`** (`mod.rs`, `actions.rs`, `git.rs`, `workspace.rs`, or
    `navigation.rs`) — the state mutation the key triggers.
-3. **`src/popups/help.rs`** or **`src/popups/detail_help.rs`** — the help-overlay line for
+4. **`src/popups/help.rs`** or **`src/popups/detail_help.rs`** — the help-overlay line for
    the key, in whichever overlay is active in that mode.
-4. **`src/components/cmd_bar/`** (`mod.rs`, or the mode-specific `main.rs` / `detail.rs` /
+5. **`src/components/cmd_bar/`** (`mod.rs`, or the mode-specific `main.rs` / `detail.rs` /
    `popups.rs`) — the status-bar hint entries shown at the bottom of the screen.
 
 Miss any one of these and the UI lies to the user about what a key does — the status bar
@@ -33,4 +40,4 @@ here is a visible bug, not a nitpick.
 
 ## Before committing
 Run the `rust-quality` skill's checks, and add or update a test in `src/app/tests.rs`
-covering the new key's effect (`.agent/INSTRUCTIONS.md` §5: every method gets a test).
+covering the new key's effect (`.agent/INSTRUCTIONS.md` §4: every method gets a test).

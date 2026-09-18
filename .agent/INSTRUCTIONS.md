@@ -19,24 +19,25 @@ Welcome, Agent. You are tasked with helping build **Gitwig**, a high-performance
 - **TUI Excellence:** Aim for a responsive UI. Avoid blocking the main thread with heavy Git operations.
 - **Terminal Safety:** Terminal lifecycle and error cleanup are centralized in `src/terminal.rs` (`init_terminal`, `TerminalGuard`, `setup_panic_hook`). A custom panic hook disables raw mode and leaves the alternate screen before printing backtraces. The RAII `TerminalGuard` ensures every exit path (normal return, `?` propagation, or early exit) automatically restores terminal state. The embedded terminal panel's shell child is separate: `TerminalSession` in `src/terminal_session.rs` owns the PTY and kills + reaps the child in its `Drop`, which runs when `App` drops on quit.
 - **Embedded Terminal Key Routing:** `App.terminal_focused` is checked near the top of `input::dispatch_key`, *before* the `Mode` match — while true, nearly every key is forwarded to the PTY (only the global quit, the panel toggle, and scrollback keys are intercepted). Any new global key intercept must consider whether it should fire while the terminal panel is focused; by default it must sit *after* the `terminal_focused` guard so shells receive the keystroke.
-- **Git Integration & Boundary:** Use `git2-rs` for operations. **Never import `git2` directly into UI or rendering files.** All `git2` logic must be routed through the `gitwig-core` workspace crate or safely abstracted in `src/app/git.rs`.
-- **Git Subprocesses:** **Never write `Command::new("git")` directly.** Always build it with `crate::git_cmd::git_command()`, which disables terminal prompts, askpass helpers, and host-key confirmation, and nulls stdin. A bare command inherits the tty, so an unreachable or permission-denied remote lets `ssh` or a credential helper write its prompt into the alternate screen and corrupt the TUI. The only exception is a command that *deliberately* runs interactively after leaving the alternate screen (interactive rebase, mergetool). Any subprocess that touches a remote must additionally be run through `crate::git_cmd::run_git_with_timeout` with `config.fetch_timeout_secs`, so a silent remote cannot hang a background thread forever.
+- **Git Integration & Boundary:** Use `git2-rs` for operations. **Never import `git2` directly into UI or rendering files** (the one exception is `#[cfg(test)]` fixtures that need a throwaway repository, e.g. the rendering test in `src/ui/draw.rs`). All `git2` logic must be routed through the `gitwig-core` workspace crate or safely abstracted in `src/app/git.rs`.
+- **Git Subprocesses:** In the `gitwig` crate, **never write `Command::new("git")` directly.** Always build it with `crate::git_cmd::git_command()`, which disables terminal prompts, askpass helpers, and host-key confirmation, and nulls stdin. A bare command inherits the tty, so an unreachable or permission-denied remote lets `ssh` or a credential helper write its prompt into the alternate screen and corrupt the TUI. The only exceptions are a command that *deliberately* runs interactively after leaving the alternate screen (interactive rebase and mergetool in `src/app/mod.rs`) and the `git --version` availability check in `src/terminal.rs`, which runs before the alternate screen exists. Any subprocess that touches a remote must additionally be run through `crate::git_cmd::run_git_with_timeout` with `config.fetch_timeout_secs`, so a silent remote cannot hang a background thread forever. `gitwig-core` cannot depend on the binary crate, so it carries its own private `git_command()` / `run_git_with_timeout` mirrors in `gitwig-core/src/lib.rs` that set the same non-interactive environment (`GIT_TERMINAL_PROMPT=0`, `GIT_SSH_COMMAND` with `BatchMode=yes`, empty `GIT_ASKPASS` / `SSH_ASKPASS`, `GCM_INTERACTIVE=Never`, null stdin); remote-touching calls there must go through those mirrors. The core crate still has a number of bare `Command::new("git")` sites for local-only commands (`lfs`, `checkout --ours/--theirs`, `merge --abort/--continue`, test fixtures) — keep those local-only, and route anything new that can reach the network through the mirror.
 - **Modal Input:** The app uses a `Mode` enum defined in `src/app/mod.rs`. *Do not assume the variants; always read the source file to check current definitions.* When adding a new keybinding, you must atomically update:
-    1. `src/input.rs` (`handle_key` route)
-    2. `src/app/mod.rs` (State mutation)
-    3. `src/popups/help.rs` or `detail_help.rs` (Help lines generator)
-    4. `src/components/cmd_bar/` (Status bar entries — `mod.rs`, or the mode-specific `main.rs` / `detail.rs` / `popups.rs`)
-- **Detail-View Focus:** When in `Mode::Detail`, the active tab is tracked by `App.detail_tab` and the focused panel by `App.detail_focus: DetailSection`. *Always read `src/app/mod.rs` for the current tab and focus variants.* Support cycling (`Tab`/`BackTab`, `w`/`W`) and dynamic terminal resizing constraints.
-- **Visual Theme:** Pull every color, border-type, and selection marker from the Theme constants in `src/ui/style.rs`. **Never hard-code plain white, gray, or black** — they invert on light/dark terminals. Leave standard foregrounds at `Style::default()` and use `Modifier::DIM` or `Modifier::BOLD`. Selection uses three synced layers: left `▌` marker, accent border color, and bold text.
+    1. `src/keybindings.rs` — bindings are data-driven: add the `Action` variant, its entries in `Action::from_index` and `Action::to_index`, a field on the relevant `*Keybindings` struct, a default in `default_config()`, and the match arms in `get_action_keys`, `get`, and `update_action_keys` (plus `find_conflict`'s list, and `is_global_action` if it is a global). Then add the new index to the category list in `src/popups/settings.rs` (`*_SETTING_INDICES` / `ALL_KEYBINDINGS_SETTING_INDICES`) so it appears on the Settings page.
+    2. `src/input.rs` (`handle_key` route)
+    3. `src/app/mod.rs` (State mutation)
+    4. `src/popups/help.rs` or `detail_help.rs` (Help lines generator)
+    5. `src/components/cmd_bar/` (Status bar entries — `mod.rs`, or the mode-specific `main.rs` / `detail.rs` / `popups.rs`)
+- **Detail-View Focus:** When in `Mode::Detail`, the active tab is tracked by `App.detail_tab` and the focused panel by `App.detail_focus: DetailSection`. *Always read `src/app/mod.rs` for the current tab and focus variants.* Support cycling — `Tab`/`BackTab` cycle tabs, `w`/`W` cycle panel focus — and dynamic terminal resizing constraints.
+- **Visual Theme:** Pull every color, border-type, and selection marker from the theme accessor functions in `src/ui/style.rs` (`ACCENT()`, `WARNING()`, `DANGER()`, `SUCCESS()`, `CARD_BORDER()`). **Never hard-code plain white, gray, or black** — they invert on light/dark terminals. Leave standard foregrounds at `Style::default()` and use `Modifier::DIM` or `Modifier::BOLD`. Selection uses three synced layers: left `▌` marker, accent border color, and bold text.
 - **Item Statuses:** `App.statuses: Vec<ItemStatus>` runs parallel to `App.config.items`. Any mutation (add/edit/remove) **must** atomically update `statuses` at the same index in the same method to prevent visual drift.
-- **File Status Labels:** Restricted to a single character width (`FILE_LABEL_WIDTH = 2`): `"N"`, `"D"`, `"M"`, `"R"`, `"T"`, `"C"`, `"?"`.
+- **File Status Labels:** Single-character labels rendered in a 2-column field (`FILE_LABEL_WIDTH = 2` in `src/ui/ui_detail.rs`): `"N"`, `"D"`, `"M"`, `"R"`, `"T"`, `"C"`, `"?"`.
 - **Config Persistence:** The shared `App::persist` helper is the canonical way to save configs. Any UI mutation of `Config` must call this to prevent disk/memory drift.
 - **Usage State vs. Settings:** Data that changes as a side effect of using the app (last-visit times, commit-message history, quick-label slots, the sticky label filter) belongs in `AppState` (`src/state.rs`, persisted to `state.toml`), never in `Config`. Mutations that touch only `App.state` call `App::persist_state`, which writes `state.toml` alone; `App::persist` writes both. Adding a new key to `config.toml` that the app writes without the user editing a setting is the wrong place — put it in `AppState`.
 
-## 4. Architecture & Refactoring Thresholds
+## 3. Architecture & Refactoring Thresholds
 The crate is organized so each file has a single clear responsibility.
 - **No Inline Main Blocks:** `src/main.rs` and `src/bin/gtg.rs` are thin binary wrappers (under ~15 lines) calling `gitwig::run()`. Shared execution orchestration lives in `src/lib.rs`.
-- **Module Size Limits:** If any module file exceeds **~300 lines of code**, or if a single struct `impl` block contains more than **5 distinct methods**, you must split it out immediately.
+- **Module Size Limits:** New modules should stay under **~300 lines of code**, and every new feature lands in its own module (or its own `impl` file under `src/app/`) rather than growing the existing large files. Several files are already far past that line (`src/app/tests.rs`, `src/ui/draw.rs`, `src/app/navigation.rs`, `src/app/mod.rs`, …); they are split opportunistically along a single responsibility line when a change touches them, not rewritten wholesale.
 - **Granular Method Extraction:** Large monolithic blocks—especially nested `match` statements inside event loops (`src/input.rs`) or rendering sweeps—are strictly forbidden. Extract them into smaller, descriptive helper functions (e.g., `fn handle_navigation_keys(...)`).
 - **Standard Blueprint:**
     - `src/main.rs` & `src/bin/gtg.rs`: Binary entrypoints.
@@ -45,38 +46,48 @@ The crate is organized so each file has a single clear responsibility.
     - `src/terminal_session.rs`: Embedded terminal panel's PTY session (shell spawn, reader thread, key encoding, child cleanup).
     - `src/app/`: Core orchestration, state, git mutations, workspace logic.
     - `src/input.rs` & `src/mouse.rs`: Event routing dispatchers.
-    - `src/ui/`: Main rendering logic and layout themes.
-    - `src/tabs/`: Layout drawing per specific view tab.
-    - `src/popups/`: Centered modal overlays.
-    - `src/components/`: Reusable, stateless widgets.
+    - `src/queue.rs`: Thread-safe internal event queue (`Queue`, `InternalEvent`) components use to ask the engine for state changes.
+    - `src/config.rs`: TOML settings load / migrate / save (`~/.gitwig/config.toml`) and the symbols table.
+    - `src/state.rs`: `AppState` usage state persisted to `state.toml` (visits, commit-message history, quick-label slots, sticky label filter).
+    - `src/keybindings.rs`: Data-driven `Action` / `KeybindingsConfig` registry with defaults, user overrides, lookup, and conflict detection.
+    - `src/keys/`: Legacy key tables (`KeyConfig`, `KeyList`, `KeySymbols`) kept under `#![allow(dead_code)]`; not used by live routing.
+    - `src/stats.rs`: `AppStats` usage counters and heatmap data behind the stats dashboard.
+    - `src/git_cmd.rs`: Hardened `git` subprocess builder (`git_command`) and bounded runner (`run_git_with_timeout`).
+    - `src/debug_log.rs`: Debug/crash log writer behind the `DebugLogs` view.
+    - `src/fetch_error.rs`: Classifies raw fetch/ssh stderr into a compact card label plus explanation.
+    - `src/ui/`: Main rendering logic (`draw.rs`, `ui_detail.rs`), theme (`style.rs`), layout helpers, scrollbar, and syntax highlighting.
+    - `src/tabs/`: Event handling and layout drawing per specific view tab.
+    - `src/popups/`: Centered modal overlays. Exception: the fuzzy/scan pickers and the not-git-repo popup are still drawn by functions in `src/ui/draw.rs` (`draw_repo_jump_popup`, `draw_label_picker_popup`, `draw_global_search_popup`, `draw_repo_scan_popup`, `draw_bulk_add_scan_popup`, `draw_branch_search_popup`, `draw_file_search_popup`, `draw_commit_fuzzy_popup`, `draw_tag_search_popup`, `draw_not_git_repo_popup`). New popups go in `src/popups/`.
+    - `src/components/`: Reusable widgets that keep their own visual/table state (`ListState` / `TableState`, `FileTree.show_blame`, …); pass app data in at render time.
     - `gitwig-core/`: Pure repository inspection (no UI).
 
-## 5. Testing Mandate
+## 4. Testing Mandate
 - **Method-Level Testing:** Whenever working on or creating a new method, you must add test cases for it.
 - **Test-Driven Additions:** Any new feature, action, or popup configuration must be accompanied by comprehensive tests in `src/app/tests.rs` or `src/ui/draw.rs` using headless rendering or temporary Git repositories.
 - **Coverage:** Maintain high code coverage. Never submit code that drops the overall test coverage.
 
-## 6. Keeping Docs In Sync
+## 5. Keeping Docs In Sync
 If you modify codebase conventions, UI panels, or user workflows, you **MUST** update the affected documentation in the same commit:
 - `README.md` (User-facing behaviors, CLI surface)
 - `.agent/ROADMAP.md` (Check off shipped items, add scope shifts)
 - `.agent/STYLE_GUIDE.md` (Coding standards, TUI patterns)
 - `docs/panels.md` (UI directories and shortcuts list)
+- `docs/keybindings.md` (Every new, changed, or removed keybinding — see the `add-keybinding` skill)
 - **Installer Checksums:** If you modify scripts in `scripts/`, recalculate their SHA-256 and update the corresponding `.sha256` files.
 
-## 7. Release Preparation & Process
+## 6. Release Preparation & Process
 When asked to prepare a release:
-1. **Update Versions:** Update version strings across `.version`, `Cargo.toml`, `gitwig-core/Cargo.toml`, and `Formula/gitwig.rb`.
+1. **Update Versions:** Update version strings across `.version`, `Cargo.toml`, `gitwig-core/Cargo.toml`, `Formula/gitwig.rb`, `dist/chocolatey/gitwig.nuspec`, and `dist/chocolatey/tools/chocolateyinstall.ps1` (the download URL carries the version).
 2. **Rebuild Lockfile:** Run `cargo test` to regenerate `Cargo.lock`.
 3. **Changelog:** Run `python3 scripts/generate_changelog.py` or update `CHANGELOG.md` following "Keep a Changelog" formatting.
 4. **Update Script Checksums:** Recalculate `.sha256` files for any modified installer scripts.
 5. **Clean Test Artifacts:** Delete temporary config files (`dummy.toml`) before staging commits.
 
-## 8. Communication
+## 7. Communication
 - Be concise. Provide technical rationale for your decisions.
 - If you find a bug in the existing TUI logic while working, fix it proactively.
 
-## 9. Reusable Skills
+## 8. Reusable Skills
 Recurring workflows — release prep, doc sync, quality gates, keybinding changes — are
 written up as triggerable skills in `.agent/skills/*/SKILL.md`. These are agent-agnostic;
 use them regardless of which tool you are. Claude Code additionally auto-discovers its

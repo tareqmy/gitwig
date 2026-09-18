@@ -1,6 +1,8 @@
 //! Short-cut keys guide popup for active pane options in the detail inspect view.
 
 use crate::app::{App, DetailSection, Mode};
+use crate::keybindings::Action;
+use crate::popups::help::nav_key_caption;
 use crate::repo::RemoteInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};
 use crate::ui::style::{
@@ -112,26 +114,41 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     let a5 = app.keybindings.format_action_keys(crate::keybindings::Action::GoToTab5, is_compat);
     let advanced_nums = format!("{}-{}", a1, a5);
 
-    let make_cat = |title: &'static str,
-                    items: Vec<(&str, &'static str)>|
-     -> (&str, Vec<(String, &'static str)>) {
-        let mapped = items.into_iter().map(|(k, d)| (k.to_string(), d)).collect();
-        (title, mapped)
+    // Every configurable action is rendered from the live keybindings so a
+    // rebinding never leaves this overlay lying; rows that stay literal are
+    // matched as literal key codes by their handlers and say so below.
+    let k =
+        |action: crate::keybindings::Action| nav_key_caption(&app.keybindings, action, is_compat);
+    // Joins the captions of several actions that share one row, collapsing
+    // duplicates (most tabs bind the same key for the same kind of action).
+    let join_keys = |actions: &[crate::keybindings::Action]| -> String {
+        let mut seen: Vec<String> = Vec::new();
+        for action in actions {
+            let caption = k(*action);
+            if !seen.contains(&caption) {
+                seen.push(caption);
+            }
+        }
+        seen.join(" / ")
     };
+
+    let make_cat = |title: &'static str,
+                    items: Vec<(String, &'static str)>|
+     -> (&str, Vec<(String, &'static str)>) { (title, items) };
 
     let mut categories: Vec<(&str, Vec<(String, &str)>)> = vec![
         (
             "General Navigation",
             vec![
                 (
-                    "↑ [Up] / k".to_string(),
+                    k(Action::DetailMoveUp),
                     "Select previous commit / file / branch / file tree item",
                 ),
-                ("↓ [Down] / j".to_string(), "Select next commit / file / branch / file tree item"),
-                ("⇞ [PgUp]".to_string(), "Jump page size rows up"),
-                ("⇟ [PgDn]".to_string(), "Jump page size rows down"),
-                ("Home".to_string(), "Scroll to top / go to first item"),
-                ("End".to_string(), "Scroll to bottom / go to last item"),
+                (k(Action::DetailMoveDown), "Select next commit / file / branch / file tree item"),
+                (k(Action::DetailPageUp), "Jump page size rows up"),
+                (k(Action::DetailPageDown), "Jump page size rows down"),
+                (k(Action::DetailHome), "Scroll to top / go to first item"),
+                (k(Action::DetailEnd), "Scroll to bottom / go to last item"),
                 (cycle_tabs_key, "Cycle tabs within active group"),
                 (toggle_tabs_key, "Toggle between Primary and Advanced tab groups"),
                 (focus_key, "Cycle panel focus forward / backward"),
@@ -153,131 +170,190 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ),
                 (
                     format!("Advanced [{}]", advanced_nums),
-                    "Worktrees (1), Submodules (2), Reflog (3), Forge (4), PRs (5) (accessible when Advanced group is active)",
+                    "Worktrees (1), Submodules (2), Reflog (3), Issues (4), PRs (5) (accessible when Advanced group is active)",
                 ),
             ],
         ),
     ];
 
+    let commit_keys =
+        format!("{} / {}", k(Action::WorkspaceCommit), k(Action::WorkspaceCommitAmend));
     categories.push(make_cat(
         "Workspace & Inspection",
         vec![
-            ("↵ [Enter]", "Stage/Unstage file, Checkout branch, Checkout tag, or Inspect commit"),
-            ("o", "Checkout selected commit (Workspace commits list)"),
-            ("→ [Right]", "Inspect selected commit (Workspace commits list)"),
-            ("⎋ [Esc]", "Back to workspace commits list (Inspect mode)"),
-            ("c / C", "Commit (c) / Amend last commit (C)"),
-            ("t", "Create tag (Workspace commits list)"),
-            ("b", "Create branch at selected commit (Workspace commits list)"),
-            ("p", "Cherry-pick selected commit (Workspace commits list)"),
-            ("i / I", "Interactive rebase from selected commit (Workspace commits list)"),
-            ("y", "Yank selected commit hash"),
-            ("a", "Stage/Unstage All"),
-            ("x", "Discard changes in selected file"),
-            ("X", "Discard all changes in repository"),
-            ("s", "Open the stashing panel (Workspace files list)"),
-            ("v", "Revert selected commit (Workspace commits list)"),
-            ("O", "Show repository Overview (from any tab)"),
-            ("/", "Fuzzy search commits (History panel)"),
-            ("f", "Open search column picker (choose SHA/Message/Author/Date)"),
-            ("l", "Open Logs view (Full screen commits list)"),
-            ("G", "Load more commits (Workspace / Logs view)"),
-            ("s", "Open Repository Settings (Overview only)"),
-            ("⇥ [Tab] / w / W", "Cycle pane focus (Overview only)"),
+            (k(Action::WorkspaceStage), "Stage / Unstage selected file (Workspace files lists)"),
+            (k(Action::HomeOpenDetail), "Inspect selected commit (Workspace commits list)"),
+            (k(Action::WorkspaceCheckout), "Checkout selected commit (Workspace commits list)"),
+            (k(Action::CloseDetail), "Back to workspace commits list (Inspect mode)"),
+            (commit_keys, "Commit / Amend last commit"),
+            (k(Action::WorkspaceCreateTag), "Create tag (Workspace commits list)"),
+            (
+                k(Action::WorkspaceCreateBranch),
+                "Create branch at selected commit (Workspace commits list)",
+            ),
+            (k(Action::WorkspaceCherryPick), "Cherry-pick selected commit (Workspace commits list)"),
+            (
+                k(Action::WorkspaceInteractiveRebase),
+                "Interactive rebase from selected commit (Workspace commits list)",
+            ),
+            (k(Action::WorkspaceYankHash), "Yank selected commit hash"),
+            (k(Action::WorkspaceStageAll), "Stage/Unstage All"),
+            (k(Action::WorkspaceDiscard), "Discard changes in selected file"),
+            (k(Action::WorkspaceDiscardAll), "Discard all changes in repository"),
+            (
+                k(Action::WorkspaceStashUI),
+                "Open the stashing panel (Workspace lists); inside the Overview overlay the same key opens Repository Settings",
+            ),
+            (k(Action::WorkspaceRevert), "Revert selected commit (Workspace commits list)"),
+            (k(Action::Overview), "Show repository Overview (from any tab)"),
+            (k(Action::WorkspaceFuzzySearch), "Fuzzy search commits (History panel)"),
+            (
+                k(Action::WorkspaceColumnPicker),
+                "Open search column picker (choose SHA/Message/Author/Date)",
+            ),
+            (k(Action::WorkspaceLogsView), "Open Logs view (Full screen commits list)"),
+            (k(Action::WorkspaceLoadMore), "Load more commits (Workspace / Logs view)"),
+            // The Overview overlay matches Tab / w / W as literal key codes
+            // (src/input.rs, Mode::Overview), so this row stays literal.
+            ("⇥ [Tab] / w / W".to_string(), "Cycle pane focus (Overview only)"),
         ],
     ));
 
     categories.push(make_cat(
         "Diff & Hunk Staging (Workspace diff / Inspect)",
         vec![
-            ("l / L", "Toggle line-by-line stage/discard mode"),
-            ("s / S", "Stage selected hunk/line"),
-            ("u / U", "Unstage selected hunk/line"),
-            ("x / Delete", "Discard selected hunk/line (immediate, no confirmation)"),
+            (k(Action::DiffLineMode), "Toggle line-by-line stage/discard mode"),
+            (k(Action::DiffStage), "Stage selected hunk/line"),
+            (k(Action::DiffUnstage), "Unstage selected hunk/line"),
+            (k(Action::DiffDiscard), "Discard selected hunk/line (immediate, no confirmation)"),
         ],
     ));
 
+    // The file tree (src/components/file_tree.rs) matches → / ↵ (toggle),
+    // ← (collapse all) and x / X (discard) as literal key codes; ← / Esc to
+    // leave the full-screen viewer is literal ← plus the CloseDetail binding.
+    let files_expand_key = format!("→ / ↵ / {}", k(Action::FilesExpand));
+    let files_full_screen_key = k(Action::FilesFullScreen);
+    let files_exit_full_screen_key = format!("← / {}", k(Action::CloseDetail));
     categories.push(make_cat(
         "Files Tab",
         vec![
-            ("→ / ↵ or >", "Expand/toggle selected folder"),
-            ("<", "Collapse selected folder"),
-            ("←", "Collapse all folders"),
-            ("/", "Fuzzy find files"),
-            ("b", "Toggle git blame panel"),
-            ("n", "Toggle line numbers in content viewer"),
-            ("x", "Discard changes in selected file"),
-            ("⇧H [Shift+H]", "Show file history"),
-            ("e / o", "Open file in terminal editor"),
+            (files_expand_key, "Expand/toggle selected folder"),
+            (k(Action::FilesCollapse), "Collapse selected folder"),
+            ("←".to_string(), "Collapse all folders"),
+            (k(Action::FilesSearch), "Fuzzy find files"),
+            (k(Action::FilesBlame), "Toggle git blame panel"),
+            (k(Action::FilesLineNumbers), "Toggle line numbers in content viewer"),
+            ("x / X".to_string(), "Discard changes in selected file"),
+            (k(Action::FilesHistory), "Show file history"),
+            (k(Action::FilesEditor), "Open file in terminal editor"),
+            (files_full_screen_key, "Show the content viewer full screen (content viewer focused)"),
+            (files_exit_full_screen_key, "Leave the full-screen content viewer"),
         ],
     ));
 
+    // Fetch and Add Remote on the Branches tab are matched as literal f / F
+    // and a / A in src/components/branch_list.rs; every Tags-tab key comes
+    // from the `[tags]` bindings (src/tabs/tags.rs).
+    let branches_checkout_key = join_keys(&[Action::BranchesCheckout, Action::TagsCheckout]);
+    let branches_delete_key = join_keys(&[Action::BranchesDelete, Action::TagsDelete]);
+    let branches_pull_key = join_keys(&[Action::BranchesPull, Action::TagsPush]);
+    let branches_push_key = join_keys(&[Action::BranchesPush, Action::TagsPushAll]);
+    let branches_search_key = join_keys(&[Action::BranchesSearch, Action::TagsSearch]);
     categories.push(make_cat(
         "Branches & Tags Tab",
         vec![
-            ("← / →", "Focus Local/Remote branch (Branches tab)"),
-            ("c", "Create branch"),
-            ("⇧D [Shift+D]", "Delete selected branch / tag"),
-            ("m", "Merge selected branch into current branch"),
-            ("⇧M [Shift+M]", "Checkout selected branch and merge the current branch into it"),
-            ("r", "Rebase current branch onto selected branch"),
-            ("i / I", "Interactive rebase of current branch onto selected branch"),
-            ("p", "Pull branch (Branches) / Push tag (Tags)"),
-            ("⇧P [Shift+P]", "Push branch (Branches) / Push all tags (Tags)"),
-            ("/", "Fuzzy search branches / tags"),
-            ("f / F", "Fetch remote (Branches) / Fetch remote tags (Tags)"),
-            ("a", "Add new remote (Branches tab)"),
+            ("← / →".to_string(), "Focus Local/Remote branch (Branches tab)"),
+            (branches_checkout_key, "Checkout selected branch / tag"),
+            (k(Action::BranchesCreate), "Create branch"),
+            (branches_delete_key, "Delete selected branch / tag"),
+            (k(Action::BranchesMerge), "Merge selected branch into current branch"),
+            (
+                k(Action::BranchesMergeInto),
+                "Checkout selected branch and merge the current branch into it",
+            ),
+            (k(Action::BranchesRebase), "Rebase current branch onto selected branch"),
+            (
+                k(Action::BranchesInteractiveRebase),
+                "Interactive rebase of current branch onto selected branch",
+            ),
+            (branches_pull_key, "Pull branch (Branches) / Push tag (Tags)"),
+            (branches_push_key, "Push branch (Branches) / Push all tags (Tags)"),
+            (branches_search_key, "Fuzzy search branches / tags"),
+            ("f / F".to_string(), "Fetch remote (Branches tab)"),
+            (k(Action::TagsFetch), "Fetch remote tags (Tags tab)"),
+            ("a / A".to_string(), "Add new remote (Branches tab)"),
         ],
     ));
 
+    let misc_add_key = join_keys(&[
+        Action::StashesApply,
+        Action::WorktreesAdd,
+        Action::RemotesAdd,
+        Action::SubmodulesAdd,
+    ]);
+    let misc_delete_key = join_keys(&[
+        Action::StashesDelete,
+        Action::WorktreesDelete,
+        Action::RemotesDelete,
+        Action::SubmodulesDelete,
+    ]);
     categories.push(make_cat(
         "Remotes, Stashes, Worktrees & Submodules Tabs",
         vec![
-            ("a", "Apply stash / Add worktree / Add remote / Add submodule"),
-            ("s", "Create new stash (Stashes tab)"),
-            ("⇧D [Shift+D]", "Delete stash / Remove worktree / Delete remote / Delete submodule"),
-            ("l", "Toggle lock status (Worktrees tab only)"),
-            ("p", "Prune worktree metadata (Worktrees tab only)"),
-            ("↵ [Enter]", "Open worktree in new context (Worktrees tab only)"),
-            ("f / F", "Fetch selected remote (Remotes tab)"),
+            (misc_add_key, "Apply stash / Add worktree / Add remote / Add submodule"),
+            (k(Action::StashesCreate), "Create new stash (Stashes tab)"),
+            (misc_delete_key, "Delete stash / Remove worktree / Delete remote / Delete submodule"),
+            (k(Action::WorktreesLock), "Toggle lock status (Worktrees tab only)"),
+            (k(Action::WorktreesPrune), "Prune worktree metadata (Worktrees tab only)"),
+            (k(Action::WorktreesOpen), "Open worktree in new context (Worktrees tab only)"),
+            (k(Action::RemotesFetch), "Fetch selected remote (Remotes tab)"),
         ],
     ));
 
     categories.push(make_cat(
         "Conflict Resolution",
         vec![
-            ("o", "Accept OURS version of conflict"),
-            ("t", "Accept THEIRS version of conflict"),
-            ("r", "Mark conflict as resolved"),
-            ("A", "Abort the merge"),
-            ("C", "Continue the merge"),
-            ("M", "Open external mergetool (Conflicts file list / ConflictDiff pane)"),
+            (k(Action::ConflictOurs), "Accept OURS version of conflict"),
+            (k(Action::ConflictTheirs), "Accept THEIRS version of conflict"),
+            (k(Action::ConflictResolve), "Mark conflict as resolved"),
+            (k(Action::ConflictAbort), "Abort the merge"),
+            (k(Action::ConflictContinue), "Continue the merge"),
+            (
+                k(Action::ConflictMergeTool),
+                "Open external mergetool (Conflicts file list / ConflictDiff pane)",
+            ),
         ],
     ));
 
     categories.push(make_cat(
         "Reflog Tab",
-        vec![("↵ [Enter] / Space", "Checkout the commit OID of the selected reflog entry")],
+        vec![(k(Action::ReflogCheckout), "Checkout the commit OID of the selected reflog entry")],
     ));
 
     categories.push(make_cat(
         "Forge Integration (Issues & PRs)",
         vec![
-            ("↵ [Enter]", "Checkout branch linked to selected issue or checkout PR branch"),
-            ("o", "Open selected issue or PR in web browser"),
-            ("a", "Toggle between all issues and assigned issues (Issues tab only)"),
-            ("n", "Add line comment to selected PR (PRs tab only)"),
+            (
+                k(Action::ForgeCheckout),
+                "Checkout branch linked to selected issue or checkout PR branch",
+            ),
+            (k(Action::ForgeOpenBrowser), "Open selected issue or PR in web browser"),
+            (
+                k(Action::ForgeToggleAssigned),
+                "Toggle between all issues and assigned issues (Issues tab only)",
+            ),
+            (k(Action::ForgeAddComment), "Add line comment to selected PR (PRs tab only)"),
         ],
     ));
 
     categories.push(make_cat(
         "Mouse Interactions",
         vec![
-            ("Left-Click", "Focus clicked panel / change tab (mouse support)"),
-            ("Left-Click+Drag", "Drag boundaries to resize split panels"),
+            ("Left-Click".to_string(), "Focus clicked panel / change tab (mouse support)"),
+            ("Left-Click+Drag".to_string(), "Drag boundaries to resize split panels"),
         ],
     ));
-
     // Find max key width for aligned display
     let mut max_key_width = 0;
     for (_, keys) in &categories {

@@ -40,6 +40,57 @@ fn wrap_text(text: &str, max_width: usize) -> Vec<String> {
     lines
 }
 
+/// Caption for a navigation-style action in the help overlays: every bound
+/// key, arrow and paging names rendered the way the overlays present them
+/// (`↑ [Up]`, `⇞ [PgUp]`, ...) and Enter/Tab/Esc mapped like
+/// [`KeybindingsConfig::format_action_keys`]. Keys still come from the live
+/// keybindings, so a rebinding shows up here instead of a stale literal.
+pub(crate) fn nav_key_caption(
+    kb: &crate::keybindings::KeybindingsConfig,
+    action: Action,
+    compat: bool,
+) -> String {
+    let keys = kb.get_action_keys(action);
+    if keys.is_empty() {
+        return "-".to_string();
+    }
+    keys.iter()
+        .map(|k| {
+            let name = match (k.as_str(), compat) {
+                ("up", false) => "↑ [Up]",
+                ("up", true) => "Up",
+                ("down", false) => "↓ [Down]",
+                ("down", true) => "Down",
+                ("left", false) => "← [Left]",
+                ("left", true) => "Left",
+                ("right", false) => "→ [Right]",
+                ("right", true) => "Right",
+                ("pageup" | "pgup", false) => "⇞ [PgUp]",
+                ("pageup" | "pgup", true) => "PgUp",
+                ("pagedown" | "pgdn", false) => "⇟ [PgDn]",
+                ("pagedown" | "pgdn", true) => "PgDn",
+                ("home", _) => "Home",
+                ("end", _) => "End",
+                ("space", _) => "Space",
+                ("delete" | "del", _) => "Del",
+                ("backspace", false) => "⌫",
+                ("backspace", true) => "Backspace",
+                ("enter" | "return", false) => "↵",
+                ("enter" | "return", true) => "Enter",
+                ("esc" | "escape", false) => "⎋",
+                ("esc" | "escape", true) => "Esc",
+                ("tab", false) => "⇥",
+                ("tab", true) => "Tab",
+                ("backtab" | "shift-tab", false) => "⇧⇥",
+                ("backtab" | "shift-tab", true) => "Shift+Tab",
+                _ => k.as_str(),
+            };
+            name.to_string()
+        })
+        .collect::<Vec<_>>()
+        .join(" / ")
+}
+
 pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     let mut lines = Vec::new();
     let is_compat = app.config.compatibility_mode;
@@ -113,6 +164,19 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     let label_picker_key = kb.format_action_keys(Action::HomeLabelPicker, is_compat);
     let label_slot_keys = kb.format_label_slot_keys(is_compat);
 
+    // The home list navigation keys are configurable (home.move_up etc.), so
+    // the rows are built from the live bindings with the arrow glyphs the
+    // overlay uses for its fixed rows.
+    let nav = |action: Action| nav_key_caption(kb, action, is_compat);
+    let move_up_key = nav(Action::HomeMoveUp);
+    let move_down_key = nav(Action::HomeMoveDown);
+    let page_up_key = nav(Action::HomePageUp);
+    let page_down_key = nav(Action::HomePageDown);
+    let home_key = nav(Action::HomeHome);
+    let end_key = nav(Action::HomeEnd);
+    let debug_page_key = format!("{} / {}", nav(Action::NavPageUp), nav(Action::NavPageDown));
+    let debug_jump_key = format!("{} / {}", nav(Action::NavHome), nav(Action::NavEnd));
+
     let make_cat = |title: &'static str,
                     items: Vec<(&str, &'static str)>|
      -> (&str, Vec<(String, &'static str)>) {
@@ -124,12 +188,12 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         (
             "Global & Navigation",
             vec![
-                ("↑ [Up] / k".to_string(), "Move selection up / scroll up"),
-                ("↓ [Down] / j".to_string(), "Move selection down / scroll down"),
-                ("⇞ [PgUp]".to_string(), "Jump one page up"),
-                ("⇟ [PgDn]".to_string(), "Jump one page down"),
-                ("Home".to_string(), "Go to top / scroll to top"),
-                ("End".to_string(), "Go to bottom / scroll to bottom"),
+                (move_up_key, "Move selection up / scroll up"),
+                (move_down_key, "Move selection down / scroll down"),
+                (page_up_key, "Jump one page up"),
+                (page_down_key, "Jump one page down"),
+                (home_key, "Go to top / scroll to top"),
+                (end_key, "Go to bottom / scroll to bottom"),
                 ("⎋ [Esc]".to_string(), "Cancel input, clear search/filter, or cancel selections"),
                 (close_key, "Close dialog / leave detail view"),
                 (
@@ -203,14 +267,20 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         ),
     ];
 
-    categories.push(make_cat(
+    // The debug panel (src/popups/debug.rs) matches Esc/q/D/l/L, c/C/x, "/",
+    // Enter and ↑/↓/j/k as literal key codes rather than configurable
+    // actions, so those rows stay literal; only paging and Home/End go
+    // through the generic navigation bindings.
+    categories.push((
         "Debug Logs Panel",
         vec![
-            ("Esc / q / D / l / L", "Exit debug logs panel"),
-            ("c / C / x", "Clear all debug logs"),
-            ("/", "Fuzzy search/filter debug logs"),
-            ("Enter", "Leave the search field to scroll results (while searching)"),
-            ("↑ / ↓ / j / k", "Scroll log entries"),
+            ("Esc / q / D / l / L".to_string(), "Exit debug logs panel"),
+            ("c / C / x".to_string(), "Clear all debug logs"),
+            ("/".to_string(), "Fuzzy search/filter debug logs"),
+            ("Enter".to_string(), "Leave the search field to scroll results (while searching)"),
+            ("↑ / ↓ / j / k".to_string(), "Scroll log entries"),
+            (debug_page_key, "Scroll log entries one page up / down"),
+            (debug_jump_key, "Jump to the first / last log entry"),
         ],
     ));
 

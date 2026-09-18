@@ -14,6 +14,10 @@ description = "Quit Gitwig"
 keys = ["ctrl-t"]
 description = "Toggle the embedded terminal panel"
 
+[global.command_palette]
+keys = ["ctrl-p"]
+description = "Open the command palette (run any action by name)"
+
 [home.move_down]
 keys = [
     "j",
@@ -46,7 +50,7 @@ description = "Go to bottom of list"
 
 [home.add_repo]
 keys = ["a"]
-description = "Add repository path manually"
+description = "Add a repository via the directory scanner"
 
 [home.bulk_add]
 keys = ["A"]
@@ -214,6 +218,61 @@ description = "Filter by quick label 8"
 keys = ["9"]
 description = "Filter by quick label 9"
 
+[navigation.nav_up]
+keys = [
+    "up",
+    "k",
+]
+description = "Generic move up in lists/menus"
+
+[navigation.nav_down]
+keys = [
+    "down",
+    "j",
+]
+description = "Generic move down in lists/menus"
+
+[navigation.nav_left]
+keys = [
+    "left",
+    "h",
+]
+description = "Generic move left in lists/menus"
+
+[navigation.nav_right]
+keys = [
+    "right",
+    "l",
+]
+description = "Generic move right in lists/menus"
+
+[navigation.nav_page_up]
+keys = ["pageup"]
+description = "Generic page up in lists/menus"
+
+[navigation.nav_page_down]
+keys = ["pagedown"]
+description = "Generic page down in lists/menus"
+
+[navigation.nav_home]
+keys = ["home"]
+description = "Generic jump to top in lists/menus"
+
+[navigation.nav_end]
+keys = ["end"]
+description = "Generic jump to bottom in lists/menus"
+
+[navigation.nav_enter]
+keys = ["enter"]
+description = "Generic select or confirm"
+
+[navigation.nav_esc]
+keys = [
+    "esc",
+    "q",
+]
+description = "Generic cancel or back"
+
 [navigation.close_detail]
 keys = [
     "esc",
@@ -296,6 +355,10 @@ description = "Shrink the focused panel"
 [workspace.load_more]
 keys = ["G"]
 description = "Load more commits"
+
+[workspace.checkout]
+keys = ["o"]
+description = "Checkout selected commit"
 
 [workspace.create_tag]
 keys = [
@@ -411,10 +474,7 @@ keys = ["/"]
 description = "Launch fuzzy file search picker"
 
 [files.expand]
-keys = [
-    ">",
-    ".",
-]
+keys = [">"]
 description = "Expand folder in tree"
 
 [files.collapse]
@@ -642,6 +702,10 @@ description = "Abort merge"
 [conflict.continue_merge]
 keys = ["C"]
 description = "Continue merge"
+
+[conflict.mergetool]
+keys = ["M"]
+description = "Open external mergetool"
 
 [detail.move_up]
 keys = [

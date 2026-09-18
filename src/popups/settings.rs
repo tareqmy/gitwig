@@ -421,17 +421,21 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
 
 fn get_desc(global_idx: usize) -> &'static str {
     match global_idx {
-        0 => "Event-loop poll interval in milliseconds. Sane range: 16-500.",
+        0 => "Event-loop poll interval in milliseconds. Minimum 10; 16-500 is the sane range.",
         1 => "Initial repository sorting criteria.",
         2 => "Reverse the order of repositories.",
         3 => "Active theme configuration name. Press Enter/Space to select from dropdown.",
         4 => "Maximum directory depth to search for git repositories.",
         5 => "Starting directory for interactive repository discovery scanning.",
-        6 => "Maximum commits to load in workspace view. Set to 0 for unlimited.",
+        6 => {
+            "Maximum commits to load in workspace view. Set to 0 to load all commits at once (this also disables the 'G' load-more key)."
+        }
         7 => "Number of lines/items scrolled by Page Up / Page Down.",
         8 => "Comma-separated list of folders/patterns to exclude from search scans.",
-        9 => "External Git application triggered by 'g' key (e.g. gitui or lazygit).",
-        10 => "Only scan folders that contain a .git directory.",
+        9 => "External Git application triggered by 'g' key. Allowed values: git, gitui, lazygit.",
+        10 => {
+            "Removed: repository discovery is always git-only. This setting no longer has any effect."
+        }
         12 => {
             "Use simple ASCII symbols instead of complex Unicode emojis/icons to avoid layout breakage in some terminals."
         }
@@ -446,7 +450,7 @@ fn get_desc(global_idx: usize) -> &'static str {
         }
         56 => "Terminal text editor to open files with (e.g. vim, nano, or notepad).",
         60 => {
-            "Time interval in minutes to automatically run git fetch in the background for all repositories. Set to 0 to disable. Repositories can override this in their Repository Settings popup."
+            "Time interval in minutes to automatically run git fetch in the background for all repositories. Set to 0 to disable. Repositories can override this in their Repository Settings popup, and a whole label group can override it in Label Settings (0 opts out)."
         }
         61 => {
             "Comma-separated list of directories watched recursively for automatic workspace synchronization (e.g. ~/development)."
@@ -475,7 +479,7 @@ fn get_desc(global_idx: usize) -> &'static str {
             "On startup, offer to track the repository Gitwig was launched from when it is not on the list yet. Turn off to never be prompted."
         }
         84 => {
-            "Seconds a background fetch may run before it is cancelled. Prevents an unreachable remote from hanging a repository card forever. Set to 0 to disable the limit."
+            "Seconds a background fetch may run before it is cancelled. Prevents an unreachable remote from hanging a repository card forever. Set to 0 to disable the limit, or use 5 seconds or more."
         }
         14 => "Toggles the status bar between collapsed and expanded view.",
         250 => "Shows and focuses the embedded terminal panel, or hides it.",

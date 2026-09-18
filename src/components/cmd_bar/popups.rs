@@ -14,6 +14,8 @@ pub(crate) fn commit_input_editing_entries() -> (Option<Vec<Span<'static>>>, Vec
         ("Done Editing", "⌃C"),
         ("Submit", "⌃S"),
         ("Clear", "⌃U"),
+        ("Kill to EOL", "⌃K"),
+        ("Delete Word", "⌃W"),
         ("Toggle Amend", "⌃A"),
         ("History", "⌃H"),
         ("Newline", "↵"),
@@ -31,10 +33,10 @@ pub(crate) fn commit_input_confirm_entries(
     let entries_data = [
         ("Submit Commit", "↵"),
         (amend_toggle_label, "a/space"),
-        ("Clear", "x"),
+        ("Clear", "x/u"),
         ("Edit Message", "e"),
         ("Cancel", "⎋/q"),
-        ("Max Size", "d"),
+        ("Max Size", "d/m"),
         ("Scroll", "↑/↓"),
     ];
     (None, super::build_status_entries(&entries_data))
@@ -283,6 +285,37 @@ pub(crate) fn confirm_branch_merge_entries(
             Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
         ),
         Span::raw(" into current branch? "),
+    ]);
+    let entries = vec![
+        StatusEntry::new(vec![
+            Span::raw("Confirm"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("y", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
+            Span::styled("]", muted_style()),
+        ]),
+        StatusEntry::new(vec![
+            Span::styled(" ", muted_style()),
+            Span::raw("Cancel"),
+            Span::raw(" "),
+            Span::styled("[", muted_style()),
+            Span::styled("n/⎋", accent_style()),
+            Span::styled("]", muted_style()),
+        ]),
+    ];
+    (message_spans, entries)
+}
+
+pub(crate) fn confirm_branch_merge_into_entries(
+    target: &str,
+) -> (Option<Vec<Span<'static>>>, Vec<StatusEntry>) {
+    let message_spans = Some(vec![
+        Span::raw("Checkout "),
+        Span::styled(
+            format!("\"{}\"", target),
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" and merge the current branch into it? "),
     ]);
     let entries = vec![
         StatusEntry::new(vec![

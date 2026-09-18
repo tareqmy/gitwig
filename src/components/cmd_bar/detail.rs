@@ -1,7 +1,8 @@
 //! Detail pane view status bar entry generation.
 
-use super::StatusEntry;
+use super::{StatusEntry, compact_action_keys};
 use crate::app::{App, DetailSection, Mode};
+use crate::keybindings::Action;
 use crate::ui::style::{ACCENT, DANGER, WARNING, accent_style, muted_style, primary_style};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
@@ -12,10 +13,95 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
     }
 
-    let entries_data = match app.detail_tab {
+    // Every configurable action is rendered from the live keybindings so a
+    // rebinding never leaves the status bar lying. Keys that stay literal
+    // below are matched as literal key codes by their handlers (noted inline).
+    let compat = app.config.compatibility_mode;
+    let k = |action: Action| compact_action_keys(&app.keybindings, action, compat);
+
+    let ws_checkout = k(Action::WorkspaceCheckout);
+    let ws_tag = k(Action::WorkspaceCreateTag);
+    let ws_branch = k(Action::WorkspaceCreateBranch);
+    let ws_irebase = k(Action::WorkspaceInteractiveRebase);
+    let ws_cherry_pick = k(Action::WorkspaceCherryPick);
+    let ws_revert = k(Action::WorkspaceRevert);
+    let ws_fuzzy = k(Action::WorkspaceFuzzySearch);
+    let ws_columns = k(Action::WorkspaceColumnPicker);
+    let ws_logs = k(Action::WorkspaceLogsView);
+    let tags_checkout = k(Action::TagsCheckout);
+    let tags_search = k(Action::TagsSearch);
+    let tags_fetch = k(Action::TagsFetch);
+    let tags_push = k(Action::TagsPush);
+    let tags_push_all = k(Action::TagsPushAll);
+    let tags_delete = k(Action::TagsDelete);
+    let ws_load_more = k(Action::WorkspaceLoadMore);
+    let ws_yank = k(Action::WorkspaceYankHash);
+    let ws_stash = k(Action::WorkspaceStashUI);
+    let ws_commit = k(Action::WorkspaceCommit);
+    let ws_commit_amend = format!("{}/{}", ws_commit, k(Action::WorkspaceCommitAmend));
+    let ws_stage = k(Action::WorkspaceStage);
+    let ws_stage_all = k(Action::WorkspaceStageAll);
+    let ws_discard = k(Action::WorkspaceDiscard);
+    let ws_discard_all = k(Action::WorkspaceDiscardAll);
+    // Inspect from the commits list is the HomeOpenDetail binding
+    // (src/tabs/workspace.rs) plus a literal → in the commit list component.
+    let ws_inspect = k(Action::HomeOpenDetail);
+    let diff_line_mode = k(Action::DiffLineMode);
+    let diff_stage = k(Action::DiffStage);
+    let diff_unstage = k(Action::DiffUnstage);
+    let conflict_ours = k(Action::ConflictOurs);
+    let conflict_theirs = k(Action::ConflictTheirs);
+    let conflict_resolve = k(Action::ConflictResolve);
+    let conflict_mergetool = k(Action::ConflictMergeTool);
+    let conflict_abort = k(Action::ConflictAbort);
+    let conflict_continue = k(Action::ConflictContinue);
+    // The file tree matches → / ↵ (toggle folder), ← (collapse all) and
+    // x / X (discard) as literal key codes (src/components/file_tree.rs).
+    let files_expand = format!("→/↵/{}", k(Action::FilesExpand));
+    let files_collapse = k(Action::FilesCollapse);
+    let files_search = k(Action::FilesSearch);
+    let files_history = k(Action::FilesHistory);
+    let files_line_numbers = k(Action::FilesLineNumbers);
+    let files_blame = k(Action::FilesBlame);
+    let files_editor = k(Action::FilesEditor);
+    let files_full_screen = k(Action::FilesFullScreen);
+    // Leaving the full-screen viewer is a literal ← plus the CloseDetail
+    // binding (src/tabs/files.rs).
+    let files_exit_full_screen = format!("←/{}", k(Action::CloseDetail));
+    let branches_checkout = k(Action::BranchesCheckout);
+    let branches_create = k(Action::BranchesCreate);
+    let branches_delete = k(Action::BranchesDelete);
+    let branches_merge = k(Action::BranchesMerge);
+    let branches_merge_into = k(Action::BranchesMergeInto);
+    let branches_rebase = k(Action::BranchesRebase);
+    let branches_irebase = k(Action::BranchesInteractiveRebase);
+    let branches_search = k(Action::BranchesSearch);
+    let branches_pull = k(Action::BranchesPull);
+    let branches_push = k(Action::BranchesPush);
+    let remotes_fetch = k(Action::RemotesFetch);
+    let remotes_add = k(Action::RemotesAdd);
+    let remotes_delete = k(Action::RemotesDelete);
+    let stashes_apply = k(Action::StashesApply);
+    let stashes_delete = k(Action::StashesDelete);
+    let stashes_create = k(Action::StashesCreate);
+    let worktrees_add = k(Action::WorktreesAdd);
+    let worktrees_delete = k(Action::WorktreesDelete);
+    let worktrees_lock = k(Action::WorktreesLock);
+    let worktrees_prune = k(Action::WorktreesPrune);
+    let worktrees_open = k(Action::WorktreesOpen);
+    let submodules_add = k(Action::SubmodulesAdd);
+    let submodules_delete = k(Action::SubmodulesDelete);
+    let reflog_checkout = k(Action::ReflogCheckout);
+    let forge_checkout = k(Action::ForgeCheckout);
+    let forge_open_browser = k(Action::ForgeOpenBrowser);
+    let forge_toggle_assigned = k(Action::ForgeToggleAssigned);
+    let forge_add_comment = k(Action::ForgeAddComment);
+
+    // The "Tabs", "Home", "Cycle Focus", "Resize", "Resync" and "Help" keys
+    // are supplied by the rewrite loop below, so their literal here is "".
+    let entries_data: Vec<(&str, &str)> = match app.detail_tab {
         0 => {
-            let mut v =
-                vec![("Home", "⎋/q"), ("Tabs", "Tab/1-9"), ("Cycle Focus", "w/W"), ("Resize", "")];
+            let mut v = vec![("Home", ""), ("Tabs", ""), ("Cycle Focus", ""), ("Resize", "")];
             if app.detail_focus == DetailSection::CommitDetails {
                 v.push(("Scroll Info", "↑↓"));
                 v.push(("Inspect", "→"));
@@ -26,15 +112,15 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 v.push(("Page", "⇟/⇞"));
                 v.push(("Jump", "Home/End"));
                 if app.is_uncommitted_selected() {
-                    v.push(("Stage/Unstage", "↵"));
+                    v.push(("Stage/Unstage", &ws_stage));
                     if app.detail_focus == DetailSection::Unstaged {
-                        v.push(("Stage All", "a"));
+                        v.push(("Stage All", &ws_stage_all));
                     } else if app.detail_focus == DetailSection::Staged {
-                        v.push(("Unstage All", "a"));
+                        v.push(("Unstage All", &ws_stage_all));
                     }
-                    v.push(("Discard", "x"));
-                    v.push(("Discard All", "X"));
-                    v.push(("Stash", "s"));
+                    v.push(("Discard", &ws_discard));
+                    v.push(("Discard All", &ws_discard_all));
+                    v.push(("Stash", &ws_stash));
                 }
                 v.push(("Inspect", "→"));
             } else if app.detail_focus == DetailSection::StagingDetails {
@@ -42,259 +128,263 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 v.push(("Page", "⇟/⇞"));
                 v.push(("Jump", "Home/End"));
                 if app.is_uncommitted_selected() {
-                    v.push(("Line Mode", "l"));
-                    v.push(("Stage/Unstage Hunk", "↵"));
-                    v.push(("Stage", "s"));
-                    v.push(("Unstage", "u"));
-                    v.push(("Discard", "x"));
-                    v.push(("Discard All", "X"));
+                    v.push(("Line Mode", &diff_line_mode));
+                    v.push(("Stage/Unstage Hunk", &ws_stage));
+                    v.push(("Stage", &diff_stage));
+                    v.push(("Unstage", &diff_unstage));
+                    v.push(("Discard", &ws_discard));
+                    v.push(("Discard All", &ws_discard_all));
                 }
-                v.push(("Full Screen", "→"));
+                v.push(("Full Screen", &files_full_screen));
             } else if app.detail_focus == DetailSection::Conflicts {
                 v.push(("Navigate/Scroll", "↑↓"));
                 v.push(("Page", "⇟/⇞"));
                 v.push(("Jump", "Home/End"));
                 if app.is_uncommitted_selected() {
-                    v.push(("Accept Ours", "o"));
-                    v.push(("Accept Theirs", "t"));
-                    v.push(("Mark Resolved", "r"));
-                    v.push(("Mergetool", "M"));
-                    v.push(("Abort Merge", "A"));
-                    v.push(("Continue Merge", "C"));
+                    v.push(("Accept Ours", &conflict_ours));
+                    v.push(("Accept Theirs", &conflict_theirs));
+                    v.push(("Mark Resolved", &conflict_resolve));
+                    v.push(("Mergetool", &conflict_mergetool));
+                    v.push(("Abort Merge", &conflict_abort));
+                    v.push(("Continue Merge", &conflict_continue));
                 }
                 v.push(("Inspect", "↵/→"));
             } else if app.detail_focus == DetailSection::ConflictDiff {
                 v.push(("Scroll Diff", "↑↓/⇟⇞"));
                 if app.is_uncommitted_selected() {
-                    v.push(("Accept Ours", "o"));
-                    v.push(("Accept Theirs", "t"));
-                    v.push(("Mark Resolved", "r"));
-                    v.push(("Mergetool", "M"));
-                    v.push(("Abort Merge", "A"));
-                    v.push(("Continue Merge", "C"));
+                    v.push(("Accept Ours", &conflict_ours));
+                    v.push(("Accept Theirs", &conflict_theirs));
+                    v.push(("Mark Resolved", &conflict_resolve));
+                    v.push(("Mergetool", &conflict_mergetool));
+                    v.push(("Abort Merge", &conflict_abort));
+                    v.push(("Continue Merge", &conflict_continue));
                 }
-                v.push(("Home", "⎋/q"));
+                v.push(("Home", ""));
             } else {
                 v.push(("Navigate/Scroll", "↑↓"));
                 v.push(("Page", "⇟/⇞"));
                 v.push(("Jump", "Home/End"));
-                v.push(("Inspect", "↵/→"));
-                v.push(("Checkout", "o"));
-                v.push(("Tag", "t"));
-                v.push(("Branch", "b"));
-                v.push(("Interactive Rebase", "i"));
-                v.push(("Cherry-pick", "p"));
-                v.push(("Revert", "v"));
-                v.push(("Fuzzy Search", "/"));
-                v.push(("Search Columns", "f"));
-                v.push(("Logs UI", "l"));
-                v.push(("Load More", "G"));
-                v.push(("Yank Hash", "y"));
+                v.push(("Inspect", &ws_inspect));
+                v.push(("Checkout", &ws_checkout));
+                v.push(("Tag", &ws_tag));
+                v.push(("Branch", &ws_branch));
+                v.push(("Interactive Rebase", &ws_irebase));
+                v.push(("Cherry-pick", &ws_cherry_pick));
+                v.push(("Revert", &ws_revert));
+                v.push(("Fuzzy Search", &ws_fuzzy));
+                v.push(("Search Columns", &ws_columns));
+                v.push(("Logs UI", &ws_logs));
+                v.push(("Load More", &ws_load_more));
+                v.push(("Yank Hash", &ws_yank));
                 if app.has_uncommitted_changes() {
-                    v.push(("Stash", "s"));
+                    v.push(("Stash", &ws_stash));
                 }
             }
             if app.detail_focus != DetailSection::Conflicts
                 && app.detail_focus != DetailSection::ConflictDiff
             {
-                v.push(("Commit/Amend", "c/C"));
+                v.push(("Commit/Amend", &ws_commit_amend));
             } else {
-                v.push(("Commit", "c"));
+                v.push(("Commit", &ws_commit));
             }
-            v.push(("Resync", "R"));
-            v.push(("Help", "?"));
+            v.push(("Resync", ""));
+            v.push(("Help", ""));
             v
         }
         1 => {
             let mut v = vec![
-                ("Home", "⎋/q"),
-                ("Tabs", "Tab/1-9"),
-                ("Cycle Focus", "w/W"),
+                ("Home", ""),
+                ("Tabs", ""),
+                ("Cycle Focus", ""),
                 ("Resize", ""),
                 ("Navigate/Scroll", "↑↓"),
                 ("Page", "⇟/⇞"),
                 ("Jump", "Home/End"),
             ];
             if app.detail_focus == DetailSection::Files {
-                v.push(("Expand/Toggle", "→/↵/>"));
-                v.push(("Collapse", "<"));
+                v.push(("Expand/Toggle", &files_expand));
+                v.push(("Collapse", &files_collapse));
                 v.push(("Collapse All", "←"));
-                v.push(("Fuzzy Find", "/"));
-                v.push(("History", "⇧H"));
+                v.push(("Fuzzy Find", &files_search));
+                v.push(("History", &files_history));
+                // Literal x / X in src/components/file_tree.rs.
+                v.push(("Discard", "x/X"));
             } else if app.detail_focus == DetailSection::FileContent {
                 if app.inspect_full_diff {
-                    v.push(("Exit Full Screen", "←/⎋/q"));
+                    v.push(("Exit Full Screen", &files_exit_full_screen));
                     let line_no_label =
                         if app.file_tree.show_line_numbers { "Hide Lines" } else { "Show Lines" };
-                    v.push((line_no_label, "n"));
+                    v.push((line_no_label, &files_line_numbers));
                     let blame_label =
                         if app.file_tree.show_blame { "Hide Blame" } else { "Show Blame" };
-                    v.push((blame_label, "b"));
+                    v.push((blame_label, &files_blame));
                 } else {
-                    v.push(("Full Screen", "→"));
+                    v.push(("Full Screen", &files_full_screen));
                 }
             }
             if let Some(item) = app.file_tree.visible_files.get(app.file_tree.file_list_selection) {
                 if !item.is_dir {
-                    v.push(("Open in Editor", "e/o"));
+                    v.push(("Open in Editor", &files_editor));
                 }
             }
-            v.push(("Resync", "R"));
-            v.push(("Help", "?"));
+            v.push(("Resync", ""));
+            v.push(("Help", ""));
             v
         }
         2 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-9"),
+            ("Home", ""),
+            ("Tabs", ""),
             ("Scroll", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
             ("Inspect", "↵"),
             ("Yank Hash", "y"),
-            ("Resync", "R"),
-            ("Help", "?"),
+            ("Resync", ""),
+            ("Help", ""),
         ],
         3 => {
             let mut v = vec![
-                ("Home", "⎋/q"),
-                ("Tabs", "Tab/1-9"),
-                ("Cycle Focus", "w/W"),
+                ("Home", ""),
+                ("Tabs", ""),
+                ("Cycle Focus", ""),
                 ("Resize", ""),
-                ("Checkout", "↵"),
-                ("Create", "c"),
-                ("Delete", "D"),
-                ("Merge", "m"),
-                ("Rebase", "r"),
-                ("Interactive Rebase", "i"),
+                ("Checkout", branches_checkout.as_str()),
+                ("Create", branches_create.as_str()),
+                ("Delete", branches_delete.as_str()),
+                ("Merge", branches_merge.as_str()),
+                ("Rebase", branches_rebase.as_str()),
+                ("Interactive Rebase", branches_irebase.as_str()),
             ];
             if app.detail_focus == DetailSection::LocalBranches {
-                v.push(("Merge Into", "⇧M"));
-                v.push(("Fuzzy Search", "/"));
-                v.push(("Fetch", "F"));
-                v.push(("Pull", "p"));
-                v.push(("Push", "⇧P"));
+                v.push(("Merge Into", &branches_merge_into));
+                v.push(("Pull", &branches_pull));
+                v.push(("Push", &branches_push));
             }
+            v.push(("Fuzzy Search", &branches_search));
+            // Fetch and Add Remote are literal f / F and a / A in
+            // src/components/branch_list.rs and work from either panel.
+            v.push(("Fetch", "f/F"));
+            v.push(("Add Remote", "a/A"));
             v.push(("Navigate", "↑↓"));
             v.push(("Page", "⇟/⇞"));
             v.push(("Jump", "Home/End"));
             v.push(("Focus L/R", "←/→"));
-            v.push(("Resync", "R"));
-            v.push(("Help", "?"));
+            v.push(("Resync", ""));
+            v.push(("Help", ""));
             v
         }
         4 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-9"),
-            ("Cycle Focus", "w/W"),
-            ("Checkout", "↵"),
+            ("Home", ""),
+            ("Tabs", ""),
+            ("Cycle Focus", ""),
+            ("Checkout", tags_checkout.as_str()),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
-            ("Fuzzy Search", "/"),
-            ("Fetch", "F"),
-            ("Push", "p"),
-            ("Push All", "⇧P"),
-            ("Delete", "D"),
-            ("Resync", "R"),
-            ("Help", "?"),
+            ("Fuzzy Search", tags_search.as_str()),
+            ("Fetch", tags_fetch.as_str()),
+            ("Push", tags_push.as_str()),
+            ("Push All", tags_push_all.as_str()),
+            ("Delete", tags_delete.as_str()),
+            ("Resync", ""),
+            ("Help", ""),
         ],
         5 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-9"),
+            ("Home", ""),
+            ("Tabs", ""),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
-            ("Fetch", "f/F"),
-            ("Add", "a/A"),
-            ("Delete", "D"),
-            ("Resync", "R"),
-            ("Help", "?"),
+            ("Fetch", remotes_fetch.as_str()),
+            ("Add", remotes_add.as_str()),
+            ("Delete", remotes_delete.as_str()),
+            ("Resync", ""),
+            ("Help", ""),
         ],
         6 => {
             let mut v = vec![
-                ("Home", "⎋/q"),
-                ("Tabs", "Tab/1-9"),
-                ("Cycle Focus", "w/W"),
+                ("Home", ""),
+                ("Tabs", ""),
+                ("Cycle Focus", ""),
                 ("Resize", ""),
                 ("Navigate", "↑↓"),
                 ("Page", "⇟/⇞"),
                 ("Jump", "Home/End"),
             ];
             if app.detail_focus == DetailSection::Stashes {
-                v.push(("Apply", "a"));
-                v.push(("Delete", "D"));
-                v.push(("Stash New", "s"));
+                v.push(("Apply", &stashes_apply));
+                v.push(("Delete", &stashes_delete));
+                v.push(("Stash New", &stashes_create));
             }
-            v.push(("Resync", "R"));
-            v.push(("Help", "?"));
+            v.push(("Resync", ""));
+            v.push(("Help", ""));
             v
         }
         7 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/1-9"),
+            ("Home", ""),
+            ("Tabs", ""),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
-            ("Add", "a"),
-            ("Delete", "D"),
-            ("Lock/Unlock", "l"),
-            ("Prune", "p"),
-            ("Open", "↵"),
-            ("Resync", "R"),
-            ("Help", "?"),
+            ("Add", worktrees_add.as_str()),
+            ("Delete", worktrees_delete.as_str()),
+            ("Lock/Unlock", worktrees_lock.as_str()),
+            ("Prune", worktrees_prune.as_str()),
+            ("Open", worktrees_open.as_str()),
+            ("Resync", ""),
+            ("Help", ""),
         ],
         8 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/0-9"),
+            ("Home", ""),
+            ("Tabs", ""),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
-            ("Add", "a"),
-            ("Delete", "D"),
-            ("Resync", "R"),
-            ("Help", "?"),
+            ("Add", submodules_add.as_str()),
+            ("Delete", submodules_delete.as_str()),
+            ("Resync", ""),
+            ("Help", ""),
         ],
         9 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/0-9"),
+            ("Home", ""),
+            ("Tabs", ""),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
-            ("Checkout Commit", "↵/Space"),
-            ("Resync", "R"),
-            ("Help", "?"),
+            ("Checkout Commit", reflog_checkout.as_str()),
+            ("Resync", ""),
+            ("Help", ""),
         ],
         10 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/0-9"),
-            ("Cycle Focus", "w/W"),
+            ("Home", ""),
+            ("Tabs", ""),
+            ("Cycle Focus", ""),
             ("Resize", ""),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
-            ("Checkout Branch", "↵"),
-            ("Open Browser", "o"),
-            ("Toggle Assigned", "a"),
-            ("Resync", "R"),
-            ("Help", "?"),
+            ("Checkout Branch", forge_checkout.as_str()),
+            ("Open Browser", forge_open_browser.as_str()),
+            ("Toggle Assigned", forge_toggle_assigned.as_str()),
+            ("Resync", ""),
+            ("Help", ""),
         ],
         11 => vec![
-            ("Home", "⎋/q"),
-            ("Tabs", "Tab/0-9"),
-            ("Cycle Focus", "w/W"),
+            ("Home", ""),
+            ("Tabs", ""),
+            ("Cycle Focus", ""),
             ("Resize", ""),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
-            ("Checkout PR Branch", "↵"),
-            ("Open Browser", "o"),
-            ("Add Comment", "n"),
-            ("Resync", "R"),
-            ("Help", "?"),
+            ("Checkout PR Branch", forge_checkout.as_str()),
+            ("Open Browser", forge_open_browser.as_str()),
+            ("Add Comment", forge_add_comment.as_str()),
+            ("Resync", ""),
+            ("Help", ""),
         ],
-        _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/0-9"), ("Resync", "R"), ("Help", "?")],
+        _ => vec![("Home", ""), ("Tabs", ""), ("Resync", ""), ("Help", "")],
     };
-    let compat = app.config.compatibility_mode;
     let home_key =
         app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat);
     let cycle_focus_key = format!(
@@ -353,9 +443,17 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
 
     let mut entries_data = Vec::new();
 
+    // Leaving the full-screen diff is a literal ← (src/popups/inspect.rs)
+    // plus the CloseDetail binding, so the caption follows the binding.
+    let compat = app.config.compatibility_mode;
+    let exit_full_screen_key = format!(
+        "←/{}",
+        app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat)
+    );
+
     if app.detail_focus == DetailSection::ConflictDiff {
         let exit_label = if app.inspect_full_diff { "Exit Full Screen" } else { "Workspace" };
-        let exit_key = if app.inspect_full_diff { "←/⎋/q" } else { "⎋/q" };
+        let exit_key = if app.inspect_full_diff { exit_full_screen_key.as_str() } else { "⎋/q" };
         entries_data.push((exit_label, exit_key));
         if app.is_uncommitted_selected() {
             entries_data.push(("Accept Ours", "o"));
@@ -387,7 +485,7 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
         entries_data.push(("Select File", "↑↓"));
         entries_data.push(("Help", "?"));
     } else if app.inspect_full_diff {
-        entries_data.push(("Exit Full Screen", "←/⎋/q"));
+        entries_data.push(("Exit Full Screen", exit_full_screen_key.as_str()));
 
         if app.is_uncommitted_selected() {
             if app.diff.diff_line_mode {
@@ -464,7 +562,6 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
         entries_data.push(("Help", "?"));
     }
 
-    let compat = app.config.compatibility_mode;
     let exit_key =
         app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat);
     let cycle_focus_key = format!(

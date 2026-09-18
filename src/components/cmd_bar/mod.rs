@@ -46,6 +46,56 @@ pub(crate) fn build_status_entries(entries_data: &[(&str, &str)]) -> Vec<StatusE
     entries
 }
 
+/// Compact caption for an action's keys in the status bar: every bound key,
+/// with arrow, paging and Enter/Esc/Tab names collapsed to the glyphs the bar
+/// already uses for its fixed entries (`→`, `⇞`, `↵`, ...). Keys come from the
+/// live keybindings, so a rebinding never leaves the bar lying.
+pub(crate) fn compact_action_keys(
+    kb: &crate::keybindings::KeybindingsConfig,
+    action: crate::keybindings::Action,
+    compat: bool,
+) -> String {
+    let keys = kb.get_action_keys(action);
+    if keys.is_empty() {
+        return "-".to_string();
+    }
+    keys.iter()
+        .map(|k| {
+            let name = match (k.as_str(), compat) {
+                ("up", false) => "↑",
+                ("up", true) => "Up",
+                ("down", false) => "↓",
+                ("down", true) => "Down",
+                ("left", false) => "←",
+                ("left", true) => "Left",
+                ("right", false) => "→",
+                ("right", true) => "Right",
+                ("pageup" | "pgup", false) => "⇞",
+                ("pageup" | "pgup", true) => "PgUp",
+                ("pagedown" | "pgdn", false) => "⇟",
+                ("pagedown" | "pgdn", true) => "PgDn",
+                ("home", _) => "Home",
+                ("end", _) => "End",
+                ("space", _) => "Space",
+                ("delete" | "del", _) => "Del",
+                ("backspace", false) => "⌫",
+                ("backspace", true) => "Backspace",
+                ("enter" | "return", false) => "↵",
+                ("enter" | "return", true) => "Enter",
+                ("esc" | "escape", false) => "⎋",
+                ("esc" | "escape", true) => "Esc",
+                ("tab", false) => "⇥",
+                ("tab", true) => "Tab",
+                ("backtab" | "shift-tab", false) => "⇧⇥",
+                ("backtab" | "shift-tab", true) => "Shift+Tab",
+                _ => k.as_str(),
+            };
+            name.to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
 mod detail;
 mod main;
 mod popups;
@@ -56,11 +106,11 @@ pub(crate) use popups::{
     about_dismiss_entries, commit_input_confirm_entries, commit_input_editing_entries,
     confirm_branch_checkout_entries, confirm_branch_delete_entries,
     confirm_branch_interactive_rebase_entries, confirm_branch_merge_entries,
-    confirm_branch_push_entries, confirm_branch_rebase_entries, confirm_commit_checkout_entries,
-    confirm_delete_entries, confirm_discard_changes_entries, confirm_remote_delete_entries,
-    confirm_stash_apply_entries, confirm_stash_delete_entries, confirm_submodule_delete_entries,
-    confirm_tag_checkout_entries, help_dismiss_entries, legend_dismiss_entries,
-    remote_picker_status_entries,
+    confirm_branch_merge_into_entries, confirm_branch_push_entries, confirm_branch_rebase_entries,
+    confirm_commit_checkout_entries, confirm_delete_entries, confirm_discard_changes_entries,
+    confirm_remote_delete_entries, confirm_stash_apply_entries, confirm_stash_delete_entries,
+    confirm_submodule_delete_entries, confirm_tag_checkout_entries, help_dismiss_entries,
+    legend_dismiss_entries, remote_picker_status_entries,
 };
 
 pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
@@ -89,7 +139,20 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             "Command palette: type to filter, then run the highlighted action  ",
             Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
         )];
-        let entries_data = [("Select", "↑/↓"), ("Run", "Enter"), ("Cancel", "Esc")];
+        // Esc is literal in the palette handler; the palette key itself also
+        // closes it (src/popups/command_palette.rs).
+        let palette_key = app.keybindings.format_action_keys(
+            crate::keybindings::Action::CommandPalette,
+            app.config.compatibility_mode,
+        );
+        let cancel_key = format!("Esc/{}", palette_key);
+        let page_key = if app.config.compatibility_mode { "PgUp/PgDn" } else { "⇞/⇟" };
+        let entries_data = [
+            ("Select", "↑/↓"),
+            ("Run", "Enter"),
+            ("Cancel", cancel_key.as_str()),
+            ("Page", page_key),
+        ];
         let entries = build_status_entries(&entries_data);
         draw_status_layout(f, area, Some(msg_spans), entries, app);
         return;
@@ -364,15 +427,26 @@ pub(crate) fn get_status_layout_components(
                 }
                 entries
             } else {
-                let entries_data = [
+                // Esc only leaves the settings page from the sidebar; in the
+                // fields panel it returns focus to the sidebar first, while
+                // q / Q always go straight back (src/popups/settings.rs).
+                let (back_label, back_key, home_entry) = if app.settings_focus_sidebar {
+                    ("Back", "Esc/q", None)
+                } else {
+                    ("Sidebar", "Esc", Some(("Home", "q")))
+                };
+                let mut entries_data = vec![
                     ("Select", "↑/↓"),
                     ("Page", "⇟/⇞"),
                     ("Jump", "Home/End"),
                     ("Pane", "Tab/←/→"),
                     ("Category", "1-5"),
                     ("Edit/Toggle", "Enter/Space"),
-                    ("Back", "Esc/q"),
+                    (back_label, back_key),
                 ];
+                if let Some(home) = home_entry {
+                    entries_data.push(home);
+                }
                 let mut entries = Vec::new();
                 for (i, (label, key)) in entries_data.iter().enumerate() {
                     let mut spans = Vec::new();
@@ -507,9 +581,17 @@ pub(crate) fn get_status_layout_components(
         }
         Mode::Overview => {
             let mut entries = Vec::new();
+            // The Overview handler (src/input.rs) matches Esc / q / Q, s / S
+            // and Tab / w / W as literal key codes; only the Overview toggle
+            // itself is a configurable action.
+            let overview_key = app.keybindings.format_action_keys(
+                crate::keybindings::Action::Overview,
+                app.config.compatibility_mode,
+            );
+            let close_key = format!("Esc/q/{}", overview_key);
             let entries_data = [
-                ("Close Overview", "Esc/q/O"),
-                ("Repo Settings", "s"),
+                ("Close Overview", close_key.as_str()),
+                ("Repo Settings", "s/S"),
                 ("Cycle Focus", "Tab/w/W"),
                 ("Scroll", "↑↓/k/j"),
                 ("Page", "⇟/⇞"),
@@ -543,12 +625,14 @@ pub(crate) fn get_status_layout_components(
         }
         Mode::StashingUI => {
             let mut entries = Vec::new();
+            // The stashing panel (src/input.rs, Mode::StashingUI) matches
+            // these as literal key codes, upper- and lowercase alike.
             let entries_data = [
-                ("Cancel", "⎋/q"),
-                ("Save Stash", "s"),
-                ("Toggle Untracked", "u"),
-                ("Toggle Keep Index", "i"),
-                ("Navigate", "↑↓"),
+                ("Cancel", "⎋/q/Q"),
+                ("Save Stash", "s/S"),
+                ("Toggle Untracked", "u/U"),
+                ("Toggle Keep Index", "i/I"),
+                ("Navigate", "↑↓/j/k"),
             ];
             for (i, (label, key)) in entries_data.iter().enumerate() {
                 let mut spans = Vec::new();
@@ -610,6 +694,12 @@ pub(crate) fn get_status_layout_components(
                 .map(|(name, remote)| (name.as_str(), *remote))
                 .unwrap_or(("", false));
             let (msg_spans, entries) = confirm_branch_merge_entries(target, is_remote);
+            (msg_spans, entries)
+        }
+        Mode::BranchMergeIntoConfirm => {
+            let target =
+                app.branch_action_target.as_ref().map(|(name, _)| name.as_str()).unwrap_or("");
+            let (msg_spans, entries) = confirm_branch_merge_into_entries(target);
             (msg_spans, entries)
         }
         Mode::BranchRebaseConfirm => {
@@ -770,6 +860,78 @@ pub(crate) fn get_status_layout_components(
             let (msg_spans, entries) = remote_picker_status_entries();
             (msg_spans, entries)
         }
+        Mode::CommitHistoryPicker => {
+            // The picker routes through the generic navigation bindings
+            // (src/popups/commit_history.rs).
+            let compat = app.config.compatibility_mode;
+            let kb = &app.keybindings;
+            let nav_key = |a| compact_action_keys(kb, a, compat);
+            let select_key = format!(
+                "{}/{}",
+                nav_key(crate::keybindings::Action::NavUp),
+                nav_key(crate::keybindings::Action::NavDown)
+            );
+            let use_key = nav_key(crate::keybindings::Action::NavEnter);
+            let cancel_key = nav_key(crate::keybindings::Action::NavEsc);
+            let msg_spans = vec![Span::styled(
+                "Previous commit messages  ",
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+            )];
+            let entries_data = [
+                ("Select", select_key.as_str()),
+                ("Use Message", use_key.as_str()),
+                ("Cancel", cancel_key.as_str()),
+            ];
+            (Some(msg_spans), build_status_entries(&entries_data))
+        }
+        Mode::LabelPicker => {
+            // Literal key codes in src/input.rs (Mode::LabelPicker).
+            let msg_spans = vec![
+                Span::raw("Label filter: type to narrow the list, then press "),
+                Span::styled("Enter", accent_style()),
+            ];
+            let page_key = if app.config.compatibility_mode { "PgUp/PgDn" } else { "⇞/⇟" };
+            let entries_data = [
+                ("Select", "↑/↓"),
+                ("Page", page_key),
+                ("Jump", "Home/End"),
+                ("Apply Filter", "Enter"),
+                ("Label Settings", "→"),
+                ("Cancel", "Esc"),
+            ];
+            (Some(msg_spans), build_status_entries(&entries_data))
+        }
+        Mode::StatsDashboard => {
+            // Literal key codes in src/input.rs (Mode::StatsDashboard).
+            let msg_spans = vec![Span::styled(
+                "App Usage Stats  ",
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+            )];
+            let entries_data = [("Close", "Esc/Enter/q")];
+            (Some(msg_spans), build_status_entries(&entries_data))
+        }
+        Mode::ForgeCommentPathInput | Mode::ForgeCommentLineInput | Mode::ForgeCommentBodyInput => {
+            // Literal key codes in src/input.rs; Esc always drops the whole
+            // comment and returns to the PR list.
+            let step = match app.mode {
+                Mode::ForgeCommentPathInput => "Step 1/3: file path  ",
+                Mode::ForgeCommentLineInput => "Step 2/3: line number  ",
+                _ => "Step 3/3: comment body  ",
+            };
+            let msg_spans = vec![
+                Span::styled(
+                    "Add PR Line Comment  ",
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(step, muted_style()),
+            ];
+            let entries_data = if app.mode == Mode::ForgeCommentBodyInput {
+                [("Post Comment", "Enter"), ("Cancel", "Esc")]
+            } else {
+                [("Next", "Enter"), ("Cancel", "Esc")]
+            };
+            (Some(msg_spans), build_status_entries(&entries_data))
+        }
         Mode::SearchColumnPicker => {
             let msg_spans = vec![
                 Span::styled(
@@ -812,6 +974,7 @@ pub(crate) fn get_status_layout_components(
             ];
             let entries_data = [
                 ("Inspect", "Enter"),
+                ("Fuzzy Search", "/"),
                 ("Search / Columns", "f"),
                 ("Load More", "G"),
                 ("Back to Workspace", "Esc/q"),
@@ -1346,9 +1509,15 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         Mode::Legend => ("LEGEND", Color::Rgb(150, 150, 150)),
         Mode::RepoSettings => ("REPO SETTINGS", Color::Rgb(135, 0, 135)),
         Mode::LabelSettings => ("LABEL SETTINGS", Color::Rgb(135, 0, 135)),
+        Mode::LabelPicker => ("LABELS", Color::Rgb(135, 0, 135)),
+        Mode::DebugLogs => ("DEBUG", Color::Rgb(150, 150, 150)),
+        Mode::Logs => ("LOGS", Color::Magenta),
+        Mode::CommitHistoryPicker => ("HISTORY", Color::Rgb(175, 95, 0)),
+        Mode::StatsDashboard => ("STATS", Color::Green),
         Mode::Adding
         | Mode::BulkAddInput
         | Mode::Editing
+        | Mode::LabelInput
         | Mode::AddRepoLabelInput
         | Mode::BulkAddRepoLabelInput
         | Mode::CloneRepoLabelInput
@@ -1361,6 +1530,16 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         | Mode::BranchCreateInput
         | Mode::TagCreateInput
         | Mode::StashCreateInput
+        | Mode::WorktreeAddBranchInput
+        | Mode::WorktreeAddPathInput
+        | Mode::WorktreeLockReasonInput
+        | Mode::SubmoduleAddUrlInput
+        | Mode::SubmoduleAddPathInput
+        | Mode::ForgeCommentPathInput
+        | Mode::ForgeCommentLineInput
+        | Mode::ForgeCommentBodyInput
+        | Mode::CommitInput
+        | Mode::CommitSearchInput
         | Mode::LogsSearchInput => ("INPUT", Color::Red),
         Mode::ConfirmDelete
         | Mode::BranchDeleteConfirm
@@ -1369,14 +1548,21 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         | Mode::CommitCheckoutConfirm
         | Mode::BranchPushConfirm
         | Mode::BranchMergeConfirm
+        | Mode::BranchMergeIntoConfirm
         | Mode::BranchRebaseConfirm
         | Mode::BranchInteractiveRebaseConfirm
+        | Mode::DiscardChangesConfirm
         | Mode::TagDeleteConfirm
         | Mode::TagOverwriteConfirm
         | Mode::TagPushConfirm
         | Mode::TagPushAllConfirm
         | Mode::StashDeleteConfirm
         | Mode::StashApplyConfirm
+        | Mode::RemoteDeleteConfirm
+        | Mode::SubmoduleDeleteConfirm
+        | Mode::UpdateConfirm
+        | Mode::WorktreeRemoveConfirm
+        | Mode::AddCwdRepoConfirm
         | Mode::CherryPickConfirm
         | Mode::RevertConfirm
         | Mode::MergeAbortConfirm
