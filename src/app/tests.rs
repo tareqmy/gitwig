@@ -2444,6 +2444,7 @@ fn test_workspace_all_changes_focus_transitions() {
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
     ));
     std::fs::create_dir_all(&temp_path).unwrap();
+    let _guard = TestDirGuard { path: temp_path.clone() };
     let repo = git2::Repository::init(&temp_path).unwrap();
 
     // Configure author
@@ -2492,8 +2493,6 @@ fn test_workspace_all_changes_focus_transitions() {
     app.detail_focus = DetailSection::Staged;
     app.unstage_all_changes();
     assert_eq!(app.detail_focus, DetailSection::Unstaged, "error: {:?}", app.error_message);
-
-    let _ = std::fs::remove_dir_all(&temp_path);
 }
 
 #[test]
@@ -5328,8 +5327,8 @@ fn test_worktree_tui_flows() {
     use std::path::PathBuf;
 
     let config = Config { items: vec!["/path/to/my_repo".to_string()], ..Default::default() };
-    let temp_dir = std::env::temp_dir();
-    let config_path = temp_dir.join("gitwig_test_worktree_config.toml");
+    let config_path = std::env::temp_dir().join("gitwig_test_worktree_config.toml");
+    let _guard = TestFileGuard { path: config_path.clone() };
     let mut app = App::new(config, config_path.clone());
     app.selected_index = 0;
     app.mode = Mode::Detail;
@@ -5398,8 +5397,6 @@ fn test_worktree_tui_flows() {
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 1);
     assert!(handled);
     assert_eq!(app.mode, Mode::Detail);
-
-    let _ = std::fs::remove_dir_all(&temp_dir);
 }
 
 #[test]
@@ -5408,8 +5405,8 @@ fn test_submodule_tui_flows() {
     use std::path::PathBuf;
 
     let config = Config { items: vec!["/path/to/my_repo".to_string()], ..Default::default() };
-    let temp_dir = std::env::temp_dir();
-    let config_path = temp_dir.join("gitwig_test_submodule_config.toml");
+    let config_path = std::env::temp_dir().join("gitwig_test_submodule_config.toml");
+    let _guard = TestFileGuard { path: config_path.clone() };
     let mut app = App::new(config, config_path.clone());
     app.selected_index = 0;
     app.mode = Mode::Detail;
@@ -5470,8 +5467,6 @@ fn test_submodule_tui_flows() {
     assert!(handled);
     assert_eq!(app.mode, Mode::Detail);
     assert_eq!(app.submodule_delete_target, None);
-
-    let _ = std::fs::remove_dir_all(&temp_dir);
 }
 
 #[test]
