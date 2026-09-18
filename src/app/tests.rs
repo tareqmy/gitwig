@@ -12628,3 +12628,78 @@ fn test_tags_tab_keys_follow_the_tags_bindings_and_the_palette_reaches_them() {
     ));
     assert_eq!(app.mode, Mode::TagSearchInput);
 }
+
+#[test]
+fn test_tags_tab_honors_rebound_keys() {
+    use crate::keybindings::Action;
+
+    let cfg_path = std::env::temp_dir().join("gitwig_test_tags_rebound_keys.toml");
+    let _guard = TestFileGuard { path: cfg_path.clone() };
+    let mut app = App::new(Config { items: vec![], ..Default::default() }, cfg_path);
+    let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let mock_info = repo::RepoInfo {
+        local_tags: repo::TabData::Loaded(vec![repo::BranchInfo {
+            name: "v1.0.0".to_string(),
+            ..Default::default()
+        }]),
+        remotes: repo::TabData::Loaded(vec![repo::RemoteInfo {
+            name: "origin".to_string(),
+            url: String::new(),
+            push_url: None,
+            refspecs: vec![],
+        }]),
+        ..Default::default()
+    };
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: PathBuf::from("dummy"),
+        info: Box::new(mock_info),
+    });
+    app.mode = Mode::Detail;
+    app.detail_tab = 4;
+    app.detail_focus = DetailSection::LocalTags;
+    app.tag_list.local_tag_selection = 0;
+
+    // Rebind search from `/` to `z`, push-all from `P` to `U`, and checkout
+    // from Enter to `o`.
+    app.keybindings.update_action_keys(Action::TagsSearch, vec!["z".to_string()]);
+    app.keybindings.update_action_keys(Action::TagsPushAll, vec!["U".to_string()]);
+    app.keybindings.update_action_keys(Action::TagsCheckout, vec!["o".to_string()]);
+
+    // The old search key no longer opens the search overlay.
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('/')), 1);
+    assert!(!handled || app.mode == Mode::Detail, "old `/` must not start tag search");
+    assert_ne!(app.mode, Mode::TagSearchInput);
+
+    // The rebound search key does.
+    assert!(crate::input::handle_key(&mut app, key_event(KeyCode::Char('z')), 1));
+    assert_eq!(app.mode, Mode::TagSearchInput);
+    assert!(crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1));
+    assert_eq!(app.mode, Mode::Detail);
+
+    // The rebound push-all key asks for confirmation; the old one is inert.
+    assert!(crate::input::handle_key(&mut app, key_event(KeyCode::Char('U')), 1));
+    assert_eq!(app.mode, Mode::TagPushAllConfirm);
+    assert!(crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1));
+    assert_eq!(app.mode, Mode::Detail);
+    crate::input::handle_key(&mut app, key_event(KeyCode::Char('P')), 1);
+    assert_eq!(app.mode, Mode::Detail);
+
+    // Checkout follows the rebound key and ignores Enter.
+    crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 1);
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(crate::input::handle_key(&mut app, key_event(KeyCode::Char('o')), 1));
+    assert_eq!(app.mode, Mode::TagCheckoutConfirm);
+    assert!(crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1));
+    assert_eq!(app.mode, Mode::Detail);
+
+    // The status bar reflects the rebinding.
+    let (_, entries) = crate::components::cmd_bar::detail_dismiss_entries(&app);
+    let text: String =
+        entries.iter().flat_map(|e| e.spans.iter().map(|s| s.content.as_ref())).collect();
+    assert!(text.contains("Fuzzy Search"), "status bar text: {text}");
+    assert!(text.contains("Fuzzy Search [z]"), "status bar text: {text}");
+    assert!(text.contains("Push All [U]"), "status bar text: {text}");
+    assert!(text.contains("Checkout [o]"), "status bar text: {text}");
+    assert!(!text.contains("↵"), "checkout hint must follow the rebound key: {text}");
+}

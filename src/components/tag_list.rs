@@ -153,7 +153,7 @@ impl TagListComponent {
 
 use crate::components::{Component, DrawableComponent, EventState};
 use crate::queue::InternalEvent;
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::Event;
 
 impl DrawableComponent for TagListComponent {
     fn draw(&self, _f: &mut ratatui::Frame, _rect: ratatui::layout::Rect) -> std::io::Result<()> {
@@ -193,7 +193,7 @@ impl Component for TagListComponent {
                     self.queue.push(InternalEvent::TagBottom);
                     return Ok(EventState::Consumed);
                 }
-                _ if keys.matches(crate::keybindings::Action::NavEnter, *key) => {
+                _ if keys.matches(crate::keybindings::Action::TagsCheckout, *key) => {
                     self.queue.push(InternalEvent::CheckoutTag);
                     return Ok(EventState::Consumed);
                 }
@@ -296,6 +296,35 @@ mod tests {
         assert!(
             component
                 .event(&key(KeyCode::Char('f')), &crate::keybindings::KeybindingsConfig::default())
+                .expect("event should be handled")
+                .is_consumed()
+        );
+
+        // Rebound keys are honored and the defaults they replace go inert.
+        let mut keys = crate::keybindings::KeybindingsConfig::default();
+        keys.update_action_keys(crate::keybindings::Action::TagsDelete, vec!["x".to_string()]);
+        keys.update_action_keys(crate::keybindings::Action::TagsFetch, vec!["g".to_string()]);
+        assert!(
+            component
+                .event(&key(KeyCode::Char('x')), &keys)
+                .expect("event should be handled")
+                .is_consumed()
+        );
+        assert!(
+            component
+                .event(&key(KeyCode::Char('g')), &keys)
+                .expect("event should be handled")
+                .is_consumed()
+        );
+        assert!(
+            !component
+                .event(&key(KeyCode::Char('D')), &keys)
+                .expect("event should be handled")
+                .is_consumed()
+        );
+        assert!(
+            !component
+                .event(&key(KeyCode::Char('f')), &keys)
                 .expect("event should be handled")
                 .is_consumed()
         );
