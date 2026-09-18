@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Fixed
+- **tags**: the Tags tab ignored `keybindings.toml` — checkout, delete, push, push-all, fetch and search were matched as literal keys, so rebinding any `tags.*` action in Settings → Keybindings had no effect even though the page and the help overlay presented them as configurable. The tab now routes through the configured `tags.*` actions like the Branches, Remotes and Stashes tabs, and its status-bar hints show the configured keys (`Fetch` now reads `f/F`, matching the default binding and the Remotes tab)
 
 ## [v2.5.17] - 2026-09-12
 ### Added

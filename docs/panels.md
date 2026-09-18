@@ -174,6 +174,7 @@ Triggered by opening a repository.
         *   `P` : Push all tags to remote
         *   `f` / `F` : Fetch remote tags
         *   `/` : Fuzzy search tags
+    *   All of the action keys above (`checkout`, `delete`, `push`, `push_all`, `fetch`, `search`) are rebindable under the `[tags]` section of `keybindings.toml` or via Settings → Keybindings; the status bar reflects the configured keys.
     *   *Note*: Tags are created with `t` / `T` from the Workspace tab's commits list (annotated `-m` or lightweight; Tab toggles input fields; prompts to force update `-f` if existing) — there is no create-tag key on this tab.
 
 #### Tab 5: Remotes Tab

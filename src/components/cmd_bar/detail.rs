@@ -12,6 +12,22 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         message_spans = Some(vec![Span::styled(format!("{} ", msg), accent_style())]);
     }
 
+    // Tags tab hints come from the keybindings config so rebinding any
+    // `tags.*` action is reflected in the status bar.
+    let compat = app.config.compatibility_mode;
+    let tags_checkout_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::TagsCheckout, compat);
+    let tags_search_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::TagsSearch, compat);
+    let tags_fetch_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::TagsFetch, compat);
+    let tags_push_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::TagsPush, compat);
+    let tags_push_all_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::TagsPushAll, compat);
+    let tags_delete_key =
+        app.keybindings.format_action_keys(crate::keybindings::Action::TagsDelete, compat);
+
     let entries_data = match app.detail_tab {
         0 => {
             let mut v =
@@ -186,15 +202,15 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Home", "⎋/q"),
             ("Tabs", "Tab/1-9"),
             ("Cycle Focus", "w/W"),
-            ("Checkout", "↵"),
+            ("Checkout", tags_checkout_key.as_str()),
             ("Navigate", "↑↓"),
             ("Page", "⇟/⇞"),
             ("Jump", "Home/End"),
-            ("Fuzzy Search", "/"),
-            ("Fetch", "F"),
-            ("Push", "p"),
-            ("Push All", "⇧P"),
-            ("Delete", "D"),
+            ("Fuzzy Search", tags_search_key.as_str()),
+            ("Fetch", tags_fetch_key.as_str()),
+            ("Push", tags_push_key.as_str()),
+            ("Push All", tags_push_all_key.as_str()),
+            ("Delete", tags_delete_key.as_str()),
             ("Resync", "R"),
             ("Help", "?"),
         ],
@@ -294,7 +310,6 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
         ],
         _ => vec![("Home", "⎋/q"), ("Tabs", "Tab/0-9"), ("Resync", "R"), ("Help", "?")],
     };
-    let compat = app.config.compatibility_mode;
     let home_key =
         app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat);
     let cycle_focus_key = format!(

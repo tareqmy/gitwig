@@ -3309,7 +3309,9 @@ mod tests {
             })
             .collect();
         assert!(entry_labels_tags.iter().any(|label| label.contains("Fuzzy Search [/]")));
-        assert!(entry_labels_tags.iter().any(|label| label.contains("Fetch [F]")));
+        assert!(entry_labels_tags.iter().any(|label| label.contains("Fetch [f/F]")));
+        assert!(entry_labels_tags.iter().any(|label| label.contains("Checkout [↵]")));
+        assert!(entry_labels_tags.iter().any(|label| label.contains("Push All [P]")));
     }
 
     #[test]
