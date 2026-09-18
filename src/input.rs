@@ -135,6 +135,16 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         return true;
     }
 
+    // An open command palette owns the keyboard until it closes or runs an
+    // entry; only the global quit above bypasses it.
+    if app.command_palette.is_some() {
+        return crate::popups::command_palette::CommandPalettePopup::handle_event(
+            app,
+            key,
+            visible_count,
+        );
+    }
+
     let is_text_input = matches!(
         app.mode,
         Mode::Adding
@@ -180,6 +190,10 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     }
     if !is_text_input && app.is_bound(crate::keybindings::Action::ToggleTerminalPanel, key) {
         app.toggle_terminal_panel();
+        return true;
+    }
+    if !is_text_input && app.is_bound(crate::keybindings::Action::CommandPalette, key) {
+        app.open_command_palette();
         return true;
     }
     if is_text_input

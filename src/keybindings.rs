@@ -19,6 +19,9 @@ pub enum Action {
     Close,
     /// Toggle the embedded terminal panel (show+focus / hide).
     ToggleTerminalPanel,
+    /// Open the command palette: fuzzy-find any action in the current view
+    /// and run it by name.
+    CommandPalette,
 
     // Home Page
     HomeMoveDown,
@@ -232,6 +235,7 @@ impl Action {
         match idx {
             14 => Some(Action::ToggleStatusBar),
             250 => Some(Action::ToggleTerminalPanel),
+            261 => Some(Action::CommandPalette),
             251 => Some(Action::HomeOpenExternalShell),
             252 => Some(Action::HomeLabelSlot1),
             253 => Some(Action::HomeLabelSlot2),
@@ -422,6 +426,7 @@ impl Action {
             Action::Help => 15,
             Action::Close => 16,
             Action::ToggleTerminalPanel => 250,
+            Action::CommandPalette => 261,
             Action::HomeOpenExternalShell => 251,
             Action::HomeLabelSlot1 => 252,
             Action::HomeLabelSlot2 => 253,
@@ -624,6 +629,7 @@ pub struct GlobalKeybindings {
     pub help: Option<Keybind>,
     pub close: Option<Keybind>,
     pub toggle_terminal_panel: Option<Keybind>,
+    pub command_palette: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -977,6 +983,10 @@ impl KeybindingsConfig {
                     &["ctrl-t"],
                     "Toggle the embedded terminal panel",
                 )),
+                command_palette: Some(Keybind::new(
+                    &["ctrl-p"],
+                    "Open the command palette (run any action by name)",
+                )),
             },
             home: HomeKeybindings {
                 move_down: Some(Keybind::new(&["j", "down"], "Move selection down")),
@@ -1267,6 +1277,7 @@ impl KeybindingsConfig {
             Action::Help => self.global.help.as_ref(),
             Action::Close => self.global.close.as_ref(),
             Action::ToggleTerminalPanel => self.global.toggle_terminal_panel.as_ref(),
+            Action::CommandPalette => self.global.command_palette.as_ref(),
 
             // Home
             Action::HomeMoveDown => self.home.move_down.as_ref(),
@@ -1478,6 +1489,7 @@ impl KeybindingsConfig {
             Action::Help => self.global.help.as_ref(),
             Action::Close => self.global.close.as_ref(),
             Action::ToggleTerminalPanel => self.global.toggle_terminal_panel.as_ref(),
+            Action::CommandPalette => self.global.command_palette.as_ref(),
 
             // Home
             Action::HomeMoveDown => self.home.move_down.as_ref(),
@@ -1745,6 +1757,7 @@ impl KeybindingsConfig {
             Action::Help,
             Action::Close,
             Action::ToggleTerminalPanel,
+            Action::CommandPalette,
             Action::HomeMoveDown,
             Action::HomeMoveUp,
             Action::HomePageDown,
@@ -1844,7 +1857,11 @@ impl KeybindingsConfig {
     fn is_global_action(&self, action: Action) -> bool {
         matches!(
             action,
-            Action::ToggleStatusBar | Action::Help | Action::Close | Action::ToggleTerminalPanel
+            Action::ToggleStatusBar
+                | Action::Help
+                | Action::Close
+                | Action::ToggleTerminalPanel
+                | Action::CommandPalette
         )
     }
 
@@ -1936,6 +1953,7 @@ impl KeybindingsConfig {
             // Global
             Action::ToggleStatusBar => self.global.toggle_status_bar = keybind,
             Action::ToggleTerminalPanel => self.global.toggle_terminal_panel = keybind,
+            Action::CommandPalette => self.global.command_palette = keybind,
             Action::Help => self.global.help = keybind,
             Action::Close => self.global.close = keybind,
 

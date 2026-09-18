@@ -2486,12 +2486,12 @@ fn test_workspace_all_changes_focus_transitions() {
     // 1. Stage All Focus Transition (Unstaged -> Staged)
     app.detail_focus = DetailSection::Unstaged;
     app.stage_all_changes();
-    assert_eq!(app.detail_focus, DetailSection::Staged);
+    assert_eq!(app.detail_focus, DetailSection::Staged, "error: {:?}", app.error_message);
 
     // 2. Unstage All Focus Transition (Staged -> Unstaged)
     app.detail_focus = DetailSection::Staged;
     app.unstage_all_changes();
-    assert_eq!(app.detail_focus, DetailSection::Unstaged);
+    assert_eq!(app.detail_focus, DetailSection::Unstaged, "error: {:?}", app.error_message);
 
     let _ = std::fs::remove_dir_all(&temp_path);
 }
@@ -12130,5 +12130,464 @@ fn test_caret_keys_do_not_hijack_picker_arrows() {
             "{:?} uses arrows for selection; the caret must not move",
             mode
         );
+    }
+}
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+// ── Command palette ──────────────────────────────────────────────────────────
+
+fn palette_test_app(tag: &str) -> (App, TestDirGuard) {
+    let temp_dir = std::env::temp_dir().join(format!(
+        "gitwig_test_palette_{}_{}_{}",
+        tag,
+        std::process::id(),
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+    let guard = TestDirGuard { path: temp_dir.clone() };
+    let config = Config {
+        items: vec!["/path/to/frontend".to_string(), "/path/to/backend".to_string()],
+        ..Default::default()
+    };
+    (App::new(config, temp_dir.join("config.toml")), guard)
+}
+
+fn palette_key() -> KeyEvent {
+    KeyEvent::new(KeyCode::Char('p'), KeyModifiers::CONTROL)
+}
+
+fn type_into_palette(app: &mut App, text: &str) {
+    for c in text.chars() {
+        assert!(crate::input::handle_key(
+            app,
+            KeyEvent::new(KeyCode::Char(c), KeyModifiers::empty()),
+            5
+        ));
+    }
+}
+
+#[test]
+fn test_command_palette_opens_on_home_and_runs_the_highlighted_action() {
+    use crate::keybindings::Action;
+    let (mut app, _guard) = palette_test_app("home_run");
+
+    assert!(app.command_palette.is_none());
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    let palette = app.command_palette.as_ref().expect("palette opens on the home screen");
+    assert_eq!(app.mode, Mode::Normal, "the palette is an overlay, not a mode");
+
+    // Home actions come first, then the globals; movement keys are left out.
+    assert_eq!(palette.entries.first().map(|e| e.group), Some("Home"));
+    assert_eq!(palette.entries.last().map(|e| e.group), Some("Global"));
+    assert!(palette.entries.iter().any(|e| e.action == Action::HomeOpenSettings));
+    assert!(palette.entries.iter().any(|e| e.action == Action::Help));
+    assert!(!palette.entries.iter().any(|e| e.action == Action::HomeMoveDown));
+    assert!(!palette.entries.iter().any(|e| e.action == Action::BranchesCheckout));
+    // Every entry shows its description and its current key.
+    let settings = palette.entries.iter().find(|e| e.action == Action::HomeOpenSettings).unwrap();
+    assert_eq!(settings.label, app.keybindings.get_action_description(Action::HomeOpenSettings));
+    assert_eq!(settings.keys.as_deref(), Some("s"));
+    let label = settings.label.clone();
+
+    // Typing narrows the list and Enter runs the top match exactly like `s` would.
+    type_into_palette(&mut app, &label.to_lowercase());
+    let palette = app.command_palette.as_ref().unwrap();
+    assert_eq!(palette.query, label.to_lowercase());
+    assert_eq!(palette.selected().map(|e| e.action), Some(Action::HomeOpenSettings));
+    assert!(crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        5
+    ));
+    assert!(app.command_palette.is_none(), "the palette closes before running");
+    assert_eq!(app.mode, Mode::Settings);
+    assert!(app.forced_action.is_none(), "the forced action never outlives the dispatch");
+}
+
+#[test]
+fn test_command_palette_closes_on_esc_or_its_own_key_without_side_effects() {
+    let (mut app, _guard) = palette_test_app("close");
+
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    type_into_palette(&mut app, "quit");
+    assert!(crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Esc, KeyModifiers::empty()),
+        5
+    ));
+    assert!(app.command_palette.is_none());
+    assert_eq!(app.mode, Mode::Normal);
+    assert_eq!(app.selected_index, 0);
+
+    // ctrl-p toggles it shut too, and a fresh open starts with an empty query.
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    type_into_palette(&mut app, "abc");
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    assert!(app.command_palette.is_none());
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    assert_eq!(app.command_palette.as_ref().unwrap().query, "");
+
+    // Enter on an empty match list closes without running anything.
+    type_into_palette(&mut app, "zzzz-no-such-action");
+    assert!(app.command_palette.as_ref().unwrap().matches().is_empty());
+    assert!(crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        5
+    ));
+    assert!(app.command_palette.is_none());
+    assert_eq!(app.mode, Mode::Normal);
+}
+
+#[test]
+fn test_command_palette_navigation_keys_move_the_selection() {
+    let (mut app, _guard) = palette_test_app("nav");
+    app.config.page_size = 3;
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    let total = app.command_palette.as_ref().unwrap().entries.len();
+    let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    crate::input::handle_key(&mut app, key(KeyCode::Down), 5);
+    crate::input::handle_key(&mut app, key(KeyCode::Down), 5);
+    assert_eq!(app.command_palette.as_ref().unwrap().selection, 2);
+    crate::input::handle_key(&mut app, key(KeyCode::Up), 5);
+    assert_eq!(app.command_palette.as_ref().unwrap().selection, 1);
+    crate::input::handle_key(&mut app, key(KeyCode::PageDown), 5);
+    assert_eq!(app.command_palette.as_ref().unwrap().selection, 4);
+    crate::input::handle_key(&mut app, key(KeyCode::End), 5);
+    assert_eq!(app.command_palette.as_ref().unwrap().selection, total - 1);
+    crate::input::handle_key(&mut app, key(KeyCode::Down), 5);
+    assert_eq!(app.command_palette.as_ref().unwrap().selection, total - 1, "clamped at the end");
+    crate::input::handle_key(&mut app, key(KeyCode::Home), 5);
+    assert_eq!(app.command_palette.as_ref().unwrap().selection, 0);
+    crate::input::handle_key(&mut app, key(KeyCode::Up), 5);
+    assert_eq!(app.command_palette.as_ref().unwrap().selection, 0, "clamped at the top");
+
+    // Typing resets the highlight to the best match; Backspace edits the query.
+    crate::input::handle_key(&mut app, key(KeyCode::End), 5);
+    type_into_palette(&mut app, "ab");
+    assert_eq!(app.command_palette.as_ref().unwrap().selection, 0);
+    crate::input::handle_key(&mut app, key(KeyCode::Backspace), 5);
+    assert_eq!(app.command_palette.as_ref().unwrap().query, "a");
+}
+
+#[test]
+fn test_command_palette_in_detail_view_lists_the_active_tab_and_runs_detail_actions() {
+    use crate::keybindings::Action;
+    let (mut app, _guard) = palette_test_app("detail");
+    app.mode = Mode::Detail;
+    app.detail_tab = 3; // Branches
+
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    let palette = app.command_palette.as_ref().unwrap();
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(palette.entries.first().map(|e| e.group), Some("Branches"));
+    assert!(palette.entries.iter().any(|e| e.action == Action::BranchesCheckout));
+    assert!(palette.entries.iter().any(|e| e.action == Action::CycleTabForward));
+    assert!(palette.entries.iter().any(|e| e.action == Action::DetailHelp));
+    assert!(!palette.entries.iter().any(|e| e.action == Action::HomeAddRepo));
+    assert!(!palette.entries.iter().any(|e| e.action == Action::TagsCheckout));
+    assert!(!palette.entries.iter().any(|e| e.action == Action::Help));
+
+    // Running "cycle tab forward" goes through the detail router like the key.
+    let label = app.keybindings.get_action_description(Action::CycleTabForward).to_lowercase();
+    type_into_palette(&mut app, &label);
+    assert_eq!(
+        app.command_palette.as_ref().unwrap().selected().map(|e| e.action),
+        Some(Action::CycleTabForward)
+    );
+    assert!(crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        5
+    ));
+    assert!(app.command_palette.is_none());
+    assert_eq!(app.detail_tab, 4);
+    assert_eq!(app.mode, Mode::Detail);
+
+    // The Graph tab has no actions of its own: only the repository and global groups remain.
+    app.detail_tab = 2;
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    let palette = app.command_palette.as_ref().unwrap();
+    assert_eq!(palette.entries.first().map(|e| e.group), Some("Repository"));
+    assert!(palette.entries.iter().all(|e| e.group == "Repository" || e.group == "Global"));
+}
+
+#[test]
+fn test_command_palette_runs_rebound_and_unparsable_bindings() {
+    use crate::keybindings::Action;
+    let (mut app, _guard) = palette_test_app("unbound");
+
+    // Rebound: the palette follows the new key.
+    app.keybindings.update_action_keys(Action::HomeOpenSettings, vec!["ctrl-x".to_string()]);
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    let entry = app
+        .command_palette
+        .as_ref()
+        .unwrap()
+        .entries
+        .iter()
+        .find(|e| e.action == Action::HomeOpenSettings)
+        .unwrap()
+        .clone();
+    assert_eq!(entry.keys.as_deref(), Some("ctrl-x"));
+    type_into_palette(&mut app, &entry.label.to_lowercase());
+    assert!(crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        5
+    ));
+    assert_eq!(app.mode, Mode::Settings);
+
+    // A binding the key parser rejects (an empty list would just restore the
+    // defaults) still runs from the palette: the dispatcher sees a null key and
+    // the forced action does the routing.
+    app.mode = Mode::Normal;
+    app.keybindings.home.open_settings =
+        Some(crate::keybindings::Keybind::new(&["not-a-key"], "Open settings"));
+    assert_eq!(app.keybindings.get_action_keys(Action::HomeOpenSettings), vec!["not-a-key"]);
+    assert!(crate::keybindings::parse_key("not-a-key").is_none());
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    let entry = app
+        .command_palette
+        .as_ref()
+        .unwrap()
+        .entries
+        .iter()
+        .find(|e| e.action == Action::HomeOpenSettings)
+        .unwrap()
+        .clone();
+    assert_eq!(entry.keys.as_deref(), Some("not-a-key"));
+    type_into_palette(&mut app, "open settings");
+    assert!(crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        5
+    ));
+    assert_eq!(app.mode, Mode::Settings);
+    assert!(app.forced_action.is_none());
+}
+
+#[test]
+fn test_command_palette_is_not_available_in_text_inputs_or_other_modes() {
+    let (mut app, _guard) = palette_test_app("gated");
+
+    // A text field keeps ctrl-p for itself.
+    app.mode = Mode::RepoSearchInput;
+    crate::input::handle_key(&mut app, palette_key(), 5);
+    assert!(app.command_palette.is_none());
+
+    // Modes without a palette explain instead of opening one.
+    app.mode = Mode::Settings;
+    app.status_message = None;
+    crate::input::handle_key(&mut app, palette_key(), 5);
+    assert!(app.command_palette.is_none());
+    assert!(app.status_message.as_deref().unwrap_or("").contains("command palette"));
+
+    // Mouse input is ignored while the palette is open.
+    app.mode = Mode::Normal;
+    app.status_message = None;
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    app.main_areas =
+        vec![ratatui::layout::Rect::new(0, 0, 50, 4), ratatui::layout::Rect::new(0, 4, 50, 4)];
+    crate::mouse::handle_mouse(
+        &mut app,
+        crossterm::event::MouseEvent {
+            kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
+            column: 5,
+            row: 5,
+            modifiers: KeyModifiers::empty(),
+        },
+    );
+    assert!(app.command_palette.is_some());
+    assert_eq!(app.selected_index, 0);
+}
+
+#[test]
+fn test_command_palette_quit_entry_ends_the_app() {
+    use crate::keybindings::Action;
+    let (mut app, _guard) = palette_test_app("quit");
+    assert!(crate::input::handle_key(&mut app, palette_key(), 5));
+    let label = app.keybindings.get_action_description(Action::Close).to_lowercase();
+    type_into_palette(&mut app, &label);
+    assert_eq!(
+        app.command_palette.as_ref().unwrap().selected().map(|e| e.action),
+        Some(Action::Close)
+    );
+    let keep_running =
+        crate::input::handle_key(&mut app, KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()), 5);
+    assert!(!keep_running, "running Quit from the palette returns the quit signal");
+}
+
+#[test]
+fn test_command_palette_every_entry_dispatches_without_panicking() {
+    use crate::keybindings::Action;
+    // Fresh app per entry so one action's side effects (mode changes, pending
+    // flags, confirmations) never leak into the next. The two terminal actions
+    // spawn a real shell in a PTY and the update check reaches the network, so
+    // those three are exercised by their own tests instead.
+    let skip = [Action::HomeOpenTerminal, Action::ToggleTerminalPanel, Action::HomeCheckUpdate];
+    let (_, _guard) = palette_test_app("smoke_dir");
+    let temp_dir = _guard.path.clone();
+    let fresh = |mode: Mode, tab: usize| -> App {
+        let config = Config {
+            items: vec!["/path/to/frontend".to_string(), "/path/to/backend".to_string()],
+            ..Default::default()
+        };
+        let mut app = App::new(config, temp_dir.join("config.toml"));
+        app.mode = mode;
+        app.detail_tab = tab;
+        app
+    };
+
+    let mut contexts = vec![(Mode::Normal, 0)];
+    contexts.extend((0..=11).map(|tab| (Mode::Detail, tab)));
+    let mut ran = 0;
+    for (mode, tab) in contexts {
+        let mut probe = fresh(mode, tab);
+        probe.open_command_palette();
+        let entries = probe.command_palette.as_ref().unwrap().entries.clone();
+        assert!(!entries.is_empty(), "no entries for {:?} tab {}", mode, tab);
+        for entry in entries {
+            if skip.contains(&entry.action) {
+                continue;
+            }
+            let mut app = fresh(mode, tab);
+            app.open_command_palette();
+            app.command_palette.as_mut().unwrap().query = entry.label.clone();
+            let keep_running = crate::input::handle_key(
+                &mut app,
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+                5,
+            );
+            assert_eq!(
+                keep_running,
+                entry.action != Action::Close,
+                "{:?} in {:?} tab {} returned the wrong run signal",
+                entry.action,
+                mode,
+                tab
+            );
+            assert!(app.command_palette.is_none(), "{:?} left the palette open", entry.action);
+            assert!(app.forced_action.is_none(), "{:?} leaked forced_action", entry.action);
+            ran += 1;
+        }
+    }
+    assert!(ran > 80, "expected the palette to expose many actions, ran {}", ran);
+}
+
+#[test]
+fn test_command_palette_status_bar_shows_its_hints_while_open() {
+    let (mut app, _guard) = palette_test_app("status_bar");
+    let render = |app: &App| -> String {
+        let backend = ratatui::backend::TestBackend::new(120, 3);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                crate::components::cmd_bar::draw_status_bar(
+                    f,
+                    app,
+                    ratatui::layout::Rect::new(0, 0, 120, 3),
+                )
+            })
+            .unwrap();
+        let buffer = terminal.backend().buffer();
+        (0..3)
+            .map(|y| (0..120).map(|x| buffer[(x, y)].symbol().to_string()).collect::<String>())
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+
+    assert!(!render(&app).contains("Command palette"));
+    app.open_command_palette();
+    let bar = render(&app);
+    assert!(bar.contains("Command palette"), "bar:\n{}", bar);
+    for hint in ["Select", "Run", "Enter"] {
+        assert!(bar.contains(hint), "missing {:?} in bar:\n{}", hint, bar);
+    }
+    // Trailing entries fold into "More" when the bar runs out of width.
+    assert!(bar.contains("Cancel") || bar.contains("More"), "bar:\n{}", bar);
+    app.close_command_palette();
+    assert!(!render(&app).contains("Command palette"));
+}
+
+#[test]
+fn test_command_palette_is_listed_in_both_help_overlays() {
+    let (mut app, _guard) = palette_test_app("help");
+    let flatten = |lines: Vec<ratatui::text::Line<'_>>| -> String {
+        lines
+            .iter()
+            .map(|l| l.spans.iter().map(|s| s.content.to_string()).collect::<String>())
+            .collect::<Vec<_>>()
+            .join("\n")
+            .to_lowercase()
+    };
+
+    let home_help = flatten(crate::popups::help::get_help_lines(&app, 100));
+    assert!(home_help.contains("command palette"), "home help:\n{}", home_help);
+    assert!(home_help.contains("ctrl-p"), "home help:\n{}", home_help);
+
+    app.mode = Mode::Detail;
+    let detail_help = flatten(crate::popups::detail_help::get_detail_help_lines(&app, 100));
+    assert!(detail_help.contains("command palette"), "detail help:\n{}", detail_help);
+    assert!(detail_help.contains("ctrl-p"), "detail help:\n{}", detail_help);
+
+    // A rebinding shows up in both overlays too.
+    app.keybindings
+        .update_action_keys(crate::keybindings::Action::CommandPalette, vec!["ctrl-k".to_string()]);
+    let detail_help = flatten(crate::popups::detail_help::get_detail_help_lines(&app, 100));
+    assert!(detail_help.contains("ctrl-k") && !detail_help.contains("ctrl-p"));
+    app.mode = Mode::Normal;
+    let home_help = flatten(crate::popups::help::get_help_lines(&app, 100));
+    assert!(home_help.contains("ctrl-k") && !home_help.contains("ctrl-p"));
+}
+
+#[test]
+fn test_command_palette_keys_follow_compatibility_mode() {
+    use crate::keybindings::Action;
+    let (mut app, _guard) = palette_test_app("compat");
+    let open_detail_keys = |app: &mut App| -> Option<String> {
+        app.open_command_palette();
+        let keys = app
+            .command_palette
+            .as_ref()
+            .unwrap()
+            .entries
+            .iter()
+            .find(|e| e.action == Action::HomeOpenDetail)
+            .and_then(|e| e.keys.clone());
+        app.close_command_palette();
+        keys
+    };
+    app.config.compatibility_mode = false;
+    assert_eq!(open_detail_keys(&mut app).as_deref(), Some("↵/right"));
+    app.config.compatibility_mode = true;
+    assert_eq!(open_detail_keys(&mut app).as_deref(), Some("Enter/right"));
+}
+
+#[test]
+fn test_command_palette_action_is_registered_like_every_other_global() {
+    use crate::keybindings::{Action, KeybindingsConfig};
+    assert_eq!(Action::from_index(261), Some(Action::CommandPalette));
+    assert_eq!(Action::CommandPalette.to_index(), 261);
+    assert_eq!(KeybindingsConfig::get_default_keys(Action::CommandPalette), vec!["ctrl-p"]);
+    let defaults = KeybindingsConfig::default_config();
+    assert!(!defaults.get_action_description(Action::CommandPalette).is_empty());
+    // As a global action it conflicts with home and detail bindings alike.
+    assert_eq!(
+        defaults.find_conflict(Action::HomeOpenSettings, &["ctrl-p".to_string()]),
+        Some(Action::CommandPalette)
+    );
+    assert_eq!(
+        defaults.find_conflict(Action::RefreshDetail, &["ctrl-p".to_string()]),
+        Some(Action::CommandPalette)
+    );
+    // The Settings → Keybindings page lists it under Global & Navigation, and
+    // every index on that page still resolves to an action.
+    let globals = crate::popups::settings::GLOBAL_NAV_SETTING_INDICES;
+    assert!(globals.contains(&261));
+    for &idx in globals {
+        assert!(Action::from_index(idx).is_some(), "settings index {} resolves to nothing", idx);
     }
 }

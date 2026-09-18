@@ -29,6 +29,7 @@ The primary dashboard shown when Gitwig starts up.
         *   `L` : Open label picker to filter the list to one label ("project view"; sticky until deselected)
         *   `1` … `9` : Apply the label in quick slot N (the numbered chips under the summary bar) as the filter; press again to clear
         *   `ctrl-f` : Open global code search across all repositories
+        *   `ctrl-p` : Open the command palette (fuzzy-find and run any home action by name)
         *   `R` : Refresh status of selected item manually
         *   `F` : Bulk fetch all repositories concurrently
         *   `E` : Show why the selected repository's last fetch failed
@@ -78,6 +79,7 @@ Triggered by opening a repository.
         *   `Tab` : Cycle tab forward
         *   `Shift+Tab` / `backtab` : Cycle tab backward
         *   `R` : Resync active tab details manually
+        *   `ctrl-p` : Open the command palette (fuzzy-find and run any repository or active-tab action by name)
         *   `1` - `7` : Jump directly to Tabs 1-7 (or `1` - `5` for the five advanced tabs when the Advanced group is active)
         *   `Z` : Toggle Advanced Tab group (Worktrees, Submodules, Reflog, Issues, PRs)
         *   `O` : Show repository Overview overlay
@@ -444,6 +446,7 @@ Full-screen dashboard to search for keywords/code across all tracked repositorie
 Floating modal components with search-as-you-type inputs. Matches are ranked and updated in real time.
 
 *   *Available overlays*:
+    *   **Command Palette**: Fuzzy action runner (`Ctrl+P` on the Home Screen or in the Repository Detail view). Lists every action available in the current view — the home actions, or the repository actions plus the active tab's own — grouped by context, each with its current key. `Enter` runs the highlighted action through the same handler its key would use, so custom bindings work too; `Esc` or `Ctrl+P` closes it. Unlike the other overlays it is not a `Mode`: it floats over the view underneath, which keeps its state and gets the keyboard back on close.
     *   **RepoJump**: Fuzzy repository navigator (`/` on Home Screen)
     *   **RepoScanPicker**: Select repository path from scanned directories (`a` on Home Screen)
     *   **BulkAddScanPicker**: Select directory to scan and import repositories (`A` on Home Screen)

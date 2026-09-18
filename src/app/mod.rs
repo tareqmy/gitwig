@@ -15,6 +15,7 @@ use ratatui::layout::{Margin, Rect};
 
 use crate::config::{Config, SortOrder, save_config};
 use crate::input;
+use crate::popups::command_palette::CommandPalette;
 use crate::repo::{self, ItemDetail, ItemStatus};
 use crate::state::{AppState, save_state};
 use crate::ui;
@@ -426,6 +427,12 @@ pub struct App {
     pub collapsed_groups: std::collections::HashSet<String>,
     pub repo_jump_selection: usize,
     pub label_picker_selection: usize,
+    /// The command palette while it is open. An overlay rather than a `Mode`:
+    /// the view underneath stays as it was and gets the keyboard back on close.
+    pub command_palette: Option<CommandPalette>,
+    /// Set by `App::run_action` for the duration of one dispatch so that
+    /// `is_bound` matches exactly this action, whatever keys it has.
+    pub forced_action: Option<crate::keybindings::Action>,
     /// Panel bounding boxes recorded after each draw, used for mouse hit-testing.
     pub detail_areas: DetailAreas,
     /// Main panel item bounding boxes recorded after each draw, used for mouse hit-testing.
@@ -1263,11 +1270,17 @@ impl App {
         self.config.sym(key)
     }
 
+    /// Whether `key` triggers `action`. While the command palette is running
+    /// an action (`forced_action`), only that action matches, so the palette
+    /// reaches the same handler the key would regardless of the bindings.
     pub fn is_bound(
         &self,
         action: crate::keybindings::Action,
         key: crossterm::event::KeyEvent,
     ) -> bool {
+        if let Some(forced) = self.forced_action {
+            return forced == action;
+        }
         self.keybindings.matches(action, key)
     }
 
@@ -1343,6 +1356,8 @@ impl App {
             collapsed_groups: std::collections::HashSet::new(),
             repo_jump_selection: 0,
             label_picker_selection: 0,
+            command_palette: None,
+            forced_action: None,
             detail_areas: DetailAreas::default(),
             main_areas: Vec::new(),
             global_filter: None,

@@ -34,6 +34,10 @@
 | `t`                  | Normal          | Open the embedded terminal panel in the selected repository's directory |
 | `T`                  | Normal          | Suspend the TUI and spawn a full-screen shell in the selected repository's directory |
 | `ctrl+t`             | Global / Anywhere | Toggle the embedded terminal panel (show + focus / hide; also unfocuses it) |
+| `ctrl+p`             | Normal / Detail | Open the command palette: fuzzy-find every action available in the current view (with its current key) and run it by name |
+| `↑` / `↓` / `PgUp` / `PgDn` / `Home` / `End` | Command Palette | Move through the matching actions |
+| `Enter`              | Command Palette | Run the highlighted action (exactly as its key would, including custom bindings) |
+| `Esc` / `ctrl+p`     | Command Palette | Close the palette without running anything |
 | `Shift+PgUp` / `Shift+PgDn` | Terminal panel (focused) | Scroll the terminal's output history; any keystroke snaps back to live view |
 | `s`                  | Normal          | Open options/settings page        |
 | `d`                  | Normal          | Open debug logs panel             |

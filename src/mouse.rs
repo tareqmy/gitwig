@@ -22,6 +22,11 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
         return;
     }
 
+    // The command palette is keyboard-only; clicks must not reach the view underneath.
+    if app.command_palette.is_some() {
+        return;
+    }
+
     if app.fetching || app.loading_repo_path.is_some() {
         return;
     }

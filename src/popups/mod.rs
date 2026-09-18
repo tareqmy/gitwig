@@ -3,6 +3,7 @@
 #![allow(dead_code, unused_imports)]
 pub mod about;
 pub mod add_remote;
+pub mod command_palette;
 pub mod commit;
 pub mod commit_history;
 pub mod confirm;

@@ -462,6 +462,10 @@ pub fn draw(
         crate::popups::import::draw_import_popup(f, area, app);
     }
 
+    // The palette floats over whichever view is underneath (home or detail);
+    // only an error popup outranks it.
+    crate::popups::command_palette::CommandPalettePopup::draw(f, app, area);
+
     if let Some(ref err) = app.error_message {
         crate::popups::error::draw_error_popup(f, app, area, err);
     } else if app.fetching {
@@ -4299,5 +4303,61 @@ mod tests {
             }
         }
         let _ = std::fs::remove_dir_all(&temp_repo_path);
+    }
+
+    #[test]
+    fn test_command_palette_draws_over_home_and_detail_frames() {
+        let config = Config { items: vec!["/path/to/repo".to_string()], ..Default::default() };
+        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+        let backend = ratatui::backend::TestBackend::new(120, 40);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        let mut detail_areas = crate::ui_detail::DetailAreas::default();
+        let mut main_areas = Vec::new();
+        let mut global_summary_area = None;
+
+        let mut render = |app: &App| -> String {
+            terminal
+                .draw(|f| {
+                    let size = f.area();
+                    super::draw(
+                        f,
+                        app,
+                        size,
+                        size,
+                        1,
+                        &mut detail_areas,
+                        &mut main_areas,
+                        &mut global_summary_area,
+                        &mut None,
+                    );
+                })
+                .unwrap();
+            let buffer = terminal.backend().buffer();
+            (0..40)
+                .map(|y| (0..120).map(|x| buffer[(x, y)].symbol().to_string()).collect::<String>())
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+
+        for mode in [Mode::Normal, Mode::Detail] {
+            app.mode = mode;
+            app.close_command_palette();
+            assert!(
+                !render(&app).contains("Command Palette"),
+                "closed palette drawn in {:?}",
+                mode
+            );
+            app.open_command_palette();
+            let frame = render(&app);
+            assert!(frame.contains("Command Palette"), "{:?} frame:\n{}", mode, frame);
+            assert!(frame.contains("Search Actions"), "{:?} frame:\n{}", mode, frame);
+            // The status bar underneath switches to the palette hints.
+            assert!(frame.contains("Command palette"), "{:?} frame:\n{}", mode, frame);
+        }
+
+        // An error popup still outranks the palette.
+        app.error_message = Some("Palette test error".to_string());
+        let frame = render(&app);
+        assert!(frame.contains("Palette test error"));
     }
 }

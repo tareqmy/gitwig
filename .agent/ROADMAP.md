@@ -186,7 +186,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 ## Phase 17: Future Explorations & Quality of Life
 - [ ] **Interactive Git Bisect:** A guided, visual interface for `git bisect` to easily mark commits as good/bad and automatically navigate the commit history to find bugs.
 - [ ] **Inline Git Blame View:** An interactive file viewer with a left-hand gutter showing the author, date, and commit hash for every line, allowing instant navigation to the introducing commit.
-- [ ] **Command Palette:** A fuzzy-findable command palette (e.g., triggered by `Ctrl+P` or `:`) to execute actions without memorizing keyboard shortcuts.
+- [x] **Command Palette:** `Ctrl+P` on the home screen or in the repository view opens a fuzzy picker over every action available in the current context (home, or repository plus the active tab, plus the globals), showing each action's current key; `Enter` runs it through the same handler as the key — with `App.forced_action` set for that one dispatch — so custom bindings work too.
 - [ ] **Custom Scripts & Macros:** Allow users to define custom shell commands/scripts in `config.toml` that can be triggered via shortcuts (e.g., linters, IDE launchers, `git clean`).
 - [x] **External Mergetool/Difftool Integration:** A shortcut to instantly open the configured external GUI mergetool (like VSCode, KDiff3) for complex conflict resolution.
 - [ ] **Partial/Patch Stashing:** Extend hunk/line selection to stash operations, allowing users to stash specific lines or hunks instead of the whole file.

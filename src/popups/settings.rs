@@ -20,11 +20,12 @@ const GENERAL_SETTING_INDICES: &[usize] =
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 8, 83, 11, 61];
 const THEME_SETTING_INDICES: &[usize] = &[3, 67, 82];
-const GLOBAL_NAV_SETTING_INDICES: &[usize] = &[
+pub(crate) const GLOBAL_NAV_SETTING_INDICES: &[usize] = &[
     16,  // Quit / Close Dialog (Close)
     15,  // Help (Help)
     14,  // Toggle Status Bar (ToggleStatusBar)
     250, // Toggle Terminal Panel (ToggleTerminalPanel)
+    261, // Command Palette (CommandPalette)
     39,  // Detail: Close View (CloseDetail)
     40,  // Detail: Help (DetailHelp)
     41,  // Detail: Cycle Focus Fwd (CycleFocusForward)

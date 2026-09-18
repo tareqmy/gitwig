@@ -96,6 +96,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     let terminal_key = kb.format_action_keys(Action::HomeOpenTerminal, is_compat);
     let external_shell_key = kb.format_action_keys(Action::HomeOpenExternalShell, is_compat);
     let terminal_toggle_key = kb.format_action_keys(Action::ToggleTerminalPanel, is_compat);
+    let palette_key = kb.format_action_keys(Action::CommandPalette, is_compat);
     let star_key = kb.format_action_keys(Action::HomeToggleStar, is_compat);
     let yank_key = kb.format_action_keys(Action::HomeYankPath, is_compat);
     let jump_picker_key = kb.format_action_keys(Action::HomeJumpPicker, is_compat);
@@ -136,6 +137,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                     "Toggle status bar visibility",
                 ),
                 (terminal_toggle_key, "Toggle the embedded terminal panel (also unfocuses it)"),
+                (palette_key, "Open the command palette: run any action by name"),
                 ("Shift+PgUp/PgDn".to_string(), "Scroll terminal panel history (while focused)"),
                 (help_key, "Toggle this help overlay"),
                 (about_key, "Show about popup / creator profile"),

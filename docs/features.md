@@ -8,6 +8,7 @@
 - **Scheduled Auto-Fetch**: Automatically runs `git fetch` for every repository on a configurable cadence (`auto_fetch_interval_mins`, default 10 minutes, `0` disables), with per-repository and per-label interval overrides (in Repository Settings and Label Settings) so each repo — or a whole label group — can fetch on its own schedule or opt out.
 - **Uncommitted Work Warning Badge**: Highlights repositories with a `⚠ PARTIAL` badge when staged and unstaged changes coexist simultaneously.
 - **Fuzzy Jump Picker**: Instantly jump to any repository by name using the `/` overlay.
+- **Command Palette**: Press `Ctrl-P` on the home screen or inside a repository to fuzzy-find every action available in that view, see its current key, and run it by name — no shortcut memorising required.
 - **Favorite / Star Repositories**: Bookmark important repositories with `*` separate from pinned items.
 - **Home View Modes**: Press `v` to cycle between standard 4-row cards, a dense 1-row view (Compact), and a grid-based Tile view.
 - **Label / Group Collapsing**: Organize repositories on the home page with collapsible label headers.

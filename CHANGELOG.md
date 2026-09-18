@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Added
+- **palette**: a command palette on `ctrl-p` (rebindable under Global in Settings → Keybindings). On the home screen or in the repository view it lists every action available there — the home actions, or the repository actions plus the active tab's own, and the globals — grouped by context with each action's current key, filtered as you type (label prefix, then substring, then group, then scattered letters). `Enter` runs the highlighted action through the exact handler its key would take, so custom bindings work too; `Esc` or `ctrl-p` closes it. It is an overlay rather than a mode, so the view underneath keeps its state and clicks are ignored while it is open. Both help overlays and the status bar advertise it.
+
 ### Changed
 - **config**: usage state that changes just by using the app — last-visit times (`visits`), per-repository commit-message history (`commit_history`), the quick-label slots (`label_slots`) and the sticky label filter (`active_label_filter`) — moved out of `config.toml` into a separate `~/.gitwig/state.toml` (beside whichever config file is in use), so opening a repository, committing, or viewing a label never rewrites hand-edited settings. Keys still found in an older `config.toml` are migrated into `state.toml` on the next launch, merged without overriding what it already holds, and `config.toml` is rewritten without them; an upgrade backs both files up as `.toml.bak`. Deliberate choices (`pinned`, `starred`, `labels`, `repo_configs`, `label_configs`) stay in `config.toml`.
 

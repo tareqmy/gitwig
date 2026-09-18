@@ -84,6 +84,17 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         return;
     }
 
+    if app.command_palette.is_some() {
+        let msg_spans = vec![Span::styled(
+            "Command palette: type to filter, then run the highlighted action  ",
+            Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+        )];
+        let entries_data = [("Select", "↑/↓"), ("Run", "Enter"), ("Cancel", "Esc")];
+        let entries = build_status_entries(&entries_data);
+        draw_status_layout(f, area, Some(msg_spans), entries, app);
+        return;
+    }
+
     if app.loading_repo_path.is_some() {
         let msg_spans = vec![Span::styled(
             "Loading Repository...  ",
