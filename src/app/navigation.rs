@@ -1382,6 +1382,7 @@ impl App {
         let path = resolved.clone();
         let tx = self.tab_tx.clone();
         let graph_max_commits = self.config.graph_max_commits;
+        let enable_commit_signatures = self.config.enable_commit_signatures;
         let tab_ttl = self.config.tab_ttl_secs;
 
         let should_trigger = |info: &repo::RepoInfo, tab_idx: usize, is_not_loaded: bool| -> bool {
@@ -1436,11 +1437,20 @@ impl App {
                         let res = repo::load_tab_graph_stream(
                             &path,
                             graph_max_commits,
+                            enable_commit_signatures,
                             path_str.clone(),
                             tab_idx,
                             tx_clone,
                         );
-                        let _ = tx.send((path_str, tab_idx, repo::TabPayload::Graph(res)));
+                        let (graph, notice) = match res {
+                            Ok(load) => (Ok(load.lines), load.notice),
+                            Err(e) => (Err(e), None),
+                        };
+                        let _ =
+                            tx.send((path_str.clone(), tab_idx, repo::TabPayload::Graph(graph)));
+                        if let Some(notice) = notice {
+                            let _ = tx.send((path_str, tab_idx, repo::TabPayload::Notice(notice)));
+                        }
                     });
                 }
             }

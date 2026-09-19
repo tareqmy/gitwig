@@ -19,6 +19,12 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use git2::{Repository, StatusOptions, StatusShow};
 
+mod process;
+pub use process::{
+    detached_command, git_command, spawn_pipe_reader, ssh_command_val, summarize_stderr,
+    tool_command,
+};
+
 // ── Card-level status ──────────────────────────────────────────────────────
 
 /// Per-item filesystem classification carried alongside `config.items`.
@@ -195,14 +201,23 @@ pub struct SubmoduleInfo {
 pub enum TabPayload {
     Files(Result<Vec<String>, String>),
     Graph(Result<Vec<GraphLine>, String>),
-    Branches { local: Result<Vec<BranchInfo>, String>, remote: Result<Vec<BranchInfo>, String> },
-    Tags { local: Result<Vec<BranchInfo>, String>, remote: Result<Vec<BranchInfo>, String> },
+    Branches {
+        local: Result<Vec<BranchInfo>, String>,
+        remote: Result<Vec<BranchInfo>, String>,
+    },
+    Tags {
+        local: Result<Vec<BranchInfo>, String>,
+        remote: Result<Vec<BranchInfo>, String>,
+    },
     Remotes(Result<Vec<RemoteInfo>, String>),
     Stashes(Result<Vec<StashInfo>, String>),
     Overview(Result<(Vec<CommitterStat>, bool), String>),
     Worktrees(Result<Vec<WorktreeInfo>, String>),
     Submodules(Result<Vec<SubmoduleInfo>, String>),
     Reflog(Result<Vec<ReflogEntry>, String>),
+    /// A non-fatal message for the status bar, sent alongside a tab payload
+    /// (for example: git could not run the signature program).
+    Notice(String),
     ForgeIssues(Result<Vec<ForgeIssue>, String>),
     ForgePRs(Result<Vec<ForgePR>, String>),
     PRComments(Result<Vec<ForgePRComment>, String>),
@@ -468,33 +483,6 @@ pub fn safe_sha_slice(sha: &str, len: usize) -> &str {
     &sha[..end]
 }
 
-/// `BatchMode=yes` is load-bearing: without it, ssh bypasses the captured
-/// stdio pipes and prompts for passphrases or confirmations directly on
-/// `/dev/tty`, painting raw text over the TUI's alternate screen. With it,
-/// ssh fails immediately and the error is captured and reported normally.
-fn ssh_command_val() -> &'static str {
-    if std::env::var("GITWIG_SSH_STRICT").map(|v| v == "1").unwrap_or(false) {
-        "ssh -o BatchMode=yes -o StrictHostKeyChecking=yes"
-    } else {
-        "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
-    }
-}
-
-fn git_command() -> std::process::Command {
-    let mut cmd = std::process::Command::new("git");
-    cmd.env("GIT_TERMINAL_PROMPT", "0");
-    cmd.env("GIT_SSH_COMMAND", ssh_command_val());
-    cmd.env("GIT_ALLOW_PROTOCOL", "https:ssh:git:file");
-    cmd.env("GIT_PROTOCOL_FROM_USER", "0");
-    // An askpass helper would pop a prompt *outside* the alternate screen.
-    cmd.env("GIT_ASKPASS", "");
-    cmd.env("SSH_ASKPASS", "");
-    cmd.env("GCM_INTERACTIVE", "Never");
-    // Anything that still tries to read gets EOF instead of the user's keys.
-    cmd.stdin(std::process::Stdio::null());
-    cmd
-}
-
 /// How often the supervising thread checks whether the child has exited.
 const GIT_TIMEOUT_POLL_INTERVAL: Duration = Duration::from_millis(50);
 
@@ -721,7 +709,7 @@ fn apply_line_patch_inner(
     cached: bool,
 ) -> Result<(), String> {
     use std::io::Write;
-    use std::process::{Command, Stdio};
+    use std::process::Stdio;
 
     let path_check = std::path::Path::new(file_path);
     if path_check.is_absolute()
@@ -879,10 +867,8 @@ fn apply_line_patch_inner(
     }
     args.push("-");
 
-    let mut cmd = Command::new("git");
+    let mut cmd = git_command();
     let mut child = cmd
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
         .args(&args)
         .current_dir(repo_path)
         .stdin(Stdio::piped())
@@ -916,7 +902,7 @@ fn apply_hunk_patch(
     cached: bool,
 ) -> Result<(), String> {
     use std::io::Write;
-    use std::process::{Command, Stdio};
+    use std::process::Stdio;
 
     let path_check = std::path::Path::new(file_path);
     if path_check.is_absolute()
@@ -951,10 +937,8 @@ fn apply_hunk_patch(
     }
     args.push("-");
 
-    let mut cmd = Command::new("git");
+    let mut cmd = git_command();
     let mut child = cmd
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
         .args(&args)
         .current_dir(repo_path)
         .stdin(Stdio::piped())
@@ -1143,11 +1127,8 @@ pub fn inspect_detail(
 
 fn collect_signatures(repo_path: &Path, limit: usize) -> std::collections::HashMap<String, String> {
     let mut sigs = std::collections::HashMap::new();
-    let mut cmd = std::process::Command::new("git");
-    cmd.env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
-        .arg("log")
-        .arg("--all");
+    let mut cmd = git_command();
+    cmd.arg("log").arg("--all");
 
     if limit > 0 {
         cmd.arg(format!("-n{}", limit));
@@ -1519,7 +1500,7 @@ static LFS_INSTALLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
 
 fn is_lfs_installed() -> bool {
     *LFS_INSTALLED.get_or_init(|| {
-        if let Ok(output) = std::process::Command::new("git").arg("lfs").arg("--version").output() {
+        if let Ok(output) = git_command().arg("lfs").arg("--version").output() {
             output.status.success()
         } else {
             false
@@ -1551,12 +1532,8 @@ fn get_lfs_info(repo_path: &Path) -> (bool, std::collections::HashSet<String>) {
 
     let installed = is_lfs_installed();
     if installed {
-        if let Ok(output) = std::process::Command::new("git")
-            .arg("lfs")
-            .arg("ls-files")
-            .arg("-n")
-            .current_dir(repo_path)
-            .output()
+        if let Ok(output) =
+            git_command().arg("lfs").arg("ls-files").arg("-n").current_dir(repo_path).output()
         {
             if output.status.success() {
                 if let Ok(stdout) = String::from_utf8(output.stdout) {
@@ -1740,9 +1717,7 @@ pub fn load_tab_reflog(repo_path: &Path) -> Result<Vec<ReflogEntry>, String> {
 }
 
 pub fn checkout_commit(repo_path: &Path, commit_oid: &str) -> Result<(), git2::Error> {
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
+    let output = git_command()
         .arg("checkout")
         .arg(commit_oid)
         .current_dir(repo_path)
@@ -1769,15 +1744,32 @@ pub fn load_tab_files(repo_path: &Path) -> Result<Vec<String>, String> {
     Ok(files)
 }
 
+/// Everything the Graph tab needs from one `git log --graph` run.
+#[derive(Debug, Clone, Default)]
+pub struct GraphLoad {
+    pub lines: Vec<GraphLine>,
+    /// One-line, deduplicated summary of anything git wrote to stderr while
+    /// still producing a graph (typically a missing signature program). The
+    /// UI shows it in the status bar; it never replaces the graph itself.
+    pub notice: Option<String>,
+}
+
 pub fn load_tab_graph_stream(
     repo_path: &Path,
     graph_max_commits: usize,
+    enable_commit_signatures: bool,
     repo_resolved_path: String,
     tab_idx: usize,
     tx: std::sync::mpsc::Sender<(String, usize, TabPayload)>,
-) -> Result<Vec<GraphLine>, String> {
+) -> Result<GraphLoad, String> {
     let mut graph_lines = Vec::new();
-    let format_str = "%H__TWIG_SEP__%d__TWIG_SEP__%s__TWIG_SEP__%an__TWIG_SEP__%ad__TWIG_SEP__%G?";
+    // `%G?` makes git exec gpg/ssh-keygen for every signed commit, so it is only
+    // requested when the user opted into signature badges.
+    let format_str = if enable_commit_signatures {
+        "%H__TWIG_SEP__%d__TWIG_SEP__%s__TWIG_SEP__%an__TWIG_SEP__%ad__TWIG_SEP__%G?"
+    } else {
+        "%H__TWIG_SEP__%d__TWIG_SEP__%s__TWIG_SEP__%an__TWIG_SEP__%ad"
+    };
 
     let mut args = vec![
         "log".to_string(),
@@ -1791,15 +1783,12 @@ pub fn load_tab_graph_stream(
     args.push(format!("--pretty=format:{}", format_str));
     args.push("--color=never".to_string());
 
-    let mut child = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
-        .args(&args)
-        .current_dir(repo_path)
-        .stdout(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|e| e.to_string())?;
+    let mut child =
+        git_command().args(&args).current_dir(repo_path).spawn().map_err(|e| e.to_string())?;
 
+    // stderr must be drained alongside stdout: left unread it would fill and
+    // stall git; left inherited (the old bug) it would print over the TUI.
+    let stderr_reader = spawn_pipe_reader(&mut child);
     let stdout = child.stdout.take().ok_or_else(|| "Failed to open stdout".to_string())?;
     let reader = std::io::BufReader::new(stdout);
     use std::io::BufRead;
@@ -1821,11 +1810,13 @@ pub fn load_tab_graph_stream(
 
     // Wait for the child process to exit
     let status = child.wait().map_err(|e| e.to_string())?;
+    let stderr = stderr_reader.join().unwrap_or_default();
+    let notice = summarize_stderr(&stderr);
     if !status.success() && graph_lines.is_empty() {
-        return Err("git log failed".to_string());
+        return Err(notice.unwrap_or_else(|| "git log failed".to_string()));
     }
 
-    Ok(graph_lines)
+    Ok(GraphLoad { lines: graph_lines, notice })
 }
 
 pub fn load_tab_branches(
@@ -2555,12 +2546,7 @@ fn collect_graph_lines(repo_path: &Path, graph_max_commits: usize) -> Vec<GraphL
     args.push(format!("--pretty=format:{}", format_str));
     args.push("--color=never".to_string());
 
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
-        .args(&args)
-        .current_dir(repo_path)
-        .output();
+    let output = git_command().args(&args).current_dir(repo_path).output();
 
     if let Ok(out) = output {
         if out.status.success() {
@@ -2574,9 +2560,7 @@ fn collect_graph_lines(repo_path: &Path, graph_max_commits: usize) -> Vec<GraphL
 }
 
 pub fn checkout_local_branch(repo_path: &Path, branch_name: &str) -> Result<(), git2::Error> {
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
+    let output = git_command()
         .arg("checkout")
         .arg(branch_name)
         .current_dir(repo_path)
@@ -2600,9 +2584,7 @@ pub fn checkout_remote_branch(
     }
     let local_name = parts[1];
 
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
+    let output = git_command()
         .arg("checkout")
         .arg(local_name)
         .current_dir(repo_path)
@@ -2613,9 +2595,7 @@ pub fn checkout_remote_branch(
         return Ok(format!("Switched to existing branch '{}'", local_name));
     }
 
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
+    let output = git_command()
         .arg("checkout")
         .arg("--track")
         .arg(remote_branch_name)
@@ -2842,9 +2822,7 @@ pub fn delete_stash(repo_path: &Path, index: usize) -> Result<(), git2::Error> {
 
 pub fn apply_stash(repo_path: &Path, index: usize) -> Result<(), String> {
     let stash_ref = format!("stash@{{{}}}", index);
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
+    let output = git_command()
         .arg("stash")
         .arg("apply")
         .arg(&stash_ref)
@@ -2865,11 +2843,8 @@ pub fn save_stash(
     include_untracked: bool,
     keep_index: bool,
 ) -> Result<(), String> {
-    let mut cmd = std::process::Command::new("git");
-    cmd.env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
-        .arg("stash")
-        .arg("push");
+    let mut cmd = git_command();
+    cmd.arg("stash").arg("push");
 
     if include_untracked {
         cmd.arg("--include-untracked");
@@ -3034,9 +3009,7 @@ pub fn get_conflict_markers_diff(repo_path: &Path, file_path: &str) -> Vec<DiffL
 /// Accept the OURS (HEAD) version of a conflicted file.
 /// Equivalent to: git checkout --ours <file> && git add <file>
 pub fn resolve_ours(repo_path: &Path, file_path: &str) -> Result<(), String> {
-    let output1 = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
+    let output1 = git_command()
         .args(["checkout", "--ours", file_path])
         .current_dir(repo_path)
         .output()
@@ -3051,9 +3024,7 @@ pub fn resolve_ours(repo_path: &Path, file_path: &str) -> Result<(), String> {
 /// Accept the THEIRS (incoming) version of a conflicted file.
 /// Equivalent to: git checkout --theirs <file> && git add <file>
 pub fn resolve_theirs(repo_path: &Path, file_path: &str) -> Result<(), String> {
-    let output1 = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
+    let output1 = git_command()
         .args(["checkout", "--theirs", file_path])
         .current_dir(repo_path)
         .output()
@@ -3165,9 +3136,7 @@ pub fn resolve_conflict_hunk(
 
 /// Abort the in-progress merge.
 pub fn abort_merge(repo_path: &Path) -> Result<(), String> {
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
+    let output = git_command()
         .args(["merge", "--abort"])
         .current_dir(repo_path)
         .output()
@@ -3180,9 +3149,7 @@ pub fn abort_merge(repo_path: &Path) -> Result<(), String> {
 
 /// Continue the merge after conflicts are resolved.
 pub fn continue_merge(repo_path: &Path) -> Result<(), String> {
-    let output = std::process::Command::new("git")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_SSH_COMMAND", ssh_command_val())
+    let output = git_command()
         .args(["merge", "--continue"])
         .env("GIT_EDITOR", "true")
         .current_dir(repo_path)
@@ -3279,7 +3246,7 @@ pub fn load_tab_worktrees(repo_path: &Path) -> Result<Vec<WorktreeInfo>, String>
 }
 
 pub fn worktree_add(repo_path: &Path, branch: &str, wt_path: &Path) -> Result<(), String> {
-    let output = std::process::Command::new("git")
+    let output = git_command()
         .arg("worktree")
         .arg("add")
         .arg(wt_path)
@@ -3295,7 +3262,7 @@ pub fn worktree_add(repo_path: &Path, branch: &str, wt_path: &Path) -> Result<()
 }
 
 pub fn worktree_lock(repo_path: &Path, name: &str, reason: &str) -> Result<(), String> {
-    let output = std::process::Command::new("git")
+    let output = git_command()
         .arg("worktree")
         .arg("lock")
         .arg("--reason")
@@ -3312,7 +3279,7 @@ pub fn worktree_lock(repo_path: &Path, name: &str, reason: &str) -> Result<(), S
 }
 
 pub fn worktree_unlock(repo_path: &Path, name: &str) -> Result<(), String> {
-    let output = std::process::Command::new("git")
+    let output = git_command()
         .arg("worktree")
         .arg("unlock")
         .arg(name)
@@ -3327,7 +3294,7 @@ pub fn worktree_unlock(repo_path: &Path, name: &str) -> Result<(), String> {
 }
 
 pub fn worktree_remove(repo_path: &Path, name: &str, force: bool) -> Result<(), String> {
-    let mut cmd = std::process::Command::new("git");
+    let mut cmd = git_command();
     cmd.arg("worktree").arg("remove");
     if force {
         cmd.arg("--force");
@@ -3341,7 +3308,7 @@ pub fn worktree_remove(repo_path: &Path, name: &str, force: bool) -> Result<(), 
 }
 
 pub fn worktree_prune(repo_path: &Path) -> Result<(), String> {
-    let output = std::process::Command::new("git")
+    let output = git_command()
         .arg("worktree")
         .arg("prune")
         .current_dir(repo_path)
@@ -3358,7 +3325,7 @@ pub fn load_tab_forge_issues(
     repo_path: &Path,
     assigned_only: bool,
 ) -> Result<Vec<ForgeIssue>, String> {
-    let mut cmd = std::process::Command::new("gh");
+    let mut cmd = tool_command("gh");
     cmd.arg("issue").arg("list");
     if assigned_only {
         cmd.arg("--assignee").arg("@me");
@@ -3470,7 +3437,7 @@ pub struct PRReview {
 }
 
 pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
-    let mut cmd = std::process::Command::new("gh");
+    let mut cmd = tool_command("gh");
     cmd.arg("pr")
         .arg("list")
         .arg("--limit")
@@ -3591,7 +3558,7 @@ pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
 }
 
 pub fn load_pr_comments(repo_path: &Path, pr_number: u32) -> Result<Vec<ForgePRComment>, String> {
-    let mut cmd = std::process::Command::new("gh");
+    let mut cmd = tool_command("gh");
     cmd.arg("api")
         .arg(format!("repos/:owner/:repo/pulls/{}/comments", pr_number))
         .current_dir(repo_path);
@@ -3646,7 +3613,7 @@ pub fn add_pr_line_comment(
     line: u32,
     body: &str,
 ) -> Result<(), String> {
-    let mut cmd = std::process::Command::new("gh");
+    let mut cmd = tool_command("gh");
     cmd.arg("api")
         .arg(format!("repos/:owner/:repo/pulls/{}/comments", pr_number))
         .arg("--method")
@@ -3676,7 +3643,7 @@ pub fn add_pr_line_comment(
 }
 
 pub fn checkout_pr_branch(repo_path: &Path, pr_number: u32) -> Result<String, String> {
-    let mut cmd = std::process::Command::new("gh");
+    let mut cmd = tool_command("gh");
     cmd.arg("pr").arg("checkout").arg(pr_number.to_string()).current_dir(repo_path);
 
     let output = cmd.output().map_err(|e| e.to_string())?;
@@ -3691,7 +3658,7 @@ pub fn resolve_and_checkout_issue_branch(
     repo_path: &Path,
     issue_number: u32,
 ) -> Result<String, String> {
-    let mut cmd = std::process::Command::new("gh");
+    let mut cmd = tool_command("gh");
     cmd.arg("issue")
         .arg("view")
         .arg(issue_number.to_string())
@@ -3720,7 +3687,7 @@ pub fn resolve_and_checkout_issue_branch(
                         if let Ok(msg) = checkout_remote_branch(repo_path, &name) {
                             return Ok(format!("Checked out linked remote branch '{}'", msg));
                         }
-                        let checkout_out = std::process::Command::new("git")
+                        let checkout_out = git_command()
                             .arg("checkout")
                             .arg("-b")
                             .arg(&name)
@@ -3774,7 +3741,7 @@ pub fn resolve_and_checkout_issue_branch(
     }
 
     let new_branch_name = format!("issue-{}", issue_number);
-    let checkout_out = std::process::Command::new("git")
+    let checkout_out = git_command()
         .arg("checkout")
         .arg("-b")
         .arg(&new_branch_name)
@@ -3792,11 +3759,11 @@ pub fn resolve_and_checkout_issue_branch(
 
 pub fn open_browser(url: &str) {
     #[cfg(target_os = "macos")]
-    let _ = std::process::Command::new("open").arg(url).status();
+    let _ = detached_command("open").arg(url).status();
     #[cfg(target_os = "windows")]
-    let _ = std::process::Command::new("cmd").args(["/C", "start", url]).status();
+    let _ = detached_command("cmd").args(["/C", "start", url]).status();
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let _ = std::process::Command::new("xdg-open").arg(url).status();
+    let _ = detached_command("xdg-open").arg(url).status();
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]
@@ -3821,6 +3788,8 @@ pub fn get_default_remote_url(repo_path: &Path) -> Option<String> {
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
+// Test fixtures drive real `git` to build repositories; the TUI is not running here.
+#[allow(clippy::disallowed_methods)]
 mod tests {
     use super::*;
     use std::fs::File;
@@ -4039,8 +4008,14 @@ mod tests {
 
         // 9. Test load_tab_graph_stream
         let (tx, _rx) = std::sync::mpsc::channel();
-        let _ =
-            load_tab_graph_stream(&temp_path, 10, temp_path.to_str().unwrap().to_string(), 0, tx);
+        let _ = load_tab_graph_stream(
+            &temp_path,
+            10,
+            true,
+            temp_path.to_str().unwrap().to_string(),
+            0,
+            tx,
+        );
 
         // 10. Test invalidate cache
         invalidate_ref_map_cache(&temp_path);
@@ -4193,6 +4168,104 @@ mod tests {
         assert_eq!(graph[0].commit.as_ref().unwrap().signature_status, "N");
 
         // Clean up
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    /// Builds a repo whose only commit carries a (fake) gpg signature and whose
+    /// `gpg.program` points at a binary that does not exist. Any `%G?` lookup then
+    /// makes git print `error: cannot run …` on stderr and still exit 0, which is
+    /// exactly what a machine without gpg does for a real signed commit.
+    fn make_repo_with_unverifiable_signature() -> PathBuf {
+        use std::io::Write;
+        use std::process::Stdio;
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push(format!(
+            "twig_test_nogpg_{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_path).unwrap();
+        let repo = Repository::init(&temp_path).unwrap();
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+        config.set_str("gpg.program", "/nonexistent/gitwig-test-no-gpg").unwrap();
+
+        let mut file = File::create(temp_path.join("test.txt")).unwrap();
+        writeln!(file, "initial content").unwrap();
+        stage_file(&temp_path, "test.txt").unwrap();
+        commit_changes(&temp_path, "signed commit").unwrap();
+
+        // Re-hash the commit with a gpgsig header spliced in after `committer`.
+        let raw = git_command()
+            .args(["cat-file", "-p", "HEAD"])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+        let mut signed = String::new();
+        for line in String::from_utf8_lossy(&raw.stdout).lines() {
+            signed.push_str(line);
+            signed.push('\n');
+            if line.starts_with("committer ") {
+                signed.push_str("gpgsig -----BEGIN PGP SIGNATURE-----\n \n iQEzBAABCAAdFiEEfake\n -----END PGP SIGNATURE-----\n");
+            }
+        }
+        let mut hash_cmd = git_command();
+        hash_cmd.args(["hash-object", "-t", "commit", "-w", "--stdin"]).current_dir(&temp_path);
+        hash_cmd.stdin(Stdio::piped());
+        let mut child = hash_cmd.spawn().unwrap();
+        child.stdin.take().unwrap().write_all(signed.as_bytes()).unwrap();
+        let out = child.wait_with_output().unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        let new_oid = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        let head_ref = String::from_utf8_lossy(
+            &git_command()
+                .args(["symbolic-ref", "HEAD"])
+                .current_dir(&temp_path)
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .trim()
+        .to_string();
+        let upd = git_command()
+            .args(["update-ref", &head_ref, &new_oid])
+            .current_dir(&temp_path)
+            .output()
+            .unwrap();
+        assert!(upd.status.success());
+        temp_path
+    }
+
+    #[test]
+    fn graph_survives_missing_signature_program_and_reports_it() {
+        let temp_path = make_repo_with_unverifiable_signature();
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        let load = load_tab_graph_stream(&temp_path, 100, true, String::new(), 2, tx)
+            .expect("a missing gpg must not fail the graph");
+        assert_eq!(load.lines.len(), 1);
+        assert!(load.lines[0].commit.is_some());
+        let notice = load.notice.expect("git's stderr must surface as a notice");
+        assert!(
+            notice.contains("/nonexistent/gitwig-test-no-gpg"),
+            "notice must name the program git could not start: {notice}"
+        );
+        assert!(!notice.starts_with("error:"), "prefix should be stripped: {notice}");
+        assert!(rx.try_recv().is_err(), "no batch is streamed for a one-commit graph");
+
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn graph_skips_signature_lookup_when_disabled() {
+        let temp_path = make_repo_with_unverifiable_signature();
+        let (tx, _rx) = std::sync::mpsc::channel();
+
+        let load = load_tab_graph_stream(&temp_path, 100, false, String::new(), 2, tx).unwrap();
+        assert_eq!(load.lines.len(), 1);
+        assert_eq!(load.lines[0].commit.as_ref().unwrap().signature_status, "N");
+        assert!(load.notice.is_none(), "no %G? means git never touches gpg");
+
         let _ = std::fs::remove_dir_all(&temp_path);
     }
 
@@ -4836,9 +4909,7 @@ mod tests {
         commit_changes(&temp_path, "initial commit").unwrap();
 
         // Get the main branch name first
-        let output = std::process::Command::new("git")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_SSH_COMMAND", ssh_command_val())
+        let output = git_command()
             .args(["symbolic-ref", "--short", "HEAD"])
             .current_dir(&temp_path)
             .output()
@@ -4846,26 +4917,14 @@ mod tests {
         let main_branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
         // 2. Create feature branch and edit
-        std::process::Command::new("git")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_SSH_COMMAND", ssh_command_val())
-            .args(["checkout", "-b", "feature"])
-            .current_dir(&temp_path)
-            .output()
-            .unwrap();
+        git_command().args(["checkout", "-b", "feature"]).current_dir(&temp_path).output().unwrap();
 
         std::fs::write(&file_path, "line 1\nline 2 on feature\nline 3\n").unwrap();
         stage_file(&temp_path, "conflict.txt").unwrap();
         commit_changes(&temp_path, "feature commit").unwrap();
 
         // 3. Checkout main/master and edit differently
-        std::process::Command::new("git")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_SSH_COMMAND", ssh_command_val())
-            .args(["checkout", &main_branch])
-            .current_dir(&temp_path)
-            .output()
-            .unwrap();
+        git_command().args(["checkout", &main_branch]).current_dir(&temp_path).output().unwrap();
 
         std::fs::write(&file_path, "line 1\nline 2 on main\nline 3\n").unwrap();
         stage_file(&temp_path, "conflict.txt").unwrap();
@@ -4873,13 +4932,8 @@ mod tests {
 
         // 4. Merge feature into main -> conflict
         assert!(!is_merging(&temp_path));
-        let merge_output = std::process::Command::new("git")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_SSH_COMMAND", ssh_command_val())
-            .args(["merge", "feature"])
-            .current_dir(&temp_path)
-            .output()
-            .unwrap();
+        let merge_output =
+            git_command().args(["merge", "feature"]).current_dir(&temp_path).output().unwrap();
 
         assert!(!merge_output.status.success());
         assert!(is_merging(&temp_path));
@@ -4899,13 +4953,7 @@ mod tests {
         assert!(!is_merging(&temp_path));
 
         // 7. Conflict again to test resolve_ours/resolve_theirs
-        std::process::Command::new("git")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_SSH_COMMAND", ssh_command_val())
-            .args(["merge", "feature"])
-            .current_dir(&temp_path)
-            .output()
-            .unwrap();
+        git_command().args(["merge", "feature"]).current_dir(&temp_path).output().unwrap();
         assert!(is_merging(&temp_path));
 
         // Test resolve_ours
@@ -4919,21 +4967,9 @@ mod tests {
         assert!(!is_merging(&temp_path));
 
         // 8. Test resolve_theirs by resetting main to before the merge
-        std::process::Command::new("git")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_SSH_COMMAND", ssh_command_val())
-            .args(["reset", "--hard", "HEAD~1"])
-            .current_dir(&temp_path)
-            .output()
-            .unwrap();
+        git_command().args(["reset", "--hard", "HEAD~1"]).current_dir(&temp_path).output().unwrap();
 
-        std::process::Command::new("git")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_SSH_COMMAND", ssh_command_val())
-            .args(["merge", "feature"])
-            .current_dir(&temp_path)
-            .output()
-            .unwrap();
+        git_command().args(["merge", "feature"]).current_dir(&temp_path).output().unwrap();
         assert!(is_merging(&temp_path));
 
         resolve_theirs(&temp_path, "conflict.txt").unwrap();
@@ -4973,9 +5009,7 @@ mod tests {
         commit_changes(&temp_path, "initial commit").unwrap();
 
         // Get the main branch name first
-        let output = std::process::Command::new("git")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_SSH_COMMAND", ssh_command_val())
+        let output = git_command()
             .args(["symbolic-ref", "--short", "HEAD"])
             .current_dir(&temp_path)
             .output()
@@ -4983,39 +5017,22 @@ mod tests {
         let main_branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
         // 2. Create feature branch and edit line 2 and line 11
-        std::process::Command::new("git")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_SSH_COMMAND", ssh_command_val())
-            .args(["checkout", "-b", "feature"])
-            .current_dir(&temp_path)
-            .output()
-            .unwrap();
+        git_command().args(["checkout", "-b", "feature"]).current_dir(&temp_path).output().unwrap();
         let feature_lines = "line 1\nline 2 on feature\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11 on feature\nline 12\n";
         std::fs::write(&file_path, feature_lines).unwrap();
         stage_file(&temp_path, "conflict.txt").unwrap();
         commit_changes(&temp_path, "feature commit").unwrap();
 
         // 3. Checkout main/master and edit line 2 and line 11 differently
-        std::process::Command::new("git")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_SSH_COMMAND", ssh_command_val())
-            .args(["checkout", &main_branch])
-            .current_dir(&temp_path)
-            .output()
-            .unwrap();
+        git_command().args(["checkout", &main_branch]).current_dir(&temp_path).output().unwrap();
         let main_lines = "line 1\nline 2 on main\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11 on main\nline 12\n";
         std::fs::write(&file_path, main_lines).unwrap();
         stage_file(&temp_path, "conflict.txt").unwrap();
         commit_changes(&temp_path, "main commit").unwrap();
 
         // 4. Merge feature into main -> conflict
-        let merge_output = std::process::Command::new("git")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_SSH_COMMAND", ssh_command_val())
-            .args(["merge", "feature"])
-            .current_dir(&temp_path)
-            .output()
-            .unwrap();
+        let merge_output =
+            git_command().args(["merge", "feature"]).current_dir(&temp_path).output().unwrap();
         assert!(!merge_output.status.success());
         assert!(is_merging(&temp_path));
 

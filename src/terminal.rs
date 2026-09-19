@@ -37,7 +37,7 @@ pub fn check_cli() -> Result<CliAction, Box<dyn Error>> {
     }
 
     // Verify system 'git' is present on PATH before entering TUI
-    if let Err(e) = std::process::Command::new("git").arg("--version").output() {
+    if let Err(e) = crate::git_cmd::git_command().arg("--version").output() {
         eprintln!("Error: 'git' command-line tool not found on PATH.");
         eprintln!(
             "Gitwig requires a system installation of 'git' for network operations, staging, and diffing."

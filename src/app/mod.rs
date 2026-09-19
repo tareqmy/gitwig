@@ -2058,6 +2058,10 @@ where
                                 Err(e) => repo::TabData::Error(e),
                             };
                         }
+                        repo::TabPayload::Notice(message) => {
+                            crate::debug_log::warn(format!("tab {} notice: {}", tab_idx, message));
+                            app.status_message = Some(message);
+                        }
                         repo::TabPayload::ForgeIssues(res) => {
                             info.forge_issues = match res {
                                 Ok(issues) => repo::TabData::Loaded(issues),
@@ -2114,11 +2118,11 @@ where
                 if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
                     let git_app_name = &app.config.git_app;
                     let mut cmd = if cfg!(target_os = "windows") {
-                        let mut c = std::process::Command::new("cmd");
+                        let mut c = crate::git_cmd::interactive_command("cmd");
                         c.arg("/c").arg(git_app_name);
                         c
                     } else {
-                        std::process::Command::new(git_app_name)
+                        crate::git_cmd::interactive_command(git_app_name)
                     };
                     let status = cmd.current_dir(&path).status();
 
@@ -2305,7 +2309,7 @@ where
                         println!("{}{}\x1b[0m", ansi_normal, bottom_border);
                         println!();
 
-                        let _ = std::process::Command::new(&shell)
+                        let _ = crate::git_cmd::interactive_command(&shell)
                             .current_dir(&path)
                             .env("GITWIG", "1")
                             .env("GITWIG_SHELL", "1")
@@ -2350,7 +2354,7 @@ where
             let cursor_res = terminal.show_cursor();
 
             if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
-                let status = std::process::Command::new("git")
+                let status = crate::git_cmd::interactive_command("git")
                     .env("GIT_TERMINAL_PROMPT", "0")
                     .env("GIT_SSH_COMMAND", crate::config::ssh_command_val())
                     .arg("rebase")
@@ -2408,11 +2412,11 @@ where
 
                 if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
                     let mut cmd = if cfg!(target_os = "windows") {
-                        let mut c = std::process::Command::new("cmd");
+                        let mut c = crate::git_cmd::interactive_command("cmd");
                         c.arg("/c").arg("git").arg("mergetool").arg(file_path);
                         c
                     } else {
-                        let mut c = std::process::Command::new("git");
+                        let mut c = crate::git_cmd::interactive_command("git");
                         c.arg("mergetool").arg(file_path);
                         c
                     };
@@ -2457,11 +2461,11 @@ where
 
                 if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
                     let mut cmd = if cfg!(target_os = "windows") {
-                        let mut c = std::process::Command::new("cmd");
+                        let mut c = crate::git_cmd::interactive_command("cmd");
                         c.arg("/c").arg(&editor);
                         c
                     } else {
-                        std::process::Command::new(&editor)
+                        crate::git_cmd::interactive_command(&editor)
                     };
                     let status = cmd.arg(&file_path).current_dir(&repo_path).status();
 
@@ -2714,26 +2718,20 @@ fn is_tool_installed(name: &str) -> bool {
     #[cfg(not(target_os = "windows"))]
     let cmd = "which";
 
-    std::process::Command::new(cmd)
-        .arg(name)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+    crate::git_cmd::detached_command(cmd).arg(name).status().map(|s| s.success()).unwrap_or(false)
 }
 
 pub(crate) fn get_from_clipboard() -> Option<String> {
     #[cfg(target_os = "macos")]
     {
-        let output = std::process::Command::new("pbpaste").output().ok()?;
+        let output = crate::git_cmd::tool_command("pbpaste").output().ok()?;
         if output.status.success() {
             return String::from_utf8(output.stdout).ok();
         }
     }
     #[cfg(target_os = "windows")]
     {
-        let output = std::process::Command::new("powershell")
+        let output = crate::git_cmd::tool_command("powershell")
             .args(["-NoProfile", "-Command", "Get-Clipboard"])
             .output()
             .ok()?;
@@ -2743,7 +2741,7 @@ pub(crate) fn get_from_clipboard() -> Option<String> {
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        if let Ok(output) = std::process::Command::new("wl-paste").output() {
+        if let Ok(output) = crate::git_cmd::tool_command("wl-paste").output() {
             if output.status.success() {
                 if let Ok(s) = String::from_utf8(output.stdout) {
                     return Some(s);
@@ -2751,7 +2749,7 @@ pub(crate) fn get_from_clipboard() -> Option<String> {
             }
         }
         if let Ok(output) =
-            std::process::Command::new("xclip").args(["-selection", "clipboard", "-o"]).output()
+            crate::git_cmd::tool_command("xclip").args(["-selection", "clipboard", "-o"]).output()
         {
             if output.status.success() {
                 if let Ok(s) = String::from_utf8(output.stdout) {
@@ -2759,7 +2757,7 @@ pub(crate) fn get_from_clipboard() -> Option<String> {
                 }
             }
         }
-        if let Ok(output) = std::process::Command::new("xsel").arg("-ob").output() {
+        if let Ok(output) = crate::git_cmd::tool_command("xsel").arg("-ob").output() {
             if output.status.success() {
                 if let Ok(s) = String::from_utf8(output.stdout) {
                     return Some(s);
@@ -2774,7 +2772,7 @@ pub(crate) fn copy_to_clipboard(text: &str) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         use std::io::Write;
-        let mut child = std::process::Command::new("pbcopy")
+        let mut child = crate::git_cmd::detached_command("pbcopy")
             .stdin(std::process::Stdio::piped())
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -2787,7 +2785,7 @@ pub(crate) fn copy_to_clipboard(text: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         use std::io::Write;
-        let mut child = std::process::Command::new("clip")
+        let mut child = crate::git_cmd::detached_command("clip")
             .stdin(std::process::Stdio::piped())
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -2800,7 +2798,7 @@ pub(crate) fn copy_to_clipboard(text: &str) -> Result<(), String> {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         use std::io::Write;
-        if let Ok(mut child) = std::process::Command::new("xclip")
+        if let Ok(mut child) = crate::git_cmd::detached_command("xclip")
             .arg("-selection")
             .arg("clipboard")
             .stdin(std::process::Stdio::piped())
@@ -2813,7 +2811,7 @@ pub(crate) fn copy_to_clipboard(text: &str) -> Result<(), String> {
                 }
             }
         }
-        if let Ok(mut child) = std::process::Command::new("xsel")
+        if let Ok(mut child) = crate::git_cmd::detached_command("xsel")
             .arg("-ib")
             .stdin(std::process::Stdio::piped())
             .spawn()
@@ -2947,7 +2945,7 @@ impl App {
         let tx_clone = self.tx.clone();
         std::thread::spawn(move || {
             let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                let output = std::process::Command::new("curl")
+                let output = crate::git_cmd::tool_command("curl")
                     .arg("--max-time")
                     .arg("5")
                     .arg("-fsSL")
@@ -2961,7 +2959,7 @@ impl App {
                         }
                     }
                 }
-                let output = std::process::Command::new("wget")
+                let output = crate::git_cmd::tool_command("wget")
                     .arg("--timeout=5")
                     .arg("-qO-")
                     .arg("https://raw.githubusercontent.com/tareqmy/gitwig/master/.version")
@@ -3082,7 +3080,7 @@ impl App {
                 // Helper to download via curl or wget
                 let download =
                     |url: &str, dest: &std::path::Path| -> Result<(), Box<dyn std::error::Error>> {
-                        let curl_res = std::process::Command::new("curl")
+                        let curl_res = crate::git_cmd::tool_command("curl")
                             .arg("-fsSL")
                             .arg("-o")
                             .arg(dest)
@@ -3093,7 +3091,7 @@ impl App {
                                 return Ok(());
                             }
                         }
-                        let wget_res = std::process::Command::new("wget")
+                        let wget_res = crate::git_cmd::tool_command("wget")
                             .arg("-q")
                             .arg("-O")
                             .arg(dest)
@@ -3143,7 +3141,7 @@ impl App {
 
                 // Execute the verified script
                 let output = if is_windows {
-                    std::process::Command::new("powershell")
+                    crate::git_cmd::tool_command("powershell")
                         .arg("-NoProfile")
                         .arg("-ExecutionPolicy")
                         .arg("Bypass")
@@ -3151,7 +3149,7 @@ impl App {
                         .arg(&script_path)
                         .output()
                 } else {
-                    std::process::Command::new("sh").arg(&script_path).output()
+                    crate::git_cmd::tool_command("sh").arg(&script_path).output()
                 };
 
                 let _ = std::fs::remove_file(&script_path);

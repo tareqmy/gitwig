@@ -1,3 +1,12 @@
 # Clippy configuration file
 # Ref: https://doc.rust-lang.org/clippy/configuration.html
 avoid-breaking-exported-api = false
+
+# A child that inherits the terminal can print over the alternate screen or
+# block on a prompt nobody can see. Build every process through
+# gitwig_core::{git_command, tool_command, detached_command} (stdio detached)
+# or crate::git_cmd::interactive_command (tty-owning launches only, with the
+# alternate screen already left). Test fixtures opt out with an explicit allow.
+disallowed-methods = [
+    { path = "std::process::Command::new", reason = "use gitwig_core::git_command / tool_command / detached_command, or git_cmd::interactive_command for editors and shells; a bare Command inherits the TUI's terminal" },
+]

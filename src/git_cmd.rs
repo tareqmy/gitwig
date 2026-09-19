@@ -1,14 +1,13 @@
-//! Hardened `git` subprocess construction and bounded execution.
+//! Subprocess construction for the TUI crate and bounded `git` execution.
 //!
-//! Every `git` invocation that can touch a remote **must** be built here. A bare
-//! `Command::new("git")` inherits the controlling terminal, so an unreachable or
-//! permission-denied remote lets `ssh` or a credential helper write its prompt
-//! straight into the alternate screen — corrupting the TUI — or block forever on
-//! `/dev/tty` with no way for the user to cancel.
-//!
-//! [`git_command`] removes that class of failure by disabling every interactive
-//! prompt path, and [`run_git_with_timeout`] guarantees the child is reaped even
-//! when the remote simply never answers.
+//! A bare `Command::new` inherits the controlling terminal, so a child can write
+//! straight into the alternate screen (git complaining that gpg is missing,
+//! ssh asking to confirm a fingerprint) or block forever on `/dev/tty` with no
+//! way for the user to cancel. The constructors re-exported here from
+//! `gitwig-core` detach every stdio stream; [`interactive_command`] is the one
+//! sanctioned exception for launches that are meant to own the tty.
+//! [`run_git_with_timeout`] guarantees a remote-touching child is reaped even
+//! when the remote never answers.
 
 use std::io::Read;
 use std::process::{Command, Output, Stdio};
@@ -17,29 +16,20 @@ use std::time::{Duration, Instant};
 /// How often the supervising thread checks whether the child has exited.
 const POLL_INTERVAL: Duration = Duration::from_millis(50);
 
-/// Builds a `git` command that can never block on an interactive prompt.
+/// Re-exported from `gitwig-core` so both crates build `git` the same way:
+/// prompts disabled, stdin `/dev/null`, stdout and stderr piped.
+pub use gitwig_core::{detached_command, git_command, tool_command};
+
+/// Builds a command that is *meant* to own the terminal: an editor, a shell,
+/// `git rebase -i`, `git mergetool`.
 ///
-/// - `GIT_TERMINAL_PROMPT=0` stops git asking for a username/password on the tty.
-/// - `GIT_SSH_COMMAND` pins host-key handling so ssh never asks to confirm a
-///   fingerprint (see [`crate::config::ssh_command_val`]).
-/// - `GIT_ASKPASS`/`SSH_ASKPASS` are neutralised so no GUI or console credential
-///   helper can be spawned behind the alternate screen.
-/// - The protocol allowlist blocks `ext::`-style transports from a hostile
-///   `.gitmodules` or remote URL.
-/// - stdin is `/dev/null`, so anything that still tries to read gets EOF instead
-///   of stealing the user's keystrokes.
-pub fn git_command() -> Command {
-    let mut cmd = Command::new("git");
-    cmd.env("GIT_TERMINAL_PROMPT", "0");
-    cmd.env("GIT_SSH_COMMAND", crate::config::ssh_command_val());
-    cmd.env("GIT_ALLOW_PROTOCOL", "https:ssh:git:file");
-    cmd.env("GIT_PROTOCOL_FROM_USER", "0");
-    // An askpass helper would pop a prompt *outside* our alternate screen.
-    cmd.env("GIT_ASKPASS", "");
-    cmd.env("SSH_ASKPASS", "");
-    cmd.env("GCM_INTERACTIVE", "Never");
-    cmd.stdin(Stdio::null());
-    cmd
+/// This is the one sanctioned way to inherit the tty. Call it only between
+/// `LeaveAlternateScreen` and `EnterAlternateScreen` (see the launch sites in
+/// `app/mod.rs`), and clear the terminal afterwards. Anywhere else, use
+/// [`git_command`], [`tool_command`] or [`detached_command`].
+#[allow(clippy::disallowed_methods)]
+pub fn interactive_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    Command::new(program)
 }
 
 /// Why a bounded `git` run did not produce a normal exit status.

@@ -456,7 +456,9 @@ fn get_desc(global_idx: usize) -> &'static str {
             "Comma-separated list of directories watched recursively for automatic workspace synchronization (e.g. ~/development)."
         }
         62 => "Display memory usage and CPU usage of the Gitwig process in the bottom status bar.",
-        63 => "Verify GPG/SSH signatures on commits list (requires spawning git subprocesses).",
+        63 => {
+            "Verify GPG/SSH signatures on the commits list and graph (needs gpg or ssh-keygen; spawns git subprocesses)."
+        }
         64 => "Maximum commits visualized in the Graph tab history. Set to 0 for unlimited.",
         65 => {
             "How long in seconds repository details (history, files, etc) are cached in memory before reloading."

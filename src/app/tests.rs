@@ -11349,6 +11349,7 @@ fn test_git_command_disables_every_interactive_prompt() {
 }
 
 #[test]
+#[allow(clippy::disallowed_methods)] // a plain `sleep` stands in for a hung remote
 fn test_run_git_with_timeout_kills_a_hanging_child() {
     use crate::git_cmd::{GitRunError, run_git_with_timeout};
 
