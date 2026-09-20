@@ -7,6 +7,14 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [v2.6.1] - 2026-09-20
+### Fixed
+- **graph**: opening the Graph tab on a repository with signed commits corrupted the screen when `gpg` was not installed. The `git log --graph` child had its stderr left on the terminal, and it asked git to verify every signature regardless of the `enable_commit_signatures` setting, so git's `error: cannot run gpg: No such file or directory` was printed straight over the alternate screen. The loader now captures and drains stderr, only requests signature status when the setting is on, and when git still produces a graph but complains, the graph loads and a single status-bar line names the program git could not start. ([39e4fee](https://github.com/tareqmy/gitwig/commit/39e4fee))
+- **subprocesses**: every child process in both crates is now built through `gitwig_core::git_command`, `tool_command` or `detached_command`, which detach stdin, stdout and stderr from the terminal, so no helper (`git`, `gh`, `curl`, `wget`, the clipboard and browser openers) can print over the TUI or block on an invisible prompt. Editors, shells, `git rebase -i` and `git mergetool` keep the terminal through the one sanctioned `interactive_command` path, which already leaves the alternate screen first. A clippy `disallowed-methods` rule on `std::process::Command::new` fails the build if a bare spawn is added again. ([39e4fee](https://github.com/tareqmy/gitwig/commit/39e4fee))
+
+### Documentation
+- **config**: the `enable_commit_signatures` help text and `docs/configuration.md` now say the setting applies to the graph as well as the commits list and needs `gpg` (or `ssh-keygen` for SSH signatures) on `PATH`; `.agent/STYLE_GUIDE.md` records the no-bare-subprocess rule. ([39e4fee](https://github.com/tareqmy/gitwig/commit/39e4fee))
+
 ## [v2.6.0] - 2026-09-18
 ### Added
 - **palette**: a command palette on `ctrl-p` (rebindable under Global in Settings → Keybindings). On the home screen or in the repository view it lists every action available there — the home actions, or the repository actions plus the active tab's own, and the globals — grouped by context with each action's current key, filtered as you type (label prefix, then substring, then group, then scattered letters). `Enter` runs the highlighted action through the exact handler its key would take, so custom bindings work too; `Esc` or `ctrl-p` closes it. It is an overlay rather than a mode, so the view underneath keeps its state and clicks are ignored while it is open. Both help overlays and the status bar advertise it. ([5366975](https://github.com/tareqmy/gitwig/commit/5366975))
