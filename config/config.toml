@@ -26,6 +26,13 @@ sort_by = "custom"
 # Whether sorting should be reversed.
 sort_reverse = false
 
+# A label can carry its own sort order, used instead of the two keys above
+# while that label's filter (project view) is active. Edited in Label
+# Settings (`→` on a label in the `L` picker); both keys are optional.
+# [label_configs.archive]
+# sort_by = "alphabetical"
+# sort_reverse = false
+
 # Active theme name selection.
 # Resolves to themes/<theme_name>.theme beside the loaded config file
 # (normally ~/.gitwig/themes/, e.g. "default" -> ~/.gitwig/themes/default.theme).
