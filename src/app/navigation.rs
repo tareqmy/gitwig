@@ -353,9 +353,11 @@ impl App {
     /// Viewing a label for the first time also gives it a quick-label slot.
     pub fn select_label_filter(&mut self, label: Option<String>) {
         let toggled_off = label.is_some() && self.state.active_label_filter == label;
+        let before = self.effective_sort();
         self.state.active_label_filter = if toggled_off { None } else { label };
         self.selected_index = 0;
         self.scroll_top = 0;
+        self.resort_if_sort_changed(before);
         match self.state.active_label_filter.clone() {
             Some(l) => {
                 self.record_label_slot(&l);
@@ -492,9 +494,11 @@ impl App {
             .filter_map(|path| self.config.labels.get(path))
             .any(|labels| labels.contains(&active));
         if !still_used {
+            let before = self.effective_sort();
             self.state.active_label_filter = None;
             self.selected_index = 0;
             self.scroll_top = 0;
+            self.resort_if_sort_changed(before);
         }
         !still_used
     }
@@ -536,6 +540,56 @@ impl App {
         match row {
             HomeRow::Repo { actual_index, .. } => self.config.items.get(*actual_index),
             HomeRow::GroupHeader { .. } => None,
+        }
+    }
+
+    /// The label config of the sticky label filter, if a filter is active and
+    /// that label has any settings stored.
+    fn active_label_config(&self) -> Option<&crate::config::LabelConfig> {
+        self.state.active_label_filter.as_ref().and_then(|l| self.config.label_configs.get(l))
+    }
+
+    /// The sort mode the home list actually uses: the active label's own
+    /// `sort_by` while its filter ("project view") is on, else the global one.
+    pub fn effective_sort_by(&self) -> SortOrder {
+        self.active_label_config().and_then(|lc| lc.sort_by).unwrap_or(self.config.sort_by)
+    }
+
+    /// The sort direction the home list actually uses: the active label's own
+    /// `sort_reverse` while its filter is on, else the global one.
+    pub fn effective_sort_reverse(&self) -> bool {
+        self.active_label_config()
+            .and_then(|lc| lc.sort_reverse)
+            .unwrap_or(self.config.sort_reverse)
+    }
+
+    /// `(sort_by, sort_reverse)` as the list currently applies them.
+    pub fn effective_sort(&self) -> (SortOrder, bool) {
+        (self.effective_sort_by(), self.effective_sort_reverse())
+    }
+
+    /// The active label filter's name when that label overrides `sort_by` or
+    /// `sort_reverse`, i.e. when the sort shown is the label's, not the global.
+    pub fn sort_override_label(&self) -> Option<&str> {
+        let label = self.state.active_label_filter.as_deref()?;
+        let lc = self.config.label_configs.get(label)?;
+        (lc.sort_by.is_some() || lc.sort_reverse.is_some()).then_some(label)
+    }
+
+    /// Re-sorts the list when the effective sort differs from `before` (taken
+    /// with [`App::effective_sort`] prior to a label-filter change), keeping
+    /// the selection on the same repository.
+    pub fn resort_if_sort_changed(&mut self, before: (SortOrder, bool)) {
+        if self.effective_sort() == before {
+            return;
+        }
+        let selected_item = self.get_selected_item().cloned();
+        self.sort_items_in_place();
+        if let Some(item) = selected_item {
+            let filtered = self.get_filtered_items();
+            if let Some(pos) = filtered.iter().position(|(_, x)| *x == &item) {
+                self.selected_index = pos;
+            }
         }
     }
 
@@ -801,7 +855,8 @@ impl App {
     }
 
     pub fn sort_items_in_place(&mut self) {
-        let mut zipped: Vec<(String, ItemStatus)> = match self.config.sort_by {
+        let sort_reverse = self.effective_sort_reverse();
+        let mut zipped: Vec<(String, ItemStatus)> = match self.effective_sort_by() {
             SortOrder::Custom => {
                 let mut status_map: std::collections::HashMap<String, ItemStatus> =
                     self.config.items.drain(..).zip(self.statuses.drain(..)).collect();
@@ -814,7 +869,7 @@ impl App {
                         (item.clone(), status)
                     })
                     .collect();
-                if self.config.sort_reverse {
+                if sort_reverse {
                     z.reverse();
                 }
                 z
@@ -835,7 +890,7 @@ impl App {
                         .to_lowercase();
                     name_a.cmp(&name_b)
                 });
-                if self.config.sort_reverse {
+                if sort_reverse {
                     z.reverse();
                 }
                 z
@@ -849,7 +904,7 @@ impl App {
                     let time_b = visits.get(&b.0).copied().unwrap_or(0);
                     time_b.cmp(&time_a) // Descending
                 });
-                if self.config.sort_reverse {
+                if sort_reverse {
                     z.reverse();
                 }
                 z
@@ -872,7 +927,7 @@ impl App {
                     let time_b = times.get(&b.0).copied().unwrap_or(0);
                     time_b.cmp(&time_a) // Descending
                 });
-                if self.config.sort_reverse {
+                if sort_reverse {
                     z.reverse();
                 }
                 z
@@ -887,12 +942,32 @@ impl App {
         self.statuses = statuses;
     }
 
+    /// The label whose `sort_by` the `o` key should cycle: the active filter's
+    /// label when it overrides the mode, so the key changes the sort that is
+    /// actually on screen rather than a hidden global.
+    fn label_owning_sort_by(&self) -> Option<String> {
+        let label = self.state.active_label_filter.as_deref()?;
+        self.config.label_configs.get(label)?.sort_by.map(|_| label.to_string())
+    }
+
+    /// Like [`App::label_owning_sort_by`], for `sort_reverse` and the `O` key.
+    fn label_owning_sort_reverse(&self) -> Option<String> {
+        let label = self.state.active_label_filter.as_deref()?;
+        self.config.label_configs.get(label)?.sort_reverse.map(|_| label.to_string())
+    }
+
     pub fn cycle_sort_order(&mut self) {
-        self.config.sort_by = match self.config.sort_by {
-            SortOrder::Custom => SortOrder::Alphabetical,
-            SortOrder::Alphabetical => SortOrder::RecentVisit,
-            SortOrder::RecentVisit => SortOrder::LatestChanges,
-            SortOrder::LatestChanges => SortOrder::Custom,
+        let msg = match self.label_owning_sort_by() {
+            Some(label) => {
+                if let Some(lc) = self.config.label_configs.get_mut(&label) {
+                    lc.sort_by = lc.sort_by.map(SortOrder::next);
+                }
+                format!("Sort mode updated for label '{}'", label)
+            }
+            None => {
+                self.config.sort_by = self.config.sort_by.next();
+                "Sort mode updated".to_string()
+            }
         };
 
         let selected_item = self.get_selected_item().cloned();
@@ -906,11 +981,22 @@ impl App {
             }
         }
 
-        self.persist("Sort mode updated");
+        self.persist(&msg);
     }
 
     pub fn toggle_sort_reverse(&mut self) {
-        self.config.sort_reverse = !self.config.sort_reverse;
+        let msg = match self.label_owning_sort_reverse() {
+            Some(label) => {
+                if let Some(lc) = self.config.label_configs.get_mut(&label) {
+                    lc.sort_reverse = lc.sort_reverse.map(|r| !r);
+                }
+                format!("Sort direction updated for label '{}'", label)
+            }
+            None => {
+                self.config.sort_reverse = !self.config.sort_reverse;
+                "Sort direction updated".to_string()
+            }
+        };
 
         let selected_item = self.get_selected_item().cloned();
 
@@ -923,7 +1009,7 @@ impl App {
             }
         }
 
-        self.persist("Sort direction updated");
+        self.persist(&msg);
     }
 
     pub fn toggle_pin_selected(&mut self) {
@@ -997,7 +1083,7 @@ impl App {
             self.state.visits.insert(item.clone(), now);
             self.persist_state("Opened repository");
 
-            if self.config.sort_by == SortOrder::RecentVisit {
+            if self.effective_sort_by() == SortOrder::RecentVisit {
                 self.sort_items_in_place();
                 let filtered = self.get_filtered_items();
                 if let Some(pos) = filtered.iter().position(|(_, x)| *x == &item) {
@@ -2701,20 +2787,15 @@ impl App {
                 self.set_input_buffer(self.config.poll_interval_ms.to_string());
             }
             1 => {
-                self.config.sort_by = match self.config.sort_by {
-                    SortOrder::Custom => SortOrder::Alphabetical,
-                    SortOrder::Alphabetical => SortOrder::RecentVisit,
-                    SortOrder::RecentVisit => SortOrder::LatestChanges,
-                    SortOrder::LatestChanges => SortOrder::Custom,
-                };
-                if self.config.sort_by != SortOrder::Custom {
+                self.config.sort_by = self.config.sort_by.next();
+                if self.effective_sort_by() != SortOrder::Custom {
                     self.sort_items_in_place();
                 }
                 self.persist("Sort mode updated");
             }
             2 => {
                 self.config.sort_reverse = !self.config.sort_reverse;
-                if self.config.sort_by != SortOrder::Custom {
+                if self.effective_sort_by() != SortOrder::Custom {
                     self.sort_items_in_place();
                 }
                 self.persist("Sort direction updated");

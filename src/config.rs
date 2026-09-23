@@ -17,6 +17,39 @@ pub enum SortOrder {
     Custom,
 }
 
+impl SortOrder {
+    /// The next mode in the `o` cycle: Custom → Alphabetical → Recent Visit →
+    /// Latest Changes → Custom.
+    pub fn next(self) -> Self {
+        match self {
+            SortOrder::Custom => SortOrder::Alphabetical,
+            SortOrder::Alphabetical => SortOrder::RecentVisit,
+            SortOrder::RecentVisit => SortOrder::LatestChanges,
+            SortOrder::LatestChanges => SortOrder::Custom,
+        }
+    }
+
+    /// The previous mode in the cycle (the inverse of [`SortOrder::next`]).
+    pub fn prev(self) -> Self {
+        match self {
+            SortOrder::Custom => SortOrder::LatestChanges,
+            SortOrder::Alphabetical => SortOrder::Custom,
+            SortOrder::RecentVisit => SortOrder::Alphabetical,
+            SortOrder::LatestChanges => SortOrder::RecentVisit,
+        }
+    }
+
+    /// Human-readable name used by the sort caption and settings rows.
+    pub fn display_name(self) -> &'static str {
+        match self {
+            SortOrder::Custom => "Custom",
+            SortOrder::Alphabetical => "Alphabetical",
+            SortOrder::RecentVisit => "Recent Visit",
+            SortOrder::LatestChanges => "Latest Changes",
+        }
+    }
+}
+
 fn default_sort_by() -> SortOrder {
     SortOrder::Custom
 }
@@ -133,6 +166,16 @@ pub struct LabelConfig {
     pub auto_fetch_interval_mins: Option<u64>,
     #[serde(default)]
     pub editor: Option<String>,
+    /// Sort mode for the home list while this label's filter ("project view")
+    /// is active. `None` inherits the global `sort_by`. Unlike the other rows
+    /// this is a property of the label view, not of the repositories in it,
+    /// so it has no per-repo counterpart.
+    #[serde(default)]
+    pub sort_by: Option<SortOrder>,
+    /// Sort direction for the home list while this label's filter is active.
+    /// `None` inherits the global `sort_reverse`.
+    #[serde(default)]
+    pub sort_reverse: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]

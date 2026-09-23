@@ -1524,7 +1524,7 @@ impl App {
             last_stats_save: std::time::Instant::now(),
         };
 
-        if app.config.sort_by != SortOrder::Custom {
+        if app.effective_sort_by() != SortOrder::Custom {
             app.sort_items_in_place();
         }
 

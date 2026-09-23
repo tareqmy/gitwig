@@ -3,6 +3,7 @@
 //! default in the resolution order (repo → label → global).
 
 use crate::app::{App, Mode};
+use crate::config::SortOrder;
 use crate::ui::style::{CARD_BORDER, accent_style, muted_style, primary_style};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
@@ -12,7 +13,17 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Padding, Paragraph};
 
 /// Number of rows in the popup (0..ROW_COUNT).
-const ROW_COUNT: usize = 6;
+const ROW_COUNT: usize = 8;
+
+/// Steps a tri-state row: going right is default → yes → no → default, going
+/// left walks the same ring backwards.
+fn cycle_optional_bool(current: Option<bool>, right: bool) -> Option<bool> {
+    match (current, right) {
+        (None, true) | (Some(false), false) => Some(true),
+        (Some(true), true) | (None, false) => Some(false),
+        (Some(false), true) | (Some(true), false) => None,
+    }
+}
 
 pub struct LabelSettingsPopup;
 
@@ -138,7 +149,7 @@ impl LabelSettingsPopup {
             }
             KeyCode::Enter | KeyCode::Char(' ') => {
                 match app.label_settings_selected_index {
-                    0 | 3 => {
+                    0 | 3 | 6 | 7 => {
                         Self::change_setting(app, &label, true);
                     }
                     1 => {
@@ -234,13 +245,42 @@ impl LabelSettingsPopup {
                 app.config.label_configs.insert(label.to_string(), lc);
                 app.persist(&format!("Label Resync on Tab Change set to {}", desc));
             }
+            6 => {
+                // default → Custom → Alphabetical → Recent Visit → Latest
+                // Changes → default (and the reverse going left).
+                let before = app.effective_sort();
+                lc.sort_by = match lc.sort_by {
+                    None => Some(if right { SortOrder::Custom } else { SortOrder::LatestChanges }),
+                    Some(SortOrder::LatestChanges) if right => None,
+                    Some(SortOrder::Custom) if !right => None,
+                    Some(order) => Some(if right { order.next() } else { order.prev() }),
+                };
+                let desc = lc.sort_by.map(SortOrder::display_name).unwrap_or("Default");
+                let msg = format!("Label sort mode set to {}", desc);
+                app.config.label_configs.insert(label.to_string(), lc);
+                app.resort_if_sort_changed(before);
+                app.persist(&msg);
+            }
+            7 => {
+                let before = app.effective_sort();
+                lc.sort_reverse = cycle_optional_bool(lc.sort_reverse, right);
+                let desc = match lc.sort_reverse {
+                    None => "Default",
+                    Some(true) => "Yes",
+                    Some(false) => "No",
+                };
+                let msg = format!("Label sort reverse set to {}", desc);
+                app.config.label_configs.insert(label.to_string(), lc);
+                app.resort_if_sort_changed(before);
+                app.persist(&msg);
+            }
             _ => {}
         }
     }
 
     pub fn draw(f: &mut Frame, app: &App, area: Rect) {
         let popup_width = 54;
-        let popup_height = 17;
+        let popup_height = 19;
         let popup_area = crate::ui::layout::centered_rect_fixed(popup_width, popup_height, area);
 
         let block = Block::default()
@@ -263,7 +303,7 @@ impl LabelSettingsPopup {
                 Constraint::Length(1), // Spacer
                 Constraint::Length(1), // Label name
                 Constraint::Length(1), // Spacer
-                Constraint::Min(6),    // Settings items list
+                Constraint::Min(8),    // Settings items list
                 Constraint::Length(1), // Spacer
                 Constraint::Length(1), // Shortcuts instructions
             ])
@@ -402,6 +442,18 @@ impl LabelSettingsPopup {
             selected == 5 && editing,
         );
 
+        // Row 6: Sort By (applies while this label's filter is active)
+        let sort_by_val = lc.sort_by.map(SortOrder::display_name).unwrap_or("default");
+        let sort_by_line = build_line(6, "Sort By (in view):", sort_by_val, false);
+
+        // Row 7: Sort Reverse
+        let sort_reverse_val = match lc.sort_reverse {
+            None => "default",
+            Some(true) => "yes",
+            Some(false) => "no",
+        };
+        let sort_reverse_line = build_line(7, "Sort Reverse (in view):", sort_reverse_val, false);
+
         let settings_lines = vec![
             theme_line,
             page_size_line,
@@ -409,6 +461,8 @@ impl LabelSettingsPopup {
             resync_line,
             auto_fetch_line,
             editor_line,
+            sort_by_line,
+            sort_reverse_line,
         ];
         f.render_widget(Paragraph::new(settings_lines), chunks[3]);
 

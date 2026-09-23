@@ -108,7 +108,7 @@ note = "Main project — fetch manually before releases"
 
 ### Per-label settings
 
-Settings can be attached to a **label** and are then shared by every repository carrying that label. They are the settings subset of the per-repository overrides — `theme`, `page_size`, `max_commits`, `resync_on_tab_change`, `auto_fetch_interval_mins`, and `editor` — and are edited in the **Label Settings** popup, opened with `→` on a highlighted label in the `L` label picker.
+Settings can be attached to a **label** and are then shared by every repository carrying that label. They are the settings subset of the per-repository overrides — `theme`, `page_size`, `max_commits`, `resync_on_tab_change`, `auto_fetch_interval_mins`, and `editor` — plus two keys that belong to the label view itself, `sort_by` and `sort_reverse`, and are edited in the **Label Settings** popup, opened with `→` on a highlighted label in the `L` label picker.
 
 Each setting resolves through three tiers, most specific first:
 
@@ -118,13 +118,18 @@ Each setting resolves through three tiers, most specific first:
 
 A row left empty at one tier inherits the next tier down. `auto_fetch_interval_mins = 0` at the label tier opts the whole group out of background fetching (handy for an `archive` label). When a label sets a `theme`, the home repository-list view is tinted with that theme while that label's filter ("project view") is active. Entries are stored as `[label_configs.<label>]` tables and are pruned automatically once no repository carries the label.
 
+`sort_by` (`"custom"`, `"alphabetical"`, `"recent_visit"`, `"latest_changes"`) and `sort_reverse` (`true`/`false`) are the exception to the three-tier rule: they describe how the list is ordered *while that label's filter is active*, so they have no per-repository counterpart and resolve label → global only. Leave either unset to inherit the top-level `sort_by` / `sort_reverse`. While a label that sets them is the active filter, the header's sort caption names the label (`Sort: Alphabetical · work`) and the `o` / `O` keys change the label's value rather than the global one.
+
 ```toml
 [label_configs.work]
 theme = "nord"
 auto_fetch_interval_mins = 2
+sort_by = "recent_visit"
 
 [label_configs.archive]
 auto_fetch_interval_mins = 0
+sort_by = "alphabetical"
+sort_reverse = false
 ```
 
 ### Keys Gitwig manages for you

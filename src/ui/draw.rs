@@ -16,7 +16,6 @@ use ratatui::widgets::{Block, BorderType, Borders, Padding, Paragraph};
 
 use crate::app::{App, Mode};
 use crate::components::cmd_bar::StatusEntry;
-use crate::config::SortOrder;
 use crate::repo::{ItemStatus, RepoState, RepoSummary, format_relative_time};
 
 // ── Theme ──────────────────────────────────────────────────────────────────
@@ -869,15 +868,18 @@ fn home_header_layout(area: Rect, app: &App) -> HomeHeaderLayout {
     }
 }
 
-/// Caption for the active list sort, e.g. `Sort: Alphabetical (Rev)`.
+/// Caption for the active list sort, e.g. `Sort: Alphabetical (Rev)`. When the
+/// active label filter overrides the sort, the label is named so it is clear
+/// the caption (and the `o`/`O` keys) refer to that label's setting.
 pub fn sort_caption(app: &App) -> String {
-    let sort_label = match app.config.sort_by {
-        SortOrder::Custom => "Sort: Custom",
-        SortOrder::Alphabetical => "Sort: Alphabetical",
-        SortOrder::RecentVisit => "Sort: Recent Visit",
-        SortOrder::LatestChanges => "Sort: Latest Changes",
-    };
-    if app.config.sort_reverse { format!("{} (Rev)", sort_label) } else { sort_label.to_string() }
+    let mut caption = format!("Sort: {}", app.effective_sort_by().display_name());
+    if app.effective_sort_reverse() {
+        caption.push_str(" (Rev)");
+    }
+    if let Some(label) = app.sort_override_label() {
+        caption.push_str(&format!(" · {}", label));
+    }
+    caption
 }
 
 /// Draws every header row and records the clickable rects for `mouse.rs`.

@@ -33,8 +33,8 @@ The primary dashboard shown when Gitwig starts up.
         *   `R` : Refresh status of selected item manually
         *   `F` : Bulk fetch all repositories concurrently
         *   `E` : Show why the selected repository's last fetch failed
-        *   `o` : Cycle sorting criteria (Custom → Alphabetical → Recent → Changes)
-        *   `O` : Toggle reverse sorting
+        *   `o` : Cycle sorting criteria (Custom → Alphabetical → Recent → Changes); acts on the active label's own sort when its Label Settings set one
+        *   `O` : Toggle reverse sorting; acts on the active label's own direction when its Label Settings set one
         *   `v` : Cycle repository list layout (Normal/Compact/Tile)
         *   `a` : Add a repository via the directory-scanner picker
         *   `A` : Bulk add subdirectories of a directory
@@ -430,10 +430,10 @@ Custom per-repository config editor (Theme, Page Size, Max Commits, Resync on Ta
     *   `Enter` / `Space` : Edit/Toggle setting (toggles themes, enters text input for fields, runs LFS Pull, or refreshes LFS details)
 
 ### Label Settings Popup (`Mode::LabelSettings`)
-Per-label config editor (Theme, Page Size, Max Commits, Resync on Tab Change, Auto Fetch interval, Editor path). Accessed via `→` on a highlighted label in the Label Picker Overlay. Settings chosen here apply to every repository carrying that label and are resolved between the per-repo override and the global default: a per-repo setting wins first, then the first of the repo's labels (in stored order) that defines the setting, then the global default. Each row left empty inherits the next tier down; the Auto Fetch row accepts `0` to exclude the whole label group from background fetching (handy for an `archive` label). The Theme row additionally tints the home repo-list view while that label's filter ("project view") is active — a visual cue for which project you are focused on. Label settings persist to `[label_configs.<label>]` in `config.toml`, and a label's settings are pruned automatically once no repository carries it.
+Per-label config editor (Theme, Page Size, Max Commits, Resync on Tab Change, Auto Fetch interval, Editor path, Sort By, Sort Reverse). Accessed via `→` on a highlighted label in the Label Picker Overlay. Settings chosen here apply to every repository carrying that label and are resolved between the per-repo override and the global default: a per-repo setting wins first, then the first of the repo's labels (in stored order) that defines the setting, then the global default. Each row left empty inherits the next tier down; the Auto Fetch row accepts `0` to exclude the whole label group from background fetching (handy for an `archive` label). The Theme row additionally tints the home repo-list view while that label's filter ("project view") is active — a visual cue for which project you are focused on. The Sort By and Sort Reverse rows are properties of the label view rather than of its repositories: they replace the global `sort_by` / `sort_reverse` only while that label's filter is active (the list re-sorts as soon as the row changes or the filter is entered or left, and reverts to the global order on leaving), the sort caption in the header names the label (`Sort: Alphabetical · work`), and the home `o` / `O` keys then edit the label's value instead of the global. Label settings persist to `[label_configs.<label>]` in `config.toml`, and a label's settings are pruned automatically once no repository carries it.
 *   *Shortcuts*:
     *   `↑` / `k` / `↓` / `j` : Navigate settings rows
-    *   `←` / `h` / `→` / `l` : Change values for option fields (Theme, Resync on Tab Change)
+    *   `←` / `h` / `→` / `l` : Change values for option fields (Theme, Resync on Tab Change, Sort By, Sort Reverse)
     *   `Enter` / `Space` : Edit/Toggle setting (toggles themes or enters text input for fields)
     *   `Esc` : Cancel text edit (if editing), otherwise return to the label picker
 

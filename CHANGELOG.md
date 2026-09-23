@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Added
+- **labels**: Label Settings gained a per-label sort order. Two new rows, **Sort By** (default / Custom / Alphabetical / Recent Visit / Latest Changes) and **Sort Reverse** (default / yes / no), are stored as `sort_by` and `sort_reverse` under `[label_configs.<label>]` and apply while that label's filter ("project view") is active: entering the view sorts the home list by the label's setting, leaving it restores the global order, and changing a row while the view is open re-sorts at once. The header's sort caption names the label whose sort is in effect (`Sort: Alphabetical · work`), and the home `o` / `O` keys cycle the label's value instead of the global one whenever the label defines it, so what you see is what the key changes. Labels that leave the rows at default inherit the global `sort_by` / `sort_reverse` as before.
 
 ## [v2.6.1] - 2026-09-20
 ### Fixed

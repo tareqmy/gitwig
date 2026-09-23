@@ -12704,3 +12704,191 @@ fn test_tags_tab_honors_rebound_keys() {
     assert!(text.contains("Checkout [o]"), "status bar text: {text}");
     assert!(!text.contains("↵"), "checkout hint must follow the rebound key: {text}");
 }
+
+// ── Per-label sort order ──────────────────────────────────────────────────
+
+/// Three repos in non-alphabetical custom order, all carrying `work`, plus one
+/// unlabelled repo, with the global sort left at Custom.
+fn label_sort_app(temp: &str, work: crate::config::LabelConfig) -> (App, PathBuf) {
+    let mut config = Config {
+        items: vec!["/c".to_string(), "/a".to_string(), "/b".to_string(), "/z".to_string()],
+        show_grouping: false,
+        ..Default::default()
+    };
+    for path in ["/c", "/a", "/b"] {
+        config.labels.insert(path.to_string(), vec!["work".to_string()]);
+    }
+    config.label_configs.insert("work".to_string(), work);
+    let temp_path = std::env::temp_dir().join(format!("gitwig_test_{}.toml", temp));
+    let app = App::new(config, temp_path.clone());
+    (app, temp_path)
+}
+
+#[test]
+fn test_label_sort_override_applies_only_while_filter_active() {
+    let (mut app, path) = label_sort_app(
+        "lbl_sort_view",
+        crate::config::LabelConfig { sort_by: Some(SortOrder::Alphabetical), ..Default::default() },
+    );
+    let _guard = TestFileGuard { path };
+
+    // No filter: the global Custom order is untouched.
+    assert_eq!(app.effective_sort_by(), SortOrder::Custom);
+    assert_eq!(app.config.items, vec!["/c", "/a", "/b", "/z"]);
+    assert!(app.sort_override_label().is_none());
+
+    // Entering the label view applies the label's sort to the list.
+    app.select_label_filter(Some("work".to_string()));
+    assert_eq!(app.effective_sort_by(), SortOrder::Alphabetical);
+    assert_eq!(app.sort_override_label(), Some("work"));
+    assert_eq!(app.config.items, vec!["/a", "/b", "/c", "/z"]);
+    assert_eq!(app.config.sort_by, SortOrder::Custom, "global sort must not change");
+    assert!(crate::ui::draw::sort_caption(&app).contains("Sort: Alphabetical · work"));
+
+    // Leaving the view restores the custom order.
+    app.select_label_filter(Some("work".to_string()));
+    assert!(app.state.active_label_filter.is_none());
+    assert_eq!(app.config.items, vec!["/c", "/a", "/b", "/z"]);
+    assert!(!crate::ui::draw::sort_caption(&app).contains("work"));
+
+    // A label without a sort override inherits the global sort.
+    app.config.label_configs.insert("work".to_string(), crate::config::LabelConfig::default());
+    app.select_label_filter(Some("work".to_string()));
+    assert_eq!(app.effective_sort_by(), SortOrder::Custom);
+    assert_eq!(app.config.items, vec!["/c", "/a", "/b", "/z"]);
+}
+
+#[test]
+fn test_label_sort_reverse_override_resolves_independently() {
+    let (mut app, path) = label_sort_app(
+        "lbl_sort_rev",
+        crate::config::LabelConfig { sort_reverse: Some(true), ..Default::default() },
+    );
+    let _guard = TestFileGuard { path };
+    app.config.sort_by = SortOrder::Alphabetical;
+    app.sort_items_in_place();
+    assert_eq!(app.config.items, vec!["/a", "/b", "/c", "/z"]);
+
+    // The label only overrides the direction; the mode still comes from global.
+    app.select_label_filter(Some("work".to_string()));
+    assert_eq!(app.effective_sort(), (SortOrder::Alphabetical, true));
+    assert_eq!(app.config.items, vec!["/z", "/c", "/b", "/a"]);
+    assert!(crate::ui::draw::sort_caption(&app).contains("(Rev) · work"));
+}
+
+#[test]
+fn test_sort_keys_edit_label_override_when_it_owns_the_sort() {
+    let (mut app, path) = label_sort_app(
+        "lbl_sort_keys",
+        crate::config::LabelConfig {
+            sort_by: Some(SortOrder::Alphabetical),
+            sort_reverse: None,
+            ..Default::default()
+        },
+    );
+    let _guard = TestFileGuard { path };
+    app.select_label_filter(Some("work".to_string()));
+
+    // `o` cycles the label's mode, leaving the global alone.
+    app.cycle_sort_order();
+    assert_eq!(app.config.label_configs["work"].sort_by, Some(SortOrder::RecentVisit));
+    assert_eq!(app.config.sort_by, SortOrder::Custom);
+    assert_eq!(app.status_message.as_deref(), Some("Sort mode updated for label 'work'"));
+
+    // `O` with no label direction override flips the global direction.
+    app.toggle_sort_reverse();
+    assert_eq!(app.config.label_configs["work"].sort_reverse, None);
+    assert!(app.config.sort_reverse);
+    assert_eq!(app.status_message.as_deref(), Some("Sort direction updated"));
+
+    // Once the label owns the direction, `O` flips that instead.
+    app.config.label_configs.get_mut("work").unwrap().sort_reverse = Some(false);
+    app.toggle_sort_reverse();
+    assert_eq!(app.config.label_configs["work"].sort_reverse, Some(true));
+    assert!(app.config.sort_reverse, "global direction must not change");
+
+    // Outside the label view the keys act on the global settings again.
+    app.select_label_filter(None);
+    app.cycle_sort_order();
+    assert_eq!(app.config.sort_by, SortOrder::Alphabetical);
+    assert_eq!(app.config.label_configs["work"].sort_by, Some(SortOrder::RecentVisit));
+}
+
+#[test]
+fn test_label_settings_popup_cycles_sort_rows() {
+    use crate::popups::label_settings::LabelSettingsPopup;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let (mut app, path) = label_sort_app("lbl_sort_popup", crate::config::LabelConfig::default());
+    let _guard = TestFileGuard { path };
+    app.state.active_label_filter = Some("work".to_string());
+    app.mode = Mode::LabelSettings;
+    app.label_settings_target = Some("work".to_string());
+    let right = KeyEvent::new(KeyCode::Right, KeyModifiers::empty());
+    let left = KeyEvent::new(KeyCode::Left, KeyModifiers::empty());
+    let sort_by = |app: &App| app.config.label_configs["work"].sort_by;
+    let sort_rev = |app: &App| app.config.label_configs["work"].sort_reverse;
+
+    // Up from the top wraps to the last row (Sort Reverse); up again is Sort By.
+    LabelSettingsPopup::handle_event(&mut app, KeyEvent::new(KeyCode::Up, KeyModifiers::empty()));
+    assert_eq!(app.label_settings_selected_index, 7);
+    LabelSettingsPopup::handle_event(&mut app, KeyEvent::new(KeyCode::Up, KeyModifiers::empty()));
+    assert_eq!(app.label_settings_selected_index, 6);
+
+    // Sort By ring: default → Custom → Alphabetical → … → Latest Changes → default.
+    LabelSettingsPopup::handle_event(&mut app, right);
+    assert_eq!(sort_by(&app), Some(SortOrder::Custom));
+    LabelSettingsPopup::handle_event(&mut app, right);
+    assert_eq!(sort_by(&app), Some(SortOrder::Alphabetical));
+    // The label view is active, so the list re-sorts immediately.
+    assert_eq!(app.config.items, vec!["/a", "/b", "/c", "/z"]);
+    LabelSettingsPopup::handle_event(&mut app, left);
+    assert_eq!(sort_by(&app), Some(SortOrder::Custom));
+    LabelSettingsPopup::handle_event(&mut app, left);
+    assert_eq!(sort_by(&app), None);
+    assert_eq!(app.config.items, vec!["/c", "/a", "/b", "/z"]);
+    LabelSettingsPopup::handle_event(&mut app, left);
+    assert_eq!(sort_by(&app), Some(SortOrder::LatestChanges));
+    LabelSettingsPopup::handle_event(&mut app, right);
+    assert_eq!(sort_by(&app), None);
+
+    // Sort Reverse ring: default → yes → no → default; Enter steps right too.
+    app.label_settings_selected_index = 7;
+    LabelSettingsPopup::handle_event(&mut app, right);
+    assert_eq!(sort_rev(&app), Some(true));
+    LabelSettingsPopup::handle_event(
+        &mut app,
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+    );
+    assert_eq!(sort_rev(&app), Some(false));
+    LabelSettingsPopup::handle_event(&mut app, right);
+    assert_eq!(sort_rev(&app), None);
+    LabelSettingsPopup::handle_event(&mut app, left);
+    assert_eq!(sort_rev(&app), Some(false));
+    assert!(!app.label_settings_editing, "sort rows never enter text editing");
+}
+
+#[test]
+fn test_label_config_sort_round_trips_through_toml() {
+    let mut config = Config::default();
+    config.label_configs.insert(
+        "work".to_string(),
+        crate::config::LabelConfig {
+            sort_by: Some(SortOrder::RecentVisit),
+            sort_reverse: Some(true),
+            ..Default::default()
+        },
+    );
+    let serialized = toml::to_string(&config).unwrap();
+    assert!(serialized.contains("sort_by = \"recent_visit\""), "{serialized}");
+    let parsed: Config = toml::from_str(&serialized).unwrap();
+    let lc = &parsed.label_configs["work"];
+    assert_eq!(lc.sort_by, Some(SortOrder::RecentVisit));
+    assert_eq!(lc.sort_reverse, Some(true));
+
+    // Older files without the keys still load, inheriting the global sort.
+    let legacy: Config =
+        toml::from_str("items = []\n[label_configs.work]\ntheme = \"nord\"\n").unwrap();
+    assert_eq!(legacy.label_configs["work"].sort_by, None);
+    assert_eq!(legacy.label_configs["work"].sort_reverse, None);
+}

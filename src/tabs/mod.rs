@@ -645,7 +645,7 @@ fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {
                             app.config.items.push(wt_path_str.clone());
                             app.persist("Worktree repository added");
                             app.original_items = app.config.items.clone();
-                            if app.config.sort_by != crate::config::SortOrder::Custom {
+                            if app.effective_sort_by() != crate::config::SortOrder::Custom {
                                 app.sort_items_in_place();
                             }
                         }

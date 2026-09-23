@@ -28,8 +28,8 @@
 | `Space`              | Normal          | Toggle selection of item for batch operations (fetch, delete, external shell) |
 | `y`                  | Normal          | Yank absolute path of selected item to clipboard |
 | `/`                  | Normal          | Open fuzzy Jump-to-Repo picker overlay |
-| `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes) |
-| `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed) |
+| `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes). While a label filter whose Label Settings set **Sort By** is active, cycles that label's sort instead of the global |
+| `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed). While a label filter whose Label Settings set **Sort Reverse** is active, flips that label's direction instead of the global |
 | `g`                  | Normal          | Launch the preferred Git client for selected repository (configurable in settings, default is gitui) |
 | `t`                  | Normal          | Open the embedded terminal panel in the selected repository's directory |
 | `T`                  | Normal          | Suspend the TUI and spawn a full-screen shell in the selected repository's directory |
@@ -196,7 +196,8 @@ When viewing the Label Settings popup (entered via `→` on a highlighted label 
 - `↑` / `↓` / `j` / `k` — Navigate settings rows.
 - `Enter` / `Space` — Toggle/Edit the selected setting:
   * For editable fields (Page Size, Max Commits, Auto Fetch interval, Editor Command): starts/enters editing mode (type and press `Enter` to confirm, `Esc` to cancel).
-- `←` / `→` / `h` / `l` — Cycle options (Theme, Resync on Tab Change).
+  * For option fields (Theme, Resync on Tab Change, Sort By, Sort Reverse): steps to the next option.
+- `←` / `→` / `h` / `l` — Cycle options (Theme, Resync on Tab Change, Sort By, Sort Reverse). Sort By walks default → Custom → Alphabetical → Recent Visit → Latest Changes → default; Sort Reverse walks default → yes → no → default. Both apply only while that label's filter is active, and re-sort the list at once if it is.
 - `Esc` — Return to the label picker.
 
 
