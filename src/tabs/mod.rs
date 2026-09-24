@@ -581,16 +581,11 @@ fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {
         return true;
     }
     if app.is_bound(Action::WorktreesLock, key) {
-        if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        if let Some(repo::ItemDetail::Repo { resolved, info }) = &app.current_detail {
             if let repo::TabData::Loaded(wts) = &info.worktrees {
                 if let Some(wt) = wts.get(app.worktree_selection) {
                     if wt.is_locked {
-                        let path_str = match app.config.items.get(app.selected_index) {
-                            Some(p) => p,
-                            None => return false,
-                        };
-                        let path = repo::expand_tilde(path_str);
-                        match repo::worktree_unlock(&path, &wt.name) {
+                        match repo::worktree_unlock(resolved, &wt.name) {
                             Ok(_) => {
                                 app.status_message =
                                     Some("Worktree unlocked successfully".to_string());
@@ -618,12 +613,10 @@ fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {
         return true;
     }
     if app.is_bound(Action::WorktreesPrune, key) {
-        let path_str = match app.config.items.get(app.selected_index) {
-            Some(p) => p,
-            None => return false,
+        let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail else {
+            return false;
         };
-        let path = repo::expand_tilde(path_str);
-        match repo::worktree_prune(&path) {
+        match repo::worktree_prune(resolved) {
             Ok(_) => {
                 app.status_message = Some("Pruned stale worktree metadata".to_string());
                 app.resync_detail();
