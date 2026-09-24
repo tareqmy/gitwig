@@ -6100,6 +6100,56 @@ fn test_editing_a_repo_path_keeps_the_cursor_on_it_when_grouped() {
     assert_eq!(app.home_cursor(), Some((renamed, String::new())));
 }
 
+/// Editing a repository's path moves everything keyed by the old path to the
+/// new one — labels, star, pin, per-repo settings, commit history and batch
+/// selection — so the repository stays in its label group instead of
+/// dropping into Unlabeled, and config.toml keeps nothing under the old path.
+#[test]
+fn test_editing_a_repo_path_migrates_everything_keyed_by_it() {
+    let (mut app, items, guard) = app_with_three_repos("edit_migrates_keys");
+    let old = items[2].clone();
+    let labels = vec!["work".to_string()];
+    let repo_cfg =
+        RepoConfig { note: Some("deploys on Fridays".to_string()), ..Default::default() };
+    app.config.labels.insert(old.clone(), labels.clone());
+    app.config.starred.insert(old.clone());
+    app.config.pinned.insert(old.clone());
+    app.config.repo_configs.insert(old.clone(), repo_cfg.clone());
+    app.state.record_commit_message(&old, "feat: first");
+    app.multi_selected.insert(old.clone());
+    app.select_home_row(&old, Some("work"));
+    assert_eq!(app.home_cursor(), Some((old.clone(), "work".to_string())));
+
+    let renamed = guard.path.join("delta").to_string_lossy().to_string();
+    app.set_input_buffer(renamed.clone());
+    app.commit_edit();
+
+    assert_eq!(app.home_cursor(), Some((renamed.clone(), "work".to_string())));
+    assert_eq!(app.config.labels.get(&renamed), Some(&labels));
+    assert!(app.config.starred.contains(&renamed));
+    assert!(app.config.pinned.contains(&renamed));
+    assert_eq!(app.config.repo_configs.get(&renamed), Some(&repo_cfg));
+    assert_eq!(app.state.commit_history_for(&renamed), vec!["feat: first".to_string()]);
+    assert!(app.multi_selected.contains(&renamed));
+
+    assert!(!app.config.labels.contains_key(&old));
+    assert!(!app.config.starred.contains(&old));
+    assert!(!app.config.pinned.contains(&old));
+    assert!(!app.config.repo_configs.contains_key(&old));
+    assert!(!app.state.commit_history.contains_key(&old));
+    assert!(!app.multi_selected.contains(&old));
+
+    // The saved files agree, with no orphaned entries left under the old path.
+    let config_path = guard.path.join("config.toml");
+    assert!(!std::fs::read_to_string(&config_path).unwrap().contains(&old));
+    let (config, state, _, _) = crate::config::load_config(Some(config_path)).unwrap();
+    assert_eq!(config.labels.get(&renamed), Some(&labels));
+    assert!(config.starred.contains(&renamed));
+    assert_eq!(config.repo_configs.get(&renamed), Some(&repo_cfg));
+    assert_eq!(state.commit_history_for(&renamed), vec!["feat: first".to_string()]);
+    assert!(!state.commit_history.contains_key(&old));
+}
+
 /// A repository found in the background must not move the cursor off the
 /// repository the user had selected.
 #[test]
