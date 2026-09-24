@@ -49,11 +49,7 @@ impl App {
             self.sort_items_in_place();
 
             self.repo_search_query = None;
-            if let Some(pos) = self.config.items.iter().position(|x| x == &trimmed) {
-                self.selected_index = pos;
-            } else {
-                self.selected_index = self.config.items.len() - 1;
-            }
+            self.reveal_home_row(&trimmed);
             self.persist("Saved");
         }
         self.input_buffer.clear();
@@ -139,11 +135,7 @@ impl App {
             self.sort_items_in_place();
 
             self.repo_search_query = None;
-            if let Some(pos) = self.config.items.iter().position(|x| x == &trimmed) {
-                self.selected_index = pos;
-            } else {
-                self.selected_index = self.config.items.len() - 1;
-            }
+            self.reveal_home_row(&trimmed);
             self.persist("Added repository");
         }
     }
@@ -151,6 +143,7 @@ impl App {
     pub fn commit_edit(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
         if !trimmed.is_empty() {
+            let group = self.home_cursor().map(|(_, group)| group);
             if let Some(orig_idx) = self.get_selected_item_index() {
                 if orig_idx < self.config.items.len() {
                     let old_item = self.config.items[orig_idx].clone();
@@ -173,10 +166,7 @@ impl App {
                     self.sort_items_in_place();
 
                     self.repo_search_query = None;
-
-                    if let Some(pos) = self.config.items.iter().position(|x| x == &trimmed) {
-                        self.selected_index = pos;
-                    }
+                    self.select_home_row(&trimmed, group.as_deref());
                     self.persist("Saved");
                 }
             }
@@ -683,11 +673,17 @@ impl App {
     pub fn auto_discover_add(&mut self, path: String) {
         let trimmed = path.trim().to_string();
         if !trimmed.is_empty() {
+            // Discovery runs in the background: keep the cursor on the
+            // repository the user had selected, which the new row can shift.
+            let cursor = self.home_cursor();
             let status = repo::inspect_summary(&trimmed);
             self.statuses.push(status);
             self.config.items.push(trimmed.clone());
             self.original_items.push(trimmed.clone());
             self.sort_items_in_place();
+            if let Some((item, group)) = cursor {
+                self.select_home_row(&item, Some(&group));
+            }
             self.persist("Auto-discovered new repository");
 
             // Update the file watcher to include the new repository
