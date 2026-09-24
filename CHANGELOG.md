@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Fixed
+- **detail**: the repository path at the top of the repository view could name a different repository from the one open — usually one you had visited recently. The header read the home list's cursor, and opening a repository records a visit that lifts it to the top of the Recent group, shifting the rows so the cursor landed on a neighbour. The header, the per-repository theme, the Repository Settings popup and the per-repository page size / max commits / resync settings now follow the repository that is actually open, and the home cursor is put back on the repository you opened so it is still selected when you return. Opening a worktree from the Worktrees tab no longer risks opening a different tracked repository, and a Global Search hit opens that repository even when a label filter hides it from the home list.
 
 ## [v2.6.2] - 2026-09-23
 ### Added

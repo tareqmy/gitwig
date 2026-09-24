@@ -649,10 +649,7 @@ fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {
                                 app.sort_items_in_place();
                             }
                         }
-                        if let Some(pos) = app.config.items.iter().position(|x| x == &wt_path_str) {
-                            app.selected_index = pos;
-                            app.open_detail();
-                        }
+                        app.open_repo(wt_path_str);
                     } else {
                         app.status_message =
                             Some("Worktree path does not exist on disk".to_string());

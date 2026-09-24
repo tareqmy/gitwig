@@ -15,7 +15,7 @@ impl RepoSettingsPopup {
     pub fn handle_event(app: &mut App, key: KeyEvent) -> bool {
         let code = key.code;
 
-        let repo_path = match app.get_selected_item().cloned() {
+        let repo_path = match app.active_repo_item().cloned() {
             Some(p) => p,
             None => return false,
         };
@@ -311,7 +311,7 @@ impl RepoSettingsPopup {
 
         let inner = block.inner(popup_area);
 
-        let repo_path = app.get_selected_item().map(|s| s.as_str()).unwrap_or("");
+        let repo_path = app.active_repo_item().map(|s| s.as_str()).unwrap_or("");
         let repo_name = std::path::Path::new(repo_path)
             .file_name()
             .and_then(|n| n.to_str())
@@ -339,7 +339,7 @@ impl RepoSettingsPopup {
         );
 
         let repo_cfg = app
-            .get_selected_item()
+            .active_repo_item()
             .and_then(|p| app.config.repo_configs.get(p))
             .cloned()
             .unwrap_or_default();

@@ -674,7 +674,7 @@ impl App {
         let result = self.global_search_results[self.global_search_selection].clone();
         if let Some(pos) = self.config.items.iter().position(|x| x == &result.repo_path) {
             self.jump_to_repo(pos);
-            self.open_detail();
+            self.open_repo(result.repo_path);
             self.input_buffer.clear();
             self.mode = Mode::Detail;
         }

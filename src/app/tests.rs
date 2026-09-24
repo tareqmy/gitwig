@@ -5890,6 +5890,95 @@ fn test_mru_group_flow() {
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
 
+/// Tracked repositories `alpha`, `beta` and `gamma`, each with a `.git`
+/// directory, in a scratch directory that also holds the app's config and
+/// state files (removed when the guard drops).
+fn app_with_three_repos(tag: &str) -> (App, Vec<String>, TestDirGuard) {
+    let temp_dir = std::env::temp_dir().join(format!("gitwig_test_{}", tag));
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    let items: Vec<String> = ["alpha", "beta", "gamma"]
+        .iter()
+        .map(|name| {
+            let path = temp_dir.join(name);
+            std::fs::create_dir_all(path.join(".git")).unwrap();
+            path.to_string_lossy().to_string()
+        })
+        .collect();
+    let config = Config { items: items.clone(), ..Default::default() };
+    let app = App::new(config, temp_dir.join("config.toml"));
+    (app, items, TestDirGuard { path: temp_dir })
+}
+
+/// Opening a repository records a visit, which lifts it into the Recent group
+/// and shifts the rows below. The Detail header and the home cursor must stay
+/// on the repository that was opened, not on whatever row slid into the old
+/// cursor index.
+#[test]
+fn test_open_detail_title_and_cursor_follow_the_opened_repo() {
+    let (mut app, items, _guard) = app_with_three_repos("open_detail_title");
+    assert_eq!(app.get_home_rows().len(), 3);
+
+    // gamma is the third row; after the visit the rows are
+    // [Recent, gamma, alpha, beta, gamma], so index 2 would be alpha.
+    app.selected_index = 2;
+    app.open_detail();
+
+    assert_eq!(app.get_home_rows().len(), 5);
+    assert_eq!(app.active_repo_item(), Some(&items[2]));
+    assert_eq!(app.get_selected_item(), Some(&items[2]));
+    assert_eq!(app.selected_index, 4, "cursor stays in the group it was opened from");
+}
+
+/// `open_repo` opens the entry it is given, whatever row the home cursor is
+/// on. The Worktrees tab used to write a `config.items` index into the
+/// home-row cursor and open whichever row that landed on.
+#[test]
+fn test_open_repo_opens_the_given_item_not_the_cursor_row() {
+    let (mut app, items, _guard) = app_with_three_repos("open_repo_item");
+    // Label groups reorder the rows: [apple, gamma, zeta, alpha, Unlabeled, beta].
+    app.config.labels.insert(items[0].clone(), vec!["zeta".to_string()]);
+    app.config.labels.insert(items[2].clone(), vec!["apple".to_string()]);
+    app.selected_index = 1;
+    assert_eq!(app.get_selected_item(), Some(&items[2]));
+
+    app.open_repo(items[1].clone());
+
+    assert_eq!(app.loading_repo_path.as_ref(), Some(&items[1]));
+    assert_eq!(app.active_repo_item(), Some(&items[1]));
+    assert_eq!(app.get_selected_item(), Some(&items[1]));
+}
+
+/// Once a repository is open, "which repository" comes from the open
+/// snapshot, whatever the home cursor points at. Items stored with `~` match
+/// the expanded path the snapshot carries.
+#[test]
+fn test_active_repo_item_follows_the_open_repo_not_the_cursor() {
+    let (mut app, mut items, _guard) = app_with_three_repos("active_repo_item");
+    items[1] = "~/gitwig_test_tilde_repo".to_string();
+    app.config.items = items.clone();
+    app.config.show_grouping = false;
+
+    app.selected_index = 0;
+    assert_eq!(app.active_repo_item(), Some(&items[0]), "home screen: the cursor");
+
+    app.loading_repo_path = Some(items[1].clone());
+    assert_eq!(app.active_repo_item(), Some(&items[1]), "loading: the repo being opened");
+
+    app.loading_repo_path = None;
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Directory { resolved: crate::repo::expand_tilde(&items[1]) });
+    assert_eq!(app.active_repo_item(), Some(&items[1]), "open: the snapshot");
+
+    app.loading_repo_path = Some(items[2].clone());
+    assert_eq!(app.active_repo_item(), Some(&items[2]), "a load supersedes the old snapshot");
+    app.loading_repo_path = None;
+
+    app.current_detail = Some(crate::repo::ItemDetail::Directory {
+        resolved: std::path::PathBuf::from("/untracked/elsewhere"),
+    });
+    assert_eq!(app.active_repo_item(), None, "never falls back to the cursor while open");
+}
+
 #[test]
 fn test_starred_group_flow() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};

@@ -543,6 +543,56 @@ impl App {
         }
     }
 
+    /// The `config.items` entry of the repository the user is working in:
+    /// the one being loaded, else the one the Detail view has open, else the
+    /// home selection. Anything that means "this repository" inside the
+    /// Detail view must use this, not [`App::get_selected_item`]: the home
+    /// cursor is an index into the grouped, sorted home rows, which can
+    /// reorder while a repository is open and leave the cursor on a neighbour.
+    /// A load wins over the open snapshot because opening a worktree from the
+    /// Worktrees tab keeps the parent's snapshot until the worktree arrives.
+    pub fn active_repo_item(&self) -> Option<&String> {
+        let open = match (&self.loading_repo_path, &self.current_detail) {
+            (Some(loading), _) => Some(repo::expand_tilde(loading)),
+            (
+                None,
+                Some(
+                    repo::ItemDetail::Repo { resolved, .. }
+                    | repo::ItemDetail::Missing { resolved, .. }
+                    | repo::ItemDetail::Directory { resolved, .. }
+                    | repo::ItemDetail::Error { resolved, .. },
+                ),
+            ) => Some(resolved.clone()),
+            (None, None) => None,
+        };
+        match open {
+            Some(resolved) => {
+                self.config.items.iter().find(|item| repo::expand_tilde(item) == resolved)
+            }
+            None => self.get_selected_item(),
+        }
+    }
+
+    /// Put the home cursor on `item`'s row, preferring the one listed under
+    /// `group`, since a repository can appear several times (Recent, Starred,
+    /// each of its labels). Leaves the cursor alone when no visible row shows
+    /// `item`.
+    fn select_home_row(&mut self, item: &str, group: Option<&str>) {
+        let rows = self.get_home_rows();
+        let is_item = |row: &HomeRow| matches!(row, HomeRow::Repo { path, .. } if path == item);
+        let pos = rows
+            .iter()
+            .position(|row| {
+                is_item(row)
+                    && matches!(row, HomeRow::Repo { primary_label, .. }
+                        if Some(primary_label.as_str()) == group)
+            })
+            .or_else(|| rows.iter().position(is_item));
+        if let Some(pos) = pos {
+            self.selected_index = pos;
+        }
+    }
+
     /// The label config of the sticky label filter, if a filter is active and
     /// that label has any settings stored.
     fn active_label_config(&self) -> Option<&crate::config::LabelConfig> {
@@ -646,7 +696,7 @@ impl App {
     }
 
     pub fn get_current_page_size(&self) -> usize {
-        match self.get_selected_item() {
+        match self.active_repo_item() {
             Some(path) => self.resolve_setting(
                 path,
                 |rc| rc.page_size,
@@ -658,7 +708,7 @@ impl App {
     }
 
     pub fn get_current_max_commits(&self) -> usize {
-        match self.get_selected_item() {
+        match self.active_repo_item() {
             Some(path) => self.resolve_setting(
                 path,
                 |rc| rc.max_commits,
@@ -682,7 +732,7 @@ impl App {
     }
 
     pub fn get_current_resync_on_tab_change(&self) -> bool {
-        match self.get_selected_item() {
+        match self.active_repo_item() {
             Some(path) => self.resolve_setting(
                 path,
                 |rc| rc.resync_on_tab_change,
@@ -1062,113 +1112,135 @@ impl App {
         self.persist(&msg);
     }
 
-    /// Snapshot the selected item's filesystem/git state and enter the
-    /// Detail view. The snapshot is held in `current_detail` for as long
-    /// as the view is open; closing clears it.
+    /// Open the repository under the home cursor in the Detail view.
     pub fn open_detail(&mut self) {
         if let Some(item) = self.get_selected_item().cloned() {
-            // Guard: only allow opening a git repository
-            if !std::path::Path::new(&item).join(".git").exists() {
-                self.mode = Mode::NotGitRepo;
-                return;
-            }
-
-            crate::debug_log::info(format!("Opening detail view for repository: {}", item));
-
-            // Update visit time
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs();
-            self.state.visits.insert(item.clone(), now);
-            self.persist_state("Opened repository");
-
-            if self.effective_sort_by() == SortOrder::RecentVisit {
-                self.sort_items_in_place();
-                let filtered = self.get_filtered_items();
-                if let Some(pos) = filtered.iter().position(|(_, x)| *x == &item) {
-                    self.selected_index = pos;
-                }
-            }
-
-            let cached_valid = if let Some(cached) = self.detail_cache.get(&item) {
-                cached.loaded_at.elapsed().as_secs() < self.config.detail_cache_ttl_secs
-            } else {
-                false
-            };
-
-            let tx = self.detail_tx.clone();
-            let item_clone = item.clone();
-            let graph_max_commits = self.config.graph_max_commits;
-            let enable_commit_signatures = self.config.enable_commit_signatures;
-
-            if cached_valid {
-                if let Some(cached) = self.detail_cache.get(&item).cloned() {
-                    let cached_commits_count = match &cached.detail {
-                        repo::ItemDetail::Repo { info, .. } => info.commits.len(),
-                        _ => 200,
-                    };
-                    self.commit_list.limit = if self.get_current_max_commits() > 0 {
-                        cached_commits_count.max(self.get_current_max_commits())
-                    } else {
-                        0
-                    };
-                    self.current_detail = Some(cached.detail);
-                    self.rebuild_visible_files();
-                }
-
-                let max_commits = self.commit_list.limit;
-                // Silent background refresh
-                std::thread::spawn(move || {
-                    let detail = repo::inspect_detail(
-                        &item_clone,
-                        max_commits,
-                        graph_max_commits,
-                        enable_commit_signatures,
-                    );
-                    let _ = tx.send((item_clone, detail));
-                });
-            } else {
-                self.commit_list.limit = self.get_current_max_commits();
-                self.loading_repo_path = Some(item.clone());
-                let max_commits = self.commit_list.limit;
-                std::thread::spawn(move || {
-                    let detail = repo::inspect_detail(
-                        &item_clone,
-                        max_commits,
-                        graph_max_commits,
-                        enable_commit_signatures,
-                    );
-                    let _ = tx.send((item_clone, detail));
-                });
-            }
-
-            self.detail_focus = DetailSection::Commits;
-            self.commit_list.selection = 0;
-            self.status_list.file_selection = 0;
-            self.status_list.staging_file_selection = 0;
-            self.diff.file_diff.clear();
-            self.diff.diff_scroll = 0;
-            self.commit_list.details_scroll = 0;
-            self.commit_input_scroll = 0;
-            self.branch_list.local_branch_selection = 0;
-            self.branch_list.remote_branch_selection = 0;
-            self.tag_list.local_tag_selection = 0;
-            self.tag_list.remote_tag_selection = 0;
-            self.branch_list.remote_selection = 0;
-            self.stash_list.stash_selection = 0;
-            self.stash_list.stash_file_selection = 0;
-            self.file_tree.file_list_selection = 0;
-            self.file_tree.file_content_scroll = 0;
-            self.file_tree.expanded_folders.clear();
-            self.commit_list.selection = 0;
-            self.detail_tab = 0;
-            self.graph_scroll = 0;
-            self.graph_selection = 0;
-            self.inspect_full_diff = false;
-            self.commit_popup.maximized = false;
-            self.mode = Mode::Detail;
+            self.open_repo(item);
         }
+    }
+
+    /// Snapshot `item`'s filesystem/git state and enter the Detail view.
+    /// `item` is a `config.items` entry; it need not be the home selection
+    /// (a worktree opened from the Worktrees tab, a global-search hit). The
+    /// snapshot is held in `current_detail` for as long as the view is open;
+    /// closing clears it.
+    pub fn open_repo(&mut self, item: String) {
+        // Guard: only allow opening a git repository
+        if !std::path::Path::new(&item).join(".git").exists() {
+            self.mode = Mode::NotGitRepo;
+            return;
+        }
+
+        crate::debug_log::info(format!("Opening detail view for repository: {}", item));
+
+        // Update visit time
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        // The visit reorders the home list: it lifts this repository to the
+        // top of the Recent group (and of the whole list under Recent Visit
+        // sort), shifting the rows around it. Put the cursor back on it,
+        // under the group it was opened from, so the cursor has not slid onto
+        // a neighbour when the user returns home.
+        let group = match self.get_home_rows().get(self.selected_index) {
+            Some(HomeRow::Repo { primary_label, .. }) => Some(primary_label.clone()),
+            _ => None,
+        };
+        self.state.visits.insert(item.clone(), now);
+        self.persist_state("Opened repository");
+
+        if self.effective_sort_by() == SortOrder::RecentVisit {
+            self.sort_items_in_place();
+        }
+        self.select_home_row(&item, group.as_deref());
+
+        // Resolved for `item` itself: when a worktree is opened from inside
+        // another repository, `current_detail` still holds that repository.
+        let max_commits_setting = self.resolve_setting(
+            &item,
+            |rc| rc.max_commits,
+            |lc| lc.max_commits,
+            self.config.max_commits,
+        );
+
+        let cached_valid = if let Some(cached) = self.detail_cache.get(&item) {
+            cached.loaded_at.elapsed().as_secs() < self.config.detail_cache_ttl_secs
+        } else {
+            false
+        };
+
+        let tx = self.detail_tx.clone();
+        let item_clone = item.clone();
+        let graph_max_commits = self.config.graph_max_commits;
+        let enable_commit_signatures = self.config.enable_commit_signatures;
+
+        if cached_valid {
+            if let Some(cached) = self.detail_cache.get(&item).cloned() {
+                let cached_commits_count = match &cached.detail {
+                    repo::ItemDetail::Repo { info, .. } => info.commits.len(),
+                    _ => 200,
+                };
+                self.commit_list.limit = if max_commits_setting > 0 {
+                    cached_commits_count.max(max_commits_setting)
+                } else {
+                    0
+                };
+                self.current_detail = Some(cached.detail);
+                self.rebuild_visible_files();
+            }
+
+            let max_commits = self.commit_list.limit;
+            // Silent background refresh
+            std::thread::spawn(move || {
+                let detail = repo::inspect_detail(
+                    &item_clone,
+                    max_commits,
+                    graph_max_commits,
+                    enable_commit_signatures,
+                );
+                let _ = tx.send((item_clone, detail));
+            });
+        } else {
+            self.commit_list.limit = max_commits_setting;
+            self.loading_repo_path = Some(item.clone());
+            let max_commits = self.commit_list.limit;
+            std::thread::spawn(move || {
+                let detail = repo::inspect_detail(
+                    &item_clone,
+                    max_commits,
+                    graph_max_commits,
+                    enable_commit_signatures,
+                );
+                let _ = tx.send((item_clone, detail));
+            });
+        }
+
+        self.detail_focus = DetailSection::Commits;
+        self.commit_list.selection = 0;
+        self.status_list.file_selection = 0;
+        self.status_list.staging_file_selection = 0;
+        self.diff.file_diff.clear();
+        self.diff.diff_scroll = 0;
+        self.commit_list.details_scroll = 0;
+        self.commit_input_scroll = 0;
+        self.branch_list.local_branch_selection = 0;
+        self.branch_list.remote_branch_selection = 0;
+        self.tag_list.local_tag_selection = 0;
+        self.tag_list.remote_tag_selection = 0;
+        self.branch_list.remote_selection = 0;
+        self.stash_list.stash_selection = 0;
+        self.stash_list.stash_file_selection = 0;
+        self.file_tree.file_list_selection = 0;
+        self.file_tree.file_content_scroll = 0;
+        self.file_tree.expanded_folders.clear();
+        self.commit_list.selection = 0;
+        self.detail_tab = 0;
+        self.graph_scroll = 0;
+        self.graph_selection = 0;
+        self.inspect_full_diff = false;
+        self.commit_popup.maximized = false;
+        self.mode = Mode::Detail;
     }
 
     /// Resync the selected item's filesystem/git state inside the Detail view,

@@ -111,7 +111,7 @@ pub fn draw(
     *global_summary_area = None;
     *quick_label_area = None;
     let mut swapped_theme = None;
-    if let Some(repo_path) = app.get_selected_item() {
+    if let Some(repo_path) = app.active_repo_item() {
         if matches!(
             app.mode,
             Mode::Detail
@@ -286,7 +286,7 @@ pub fn draw(
     ) || (app.mode == Mode::UpdateConfirm && app.current_detail.is_some())
     {
         if let Some(detail) = &app.current_detail {
-            let item_name = app.get_selected_item().map(String::as_str).unwrap_or("");
+            let item_name = app.active_repo_item().map(String::as_str).unwrap_or("");
             crate::ui_detail::draw(
                 f,
                 item_name,
