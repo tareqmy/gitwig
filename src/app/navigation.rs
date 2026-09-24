@@ -573,11 +573,24 @@ impl App {
         }
     }
 
+    /// The repository under the home cursor and the group its row is listed
+    /// under (`""` outside any group), so the row can be found again with
+    /// [`App::select_home_row`] after the home rows reorder. `None` on a
+    /// group header or an empty list.
+    pub(crate) fn home_cursor(&self) -> Option<(String, String)> {
+        match self.get_home_rows().get(self.selected_index)? {
+            HomeRow::Repo { path, primary_label, .. } => {
+                Some((path.clone(), primary_label.clone()))
+            }
+            HomeRow::GroupHeader { .. } => None,
+        }
+    }
+
     /// Put the home cursor on `item`'s row, preferring the one listed under
     /// `group`, since a repository can appear several times (Recent, Starred,
     /// each of its labels). Leaves the cursor alone when no visible row shows
     /// `item`.
-    fn select_home_row(&mut self, item: &str, group: Option<&str>) {
+    pub(crate) fn select_home_row(&mut self, item: &str, group: Option<&str>) {
         let rows = self.get_home_rows();
         let is_item = |row: &HomeRow| matches!(row, HomeRow::Repo { path, .. } if path == item);
         let pos = rows
@@ -590,6 +603,36 @@ impl App {
             .or_else(|| rows.iter().position(is_item));
         if let Some(pos) = pos {
             self.selected_index = pos;
+        }
+    }
+
+    /// Put the home cursor on a newly added `item`, first expanding its label
+    /// groups (or Unlabeled) when all of them are collapsed, so the new
+    /// repository is on the list under the cursor. Leaves the cursor alone
+    /// when a filter hides `item`.
+    pub(crate) fn reveal_home_row(&mut self, item: &str) {
+        let visible = self
+            .get_home_rows()
+            .iter()
+            .any(|row| matches!(row, HomeRow::Repo { path, .. } if path == item));
+        if !visible {
+            self.expand_label_groups_of(item);
+        }
+        self.select_home_row(item, None);
+    }
+
+    /// Expand the label groups that list `item`: each of its labels, or
+    /// Unlabeled when it has none.
+    fn expand_label_groups_of(&mut self, item: &str) {
+        match self.config.labels.get(item) {
+            Some(labels) if !labels.is_empty() => {
+                for label in labels {
+                    self.collapsed_groups.remove(label);
+                }
+            }
+            _ => {
+                self.collapsed_groups.remove("Unlabeled");
+            }
         }
     }
 
@@ -633,13 +676,10 @@ impl App {
         if self.effective_sort() == before {
             return;
         }
-        let selected_item = self.get_selected_item().cloned();
+        let cursor = self.home_cursor();
         self.sort_items_in_place();
-        if let Some(item) = selected_item {
-            let filtered = self.get_filtered_items();
-            if let Some(pos) = filtered.iter().position(|(_, x)| *x == &item) {
-                self.selected_index = pos;
-            }
+        if let Some((item, group)) = cursor {
+            self.select_home_row(&item, Some(&group));
         }
     }
 
@@ -1020,15 +1060,12 @@ impl App {
             }
         };
 
-        let selected_item = self.get_selected_item().cloned();
+        let cursor = self.home_cursor();
 
         self.sort_items_in_place();
 
-        if let Some(item) = selected_item {
-            let filtered = self.get_filtered_items();
-            if let Some(pos) = filtered.iter().position(|(_, x)| *x == &item) {
-                self.selected_index = pos;
-            }
+        if let Some((item, group)) = cursor {
+            self.select_home_row(&item, Some(&group));
         }
 
         self.persist(&msg);
@@ -1048,22 +1085,19 @@ impl App {
             }
         };
 
-        let selected_item = self.get_selected_item().cloned();
+        let cursor = self.home_cursor();
 
         self.sort_items_in_place();
 
-        if let Some(item) = selected_item {
-            let filtered = self.get_filtered_items();
-            if let Some(pos) = filtered.iter().position(|(_, x)| *x == &item) {
-                self.selected_index = pos;
-            }
+        if let Some((item, group)) = cursor {
+            self.select_home_row(&item, Some(&group));
         }
 
         self.persist(&msg);
     }
 
     pub fn toggle_pin_selected(&mut self) {
-        let Some(selected_item) = self.get_selected_item().cloned() else {
+        let Some((selected_item, group)) = self.home_cursor() else {
             return;
         };
         if self.config.pinned.contains(&selected_item) {
@@ -1075,18 +1109,14 @@ impl App {
         }
 
         self.sort_items_in_place();
-
-        let filtered = self.get_filtered_items();
-        if let Some(pos) = filtered.iter().position(|(_, x)| *x == &selected_item) {
-            self.selected_index = pos;
-        }
+        self.select_home_row(&selected_item, Some(&group));
 
         let msg = self.status_message.as_deref().unwrap_or("Saved").to_string();
         self.persist(&msg);
     }
 
     pub fn toggle_star_selected(&mut self) {
-        let Some(selected_item) = self.get_selected_item().cloned() else {
+        let Some((selected_item, group)) = self.home_cursor() else {
             return;
         };
         if self.config.starred.contains(&selected_item) {
@@ -1099,14 +1129,9 @@ impl App {
 
         self.sort_items_in_place();
 
-        // Keep the selection on the starred repo
-        let rows = self.get_home_rows();
-        if let Some(pos) = rows.iter().position(|r| match r {
-            HomeRow::Repo { path, .. } => path == &selected_item,
-            _ => false,
-        }) {
-            self.selected_index = pos;
-        }
+        // Keep the selection on the starred repo, in the group it was starred
+        // from (the Starred group it joins, or leaves, sits above it).
+        self.select_home_row(&selected_item, Some(&group));
 
         let msg = self.status_message.as_deref().unwrap_or("Saved").to_string();
         self.persist(&msg);
@@ -1143,10 +1168,7 @@ impl App {
         // sort), shifting the rows around it. Put the cursor back on it,
         // under the group it was opened from, so the cursor has not slid onto
         // a neighbour when the user returns home.
-        let group = match self.get_home_rows().get(self.selected_index) {
-            Some(HomeRow::Repo { primary_label, .. }) => Some(primary_label.clone()),
-            _ => None,
-        };
+        let group = self.home_cursor().map(|(_, group)| group);
         self.state.visits.insert(item.clone(), now);
         self.persist_state("Opened repository");
 
@@ -3533,9 +3555,7 @@ impl App {
             self.sort_items_in_place();
             self.repo_search_query = None;
             if let Some(ref target) = first_new_path {
-                if let Some(pos) = self.config.items.iter().position(|x| x == target) {
-                    self.selected_index = pos;
-                }
+                self.reveal_home_row(target);
             }
             self.persist(&format!("Added {} directories", newly_added_count));
         } else {
@@ -4259,14 +4279,8 @@ impl App {
     }
 
     pub fn jump_to_repo(&mut self, original_index: usize) {
-        if let Some(path) = self.config.items.get(original_index) {
-            if let Some(lbls) = self.config.labels.get(path) {
-                for label in lbls {
-                    self.collapsed_groups.remove(label);
-                }
-            } else {
-                self.collapsed_groups.remove("Unlabeled");
-            }
+        if let Some(path) = self.config.items.get(original_index).cloned() {
+            self.expand_label_groups_of(&path);
             // Starred and Recent groups should be expanded too
             self.collapsed_groups.remove("Starred");
             self.collapsed_groups.remove("Recent");

@@ -5979,6 +5979,145 @@ fn test_active_repo_item_follows_the_open_repo_not_the_cursor() {
     assert_eq!(app.active_repo_item(), None, "never falls back to the cursor while open");
 }
 
+/// Labels every repository `work` and records a visit to `gamma`, so the
+/// home rows are `[Recent, gamma, work, alpha, beta, gamma]`: a repository's
+/// row index differs from its `config.items` position, and `gamma` is listed
+/// twice.
+fn group_three_repos_under_work(app: &mut App, items: &[String]) {
+    for item in items {
+        app.config.labels.insert(item.clone(), vec!["work".to_string()]);
+    }
+    app.state.visits.insert(items[2].clone(), 1);
+}
+
+/// Sorting, pinning and starring reorder the home rows. The cursor must be
+/// put back by home row, in the group it was on; these used to write the
+/// repository's filtered-list position into the home-row cursor, which with
+/// grouping on lands on a neighbour or a group header.
+#[test]
+fn test_sort_pin_and_star_keep_the_cursor_on_the_repo_when_grouped() {
+    let (mut app, items, _guard) = app_with_three_repos("reorder_cursor");
+    group_three_repos_under_work(&mut app, &items);
+    app.selected_index = 3;
+    let alpha_in_work = Some((items[0].clone(), "work".to_string()));
+    assert_eq!(app.home_cursor(), alpha_in_work);
+
+    app.cycle_sort_order();
+    assert_eq!(app.config.sort_by, SortOrder::Alphabetical);
+    assert_eq!(app.home_cursor(), alpha_in_work, "cycle sort order");
+
+    // [Recent, gamma, work, gamma, beta, alpha]
+    app.toggle_sort_reverse();
+    assert_eq!(app.selected_index, 5);
+    assert_eq!(app.home_cursor(), alpha_in_work, "toggle sort direction");
+
+    // [Recent, gamma, work, alpha, gamma, beta]
+    app.toggle_pin_selected();
+    assert!(app.config.pinned.contains(&items[0]));
+    assert_eq!(app.home_cursor(), alpha_in_work, "pin");
+
+    // [Recent, gamma, Starred, alpha, work, alpha, gamma, beta]
+    app.toggle_star_selected();
+    assert!(app.config.starred.contains(&items[0]));
+    assert_eq!(app.home_cursor(), alpha_in_work, "star keeps the group it was starred from");
+
+    // Unstarring from the Starred group removes that row; the cursor follows
+    // the repository to its remaining one.
+    app.select_home_row(&items[0], Some("Starred"));
+    assert_eq!(app.selected_index, 3);
+    app.toggle_star_selected();
+    assert_eq!(app.home_cursor(), alpha_in_work, "unstar from the Starred group");
+}
+
+/// Changing the sort of the open label view (Label Settings) re-sorts through
+/// `resort_if_sort_changed`, which must keep the cursor on the same row.
+#[test]
+fn test_label_sort_change_keeps_the_cursor_on_the_repo_when_grouped() {
+    let (mut app, items, _guard) = app_with_three_repos("label_sort_cursor");
+    group_three_repos_under_work(&mut app, &items);
+    app.state.active_label_filter = Some("work".to_string());
+    app.selected_index = 3;
+    assert_eq!(app.home_cursor(), Some((items[0].clone(), "work".to_string())));
+
+    let before = app.effective_sort();
+    app.config.label_configs.insert(
+        "work".to_string(),
+        crate::config::LabelConfig { sort_reverse: Some(true), ..Default::default() },
+    );
+    app.resort_if_sort_changed(before);
+
+    // [Recent, gamma, work, gamma, beta, alpha]
+    assert_eq!(app.selected_index, 5);
+    assert_eq!(app.home_cursor(), Some((items[0].clone(), "work".to_string())));
+}
+
+/// Each add flow selects the new repository by its home row, expanding its
+/// label group when collapsed. They used to write its `config.items`
+/// position into the home-row cursor.
+#[test]
+fn test_adding_repos_selects_the_new_row_when_grouped() {
+    let (mut app, items, guard) = app_with_three_repos("add_cursor");
+    app.config.labels.insert(items[0].clone(), vec!["work".to_string()]);
+    app.state.visits.insert(items[2].clone(), 1);
+    // [Recent, gamma, work, alpha, Unlabeled, beta, gamma]
+
+    let delta = guard.path.join("delta").to_string_lossy().to_string();
+    app.commit_add_with_labels(delta.clone(), vec!["work".to_string()]);
+    assert_eq!(app.home_cursor(), Some((delta, "work".to_string())), "add with labels");
+
+    app.collapsed_groups.insert("Unlabeled".to_string());
+    let epsilon = guard.path.join("epsilon").to_string_lossy().to_string();
+    app.add_repo_path(epsilon.clone());
+    assert!(!app.collapsed_groups.contains("Unlabeled"), "the new repo's group is expanded");
+    assert_eq!(app.home_cursor(), Some((epsilon, "Unlabeled".to_string())), "add path");
+
+    let bulk_dir = guard.path.join("more");
+    for name in ["one", "two"] {
+        std::fs::create_dir_all(bulk_dir.join(name).join(".git")).unwrap();
+    }
+    let bulk_dir = bulk_dir.to_string_lossy().to_string();
+    app.collapsed_groups.insert("zeta".to_string());
+    app.bulk_add_path_with_labels(bulk_dir.clone(), vec!["zeta".to_string()]);
+    let one = format!("{}{}one", bulk_dir, std::path::MAIN_SEPARATOR);
+    assert!(!app.collapsed_groups.contains("zeta"));
+    assert_eq!(app.home_cursor(), Some((one, "zeta".to_string())), "bulk add");
+}
+
+/// Editing a repository's path keeps the cursor on it, in the same group.
+#[test]
+fn test_editing_a_repo_path_keeps_the_cursor_on_it_when_grouped() {
+    let (mut app, items, guard) = app_with_three_repos("edit_cursor");
+    app.state.visits.insert(items[2].clone(), 1);
+    // [Recent, gamma, alpha, beta, gamma]
+    app.selected_index = 4;
+    assert_eq!(app.get_selected_item(), Some(&items[2]));
+
+    let renamed = guard.path.join("gamma-renamed").to_string_lossy().to_string();
+    app.set_input_buffer(renamed.clone());
+    app.commit_edit();
+
+    assert_eq!(app.selected_index, 4);
+    assert_eq!(app.home_cursor(), Some((renamed, String::new())));
+}
+
+/// A repository found in the background must not move the cursor off the
+/// repository the user had selected.
+#[test]
+fn test_auto_discovered_repo_leaves_the_cursor_on_the_selected_repo() {
+    let (mut app, items, guard) = app_with_three_repos("auto_discover_cursor");
+    app.config.sort_by = SortOrder::Alphabetical;
+    app.config.labels.insert(items[0].clone(), vec!["work".to_string()]);
+    // [work, alpha, Unlabeled, beta, gamma]
+    app.selected_index = 3;
+    assert_eq!(app.get_selected_item(), Some(&items[1]));
+
+    // Sorts ahead of beta, so its row takes the cursor's index.
+    app.auto_discover_add(guard.path.join("aardvark").to_string_lossy().to_string());
+
+    assert_eq!(app.selected_index, 4);
+    assert_eq!(app.home_cursor(), Some((items[1].clone(), "Unlabeled".to_string())));
+}
+
 #[test]
 fn test_starred_group_flow() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
