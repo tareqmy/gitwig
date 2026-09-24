@@ -944,6 +944,39 @@ impl App {
         self.status_message = Some("Refreshed".to_string());
     }
 
+    /// Re-runs the cheap filesystem inspection for the open repository after
+    /// an external tool (`git rebase -i`, `git mergetool`) changed it, so its
+    /// home card is current on return. `statuses` runs parallel to
+    /// `config.items`, so the slot is the item's position there, never the
+    /// home-row cursor.
+    pub(crate) fn refresh_active_repo_status(&mut self) {
+        let Some(item) = self.active_repo_item() else {
+            return;
+        };
+        let Some(idx) = self.config.items.iter().position(|i| i == item) else {
+            return;
+        };
+        let new_status = repo::inspect_summary(item);
+        if let Some(slot) = self.statuses.get_mut(idx) {
+            *slot = new_status;
+        }
+    }
+
+    /// The directory the external git app (`git_app`) starts in: the
+    /// repository under the home cursor, since only the home screen launches it.
+    pub(crate) fn git_app_dir(&self) -> Option<std::path::PathBuf> {
+        self.get_selected_item().map(|item| repo::expand_tilde(item))
+    }
+
+    /// The repositories to open an external shell in: every multi-selected
+    /// one (the selection is consumed), else the one under the home cursor.
+    pub(crate) fn take_shell_targets(&mut self) -> Vec<String> {
+        if !self.multi_selected.is_empty() {
+            return std::mem::take(&mut self.multi_selected).into_iter().collect();
+        }
+        self.get_selected_item().cloned().into_iter().collect()
+    }
+
     pub fn sort_items_in_place(&mut self) {
         let sort_reverse = self.effective_sort_reverse();
         let mut zipped: Vec<(String, ItemStatus)> = match self.effective_sort_by() {

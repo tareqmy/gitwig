@@ -6118,6 +6118,119 @@ fn test_auto_discovered_repo_leaves_the_cursor_on_the_selected_repo() {
     assert_eq!(app.home_cursor(), Some((items[1].clone(), "Unlabeled".to_string())));
 }
 
+/// Runs `git` in `dir` with a throwaway identity, failing the test on error.
+fn run_git_in(dir: &std::path::Path, args: &[&str]) {
+    let out = crate::git_cmd::git_command()
+        .args(["-c", "user.name=Gitwig Test", "-c", "user.email=test@gitwig.invalid"])
+        .args(["-c", "commit.gpgsign=false"])
+        .args(args)
+        .current_dir(dir)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "git {:?}: {}", args, String::from_utf8_lossy(&out.stderr));
+}
+
+/// The Worktrees tab's unlock and prune run git in the open repository. They
+/// used to take `config.items[selected_index]`, and with grouping on the home
+/// cursor's row index names a different repository: here the cursor is on
+/// gamma's Recent row (index 1), and `config.items[1]` is beta.
+#[test]
+fn test_worktree_unlock_and_prune_act_on_the_open_repo_when_grouped() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let (mut app, items, guard) = app_with_three_repos("worktree_open_repo");
+    group_three_repos_under_work(&mut app, &items);
+    let beta = PathBuf::from(&items[1]);
+    let gamma = PathBuf::from(&items[2]);
+    for dir in [&beta, &gamma] {
+        std::fs::remove_dir_all(dir.join(".git")).unwrap();
+        run_git_in(dir, &["init", "-q"]);
+    }
+    run_git_in(&gamma, &["commit", "-q", "--allow-empty", "-m", "init"]);
+    run_git_in(&gamma, &["worktree", "add", "-q", &guard.path.join("gamma-wt").to_string_lossy()]);
+    run_git_in(&gamma, &["worktree", "lock", "gamma-wt"]);
+
+    let info = repo::RepoInfo {
+        worktrees: repo::TabData::Loaded(repo::load_tab_worktrees(&gamma).unwrap()),
+        ..Default::default()
+    };
+    app.current_detail =
+        Some(repo::ItemDetail::Repo { resolved: gamma.clone(), info: Box::new(info) });
+    app.mode = Mode::Detail;
+    app.detail_tab = 7;
+    app.detail_focus = DetailSection::Worktrees;
+    app.worktree_selection = 0;
+    app.selected_index = 1;
+    assert_eq!(app.get_selected_item(), Some(&items[2]));
+
+    let key = |c: char| KeyEvent::new(KeyCode::Char(c), KeyModifiers::empty());
+
+    // `l` on a locked worktree unlocks it.
+    assert!(crate::input::handle_key(&mut app, key('l'), 1));
+    assert_eq!(app.status_message.as_deref(), Some("Worktree unlocked successfully"));
+    let gamma_wts = repo::load_tab_worktrees(&gamma).unwrap();
+    assert!(gamma_wts.iter().all(|wt| !wt.is_locked), "gamma's worktree is unlocked");
+    // The unlock resyncs the view, which ignores keys until the reload lands.
+    app.loading_repo_path = None;
+
+    // An admin directory with no `gitdir` file is stale metadata for prune.
+    for dir in [&beta, &gamma] {
+        std::fs::create_dir_all(dir.join(".git/worktrees/stale")).unwrap();
+    }
+    assert!(crate::input::handle_key(&mut app, key('p'), 1));
+    assert_eq!(app.status_message.as_deref(), Some("Pruned stale worktree metadata"));
+    assert!(!gamma.join(".git/worktrees/stale").exists(), "gamma is pruned");
+    assert!(beta.join(".git/worktrees/stale").exists(), "beta is left alone");
+}
+
+/// After `git rebase -i` or `git mergetool` the open repository's home card
+/// is refreshed. The slot used to be `statuses[selected_index]`, filled from
+/// `config.items[selected_index]`: with grouping on, another repository's.
+#[test]
+fn test_refresh_active_repo_status_updates_the_open_repo_when_grouped() {
+    let (mut app, items, _guard) = app_with_three_repos("active_repo_status");
+    group_three_repos_under_work(&mut app, &items);
+    app.selected_index = 1;
+    app.current_detail = Some(repo::ItemDetail::Directory { resolved: PathBuf::from(&items[2]) });
+    app.statuses = vec![repo::ItemStatus::Missing; 3];
+
+    app.refresh_active_repo_status();
+
+    assert!(matches!(app.statuses[2], repo::ItemStatus::GitRepo(_)), "gamma is refreshed");
+    assert!(matches!(app.statuses[0], repo::ItemStatus::Missing));
+    assert!(matches!(app.statuses[1], repo::ItemStatus::Missing), "beta is left alone");
+}
+
+/// The git app and the external shell start in the repository under the home
+/// cursor. They used to take `config.items[selected_index]`, which with
+/// grouping on is a different repository, and a group header's index still
+/// named one.
+#[test]
+fn test_git_app_and_shell_open_the_repo_under_the_home_cursor_when_grouped() {
+    let (mut app, items, _guard) = app_with_three_repos("home_cursor_targets");
+    group_three_repos_under_work(&mut app, &items);
+
+    app.selected_index = 1;
+    assert_eq!(app.git_app_dir(), Some(repo::expand_tilde(&items[2])));
+    assert_eq!(app.take_shell_targets(), vec![items[2].clone()]);
+
+    // The `work` group header.
+    app.selected_index = 2;
+    assert_eq!(app.git_app_dir(), None);
+    assert!(app.take_shell_targets().is_empty());
+
+    app.multi_selected.insert(items[0].clone());
+    assert_eq!(app.take_shell_targets(), vec![items[0].clone()]);
+    assert!(app.multi_selected.is_empty(), "the multi-selection is consumed");
+
+    // A search narrows the flat list too: row 0 is gamma, `config.items[0]` alpha.
+    app.config.show_grouping = false;
+    app.repo_search_query = Some("gamma".to_string());
+    app.selected_index = 0;
+    assert_eq!(app.git_app_dir(), Some(repo::expand_tilde(&items[2])));
+    assert_eq!(app.take_shell_targets(), vec![items[2].clone()]);
+}
+
 #[test]
 fn test_starred_group_flow() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};

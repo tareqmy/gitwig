@@ -2104,9 +2104,7 @@ where
         if app.pending_git_app {
             app.pending_git_app = false;
             needs_redraw = true;
-            if let Some(item) = app.config.items.get(app.selected_index) {
-                let path = repo::expand_tilde(item);
-
+            if let Some(path) = app.git_app_dir() {
                 let raw_res = crossterm::terminal::disable_raw_mode();
                 let exec_res = crossterm::execute!(
                     std::io::stdout(),
@@ -2159,13 +2157,7 @@ where
             app.pending_terminal = false;
             needs_redraw = true;
 
-            let mut paths_to_open = Vec::new();
-            if !app.multi_selected.is_empty() {
-                paths_to_open = app.multi_selected.iter().cloned().collect::<Vec<_>>();
-                app.multi_selected.clear();
-            } else if let Some(item) = app.config.items.get(app.selected_index) {
-                paths_to_open.push(item.clone());
-            }
+            let paths_to_open = app.take_shell_targets();
 
             if !paths_to_open.is_empty() {
                 let raw_res = crossterm::terminal::disable_raw_mode();
@@ -2386,12 +2378,7 @@ where
                         app.set_error(format!("Failed to run git rebase: {}", e));
                     }
                 }
-                if let Some(item) = app.config.items.get(app.selected_index) {
-                    let new_status = repo::inspect_summary(item);
-                    if let Some(slot) = app.statuses.get_mut(app.selected_index) {
-                        *slot = new_status;
-                    }
-                }
+                app.refresh_active_repo_status();
                 app.refresh_detail();
             }
         }
@@ -2433,12 +2420,7 @@ where
                 let _ = terminal.hide_cursor();
                 let _ = terminal.clear();
 
-                if let Some(item) = app.config.items.get(app.selected_index) {
-                    let new_status = repo::inspect_summary(item);
-                    if let Some(slot) = app.statuses.get_mut(app.selected_index) {
-                        *slot = new_status;
-                    }
-                }
+                app.refresh_active_repo_status();
                 app.refresh_detail();
             }
         }
