@@ -1,6 +1,6 @@
 # 🔍 Detail view
 
-Press `Enter` on a selected item to open a full-screen Detail view. The detail view supports twelve tabs for git repositories, organized into two groups:
+Press `Enter` on a selected item to open a full-screen Detail view. Its header names the open repository — its path as listed on the home screen — with the current branch on the right. The detail view supports twelve tabs for git repositories, organized into two groups:
 
 | Group | Tabs | Access / Navigation |
 |---|---|---|
@@ -15,7 +15,7 @@ Press `Enter` on a selected item to open a full-screen Detail view. The detail v
   - In **Advanced** group: Worktrees (`1`), Submodules (`2`), Reflog (`3`), Forge Issues (`4`), Forge PRs (`5`).
 - Press `O` from any tab to toggle the repository **Overview** full-screen overlay.
 - Alternatively, you can click on the visible tab headers directly with the mouse to switch tabs.
-Press `Esc` or `q` (from the Primary group) to return to the repository list.
+Press `Esc` or `q` (from the Primary group) to return to the repository list, with the cursor still on the repository you opened.
 
 ### Panel Layout & Navigation (Workspace Tab)
 

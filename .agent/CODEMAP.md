@@ -97,6 +97,14 @@ Pane focus within tabs in `Mode::Detail` or `Mode::Inspect` is tracked by the `D
 - **Forge Issues (Tab 10)**: `ForgeIssues`, `ForgeIssueDetails`
 - **Forge PRs (Tab 11)**: `ForgePRs`, `ForgePRDetails`
 
+### Home Cursor vs. Open Repository (`src/app/navigation.rs`)
+`App.selected_index` is the home cursor: an index into `App::get_home_rows()` — the grouped, sorted, filtered rows, which include group headers and list a repository once per group it belongs to (Recent, Starred, each label). It is **not** an index into `config.items`, `statuses` or `get_filtered_items()`; those only line up with it when grouping is off and nothing is filtered. The rows reorder under the cursor (opening a repository moves it to the top of Recent; sorts, pins, stars and label changes reshuffle), so:
+- `get_selected_item()` / `home_cursor()` — the repository (and, for `home_cursor`, its row's group) under the cursor. Home-screen actions only.
+- `active_repo_item()` — the repository being loaded (`loading_repo_path`), else the one `current_detail` holds, else the cursor's. Anything meaning "this repository" inside a repository view (header, theme, Repository Settings, per-repo setting resolvers, `refresh_active_repo_status`) uses it.
+- `open_repo(item)` opens a specific repository; `open_detail()` is `open_repo` on the cursor's item.
+- `select_home_row(item, group)` puts the cursor back on a repository after a reorder (take `home_cursor()` first); `reveal_home_row(item)` selects a newly added one, expanding its collapsed group.
+- `migrate_repo_path(old, new)` (`src/app/actions.rs`) moves everything keyed by a repository's path when its entry is edited.
+
 ---
 
 ## 4. Key Event Control Flow

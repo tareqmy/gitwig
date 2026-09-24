@@ -36,15 +36,15 @@ The primary dashboard shown when Gitwig starts up.
         *   `o` : Cycle sorting criteria (Custom → Alphabetical → Recent → Changes); acts on the active label's own sort when its Label Settings set one
         *   `O` : Toggle reverse sorting; acts on the active label's own direction when its Label Settings set one
         *   `v` : Cycle repository list layout (Normal/Compact/Tile)
-        *   `a` : Add a repository via the directory-scanner picker
-        *   `A` : Bulk add subdirectories of a directory
+        *   `a` : Add a repository via the directory-scanner picker; the new repository is selected, and its label group is expanded if it was collapsed
+        *   `A` : Bulk add subdirectories of a directory; the first new repository is selected
         *   `i` : Import / clone a remote repository
-        *   `e` : Edit selected repository entry
+        *   `e` : Edit the selected repository's path; its labels, star, pin, settings and history move with it, and a path already tracked by another entry is refused
         *   `D` : Delete selected repository entry
         *   `l` : Edit custom labels of selected item
         *   `t` : Open the embedded terminal panel in repository path
-        *   `T` : Open a full-screen external shell in repository path
-        *   `g` : Launch preferred external Git GUI client
+        *   `T` : Open a full-screen external shell in the highlighted repository (or in each multi-selected one)
+        *   `g` : Launch preferred external Git GUI client in the highlighted repository
         *   `d` : Open debug logs panel
         *   `V` : Open about dialog
         *   `h` : Show signs & symbols legend popup
@@ -52,7 +52,7 @@ The primary dashboard shown when Gitwig starts up.
         *   `s` : Open settings view
         *   `?` : Toggle help overlay
         *   `ctrl-q` : Quit Gitwig
-*   **Grouping Sidebar (Left)**: Visible when `Show Grouping` is enabled. Groups repositories into Recent, Starred, and custom Labels.
+*   **Grouping Sidebar (Left)**: Visible when `Show Grouping` is enabled. Groups repositories into Recent, Starred, and custom Labels. A repository can be listed under several groups at once; anything that reorders the rows — changing the sort, pinning or starring, or opening a repository (which moves it to the top of Recent) — keeps the cursor on the same repository in the same group.
     *   *Shortcuts*:
         *   `←` / `→` : Collapse / expand the selected group (when on a group header row; there is no sidebar focus toggle)
         *   `Space` / `Enter` : Toggle collapse / expand of label groups (when on a group header row)

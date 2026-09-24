@@ -96,7 +96,7 @@ Keyboard shortcuts live in a separate `keybindings.toml` beside `config.toml`. E
 
 ### Per-repository settings
 
-Any single repository can override six settings — `theme`, `page_size`, `max_commits`, `resync_on_tab_change`, `auto_fetch_interval_mins`, and `editor` — and carry a free-text `note`. They are edited in the **Repository Settings** popup, opened with `s` on the repository's Overview screen, and stored as a `[repo_configs."<path>"]` table keyed by the repository path exactly as it appears in `items`. A per-repository value wins over both the label tier and the global default; a row left empty inherits from the label (if any) and then the global key. `auto_fetch_interval_mins = 0` opts that one repository out of background fetching.
+Any single repository can override six settings — `theme`, `page_size`, `max_commits`, `resync_on_tab_change`, `auto_fetch_interval_mins`, and `editor` — and carry a free-text `note`. They are edited in the **Repository Settings** popup, opened with `s` on the repository's Overview screen, and stored as a `[repo_configs."<path>"]` table keyed by the repository path exactly as it appears in `items` (editing the path with `e` moves the table to the new key). A per-repository value wins over both the label tier and the global default; a row left empty inherits from the label (if any) and then the global key. `auto_fetch_interval_mins = 0` opts that one repository out of background fetching.
 
 ```toml
 [repo_configs."~/development/gitwig"]
@@ -141,6 +141,8 @@ These appear in `config.toml` but are written by the app, not meant to be edited
 | `pinned` / `starred` | You pin (`p`) or star (`*`) a repository. |
 | `labels` | You edit a repository's labels (`l`). |
 | `repo_configs` / `label_configs` | You change a setting (or a repository note) in Repository Settings or Label Settings. |
+
+`pinned`, `starred`, `labels` and `repo_configs` are keyed by the repository path as it appears in `items`. Editing a repository's path with `e` moves its entries in all four — and its `visits` and `commit_history` in `state.toml` — to the new path, so nothing is lost or left behind under the old one.
 
 `compact_view` is **deprecated**. It is read once on load, converted to `view_mode = "compact"`, and then cleared — set `view_mode` instead.
 

@@ -7,7 +7,7 @@
 | `a`                  | Normal          | Add a new repository (via directory scanner) |
 | `A`                  | Normal          | Bulk add folders in a directory   |
 | `i`                  | Normal          | Import remote repository          |
-| `e`                  | Normal          | Edit the selected item            |
+| `e`                  | Normal          | Edit the selected repository's path. Its labels, star, pin, per-repository settings, last visit and commit-message history move to the new path; a path another entry already tracks (as written, via `~`, or through a symlink) is refused with "Repository already added" |
 | `D`                  | Normal          | Delete the selected item (asks)   |
 | `l`                  | Normal          | Edit labels of the selected item  |
 | `R`                  | Normal          | Refresh status of selected item   |
@@ -30,9 +30,9 @@
 | `/`                  | Normal          | Open fuzzy Jump-to-Repo picker overlay |
 | `o`                  | Normal          | Cycle list sorting mode (Custom → Alphabetical → Recent → Changes). While a label filter whose Label Settings set **Sort By** is active, cycles that label's sort instead of the global |
 | `O`                  | Normal          | Toggle list sorting direction (ascending vs. reversed). While a label filter whose Label Settings set **Sort Reverse** is active, flips that label's direction instead of the global |
-| `g`                  | Normal          | Launch the preferred Git client for selected repository (configurable in settings, default is gitui) |
+| `g`                  | Normal          | Launch the preferred Git client in the highlighted repository (configurable in settings, default is gitui); does nothing on a group header |
 | `t`                  | Normal          | Open the embedded terminal panel in the selected repository's directory |
-| `T`                  | Normal          | Suspend the TUI and spawn a full-screen shell in the selected repository's directory |
+| `T`                  | Normal          | Suspend the TUI and spawn a full-screen shell in each multi-selected repository's directory (clearing the selection), else in the highlighted repository's; does nothing on a group header |
 | `ctrl+t`             | Global / Anywhere | Toggle the embedded terminal panel (show + focus / hide; also unfocuses it) |
 | `ctrl+p`             | Normal / Detail | Open the command palette: fuzzy-find every action available in the current view (with its current key) and run it by name |
 | `↑` / `↓` / `PgUp` / `PgDn` / `Home` / `End` | Command Palette | Move through the matching actions |
