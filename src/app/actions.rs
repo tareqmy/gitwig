@@ -152,13 +152,7 @@ impl App {
                         self.original_items[pos] = trimmed.clone();
                     }
 
-                    if let Some(time) = self.state.visits.remove(&old_item) {
-                        self.state.visits.insert(trimmed.clone(), time);
-                    }
-
-                    if self.config.pinned.remove(&old_item) {
-                        self.config.pinned.insert(trimmed.clone());
-                    }
+                    self.migrate_repo_path(&old_item, &trimmed);
 
                     self.config.items[orig_idx] = trimmed.clone();
                     self.statuses[orig_idx] = repo::inspect_summary(&trimmed);
@@ -173,6 +167,24 @@ impl App {
         }
         self.input_buffer.clear();
         self.mode = Mode::Normal;
+    }
+
+    /// Moves everything recorded under a repository's path from `old` to
+    /// `new` when its entry is renamed — labels, star, pin, per-repo
+    /// settings, last visit, commit-message history and batch selection — so
+    /// none of it is lost or left orphaned under the old path.
+    fn migrate_repo_path(&mut self, old: &str, new: &str) {
+        rekey_map(&mut self.config.labels, old, new);
+        rekey_map(&mut self.config.repo_configs, old, new);
+        rekey_set(&mut self.config.pinned, old, new);
+        rekey_set(&mut self.config.starred, old, new);
+        rekey_map(&mut self.state.visits, old, new);
+        rekey_set(&mut self.multi_selected, old, new);
+        // Commit history is keyed by the resolved path, so `~/x` and its
+        // expanded form share one entry and need no move.
+        let old_resolved = repo::expand_tilde(old).to_string_lossy().to_string();
+        let new_resolved = repo::expand_tilde(new).to_string_lossy().to_string();
+        rekey_map(&mut self.state.commit_history, &old_resolved, &new_resolved);
     }
 
     pub fn confirm_delete(&mut self) {
@@ -689,5 +701,23 @@ impl App {
             // Update the file watcher to include the new repository
             self.setup_watcher();
         }
+    }
+}
+
+/// Moves `map`'s entry under `from` to `to`. Does nothing when the keys are
+/// the same or `from` has no entry.
+fn rekey_map<V>(map: &mut std::collections::HashMap<String, V>, from: &str, to: &str) {
+    if from != to
+        && let Some(value) = map.remove(from)
+    {
+        map.insert(to.to_string(), value);
+    }
+}
+
+/// Replaces `from` with `to` in `set`. Does nothing when the keys are the
+/// same or `from` is not in the set.
+fn rekey_set(set: &mut std::collections::HashSet<String>, from: &str, to: &str) {
+    if from != to && set.remove(from) {
+        set.insert(to.to_string());
     }
 }
