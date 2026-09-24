@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $toolsDir   = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
 $packageId  = 'gitwig'
-$url64      = 'https://github.com/tareqmy/gitwig/releases/download/v2.6.2/gitwig-v2.6.2-x86_64-pc-windows-msvc.zip'
+$url64      = 'https://github.com/tareqmy/gitwig/releases/download/v2.6.3/gitwig-v2.6.3-x86_64-pc-windows-msvc.zip'
 $checksum64 = 'WINDOWS_ZIP_SHA256' # Automatically updated by CI on release
 
 $packageArgs = @{
