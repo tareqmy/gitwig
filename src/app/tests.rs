@@ -6150,6 +6150,88 @@ fn test_editing_a_repo_path_migrates_everything_keyed_by_it() {
     assert!(!state.commit_history.contains_key(&old));
 }
 
+/// Editing a repository's path to one another entry already tracks — as
+/// written or spelled differently — is refused and changes nothing: it would
+/// duplicate the entry in `config.items`, and the migration would overwrite
+/// the other repository's labels and settings with this one's. Another
+/// spelling of the edited repository's own path is still a valid edit.
+#[test]
+fn test_editing_a_repo_path_to_another_tracked_repo_is_refused() {
+    fn edit(app: &mut App, from: &str, group: &str, to: &str) {
+        app.select_home_row(from, Some(group));
+        app.start_edit();
+        app.set_input_buffer(to.to_string());
+        app.status_message = None;
+        app.commit_edit();
+    }
+
+    let (mut app, items, guard) = app_with_three_repos("edit_path_clash");
+    let (beta, gamma) = (items[1].clone(), items[2].clone());
+    let beta_labels = vec!["b".to_string()];
+    let gamma_labels = vec!["g".to_string()];
+    let beta_cfg = RepoConfig { note: Some("beta".to_string()), ..Default::default() };
+    let gamma_cfg = RepoConfig { note: Some("gamma".to_string()), ..Default::default() };
+    app.config.labels.insert(beta.clone(), beta_labels.clone());
+    app.config.labels.insert(gamma.clone(), gamma_labels.clone());
+    app.config.repo_configs.insert(beta.clone(), beta_cfg.clone());
+    app.config.repo_configs.insert(gamma.clone(), gamma_cfg.clone());
+    let items_before = app.config.items.clone();
+    let config_path = guard.path.join("config.toml");
+    let saved_before = std::fs::read_to_string(&config_path).ok();
+
+    // beta's path as written, with a trailing slash, and canonicalized
+    // (`/private/var/...` for macOS temp dirs).
+    let beta_canonical = std::fs::canonicalize(&beta).unwrap().to_string_lossy().to_string();
+    for clash in [beta.clone(), format!("{}/", beta), beta_canonical] {
+        edit(&mut app, &gamma, "g", &clash);
+        assert_eq!(app.status_message.as_deref(), Some("Repository already added"), "{}", clash);
+        assert_eq!(app.mode, Mode::Normal);
+        assert!(app.input_buffer.is_empty());
+        assert_eq!(app.config.items, items_before);
+        assert_eq!(app.config.labels.get(&beta), Some(&beta_labels));
+        assert_eq!(app.config.labels.get(&gamma), Some(&gamma_labels));
+        assert_eq!(app.config.repo_configs.get(&beta), Some(&beta_cfg));
+        assert_eq!(app.config.repo_configs.get(&gamma), Some(&gamma_cfg));
+        assert_eq!(app.home_cursor(), Some((gamma.clone(), "g".to_string())));
+        assert_eq!(std::fs::read_to_string(&config_path).ok(), saved_before, "nothing saved");
+    }
+
+    // gamma's own path, unchanged and then with a trailing slash, is accepted.
+    let gamma_slash = format!("{}/", gamma);
+    for (from, to) in [(&gamma, &gamma), (&gamma, &gamma_slash)] {
+        edit(&mut app, from, "g", to);
+        assert_eq!(app.status_message.as_deref(), Some("Saved"), "{}", to);
+        assert_eq!(app.config.labels.get(to), Some(&gamma_labels));
+        assert_eq!(app.config.repo_configs.get(to), Some(&gamma_cfg));
+    }
+    assert_eq!(app.config.items.len(), 3);
+    assert!(app.config.items.contains(&gamma_slash));
+    assert!(!app.config.items.contains(&gamma));
+
+    // `~/x` and its expanded form are one repository: renaming between them
+    // is fine for that repository and refused for any other.
+    if let Some(home) = dirs::home_dir() {
+        let tilde = "~/gitwig_test_edit_path_clash".to_string();
+        let expanded = home.join("gitwig_test_edit_path_clash").to_string_lossy().to_string();
+        edit(&mut app, &gamma_slash, "g", &tilde);
+        assert_eq!(app.status_message.as_deref(), Some("Saved"));
+        edit(&mut app, &tilde, "g", &expanded);
+        assert_eq!(app.status_message.as_deref(), Some("Saved"));
+        assert_eq!(app.config.labels.get(&expanded), Some(&gamma_labels));
+
+        edit(&mut app, &beta, "b", &tilde);
+        assert_eq!(app.status_message.as_deref(), Some("Repository already added"));
+        assert_eq!(app.config.items.len(), 3);
+        assert!(app.config.items.contains(&beta));
+        assert_eq!(app.config.labels.get(&beta), Some(&beta_labels));
+        assert_eq!(app.config.labels.get(&expanded), Some(&gamma_labels));
+        assert_eq!(app.config.repo_configs.get(&expanded), Some(&gamma_cfg));
+    }
+
+    // Nothing was lost along the way.
+    assert_eq!(app.config.repo_configs.get(&beta), Some(&beta_cfg));
+}
+
 /// A repository found in the background must not move the cursor off the
 /// repository the user had selected.
 #[test]

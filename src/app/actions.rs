@@ -73,10 +73,20 @@ impl App {
     /// path, so `~/dev/x`, `/Users/me/dev/x` and a symlink to it all count as
     /// the same repository.
     pub fn is_repo_tracked(&self, path: &str) -> bool {
+        self.is_repo_tracked_except(path, None)
+    }
+
+    /// Like [`Self::is_repo_tracked`], but ignores the item at index `except`
+    /// in `config.items` — so renaming a repository to another spelling of its
+    /// own path is not mistaken for a clash with itself.
+    fn is_repo_tracked_except(&self, path: &str, except: Option<usize>) -> bool {
         let trimmed = path.trim();
         let expanded = repo::expand_tilde(trimmed);
         let canonical = Self::canonical_path(&expanded);
-        self.config.items.iter().any(|item| {
+        self.config.items.iter().enumerate().any(|(idx, item)| {
+            if Some(idx) == except {
+                return false;
+            }
             let item_expanded = repo::expand_tilde(item);
             item.trim() == trimmed
                 || item_expanded == expanded
@@ -146,6 +156,16 @@ impl App {
             let group = self.home_cursor().map(|(_, group)| group);
             if let Some(orig_idx) = self.get_selected_item_index() {
                 if orig_idx < self.config.items.len() {
+                    // Taking another entry's path would duplicate it in
+                    // `config.items` and overwrite its labels and settings
+                    // with this one's in `migrate_repo_path`.
+                    if self.is_repo_tracked_except(&trimmed, Some(orig_idx)) {
+                        self.status_message = Some("Repository already added".to_string());
+                        self.input_buffer.clear();
+                        self.mode = Mode::Normal;
+                        return;
+                    }
+
                     let old_item = self.config.items[orig_idx].clone();
 
                     if let Some(pos) = self.original_items.iter().position(|x| x == &old_item) {
