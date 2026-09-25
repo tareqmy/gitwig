@@ -11086,7 +11086,7 @@ fn test_forge_comment_wizard_takes_typing_and_validates_each_step() {
     app.advanced_tabs = true;
     app.detail_tab = 11;
     app.detail_focus = DetailSection::ForgePRs;
-    app.forge_pr_comments = Some(vec![]);
+    app.forge_pr_comments = Some(Ok(vec![]));
 
     assert!(crate::input::handle_key(&mut app, key(KeyCode::Char('n')), 1));
     assert_eq!(app.mode, Mode::ForgeCommentPathInput);
@@ -11126,6 +11126,58 @@ fn test_forge_comment_wizard_takes_typing_and_validates_each_step() {
     assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
     assert_eq!(app.mode, Mode::Detail);
     assert!(app.fetching, "the comment is being posted");
+}
+
+/// A failed PR line-comment load used to clear the comments back to `None`,
+/// which the Detail loop reads as "never requested": it re-ran `gh api` on
+/// every frame (about 59 calls in 6 s) and the panel only ever showed
+/// "Loading line comments...". The failure is now kept, shown, and not retried
+/// until the selection changes or the tab is resynced.
+#[test]
+fn test_failed_pr_comment_load_is_kept_and_not_retried_every_frame() {
+    let config_path = std::env::temp_dir().join("gitwig_test_pr_comment_failure.toml");
+    let _guard = TestFileGuard { path: config_path.clone() };
+    let mut app = App::new(Config::default(), config_path);
+    let path = "/nonexistent/gitwig_test_pr_comment_repo".to_string();
+    let pr = crate::repo::ForgePR {
+        number: 42,
+        title: "Add retry".to_string(),
+        state: "OPEN".to_string(),
+        author: "alice".to_string(),
+        assignees: vec![],
+        url: "https://github.com/o/r/pull/42".to_string(),
+        head_ref: "retry".to_string(),
+        head_ref_oid: "abc123".to_string(),
+        body: String::new(),
+        status_checks: vec![],
+        reviews: vec![],
+    };
+    let mut info = crate::repo::RepoInfo {
+        forge_prs: crate::repo::TabData::Loaded(vec![pr]),
+        ..Default::default()
+    };
+    // The PR list is fresh, so the per-frame trigger only concerns comments.
+    info.tab_loaded_at[11] = Some(std::time::Instant::now());
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from(&path),
+        info: Box::new(info),
+    });
+    app.mode = Mode::Detail;
+    app.advanced_tabs = true;
+    app.detail_tab = 11;
+    app.forge_pr_comments_loading = true;
+
+    let failure = Err("HTTP 403: Resource not accessible".to_string());
+    app.tab_tx.send((path, 11, crate::repo::TabPayload::PRComments(failure))).unwrap();
+    assert!(app.drain_tab_payloads());
+    assert!(!app.forge_pr_comments_loading);
+    assert!(matches!(&app.forge_pr_comments, Some(Err(e)) if e.contains("403")));
+
+    for _ in 0..5 {
+        app.trigger_tab_load_if_needed(11);
+        assert!(!app.forge_pr_comments_loading, "a failed load is not requested again");
+    }
+    assert!(matches!(app.forge_pr_comments, Some(Err(_))), "the failure stays visible");
 }
 
 #[test]

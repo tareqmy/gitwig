@@ -652,7 +652,11 @@ pub struct App {
     pub forge_issues_assigned_only: bool,
     pub forge_comment_path: String,
     pub forge_comment_line: u32,
-    pub forge_pr_comments: Option<Vec<repo::ForgePRComment>>,
+    /// Line comments of the selected PR: `None` until they are requested for
+    /// it, then the result. A failure is kept (and shown) rather than cleared:
+    /// the Detail loop requests comments whenever this is `None`, so clearing
+    /// it on failure re-ran `gh api` every frame, about ten times a second.
+    pub forge_pr_comments: Option<Result<Vec<repo::ForgePRComment>, String>>,
     pub forge_pr_comments_loading: bool,
     pub worktree_add_branch: String,
     pub worktree_add_path: String,
@@ -1712,11 +1716,7 @@ impl App {
                             self.load_comments_for_selected_pr();
                         }
                         repo::TabPayload::PRComments(res) => {
-                            if let Ok(comments) = res {
-                                self.forge_pr_comments = Some(comments);
-                            } else {
-                                self.forge_pr_comments = None;
-                            }
+                            self.forge_pr_comments = Some(res);
                             self.forge_pr_comments_loading = false;
                         }
                         repo::TabPayload::Overview(res) => match res {

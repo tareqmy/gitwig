@@ -309,12 +309,12 @@ pub fn draw_forge_prs_view(
             "Line Comments:",
             Style::default().add_modifier(Modifier::BOLD),
         )]));
-        if app.forge_pr_comments_loading {
+        if app.forge_pr_comments_loading || app.forge_pr_comments.is_none() {
             detail_lines.push(Line::from(vec![
                 Span::raw("  "),
                 Span::styled("Loading line comments...", muted_style()),
             ]));
-        } else if let Some(comments) = &app.forge_pr_comments {
+        } else if let Some(Ok(comments)) = &app.forge_pr_comments {
             if comments.is_empty() {
                 detail_lines.push(Line::from(vec![
                     Span::raw("  "),
@@ -337,10 +337,13 @@ pub fn draw_forge_prs_view(
                     ]));
                 }
             }
-        } else {
+        } else if let Some(Err(err)) = &app.forge_pr_comments {
             detail_lines.push(Line::from(vec![
                 Span::raw("  "),
-                Span::styled("Failed to load comments or not authenticated.", muted_style()),
+                Span::styled(
+                    format!("{} (press R to retry)", err),
+                    Style::default().fg(crate::ui::style::DANGER()),
+                ),
             ]));
         }
 
@@ -383,7 +386,9 @@ mod tests {
     #[test]
     fn test_draw_forge_prs_view() {
         let config = crate::config::Config::default();
-        let app = App::new(config, std::path::PathBuf::from("test.toml"));
+        let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
+        // A failed line-comment load is shown, not left as "Loading...".
+        app.forge_pr_comments = Some(Err("Failed to load PR comments: HTTP 403".to_string()));
 
         let info = RepoInfo {
             forge_prs: repo::TabData::Loaded(vec![repo::ForgePR {
@@ -411,7 +416,7 @@ mod tests {
             ..RepoInfo::default()
         };
 
-        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let backend = ratatui::backend::TestBackend::new(120, 40);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|f| {
@@ -423,9 +428,19 @@ mod tests {
                     0,
                     &mut areas,
                     &app,
-                    Rect::new(0, 0, 80, 24),
+                    Rect::new(0, 0, 120, 40),
                 );
             })
             .unwrap();
+        let buffer = terminal.backend().buffer();
+        let text: String = (0..40)
+            .map(|y| (0..120).map(|x| buffer[(x, y)].symbol()).collect::<String>() + "\n")
+            .collect();
+        assert!(
+            text.contains("Failed to load PR comments: HTTP 403 (press R to retry)"),
+            "{}",
+            text
+        );
+        assert!(!text.contains("Loading line comments"), "{}", text);
     }
 }
