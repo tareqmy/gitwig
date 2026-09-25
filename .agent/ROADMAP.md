@@ -55,7 +55,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Per-file revision history view (shortcut `Shift+H` in Files tab).
 - [x] Stash list (dedicated Stashes detail tab).
 - [x] Stashing actions: apply and delete stash (Details / Stashes).
-- [x] Main page sorting (Alphabetical, Recent Visit, Latest Changes, Custom) and direction toggle (o / O).
+- [x] Main page sorting (Alphabetical, Recent Visit, Latest Changes, Custom) and direction toggle (o / O). Latest Changes re-sorts itself when a status refresh finds a newer commit.
 - [x] Commit amending support (`a` / `Space` toggle amend in the commit popup's confirm mode, `Ctrl+A` in editing mode; `C` in the Workspace tab opens the popup with amend pre-set).
 - [x] Interactive directory scanner picker to add items (a).
 - [x] Search and filter in history and file lists (commit search).
@@ -68,6 +68,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Dynamic focus-aware status bar shortcuts showing only actions available to the focused panel.
 - [x] Auto-shift focus between Staged and Unstaged lists when all changes are staged/unstaged (shortcut `a`).
 - [x] Mouse selection support for branches, tags, remotes, and stashes lists in Detail panels.
+- [x] Mouse selection and wheel scrolling for the Advanced tab lists (Worktrees, Submodules, Reflog, Issues, PRs), mapped through each list's scroll offset.
 - [x] Modal error popups for failed Git network and stash operations.
 - [x] Stash uncommitted files with a stash comment/name input popup.
 - [x] Conflict resolution UI.
@@ -102,12 +103,13 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Per-label sort order: `sort_by` / `sort_reverse` rows in Label Settings that replace the global sort while that label's filter is active (label → global, no per-repo tier); the sort caption names the label and `o` / `O` edit the label's value instead of the global while it applies.
 - [x] Check version updates and notify the user and the option to update
 - [x] Keybindings
-- [x] Git Worktrees: Tab/view to list, create, and remove Git worktrees.
-- [x] Git Submodules: Detect, list, initialize, and update submodules.
+- [x] Git Worktrees: Tab/view to list, create (on an existing branch, tag or commit, or a new branch), open, lock/unlock, prune, and remove Git worktrees (remove only if clean, or force).
+- [x] Git Submodules: Detect and list submodules (clean, modified, uninitialized, removal staged), add them (cloned and initialized), and delete them.
+- [ ] Git Submodules: initialize / update an existing submodule from the Submodules tab (only adding one initializes it today).
 - [x] If network action is done from schedule without a user explicitly triggering it, need to show that network action is happening somewhere, definitely not a popup for implicit network call.
 - [x] Self-Update: Shortcut to trigger update check, check on start, show the badge beside the version when the update is available
 - [x] Editor Support: Option to open a file from the file tab with a custom terminal editor from settings
-- [x] Reflog Viewer: A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches.
+- [x] Reflog Viewer: A dedicated panel to inspect the git reflog, allowing users to recover lost commits/branches (checking out an entry asks first).
 - [x] Remove temporary installation scripts from the base directory.
 - [x] Homebrew Tap Distribution: Create and maintain a custom Homebrew tap (`homebrew-tap`) distributing pre-built macOS and Linux archives, and integrate formula updates into the CD release workflow.
 - [x] Chocolatey Package Distribution: Create and maintain a Chocolatey package for Windows users.
@@ -154,7 +156,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 
 ## Phase 11: Forge Integrations (GitHub / GitLab / Gitea)
 - [x] PR/MR Viewer: View active Pull Requests, descriptions, CI/CD run statuses, and review comments directly in a dedicated tab.
-- [x] Issue Tracker: List assigned issues and allow checking out branches linked to those issues.
+- [x] Issue Tracker: List assigned issues and allow checking out branches linked to those issues (GitHub linked branches, else a branch named for the issue; asks first).
 - [x] Code Review Mode: Support adding/viewing line comments on diffs inside active Pull Requests.
 
 ## Phase 12: Git LFS & Large File Management

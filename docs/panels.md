@@ -71,7 +71,7 @@ Triggered by opening a repository.
 ### Sidebar Panel (Left)
 *   **Tab Selector Panel**: Navigates between primary and advanced views.
     *   *Shortcuts*:
-        *   `Esc` / `q` / `Q` : Close details / Return to Home Screen
+        *   `Esc` / `q` / `Q` : Close details / Return to Home Screen (in the Advanced tab group the first press steps back to the Primary tabs; an open full diff or commit search is closed first)
         *   `?` : Toggle detail view shortcut help overlay
         *   `w` : Cycle focus forward through panels
         *   `W` : Cycle focus backward through panels
@@ -235,7 +235,7 @@ Triggered by opening a repository.
     *   *Shortcuts*:
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate submodules list
-        *   `a` : Add new submodule
+        *   `a` : Add new submodule: enter its repository URL, then the path to check it out at; it is cloned and initialized
         *   `D` : Delete selected submodule (asks confirmation; the popup names its path, and its name when that differs). Deinitializes it, removes its folder, gitlink and `.gitmodules` entry, and deletes its module directory under the git dir; the removal is staged for you to commit, and the list shows the submodule as "Removal staged" until you do. Only a real submodule entry in the index is ever removed.
 
 #### Tab 9: Reflog Tab (Advanced Tab Group)
@@ -246,7 +246,7 @@ Triggered by opening a repository.
         *   `Enter` / `Space` : Checkout commit OID of selected reflog entry (asks confirmation, detaching HEAD)
 
 #### Tab 10: Forge Issues Tab (Advanced Tab Group)
-*   *Forge Issues Panel*: Displays PRs, issues, and CI/CD status.
+*   *Forge Issues Panel*: Lists open GitHub issues through `gh` (assigned to you by default, or all open with `a`), with the selected issue's details below.
     *   *Shortcuts*:
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate issues list
@@ -255,7 +255,7 @@ Triggered by opening a repository.
         *   `a` : Toggle between "Assigned to me" and all open issues
 
 #### Tab 11: Forge PRs Tab (Advanced Tab Group)
-*   *Forge Pull Requests Panel*: Displays PR list and details.
+*   *Forge Pull Requests Panel*: Lists open pull requests through `gh`, with the selected PR's details below: CI/CD checks (check runs and commit statuses; running checks show their status), reviews, and line comments. If the comments fail to load, the error is shown there and `R` retries.
     *   *Shortcuts*:
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate PRs list
@@ -496,7 +496,8 @@ Modal text entry boxes for setting up configurations or typing messages.
     *   **Commit Message Dialog**: Compose/edit commit messages. Supports `Ctrl+S` (submit directly), `Ctrl+U` (clear message buffer), `Ctrl+A` (toggle amend), `Ctrl+H` (history picker), `Ctrl+D` (maximize popup), `Ctrl+K` (kill to end of line), `Ctrl+W` (delete word before cursor), `Ctrl+B`/`Ctrl+F` (cursor left/right), `Ctrl+P`/`Ctrl+N` (line up/down), and `Ctrl+C` (finish typing to enter confirm mode with `x`/`u` to clear, `a`/`Space` to toggle amend, `d`/`D`/`m`/`M` to maximize/restore, `q` to close, and `Enter` to commit).
     *   **Branch / Tag / Stash Creation dialogs**: Enter new names.
     *   **Import / Remote Setup dialogs**: Enter URLs, names, and paths.
-    *   **Worktree / Submodule Setup dialogs**: Enter paths, branches, or lock reasons.
+    *   **Worktree / Submodule Setup dialogs**: Enter paths, branches, or lock reasons. Removing a worktree asks in the status bar instead: type `1` (remove only if clean) or `2` (force-remove, discarding uncommitted changes) and press `Enter`.
+    *   **PR Line Comment wizard** (`n` in the PRs tab): file path, line number and comment text, one step at a time; an invalid entry shows an error and keeps the step open.
     *   **Label entry dialogs**: Prompt custom labels for repository grouping.
 *   *Shortcuts*:
     *   `Esc` : Cancel / close dialog (note: only `Esc` cancels modal inputs; letters like `q`/`Q` are typed as regular input text)
@@ -519,7 +520,8 @@ To prevent accidental data loss due to muscle-memory `Enter` keypresses, Gitwig 
 *   **Delete Tag (`Mode::TagDeleteConfirm`)**: Deleting a Git tag locally or remotely.
 *   **Delete Stash (`Mode::StashDeleteConfirm`)**: Dropping/deleting a stash entry from the stashes list.
 *   **Delete Remote (`Mode::RemoteDeleteConfirm`)**: Removing a configured remote repository connection.
-*   **Delete Submodule (`Mode::SubmoduleDeleteConfirm`)**: Deleting a submodule reference.
+*   **Delete Submodule (`Mode::SubmoduleDeleteConfirm`)**: Deleting a submodule — its folder, gitlink, `.gitmodules` entry and module directory (the removal is staged for you to commit).
+*   **Remove Worktree (`Mode::WorktreeRemoveConfirm`)**: Not a popup but a status-bar prompt: type `1` (only if clean) or `2` (force) and press `Enter`; `Enter` with nothing typed removes nothing.
 *   **Abort Merge (`Mode::MergeAbortConfirm`)**: Aborting an active merge session (reverting resolved conflicts).
 
 ### Non-Destructive Actions (`Enter` acts as Confirm)

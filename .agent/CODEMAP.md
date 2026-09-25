@@ -38,7 +38,7 @@ The codebase is organized into modular single-responsibility crates and files:
 | **Embedded Terminal** | `src/terminal_session.rs` | PTY-backed shell session for the embedded terminal panel: `TerminalSession` (portable-pty + vt100 parser fed by a detached reader thread), keystroke-to-bytes encoding (`encode_key`), and Drop-based child kill/reap. |
 | **State Engine** | `src/app/` | Holds the core `App` struct and splits its method implementations across `mod.rs` (orchestration/drain_queue), `actions.rs` (home repository card mutations), `git.rs` (branches, tags, remotes, push/pull/fetch/rebase), `workspace.rs` (staging, commits, conflict resolution), `navigation.rs` (scrolling, sorting, settings, and the persistence helpers `persist` / `persist_state`), `term_panel.rs` (embedded terminal panel open/hide/close and geometry), and `tests.rs` (the test suite). |
 | **Input Router** | `src/input.rs` | Captures keyboard events and delegates routing to the active tab or popup. |
-| **Mouse Handler** | `src/mouse.rs` | Listens to mouse clicks, scrolling, drag-to-resize splitters, and commit popup resize events. Home-header hit-tests (summary tabs, quick-label chips, the label badge on the frame border) measure the exact captions `draw.rs` renders (`summary_tab_parts`, `quick_label_parts`) or rects recorded during the draw pass (`global_summary_area`, `quick_label_area`, `label_badge_area`). |
+| **Mouse Handler** | `src/mouse.rs` | Listens to mouse clicks, scrolling, drag-to-resize splitters, and commit popup resize events. Home-header hit-tests (summary tabs, quick-label chips, the label badge on the frame border) measure the exact captions `draw.rs` renders (`summary_tab_parts`, `quick_label_parts`) or rects recorded during the draw pass (`global_summary_area`, `quick_label_area`, `label_badge_area`). Scrollable detail tables record their `TableState` offset in `DetailAreas` (`worktrees_offset`, `reflog_offset`, …) when drawn, and `clicked_table_row` maps a click through it. |
 | **Component Queue** | `src/queue.rs` | Defines a thread-safe, lock-free queue (`Queue` and `InternalEvent`) used by components to request state changes from the engine. |
 | **Theme & Style** | `src/ui/` | Contains the main rendering logic (`draw.rs`), styling/theme configurations (`style.rs`), layout helper utilities (`layout.rs`), detailed inspection view (`ui_detail.rs`), the scrollbar helper for panels (`scrollbar.rs`), and the tokenizer/style map for syntax highlighting in previews and diffs (`syntax.rs`). |
 | **Modal Popups** | `src/popups/` | Modular modal components for user inputs and confirmations (e.g. `commit.rs`, `confirm.rs`, `settings.rs`, `help.rs`, `forge_comment.rs`, `about.rs`). `command_palette.rs` is the `ctrl-p` overlay (`App.command_palette`, not a `Mode`): it lists the current context's actions and runs one by re-dispatching its key through `input::handle_key` with `App.forced_action` set, so the palette and the keyboard can never disagree. |
@@ -73,7 +73,7 @@ Keystrokes are interpreted conditionally depending on the active `Mode`. The lis
 - `Mode::CommitInput`: Centered commit message entry dialog.
 - `Mode::BranchCreateInput` / `Mode::TagCreateInput`: Naming new branches/tags.
 - `Mode::TagOverwriteConfirm`: Confirming force update of existing tag.
-- `Mode::CommitCheckoutConfirm` / `Mode::BranchCheckoutConfirm` / `Mode::TagCheckoutConfirm`: Confirmations for checkout operations.
+- `Mode::CommitCheckoutConfirm` / `Mode::BranchCheckoutConfirm` / `Mode::TagCheckoutConfirm` / `Mode::ForgeCheckoutConfirm`: Confirmations for checkout operations (`CommitCheckoutConfirm` also serves the Reflog tab; `ForgeCheckoutConfirm` holds an `App.forge_checkout_target` — an issue or a pull request).
 - `Mode::MergeAbortConfirm` / `Mode::MergeContinueConfirm`: Confirmations for merge abort/continue.
 - `Mode::RepoJump` / `Mode::LabelPicker` / `Mode::CommitFuzzySearch` / `Mode::BranchSearchInput` / `Mode::TagSearchInput` / `Mode::FileSearchInput`: Fuzzy search pickers (`LabelPicker` applies the sticky home-list label filter).
 - `Mode::GlobalSearch`: Full-screen multi-repo keyword search.
@@ -117,6 +117,8 @@ When a user presses a key (e.g. staging all files with `a`):
 4. **Drain**: `App::drain_queue` (`src/app/mod.rs`) pops the event and triggers `App::stage_all_changes()` (`src/app/workspace.rs`).
 5. **Git Execute**: `App::stage_all_changes` executes the operation via the `git2` backend inside `gitwig-core`.
 6. **Refresh**: State is updated, and the frame is redrawn with the updated staging layout.
+
+Results of background work come back over channels that `app::run` drains every loop iteration: messages on `App.rx` (success / error strings), detail snapshots on `detail_rx` (`App::apply_detail_snapshot`, which carries loaded tab data forward), tab payloads on `tab_rx` (`App::drain_tab_payloads` — a tab's list payload ends its `tab_loading` flag; PR line comments carry their PR number and are dropped unless they are for the selected PR), and repository statuses on `status_refresh_rx` (`App::drain_status_refreshes`). A refreshed status is stored by path with `App::store_status`, because the row index it was sent with goes stale if the list re-sorted meanwhile, and `App::resort_after_status_refresh` re-sorts a Latest Changes list when a repository's last commit moved.
 
 ---
 

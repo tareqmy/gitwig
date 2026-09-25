@@ -87,12 +87,12 @@
 | `Home` / `End`       | Editing / Input Modals | Move the caret to the start / end of the field |
 | `Delete`             | Editing / Input Modals | Erase the character under the caret |
 | `Tab` / `↑` / `↓`    | Tag Creation    | Switch focus between Tag Name and Tag Message input fields |
-| `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag, push branch/tag/all tags, tag overwrite, abort/continue merge, track launch directory) |
+| `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag/stash/remote/submodule, push branch/tag/all tags, tag overwrite, abort/continue merge, checkout of a branch, tag, commit or issue/PR branch, track launch directory). `Enter` also confirms non-destructive dialogs (checkouts, pushes, merges); on destructive ones it cancels |
 | `f` / `F`            | Confirm Dialog  | Force push tag (`--force`) in Tag Push confirmation dialog |
 | `t` / `T`            | Confirm Dialog  | Push branch with tags (`--tags`) in Branch Push confirmation dialog |
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
 | `?` / `Esc` / `q` / `Q` | Help         | Close the help overlay            |
-| `Esc` / `q` / `Q`    | Detail          | Return to the list                |
+| `Esc` / `q` / `Q`    | Detail          | Return to the list (from the Advanced tab group, the first press steps back to the Primary tabs; an open full diff or commit search is closed first) |
 | `Tab` / `Shift+Tab`  | Detail          | Cycle active detail view tabs within the active group (Primary vs. Advanced) |
 | `w` / `W`            | Detail          | Cycle panel focus forward (w) / backward (W) |
 | `+` / `-`            | Detail          | Grow (`+`) or shrink (`-`) the focused panel by moving its layout split (same splits the mouse can drag) |
@@ -117,8 +117,8 @@
 | `Shift+H`            | Detail          | View selected file's commit/revision history (Files tab) |
 | `c`                  | Detail          | Open commit prompt (Workspace tab or Inspect view), or Create branch from HEAD (Branches tab) |
 | `C`                  | Detail          | Open commit prompt with Amend (Workspace tab or Inspect view)    |
-| `a`                  | Detail          | Toggle "Assigned to me" / "All Open" issues (Issues tab), Stage All (`a`/`A`, Workspace tab Unstaged focus) / Unstage All (`a`/`A`, Workspace tab Staged focus), Apply stash (Stashes tab), Add worktree (Worktrees tab), Add remote (`a`/`A`, Remotes tab), or Add submodule (Submodules tab) |
-| `n`                  | Detail          | Add line comment to selected PR (PRs tab), or Toggle line numbers in content viewer (`n`/`N`, Files tab) |
+| `a`                  | Detail          | Toggle "Assigned to me" / "All Open" issues (Issues tab), Stage All (`a`/`A`, Workspace tab Unstaged focus) / Unstage All (`a`/`A`, Workspace tab Staged focus), Apply stash (Stashes tab), Add worktree (Worktrees tab; an existing branch, tag or commit, or a new branch name to create), Add remote (`a`/`A`, Remotes tab), or Add submodule (Submodules tab) |
+| `n`                  | Detail          | Add line comment to selected PR (PRs tab; asks for file path, line and comment in turn), or Toggle line numbers in content viewer (`n`/`N`, Files tab) |
 | `b` / `B`            | Detail          | Toggle git blame panel (Files tab), or Create branch at selected commit (Workspace commits list) |
 | `t` / `T`            | Detail          | Create tag at selected commit (Workspace commits list)           |
 | `y` / `Y`            | Detail          | Yank selected commit hash (Workspace commits list)               |
@@ -129,7 +129,7 @@
 | `i` / `I`            | Detail          | Interactive rebase from selected commit (Workspace tab commits list), or interactive rebase of the current branch onto the selected branch (Branches tab; asks confirmation) |
 | `G`                  | Detail          | Load more commits (Workspace commits list / Logs view)            |
 | `l`                  | Detail          | Open Logs view (Workspace tab commits list focus), Toggle line-by-line staging mode (`l`/`L`, Workspace diff / Inspect StagingDetails focus), or Toggle lock status (Worktrees tab; asks reason/unlocks) |
-| `D`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), stash (Stashes tab; asks confirmation), remote (Remotes tab; asks confirmation), submodule (Submodules tab; asks confirmation), or remove worktree (Worktrees tab; asks confirmation) |
+| `D`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), stash (Stashes tab; asks confirmation), remote (Remotes tab; asks confirmation), submodule (Submodules tab; asks confirmation), or remove worktree and its folder (Worktrees tab; `1` only if it is clean, `2` force-remove discarding uncommitted changes) |
 | `s` / `S`            | Detail          | Stage selected hunk/line (Workspace tab StagingDetails focus), open Stashing UI overlay (Workspace tab files list focus), Prompt to save stash (Stashing UI / Stashes tab), or Open Repository Settings popup (Overview overlay) |
 | `u` / `U`            | Detail          | Unstage selected hunk/line (Workspace tab StagingDetails focus), or Toggle "Stash untracked files" option (Stashing UI) |
 | `i`                  | Detail          | Toggle "Keep index" option (Stashing UI)                         |
@@ -211,7 +211,7 @@ keys = ["+"]
 description = "Grow the focused panel"
 ```
 
-Entries in this file **override the built-in defaults**. Actions missing from the file are backfilled with their defaults on startup, but existing entries are never rewritten — so if a default changes in a newer Gitwig version (for example, panel grow was briefly bound to both `+` and `=` in development builds before settling on `+` alone), a previously written entry keeps the old keys until you edit it or delete the entry to re-adopt the default.
+Entries in this file **override the built-in defaults**. Actions missing from the file are backfilled with their defaults on startup, but existing entries are generally not rewritten — so if a default changes in a newer Gitwig version (for example, panel grow was briefly bound to both `+` and `=` in development builds before settling on `+` alone), a previously written entry keeps the old keys until you edit it or delete the entry to re-adopt the default. The exception is a default that a newer version *extended*: an entry still holding exactly the old default was never customised, so it is moved onto the new one (so far only `detail.move_up` / `detail.move_down`, which gained `K` / `J`). An entry you changed is always left alone.
 
 Not every key is configurable yet. The following views still match their keys in code and ignore `keybindings.toml` (only their generic navigation keys — `↑`/`↓`/`PgUp`/`PgDn`/`Home`/`End`/`Enter`/`Esc` — follow the `[navigation]` section):
 

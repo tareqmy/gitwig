@@ -92,7 +92,7 @@ show_stale_projects = true
 
 ### Keybindings
 
-Keyboard shortcuts live in a separate `keybindings.toml` beside `config.toml`. Entries there override the built-in defaults and are preserved across upgrades — see [Customizing Keybindings](keybindings.md#customizing-keybindings) for the format and override semantics.
+Keyboard shortcuts live in a separate `keybindings.toml` beside `config.toml`. Entries there override the built-in defaults and are preserved across upgrades (an entry still holding exactly an old default that a newer version extended is moved onto the new one) — see [Customizing Keybindings](keybindings.md#customizing-keybindings) for the format and override semantics.
 
 ### Per-repository settings
 

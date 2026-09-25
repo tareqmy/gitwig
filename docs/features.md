@@ -4,7 +4,7 @@
 - **Config-Driven Layout**: Driven by `config.toml` for persistence and custom configurations.
 - **In-App Card Management**: Add, edit, delete, and label items directly from the UI with automatic disk persistence.
 - **Global Summary Header Bar**: High-level dashboard stats showing aggregate counts of repos, dirty repos, ahead counts, and stale repos as a row of tabs. Click a tab or press `Tab`/`Shift+Tab` to cycle the list filter through them.
-- **Background Auto-Refresh**: Non-blocking background status checking every 10 seconds to keep your repo cards live and up-to-date.
+- **Background Auto-Refresh**: Non-blocking background status checking every 10 seconds to keep your repo cards live and up-to-date; a list sorted by Latest Changes re-sorts itself when a repository gets a new commit.
 - **Scheduled Auto-Fetch**: Automatically runs `git fetch` for every repository on a configurable cadence (`auto_fetch_interval_mins`, default 10 minutes, `0` disables), with per-repository and per-label interval overrides (in Repository Settings and Label Settings) so each repo — or a whole label group — can fetch on its own schedule or opt out.
 - **Uncommitted Work Warning Badge**: Highlights repositories with a `⚠ PARTIAL` badge when staged and unstaged changes coexist simultaneously.
 - **Fuzzy Jump Picker**: Instantly jump to any repository by name using the `/` overlay.

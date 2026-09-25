@@ -1682,29 +1682,35 @@ impl KeybindingsConfig {
         if keys.is_empty() {
             return "-".to_string();
         }
-        keys.iter()
-            .map(|k| {
-                let key = k.clone();
-                if !compatibility_mode {
-                    match key.as_str() {
-                        "esc" | "escape" => "⎋".to_string(),
-                        "tab" => "⇥".to_string(),
-                        "backtab" | "shift-tab" => "⇧⇥".to_string(),
-                        "enter" | "return" => "↵".to_string(),
-                        _ => key,
-                    }
-                } else {
-                    match key.as_str() {
-                        "esc" | "escape" => "Esc".to_string(),
-                        "tab" => "Tab".to_string(),
-                        "backtab" | "shift-tab" => "Shift+Tab".to_string(),
-                        "enter" | "return" => "Enter".to_string(),
-                        _ => key,
-                    }
+        // Aliases can share a label (`backtab` and `shift-tab` are both
+        // Shift+Tab); show each label once, not "Shift+Tab/Shift+Tab".
+        let mut labels: Vec<String> = Vec::new();
+        let rendered = keys.iter().map(|k| {
+            let key = k.clone();
+            if !compatibility_mode {
+                match key.as_str() {
+                    "esc" | "escape" => "⎋".to_string(),
+                    "tab" => "⇥".to_string(),
+                    "backtab" | "shift-tab" => "⇧⇥".to_string(),
+                    "enter" | "return" => "↵".to_string(),
+                    _ => key,
                 }
-            })
-            .collect::<Vec<_>>()
-            .join("/")
+            } else {
+                match key.as_str() {
+                    "esc" | "escape" => "Esc".to_string(),
+                    "tab" => "Tab".to_string(),
+                    "backtab" | "shift-tab" => "Shift+Tab".to_string(),
+                    "enter" | "return" => "Enter".to_string(),
+                    _ => key,
+                }
+            }
+        });
+        for label in rendered {
+            if !labels.contains(&label) {
+                labels.push(label);
+            }
+        }
+        labels.join("/")
     }
 
     /// Compact caption for the quick-label slot keys, e.g. `1-9` — the first
@@ -2229,6 +2235,16 @@ impl KeybindingsConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `backtab` and `shift-tab` both render as Shift+Tab; the help overlay and
+    /// status bar showed it twice ("Shift+Tab/Shift+Tab").
+    #[test]
+    fn test_format_action_keys_shows_each_label_once() {
+        let cfg = KeybindingsConfig::default_config();
+        assert_eq!(cfg.format_action_keys(Action::CycleTabBackward, true), "Shift+Tab");
+        assert_eq!(cfg.format_action_keys(Action::CycleTabBackward, false), "⇧⇥");
+        assert_eq!(cfg.format_action_keys(Action::DetailMoveUp, true), "k/K/up");
+    }
 
     /// A `keybindings.toml` written by an older version pins the old defaults:
     /// untouched ones gain `K` / `J`, customised ones are kept.

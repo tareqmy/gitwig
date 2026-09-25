@@ -8,7 +8,7 @@ Press `Enter` on a selected item to open a full-screen Detail view. Its header n
 | **Advanced** | **Worktrees**, **Submodules**, **Reflog**, **Forge Issues**, **Forge PRs** | Toggled via `Z`. Use `1`–`5` to jump directly when active. |
 
 - Press `Z` from any tab to toggle between **Primary** and **Advanced** tab groups.
-- Press `Esc` while viewing the Advanced group to step back to the Primary group.
+- Press `Esc` / `q` / `Q` while viewing the Advanced group to step back to the Primary group (press again to return to the repository list).
 - Press `Tab` / `Shift+Tab` to cycle forward/backward through the tabs *within* the currently active group.
 - Directly jump to tabs using number keys:
   - In **Primary** group: Workspace (`1`), Files (`2`), Graph (`3`), Branches (`4`), Tags (`5`), Remotes (`6`), Stashes (`7`).
@@ -82,21 +82,23 @@ Pressing `s` / `S` inside the **Workspace** tab opens the dedicated **Stashing U
 
 ### Worktrees Tab
 
-The **Worktrees** tab lists all Git worktrees linked to the repository.
-- Press `a` to add a new worktree. You will be prompted to enter a base branch/commit name, followed by the destination path.
-- Press `l` to toggle lock status on the selected worktree (adds/removes lock reason).
-- Press `D` to remove the selected worktree. You can choose to either remove only the Git metadata or delete the folder from disk entirely.
-- Press `p` to prune stale worktree metadata.
-- Press `Enter` to open the selected worktree (registers it to the Home screen cards list if not present, and opens it).
+The **Worktrees** tab lists the Git worktrees linked to the repository (the main worktree itself is not listed), with each one's branch, lock status and path; a worktree whose folder is gone is marked `(Missing)`.
+- Press `a` to add a new worktree. You are prompted for a branch, tag or commit to check out — or a new branch name, which is created at HEAD for the worktree (a branch that exists only on one remote is checked out tracking it) — followed by the destination path.
+- Press `l` to toggle the lock on the selected worktree (asks for an optional reason when locking).
+- Press `D` to remove the selected worktree and its folder. The status bar asks for a choice: `1` removes it only if it is clean (a worktree with uncommitted changes, or a locked one, is refused and nothing is deleted); `2` force-removes it, discarding uncommitted changes and overriding a lock. `Esc` cancels.
+- Press `p` to prune stale worktree metadata (for worktrees whose folder no longer exists).
+- Press `Enter` to open the selected worktree: it is added to the Home screen list (or its existing entry is opened, if it is already tracked under any spelling of its path), and the repository view starts on the Primary tabs.
 
 ### Submodules Tab
 
 The **Submodules** tab lists all git submodules defined in the repository:
 - **Name:** The submodule identifier.
-- **Status:** Shows `Clean`, `Modified` (local changes or commit mismatch), or `Uninitialized`.
+- **Status:** Shows `Clean`, `Modified` (local changes or commit mismatch), `Uninitialized`, or `Removal staged` (deleted with `D`, until you commit the removal).
 - **Commit (Index):** The target commit SHA the superproject expects.
 - **Commit (HEAD):** The actual checked-out commit SHA in the submodule directory.
 - **URL:** The remote source URL of the submodule.
+- Press `a` to add a submodule: enter its repository URL, then the path to check it out at. It is cloned and initialized.
+- Press `D` to delete the selected submodule (asks confirmation; the popup names its path, and its name when that differs). It is deinitialized and its folder, gitlink, `.gitmodules` entry and module directory are removed; the removal is staged for you to commit.
 
 ### Reflog Tab
 
@@ -106,7 +108,22 @@ The **Reflog** tab lists HEAD reflog entries for the repository, enabling easy r
 - **Action:** The action type (e.g. `checkout`, `commit`, `rebase`, `reset`), highlighted based on the action.
 - **Message:** The action details and commit message.
 - **Time / Date:** Relative age and absolute UTC date of the operation.
-- **Checkout Commit:** Press `Enter` or `Space` on any entry to checkout that commit hash.
+- **Checkout Commit:** Press `Enter` or `Space` on any entry to check out that commit (detached HEAD). A confirmation dialog asks first.
+
+### Forge Issues Tab
+
+The **Forge Issues** tab lists the repository's open GitHub issues through the GitHub CLI (`gh`, which must be installed and signed in), with the selected issue's details below.
+- Press `a` to toggle between issues assigned to you (the default) and all open issues.
+- Press `Enter` to switch to the issue's branch (asks confirmation): the branch linked to it on GitHub, if there is exactly one and it is in this clone; otherwise the one branch whose name carries the issue number as a token of its own (`issue-12-login` or `12-fix` for #12); otherwise a new `issue-<number>` branch. Several candidates are reported rather than guessed between.
+- Press `o` to open the issue in your browser.
+
+### Forge PRs Tab
+
+The **Forge PRs** tab lists open pull requests through `gh`, with the selected PR's details below: its CI/CD checks (check runs and commit statuses; a running check shows its status, e.g. `IN_PROGRESS`), reviews, and line comments.
+- Press `Enter` to check out the PR's branch with `gh pr checkout` (asks confirmation).
+- Press `o` to open the PR in your browser.
+- Press `n` to add a line comment in three steps: file path, line number (1 or more) and comment text. An invalid entry shows an error and keeps the step open. The comment is posted to the PR's head commit exactly as typed.
+- If the line comments fail to load, the error is shown in the details panel; press `R` to retry.
 
 ### Overview Overlay
 
@@ -125,15 +142,16 @@ You can navigate and interact with these panels in the following ways:
 - **Submodules tab:** `Submodules` (main table).
 - **Reflog tab:** `Reflog` (main table).
 Focus defaults to the main panel of the tab when switching tabs (e.g., `Commits` on Workspace tab, `Files` on Files tab, `Local Branches` on Branches tab, `Local Tags` on Tags tab, `Stashes` on Stashes tab, `Worktrees` on Worktrees tab, `Submodules` on Submodules tab, `Reflog` on Reflog tab).
-- **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels, stashed files list, files list, and the files tab content preview panel) to focus it immediately.
+- **Mouse Click to Focus/Select:** Left-click inside any panel's boundaries (including branch/tag/stash list panels, stashed files list, files list, and the files tab content preview panel) to focus it immediately. In the Worktrees, Submodules, Reflog, Forge Issues and Forge PRs lists a click also selects the row it hits, even when the list is scrolled.
 - **Resize Split Panels:** Left-click and drag the vertical or horizontal boundary splitter lines between panels to resize them dynamically, or press `+` / `-` to grow / shrink the currently focused panel from the keyboard (5% steps along the same splits, clamped to the same limits). Mouse dragging is supported in:
 - **Workspace / Inspect:** Main vertical split (commits vs details), bottom horizontal split (left list vs right diff), and left vertical split (staged vs unstaged or commit details vs files list).
 - **Files:** Horizontal split (repository files tree vs file content preview).
 - **Branches:** Horizontal split (local branches vs remote branches).
 - **Stashes:** Horizontal split (stash lists vs diff) and left vertical split (stashes list vs stashed files).
 - **Overview Overlay:** Horizontal split (overview info vs committer stats).
-- **Mouse Wheel Scroll:** Use the mouse wheel to scroll vertically through the active list, commit history, branch list, files list, stashed files list, staging details diff, or files tab preview panel.
-- **Navigate Lists:** Use `↑`/`k` and `↓`/`j` to select a commit, file, branch, tag, stash, stashed file, or file tree item in the active list.
+- **Forge Issues / Forge PRs:** Vertical split (list vs details).
+- **Mouse Wheel Scroll:** Use the mouse wheel to scroll vertically through the active list, commit history, branch list, files list, stashed files list, staging details diff, files tab preview panel, or the Worktrees, Submodules, Reflog, Forge Issues and Forge PRs lists.
+- **Navigate Lists:** Use `↑`/`k`/`K` and `↓`/`j`/`J` to select a commit, file, branch, tag, stash, stashed file, file tree item, worktree, submodule, reflog entry, issue or pull request in the active list. Long lists scroll to keep the selection in view.
 - **Scroll Diff:** When the `Staging Details` panel is focused, you can scroll the unified diff text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
 - **Scroll File Content:** When the files tab `FileContent` preview panel is focused, you can scroll the preview text vertically using `↑`/`k` and `↓`/`j` (line-by-line) or `PgUp`/`PgDn` (page-by-page).
 - **Stage/Unstage Files:** Select the `Uncommitted changes` row at the top, select a file in either the `Staged` or `Unstaged` list, and press `Enter` to stage or unstage that file instantly. Press `a` to Stage All (when focused on Unstaged) or Unstage All (when focused on Staged), which automatically shifts panel focus to the opposite list. Press `x` to discard changes in the selected file, or `X` to discard all changes in the repository (both ask for confirmation before performing).
