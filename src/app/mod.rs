@@ -657,11 +657,12 @@ pub struct App {
     pub worktree_add_branch: String,
     pub worktree_add_path: String,
     pub worktree_lock_reason: String,
-    pub worktree_remove_delete_folder: bool,
-    pub worktree_remove_force: bool,
+    /// The worktree `D` was pressed on, captured then so the confirm acts on
+    /// it even if the list reloads (and reorders) while the prompt is open.
+    pub worktree_remove_target: Option<repo::WorktreeInfo>,
     pub submodule_add_url: String,
     pub submodule_add_path: String,
-    pub submodule_delete_target: Option<String>,
+    pub submodule_delete_target: Option<repo::SubmoduleInfo>,
     pub cpu_tracker: std::sync::Mutex<Option<(f64, std::time::Instant, f64, f64)>>,
     pub watcher: Option<notify::RecommendedWatcher>,
     pub status_refresh_tx: std::sync::mpsc::Sender<Vec<(usize, String, ItemStatus)>>,
@@ -979,6 +980,10 @@ impl App {
                         Mode::TagCreateInput => {
                             self.tag_action_target_oid = None;
                             self.tag_create_message.clear();
+                            self.mode = Mode::Detail;
+                        }
+                        Mode::WorktreeRemoveConfirm => {
+                            self.worktree_remove_target = None;
                             self.mode = Mode::Detail;
                         }
                         _ => {
@@ -1503,8 +1508,7 @@ impl App {
             worktree_add_branch: String::new(),
             worktree_add_path: String::new(),
             worktree_lock_reason: String::new(),
-            worktree_remove_delete_folder: false,
-            worktree_remove_force: false,
+            worktree_remove_target: None,
             submodule_add_url: String::new(),
             submodule_add_path: String::new(),
             submodule_delete_target: None,

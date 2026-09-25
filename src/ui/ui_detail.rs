@@ -966,8 +966,8 @@ pub fn draw(
             }
             // Draw submodule delete confirm popup
             if matches!(mode, Mode::SubmoduleDeleteConfirm) {
-                if let Some(ref sub_name) = app.submodule_delete_target {
-                    crate::popups::submodule::draw_submodule_delete_popup(f, sub_name, body_area);
+                if let Some(ref sub) = app.submodule_delete_target {
+                    crate::popups::submodule::draw_submodule_delete_popup(f, sub, body_area);
                 }
             }
             // Draw branch push popup on top when requested.

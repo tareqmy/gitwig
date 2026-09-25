@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Fixed
+- **worktrees**: removing a worktree (`D`) could force-delete a different worktree, uncommitted work and all. The worktree was named to `git worktree remove --force` by its admin name (the directory under `.git/worktrees`), which git resolves as the end of a worktree *path*: after a `git worktree move`, or when two worktrees share a folder name, that name matched another worktree or none. Removal, lock and unlock (`l`) now pass the worktree's checkout path, so they act on the row you selected — lock and unlock also stop failing with "is not a working tree" for such worktrees — and the worktree is captured when `D` is pressed, so a list reload while the prompt is open cannot change the target.
+- **worktrees**: both choices of the remove prompt deleted the worktree folder with `--force`, so "1: Metadata only" discarded uncommitted changes too. The prompt now names the worktree and offers `1` — remove only if clean (git refuses a worktree with uncommitted changes or a lock, and nothing is deleted; the error says to choose `2`) — and `2` — force-remove, discarding uncommitted changes and overriding a lock.
+- **submodules**: deleting a submodule (`D`) passed its *name* to `git submodule deinit` and `git rm`, which take a *path*. For a submodule whose name differs from its path (`git submodule add --name`, or a later `git mv`) the delete failed, and when a tracked file happened to share the name, that file was deleted along with its local edits while the submodule stayed registered and `git status` broke. The delete now uses the submodule's path, refuses anything that is not a submodule entry in the index, stops if `deinit` fails, and removes the module directory where git keeps it (inside a linked worktree too). The confirmation popup names the path, and the name when it differs.
+
+### Documentation
+- the Worktrees `D` and Submodules `D` rows in `docs/panels.md` describe the remove choices and what a submodule delete removes.
 
 ## [v2.6.3] - 2026-09-24
 ### Fixed

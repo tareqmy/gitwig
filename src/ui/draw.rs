@@ -4046,7 +4046,11 @@ mod tests {
         app.revert_target = Some(("abc1234".to_string(), "feat: commit".to_string()));
         app.stash_action_target = Some(("stash@{0}".to_string(), "wip".to_string()));
         app.remote_action_target = Some("origin".to_string());
-        app.submodule_delete_target = Some("sub".to_string());
+        app.submodule_delete_target = Some(crate::repo::SubmoduleInfo {
+            name: "sub".to_string(),
+            path: std::path::PathBuf::from("sub"),
+            ..Default::default()
+        });
 
         let backend = ratatui::backend::TestBackend::new(120, 40);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();

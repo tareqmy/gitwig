@@ -226,7 +226,7 @@ Triggered by opening a repository.
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate worktrees list
         *   `Enter` : Open selected worktree in new Gitwig context (adds to list and focuses it)
         *   `a` : Add new worktree
-        *   `D` : Remove selected worktree
+        *   `D` : Remove selected worktree and its folder. The status bar asks for a choice: `1` removes it only if it is clean (git refuses one with uncommitted changes or a lock, and nothing is deleted); `2` force-removes it, discarding uncommitted changes and overriding a lock. `Esc` cancels.
         *   `l` : Toggle lock status of selected worktree (asks for reason if locking)
         *   `p` : Prune stale worktree metadata
 
@@ -236,7 +236,7 @@ Triggered by opening a repository.
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate submodules list
         *   `a` : Add new submodule
-        *   `D` : Delete selected submodule
+        *   `D` : Delete selected submodule (asks confirmation; the popup names its path, and its name when that differs). Deinitializes it, removes its folder, gitlink and `.gitmodules` entry, and deletes its module directory under the git dir; the removal is staged for you to commit. Only a real submodule entry in the index is ever removed.
 
 #### Tab 9: Reflog Tab (Advanced Tab Group)
 *   *Reflog List Panel*: Lists local reference logs.

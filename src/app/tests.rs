@@ -5460,7 +5460,10 @@ fn test_submodule_tui_flows() {
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('D')), 1);
     assert!(handled);
     assert_eq!(app.mode, Mode::SubmoduleDeleteConfirm);
-    assert_eq!(app.submodule_delete_target, Some("my-submodule".to_string()));
+    assert_eq!(
+        app.submodule_delete_target.as_ref().map(|sub| sub.name.as_str()),
+        Some("my-submodule")
+    );
 
     // Escape confirmation
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Esc), 1);
@@ -6313,6 +6316,95 @@ fn test_worktree_unlock_and_prune_act_on_the_open_repo_when_grouped() {
     assert_eq!(app.status_message.as_deref(), Some("Pruned stale worktree metadata"));
     assert!(!gamma.join(".git/worktrees/stale").exists(), "gamma is pruned");
     assert!(beta.join(".git/worktrees/stale").exists(), "beta is left alone");
+}
+
+/// `D` in the Worktrees tab removes the worktree it was pressed on, by path,
+/// and choice 1 never discards uncommitted work. It used to pass the admin name
+/// (which named a different worktree here) with `--force` for both choices.
+#[test]
+fn test_worktree_remove_deletes_the_selected_worktree_and_keeps_dirty_ones() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let root = std::env::temp_dir().join("gitwig_test_worktree_remove_target");
+    let _ = std::fs::remove_dir_all(&root);
+    let guard = TestDirGuard { path: root.clone() };
+    let main = root.join("main");
+    std::fs::create_dir_all(&main).unwrap();
+    run_git_in(&main, &["init", "-q"]);
+    run_git_in(&main, &["commit", "-q", "--allow-empty", "-m", "init"]);
+    run_git_in(&main, &["branch", "a"]);
+    run_git_in(&main, &["branch", "b"]);
+    let (x_foo, x_renamed, z_foo) =
+        (root.join("x/foo"), root.join("x/renamed"), root.join("z/foo"));
+    run_git_in(&main, &["worktree", "add", "-q", &x_foo.to_string_lossy(), "a"]);
+    run_git_in(
+        &main,
+        &["worktree", "move", &x_foo.to_string_lossy(), &x_renamed.to_string_lossy()],
+    );
+    run_git_in(&main, &["worktree", "add", "-q", &z_foo.to_string_lossy(), "b"]);
+    std::fs::write(z_foo.join("precious.txt"), "uncommitted work").unwrap();
+
+    let config = Config { items: vec![main.to_string_lossy().to_string()], ..Default::default() };
+    let mut app = App::new(config, root.join("config.toml"));
+    let load = |app: &mut App| {
+        let info = repo::RepoInfo {
+            worktrees: repo::TabData::Loaded(repo::load_tab_worktrees(&main).unwrap()),
+            ..Default::default()
+        };
+        app.current_detail =
+            Some(repo::ItemDetail::Repo { resolved: main.clone(), info: Box::new(info) });
+        app.loading_repo_path = None;
+        app.mode = Mode::Detail;
+    };
+    let row_of = |app: &App, suffix: &str| match &app.current_detail {
+        Some(repo::ItemDetail::Repo { info, .. }) => match &info.worktrees {
+            repo::TabData::Loaded(wts) => wts.iter().position(|wt| wt.path.ends_with(suffix)),
+            _ => None,
+        },
+        _ => None,
+    };
+    load(&mut app);
+    app.detail_tab = 7;
+    app.detail_focus = DetailSection::Worktrees;
+
+    // `D` on x/renamed (admin name "foo"), then the list reloads in reverse
+    // order before the choice is typed: the captured worktree is removed.
+    app.worktree_selection = row_of(&app, "x/renamed").unwrap();
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Char('D')), 1));
+    assert_eq!(app.mode, Mode::WorktreeRemoveConfirm);
+    if let Some(repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
+        if let repo::TabData::Loaded(wts) = &mut info.worktrees {
+            wts.reverse();
+        }
+    }
+    app.input_buffer = "1".to_string();
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert!(!x_renamed.exists(), "the worktree `D` was pressed on is removed");
+    assert!(z_foo.join("precious.txt").exists(), "the other worktree is untouched");
+
+    // Choice 1 on a worktree with uncommitted work refuses and deletes nothing.
+    load(&mut app);
+    app.worktree_selection = row_of(&app, "z/foo").unwrap();
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Char('D')), 1));
+    app.input_buffer = "1".to_string();
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert!(z_foo.join("precious.txt").exists(), "choice 1 keeps uncommitted work");
+    assert_eq!(app.mode, Mode::Detail);
+    let error = app.error_message.clone().unwrap_or_default();
+    assert!(error.contains("choose 2 to force-remove"), "{}", error);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Esc), 1));
+    assert!(app.error_message.is_none());
+
+    // Choice 2 force-removes it.
+    load(&mut app);
+    app.worktree_selection = row_of(&app, "z/foo").unwrap();
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Char('D')), 1));
+    app.input_buffer = "2".to_string();
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert!(!z_foo.exists(), "choice 2 force-removes the worktree");
+    assert!(app.worktree_remove_target.is_none());
+    drop(guard);
 }
 
 /// After `git rebase -i` or `git mergetool` the open repository's home card
@@ -7494,7 +7586,11 @@ fn test_all_git_actions_on_real_repo() {
     app.input_buffer = "sub-test".to_string();
     app.commit_submodule_add_path();
     app.fetching = false;
-    app.submodule_delete_target = Some("sub-test".to_string());
+    app.submodule_delete_target = Some(crate::repo::SubmoduleInfo {
+        name: "sub-test".to_string(),
+        path: std::path::PathBuf::from("sub-test"),
+        ..Default::default()
+    });
     app.confirm_submodule_delete();
     app.fetching = false;
     app.cancel_submodule_delete();
@@ -9520,7 +9616,11 @@ fn test_drain_queue_confirmations_comprehensive() {
     app.revert_target = Some(("abc1234".to_string(), "commit".to_string()));
     app.stash_action_target = Some(("stash@{0}".to_string(), "stash message".to_string()));
     app.remote_action_target = Some("origin".to_string());
-    app.submodule_delete_target = Some("submodule_a".to_string());
+    app.submodule_delete_target = Some(crate::repo::SubmoduleInfo {
+        name: "submodule_a".to_string(),
+        path: std::path::PathBuf::from("submodule_a"),
+        ..Default::default()
+    });
 
     let confirm_modes = vec![
         Mode::BranchDeleteConfirm,

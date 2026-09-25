@@ -1,6 +1,6 @@
 //! Submodule initialization and registration paths dialog wizard.
 
-use crate::ui::layout::centered_rect;
+use crate::ui::layout::{centered_rect, centered_rect_fixed};
 use crate::ui::style::{ACCENT, CARD_BORDER, DANGER, muted_style, primary_style};
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -98,10 +98,7 @@ pub fn draw_submodule_add_path_popup(f: &mut Frame, input_buffer: &str, url: &st
     f.set_cursor_position(ratatui::layout::Position::new(cursor_x, cursor_y));
 }
 
-pub fn draw_submodule_delete_popup(f: &mut Frame, name: &str, area: Rect) {
-    let popup_area = centered_rect(55, 20, area);
-    f.render_widget(Clear, popup_area);
-
+pub fn draw_submodule_delete_popup(f: &mut Frame, sub: &crate::repo::SubmoduleInfo, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER())
@@ -113,16 +110,26 @@ pub fn draw_submodule_delete_popup(f: &mut Frame, name: &str, area: Rect) {
         ]))
         .padding(Padding::horizontal(1));
 
-    let content = vec![
+    let path = sub.path.display().to_string();
+    let mut content = vec![
         Line::from(vec![Span::styled(
-            "Are you sure you want to completely delete the submodule:",
+            "Are you sure you want to completely delete the submodule at:",
             primary_style(),
         )]),
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(name, Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
+            Span::styled(path.clone(), Style::default().fg(DANGER()).add_modifier(Modifier::BOLD)),
         ]),
+    ];
+    // `git submodule add --name` (or a later `git mv`) makes the two differ.
+    if sub.name != path {
+        content.push(Line::from(vec![
+            Span::styled("  name: ", muted_style()),
+            Span::raw(sub.name.clone()),
+        ]));
+    }
+    content.extend([
         Line::from(""),
         Line::from(vec![Span::styled(
             "This will deinitialize and remove the submodule directory.",
@@ -135,8 +142,12 @@ pub fn draw_submodule_delete_popup(f: &mut Frame, name: &str, area: Rect) {
             Span::styled(" / Cancel: ", muted_style()),
             Span::styled("n", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
         ]),
-    ];
+    ]);
 
+    // Sized to the content (plus borders) so the optional name line never
+    // pushes the confirm keys out of view.
+    let popup_area = centered_rect_fixed(area.width * 55 / 100, content.len() as u16 + 2, area);
+    f.render_widget(Clear, popup_area);
     let inner_area = block.inner(popup_area);
     f.render_widget(block, popup_area);
     f.render_widget(Paragraph::new(content), inner_area);

@@ -525,7 +525,7 @@ fn handle_submodule_events(app: &mut App, key: KeyEvent) -> bool {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
             if let repo::TabData::Loaded(subs) = &info.submodules {
                 if let Some(sub) = subs.get(app.submodule_selection) {
-                    app.submodule_delete_target = Some(sub.name.clone());
+                    app.submodule_delete_target = Some(sub.clone());
                     app.mode = Mode::SubmoduleDeleteConfirm;
                 }
             }
@@ -585,7 +585,7 @@ fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {
             if let repo::TabData::Loaded(wts) = &info.worktrees {
                 if let Some(wt) = wts.get(app.worktree_selection) {
                     if wt.is_locked {
-                        match repo::worktree_unlock(resolved, &wt.name) {
+                        match repo::worktree_unlock(resolved, &wt.path) {
                             Ok(_) => {
                                 app.status_message =
                                     Some("Worktree unlocked successfully".to_string());
@@ -606,10 +606,15 @@ fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {
         return true;
     }
     if app.is_bound(Action::WorktreesDelete, key) {
-        app.worktree_remove_delete_folder = false;
-        app.worktree_remove_force = false;
-        app.input_buffer.clear();
-        app.mode = Mode::WorktreeRemoveConfirm;
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+            if let repo::TabData::Loaded(wts) = &info.worktrees {
+                if let Some(wt) = wts.get(app.worktree_selection) {
+                    app.worktree_remove_target = Some(wt.clone());
+                    app.input_buffer.clear();
+                    app.mode = Mode::WorktreeRemoveConfirm;
+                }
+            }
+        }
         return true;
     }
     if app.is_bound(Action::WorktreesPrune, key) {

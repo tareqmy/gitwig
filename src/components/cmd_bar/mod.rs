@@ -334,10 +334,15 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 );
             }
             Mode::WorktreeRemoveConfirm => {
+                let name = app.worktree_remove_target.as_ref().map_or("", |wt| wt.name.as_str());
+                let label = format!(
+                    "Remove worktree '{}' and its folder? (1: only if clean, 2: force, discarding uncommitted changes)",
+                    name
+                );
                 draw_input_status(
                     f,
                     area,
-                    "Remove Worktree (1: Metadata only, 2: Delete folder & metadata)",
+                    &label,
                     &app.input_buffer,
                     app.config.compatibility_mode,
                     app.input_cursor_clamped(),
@@ -741,8 +746,12 @@ pub(crate) fn get_status_layout_components(
             (Some(msg_spans), build_status_entries(&entries_data))
         }
         Mode::SubmoduleDeleteConfirm => {
-            let target = app.submodule_delete_target.as_deref().unwrap_or("");
-            let (msg_spans, entries) = confirm_submodule_delete_entries(target);
+            let target = app
+                .submodule_delete_target
+                .as_ref()
+                .map(|sub| sub.path.display().to_string())
+                .unwrap_or_default();
+            let (msg_spans, entries) = confirm_submodule_delete_entries(&target);
             (msg_spans, entries)
         }
         Mode::TagPushConfirm => {

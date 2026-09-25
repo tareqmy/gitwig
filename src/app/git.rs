@@ -1977,7 +1977,7 @@ impl App {
         if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
             if let repo::TabData::Loaded(wts) = &info.worktrees {
                 if let Some(wt) = wts.get(self.worktree_selection) {
-                    match repo::worktree_lock(&resolved_path, &wt.name, &reason) {
+                    match repo::worktree_lock(&resolved_path, &wt.path, &reason) {
                         Ok(_) => {
                             self.status_message = Some("Worktree locked successfully".to_string());
                             self.resync_detail();
@@ -1993,47 +1993,31 @@ impl App {
         self.mode = Mode::Detail;
     }
 
-    pub fn remove_worktree(&mut self, delete_folder: bool) {
-        let resolved_path = match &self.current_detail {
-            Some(repo::ItemDetail::Repo { resolved, .. }) => resolved.clone(),
-            _ => {
-                self.mode = Mode::Detail;
-                return;
-            }
+    /// Removes the worktree captured when `D` was pressed. Without `force`, git
+    /// refuses one with uncommitted changes or a lock and nothing is deleted;
+    /// with it, those changes are discarded and the lock is overridden.
+    pub fn remove_worktree(&mut self, force: bool) {
+        self.mode = Mode::Detail;
+        let Some(wt) = self.worktree_remove_target.take() else {
+            return;
         };
-        if let Some(repo::ItemDetail::Repo { info, .. }) = &self.current_detail {
-            if let repo::TabData::Loaded(wts) = &info.worktrees {
-                if let Some(wt) = wts.get(self.worktree_selection) {
-                    if wt.is_locked {
-                        let _ = repo::worktree_unlock(&resolved_path, &wt.name);
-                    }
-
-                    let wt_path = wt.path.clone();
-                    match repo::worktree_remove(&resolved_path, &wt.name, true) {
-                        Ok(_) => {
-                            if delete_folder && wt_path.exists() {
-                                if let Err(e) = std::fs::remove_dir_all(&wt_path) {
-                                    self.set_error(format!(
-                                        "Worktree removed, but failed to delete directory: {}",
-                                        e
-                                    ));
-                                } else {
-                                    self.status_message =
-                                        Some("Worktree metadata and directory removed".to_string());
-                                }
-                            } else {
-                                self.status_message = Some("Worktree metadata removed".to_string());
-                            }
-                            self.resync_detail();
-                        }
-                        Err(e) => {
-                            self.set_error(format!("Failed to remove worktree: {}", e));
-                        }
-                    }
-                }
+        let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail else {
+            return;
+        };
+        match repo::worktree_remove(resolved, &wt.path, force) {
+            Ok(_) => {
+                self.status_message = Some(format!("Worktree '{}' removed", wt.name));
+                self.resync_detail();
+            }
+            Err(e) => {
+                let hint = if force {
+                    ""
+                } else {
+                    " (choose 2 to force-remove it, discarding its uncommitted changes)"
+                };
+                self.set_error(format!("Failed to remove worktree: {}{}", e.trim(), hint));
             }
         }
-        self.mode = Mode::Detail;
     }
 
     pub fn commit_worktree_remove(&mut self) {
@@ -2049,6 +2033,7 @@ impl App {
                 self.remove_worktree(true);
             }
             _ => {
+                self.worktree_remove_target = None;
                 self.status_message =
                     Some("Invalid selection. Type 1 or 2 to remove worktree.".to_string());
             }
@@ -2125,68 +2110,26 @@ impl App {
             self.mode = Mode::Detail;
             return;
         };
-        let Some(sub_name) = self.submodule_delete_target.take() else {
+        let Some(sub) = self.submodule_delete_target.take() else {
             self.mode = Mode::Detail;
             return;
         };
 
         let repo_path = resolved.clone();
+        let label = sub.path.display().to_string();
         self.fetching = true;
-        self.status_message = Some(format!("Removing submodule '{}'...", sub_name));
+        self.status_message = Some(format!("Removing submodule '{}'...", label));
         self.mode = Mode::Detail;
 
         let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
         std::thread::spawn(move || {
-            let safe_sub = match safe_ref(&sub_name) {
-                Ok(s) => s,
-                Err(e) => {
-                    let _ = tx.send(format!("Invalid submodule name: {}", e));
-                    return;
-                }
-            };
-
-            let deinit_res = git_command()
-                .arg("submodule")
-                .arg("deinit")
-                .arg("-f")
-                .arg("--")
-                .arg(safe_sub)
-                .current_dir(&repo_path)
-                .output();
-
-            if let Err(e) = deinit_res {
-                let _ = tx.send(format!("Failed to deinit submodule: {}", e));
-                return;
-            }
-
-            let rm_res = git_command()
-                .arg("rm")
-                .arg("-f")
-                .arg("--")
-                .arg(safe_sub)
-                .current_dir(&repo_path)
-                .output();
-
-            match rm_res {
-                Ok(out) if out.status.success() => {
-                    let dotgit_modules = repo_path.join(".git").join("modules").join(&sub_name);
-                    if dotgit_modules.exists() {
-                        let _ = std::fs::remove_dir_all(dotgit_modules);
-                    }
-
-                    let _ = tx.send(format!("Submodule '{}' removed successfully", sub_name));
-                }
-                Ok(out) => {
-                    let err = String::from_utf8_lossy(&out.stderr).to_string();
-                    let clean_err = err.trim().replace('\n', " ");
-                    let _ = tx.send(format!(
-                        "Failed to remove submodule directory from git: {}",
-                        clean_err
-                    ));
+            match repo::submodule_remove(&repo_path, &sub.name, &sub.path) {
+                Ok(()) => {
+                    let _ = tx.send(format!("Submodule '{}' removed successfully", label));
                 }
                 Err(e) => {
-                    let _ = tx.send(format!("Failed to run git rm for submodule: {}", e));
+                    let _ = tx.send(format!("Failed to remove submodule '{}': {}", label, e));
                 }
             }
         });

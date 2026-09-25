@@ -2031,6 +2031,78 @@ pub fn load_tab_submodules(repo_path: &Path) -> Result<Vec<SubmoduleInfo>, Strin
     Ok(list)
 }
 
+/// Deletes the submodule registered as `name` and checked out at `path`
+/// (relative to the repository root): deinitialises it, removes its gitlink,
+/// `.gitmodules` entry and working directory with `git rm`, then deletes its
+/// module directory under the git dir so re-adding it later starts clean.
+/// The result is staged, not committed.
+///
+/// `git submodule deinit` and `git rm` take a *path*. The *name* differs from
+/// it after `git submodule add --name` or a `git mv`, and only locates the
+/// module directory: passing the name to `git rm` once deleted an unrelated
+/// tracked file that happened to share it. Nothing is changed unless `path` is
+/// a submodule (gitlink) entry in the index.
+pub fn submodule_remove(repo_path: &Path, name: &str, path: &Path) -> Result<(), String> {
+    let plain_relative = |p: &Path| {
+        !p.as_os_str().is_empty()
+            && p.components().all(|c| matches!(c, std::path::Component::Normal(_)))
+    };
+    if !plain_relative(path) {
+        return Err(format!("Refusing to remove submodule at unsafe path '{}'", path.display()));
+    }
+    if !plain_relative(Path::new(name)) {
+        return Err(format!("Refusing to remove submodule with unsafe name '{}'", name));
+    }
+    let path_str = path.to_str().ok_or("Submodule path is not valid UTF-8")?;
+
+    let run = |args: &[&str]| -> Result<Vec<u8>, String> {
+        let output = git_command()
+            .arg("--literal-pathspecs")
+            .args(args)
+            .current_dir(repo_path)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !output.status.success() {
+            return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+        }
+        Ok(output.stdout)
+    };
+
+    // `ls-files --stage -z` prints `<mode> <oid> <stage>\t<path>\0` per entry;
+    // a submodule is exactly one entry, of mode 160000, at exactly `path`.
+    let staged = run(&["ls-files", "--stage", "-z", "--", path_str])?;
+    let entries: Vec<&[u8]> = staged.split(|b| *b == 0).filter(|e| !e.is_empty()).collect();
+    let is_gitlink = match entries.as_slice() {
+        [entry] => {
+            let entry = String::from_utf8_lossy(entry);
+            entry.starts_with("160000 ")
+                && entry.split_once('\t').is_some_and(|(_, p)| p == path_str)
+        }
+        _ => false,
+    };
+    if !is_gitlink {
+        return Err(format!("'{}' is not a submodule in the index; nothing was removed", path_str));
+    }
+
+    run(&["submodule", "deinit", "-f", "--", path_str])?;
+    run(&["rm", "-f", "--", path_str])?;
+
+    // Module directories are per worktree, so ask git where this one's lives
+    // (relative to `repo_path` in the main worktree, absolute in a linked one).
+    let module_path = run(&["rev-parse", "--git-path", &format!("modules/{}", name)])?;
+    let module_dir = repo_path.join(String::from_utf8_lossy(&module_path).trim());
+    if module_dir.is_dir() {
+        std::fs::remove_dir_all(&module_dir).map_err(|e| {
+            format!(
+                "Submodule removed, but its module directory {} could not be deleted: {}",
+                module_dir.display(),
+                e
+            )
+        })?;
+    }
+    Ok(())
+}
+
 /// Build a map from commit `Oid` → list of ref names that point to it.
 /// Local branches are stored as plain names (e.g. `"main"`).
 /// Lightweight and annotated tags are stored with a `"tag:"` prefix
@@ -3261,13 +3333,21 @@ pub fn worktree_add(repo_path: &Path, branch: &str, wt_path: &Path) -> Result<()
     Ok(())
 }
 
-pub fn worktree_lock(repo_path: &Path, name: &str, reason: &str) -> Result<(), String> {
+// The `git worktree lock` / `unlock` / `remove` helpers below take the
+// worktree's checkout path (`WorktreeInfo::path`), never its admin name
+// (`WorktreeInfo::name`, the directory under `.git/worktrees`). Git resolves a
+// bare name as the trailing component of a worktree *path*, so the admin name
+// of a moved worktree, or of one whose folder name another worktree shares,
+// matches a different worktree or none at all: `remove` once force-deleted the
+// wrong checkout that way.
+
+pub fn worktree_lock(repo_path: &Path, worktree: &Path, reason: &str) -> Result<(), String> {
     let output = git_command()
         .arg("worktree")
         .arg("lock")
         .arg("--reason")
         .arg(reason)
-        .arg(name)
+        .arg(worktree)
         .current_dir(repo_path)
         .output()
         .map_err(|e| e.to_string())?;
@@ -3278,11 +3358,11 @@ pub fn worktree_lock(repo_path: &Path, name: &str, reason: &str) -> Result<(), S
     Ok(())
 }
 
-pub fn worktree_unlock(repo_path: &Path, name: &str) -> Result<(), String> {
+pub fn worktree_unlock(repo_path: &Path, worktree: &Path) -> Result<(), String> {
     let output = git_command()
         .arg("worktree")
         .arg("unlock")
-        .arg(name)
+        .arg(worktree)
         .current_dir(repo_path)
         .output()
         .map_err(|e| e.to_string())?;
@@ -3293,13 +3373,18 @@ pub fn worktree_unlock(repo_path: &Path, name: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn worktree_remove(repo_path: &Path, name: &str, force: bool) -> Result<(), String> {
+/// Removes the worktree checked out at `worktree`, deleting its directory.
+///
+/// Without `force`, git refuses a worktree with modified or untracked files, or
+/// a locked one, and nothing is touched. With `force`, `--force` is passed
+/// twice, which discards those changes and overrides the lock.
+pub fn worktree_remove(repo_path: &Path, worktree: &Path, force: bool) -> Result<(), String> {
     let mut cmd = git_command();
     cmd.arg("worktree").arg("remove");
     if force {
-        cmd.arg("--force");
+        cmd.arg("--force").arg("--force");
     }
-    let output = cmd.arg(name).current_dir(repo_path).output().map_err(|e| e.to_string())?;
+    let output = cmd.arg(worktree).current_dir(repo_path).output().map_err(|e| e.to_string())?;
 
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
@@ -3911,7 +3996,7 @@ mod tests {
         // 9. Test worktree add / remove
         let wt_path = temp_path.join("wt-path");
         let _ = worktree_add(&temp_path, "new-branch", &wt_path);
-        let _ = worktree_remove(&temp_path, "wt-path", true);
+        let _ = worktree_remove(&temp_path, &wt_path, true);
 
         // 10. Test tag delete
         let _ = delete_tag(&temp_path, "v1.0.0");
@@ -4169,6 +4254,148 @@ mod tests {
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    fn run_git(dir: &Path, args: &[&str]) {
+        let out = git_command()
+            .args(["-c", "user.name=Gitwig Test", "-c", "user.email=test@gitwig.invalid"])
+            .args(["-c", "commit.gpgsign=false"])
+            .args(args)
+            .current_dir(dir)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "git {:?}: {}", args, String::from_utf8_lossy(&out.stderr));
+    }
+
+    fn unique_temp_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "twig_test_{}_{}",
+            tag,
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// A repo with one commit and `branches`, at `<root>/main`.
+    fn repo_with_branches(root: &Path, branches: &[&str]) -> PathBuf {
+        let main = root.join("main");
+        std::fs::create_dir_all(&main).unwrap();
+        run_git(&main, &["init", "-q"]);
+        run_git(&main, &["commit", "-q", "--allow-empty", "-m", "init"]);
+        for branch in branches {
+            run_git(&main, &["branch", branch]);
+        }
+        main
+    }
+
+    fn worktree_at<'a>(worktrees: &'a [WorktreeInfo], suffix: &str) -> &'a WorktreeInfo {
+        worktrees
+            .iter()
+            .find(|wt| wt.path.ends_with(suffix))
+            .unwrap_or_else(|| panic!("no worktree at {} in {:?}", suffix, worktrees))
+    }
+
+    /// `git worktree` resolves a bare admin name as a path suffix. A worktree
+    /// moved from `x/foo` to `x/renamed` keeps the admin name `foo`, which then
+    /// names the unrelated `z/foo`: removing `x/renamed` by name force-deleted
+    /// `z/foo` and its uncommitted work.
+    #[test]
+    fn test_worktree_helpers_act_on_the_checkout_path_not_the_admin_name() {
+        let root = unique_temp_dir("wt_admin_name");
+        let main = repo_with_branches(&root, &["a", "b"]);
+        let (x_foo, x_renamed, z_foo) =
+            (root.join("x/foo"), root.join("x/renamed"), root.join("z/foo"));
+        run_git(&main, &["worktree", "add", "-q", &x_foo.to_string_lossy(), "a"]);
+        run_git(
+            &main,
+            &["worktree", "move", &x_foo.to_string_lossy(), &x_renamed.to_string_lossy()],
+        );
+        run_git(&main, &["worktree", "add", "-q", &z_foo.to_string_lossy(), "b"]);
+        std::fs::write(z_foo.join("precious.txt"), "uncommitted work").unwrap();
+
+        let worktrees = load_tab_worktrees(&main).unwrap();
+        let renamed = worktree_at(&worktrees, "x/renamed").clone();
+        assert_eq!(renamed.name, "foo", "the moved worktree keeps its admin name");
+
+        worktree_lock(&main, &renamed.path, "testing").unwrap();
+        assert!(worktree_at(&load_tab_worktrees(&main).unwrap(), "x/renamed").is_locked);
+        worktree_unlock(&main, &renamed.path).unwrap();
+        assert!(!worktree_at(&load_tab_worktrees(&main).unwrap(), "x/renamed").is_locked);
+
+        worktree_remove(&main, &renamed.path, false).unwrap();
+        assert!(!x_renamed.exists(), "the selected worktree is removed");
+        assert!(z_foo.join("precious.txt").exists(), "the other worktree is untouched");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_worktree_remove_keeps_uncommitted_or_locked_work_unless_forced() {
+        let root = unique_temp_dir("wt_remove_force");
+        let main = repo_with_branches(&root, &["dirty", "locked"]);
+        let (dirty, locked) = (root.join("dirty"), root.join("locked"));
+        run_git(&main, &["worktree", "add", "-q", &dirty.to_string_lossy(), "dirty"]);
+        run_git(&main, &["worktree", "add", "-q", &locked.to_string_lossy(), "locked"]);
+        std::fs::write(dirty.join("wip.txt"), "untracked work").unwrap();
+        run_git(&main, &["worktree", "lock", &locked.to_string_lossy()]);
+
+        assert!(worktree_remove(&main, &dirty, false).is_err());
+        assert!(dirty.join("wip.txt").exists(), "a refused remove deletes nothing");
+        assert!(worktree_remove(&main, &locked, false).is_err());
+        assert!(locked.exists());
+
+        worktree_remove(&main, &dirty, true).unwrap();
+        worktree_remove(&main, &locked, true).unwrap();
+        assert!(!dirty.exists() && !locked.exists(), "force removes both");
+        assert!(load_tab_worktrees(&main).unwrap().is_empty());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// `git submodule deinit` and `git rm` take a path; the submodule's name was
+    /// passed instead, so a tracked file sharing that name was deleted (local
+    /// edits and all) while the submodule stayed registered.
+    #[test]
+    fn test_submodule_remove_deletes_the_submodule_path_not_a_same_named_file() {
+        let root = unique_temp_dir("submodule_remove");
+        let lib = root.join("lib");
+        std::fs::create_dir_all(&lib).unwrap();
+        run_git(&lib, &["init", "-q"]);
+        run_git(&lib, &["commit", "-q", "--allow-empty", "-m", "lib"]);
+        let main = repo_with_branches(&root, &[]);
+        std::fs::write(main.join("notes"), "tracked notes\n").unwrap();
+        run_git(&main, &["add", "notes"]);
+        run_git(&main, &["commit", "-q", "-m", "notes"]);
+        std::fs::write(main.join("notes"), "tracked notes\nlocal edit\n").unwrap();
+        run_git(
+            &main,
+            &["submodule", "add", "-q", "--name", "notes", &lib.to_string_lossy(), "vendor/n"],
+        );
+        run_git(&main, &["commit", "-q", "-m", "add submodule"]);
+        assert!(main.join(".git/modules/notes").is_dir());
+
+        // Anything that is not the submodule's gitlink is refused untouched.
+        assert!(submodule_remove(&main, "notes", Path::new("notes")).is_err());
+        assert!(submodule_remove(&main, "notes", Path::new("../lib")).is_err());
+        assert!(submodule_remove(&main, "../notes", Path::new("vendor/n")).is_err());
+        assert!(main.join("vendor/n").is_dir());
+
+        submodule_remove(&main, "notes", Path::new("vendor/n")).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(main.join("notes")).unwrap(),
+            "tracked notes\nlocal edit\n",
+            "the same-named file keeps its local edit"
+        );
+        assert!(!main.join("vendor/n").exists());
+        assert!(!main.join(".git/modules/notes").exists());
+        assert!(!std::fs::read_to_string(main.join(".gitmodules")).unwrap().contains("vendor/n"));
+        let status = git_command().args(["status", "--porcelain"]).current_dir(&main).output();
+        let status = status.unwrap();
+        assert!(status.status.success(), "the repository is still usable");
+        // The removal is staged for the user to commit, next to the untouched edit.
+        let status = String::from_utf8_lossy(&status.stdout);
+        assert!(status.lines().any(|l| l == "D  vendor/n"), "{}", status);
+        assert!(status.lines().any(|l| l == " M notes"), "{}", status);
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     /// Builds a repo whose only commit carries a (fake) gpg signature and whose
@@ -5322,8 +5549,8 @@ mod tests {
         // 6. Test worktree locking/unlocking/pruning
         let wt_path = temp_path.join("wt-booster");
         let _ = worktree_add(&temp_path, "wt-branch", &wt_path);
-        let _ = worktree_lock(&temp_path, "wt-booster", "lock reason");
-        let _ = worktree_unlock(&temp_path, "wt-booster");
+        let _ = worktree_lock(&temp_path, &wt_path, "lock reason");
+        let _ = worktree_unlock(&temp_path, &wt_path);
         let _ = worktree_prune(&temp_path);
         let _ = std::fs::remove_dir_all(&wt_path);
 
@@ -5369,9 +5596,10 @@ mod tests {
         let _ = get_branch_upstream_remote(nonexistent, "branch");
         let _ = load_tab_worktrees(nonexistent);
         let _ = worktree_add(nonexistent, "branch", Path::new("path"));
-        let _ = worktree_lock(nonexistent, "name", "reason");
-        let _ = worktree_unlock(nonexistent, "name");
-        let _ = worktree_remove(nonexistent, "name", true);
+        let _ = worktree_lock(nonexistent, Path::new("path"), "reason");
+        let _ = worktree_unlock(nonexistent, Path::new("path"));
+        let _ = worktree_remove(nonexistent, Path::new("path"), true);
+        let _ = submodule_remove(nonexistent, "name", Path::new("path"));
         let _ = worktree_prune(nonexistent);
         let _ = load_tab_forge_issues(nonexistent, true);
         let _ = load_tab_forge_prs(nonexistent);
