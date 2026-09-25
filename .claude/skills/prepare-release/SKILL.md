@@ -22,8 +22,8 @@ Follow this exact process so every release artifact stays in sync. Mirrors
    Sanity-check nothing was missed with:
    `grep -rl "<old-version>" . --include="*" | grep -vE "target/|\.git/|Cargo\.lock|CHANGELOG\.md"`
 
-2. **Rebuild the lockfile** — run `cargo test` at the workspace root so `Cargo.lock`
-   regenerates with the new versions and the suite still passes.
+2. **Rebuild the lockfile** — run `cargo test --workspace` (`make test`) at the workspace
+   root so `Cargo.lock` regenerates with the new versions and both crates' suites still pass.
 
 3. **Changelog** — run `python3 scripts/generate_changelog.py`, or update `CHANGELOG.md`
    by hand following "Keep a Changelog" formatting. When cutting a release, move the

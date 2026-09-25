@@ -24,6 +24,9 @@ and this project adheres to Semantic Versioning.
 - **detail**: `J` / `K` move the selection in the detail tabs, as `docs/panels.md` has always said and as the Logs and File History views already did. A `keybindings.toml` still holding the old default for these two bindings is upgraded to the new one; customised bindings are left alone.
 - **forge**: only the first 30 line comments of a PR were loaded; all of them are now fetched.
 
+### Chore
+- **ci**: `make test`, which CI runs, was a plain `cargo test`, and at the workspace root that only tests the `gitwig` package: none of `gitwig-core`'s tests ran, in CI or locally. It now runs `cargo test --workspace`, and the contributor skills (`rust-quality`, `prepare-release`) say so.
+
 ### Documentation
 - the Worktrees `D` and Submodules `D` rows in `docs/panels.md` describe the remove choices and what a submodule delete removes; the Issues `Enter` and PRs `n` rows describe how the issue's branch is chosen and the comment wizard's steps; the Worktrees `Enter` row says an already-tracked worktree is opened rather than added again; the Worktrees `a`, Submodules `D`, Reflog / Issues / PRs `Enter` rows, the confirmation lists in `docs/panels.md` and the detail `↑`/`↓` rows in `docs/keybindings.md` describe the changes above.
 

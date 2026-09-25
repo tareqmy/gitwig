@@ -21,7 +21,8 @@ if the process changes.
    rule in `.agent/STYLE_GUIDE.md` — `.unwrap()`/`.expect()` in rendering or the event loop
    are lint errors here, not style nits. Fix the underlying code; don't paper over it with
    `#[allow(...)]` unless a case is a genuine false positive.
-3. **Test** — `make test` (`cargo test` across the workspace). All tests must pass.
+3. **Test** — `make test` (`cargo test --workspace`: both the `gitwig` and `gitwig-core`
+   crates; a plain `cargo test` at the root skips `gitwig-core`). All tests must pass.
    - Any new feature, action, or popup needs comprehensive tests in `src/app/tests.rs` or
      `src/ui/draw.rs` (headless rendering or temp Git repos).
    - Never land a change that drops overall test coverage.

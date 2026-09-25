@@ -7,7 +7,7 @@ help:
 	@echo "Available commands:"
 	@echo "  make build    - Build the project in debug mode"
 	@echo "  make run      - Run the project"
-	@echo "  make test     - Run tests"
+	@echo "  make test     - Run the tests of every workspace crate (gitwig and gitwig-core)"
 	@echo "  make fmt      - Format the code using cargo fmt"
 	@echo "  make clippy   - Run clippy for linting"
 	@echo "  make check    - Check the code for compilation errors without building"
@@ -20,8 +20,10 @@ build:
 run:
 	cargo run
 
+# --workspace: a plain `cargo test` at the root only tests the `gitwig` package,
+# so gitwig-core's tests never ran (in CI either, which uses this target).
 test:
-	cargo test
+	cargo test --workspace
 
 fmt:
 	cargo fmt

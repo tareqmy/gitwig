@@ -24,7 +24,7 @@ When you are asked to prepare a release, follow this exact process so every rele
    `grep -rl "<old-version>" . --include="*" | grep -vE "target/|\.git/|Cargo\.lock|CHANGELOG\.md"`
 
 2. **Rebuild Lockfile:**
-   Run `cargo test` in the workspace root so `Cargo.lock` regenerates with the new versions and the suite still passes.
+   Run `cargo test --workspace` (`make test`) in the workspace root so `Cargo.lock` regenerates with the new versions and both crates' suites still pass.
 
 3. **Changelog:**
    Run `python3 scripts/generate_changelog.py` or manually update `CHANGELOG.md` following the "Keep a Changelog" formatting. Ensure all recent changes are accurately categorized. When cutting a release, move the accumulated changes out of "Unreleased" into a section for the new version — the commit that follows gets tagged with that version, so "Unreleased" must be empty afterward.
