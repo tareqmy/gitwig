@@ -163,5 +163,5 @@ After every successful add / edit / delete, the status bar briefly shows `Saved`
 ### 🔀 Main Page Sorting
 
 The main page repository list can be sorted dynamically using shortcuts:
-- **Cycle Sort Order (`o`):** Cycles through the sorting modes: `Custom` (preserves your manual list order), `Alphabetical`, `Recent Visit` (tracks when you enter a repository's detail view), and `Latest Changes` (based on HEAD commit timestamps or folder modification times).
+- **Cycle Sort Order (`o`):** Cycles through the sorting modes: `Custom` (preserves your manual list order), `Alphabetical`, `Recent Visit` (tracks when you enter a repository's detail view), and `Latest Changes` (based on HEAD commit timestamps or folder modification times; the list re-sorts by itself when a refresh finds a repository's latest commit has changed, keeping the cursor on its repository).
 - **Toggle Sort Direction (`O`):** Toggles ascending vs. descending/reversed sort direction. The rule under the home header displays the active sort mode (e.g. `Sort: Alphabetical (Rev)`).

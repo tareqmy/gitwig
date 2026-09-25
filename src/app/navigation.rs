@@ -966,10 +966,9 @@ impl App {
         let Some(idx) = self.config.items.iter().position(|i| i == item) else {
             return;
         };
-        let new_status = repo::inspect_summary(item);
-        if let Some(slot) = self.statuses.get_mut(idx) {
-            *slot = new_status;
-        }
+        let item = item.clone();
+        let moved = self.store_status(idx, &item, repo::inspect_summary(&item));
+        self.resort_after_status_refresh(moved);
     }
 
     /// The directory the external git app (`git_app`) starts in: the
@@ -985,6 +984,45 @@ impl App {
             return std::mem::take(&mut self.multi_selected).into_iter().collect();
         }
         self.get_selected_item().cloned().into_iter().collect()
+    }
+
+    /// Stores a refreshed `status` for the repository at `path`. `idx` is where
+    /// it was when the refresh started; if the list has been re-sorted since,
+    /// the status goes wherever `path` is now (it used to be dropped, leaving
+    /// the card stale until the next refresh). Returns whether the
+    /// repository's last-commit time, the Latest Changes sort key, changed.
+    pub(crate) fn store_status(&mut self, idx: usize, path: &str, status: ItemStatus) -> bool {
+        let idx = if self.config.items.get(idx).map(String::as_str) == Some(path) {
+            Some(idx)
+        } else {
+            self.config.items.iter().position(|item| item == path)
+        };
+        let Some(slot) = idx.and_then(|idx| self.statuses.get_mut(idx)) else {
+            return false;
+        };
+        let commit_time = |status: &ItemStatus| match status {
+            ItemStatus::GitRepo(Some(summary)) => summary.last_commit_time,
+            _ => None,
+        };
+        let moved = commit_time(slot) != commit_time(&status);
+        *slot = status;
+        moved
+    }
+
+    /// Re-sorts the home list after refreshed statuses moved a repository's
+    /// last commit, when the list is sorted by Latest Changes: the order was
+    /// only computed when something else re-sorted (changing the sort, adding a
+    /// repository), so a new commit left its repository where it was. The
+    /// cursor stays on the repository it was on.
+    pub(crate) fn resort_after_status_refresh(&mut self, commit_moved: bool) {
+        if !commit_moved || self.effective_sort_by() != SortOrder::LatestChanges {
+            return;
+        }
+        let cursor = self.home_cursor();
+        self.sort_items_in_place();
+        if let Some((item, group)) = cursor {
+            self.select_home_row(&item, Some(&group));
+        }
     }
 
     pub fn sort_items_in_place(&mut self) {

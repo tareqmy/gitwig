@@ -6483,6 +6483,103 @@ fn test_opening_a_worktree_starts_in_the_primary_tabs_with_a_real_home_row() {
     assert_eq!(app.active_repo_item(), Some(&other_spelling));
 }
 
+/// Sorted by Latest Changes, the home list only re-sorted when something else
+/// did (changing the sort, adding a repository), so a new commit left its
+/// repository where it was; and a refresh that landed after a re-sort was
+/// dropped, since its row indices no longer matched.
+#[test]
+fn test_latest_changes_sort_follows_refreshed_commits() {
+    let root = std::env::temp_dir().join("gitwig_test_latest_changes_sort");
+    let _ = std::fs::remove_dir_all(&root);
+    let _guard = TestDirGuard { path: root.clone() };
+    let commit_at = |dir: &std::path::Path, date: &str| {
+        let out = crate::git_cmd::git_command()
+            .args(["-c", "user.name=Gitwig Test", "-c", "user.email=test@gitwig.invalid"])
+            .args(["-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", date])
+            .env("GIT_AUTHOR_DATE", date)
+            .env("GIT_COMMITTER_DATE", date)
+            .current_dir(dir)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    };
+    let [alpha, beta, gamma] = ["alpha", "beta", "gamma"].map(|name| {
+        let dir = root.join(name);
+        std::fs::create_dir_all(&dir).unwrap();
+        run_git_in(&dir, &["init", "-q"]);
+        dir.to_string_lossy().to_string()
+    });
+    commit_at(std::path::Path::new(&alpha), "2020-01-01T00:00:00Z");
+    commit_at(std::path::Path::new(&beta), "2021-01-01T00:00:00Z");
+    commit_at(std::path::Path::new(&gamma), "2022-01-01T00:00:00Z");
+
+    let config = Config {
+        items: vec![alpha.clone(), beta.clone(), gamma.clone()],
+        sort_by: SortOrder::LatestChanges,
+        ..Default::default()
+    };
+    let mut app = App::new(config, root.join("config.toml"));
+    assert_eq!(app.config.items, [gamma.clone(), beta.clone(), alpha.clone()]);
+    app.select_home_row(&beta, None);
+    assert_eq!(app.home_cursor().map(|(path, _)| path), Some(beta.clone()));
+
+    // A refresh started now carries today's row indices.
+    let stale_rows: Vec<(usize, String)> = app.config.items.iter().cloned().enumerate().collect();
+
+    // alpha gets the newest commit; the next refresh moves it to the top.
+    commit_at(std::path::Path::new(&alpha), "2023-01-01T00:00:00Z");
+    let refresh = app
+        .config
+        .items
+        .iter()
+        .enumerate()
+        .map(|(idx, path)| (idx, path.clone(), repo::inspect_summary(path)))
+        .collect();
+    app.status_refresh_tx.send(refresh).unwrap();
+    assert!(app.drain_status_refreshes());
+    assert_eq!(app.config.items, [alpha.clone(), gamma.clone(), beta.clone()]);
+    assert_eq!(app.statuses.len(), app.config.items.len());
+    assert_eq!(
+        app.home_cursor().map(|(path, _)| path),
+        Some(beta.clone()),
+        "the cursor stays on its repository"
+    );
+
+    // A batch using the indices from before that re-sort still reaches the
+    // right repositories: beta, at row 1 then, is at row 2 now.
+    let late: Vec<(usize, String, repo::ItemStatus)> = stale_rows
+        .into_iter()
+        .map(|(idx, path)| {
+            let status =
+                if path == beta { repo::ItemStatus::Missing } else { repo::inspect_summary(&path) };
+            (idx, path, status)
+        })
+        .collect();
+    app.status_refresh_tx.send(late).unwrap();
+    app.drain_status_refreshes();
+    let status_of = |app: &App, path: &str| {
+        let idx = app.config.items.iter().position(|item| item == path).unwrap();
+        app.statuses[idx].clone()
+    };
+    assert!(matches!(status_of(&app, &beta), repo::ItemStatus::Missing));
+    assert!(matches!(status_of(&app, &gamma), repo::ItemStatus::GitRepo(Some(_))));
+
+    // Other sort orders are left alone by refreshes.
+    app.config.sort_by = SortOrder::Alphabetical;
+    app.sort_items_in_place();
+    commit_at(std::path::Path::new(&gamma), "2024-01-01T00:00:00Z");
+    let refresh = app
+        .config
+        .items
+        .iter()
+        .enumerate()
+        .map(|(idx, path)| (idx, path.clone(), repo::inspect_summary(path)))
+        .collect();
+    app.status_refresh_tx.send(refresh).unwrap();
+    app.drain_status_refreshes();
+    assert_eq!(app.config.items, [alpha, beta, gamma]);
+}
+
 /// After `git rebase -i` or `git mergetool` the open repository's home card
 /// is refreshed. The slot used to be `statuses[selected_index]`, filled from
 /// `config.items[selected_index]`: with grouping on, another repository's.

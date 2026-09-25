@@ -1621,6 +1621,23 @@ impl App {
 }
 
 impl App {
+    /// Applies every batch of refreshed repository statuses the background
+    /// loaders have sent, re-sorting the home list when that changes its order.
+    /// Returns whether any batch arrived (a redraw is due).
+    pub(crate) fn drain_status_refreshes(&mut self) -> bool {
+        let mut received = false;
+        while let Ok(updates) = self.status_refresh_rx.try_recv() {
+            received = true;
+            self.background_refresh_running = false;
+            let mut commit_moved = false;
+            for (idx, path, status) in updates {
+                commit_moved |= self.store_status(idx, &path, status);
+            }
+            self.resort_after_status_refresh(commit_moved);
+        }
+        received
+    }
+
     /// Applies every tab payload the background loaders have sent to the open
     /// repository's detail. Returns whether any payload arrived (a redraw is due).
     pub(crate) fn drain_tab_payloads(&mut self) -> bool {
@@ -1859,7 +1876,9 @@ where
             if let Some(success_path) = raw_msg.strip_prefix("BULK_FETCH_SUCCESS:") {
                 app.bulk_fetching.remove(success_path);
                 if let Some(idx) = app.config.items.iter().position(|item| item == success_path) {
-                    app.statuses[idx] = repo::inspect_summary(&app.config.items[idx]);
+                    let moved =
+                        app.store_status(idx, success_path, repo::inspect_summary(success_path));
+                    app.resort_after_status_refresh(moved);
                 }
                 app.bulk_fetch_results
                     .insert(success_path.to_string(), Ok("Fetched successfully".to_string()));
@@ -1923,7 +1942,9 @@ where
                         canon_item == canon_target
                     });
                     if let Some(idx) = already_tracked {
-                        app.statuses[idx] = repo::inspect_summary(&app.config.items[idx]);
+                        let item = app.config.items[idx].clone();
+                        let moved = app.store_status(idx, &item, repo::inspect_summary(&item));
+                        app.resort_after_status_refresh(moved);
                         if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
                             if resolved == &canon_target {
                                 app.resync_detail();
@@ -2123,16 +2144,8 @@ where
             }
         }
 
-        while let Ok(updates) = app.status_refresh_rx.try_recv() {
+        if app.drain_status_refreshes() {
             needs_redraw = true;
-            app.background_refresh_running = false;
-            for (idx, path, status) in updates {
-                if app.config.items.get(idx) == Some(&path) {
-                    if idx < app.statuses.len() {
-                        app.statuses[idx] = status;
-                    }
-                }
-            }
         }
 
         while let Ok(results) = app.global_search_rx.try_recv() {

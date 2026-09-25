@@ -23,12 +23,13 @@ and this project adheres to Semantic Versioning.
 - **submodules**: after a delete (`D`) the submodule stayed listed as "Clean" until the removal was committed; it now reads "Removal staged".
 - **detail**: `J` / `K` move the selection in the detail tabs, as `docs/panels.md` has always said and as the Logs and File History views already did. A `keybindings.toml` still holding the old default for these two bindings is upgraded to the new one; customised bindings are left alone.
 - **forge**: only the first 30 line comments of a PR were loaded; all of them are now fetched.
+- **home**: sorted by Latest Changes, the list went stale: its order was only computed when something else re-sorted it (changing the sort, adding a repository), so a repository that got a new commit — in Gitwig or outside it — kept its place until then. The list now re-sorts itself when a status refresh (the 10-second background refresh, the file watcher, a fetch, or returning from `git rebase -i` / `git mergetool`) finds a repository's latest commit has changed, and the cursor stays on the repository it was on. A refreshed status that arrived after the list had been re-sorted was also dropped, leaving that card out of date until the next refresh; it now reaches its repository.
 
 ### Chore
 - **ci**: `make test`, which CI runs, was a plain `cargo test`, and at the workspace root that only tests the `gitwig` package: none of `gitwig-core`'s tests ran, in CI or locally. It now runs `cargo test --workspace`, and the contributor skills (`rust-quality`, `prepare-release`) say so.
 
 ### Documentation
-- the Worktrees `D` and Submodules `D` rows in `docs/panels.md` describe the remove choices and what a submodule delete removes; the Issues `Enter` and PRs `n` rows describe how the issue's branch is chosen and the comment wizard's steps; the Worktrees `Enter` row says an already-tracked worktree is opened rather than added again; the Worktrees `a`, Submodules `D`, Reflog / Issues / PRs `Enter` rows, the confirmation lists in `docs/panels.md` and the detail `↑`/`↓` rows in `docs/keybindings.md` describe the changes above.
+- the Worktrees `D` and Submodules `D` rows in `docs/panels.md` describe the remove choices and what a submodule delete removes; the Issues `Enter` and PRs `n` rows describe how the issue's branch is chosen and the comment wizard's steps; the Worktrees `Enter` row says an already-tracked worktree is opened rather than added again; the Worktrees `a`, Submodules `D`, Reflog / Issues / PRs `Enter` rows, the confirmation lists in `docs/panels.md` and the detail `↑`/`↓` rows in `docs/keybindings.md` describe the changes above; `docs/detail_view.md` says Latest Changes re-sorts itself.
 
 ## [v2.6.3] - 2026-09-24
 ### Fixed
