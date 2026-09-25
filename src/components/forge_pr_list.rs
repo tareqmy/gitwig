@@ -309,7 +309,10 @@ pub fn draw_forge_prs_view(
             "Line Comments:",
             Style::default().add_modifier(Modifier::BOLD),
         )]));
-        if app.forge_pr_comments_loading || app.forge_pr_comments.is_none() {
+        // Comments held for another PR (the selection moved) are not shown.
+        let comments_for_this_pr = app.forge_pr_comments_pr == Some(selected_pr.number);
+        if app.forge_pr_comments_loading || !comments_for_this_pr || app.forge_pr_comments.is_none()
+        {
             detail_lines.push(Line::from(vec![
                 Span::raw("  "),
                 Span::styled("Loading line comments...", muted_style()),
@@ -389,6 +392,7 @@ mod tests {
         let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
         // A failed line-comment load is shown, not left as "Loading...".
         app.forge_pr_comments = Some(Err("Failed to load PR comments: HTTP 403".to_string()));
+        app.forge_pr_comments_pr = Some(456);
 
         let info = RepoInfo {
             forge_prs: repo::TabData::Loaded(vec![repo::ForgePR {
@@ -442,5 +446,28 @@ mod tests {
             text
         );
         assert!(!text.contains("Loading line comments"), "{}", text);
+
+        // Comments held for another PR are never shown under this one.
+        app.forge_pr_comments = Some(Ok(vec![repo::ForgePRComment {
+            path: "src/other.rs".to_string(),
+            line: Some(3),
+            body: "comment on PR 999".to_string(),
+            author: "bob".to_string(),
+            commit_id: "abc".to_string(),
+        }]));
+        app.forge_pr_comments_pr = Some(999);
+        terminal
+            .draw(|f| {
+                let mut areas = DetailAreas::default();
+                let area = Rect::new(0, 0, 120, 40);
+                draw_forge_prs_view(f, &info, DetailSection::ForgePRs, 0, &mut areas, &app, area);
+            })
+            .unwrap();
+        let buffer = terminal.backend().buffer();
+        let text: String = (0..40)
+            .map(|y| (0..120).map(|x| buffer[(x, y)].symbol()).collect::<String>() + "\n")
+            .collect();
+        assert!(!text.contains("comment on PR 999"), "{}", text);
+        assert!(text.contains("Loading line comments"), "{}", text);
     }
 }

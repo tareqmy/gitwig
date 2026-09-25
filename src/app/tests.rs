@@ -6407,6 +6407,82 @@ fn test_worktree_remove_deletes_the_selected_worktree_and_keeps_dirty_ones() {
     drop(guard);
 }
 
+/// Enter on a worktree opened it but left `advanced_tabs` set with tab 0:
+/// no tab was highlighted, Shift+Tab computed `0 - 7` (a panic in debug
+/// builds) and `q` needed pressing twice. Its new home row was pushed to
+/// `config.items` without a status, so it read "missing". A worktree already
+/// tracked under another spelling was added again.
+#[test]
+fn test_opening_a_worktree_starts_in_the_primary_tabs_with_a_real_home_row() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    let root = std::env::temp_dir().join("gitwig_test_open_worktree");
+    let _ = std::fs::remove_dir_all(&root);
+    let _guard = TestDirGuard { path: root.clone() };
+    let main = root.join("main");
+    let wt = root.join("wt");
+    std::fs::create_dir_all(&main).unwrap();
+    run_git_in(&main, &["init", "-q"]);
+    run_git_in(&main, &["commit", "-q", "--allow-empty", "-m", "init"]);
+    run_git_in(&main, &["worktree", "add", "-q", "-b", "wt-branch", &wt.to_string_lossy()]);
+
+    let main_item = main.to_string_lossy().to_string();
+    let config = Config { items: vec![main_item.clone()], ..Default::default() };
+    let mut app = App::new(config, root.join("config.toml"));
+    let open_worktrees_tab = |app: &mut App| {
+        let info = repo::RepoInfo {
+            worktrees: repo::TabData::Loaded(repo::load_tab_worktrees(&main).unwrap()),
+            ..Default::default()
+        };
+        app.current_detail =
+            Some(repo::ItemDetail::Repo { resolved: main.clone(), info: Box::new(info) });
+        app.loading_repo_path = None;
+        app.mode = Mode::Detail;
+        app.advanced_tabs = true;
+        app.detail_tab = 7;
+        app.detail_focus = DetailSection::Worktrees;
+        app.worktree_selection = 0;
+    };
+
+    open_worktrees_tab(&mut app);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert!(!app.advanced_tabs, "the worktree opens in the Primary tab group");
+    assert_eq!(app.detail_tab, 0);
+    assert_eq!(app.config.items.len(), 2);
+    assert_eq!(app.statuses.len(), app.config.items.len(), "the new row has a status");
+    let wt_idx = app.config.items.iter().position(|i| std::path::Path::new(i).ends_with("wt"));
+    let wt_idx = wt_idx.expect("the worktree is tracked");
+    assert!(
+        !matches!(app.statuses[wt_idx], repo::ItemStatus::Missing),
+        "the worktree's row is not 'missing'"
+    );
+
+    // Tab cycling from the opened view stays in the Primary group.
+    app.loading_repo_path = None;
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::BackTab), 1));
+    assert_eq!(app.detail_tab, 6);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Tab), 1));
+    assert_eq!(app.detail_tab, 0);
+
+    // Even a stale Advanced flag with a Primary index cannot underflow.
+    app.advanced_tabs = true;
+    app.detail_tab = 0;
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::BackTab), 1));
+    assert!((7..=11).contains(&app.detail_tab));
+    app.detail_tab = 0;
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Tab), 1));
+    assert!((7..=11).contains(&app.detail_tab));
+
+    // Tracked under another spelling: opened, not added a second time.
+    let other_spelling = format!("{}/", app.config.items[wt_idx]);
+    app.config.items[wt_idx] = other_spelling.clone();
+    open_worktrees_tab(&mut app);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert_eq!(app.config.items.len(), 2, "no duplicate entry");
+    assert_eq!(app.active_repo_item(), Some(&other_spelling));
+}
+
 /// After `git rebase -i` or `git mergetool` the open repository's home card
 /// is refreshed. The slot used to be `statuses[selected_index]`, filled from
 /// `config.items[selected_index]`: with grouping on, another repository's.
@@ -10994,7 +11070,8 @@ fn test_forge_tab_loads_finish_so_the_tabs_can_reload() {
     };
 
     // Line comments arriving on index 11 leave the PR list's load running.
-    app.tab_tx.send((path.clone(), 11, crate::repo::TabPayload::PRComments(Ok(vec![])))).unwrap();
+    let comments = crate::repo::TabPayload::PRComments { pr_number: 7, result: Ok(vec![]) };
+    app.tab_tx.send((path.clone(), 11, comments)).unwrap();
     assert!(app.drain_tab_payloads());
     assert!(forge(&app).tab_loading[11], "comments do not end the PR list load");
 
@@ -11166,9 +11243,11 @@ fn test_failed_pr_comment_load_is_kept_and_not_retried_every_frame() {
     app.advanced_tabs = true;
     app.detail_tab = 11;
     app.forge_pr_comments_loading = true;
+    app.forge_pr_comments_pr = Some(42);
 
     let failure = Err("HTTP 403: Resource not accessible".to_string());
-    app.tab_tx.send((path, 11, crate::repo::TabPayload::PRComments(failure))).unwrap();
+    let payload = crate::repo::TabPayload::PRComments { pr_number: 42, result: failure };
+    app.tab_tx.send((path, 11, payload)).unwrap();
     assert!(app.drain_tab_payloads());
     assert!(!app.forge_pr_comments_loading);
     assert!(matches!(&app.forge_pr_comments, Some(Err(e)) if e.contains("403")));
@@ -11178,6 +11257,78 @@ fn test_failed_pr_comment_load_is_kept_and_not_retried_every_frame() {
         assert!(!app.forge_pr_comments_loading, "a failed load is not requested again");
     }
     assert!(matches!(app.forge_pr_comments, Some(Err(_))), "the failure stays visible");
+}
+
+/// Line comments of one PR could show under another: a mouse click or scroll
+/// changed the selection without reloading them, and a slow response for the
+/// previously selected PR could overwrite the one for the current PR.
+#[test]
+fn test_pr_line_comments_follow_the_selected_pr() {
+    let config_path = std::env::temp_dir().join("gitwig_test_pr_comments_follow.toml");
+    let _guard = TestFileGuard { path: config_path.clone() };
+    let mut app = App::new(Config::default(), config_path);
+    // A path that does not exist, so a triggered load cannot reach any `gh`.
+    let path = "/nonexistent/gitwig_test_pr_comments_follow".to_string();
+    let pr = |number: u32| crate::repo::ForgePR {
+        number,
+        title: format!("PR {}", number),
+        state: "OPEN".to_string(),
+        author: "alice".to_string(),
+        assignees: vec![],
+        url: format!("https://github.com/o/r/pull/{}", number),
+        head_ref: format!("branch-{}", number),
+        head_ref_oid: "abc".to_string(),
+        body: String::new(),
+        status_checks: vec![],
+        reviews: vec![],
+    };
+    let comment = |body: &str| crate::repo::ForgePRComment {
+        path: "a.rs".to_string(),
+        line: Some(1),
+        body: body.to_string(),
+        author: "bob".to_string(),
+        commit_id: "abc".to_string(),
+    };
+    let mut info = crate::repo::RepoInfo {
+        forge_prs: crate::repo::TabData::Loaded(vec![pr(42), pr(43)]),
+        ..Default::default()
+    };
+    info.tab_loaded_at[11] = Some(std::time::Instant::now());
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from(&path),
+        info: Box::new(info),
+    });
+    app.mode = Mode::Detail;
+    app.advanced_tabs = true;
+    app.detail_tab = 11;
+
+    // #43 is selected and its load is running; #42's slower load lands late.
+    app.forge_pr_selection = 1;
+    app.forge_pr_comments_pr = Some(43);
+    app.forge_pr_comments_loading = true;
+    let late = crate::repo::TabPayload::PRComments {
+        pr_number: 42,
+        result: Ok(vec![comment("about 42")]),
+    };
+    app.tab_tx.send((path.clone(), 11, late)).unwrap();
+    app.drain_tab_payloads();
+    assert!(app.forge_pr_comments.is_none(), "#42's comments are dropped");
+    assert!(app.forge_pr_comments_loading, "#43's load is still awaited");
+    let current = crate::repo::TabPayload::PRComments {
+        pr_number: 43,
+        result: Ok(vec![comment("about 43")]),
+    };
+    app.tab_tx.send((path.clone(), 11, current)).unwrap();
+    app.drain_tab_payloads();
+    assert!(matches!(&app.forge_pr_comments, Some(Ok(c)) if c[0].body == "about 43"));
+
+    // The mouse moves the selection back to #42 without a reload: the next
+    // frame's trigger requests #42's comments.
+    app.forge_pr_selection = 0;
+    app.trigger_tab_load_if_needed(11);
+    assert_eq!(app.forge_pr_comments_pr, Some(42));
+    assert!(app.forge_pr_comments_loading);
+    assert!(app.forge_pr_comments.is_none(), "#43's comments are no longer held");
 }
 
 #[test]

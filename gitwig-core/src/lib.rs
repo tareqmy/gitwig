@@ -220,7 +220,12 @@ pub enum TabPayload {
     Notice(String),
     ForgeIssues(Result<Vec<ForgeIssue>, String>),
     ForgePRs(Result<Vec<ForgePR>, String>),
-    PRComments(Result<Vec<ForgePRComment>, String>),
+    /// Line comments of PR `pr_number`. Loads can finish out of order, so the
+    /// number says which PR a result belongs to.
+    PRComments {
+        pr_number: u32,
+        result: Result<Vec<ForgePRComment>, String>,
+    },
 }
 
 #[derive(Debug, Default, Clone)]

@@ -657,6 +657,9 @@ pub struct App {
     /// the Detail loop requests comments whenever this is `None`, so clearing
     /// it on failure re-ran `gh api` every frame, about ten times a second.
     pub forge_pr_comments: Option<Result<Vec<repo::ForgePRComment>, String>>,
+    /// The PR `forge_pr_comments` (or the load in flight) belongs to. Comments
+    /// are only shown, and results only accepted, for the selected PR.
+    pub forge_pr_comments_pr: Option<u32>,
     pub forge_pr_comments_loading: bool,
     pub worktree_add_branch: String,
     pub worktree_add_path: String,
@@ -1508,6 +1511,7 @@ impl App {
             forge_comment_path: String::new(),
             forge_comment_line: 1,
             forge_pr_comments: None,
+            forge_pr_comments_pr: None,
             forge_pr_comments_loading: false,
             worktree_add_branch: String::new(),
             worktree_add_path: String::new(),
@@ -1627,7 +1631,7 @@ impl App {
                     // or a background refresh never reloaded them.)
                     let ends_tab_load = !matches!(
                         payload,
-                        repo::TabPayload::PRComments(_) | repo::TabPayload::Overview(_)
+                        repo::TabPayload::PRComments { .. } | repo::TabPayload::Overview(_)
                     );
                     if ends_tab_load && tab_idx < info.tab_loading.len() {
                         info.tab_loading[tab_idx] = false;
@@ -1715,9 +1719,13 @@ impl App {
                             };
                             self.load_comments_for_selected_pr();
                         }
-                        repo::TabPayload::PRComments(res) => {
-                            self.forge_pr_comments = Some(res);
-                            self.forge_pr_comments_loading = false;
+                        repo::TabPayload::PRComments { pr_number, result } => {
+                            // A load for a PR that is no longer the one wanted
+                            // (the selection moved on) is dropped.
+                            if self.forge_pr_comments_pr == Some(pr_number) {
+                                self.forge_pr_comments = Some(result);
+                                self.forge_pr_comments_loading = false;
+                            }
                         }
                         repo::TabPayload::Overview(res) => match res {
                             Ok((stats, capped)) => {

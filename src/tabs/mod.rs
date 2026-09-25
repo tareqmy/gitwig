@@ -87,7 +87,10 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::CycleTabForward, key) {
         app.inspect_full_diff = false;
         if app.advanced_tabs {
-            app.detail_tab = 7 + (app.detail_tab - 7 + 1) % 5;
+            // Advanced tabs are 7..=11; clamping keeps a stray Primary index
+            // from underflowing.
+            let pos = app.detail_tab.saturating_sub(7).min(4);
+            app.detail_tab = 7 + (pos + 1) % 5;
         } else {
             app.detail_tab = (app.detail_tab + 1) % 7;
         }
@@ -102,7 +105,8 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
     if app.is_bound(Action::CycleTabBackward, key) {
         app.inspect_full_diff = false;
         if app.advanced_tabs {
-            app.detail_tab = 7 + if app.detail_tab == 7 { 4 } else { app.detail_tab - 7 - 1 };
+            let pos = app.detail_tab.saturating_sub(7).min(4);
+            app.detail_tab = 7 + (pos + 4) % 5;
         } else {
             app.detail_tab = if app.detail_tab == 0 { 6 } else { app.detail_tab - 1 };
         }
@@ -639,15 +643,19 @@ fn handle_worktree_events(app: &mut App, key: KeyEvent) -> bool {
                     let wt_path = wt.path.clone();
                     if wt_path.exists() {
                         let wt_path_str = wt_path.to_string_lossy().to_string();
-                        if !app.config.items.contains(&wt_path_str) {
-                            app.config.items.push(wt_path_str.clone());
-                            app.persist("Worktree repository added");
-                            app.original_items = app.config.items.clone();
-                            if app.effective_sort_by() != crate::config::SortOrder::Custom {
-                                app.sort_items_in_place();
+                        // Open the entry that already tracks it (under any
+                        // spelling), else add it the way the home screen does:
+                        // pushing only to `config.items` left `statuses` one
+                        // short, so the new row read "missing" and a sorted
+                        // list dropped it.
+                        let item = match app.tracked_item(&wt_path_str) {
+                            Some(item) => item,
+                            None => {
+                                app.add_repo_path(wt_path_str.clone());
+                                wt_path_str
                             }
-                        }
-                        app.open_repo(wt_path_str);
+                        };
+                        app.open_repo(item);
                     } else {
                         app.status_message =
                             Some("Worktree path does not exist on disk".to_string());

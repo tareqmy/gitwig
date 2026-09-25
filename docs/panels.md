@@ -224,7 +224,7 @@ Triggered by opening a repository.
     *   *Shortcuts*:
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate worktrees list
-        *   `Enter` : Open selected worktree in new Gitwig context (adds to list and focuses it)
+        *   `Enter` : Open selected worktree in new Gitwig context (adds it to the repository list, or opens its existing entry if it is already tracked, and focuses it; the view starts on the Primary tabs)
         *   `a` : Add new worktree
         *   `D` : Remove selected worktree and its folder. The status bar asks for a choice: `1` removes it only if it is clean (git refuses one with uncommitted changes or a lock, and nothing is deleted); `2` force-removes it, discarding uncommitted changes and overriding a lock. `Esc` cancels.
         *   `l` : Toggle lock status of selected worktree (asks for reason if locking)

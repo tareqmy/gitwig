@@ -80,10 +80,20 @@ impl App {
     /// in `config.items` — so renaming a repository to another spelling of its
     /// own path is not mistaken for a clash with itself.
     fn is_repo_tracked_except(&self, path: &str, except: Option<usize>) -> bool {
+        self.tracked_item_index_except(path, except).is_some()
+    }
+
+    /// The tracked entry (as written in `config.items`) that `path` resolves
+    /// to, matched as [`Self::is_repo_tracked`] does.
+    pub fn tracked_item(&self, path: &str) -> Option<String> {
+        self.tracked_item_index_except(path, None).map(|idx| self.config.items[idx].clone())
+    }
+
+    fn tracked_item_index_except(&self, path: &str, except: Option<usize>) -> Option<usize> {
         let trimmed = path.trim();
         let expanded = repo::expand_tilde(trimmed);
         let canonical = Self::canonical_path(&expanded);
-        self.config.items.iter().enumerate().any(|(idx, item)| {
+        self.config.items.iter().enumerate().position(|(idx, item)| {
             if Some(idx) == except {
                 return false;
             }
