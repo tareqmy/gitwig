@@ -141,8 +141,11 @@ pub fn draw_submodules_view(
                 ),
             ]));
 
-            // 3. Status cell
-            let cell_status = if !sub.is_initialized {
+            // 3. Status cell. A submodule deleted with `D` is gone from the
+            // index but still in HEAD until the removal is committed.
+            let cell_status = if sub.commit_id.is_none() && sub.head_id.is_some() {
+                Cell::from(Span::styled("Removal staged", Style::default().fg(WARNING())))
+            } else if !sub.is_initialized {
                 Cell::from(Span::styled("Uninitialized", Style::default().fg(WARNING())))
             } else if sub.is_dirty {
                 Cell::from(Span::styled("Modified", Style::default().fg(DANGER())))
@@ -206,5 +209,8 @@ pub fn draw_submodules_view(
         .header(header)
         .block(Block::default().padding(Padding::uniform(0)));
 
-    f.render_widget(table, inner);
+    // Scroll to keep the selection in view (a stateless table never scrolled).
+    let mut state = ratatui::widgets::TableState::default().with_selected(Some(selection));
+    f.render_stateful_widget(table, inner, &mut state);
+    areas.submodules_offset = state.offset();
 }

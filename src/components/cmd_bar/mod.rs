@@ -307,7 +307,7 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
                 draw_input_status(
                     f,
                     area,
-                    "Add Worktree (Branch/Commit)",
+                    "Add Worktree (Branch/Commit, or New Branch)",
                     &app.input_buffer,
                     app.config.compatibility_mode,
                     app.input_cursor_clamped(),
@@ -675,6 +675,24 @@ pub(crate) fn get_status_layout_components(
             let target = app.tag_checkout_target.as_deref().unwrap_or("");
             let (msg_spans, entries) = confirm_tag_checkout_entries(target);
             (msg_spans, entries)
+        }
+        Mode::ForgeCheckoutConfirm => {
+            let what = match &app.forge_checkout_target {
+                Some(crate::app::ForgeCheckoutTarget::Issue { number, .. }) => {
+                    format!("issue #{}", number)
+                }
+                Some(crate::app::ForgeCheckoutTarget::PullRequest { number, .. }) => {
+                    format!("PR #{}", number)
+                }
+                None => String::new(),
+            };
+            let msg_spans = vec![
+                Span::styled("Switch to the branch for ", primary_style()),
+                Span::styled(what, accent_style()),
+                Span::styled("?", primary_style()),
+            ];
+            let entries_data = [("Confirm", "y/↵"), ("Cancel", "n/Esc")];
+            (Some(msg_spans), build_status_entries(&entries_data))
         }
         Mode::CommitCheckoutConfirm => {
             let target = app.commit_action_target_oid.as_deref().unwrap_or("");
@@ -1555,6 +1573,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         | Mode::BranchCheckoutConfirm
         | Mode::TagCheckoutConfirm
         | Mode::CommitCheckoutConfirm
+        | Mode::ForgeCheckoutConfirm
         | Mode::BranchPushConfirm
         | Mode::BranchMergeConfirm
         | Mode::BranchMergeIntoConfirm

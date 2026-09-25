@@ -190,6 +190,7 @@ pub fn draw_forge_prs_view(
         let mut state = ratatui::widgets::TableState::default();
         state.select(Some(selection));
         f.render_stateful_widget(table, list_inner, &mut state);
+        areas.forge_prs_offset = state.offset();
     }
 
     // Draw Selected PR Details (Bottom Panel)

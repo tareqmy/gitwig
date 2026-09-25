@@ -199,6 +199,67 @@ pub fn draw_commit_checkout_popup(f: &mut Frame, target: &Option<String>, area: 
     f.render_widget(paragraph, popup_area);
 }
 
+pub fn draw_forge_checkout_popup(
+    f: &mut Frame,
+    target: &crate::app::ForgeCheckoutTarget,
+    area: Rect,
+) {
+    let popup_area = centered_rect(50, 20, area);
+    f.render_widget(Clear, popup_area);
+
+    let (title, question, number, name, how) = match target {
+        crate::app::ForgeCheckoutTarget::Issue { number, title } => (
+            "Checkout Issue Branch",
+            "Switch to the branch for issue:",
+            number,
+            title,
+            "Its linked branch, a branch named after it, or a new issue branch.",
+        ),
+        crate::app::ForgeCheckoutTarget::PullRequest { number, title } => (
+            "Checkout Pull Request",
+            "Switch to the branch of pull request:",
+            number,
+            title,
+            "Runs `gh pr checkout`.",
+        ),
+    };
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(Style::default().fg(ACCENT()))
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled(title, primary_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::horizontal(1));
+
+    let content = vec![
+        Line::from(vec![Span::styled(question, primary_style())]),
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                format!("#{}", number),
+                Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" "),
+            Span::raw(name.clone()),
+        ]),
+        Line::from(vec![Span::styled(how, muted_style())]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", accent_style().add_modifier(Modifier::BOLD)),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(content).block(block);
+    f.render_widget(paragraph, popup_area);
+}
+
 pub fn draw_discard_changes_popup(f: &mut Frame, target: &Option<(String, bool)>, area: Rect) {
     let popup_area = centered_rect(60, 20, area);
     f.render_widget(Clear, popup_area);

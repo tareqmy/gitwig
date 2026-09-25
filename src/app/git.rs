@@ -1925,6 +1925,49 @@ impl App {
         self.mode = Mode::Detail;
     }
 
+    /// Switches, in the background, to the branch of the issue or pull request
+    /// `Enter` was pressed on in the Forge tabs.
+    pub fn confirm_forge_checkout(&mut self) {
+        self.mode = Mode::Detail;
+        let Some(target) = self.forge_checkout_target.take() else {
+            return;
+        };
+        let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail else {
+            return;
+        };
+        let path = resolved.clone();
+        let tx = self.tx.clone();
+        self.fetching = true;
+        match target {
+            crate::app::ForgeCheckoutTarget::Issue { number, .. } => {
+                self.status_message =
+                    Some(format!("Resolving and switching branch for issue #{}...", number));
+                std::thread::spawn(move || {
+                    let msg = match repo::resolve_and_checkout_issue_branch(&path, number) {
+                        Ok(msg) => format!("CHECKOUT_SUCCESS:{}", msg),
+                        Err(e) => format!("CHECKOUT_ERROR:Failed to switch branch: {}", e),
+                    };
+                    let _ = tx.send(msg);
+                });
+            }
+            crate::app::ForgeCheckoutTarget::PullRequest { number, .. } => {
+                self.status_message = Some(format!("Checking out branch for PR #{}...", number));
+                std::thread::spawn(move || {
+                    let msg = match repo::checkout_pr_branch(&path, number) {
+                        Ok(msg) => format!("CHECKOUT_SUCCESS:{}", msg),
+                        Err(e) => format!("CHECKOUT_ERROR:Failed to switch branch: {}", e),
+                    };
+                    let _ = tx.send(msg);
+                });
+            }
+        }
+    }
+
+    pub fn cancel_forge_checkout(&mut self) {
+        self.forge_checkout_target = None;
+        self.mode = Mode::Detail;
+    }
+
     pub fn commit_worktree_add_branch(&mut self) {
         let branch = self.input_buffer.trim().to_string();
         if branch.is_empty() {
@@ -1953,8 +1996,12 @@ impl App {
             }
         };
         match repo::worktree_add(&resolved_path, &self.worktree_add_branch, &wt_path) {
-            Ok(_) => {
-                self.status_message = Some("Worktree added successfully".to_string());
+            Ok(created) => {
+                self.status_message = Some(if created {
+                    format!("Worktree added on new branch '{}'", self.worktree_add_branch)
+                } else {
+                    "Worktree added successfully".to_string()
+                });
                 self.resync_detail();
             }
             Err(e) => {

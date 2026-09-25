@@ -439,6 +439,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         | Mode::BranchCheckoutConfirm
         | Mode::TagCheckoutConfirm
         | Mode::CommitCheckoutConfirm
+        | Mode::ForgeCheckoutConfirm
         | Mode::RemoteDeleteConfirm
         | Mode::SubmoduleDeleteConfirm
         | Mode::UpdateConfirm => {

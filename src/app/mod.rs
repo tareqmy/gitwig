@@ -44,6 +44,13 @@ pub enum GlobalFilter {
 }
 
 /// Interaction modes for the item list.
+/// What `Mode::ForgeCheckoutConfirm` asks to check out.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ForgeCheckoutTarget {
+    Issue { number: u32, title: String },
+    PullRequest { number: u32, title: String },
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Mode {
     /// Browsing the list.
@@ -136,6 +143,8 @@ pub enum Mode {
     TagCheckoutConfirm,
     /// Confirming checkout of a commit.
     CommitCheckoutConfirm,
+    /// Confirm switching to the branch of a Forge issue or pull request.
+    ForgeCheckoutConfirm,
     /// Search input for repositories on the home page.
     RepoSearchInput,
     /// Confirming aborting of a merge.
@@ -552,6 +561,7 @@ pub struct App {
     pub branch_action_target: Option<(String, bool)>,
     pub branch_push_tags: bool,
     pub commit_action_target_oid: Option<String>,
+    pub forge_checkout_target: Option<ForgeCheckoutTarget>,
     /// Target commit OID for tag creation.
     pub tag_action_target_oid: Option<String>,
     pub tag_create_message: String,
@@ -923,6 +933,7 @@ impl App {
                     Mode::BranchCheckoutConfirm => self.confirm_branch_checkout(),
                     Mode::TagCheckoutConfirm => self.confirm_tag_checkout(),
                     Mode::CommitCheckoutConfirm => self.confirm_commit_checkout(),
+                    Mode::ForgeCheckoutConfirm => self.confirm_forge_checkout(),
                     Mode::RemoteDeleteConfirm => self.confirm_remote_delete(),
                     Mode::UpdateConfirm => self.trigger_self_update(),
                     Mode::SubmoduleDeleteConfirm => self.confirm_submodule_delete(),
@@ -951,6 +962,7 @@ impl App {
                     Mode::BranchCheckoutConfirm => self.cancel_branch_checkout(),
                     Mode::TagCheckoutConfirm => self.cancel_tag_checkout(),
                     Mode::CommitCheckoutConfirm => self.cancel_commit_checkout(),
+                    Mode::ForgeCheckoutConfirm => self.cancel_forge_checkout(),
                     Mode::RemoteDeleteConfirm => {
                         self.remote_action_target = None;
                         self.mode = Mode::Detail;
@@ -1442,6 +1454,7 @@ impl App {
             branch_action_target: None,
             branch_push_tags: false,
             commit_action_target_oid: None,
+            forge_checkout_target: None,
             tag_action_target_oid: None,
             tag_create_message: String::new(),
             tag_create_focus_message: false,

@@ -100,11 +100,11 @@
 | `1` - `5`            | Detail          | Jump directly to Advanced tab: Worktrees (1), Submodules (2), Reflog (3), Issues (4), PRs (5) (when Advanced group is active) |
 | `Z`                  | Detail          | Toggle between Primary and Advanced tab groups |
 | `O`                  | Detail          | Toggle full-screen repository Overview overlay |
-| `↑` / `k`            | Detail          | Move selection or scroll list/diff/tree up |
-| `↓` / `j`            | Detail          | Move selection or scroll list/diff/tree down |
+| `↑` / `k` / `K`      | Detail          | Move selection or scroll list/diff/tree up |
+| `↓` / `j` / `J`      | Detail          | Move selection or scroll list/diff/tree down |
 | `PgUp` / `PgDn`      | Detail / Normal / Settings | Scroll list/diff/tree/settings by configured `page_size` |
 | `Home` / `End`       | Detail / Normal / Settings | Jump to top / bottom of list/diff/tree/settings |
-| `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), checkout tag (Tags tab), open worktree in new context (Worktrees tab), checkout commit (Reflog tab; also `Space`), or Inspect commit |
+| `Enter`              | Detail          | Stage/Unstage file (Workspace tab), checkout branch (Branches tab), checkout tag (Tags tab), open worktree in new context (Worktrees tab), checkout commit (Reflog tab; also `Space`; asks confirmation), checkout the issue's or PR's branch (Issues / PRs tabs; asks confirmation), or Inspect commit |
 | `f` / `F`            | Detail          | Fetch remote repository (Branches / Tags / Remotes tabs) |
 | `p`                  | Detail          | Pull selected local branch from remote (Branches tab), Push selected tag (Tags tab; asks confirmation), or Prune stale worktree metadata (Worktrees tab) |
 | `Shift+P`            | Detail          | Push selected local branch to remote (Branches tab) or Push all tags (Tags tab; asks confirmation) |

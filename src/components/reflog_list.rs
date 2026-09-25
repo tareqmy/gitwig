@@ -203,4 +203,5 @@ pub fn draw_reflog_view(
     state.select(Some(selection));
 
     f.render_stateful_widget(table, inner, &mut state);
+    areas.reflog_offset = state.offset();
 }

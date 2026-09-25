@@ -1246,9 +1246,12 @@ impl KeybindingsConfig {
                 mergetool: Some(Keybind::new(&["M"], "Open external mergetool")),
             },
             detail: DetailKeybindings {
-                move_up: Some(Keybind::new(&["k", "up"], "Move selection up in detail panels")),
+                move_up: Some(Keybind::new(
+                    &["k", "K", "up"],
+                    "Move selection up in detail panels",
+                )),
                 move_down: Some(Keybind::new(
-                    &["j", "down"],
+                    &["j", "J", "down"],
                     "Move selection down in detail panels",
                 )),
                 page_up: Some(Keybind::new(
@@ -2177,12 +2180,37 @@ impl KeybindingsConfig {
         changed
     }
 
+    /// Moves bindings still set to a default that a later version extended onto
+    /// the new default. The first run writes every default to `keybindings.toml`,
+    /// so without this an install keeps the old keys forever; a binding that still
+    /// equals the old default exactly was never customised, and other bindings are
+    /// left alone.
+    ///
+    /// Returns whether anything changed, so the caller can avoid a pointless write.
+    fn upgrade_extended_defaults(&mut self) -> bool {
+        // `J` / `K` joined `j` / `k` in the detail view, matching Logs and File
+        // History and what `docs/panels.md` always listed.
+        const EXTENDED: &[(Action, &[&str])] =
+            &[(Action::DetailMoveUp, &["k", "up"]), (Action::DetailMoveDown, &["j", "down"])];
+        let defaults = Self::default_config();
+        let mut changed = false;
+        for (action, old_keys) in EXTENDED {
+            let untouched = self.get(*action).is_some_and(|bind| bind.keys == *old_keys);
+            if let (true, Some(default)) = (untouched, defaults.get(*action)) {
+                self.update_action_keys(*action, default.keys.clone());
+                changed = true;
+            }
+        }
+        changed
+    }
+
     pub fn load(config_dir: &Path) -> Self {
         let keybindings_path = config_dir.join("keybindings.toml");
         if keybindings_path.exists() {
             if let Ok(contents) = std::fs::read_to_string(&keybindings_path) {
                 if let Ok(mut cfg) = toml::from_str::<KeybindingsConfig>(&contents) {
-                    if cfg.backfill_missing_defaults() {
+                    let backfilled = cfg.backfill_missing_defaults();
+                    if cfg.upgrade_extended_defaults() || backfilled {
                         let _ = cfg.save(config_dir);
                     }
                     return cfg;
@@ -2201,6 +2229,31 @@ impl KeybindingsConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A `keybindings.toml` written by an older version pins the old defaults:
+    /// untouched ones gain `K` / `J`, customised ones are kept.
+    #[test]
+    fn test_load_upgrades_untouched_detail_move_defaults_only() {
+        let dir = std::env::temp_dir().join(format!(
+            "gitwig_test_keybind_upgrade_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock after epoch")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let mut old = KeybindingsConfig::default_config();
+        old.update_action_keys(Action::DetailMoveUp, vec!["k".to_string(), "up".to_string()]);
+        old.update_action_keys(Action::DetailMoveDown, vec!["n".to_string(), "down".to_string()]);
+        old.save(&dir).expect("save keybindings");
+
+        let loaded = KeybindingsConfig::load(&dir);
+        assert_eq!(loaded.get(Action::DetailMoveUp).expect("bound").keys, ["k", "K", "up"]);
+        assert_eq!(loaded.get(Action::DetailMoveDown).expect("bound").keys, ["n", "down"]);
+        let saved = std::fs::read_to_string(dir.join("keybindings.toml")).expect("saved");
+        assert!(saved.contains("\"K\""), "the upgrade is written back");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn test_keybindings_coverage_boost() {

@@ -151,6 +151,14 @@ pub struct DetailAreas {
     pub reflog: Option<Rect>,
     /// Inner area of the reflog list.
     pub reflog_inner: Option<Rect>,
+    /// The first row each of these lists drew (its scroll offset), recorded
+    /// after drawing so a mouse click maps to the row it hit, not to the row
+    /// at that height in an unscrolled list.
+    pub worktrees_offset: usize,
+    pub submodules_offset: usize,
+    pub reflog_offset: usize,
+    pub forge_issues_offset: usize,
+    pub forge_prs_offset: usize,
     /// Bounding box of the commit message popup.
     pub commit_popup: Option<Rect>,
     /// Bounding box of the parent area the commit popup was centered inside.
@@ -1134,6 +1142,11 @@ pub fn draw(
                     &app.commit_action_target_oid,
                     body_area,
                 );
+            }
+            if matches!(mode, Mode::ForgeCheckoutConfirm) {
+                if let Some(target) = &app.forge_checkout_target {
+                    crate::popups::confirm::draw_forge_checkout_popup(f, target, body_area);
+                }
             }
         }
         _ => {

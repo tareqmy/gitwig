@@ -25,7 +25,8 @@ pub fn draw_worktree_add_branch_popup(f: &mut Frame, input_buffer: &str, area: R
 
     let content = vec![
         Line::from(vec![Span::styled(
-            "Enter base branch/commit name (e.g. main): ",
+            // Its old example, "main", always failed: main is checked out already.
+            "Branch/commit, or a new branch to create:",
             muted_style(),
         )]),
         Line::from(""),

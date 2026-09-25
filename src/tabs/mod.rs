@@ -293,26 +293,14 @@ fn handle_forge_events(app: &mut App, key: KeyEvent) -> bool {
         return true;
     }
     if app.is_bound(Action::ForgeCheckout, key) {
-        if let Some(repo::ItemDetail::Repo { resolved, info }) = &app.current_detail {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
             if let repo::TabData::Loaded(issues) = &info.forge_issues {
                 if let Some(issue) = issues.get(app.forge_issue_selection) {
-                    let num = issue.number;
-                    let path = resolved.clone();
-                    app.fetching = true;
-                    app.status_message =
-                        Some(format!("Resolving and switching branch for issue #{}...", num));
-                    let tx = app.tx.clone();
-                    std::thread::spawn(move || {
-                        match repo::resolve_and_checkout_issue_branch(&path, num) {
-                            Ok(msg) => {
-                                let _ = tx.send(format!("CHECKOUT_SUCCESS:{}", msg));
-                            }
-                            Err(e) => {
-                                let _ = tx
-                                    .send(format!("CHECKOUT_ERROR:Failed to switch branch: {}", e));
-                            }
-                        }
+                    app.forge_checkout_target = Some(crate::app::ForgeCheckoutTarget::Issue {
+                        number: issue.number,
+                        title: issue.title.clone(),
                     });
+                    app.mode = Mode::ForgeCheckoutConfirm;
                 }
             }
         }
@@ -368,23 +356,15 @@ fn handle_forge_pr_events(app: &mut App, key: KeyEvent) -> bool {
         }
         handled = true;
     } else if app.is_bound(Action::ForgeCheckout, key) {
-        if let Some(repo::ItemDetail::Repo { resolved, info }) = &app.current_detail {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
             if let repo::TabData::Loaded(prs) = &info.forge_prs {
                 if let Some(pr) = prs.get(app.forge_pr_selection) {
-                    let num = pr.number;
-                    let path = resolved.clone();
-                    app.fetching = true;
-                    app.status_message = Some(format!("Checking out branch for PR #{}...", num));
-                    let tx = app.tx.clone();
-                    std::thread::spawn(move || match repo::checkout_pr_branch(&path, num) {
-                        Ok(msg) => {
-                            let _ = tx.send(format!("CHECKOUT_SUCCESS:{}", msg));
-                        }
-                        Err(e) => {
-                            let _ =
-                                tx.send(format!("CHECKOUT_ERROR:Failed to switch branch: {}", e));
-                        }
-                    });
+                    app.forge_checkout_target =
+                        Some(crate::app::ForgeCheckoutTarget::PullRequest {
+                            number: pr.number,
+                            title: pr.title.clone(),
+                        });
+                    app.mode = Mode::ForgeCheckoutConfirm;
                 }
             }
         }
@@ -453,25 +433,12 @@ fn handle_reflog_events(app: &mut App, key: KeyEvent) -> bool {
         return true;
     }
     if app.is_bound(Action::ReflogCheckout, key) {
-        if let Some(repo::ItemDetail::Repo { resolved, info }) = &app.current_detail {
+        // Asks first, as a commit checkout from the Workspace tab does.
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
             if let repo::TabData::Loaded(reflog) = &info.reflog {
                 if let Some(entry) = reflog.get(app.reflog_selection) {
-                    let target_oid = entry.target_oid.clone();
-                    let path = resolved.clone();
-                    app.fetching = true;
-                    app.status_message = Some(format!("Checking out OID {}...", target_oid));
-                    let tx = app.tx.clone();
-                    std::thread::spawn(move || match repo::checkout_commit(&path, &target_oid) {
-                        Ok(_) => {
-                            let _ = tx.send(format!(
-                                "CHECKOUT_SUCCESS:Checked out commit {}",
-                                target_oid
-                            ));
-                        }
-                        Err(e) => {
-                            let _ = tx.send(format!("CHECKOUT_ERROR:Failed to checkout: {}", e));
-                        }
-                    });
+                    app.commit_action_target_oid = Some(entry.target_oid.clone());
+                    app.mode = Mode::CommitCheckoutConfirm;
                 }
             }
         }

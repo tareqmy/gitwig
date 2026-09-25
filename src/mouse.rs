@@ -1466,48 +1466,58 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
             }
         }
     }
-    // Worktrees list panel.
-    if let Some(rect) = areas.worktrees {
-        if rect.contains(pos) {
-            if is_click {
-                app.detail_focus = DetailSection::Worktrees;
-                if let Some(inner) = areas.worktrees_inner {
-                    if inner.contains(pos) {
-                        // Offset by 2 lines to account for table header (1 line) and bottom margin (1 line)
-                        let header_height = 2;
-                        if pos.y >= inner.y + header_height {
-                            let clicked_row = (pos.y - (inner.y + header_height)) as usize;
-                            let actual_idx = clicked_row;
-                            let total = match &app.current_detail {
-                                Some(crate::repo::ItemDetail::Repo { info, .. }) => {
-                                    if let crate::repo::TabData::Loaded(wts) = &info.worktrees {
-                                        wts.len()
-                                    } else {
-                                        0
-                                    }
-                                }
-                                _ => 0,
-                            };
-                            if actual_idx < total {
-                                app.worktree_selection = actual_idx;
-                            }
-                        }
-                    }
-                }
-            } else if is_scroll_up {
-                app.detail_focus = DetailSection::Worktrees;
-                app.worktree_selection = app.worktree_selection.saturating_sub(1);
-            } else if is_scroll_down {
-                app.detail_focus = DetailSection::Worktrees;
-                if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
-                    if let crate::repo::TabData::Loaded(wts) = &info.worktrees {
-                        let wts_count = wts.len();
-                        app.worktree_selection =
-                            (app.worktree_selection + 1).min(wts_count.saturating_sub(1));
-                    }
-                }
-            }
-        }
+    // Worktrees, Submodules and Reflog list panels: a click selects the row
+    // it hit, the wheel moves the selection by one.
+    let detail_len = |app: &App, len: fn(&crate::repo::RepoInfo) -> usize| match &app.current_detail
+    {
+        Some(crate::repo::ItemDetail::Repo { info, .. }) => len(info),
+        _ => 0,
+    };
+    let list_event = is_click || is_scroll_up || is_scroll_down;
+    if areas.worktrees.is_some_and(|r| list_event && r.contains(pos)) {
+        app.detail_focus = DetailSection::Worktrees;
+        let total = detail_len(app, |info| info.worktrees.len());
+        let clicked = areas
+            .worktrees_inner
+            .filter(|_| is_click)
+            .and_then(|i| clicked_table_row(i, pos, areas.worktrees_offset));
+        move_list_selection(
+            &mut app.worktree_selection,
+            total,
+            clicked,
+            is_scroll_up,
+            is_scroll_down,
+        );
+    }
+    if areas.submodules.is_some_and(|r| list_event && r.contains(pos)) {
+        app.detail_focus = DetailSection::Submodules;
+        let total = detail_len(app, |info| info.submodules.len());
+        let clicked = areas
+            .submodules_inner
+            .filter(|_| is_click)
+            .and_then(|i| clicked_table_row(i, pos, areas.submodules_offset));
+        move_list_selection(
+            &mut app.submodule_selection,
+            total,
+            clicked,
+            is_scroll_up,
+            is_scroll_down,
+        );
+    }
+    if areas.reflog.is_some_and(|r| list_event && r.contains(pos)) {
+        app.detail_focus = DetailSection::Reflog;
+        let total = detail_len(app, |info| info.reflog.len());
+        let clicked = areas
+            .reflog_inner
+            .filter(|_| is_click)
+            .and_then(|i| clicked_table_row(i, pos, areas.reflog_offset));
+        move_list_selection(
+            &mut app.reflog_selection,
+            total,
+            clicked,
+            is_scroll_up,
+            is_scroll_down,
+        );
     }
     // Forge Issues list panel.
     if let Some(rect) = areas.forge_issues {
@@ -1517,7 +1527,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 let inner_y = rect.y + 1;
                 let header_height = 2;
                 if pos.y >= inner_y + header_height {
-                    let clicked_row = (pos.y - (inner_y + header_height)) as usize;
+                    let clicked_row =
+                        areas.forge_issues_offset + (pos.y - (inner_y + header_height)) as usize;
                     let total = match &app.current_detail {
                         Some(crate::repo::ItemDetail::Repo { info, .. }) => {
                             if let crate::repo::TabData::Loaded(issues) = &info.forge_issues {
@@ -1563,7 +1574,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 let inner_y = rect.y + 1;
                 let header_height = 2;
                 if pos.y >= inner_y + header_height {
-                    let clicked_row = (pos.y - (inner_y + header_height)) as usize;
+                    let clicked_row =
+                        areas.forge_prs_offset + (pos.y - (inner_y + header_height)) as usize;
                     let total = match &app.current_detail {
                         Some(crate::repo::ItemDetail::Repo { info, .. }) => {
                             if let crate::repo::TabData::Loaded(prs) = &info.forge_prs {
@@ -1600,6 +1612,35 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                 app.detail_focus = DetailSection::ForgePRDetails;
             }
         }
+    }
+}
+
+/// The row of a table list a click at `pos` hit. `inner` is the area the table
+/// is drawn in, whose first two lines are its header and the header's bottom
+/// margin; `offset` is the first row drawn (the table's scroll offset).
+fn clicked_table_row(inner: ratatui::layout::Rect, pos: Position, offset: usize) -> Option<usize> {
+    const HEADER_HEIGHT: u16 = 2;
+    if !inner.contains(pos) || pos.y < inner.y + HEADER_HEIGHT {
+        return None;
+    }
+    Some(offset + (pos.y - inner.y - HEADER_HEIGHT) as usize)
+}
+
+/// Moves a list's `selection` for a mouse event: onto the `clicked` row when
+/// there is one, or one row up or down for the wheel, within `total` rows.
+fn move_list_selection(
+    selection: &mut usize,
+    total: usize,
+    clicked: Option<usize>,
+    is_scroll_up: bool,
+    is_scroll_down: bool,
+) {
+    if let Some(row) = clicked.filter(|row| *row < total) {
+        *selection = row;
+    } else if is_scroll_up {
+        *selection = selection.saturating_sub(1);
+    } else if is_scroll_down {
+        *selection = (*selection + 1).min(total.saturating_sub(1));
     }
 }
 

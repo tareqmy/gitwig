@@ -213,5 +213,9 @@ pub fn draw_worktrees_view(
     .column_spacing(2)
     .block(Block::default());
 
-    f.render_widget(table, inner);
+    // Scroll to keep the selection in view (a stateless table never scrolled,
+    // so rows past the panel's height could be selected but not seen).
+    let mut state = ratatui::widgets::TableState::default().with_selected(Some(selection));
+    f.render_stateful_widget(table, inner, &mut state);
+    areas.worktrees_offset = state.offset();
 }

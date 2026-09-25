@@ -225,7 +225,7 @@ Triggered by opening a repository.
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate worktrees list
         *   `Enter` : Open selected worktree in new Gitwig context (adds it to the repository list, or opens its existing entry if it is already tracked, and focuses it; the view starts on the Primary tabs)
-        *   `a` : Add new worktree
+        *   `a` : Add new worktree: enter a branch, tag or commit to check out (a branch that exists only on one remote becomes a local branch tracking it), or a new branch name to create it at HEAD; then the folder path
         *   `D` : Remove selected worktree and its folder. The status bar asks for a choice: `1` removes it only if it is clean (git refuses one with uncommitted changes or a lock, and nothing is deleted); `2` force-removes it, discarding uncommitted changes and overriding a lock. `Esc` cancels.
         *   `l` : Toggle lock status of selected worktree (asks for reason if locking)
         *   `p` : Prune stale worktree metadata
@@ -236,21 +236,21 @@ Triggered by opening a repository.
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate submodules list
         *   `a` : Add new submodule
-        *   `D` : Delete selected submodule (asks confirmation; the popup names its path, and its name when that differs). Deinitializes it, removes its folder, gitlink and `.gitmodules` entry, and deletes its module directory under the git dir; the removal is staged for you to commit. Only a real submodule entry in the index is ever removed.
+        *   `D` : Delete selected submodule (asks confirmation; the popup names its path, and its name when that differs). Deinitializes it, removes its folder, gitlink and `.gitmodules` entry, and deletes its module directory under the git dir; the removal is staged for you to commit, and the list shows the submodule as "Removal staged" until you do. Only a real submodule entry in the index is ever removed.
 
 #### Tab 9: Reflog Tab (Advanced Tab Group)
 *   *Reflog List Panel*: Lists local reference logs.
     *   *Shortcuts*:
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate reflog list
-        *   `Enter` / `Space` : Checkout commit OID of selected reflog entry
+        *   `Enter` / `Space` : Checkout commit OID of selected reflog entry (asks confirmation, detaching HEAD)
 
 #### Tab 10: Forge Issues Tab (Advanced Tab Group)
 *   *Forge Issues Panel*: Displays PRs, issues, and CI/CD status.
     *   *Shortcuts*:
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate issues list
-        *   `Enter` : Checkout branch corresponding to selected issue: the branch linked to the issue on GitHub (its Development section / `gh issue develop`) if there is exactly one and it is in this clone; otherwise the one local branch — or, failing that, the one remote-tracking branch — whose name carries the issue number as a token of its own (`issue-12-login`, `12-fix` and `fix/12` for #12; never `v1.2` or `issue-123`); otherwise a new `issue-<number>` branch. Several candidates are listed in an error instead of guessed between.
+        *   `Enter` : Checkout branch corresponding to selected issue (asks confirmation): the branch linked to the issue on GitHub (its Development section / `gh issue develop`) if there is exactly one and it is in this clone; otherwise the one local branch — or, failing that, the one remote-tracking branch — whose name carries the issue number as a token of its own (`issue-12-login`, `12-fix` and `fix/12` for #12; never `v1.2` or `issue-123`); otherwise a new `issue-<number>` branch. Several candidates are listed in an error instead of guessed between.
         *   `o` : Open selected issue in web browser
         *   `a` : Toggle between "Assigned to me" and all open issues
 
@@ -259,7 +259,7 @@ Triggered by opening a repository.
     *   *Shortcuts*:
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate PRs list
-        *   `Enter` : Checkout branch corresponding to selected PR
+        *   `Enter` : Checkout branch corresponding to selected PR (`gh pr checkout`; asks confirmation)
         *   `o` : Open selected PR in web browser
         *   `n` : Add a line comment to the current Pull Request, in three steps: file path, line number (a whole number, 1 or more) and comment text. An empty path or comment, or an invalid line number, shows an error and keeps the step open with what you typed; `Esc` cancels.
 
@@ -524,7 +524,8 @@ To prevent accidental data loss due to muscle-memory `Enter` keypresses, Gitwig 
 
 ### Non-Destructive Actions (`Enter` acts as Confirm)
 *   **Branch Checkout (`Mode::BranchCheckoutConfirm`)**: Switching to another branch.
-*   **Commit Checkout (`Mode::CommitCheckoutConfirm`)**: Checking out a commit OID from the Workspace commits list.
+*   **Commit Checkout (`Mode::CommitCheckoutConfirm`)**: Checking out a commit OID from the Workspace commits list or the Reflog tab.
+*   **Forge Checkout (`Mode::ForgeCheckoutConfirm`)**: Switching to the branch of the selected issue (Issues tab) or pull request (PRs tab).
 *   **Tag Checkout (`Mode::TagCheckoutConfirm`)**: Detaching HEAD to check out a tag.
 *   **Branch Push (`Mode::BranchPushConfirm`)**: Pushing commits to remote (supports `y` Push, `t` Push + Tags `--tags`).
 *   **Tag Overwrite (`Mode::TagOverwriteConfirm`)**: Force updating an existing tag (`-f`).

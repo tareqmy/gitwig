@@ -7362,16 +7362,21 @@ fn test_reflog_tui_flows() {
     assert!(handled);
     assert_eq!(app.reflog_selection, 0);
 
-    // 2. Press Enter to checkout target OID
+    // 2. Press Enter: asks to check out the target OID first.
     let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Enter), 1);
     assert!(handled);
-    assert!(app.fetching);
-    assert!(
-        app.status_message
-            .as_ref()
-            .unwrap()
-            .contains("Checking out OID abcdef1234567890abcdef1234567890abcdef12")
+    assert_eq!(app.mode, Mode::CommitCheckoutConfirm);
+    assert_eq!(
+        app.commit_action_target_oid.as_deref(),
+        Some("abcdef1234567890abcdef1234567890abcdef12")
     );
+    assert!(!app.fetching);
+
+    // 3. Confirming runs it (and reports the failure: the repository is fake).
+    let handled = crate::input::handle_key(&mut app, key_event(KeyCode::Char('y')), 1);
+    assert!(handled);
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.error_message.as_deref().unwrap_or("").contains("Failed to checkout commit"));
 }
 
 #[test]
@@ -11329,6 +11334,266 @@ fn test_pr_line_comments_follow_the_selected_pr() {
     assert_eq!(app.forge_pr_comments_pr, Some(42));
     assert!(app.forge_pr_comments_loading);
     assert!(app.forge_pr_comments.is_none(), "#43's comments are no longer held");
+}
+
+fn advanced_tab_app(tag: &str, info: crate::repo::RepoInfo, tab: usize) -> (App, TestFileGuard) {
+    let config_path = std::env::temp_dir().join(format!("gitwig_test_{}.toml", tag));
+    let guard = TestFileGuard { path: config_path.clone() };
+    let mut app = App::new(Config::default(), config_path);
+    // A path that does not exist, so a confirmed checkout cannot reach git or gh.
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from(format!("/nonexistent/gitwig_test_{}", tag)),
+        info: Box::new(info),
+    });
+    app.mode = Mode::Detail;
+    app.advanced_tabs = true;
+    app.detail_tab = tab;
+    (app, guard)
+}
+
+fn test_worktree(name: &str) -> crate::repo::WorktreeInfo {
+    crate::repo::WorktreeInfo {
+        name: name.to_string(),
+        path: PathBuf::from(format!("/nonexistent/{}", name)),
+        branch: Some(name.to_string()),
+        is_locked: false,
+        lock_reason: None,
+    }
+}
+
+fn test_reflog_entry(index: usize) -> crate::repo::ReflogEntry {
+    crate::repo::ReflogEntry {
+        index,
+        target_oid: format!("{:040x}", index + 1),
+        selector: format!("HEAD@{{{}}}", index),
+        command: "commit".to_string(),
+        message: format!("entry {}", index),
+        when: "now".to_string(),
+        date: "2026-01-01".to_string(),
+    }
+}
+
+/// `docs/panels.md` has always listed `J` / `K` next to `j` / `k` for the
+/// detail tabs (Logs and File History accept them); the detail tabs did not.
+#[test]
+fn test_detail_lists_move_with_shift_j_and_k() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let info = crate::repo::RepoInfo {
+        worktrees: crate::repo::TabData::Loaded(vec![test_worktree("a"), test_worktree("b")]),
+        ..Default::default()
+    };
+    let (mut app, _guard) = advanced_tab_app("shift_jk", info, 7);
+    app.detail_focus = DetailSection::Worktrees;
+    let key = |c: char| KeyEvent::new(KeyCode::Char(c), KeyModifiers::SHIFT);
+    assert!(crate::input::handle_key(&mut app, key('J'), 1));
+    assert_eq!(app.worktree_selection, 1);
+    assert!(crate::input::handle_key(&mut app, key('K'), 1));
+    assert_eq!(app.worktree_selection, 0);
+}
+
+/// Checkouts from the Reflog, Issues and PRs tabs ran on the first `Enter`;
+/// they now ask first, like the Workspace tab's commit checkout.
+#[test]
+fn test_reflog_issue_and_pr_checkouts_ask_first() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+
+    // Reflog: Enter asks to check out the entry's commit; Esc cancels.
+    let info = crate::repo::RepoInfo {
+        reflog: crate::repo::TabData::Loaded(vec![test_reflog_entry(0), test_reflog_entry(1)]),
+        ..Default::default()
+    };
+    let (mut app, _guard) = advanced_tab_app("reflog_confirm", info, 9);
+    app.reflog_selection = 1;
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert_eq!(app.mode, Mode::CommitCheckoutConfirm);
+    assert_eq!(app.commit_action_target_oid, Some(format!("{:040x}", 2)));
+    assert!(!app.fetching, "nothing runs before the answer");
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Esc), 1));
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.commit_action_target_oid.is_none());
+
+    // Issues: Enter asks; `n` cancels.
+    let issue = crate::repo::ForgeIssue {
+        number: 12,
+        title: "Login fails".to_string(),
+        state: "OPEN".to_string(),
+        author: "alice".to_string(),
+        assignees: vec![],
+        url: "https://github.com/o/r/issues/12".to_string(),
+    };
+    let info = crate::repo::RepoInfo {
+        forge_issues: crate::repo::TabData::Loaded(vec![issue]),
+        ..Default::default()
+    };
+    let (mut app, _guard) = advanced_tab_app("issue_confirm", info, 10);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert_eq!(app.mode, Mode::ForgeCheckoutConfirm);
+    assert_eq!(
+        app.forge_checkout_target,
+        Some(crate::app::ForgeCheckoutTarget::Issue {
+            number: 12,
+            title: "Login fails".to_string()
+        })
+    );
+    assert!(!app.fetching);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Char('n')), 1));
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.forge_checkout_target.is_none());
+
+    // PRs: Enter asks; Enter again (not destructive) confirms and starts it.
+    let pr = crate::repo::ForgePR {
+        number: 42,
+        title: "Add retry".to_string(),
+        state: "OPEN".to_string(),
+        author: "alice".to_string(),
+        assignees: vec![],
+        url: "https://github.com/o/r/pull/42".to_string(),
+        head_ref: "retry".to_string(),
+        head_ref_oid: "abc".to_string(),
+        body: String::new(),
+        status_checks: vec![],
+        reviews: vec![],
+    };
+    let info = crate::repo::RepoInfo {
+        forge_prs: crate::repo::TabData::Loaded(vec![pr]),
+        ..Default::default()
+    };
+    let (mut app, _guard) = advanced_tab_app("pr_confirm", info, 11);
+    app.forge_pr_comments_pr = Some(42);
+    app.forge_pr_comments = Some(Ok(vec![]));
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert_eq!(app.mode, Mode::ForgeCheckoutConfirm);
+    assert!(!app.fetching);
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.fetching, "the checkout runs once confirmed");
+    assert!(app.forge_checkout_target.is_none());
+}
+
+/// Clicks on the Submodules and Reflog lists did nothing, and clicks on a
+/// scrolled list picked the row at that height in an unscrolled one.
+#[test]
+fn test_list_mouse_clicks_map_through_the_scroll_offset() {
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    let at = |kind: MouseEventKind, row: u16| MouseEvent {
+        kind,
+        column: 10,
+        row,
+        modifiers: crossterm::event::KeyModifiers::empty(),
+    };
+    let click = |row: u16| at(MouseEventKind::Down(MouseButton::Left), row);
+    let submodule = |i: usize| crate::repo::SubmoduleInfo {
+        name: format!("lib{}", i),
+        path: PathBuf::from(format!("lib{}", i)),
+        ..Default::default()
+    };
+    // Lists drawn at rows 5..25, the table (header + margin first) at 6..24.
+    let outer = ratatui::layout::Rect::new(0, 5, 80, 20);
+    let inner = ratatui::layout::Rect::new(1, 6, 78, 18);
+
+    let info = crate::repo::RepoInfo {
+        submodules: crate::repo::TabData::Loaded((0..30).map(submodule).collect()),
+        ..Default::default()
+    };
+    let (mut app, _guard) = advanced_tab_app("submodule_mouse", info, 8);
+    app.detail_areas.submodules = Some(outer);
+    app.detail_areas.submodules_inner = Some(inner);
+    app.detail_areas.submodules_offset = 10;
+    crate::mouse::handle_mouse(&mut app, click(8)); // first body row
+    assert_eq!(app.submodule_selection, 10);
+    assert_eq!(app.detail_focus, DetailSection::Submodules);
+    crate::mouse::handle_mouse(&mut app, click(11));
+    assert_eq!(app.submodule_selection, 13);
+    crate::mouse::handle_mouse(&mut app, at(MouseEventKind::ScrollDown, 11));
+    assert_eq!(app.submodule_selection, 14);
+    crate::mouse::handle_mouse(&mut app, click(6)); // the header selects nothing
+    assert_eq!(app.submodule_selection, 14);
+
+    let info = crate::repo::RepoInfo {
+        reflog: crate::repo::TabData::Loaded((0..5).map(test_reflog_entry).collect()),
+        ..Default::default()
+    };
+    let (mut app, _guard) = advanced_tab_app("reflog_mouse", info, 9);
+    app.detail_areas.reflog = Some(outer);
+    app.detail_areas.reflog_inner = Some(inner);
+    crate::mouse::handle_mouse(&mut app, click(10));
+    assert_eq!(app.reflog_selection, 2);
+    assert_eq!(app.detail_focus, DetailSection::Reflog);
+    crate::mouse::handle_mouse(&mut app, click(20)); // below the last row
+    assert_eq!(app.reflog_selection, 2);
+    crate::mouse::handle_mouse(&mut app, at(MouseEventKind::ScrollUp, 10));
+    assert_eq!(app.reflog_selection, 1);
+}
+
+/// The Worktrees and Submodules lists were drawn without scrolling, so a
+/// selection past the panel's height was invisible.
+#[test]
+fn test_worktree_and_submodule_lists_scroll_to_the_selection() {
+    let config_path = std::env::temp_dir().join("gitwig_test_list_scroll.toml");
+    let _guard = TestFileGuard { path: config_path.clone() };
+    let app = App::new(Config::default(), config_path);
+    let text_of = |terminal: &ratatui::Terminal<ratatui::backend::TestBackend>| {
+        let buffer = terminal.backend().buffer();
+        (0..20)
+            .map(|y| (0..100).map(|x| buffer[(x, y)].symbol()).collect::<String>() + "\n")
+            .collect::<String>()
+    };
+
+    let info = crate::repo::RepoInfo {
+        worktrees: crate::repo::TabData::Loaded(
+            (0..40).map(|i| test_worktree(&format!("wt{:02}", i))).collect(),
+        ),
+        submodules: crate::repo::TabData::Loaded(
+            (0..40)
+                .map(|i| crate::repo::SubmoduleInfo {
+                    name: format!("sub{:02}", i),
+                    path: PathBuf::from(format!("sub{:02}", i)),
+                    // #39's removal is staged: in HEAD, not in the index.
+                    commit_id: (i != 39).then(|| "a".repeat(40)),
+                    head_id: Some("a".repeat(40)),
+                    is_initialized: true,
+                    ..Default::default()
+                })
+                .collect(),
+        ),
+        ..Default::default()
+    };
+    let mut terminal = ratatui::Terminal::new(ratatui::backend::TestBackend::new(100, 20)).unwrap();
+    let mut areas = crate::ui_detail::DetailAreas::default();
+    terminal
+        .draw(|f| {
+            crate::components::worktree_list::draw_worktrees_view(
+                f,
+                &info,
+                DetailSection::Worktrees,
+                35,
+                &mut areas,
+                &app,
+                ratatui::layout::Rect::new(0, 0, 100, 20),
+            )
+        })
+        .unwrap();
+    assert!(text_of(&terminal).contains("wt35"), "{}", text_of(&terminal));
+    assert!(areas.worktrees_offset > 0);
+
+    terminal
+        .draw(|f| {
+            crate::components::submodule_list::draw_submodules_view(
+                f,
+                &info,
+                DetailSection::Submodules,
+                39,
+                &mut areas,
+                &app,
+                ratatui::layout::Rect::new(0, 0, 100, 20),
+            )
+        })
+        .unwrap();
+    let text = text_of(&terminal);
+    assert!(text.contains("sub39"), "{}", text);
+    assert!(text.contains("Removal staged"), "{}", text);
+    assert!(areas.submodules_offset > 0);
 }
 
 #[test]

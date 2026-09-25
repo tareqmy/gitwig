@@ -710,6 +710,7 @@ description = "Open external mergetool"
 [detail.move_up]
 keys = [
     "k",
+    "K",
     "up",
 ]
 description = "Move selection up in detail panels"
@@ -717,6 +718,7 @@ description = "Move selection up in detail panels"
 [detail.move_down]
 keys = [
     "j",
+    "J",
     "down",
 ]
 description = "Move selection down in detail panels"

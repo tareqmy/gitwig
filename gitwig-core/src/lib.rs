@@ -3351,20 +3351,38 @@ pub fn load_tab_worktrees(repo_path: &Path) -> Result<Vec<WorktreeInfo>, String>
     Ok(worktrees_list)
 }
 
-pub fn worktree_add(repo_path: &Path, branch: &str, wt_path: &Path) -> Result<(), String> {
-    let output = git_command()
-        .arg("worktree")
-        .arg("add")
-        .arg(wt_path)
-        .arg(branch)
-        .current_dir(repo_path)
-        .output()
-        .map_err(|e| e.to_string())?;
+/// Adds a worktree at `wt_path` for `branch`. An existing branch, tag or
+/// commit is checked out there, and a branch that only exists on one remote
+/// becomes a local branch tracking it (git's own guess). Any other name
+/// creates that branch, at HEAD, for the new worktree. Returns whether a new
+/// branch was created.
+pub fn worktree_add(repo_path: &Path, branch: &str, wt_path: &Path) -> Result<bool, String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let exists = repo.revparse_single(&format!("{}^{{commit}}", branch)).is_ok();
+    let on_one_remote = || {
+        let Ok(remotes) = repo.remotes() else { return false };
+        let on = remotes.iter().flatten().flatten().filter(|remote| {
+            repo.find_branch(&format!("{}/{}", remote, branch), git2::BranchType::Remote).is_ok()
+        });
+        on.count() == 1
+    };
+    let create = !exists && !on_one_remote();
+
+    let mut cmd = git_command();
+    cmd.arg("worktree").arg("add");
+    if create {
+        cmd.arg("-b").arg(branch);
+    }
+    cmd.arg("--").arg(wt_path);
+    if !create {
+        cmd.arg(branch);
+    }
+    let output = cmd.current_dir(repo_path).output().map_err(|e| e.to_string())?;
 
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
-    Ok(())
+    Ok(create)
 }
 
 // The `git worktree lock` / `unlock` / `remove` helpers below take the
@@ -3691,9 +3709,12 @@ fn parse_forge_prs(json: &[u8]) -> Result<Vec<ForgePR>, String> {
 }
 
 pub fn load_pr_comments(repo_path: &Path, pr_number: u32) -> Result<Vec<ForgePRComment>, String> {
+    // GitHub pages review comments 30 at a time; ask for the largest page and
+    // let gh follow the rest.
     let mut cmd = tool_command("gh");
     cmd.arg("api")
-        .arg(format!("repos/:owner/:repo/pulls/{}/comments", pr_number))
+        .arg(format!("repos/:owner/:repo/pulls/{}/comments?per_page=100", pr_number))
+        .arg("--paginate")
         .current_dir(repo_path);
 
     let output = match cmd.output() {
@@ -3706,6 +3727,12 @@ pub fn load_pr_comments(repo_path: &Path, pr_number: u32) -> Result<Vec<ForgePRC
         return Err(format!("Failed to load PR comments: {}", err));
     }
 
+    parse_pr_comments(&output.stdout)
+}
+
+/// Parses `gh api --paginate` output for PR review comments: one JSON array
+/// per page, printed back to back (`[...][...]`).
+fn parse_pr_comments(json: &[u8]) -> Result<Vec<ForgePRComment>, String> {
     #[derive(serde::Deserialize)]
     struct GhUser {
         login: String,
@@ -3721,20 +3748,17 @@ pub fn load_pr_comments(repo_path: &Path, pr_number: u32) -> Result<Vec<ForgePRC
         commit_id: String,
     }
 
-    let raw_comments: Vec<GhPRComment> = serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("Failed to parse PR comments: {}", e))?;
-
-    let comments = raw_comments
-        .into_iter()
-        .map(|c| ForgePRComment {
+    let mut comments = Vec::new();
+    for page in serde_json::Deserializer::from_slice(json).into_iter::<Vec<GhPRComment>>() {
+        let page = page.map_err(|e| format!("Failed to parse PR comments: {}", e))?;
+        comments.extend(page.into_iter().map(|c| ForgePRComment {
             path: c.path,
             line: c.line,
             body: c.body,
             author: c.user.map(|u| u.login).unwrap_or_else(|| "none".to_string()),
             commit_id: c.commit_id,
-        })
-        .collect();
-
+        }));
+    }
     Ok(comments)
 }
 
@@ -4518,6 +4542,46 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    /// `a` in the Worktrees tab could only check out an existing branch (its own
+    /// example, `main`, always failed). A name that resolves to nothing now
+    /// creates that branch for the new worktree.
+    #[test]
+    fn test_worktree_add_checks_out_existing_refs_and_creates_new_branches() {
+        let root = unique_temp_dir("wt_add");
+        let main = repo_with_branches(&root, &["existing"]);
+        run_git(&main, &["tag", "v1"]);
+        let branch_of = |wt: &Path| {
+            let out =
+                git_command().args(["rev-parse", "--abbrev-ref", "HEAD"]).current_dir(wt).output();
+            String::from_utf8_lossy(&out.unwrap().stdout).trim().to_string()
+        };
+
+        assert!(!worktree_add(&main, "existing", &root.join("a")).unwrap());
+        assert_eq!(branch_of(&root.join("a")), "existing");
+        assert!(worktree_add(&main, "feature/new", &root.join("b")).unwrap(), "created");
+        assert_eq!(branch_of(&root.join("b")), "feature/new");
+        assert!(!worktree_add(&main, "v1", &root.join("c")).unwrap());
+        assert_eq!(branch_of(&root.join("c")), "HEAD", "a tag is checked out detached");
+        // A path starting with `-` is a path, not an option.
+        assert!(worktree_add(&main, "dash", &root.join("-dash")).unwrap());
+        // The branch already checked out in the main worktree is refused.
+        let current = branch_of(&main);
+        assert!(worktree_add(&main, &current, &root.join("d")).is_err());
+
+        // A branch only on the remote becomes a local branch tracking it.
+        let clone = root.join("clone");
+        run_git(&root, &["clone", "-q", &main.to_string_lossy(), &clone.to_string_lossy()]);
+        assert!(!worktree_add(&clone, "existing", &root.join("e")).unwrap());
+        assert_eq!(branch_of(&root.join("e")), "existing");
+        let upstream = git_command()
+            .args(["rev-parse", "--abbrev-ref", "existing@{upstream}"])
+            .current_dir(root.join("e"))
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&upstream.stdout).trim(), "origin/existing");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
     #[test]
     fn test_worktree_remove_keeps_uncommitted_or_locked_work_unless_forced() {
         let root = unique_temp_dir("wt_remove_force");
@@ -4584,6 +4648,11 @@ mod tests {
         let status = String::from_utf8_lossy(&status.stdout);
         assert!(status.lines().any(|l| l == "D  vendor/n"), "{}", status);
         assert!(status.lines().any(|l| l == " M notes"), "{}", status);
+        // Until that is committed the tab still lists it, from HEAD, with no
+        // index commit: what the Submodules tab shows as "Removal staged".
+        let listed = load_tab_submodules(&main).unwrap();
+        let removed = listed.iter().find(|s| s.path == Path::new("vendor/n")).unwrap();
+        assert!(removed.commit_id.is_none() && removed.head_id.is_some(), "{:?}", removed);
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -4628,6 +4697,29 @@ mod tests {
         assert_eq!(checks[2].name, "ci/circleci");
         assert_eq!(checks[2].state.as_deref(), Some("FAILURE"));
         assert_eq!(prs[0].reviews[0].author, "none");
+    }
+
+    /// `gh api --paginate` prints each page's array back to back; all of them
+    /// count (only the first 30 comments used to load).
+    #[test]
+    fn test_parse_pr_comments_reads_every_page() {
+        let comment = |n: u32| {
+            format!(
+                r#"{{"path":"a.rs","line":{},"body":"c{}","user":{{"login":"bob"}},"commit_id":"x"}}"#,
+                n, n
+            )
+        };
+        let page = |range: std::ops::Range<u32>| {
+            format!("[{}]", range.map(comment).collect::<Vec<_>>().join(","))
+        };
+        let json = format!("{}\n{}", page(0..100), page(100..130));
+        let comments = parse_pr_comments(json.as_bytes()).unwrap();
+        assert_eq!(comments.len(), 130);
+        assert_eq!(comments[129].body, "c129");
+        assert!(parse_pr_comments(b"[]").unwrap().is_empty());
+        let deleted_user = br#"[{"path":"a","line":null,"body":"b","user":null,"commit_id":"x"}]"#;
+        assert_eq!(parse_pr_comments(deleted_user).unwrap()[0].author, "none");
+        assert!(parse_pr_comments(b"[{").is_err());
     }
 
     #[test]

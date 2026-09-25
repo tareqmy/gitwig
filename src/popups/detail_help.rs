@@ -328,7 +328,10 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
 
     categories.push(make_cat(
         "Reflog Tab",
-        vec![(k(Action::ReflogCheckout), "Checkout the commit OID of the selected reflog entry")],
+        vec![(
+            k(Action::ReflogCheckout),
+            "Checkout the commit OID of the selected reflog entry (asks confirmation)",
+        )],
     ));
 
     categories.push(make_cat(
@@ -336,7 +339,7 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
         vec![
             (
                 k(Action::ForgeCheckout),
-                "Checkout branch linked to selected issue or checkout PR branch",
+                "Checkout branch linked to selected issue or checkout PR branch (asks confirmation)",
             ),
             (k(Action::ForgeOpenBrowser), "Open selected issue or PR in web browser"),
             (

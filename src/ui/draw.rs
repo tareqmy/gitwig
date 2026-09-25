@@ -97,6 +97,7 @@ fn is_detail_base_mode(mode: &Mode) -> bool {
             | Mode::ForgeCommentPathInput
             | Mode::ForgeCommentLineInput
             | Mode::ForgeCommentBodyInput
+            | Mode::ForgeCheckoutConfirm
     )
 }
 
@@ -166,6 +167,7 @@ pub fn draw(
                 | Mode::ForgeCommentPathInput
                 | Mode::ForgeCommentLineInput
                 | Mode::ForgeCommentBodyInput
+                | Mode::ForgeCheckoutConfirm
         ) {
             if let Some(repo_theme) = app.repo_theme_cache.get(repo_path) {
                 // Save current theme state
@@ -4054,6 +4056,10 @@ mod tests {
             path: std::path::PathBuf::from("sub"),
             ..Default::default()
         });
+        app.forge_checkout_target = Some(crate::app::ForgeCheckoutTarget::PullRequest {
+            number: 42,
+            title: "Add retry".to_string(),
+        });
 
         let backend = ratatui::backend::TestBackend::new(120, 40);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
@@ -4216,6 +4222,7 @@ mod tests {
             Mode::SubmoduleAddUrlInput,
             Mode::SubmoduleAddPathInput,
             Mode::SubmoduleDeleteConfirm,
+            Mode::ForgeCheckoutConfirm,
             Mode::NotGitRepo,
         ];
 
