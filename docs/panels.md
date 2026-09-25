@@ -250,7 +250,7 @@ Triggered by opening a repository.
     *   *Shortcuts*:
         *   `↑` / `k` / `K` / `↓` / `j` / `J` : Move selection
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate issues list
-        *   `Enter` : Checkout branch corresponding to selected issue
+        *   `Enter` : Checkout branch corresponding to selected issue: the branch linked to the issue on GitHub (its Development section / `gh issue develop`) if there is exactly one and it is in this clone; otherwise the one local branch — or, failing that, the one remote-tracking branch — whose name carries the issue number as a token of its own (`issue-12-login`, `12-fix` and `fix/12` for #12; never `v1.2` or `issue-123`); otherwise a new `issue-<number>` branch. Several candidates are listed in an error instead of guessed between.
         *   `o` : Open selected issue in web browser
         *   `a` : Toggle between "Assigned to me" and all open issues
 
@@ -261,7 +261,7 @@ Triggered by opening a repository.
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate PRs list
         *   `Enter` : Checkout branch corresponding to selected PR
         *   `o` : Open selected PR in web browser
-        *   `n` : Add a line comment to the current Pull Request
+        *   `n` : Add a line comment to the current Pull Request, in three steps: file path, line number (a whole number, 1 or more) and comment text. An empty path or comment, or an invalid line number, shows an error and keeps the step open with what you typed; `Esc` cancels.
 
 ---
 

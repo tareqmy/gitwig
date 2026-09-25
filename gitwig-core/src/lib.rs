@@ -277,6 +277,35 @@ pub struct RepoInfo {
     pub lfs_storage_size: Option<u64>,
 }
 
+impl RepoInfo {
+    /// Forgets the background tab loads that were in flight. Their results were
+    /// meant for a detail view that has since closed and are dropped on arrival,
+    /// so a tab restored still flagged as loading (or showing `Loading`) would
+    /// never load again.
+    pub fn reset_in_flight_loads(&mut self) {
+        fn unstick<T>(data: &mut TabData<T>) {
+            if data.is_loading() {
+                *data = TabData::NotLoaded;
+            }
+        }
+        self.tab_loading = [false; 12];
+        unstick(&mut self.remotes);
+        unstick(&mut self.graph_lines);
+        unstick(&mut self.local_branches);
+        unstick(&mut self.remote_branches);
+        unstick(&mut self.local_tags);
+        unstick(&mut self.remote_tags);
+        unstick(&mut self.files);
+        unstick(&mut self.stashes);
+        unstick(&mut self.worktrees);
+        unstick(&mut self.submodules);
+        unstick(&mut self.reflog);
+        unstick(&mut self.forge_issues);
+        unstick(&mut self.forge_prs);
+        unstick(&mut self.committer_stats);
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct HeadInfo {
     pub short_id: String,
@@ -3549,6 +3578,11 @@ pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
         ));
     }
 
+    parse_forge_prs(&output.stdout)
+}
+
+/// Parses the JSON `gh pr list --json ...` prints (see `load_tab_forge_prs`).
+fn parse_forge_prs(json: &[u8]) -> Result<Vec<ForgePR>, String> {
     #[derive(serde::Deserialize)]
     struct GhAuthor {
         login: String,
@@ -3566,9 +3600,14 @@ pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
         state: String,
     }
 
+    // `statusCheckRollup` mixes two kinds of entry: check runs (GitHub
+    // Actions and other apps) carry `name`, `status` and `conclusion`, while
+    // commit statuses (`StatusContext`, e.g. an external CI) carry `context`
+    // and `state` and no `name`. A required `name` failed the whole list.
     #[derive(serde::Deserialize)]
     struct GhStatusCheck {
-        name: String,
+        name: Option<String>,
+        context: Option<String>,
         state: Option<String>,
         status: Option<String>,
         conclusion: Option<String>,
@@ -3592,7 +3631,7 @@ pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
         reviews: Option<Vec<GhReview>>,
     }
 
-    let raw_prs: Vec<GhPR> = serde_json::from_slice(&output.stdout)
+    let raw_prs: Vec<GhPR> = serde_json::from_slice(json)
         .map_err(|e| format!("Failed to parse GitHub CLI response: {}", e))?;
 
     let prs = raw_prs
@@ -3605,11 +3644,15 @@ pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
                 .status_check_rollup
                 .unwrap_or_default()
                 .into_iter()
-                .map(|c| CIStatusCheck {
-                    name: c.name,
-                    state: c.state,
-                    status: c.status,
-                    conclusion: c.conclusion,
+                .map(|c| {
+                    // gh reports a check run that is still going as `conclusion: ""`.
+                    let non_empty = |v: Option<String>| v.filter(|s| !s.is_empty());
+                    CIStatusCheck {
+                        name: c.name.or(c.context).unwrap_or_else(|| "unnamed check".to_string()),
+                        state: non_empty(c.state),
+                        status: non_empty(c.status),
+                        conclusion: non_empty(c.conclusion),
+                    }
                 })
                 .collect();
             let reviews = item
@@ -3690,6 +3733,36 @@ pub fn load_pr_comments(repo_path: &Path, pr_number: u32) -> Result<Vec<ForgePRC
     Ok(comments)
 }
 
+/// The `gh api` arguments that post `body` as a review comment on `line` of
+/// `path` at `commit_id`. Text fields use `-f` (sent verbatim): `-F` reads a
+/// value starting with `@` as a file name, sends `123` or `true` as a number or
+/// boolean, and fills `{owner}`-style placeholders, so a comment such as
+/// "@alice please look" failed. Only `line` uses `-F`, to be sent as a number.
+fn pr_line_comment_args(
+    pr_number: u32,
+    commit_id: &str,
+    path: &str,
+    line: u32,
+    body: &str,
+) -> Vec<String> {
+    vec![
+        "api".to_string(),
+        format!("repos/:owner/:repo/pulls/{}/comments", pr_number),
+        "--method".to_string(),
+        "POST".to_string(),
+        "-f".to_string(),
+        format!("body={}", body),
+        "-f".to_string(),
+        format!("commit_id={}", commit_id),
+        "-f".to_string(),
+        format!("path={}", path),
+        "-F".to_string(),
+        format!("line={}", line),
+        "-f".to_string(),
+        "side=RIGHT".to_string(),
+    ]
+}
+
 pub fn add_pr_line_comment(
     repo_path: &Path,
     pr_number: u32,
@@ -3699,21 +3772,7 @@ pub fn add_pr_line_comment(
     body: &str,
 ) -> Result<(), String> {
     let mut cmd = tool_command("gh");
-    cmd.arg("api")
-        .arg(format!("repos/:owner/:repo/pulls/{}/comments", pr_number))
-        .arg("--method")
-        .arg("POST")
-        .arg("-F")
-        .arg(format!("body={}", body))
-        .arg("-F")
-        .arg(format!("commit_id={}", commit_id))
-        .arg("-F")
-        .arg(format!("path={}", path))
-        .arg("-F")
-        .arg(format!("line={}", line))
-        .arg("-F")
-        .arg("side=RIGHT")
-        .current_dir(repo_path);
+    cmd.args(pr_line_comment_args(pr_number, commit_id, path, line, body)).current_dir(repo_path);
 
     let output = match cmd.output() {
         Ok(out) => out,
@@ -3739,106 +3798,231 @@ pub fn checkout_pr_branch(repo_path: &Path, pr_number: u32) -> Result<String, St
     Ok(format!("Checked out branch for PR #{}", pr_number))
 }
 
+/// Switches to the branch for GitHub issue `issue_number`. In order:
+///
+/// 1. the branch linked to the issue on GitHub (its Development section, or
+///    `gh issue develop`), when there is exactly one;
+/// 2. the one local branch, else the one remote-tracking branch, whose name
+///    carries the number as a token of its own (see [`branch_names_issue`]);
+/// 3. a new `issue-<number>` branch at HEAD.
+///
+/// Several candidates at any step are reported instead of guessed between.
+/// The linked-branch lookup used to ask `gh issue view` for a
+/// `developmentBranch` field gh does not have, so it always fell through to a
+/// substring match that took issue #2 to `issue-12-login` and #1 to `v1.2`.
 pub fn resolve_and_checkout_issue_branch(
     repo_path: &Path,
     issue_number: u32,
 ) -> Result<String, String> {
-    let mut cmd = tool_command("gh");
-    cmd.arg("issue")
-        .arg("view")
-        .arg(issue_number.to_string())
-        .arg("--json")
-        .arg("developmentBranch")
-        .current_dir(repo_path);
-
-    if let Ok(output) = cmd.output() {
-        if output.status.success() {
-            #[derive(serde::Deserialize)]
-            struct GhDevBranch {
-                name: String,
-            }
-            #[derive(serde::Deserialize)]
-            struct GhIssueView {
-                #[serde(rename = "developmentBranch")]
-                development_branch: Option<GhDevBranch>,
-            }
-            if let Ok(parsed) = serde_json::from_slice::<GhIssueView>(&output.stdout) {
-                if let Some(dev_branch) = parsed.development_branch {
-                    if !dev_branch.name.is_empty() {
-                        let name = dev_branch.name;
-                        if checkout_local_branch(repo_path, &name).is_ok() {
-                            return Ok(format!("Checked out linked local branch '{}'", name));
-                        }
-                        if let Ok(msg) = checkout_remote_branch(repo_path, &name) {
-                            return Ok(format!("Checked out linked remote branch '{}'", msg));
-                        }
-                        let checkout_out = git_command()
-                            .arg("checkout")
-                            .arg("-b")
-                            .arg(&name)
-                            .current_dir(repo_path)
-                            .output();
-                        if let Ok(out) = checkout_out {
-                            if out.status.success() {
-                                return Ok(format!(
-                                    "Created and switched to linked branch '{}'",
-                                    name
-                                ));
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    // No GitHub remote, gh missing or signed out, or a server without linked
+    // branches: fall back to matching branch names.
+    let linked = linked_issue_branches(repo_path, issue_number).unwrap_or_default();
+    match linked.as_slice() {
+        [] => checkout_issue_branch_by_name(repo_path, issue_number),
+        [name] => checkout_linked_issue_branch(repo_path, issue_number, name),
+        many => Err(format!(
+            "Issue #{} has {} linked branches ({}); check one out from the Branches tab",
+            issue_number,
+            many.len(),
+            many.join(", ")
+        )),
     }
+}
 
-    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
-    let target_pattern = format!("{}", issue_number);
-    let mut found_local = None;
-    let mut found_remote = None;
-
-    if let Ok(branches) = repo.branches(None) {
-        for (branch, branch_type) in branches.flatten() {
-            if let Ok(Some(name)) = branch.name() {
-                if name.contains(&target_pattern) {
-                    match branch_type {
-                        git2::BranchType::Local => {
-                            found_local = Some(name.to_string());
-                            break;
-                        }
-                        git2::BranchType::Remote => {
-                            found_remote = Some(name.to_string());
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if let Some(local_name) = found_local {
-        checkout_local_branch(repo_path, &local_name).map_err(|e| e.to_string())?;
-        return Ok(format!("Checked out matched local branch '{}'", local_name));
-    }
-
-    if let Some(remote_name) = found_remote {
-        let msg = checkout_remote_branch(repo_path, &remote_name).map_err(|e| e.to_string())?;
-        return Ok(format!("Checked out matched remote branch: {}", msg));
-    }
-
-    let new_branch_name = format!("issue-{}", issue_number);
-    let checkout_out = git_command()
-        .arg("checkout")
-        .arg("-b")
-        .arg(&new_branch_name)
+/// Names of the branches linked to the issue on GitHub.
+fn linked_issue_branches(repo_path: &Path, issue_number: u32) -> Result<Vec<String>, String> {
+    const QUERY: &str = "query($owner: String!, $repo: String!, $number: Int!) { \
+        repository(owner: $owner, name: $repo) { issue(number: $number) { \
+        linkedBranches(first: 10) { nodes { ref { name } } } } } }";
+    // `-F` fills gh's `{owner}` / `{repo}` placeholders from the current
+    // repository and sends `number` as an integer.
+    let output = tool_command("gh")
+        .args(["api", "graphql", "-f"])
+        .arg(format!("query={}", QUERY))
+        .args(["-F", "owner={owner}", "-F", "repo={repo}", "-F"])
+        .arg(format!("number={}", issue_number))
         .current_dir(repo_path)
         .output()
         .map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    parse_linked_branches(&output.stdout)
+}
 
-    if !checkout_out.status.success() {
-        let err = String::from_utf8_lossy(&checkout_out.stderr).trim().to_string();
-        return Err(format!("Failed to create new branch: {}", err));
+/// Parses the `gh api graphql` response of [`linked_issue_branches`]: the
+/// distinct branch names, skipping links whose branch was deleted.
+fn parse_linked_branches(json: &[u8]) -> Result<Vec<String>, String> {
+    #[derive(serde::Deserialize)]
+    struct GhRef {
+        name: String,
+    }
+    #[derive(serde::Deserialize)]
+    struct GhLinkedBranch {
+        #[serde(rename = "ref")]
+        git_ref: Option<GhRef>,
+    }
+    #[derive(serde::Deserialize)]
+    struct GhLinkedBranches {
+        nodes: Vec<Option<GhLinkedBranch>>,
+    }
+    #[derive(serde::Deserialize)]
+    struct GhIssue {
+        #[serde(rename = "linkedBranches")]
+        linked_branches: GhLinkedBranches,
+    }
+    #[derive(serde::Deserialize)]
+    struct GhRepository {
+        issue: Option<GhIssue>,
+    }
+    #[derive(serde::Deserialize)]
+    struct GhData {
+        repository: Option<GhRepository>,
+    }
+    #[derive(serde::Deserialize)]
+    struct GhResponse {
+        data: GhData,
     }
 
+    let response: GhResponse = serde_json::from_slice(json)
+        .map_err(|e| format!("Failed to parse linked branches: {}", e))?;
+    let mut names: Vec<String> = Vec::new();
+    let links = response.data.repository.and_then(|r| r.issue).map(|i| i.linked_branches.nodes);
+    for name in links.into_iter().flatten().flatten().filter_map(|n| n.git_ref).map(|r| r.name) {
+        if !names.contains(&name) {
+            names.push(name);
+        }
+    }
+    Ok(names)
+}
+
+/// Whether `branch` names issue `issue_number`: the number appears as a token
+/// of its own, after the start of the name or one of `-` `_` `/` `#`, and
+/// before its end or one of `-` `_` `/`. So `issue-12-login`, `12-fix` and
+/// `fix/12` name #12, while `v1.2`, `issue-123` and `issue12` do not.
+pub fn branch_names_issue(branch: &str, issue_number: u32) -> bool {
+    let number = issue_number.to_string();
+    branch.match_indices(&number).any(|(at, _)| {
+        let before = branch[..at].chars().next_back();
+        let after = branch[at + number.len()..].chars().next();
+        before.is_none_or(|c| matches!(c, '-' | '_' | '/' | '#'))
+            && after.is_none_or(|c| matches!(c, '-' | '_' | '/'))
+    })
+}
+
+/// `git checkout <args>`, with git's message as the error.
+fn run_checkout(repo_path: &Path, args: &[&str]) -> Result<(), String> {
+    let output = git_command()
+        .arg("checkout")
+        .args(args)
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    Ok(())
+}
+
+/// Checks out `branch`, linked to the issue on GitHub: the local branch, or a
+/// new one tracking the single remote that has it. Only branches that exist are
+/// passed to `git checkout`, as `<branch> --`: a bare name that is no branch is
+/// read as a path, and would discard the local changes under it.
+fn checkout_linked_issue_branch(
+    repo_path: &Path,
+    issue_number: u32,
+    branch: &str,
+) -> Result<String, String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    if repo.find_branch(branch, git2::BranchType::Local).is_ok() {
+        run_checkout(repo_path, &[branch, "--"])?;
+        return Ok(format!("Checked out '{}', linked to issue #{}", branch, issue_number));
+    }
+    let mut on_remotes = Vec::new();
+    if let Ok(remotes) = repo.remotes() {
+        for remote in remotes.iter().flatten().flatten() {
+            let tracking = format!("{}/{}", remote, branch);
+            if repo.find_branch(&tracking, git2::BranchType::Remote).is_ok() {
+                on_remotes.push(tracking);
+            }
+        }
+    }
+    match on_remotes.as_slice() {
+        [tracking] => {
+            run_checkout(repo_path, &["--track", tracking])?;
+            Ok(format!(
+                "Checked out '{}' from '{}', linked to issue #{}",
+                branch, tracking, issue_number
+            ))
+        }
+        [] => Err(format!(
+            "Issue #{} is linked to branch '{}', which is not in this clone yet; fetch it first",
+            issue_number, branch
+        )),
+        many => Err(format!(
+            "Issue #{} is linked to branch '{}', found on several remotes ({}); check one out from the Branches tab",
+            issue_number,
+            branch,
+            many.join(", ")
+        )),
+    }
+}
+
+/// Steps 2 and 3 of [`resolve_and_checkout_issue_branch`]: a branch whose name
+/// names the issue, else a new `issue-<number>` branch at HEAD.
+pub fn checkout_issue_branch_by_name(
+    repo_path: &Path,
+    issue_number: u32,
+) -> Result<String, String> {
+    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
+    let mut local = Vec::new();
+    let mut remote = Vec::new();
+    for (branch, kind) in repo.branches(None).map_err(|e| e.to_string())?.flatten() {
+        let Ok(Some(name)) = branch.name() else { continue };
+        match kind {
+            git2::BranchType::Local => {
+                if branch_names_issue(name, issue_number) {
+                    local.push(name.to_string());
+                }
+            }
+            git2::BranchType::Remote => {
+                // Match on the branch part, so the remote's own name cannot.
+                let Some((_, short)) = name.split_once('/') else { continue };
+                if short != "HEAD" && branch_names_issue(short, issue_number) {
+                    remote.push(name.to_string());
+                }
+            }
+        }
+    }
+    let ambiguous = |kind: &str, names: &[String]| {
+        format!(
+            "Several {} branches match issue #{} ({}); check one out from the Branches tab",
+            kind,
+            issue_number,
+            names.join(", ")
+        )
+    };
+
+    match local.as_slice() {
+        [name] => {
+            run_checkout(repo_path, &[name, "--"])?;
+            return Ok(format!("Checked out matched local branch '{}'", name));
+        }
+        [] => {}
+        many => return Err(ambiguous("local", many)),
+    }
+    match remote.as_slice() {
+        [name] => {
+            run_checkout(repo_path, &["--track", name])?;
+            return Ok(format!("Checked out matched remote branch '{}'", name));
+        }
+        [] => {}
+        many => return Err(ambiguous("remote", many)),
+    }
+
+    let new_branch_name = format!("issue-{}", issue_number);
+    run_checkout(repo_path, &["-b", &new_branch_name])
+        .map_err(|e| format!("Failed to create new branch: {}", e))?;
     Ok(format!("Created and switched to new branch '{}'", new_branch_name))
 }
 
@@ -4395,6 +4579,155 @@ mod tests {
         let status = String::from_utf8_lossy(&status.stdout);
         assert!(status.lines().any(|l| l == "D  vendor/n"), "{}", status);
         assert!(status.lines().any(|l| l == " M notes"), "{}", status);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// `gh api -F` reads `@alice ...` as a file name, sends `123` as a number and
+    /// fills `{owner}`; review comment text must go through `-f` verbatim.
+    #[test]
+    fn test_pr_line_comment_args_send_text_fields_verbatim() {
+        let args = pr_line_comment_args(42, "abc123", "src/{owner}.rs", 7, "@alice 123");
+        let field =
+            |flag: &str, value: &str| args.windows(2).any(|w| w[0] == flag && w[1] == value);
+        assert!(field("-f", "body=@alice 123"), "{:?}", args);
+        assert!(field("-f", "path=src/{owner}.rs"), "{:?}", args);
+        assert!(field("-f", "commit_id=abc123"), "{:?}", args);
+        assert!(field("-f", "side=RIGHT"), "{:?}", args);
+        assert!(field("-F", "line=7"), "line is sent as a number: {:?}", args);
+        assert_eq!(args.iter().filter(|a| *a == "-F").count(), 1, "{:?}", args);
+        assert_eq!(args[1], "repos/:owner/:repo/pulls/42/comments");
+    }
+
+    /// `statusCheckRollup` as `gh pr list --json` prints it: a finished and a
+    /// running check run, and a commit status (`StatusContext`, no `name`),
+    /// which used to fail the whole PR list with "missing field `name`".
+    #[test]
+    fn test_parse_forge_prs_accepts_commit_statuses_and_running_checks() {
+        let json = br#"[{"number":42,"title":"Add retry","state":"OPEN",
+            "author":{"login":"alice"},"assignees":[],"url":"https://github.com/o/r/pull/42",
+            "headRefName":"retry","headRefOid":"abc","body":"",
+            "statusCheckRollup":[
+              {"__typename":"CheckRun","name":"build","workflowName":"CI","status":"COMPLETED",
+               "conclusion":"SUCCESS","startedAt":"2026-01-01T00:00:00Z","completedAt":"2026-01-01T00:01:00Z","detailsUrl":"https://x"},
+              {"__typename":"CheckRun","name":"lint","workflowName":"CI","status":"IN_PROGRESS",
+               "conclusion":"","startedAt":"2026-01-01T00:00:00Z","completedAt":"0001-01-01T00:00:00Z","detailsUrl":"https://x"},
+              {"__typename":"StatusContext","context":"ci/circleci","state":"FAILURE",
+               "targetUrl":"https://circleci.com/x","startedAt":"2026-01-01T00:00:00Z"}],
+            "reviews":[{"author":null,"body":"LGTM","state":"APPROVED"}]}]"#;
+        let prs = parse_forge_prs(json).unwrap();
+        let checks = &prs[0].status_checks;
+        assert_eq!(checks.len(), 3);
+        assert_eq!(checks[0].conclusion.as_deref(), Some("SUCCESS"));
+        assert_eq!((checks[1].name.as_str(), checks[1].conclusion.as_deref()), ("lint", None));
+        assert_eq!(checks[1].status.as_deref(), Some("IN_PROGRESS"));
+        assert_eq!(checks[2].name, "ci/circleci");
+        assert_eq!(checks[2].state.as_deref(), Some("FAILURE"));
+        assert_eq!(prs[0].reviews[0].author, "none");
+    }
+
+    #[test]
+    fn test_parse_linked_branches() {
+        let json = br#"{"data":{"repository":{"issue":{"linkedBranches":{"nodes":[
+            {"ref":{"name":"12-login-fails"}},{"ref":null},{"ref":{"name":"12-login-fails"}},
+            {"ref":{"name":"alt-12"}}]}}}}}"#;
+        assert_eq!(parse_linked_branches(json).unwrap(), vec!["12-login-fails", "alt-12"]);
+        let none = br#"{"data":{"repository":{"issue":{"linkedBranches":{"nodes":[]}}}}}"#;
+        assert!(parse_linked_branches(none).unwrap().is_empty());
+        let no_issue = br#"{"data":{"repository":{"issue":null}}}"#;
+        assert!(parse_linked_branches(no_issue).unwrap().is_empty());
+        assert!(parse_linked_branches(b"not json").is_err());
+    }
+
+    #[test]
+    fn test_branch_names_issue_matches_whole_tokens_only() {
+        for (branch, issue) in [
+            ("fix-1-typo", 1),
+            ("issue-12-login", 12),
+            ("12-login", 12),
+            ("feature/12", 12),
+            ("gh#12", 12),
+            ("issue_12", 12),
+            ("v1.2-release-2", 2),
+        ] {
+            assert!(branch_names_issue(branch, issue), "{} names #{}", branch, issue);
+        }
+        for (branch, issue) in [
+            ("v1.2-release", 1),
+            ("v1.2-release", 2),
+            ("issue-12-login", 1),
+            ("issue-12-login", 2),
+            ("issue-123", 12),
+            ("issue12", 12),
+            ("main", 1),
+        ] {
+            assert!(!branch_names_issue(branch, issue), "{} does not name #{}", branch, issue);
+        }
+    }
+
+    fn current_branch(repo: &Path) -> String {
+        let out = git_command().args(["branch", "--show-current"]).current_dir(repo).output();
+        String::from_utf8_lossy(&out.unwrap().stdout).trim().to_string()
+    }
+
+    #[test]
+    fn test_checkout_issue_branch_by_name_picks_the_one_branch_naming_the_issue() {
+        let root = unique_temp_dir("issue_branch");
+        let main = repo_with_branches(
+            &root,
+            &["fix-1-typo", "v1.2-release", "issue-12-login", "7-crash", "fix/7"],
+        );
+        let start = current_branch(&main);
+
+        // #2 used to land on issue-12-login (substring "2"); no branch names it.
+        assert_eq!(
+            checkout_issue_branch_by_name(&main, 2).unwrap(),
+            "Created and switched to new branch 'issue-2'"
+        );
+        assert_eq!(current_branch(&main), "issue-2");
+        checkout_issue_branch_by_name(&main, 12).unwrap();
+        assert_eq!(current_branch(&main), "issue-12-login");
+        checkout_issue_branch_by_name(&main, 1).unwrap();
+        assert_eq!(current_branch(&main), "fix-1-typo");
+
+        // Two candidates: report them and stay put.
+        let err = checkout_issue_branch_by_name(&main, 7).unwrap_err();
+        assert!(err.contains("7-crash") && err.contains("fix/7"), "{}", err);
+        assert_eq!(current_branch(&main), "fix-1-typo");
+
+        // A branch only on the remote is checked out as a tracking branch.
+        run_git(&main, &["checkout", "-q", &start]);
+        run_git(&main, &["branch", "fix-9-remote"]);
+        let clone = root.join("clone");
+        run_git(&root, &["clone", "-q", &main.to_string_lossy(), &clone.to_string_lossy()]);
+        assert_eq!(
+            checkout_issue_branch_by_name(&clone, 9).unwrap(),
+            "Checked out matched remote branch 'origin/fix-9-remote'"
+        );
+        assert_eq!(current_branch(&clone), "fix-9-remote");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A linked branch missing from the clone must not reach `git checkout` as
+    /// a bare name: git would read `docs` as a path and discard its changes.
+    #[test]
+    fn test_checkout_linked_issue_branch_never_restores_a_same_named_path() {
+        let root = unique_temp_dir("linked_branch");
+        let main = repo_with_branches(&root, &[]);
+        std::fs::create_dir_all(main.join("docs")).unwrap();
+        std::fs::write(main.join("docs/guide.md"), "v1\n").unwrap();
+        run_git(&main, &["add", "docs"]);
+        run_git(&main, &["commit", "-q", "-m", "docs"]);
+        run_git(&main, &["branch", "linked-5"]);
+        std::fs::write(main.join("docs/guide.md"), "v1\nunsaved edit\n").unwrap();
+
+        let err = checkout_linked_issue_branch(&main, 5, "docs").unwrap_err();
+        assert!(err.contains("not in this clone"), "{}", err);
+        assert_eq!(
+            std::fs::read_to_string(main.join("docs/guide.md")).unwrap(),
+            "v1\nunsaved edit\n"
+        );
+        checkout_linked_issue_branch(&main, 5, "linked-5").unwrap();
+        assert_eq!(current_branch(&main), "linked-5");
         let _ = std::fs::remove_dir_all(&root);
     }
 

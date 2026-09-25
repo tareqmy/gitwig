@@ -10960,6 +10960,174 @@ fn test_settings_stale_behavior_and_toggling() {
     assert_eq!(items[0].1, "repo_a"); // Only stale repo_a shown
 }
 
+/// The Issues (10) and PRs (11) tabs could stay on "Loading..." for good:
+/// finished loads only cleared `tab_loading` below index 10, so after `R`, a
+/// checkout or a background refresh the tabs were never loaded again, and a
+/// background detail refresh dropped their lists. PR line comments share
+/// index 11 but must not end the PR list's load.
+#[test]
+fn test_forge_tab_loads_finish_so_the_tabs_can_reload() {
+    let (mut app, items, _guard) = app_with_three_repos("forge_tab_loads");
+    let path = items[1].clone();
+    let issue = crate::repo::ForgeIssue {
+        number: 1,
+        title: "Issue 1".to_string(),
+        state: "OPEN".to_string(),
+        author: "user1".to_string(),
+        assignees: vec![],
+        url: "https://github.com/org/repo/issues/1".to_string(),
+    };
+    let mut info = crate::repo::RepoInfo {
+        forge_issues: crate::repo::TabData::Loading,
+        forge_prs: crate::repo::TabData::Loading,
+        ..Default::default()
+    };
+    info.tab_loading[10] = true;
+    info.tab_loading[11] = true;
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from(&path),
+        info: Box::new(info),
+    });
+    let forge = |app: &App| match &app.current_detail {
+        Some(crate::repo::ItemDetail::Repo { info, .. }) => info.as_ref().clone(),
+        _ => panic!("no repository open"),
+    };
+
+    // Line comments arriving on index 11 leave the PR list's load running.
+    app.tab_tx.send((path.clone(), 11, crate::repo::TabPayload::PRComments(Ok(vec![])))).unwrap();
+    assert!(app.drain_tab_payloads());
+    assert!(forge(&app).tab_loading[11], "comments do not end the PR list load");
+
+    let issues = crate::repo::TabPayload::ForgeIssues(Ok(vec![issue]));
+    app.tab_tx.send((path.clone(), 10, issues)).unwrap();
+    app.tab_tx.send((path.clone(), 11, crate::repo::TabPayload::ForgePRs(Ok(vec![])))).unwrap();
+    app.tab_tx
+        .send((path.clone(), 99, crate::repo::TabPayload::Overview(Ok((vec![], false)))))
+        .unwrap();
+    assert!(app.drain_tab_payloads());
+    let info = forge(&app);
+    for tab in [10, 11] {
+        assert!(!info.tab_loading[tab], "tab {} is no longer loading", tab);
+        assert!(info.tab_loaded_at[tab].is_some(), "tab {} records its load time", tab);
+    }
+    assert_eq!(info.forge_issues.len(), 1);
+    assert!(info.forge_prs.is_loaded());
+
+    // A background detail refresh keeps the loaded forge lists.
+    app.apply_detail_snapshot(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from(&path),
+        info: Box::default(),
+    });
+    assert_eq!(forge(&app).forge_issues.len(), 1);
+    assert!(forge(&app).forge_prs.is_loaded());
+
+    // Leaving mid-load drops the result; reopening from the cache must not
+    // restore the tab as loading forever.
+    let mut stale = forge(&app);
+    stale.forge_issues = crate::repo::TabData::Loading;
+    stale.tab_loading[10] = true;
+    app.detail_cache.insert(
+        path.clone(),
+        DetailCache {
+            detail: crate::repo::ItemDetail::Repo {
+                resolved: PathBuf::from(&path),
+                info: Box::new(stale),
+            },
+            loaded_at: std::time::Instant::now(),
+        },
+    );
+    app.current_detail = None;
+    app.open_repo(path.clone());
+    let info = forge(&app);
+    assert!(!info.tab_loading[10]);
+    assert!(info.forge_issues.is_not_loaded(), "the tab loads again when shown");
+    assert!(info.forge_prs.is_loaded(), "finished loads are kept");
+}
+
+/// The PR line-comment wizard ignored every key but Esc and Enter, so nothing
+/// typed reached it, and three Enters posted an empty comment on line 1. Each
+/// step now takes typing and keeps itself open with an error on bad input.
+#[test]
+fn test_forge_comment_wizard_takes_typing_and_validates_each_step() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let type_text = |app: &mut App, text: &str| {
+        for c in text.chars() {
+            assert!(crate::input::handle_key(app, key(KeyCode::Char(c)), 1));
+        }
+    };
+
+    let config_path = std::env::temp_dir().join("gitwig_test_forge_comment_wizard.toml");
+    let _guard = TestFileGuard { path: config_path.clone() };
+    let mut app = App::new(Config::default(), config_path);
+    let pr = crate::repo::ForgePR {
+        number: 42,
+        title: "Add retry".to_string(),
+        state: "OPEN".to_string(),
+        author: "alice".to_string(),
+        assignees: vec![],
+        url: "https://github.com/o/r/pull/42".to_string(),
+        head_ref: "retry".to_string(),
+        head_ref_oid: "abc123".to_string(),
+        body: String::new(),
+        status_checks: vec![],
+        reviews: vec![],
+    };
+    let info = crate::repo::RepoInfo {
+        forge_prs: crate::repo::TabData::Loaded(vec![pr]),
+        ..Default::default()
+    };
+    // A path that does not exist, so the final post cannot reach any `gh`.
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: PathBuf::from("/nonexistent/gitwig_test_forge_comment_repo"),
+        info: Box::new(info),
+    });
+    app.mode = Mode::Detail;
+    app.advanced_tabs = true;
+    app.detail_tab = 11;
+    app.detail_focus = DetailSection::ForgePRs;
+    app.forge_pr_comments = Some(vec![]);
+
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Char('n')), 1));
+    assert_eq!(app.mode, Mode::ForgeCommentPathInput);
+
+    // An empty path is refused; the step stays open.
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert!(app.error_message.is_some());
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Esc), 1));
+    assert_eq!(app.mode, Mode::ForgeCommentPathInput, "dismissing the error keeps the step");
+
+    type_text(&mut app, "src/lib.rsx");
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Backspace), 1));
+    assert_eq!(app.input_buffer, "src/lib.rs");
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert_eq!(app.mode, Mode::ForgeCommentLineInput);
+    assert_eq!(app.forge_comment_path, "src/lib.rs");
+
+    // "1O" and 0 are not line numbers; the typed text is kept for fixing.
+    type_text(&mut app, "1O");
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert_eq!(app.mode, Mode::ForgeCommentLineInput);
+    assert!(app.error_message.is_some());
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Esc), 1));
+    assert_eq!(app.input_buffer, "1O");
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Backspace), 1));
+    type_text(&mut app, "0");
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert_eq!(app.mode, Mode::ForgeCommentBodyInput);
+    assert_eq!(app.forge_comment_line, 10);
+
+    // An empty body is refused; typed text, `@` and `q` included, is taken.
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert!(app.error_message.is_some());
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Esc), 1));
+    type_text(&mut app, "@alice q?");
+    assert_eq!(app.input_buffer, "@alice q?");
+    assert!(crate::input::handle_key(&mut app, key(KeyCode::Enter), 1));
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.fetching, "the comment is being posted");
+}
+
 #[test]
 fn test_forge_tab_event_handling() {
     let config = Config::default();

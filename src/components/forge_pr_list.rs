@@ -251,8 +251,14 @@ pub fn draw_forge_prs_view(
                 Style::default().add_modifier(Modifier::BOLD),
             )]));
             for check in &selected_pr.status_checks {
-                let check_state =
-                    check.conclusion.as_deref().or(check.state.as_deref()).unwrap_or("PENDING");
+                // A finished check run has a conclusion, a commit status a state,
+                // and a queued or running check run only its status.
+                let check_state = check
+                    .conclusion
+                    .as_deref()
+                    .or(check.state.as_deref())
+                    .or(check.status.as_deref())
+                    .unwrap_or("PENDING");
                 let check_style = match check_state.to_uppercase().as_str() {
                     "SUCCESS" => Style::default().fg(SUCCESS()),
                     "FAILURE" | "ERROR" => Style::default().fg(crate::ui::style::DANGER()),

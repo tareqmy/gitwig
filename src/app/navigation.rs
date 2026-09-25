@@ -1231,7 +1231,10 @@ impl App {
         let enable_commit_signatures = self.config.enable_commit_signatures;
 
         if cached_valid {
-            if let Some(cached) = self.detail_cache.get(&item).cloned() {
+            if let Some(mut cached) = self.detail_cache.get(&item).cloned() {
+                if let repo::ItemDetail::Repo { info, .. } = &mut cached.detail {
+                    info.reset_in_flight_loads();
+                }
                 let cached_commits_count = match &cached.detail {
                     repo::ItemDetail::Repo { info, .. } => info.commits.len(),
                     _ => 200,
@@ -1419,6 +1422,12 @@ impl App {
                     }
                     if new_info.reflog.is_not_loaded() {
                         new_info.reflog = old_info.reflog.clone();
+                    }
+                    if new_info.forge_issues.is_not_loaded() {
+                        new_info.forge_issues = old_info.forge_issues.clone();
+                    }
+                    if new_info.forge_prs.is_not_loaded() {
+                        new_info.forge_prs = old_info.forge_prs.clone();
                     }
                     new_info.tab_loaded_at = old_info.tab_loaded_at;
                     new_info.tab_loading = old_info.tab_loading;

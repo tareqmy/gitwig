@@ -1599,6 +1599,147 @@ impl App {
     }
 }
 
+impl App {
+    /// Applies every tab payload the background loaders have sent to the open
+    /// repository's detail. Returns whether any payload arrived (a redraw is due).
+    pub(crate) fn drain_tab_payloads(&mut self) -> bool {
+        let mut received = false;
+        let mut tab_updated = false;
+        while let Ok((path, tab_idx, payload)) = self.tab_rx.try_recv() {
+            received = true;
+            crate::debug_log::info(format!(
+                "Received tab payload: tab_idx={}, path={}",
+                tab_idx, path
+            ));
+            if let Some(repo::ItemDetail::Repo { resolved, info }) = &mut self.current_detail {
+                let resolved_str = resolved.to_string_lossy().to_string();
+                if resolved_str == path {
+                    crate::debug_log::info(format!("Paths match! Updating tab_idx={}", tab_idx));
+                    tab_updated = true;
+                    // A tab's list payload ends its load. PR line comments share the
+                    // PRs tab's index without being its list, and the overview's 99
+                    // is no tab. (A `< 10` bound here once left the Issues (10) and
+                    // PRs (11) tabs flagged as loading forever, so `R`, a checkout
+                    // or a background refresh never reloaded them.)
+                    let ends_tab_load = !matches!(
+                        payload,
+                        repo::TabPayload::PRComments(_) | repo::TabPayload::Overview(_)
+                    );
+                    if ends_tab_load && tab_idx < info.tab_loading.len() {
+                        info.tab_loading[tab_idx] = false;
+                        info.tab_loaded_at[tab_idx] = Some(std::time::Instant::now());
+                    }
+                    match payload {
+                        repo::TabPayload::Files(res) => {
+                            info.files = match res {
+                                Ok(files) => repo::TabData::Loaded(files),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Graph(res) => {
+                            info.graph_lines = match res {
+                                Ok(lines) => repo::TabData::Loaded(lines),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Branches { local, remote } => {
+                            info.local_branches = match local {
+                                Ok(b) => repo::TabData::Loaded(b),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                            info.remote_branches = match remote {
+                                Ok(b) => repo::TabData::Loaded(b),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Tags { local, remote } => {
+                            info.local_tags = match local {
+                                Ok(t) => repo::TabData::Loaded(t),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                            if !info.remote_tags_loaded {
+                                info.remote_tags = match remote {
+                                    Ok(t) => repo::TabData::Loaded(t),
+                                    Err(e) => repo::TabData::Error(e),
+                                };
+                            }
+                        }
+                        repo::TabPayload::Remotes(res) => {
+                            info.remotes = match res {
+                                Ok(r) => repo::TabData::Loaded(r),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Stashes(res) => {
+                            info.stashes = match res {
+                                Ok(s) => repo::TabData::Loaded(s),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Worktrees(res) => {
+                            info.worktrees = match res {
+                                Ok(w) => repo::TabData::Loaded(w),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Submodules(res) => {
+                            info.submodules = match res {
+                                Ok(s) => repo::TabData::Loaded(s),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Reflog(res) => {
+                            info.reflog = match res {
+                                Ok(r) => repo::TabData::Loaded(r),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::Notice(message) => {
+                            crate::debug_log::warn(format!("tab {} notice: {}", tab_idx, message));
+                            self.status_message = Some(message);
+                        }
+                        repo::TabPayload::ForgeIssues(res) => {
+                            info.forge_issues = match res {
+                                Ok(issues) => repo::TabData::Loaded(issues),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                        }
+                        repo::TabPayload::ForgePRs(res) => {
+                            info.forge_prs = match res {
+                                Ok(prs) => repo::TabData::Loaded(prs),
+                                Err(e) => repo::TabData::Error(e),
+                            };
+                            self.load_comments_for_selected_pr();
+                        }
+                        repo::TabPayload::PRComments(res) => {
+                            if let Ok(comments) = res {
+                                self.forge_pr_comments = Some(comments);
+                            } else {
+                                self.forge_pr_comments = None;
+                            }
+                            self.forge_pr_comments_loading = false;
+                        }
+                        repo::TabPayload::Overview(res) => match res {
+                            Ok((stats, capped)) => {
+                                info.committer_stats = repo::TabData::Loaded(stats);
+                                info.committer_stats_limit_reached = capped;
+                            }
+                            Err(e) => {
+                                info.committer_stats = repo::TabData::Error(e);
+                            }
+                        },
+                    }
+                }
+            }
+        }
+        if tab_updated {
+            self.update_cache_from_current_detail();
+            self.rebuild_visible_files();
+        }
+        received
+    }
+}
+
 /// Main event loop: compute layout, draw, poll input, repeat.
 pub fn run<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
@@ -1981,128 +2122,8 @@ where
             app.global_search_selection = 0;
         }
 
-        let mut tab_updated = false;
-        while let Ok((path, tab_idx, payload)) = app.tab_rx.try_recv() {
+        if app.drain_tab_payloads() {
             needs_redraw = true;
-            crate::debug_log::info(format!(
-                "Received tab payload: tab_idx={}, path={}",
-                tab_idx, path
-            ));
-            if let Some(repo::ItemDetail::Repo { resolved, info }) = &mut app.current_detail {
-                let resolved_str = resolved.to_string_lossy().to_string();
-                if resolved_str == path {
-                    crate::debug_log::info(format!("Paths match! Updating tab_idx={}", tab_idx));
-                    tab_updated = true;
-                    if tab_idx < 10 {
-                        info.tab_loading[tab_idx] = false;
-                        info.tab_loaded_at[tab_idx] = Some(std::time::Instant::now());
-                    }
-                    match payload {
-                        repo::TabPayload::Files(res) => {
-                            info.files = match res {
-                                Ok(files) => repo::TabData::Loaded(files),
-                                Err(e) => repo::TabData::Error(e),
-                            };
-                        }
-                        repo::TabPayload::Graph(res) => {
-                            info.graph_lines = match res {
-                                Ok(lines) => repo::TabData::Loaded(lines),
-                                Err(e) => repo::TabData::Error(e),
-                            };
-                        }
-                        repo::TabPayload::Branches { local, remote } => {
-                            info.local_branches = match local {
-                                Ok(b) => repo::TabData::Loaded(b),
-                                Err(e) => repo::TabData::Error(e),
-                            };
-                            info.remote_branches = match remote {
-                                Ok(b) => repo::TabData::Loaded(b),
-                                Err(e) => repo::TabData::Error(e),
-                            };
-                        }
-                        repo::TabPayload::Tags { local, remote } => {
-                            info.local_tags = match local {
-                                Ok(t) => repo::TabData::Loaded(t),
-                                Err(e) => repo::TabData::Error(e),
-                            };
-                            if !info.remote_tags_loaded {
-                                info.remote_tags = match remote {
-                                    Ok(t) => repo::TabData::Loaded(t),
-                                    Err(e) => repo::TabData::Error(e),
-                                };
-                            }
-                        }
-                        repo::TabPayload::Remotes(res) => {
-                            info.remotes = match res {
-                                Ok(r) => repo::TabData::Loaded(r),
-                                Err(e) => repo::TabData::Error(e),
-                            };
-                        }
-                        repo::TabPayload::Stashes(res) => {
-                            info.stashes = match res {
-                                Ok(s) => repo::TabData::Loaded(s),
-                                Err(e) => repo::TabData::Error(e),
-                            };
-                        }
-                        repo::TabPayload::Worktrees(res) => {
-                            info.worktrees = match res {
-                                Ok(w) => repo::TabData::Loaded(w),
-                                Err(e) => repo::TabData::Error(e),
-                            };
-                        }
-                        repo::TabPayload::Submodules(res) => {
-                            info.submodules = match res {
-                                Ok(s) => repo::TabData::Loaded(s),
-                                Err(e) => repo::TabData::Error(e),
-                            };
-                        }
-                        repo::TabPayload::Reflog(res) => {
-                            info.reflog = match res {
-                                Ok(r) => repo::TabData::Loaded(r),
-                                Err(e) => repo::TabData::Error(e),
-                            };
-                        }
-                        repo::TabPayload::Notice(message) => {
-                            crate::debug_log::warn(format!("tab {} notice: {}", tab_idx, message));
-                            app.status_message = Some(message);
-                        }
-                        repo::TabPayload::ForgeIssues(res) => {
-                            info.forge_issues = match res {
-                                Ok(issues) => repo::TabData::Loaded(issues),
-                                Err(e) => repo::TabData::Error(e),
-                            };
-                        }
-                        repo::TabPayload::ForgePRs(res) => {
-                            info.forge_prs = match res {
-                                Ok(prs) => repo::TabData::Loaded(prs),
-                                Err(e) => repo::TabData::Error(e),
-                            };
-                            app.load_comments_for_selected_pr();
-                        }
-                        repo::TabPayload::PRComments(res) => {
-                            if let Ok(comments) = res {
-                                app.forge_pr_comments = Some(comments);
-                            } else {
-                                app.forge_pr_comments = None;
-                            }
-                            app.forge_pr_comments_loading = false;
-                        }
-                        repo::TabPayload::Overview(res) => match res {
-                            Ok((stats, capped)) => {
-                                info.committer_stats = repo::TabData::Loaded(stats);
-                                info.committer_stats_limit_reached = capped;
-                            }
-                            Err(e) => {
-                                info.committer_stats = repo::TabData::Error(e);
-                            }
-                        },
-                    }
-                }
-            }
-        }
-        if tab_updated {
-            app.update_cache_from_current_detail();
-            app.rebuild_visible_files();
         }
 
         if app.pending_git_app {

@@ -892,76 +892,87 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             }
             return true;
         }
-        Mode::ForgeCommentPathInput => {
+        // The three steps of the PR line-comment wizard. Each handles its own
+        // typing (the steps once ignored every key but Esc and Enter, so only a
+        // paste reached them) and keeps its step open with an error popup
+        // rather than posting an empty or misplaced comment.
+        Mode::ForgeCommentPathInput | Mode::ForgeCommentLineInput | Mode::ForgeCommentBodyInput
+            if code != KeyCode::Enter =>
+        {
             match code {
                 KeyCode::Esc => {
                     app.input_buffer.clear();
                     app.mode = Mode::Detail;
                 }
-                KeyCode::Enter => {
-                    app.forge_comment_path = app.input_buffer.trim().to_string();
-                    app.input_buffer.clear();
-                    app.mode = Mode::ForgeCommentLineInput;
+                KeyCode::Backspace => app.input_backspace(),
+                KeyCode::Char(c)
+                    if !key.modifiers.intersects(
+                        crossterm::event::KeyModifiers::CONTROL
+                            | crossterm::event::KeyModifiers::ALT,
+                    ) =>
+                {
+                    app.input_char(c)
                 }
                 _ => {}
+            }
+            return true;
+        }
+        Mode::ForgeCommentPathInput => {
+            let path = app.input_buffer.trim().to_string();
+            if path.is_empty() {
+                app.set_error("Enter the path of a file changed in the pull request".to_string());
+            } else {
+                app.forge_comment_path = path;
+                app.input_buffer.clear();
+                app.mode = Mode::ForgeCommentLineInput;
             }
             return true;
         }
         Mode::ForgeCommentLineInput => {
-            match code {
-                KeyCode::Esc => {
-                    app.input_buffer.clear();
-                    app.mode = Mode::Detail;
-                }
-                KeyCode::Enter => {
-                    let line_num = app.input_buffer.trim().parse::<u32>().unwrap_or(1);
+            match app.input_buffer.trim().parse::<u32>() {
+                Ok(line_num) if line_num >= 1 => {
                     app.forge_comment_line = line_num;
                     app.input_buffer.clear();
                     app.mode = Mode::ForgeCommentBodyInput;
                 }
-                _ => {}
+                _ => app.set_error("Line number must be a whole number, 1 or more".to_string()),
             }
             return true;
         }
         Mode::ForgeCommentBodyInput => {
-            match code {
-                KeyCode::Esc => {
-                    app.input_buffer.clear();
-                    app.mode = Mode::Detail;
-                }
-                KeyCode::Enter => {
-                    let body = app.input_buffer.trim().to_string();
-                    app.input_buffer.clear();
-                    app.mode = Mode::Detail;
+            let body = app.input_buffer.trim().to_string();
+            if body.is_empty() {
+                app.set_error("Comment cannot be empty".to_string());
+                return true;
+            }
+            app.input_buffer.clear();
+            app.mode = Mode::Detail;
 
-                    if let Some(crate::repo::ItemDetail::Repo { resolved, info }) =
-                        &app.current_detail
-                    {
-                        if let crate::repo::TabData::Loaded(prs) = &info.forge_prs {
-                            if let Some(pr) = prs.get(app.forge_pr_selection) {
-                                let pr_number = pr.number;
-                                let commit_id = pr.head_ref_oid.clone();
-                                let file_path = app.forge_comment_path.clone();
-                                let line_num = app.forge_comment_line;
-                                let path = resolved.clone();
-                                app.fetching = true;
-                                app.status_message = Some("Posting review comment...".to_string());
-                                let tx = app.tx.clone();
-                                std::thread::spawn(move || match crate::repo::add_pr_line_comment(
-                                    &path, pr_number, &commit_id, &file_path, line_num, &body,
-                                ) {
-                                    Ok(()) => {
-                                        let _ = tx.send("COMMENT_SUCCESS".to_string());
-                                    }
-                                    Err(e) => {
-                                        let _ = tx.send(format!("COMMENT_ERROR:{}", e));
-                                    }
-                                });
+            if let Some(crate::repo::ItemDetail::Repo { resolved, info }) = &app.current_detail {
+                if let crate::repo::TabData::Loaded(prs) = &info.forge_prs {
+                    if let Some(pr) = prs.get(app.forge_pr_selection) {
+                        let pr_number = pr.number;
+                        let commit_id = pr.head_ref_oid.clone();
+                        let file_path = app.forge_comment_path.clone();
+                        let line_num = app.forge_comment_line;
+                        let path = resolved.clone();
+                        app.fetching = true;
+                        app.status_message = Some("Posting review comment...".to_string());
+                        let tx = app.tx.clone();
+                        std::thread::spawn(move || {
+                            match crate::repo::add_pr_line_comment(
+                                &path, pr_number, &commit_id, &file_path, line_num, &body,
+                            ) {
+                                Ok(()) => {
+                                    let _ = tx.send("COMMENT_SUCCESS".to_string());
+                                }
+                                Err(e) => {
+                                    let _ = tx.send(format!("COMMENT_ERROR:{}", e));
+                                }
                             }
-                        }
+                        });
                     }
                 }
-                _ => {}
             }
             return true;
         }

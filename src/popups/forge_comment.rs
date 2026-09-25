@@ -102,7 +102,7 @@ pub fn draw_forge_comment_popup(f: &mut Frame, app: &App, input_buffer: &str, ar
         .y
         .saturating_add(row_offset)
         .min(inner_area.y.saturating_add(inner_area.height.saturating_sub(1)));
-    let cursor_offset = label_width.saturating_add(input_buffer.chars().count() as u16);
+    let cursor_offset = label_width.saturating_add(app.input_cursor_clamped() as u16);
     let cursor_x = inner_area
         .x
         .saturating_add(cursor_offset)

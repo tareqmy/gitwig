@@ -37,9 +37,10 @@ const STATUS_ZONE_WIDTH: u16 = 22;
 const UNSELECTED_INDENT: &str = "  ";
 
 /// Whether `mode` draws the repository detail view as its base (as opposed to
-/// the home list, Settings, File History, or Debug Logs). Mirrors the mode set
-/// that routes to `ui_detail::draw` below; used to decide when the home-list
-/// label tint may apply.
+/// the home list, Settings, File History, or Debug Logs). `draw` routes these
+/// modes to `ui_detail::draw`, which also paints their popups: a popup mode
+/// missing here draws the home list and no popup at all. Also decides when the
+/// home-list label tint may apply.
 fn is_detail_base_mode(mode: &Mode) -> bool {
     matches!(
         mode,
@@ -93,6 +94,9 @@ fn is_detail_base_mode(mode: &Mode) -> bool {
             | Mode::FileSearchInput
             | Mode::CommitFuzzySearch
             | Mode::TagSearchInput
+            | Mode::ForgeCommentPathInput
+            | Mode::ForgeCommentLineInput
+            | Mode::ForgeCommentBodyInput
     )
 }
 
@@ -159,6 +163,9 @@ pub fn draw(
                 | Mode::RemoteDeleteConfirm
                 | Mode::RepoSettings
                 | Mode::Overview
+                | Mode::ForgeCommentPathInput
+                | Mode::ForgeCommentLineInput
+                | Mode::ForgeCommentBodyInput
         ) {
             if let Some(repo_theme) = app.repo_theme_cache.get(repo_path) {
                 // Save current theme state
@@ -231,59 +238,8 @@ pub fn draw(
 
     if app.loading_repo_path.is_some() {
         crate::popups::loading::draw_loading_screen(f, content_area, app);
-    } else if matches!(
-        app.mode,
-        Mode::Detail
-            | Mode::DetailHelp
-            | Mode::CommitInput
-            | Mode::BranchCreateInput
-            | Mode::TagCreateInput
-            | Mode::StashingUI
-            | Mode::WorktreeAddBranchInput
-            | Mode::WorktreeAddPathInput
-            | Mode::WorktreeLockReasonInput
-            | Mode::WorktreeRemoveConfirm
-            | Mode::BranchDeleteConfirm
-            | Mode::BranchCheckoutConfirm
-            | Mode::SubmoduleAddUrlInput
-            | Mode::SubmoduleAddPathInput
-            | Mode::SubmoduleDeleteConfirm
-            | Mode::TagCheckoutConfirm
-            | Mode::CommitCheckoutConfirm
-            | Mode::BranchPushConfirm
-            | Mode::BranchMergeConfirm
-            | Mode::BranchMergeIntoConfirm
-            | Mode::BranchRebaseConfirm
-            | Mode::BranchInteractiveRebaseConfirm
-            | Mode::TagDeleteConfirm
-            | Mode::TagOverwriteConfirm
-            | Mode::TagPushConfirm
-            | Mode::TagPushAllConfirm
-            | Mode::StashDeleteConfirm
-            | Mode::StashApplyConfirm
-            | Mode::CherryPickConfirm
-            | Mode::RevertConfirm
-            | Mode::MergeAbortConfirm
-            | Mode::MergeContinueConfirm
-            | Mode::StashCreateInput
-            | Mode::RemotePicker
-            | Mode::CommitHistoryPicker
-            | Mode::CommitSearchInput
-            | Mode::DiscardChangesConfirm
-            | Mode::Inspect
-            | Mode::SearchColumnPicker
-            | Mode::Logs
-            | Mode::LogsSearchInput
-            | Mode::RemoteAddNameInput
-            | Mode::RemoteAddUrlInput
-            | Mode::RemoteDeleteConfirm
-            | Mode::RepoSettings
-            | Mode::Overview
-            | Mode::BranchSearchInput
-            | Mode::FileSearchInput
-            | Mode::CommitFuzzySearch
-            | Mode::TagSearchInput
-    ) || (app.mode == Mode::UpdateConfirm && app.current_detail.is_some())
+    } else if is_detail_base_mode(&app.mode)
+        || (app.mode == Mode::UpdateConfirm && app.current_detail.is_some())
     {
         if let Some(detail) = &app.current_detail {
             let item_name = app.active_repo_item().map(String::as_str).unwrap_or("");
@@ -3802,6 +3758,53 @@ mod tests {
         // width never drops below the legacy minimum.
         assert_eq!(compact_branch_col_width(&app, 80), 28);
         assert_eq!(compact_branch_col_width(&app, 0), 28);
+    }
+
+    /// The PR line-comment wizard's modes were missing from the detail mode set,
+    /// so pressing `n` drew the home list and never the wizard popup.
+    #[test]
+    fn test_forge_comment_wizard_draws_its_popup_over_the_detail_view() {
+        let config = Config { items: vec!["/path/to/repo_a".to_string()], ..Default::default() };
+        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+        app.current_detail = Some(ItemDetail::Repo {
+            resolved: PathBuf::from("/path/to/repo_a"),
+            info: Box::new(RepoInfo::default()),
+        });
+        app.advanced_tabs = true;
+        app.detail_tab = 11;
+        let backend = ratatui::backend::TestBackend::new(120, 40);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        for (mode, step) in [
+            (Mode::ForgeCommentPathInput, "Step 1"),
+            (Mode::ForgeCommentLineInput, "Step 2"),
+            (Mode::ForgeCommentBodyInput, "Step 3"),
+        ] {
+            app.mode = mode;
+            let mut detail_areas = crate::ui_detail::DetailAreas::default();
+            terminal
+                .draw(|f| {
+                    let size = f.area();
+                    super::draw(
+                        f,
+                        &app,
+                        size,
+                        size,
+                        1,
+                        &mut detail_areas,
+                        &mut Vec::new(),
+                        &mut None,
+                        &mut None,
+                    );
+                })
+                .unwrap();
+            let buffer = terminal.backend().buffer();
+            let text: String = (0..40)
+                .map(|y| (0..120).map(|x| buffer[(x, y)].symbol()).collect::<String>() + "\n")
+                .collect();
+            assert!(text.contains("Add PR Line Comment"), "{:?}: no popup in\n{}", mode, text);
+            assert!(text.contains(step), "{:?}: {} missing in\n{}", mode, step, text);
+            assert!(text.contains("PRs [5]"), "{:?}: detail view missing in\n{}", mode, text);
+        }
     }
 
     #[test]
