@@ -9,7 +9,7 @@
 - **Uncommitted Work Warning Badge**: Highlights repositories with a `⚠ PARTIAL` badge when staged and unstaged changes coexist simultaneously.
 - **Fuzzy Jump Picker**: Instantly jump to any repository by name using the `/` overlay.
 - **Command Palette**: Press `Ctrl-P` on the home screen or inside a repository to fuzzy-find every action available in that view, see its current key, and run it by name — no shortcut memorising required.
-- **Pin Repositories**: Press `p` to keep a repository at the top of the list, and of its label groups, whatever the sort order; a thin dashed rule under the last pinned row sets the pinned block apart from the rest.
+- **Pin Repositories**: Press `p` to keep a repository at the top of the list, and of its label groups, whatever the sort order; a faint dashed rule under the last pinned row sets the pinned block apart from the rest.
 - **Favorite / Star Repositories**: Bookmark important repositories with `*` separate from pinned items.
 - **Home View Modes**: Press `v` to cycle between standard 4-row cards, a dense 1-row view (Compact), and a grid-based Tile view. A label can carry its own layout (View Mode in Label Settings), used while that label's filter is active.
 - **Label / Group Collapsing**: Organize repositories on the home page with collapsible label headers.

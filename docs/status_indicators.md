@@ -3,7 +3,7 @@
 Each repository card shows icons and badges reflecting its state:
 
 ### General Icons
-- `📌` (or `[P]`) — Pinned repository. Pinned repositories are kept at the top of the list (and of each label group) in every sort order, and a thin dashed rule under the last one sets the pinned block apart from the rest.
+- `📌` (or `[P]`) — Pinned repository. Pinned repositories are kept at the top of the list (and of each label group) in every sort order, and a faint dashed rule under the last one sets the pinned block apart from the rest.
 - `★` (or `*`) — Starred / favorite repository.
 - `● clean` (or `* clean`) — Clean Git repository (in sync, no changes).
 - `○ dir` (or `o dir`) — Directory exists but is not a git repository.

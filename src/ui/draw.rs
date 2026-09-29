@@ -645,11 +645,21 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> (Vec<Rect
     (final_rects, rules)
 }
 
-/// Thin muted rules under the rows that close a pinned block, so the pinned
-/// repositories the sort keeps at the top read as their own group.
+/// Faint rules under the rows that close a pinned block, so the pinned
+/// repositories the sort keeps at the top read as their own group. Lighter
+/// than the header rules on purpose: the rule glyph in every other cell,
+/// dimmed, indented to the card text and stopping short of the right edge.
 fn draw_pin_rules(f: &mut Frame, app: &App, rules: &[Rect]) {
+    let indent = UNSELECTED_INDENT.len() as u16 + 1;
     for rect in rules {
-        draw_header_rule(f, *rect, app);
+        let width = rect.width.saturating_sub(indent * 2) as usize;
+        if width == 0 {
+            continue;
+        }
+        let dash = app.sym("rule");
+        let rule: String = (0..width).map(|i| if i % 2 == 0 { dash } else { " " }).collect();
+        let area = Rect::new(rect.x + indent, rect.y, width as u16, 1);
+        f.render_widget(Paragraph::new(Line::from(Span::styled(rule, rule_style()))), area);
     }
 }
 
