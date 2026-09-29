@@ -7,6 +7,7 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Added
+- **labels**: Label Settings gained a per-label **View Mode** row (default / Normal / Compact / Tile) beside Sort By and Sort Reverse. While that label's filter ("project view") is active, the home list is drawn in the label's layout instead of the global `view_mode`, the `v` key cycles the label's layout rather than the global one, and the global layout returns on leaving the view. Stored as `view_mode` under `[label_configs.<label>]`.
 - **home**: a thin dashed rule under the last pinned repository sets the pinned block apart from the rest of the list. Pinned repositories always stay at the top, whatever the sort order, which read as a broken sort when a pinned repository with an old commit sat above an unpinned one with a new commit under Latest Changes. The rule is drawn in all three layouts (in the Tile grid it spans the full width, so the last pinned tile ends its row) and in each label group; the Recent and Starred groups, which order rows by visit time and by name, have none.
 
 ### Fixed

@@ -176,6 +176,11 @@ pub struct LabelConfig {
     /// `None` inherits the global `sort_reverse`.
     #[serde(default)]
     pub sort_reverse: Option<bool>,
+    /// Home list layout (cards, compact rows or the tile grid) while this
+    /// label's filter is active. `None` inherits the global `view_mode`. Like
+    /// the sort, a property of the label view with no per-repo counterpart.
+    #[serde(default)]
+    pub view_mode: Option<HomeViewMode>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
@@ -358,6 +363,34 @@ pub enum HomeViewMode {
     Normal,
     Compact,
     Tile,
+}
+
+impl HomeViewMode {
+    /// The layout the `v` key moves to: cards → compact → tile → cards.
+    pub fn next(self) -> Self {
+        match self {
+            HomeViewMode::Normal => HomeViewMode::Compact,
+            HomeViewMode::Compact => HomeViewMode::Tile,
+            HomeViewMode::Tile => HomeViewMode::Normal,
+        }
+    }
+
+    /// The layout before this one in the `v` cycle.
+    pub fn prev(self) -> Self {
+        match self {
+            HomeViewMode::Normal => HomeViewMode::Tile,
+            HomeViewMode::Compact => HomeViewMode::Normal,
+            HomeViewMode::Tile => HomeViewMode::Compact,
+        }
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            HomeViewMode::Normal => "Normal",
+            HomeViewMode::Compact => "Compact",
+            HomeViewMode::Tile => "Tile",
+        }
+    }
 }
 
 /// Represents the structure of the configuration file.

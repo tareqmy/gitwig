@@ -2559,7 +2559,7 @@ where
             .height
             .saturating_sub(app.status_height())
             .saturating_sub(app.terminal_panel_outer_height(inner_area.height));
-        let mut list_height = if app.config.view_mode == crate::config::HomeViewMode::Compact {
+        let mut list_height = if app.effective_view_mode() == crate::config::HomeViewMode::Compact {
             available_height.saturating_sub(1)
         } else {
             available_height
@@ -2571,7 +2571,7 @@ where
         let separators = app.home_pin_separators(&rows);
         let mut accumulated_height = 0;
         let mut visible_count = 0;
-        let cols = if app.config.view_mode == crate::config::HomeViewMode::Tile {
+        let cols = if app.effective_view_mode() == crate::config::HomeViewMode::Tile {
             app.get_tile_cols()
         } else {
             1
@@ -2587,7 +2587,7 @@ where
                         accumulated_height += 4;
                         current_col = 0;
                     }
-                    let h = if app.config.view_mode == crate::config::HomeViewMode::Compact {
+                    let h = if app.effective_view_mode() == crate::config::HomeViewMode::Compact {
                         1
                     } else {
                         2
@@ -2600,7 +2600,7 @@ where
                     }
                 }
                 crate::app::HomeRow::Repo { .. } => {
-                    if app.config.view_mode == crate::config::HomeViewMode::Tile {
+                    if app.effective_view_mode() == crate::config::HomeViewMode::Tile {
                         if current_col == 0 {
                             if accumulated_height + 4 <= list_height {
                                 accumulated_height += 4;
@@ -2625,7 +2625,8 @@ where
                             current_col = 0;
                         }
                     } else {
-                        let h = if app.config.view_mode == crate::config::HomeViewMode::Compact {
+                        let h = if app.effective_view_mode() == crate::config::HomeViewMode::Compact
+                        {
                             1
                         } else {
                             4

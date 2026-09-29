@@ -702,6 +702,38 @@ impl App {
         (self.effective_sort_by(), self.effective_sort_reverse())
     }
 
+    /// The layout the home list actually uses: the active label's own
+    /// `view_mode` while its filter is on, else the global one. Every layout
+    /// decision (row heights, tile columns, the compact header) reads this.
+    pub fn effective_view_mode(&self) -> crate::config::HomeViewMode {
+        self.active_label_config().and_then(|lc| lc.view_mode).unwrap_or(self.config.view_mode)
+    }
+
+    /// Like [`App::label_owning_sort_by`], for `view_mode` and the `v` key.
+    fn label_owning_view_mode(&self) -> Option<String> {
+        let label = self.state.active_label_filter.as_deref()?;
+        self.config.label_configs.get(label)?.view_mode.map(|_| label.to_string())
+    }
+
+    /// The `v` key: steps the layout cards → compact → tile, acting on the
+    /// active label's own `view_mode` when its Label Settings set one (so the
+    /// key changes the layout on screen), else on the global one.
+    pub fn cycle_view_mode(&mut self) {
+        let msg = match self.label_owning_view_mode() {
+            Some(label) => {
+                if let Some(lc) = self.config.label_configs.get_mut(&label) {
+                    lc.view_mode = lc.view_mode.map(crate::config::HomeViewMode::next);
+                }
+                format!("View mode cycled for label '{}'", label)
+            }
+            None => {
+                self.config.view_mode = self.config.view_mode.next();
+                "View mode cycled".to_string()
+            }
+        };
+        self.persist(&msg);
+    }
+
     /// The active label filter's name when that label overrides `sort_by` or
     /// `sort_reverse`, i.e. when the sort shown is the label's, not the global.
     pub fn sort_override_label(&self) -> Option<&str> {
@@ -883,7 +915,7 @@ impl App {
     }
 
     pub fn get_tile_cols(&self) -> usize {
-        if self.config.view_mode != crate::config::HomeViewMode::Tile {
+        if self.effective_view_mode() != crate::config::HomeViewMode::Tile {
             return 1;
         }
         if self.config.tile_columns > 0 {
@@ -3132,11 +3164,7 @@ impl App {
                 self.set_input_buffer(self.config.tab_ttl_secs.to_string());
             }
             67 => {
-                self.config.view_mode = match self.config.view_mode {
-                    crate::config::HomeViewMode::Normal => crate::config::HomeViewMode::Compact,
-                    crate::config::HomeViewMode::Compact => crate::config::HomeViewMode::Tile,
-                    crate::config::HomeViewMode::Tile => crate::config::HomeViewMode::Normal,
-                };
+                self.config.view_mode = self.config.view_mode.next();
                 self.persist("View mode cycled");
             }
             82 => {
@@ -4442,11 +4470,12 @@ impl App {
                         inner_height.saturating_sub(self.status_height() as usize).saturating_sub(
                             self.terminal_panel_outer_height(inner_height as u16) as usize,
                         );
-                    let mut lh = if self.config.view_mode == crate::config::HomeViewMode::Compact {
-                        available_height.saturating_sub(1)
-                    } else {
-                        available_height
-                    };
+                    let mut lh =
+                        if self.effective_view_mode() == crate::config::HomeViewMode::Compact {
+                            available_height.saturating_sub(1)
+                        } else {
+                            available_height
+                        };
                     if !self.config.items.is_empty() {
                         lh = lh.saturating_sub(2);
                     }
@@ -4459,7 +4488,7 @@ impl App {
                 let mut accumulated = 0;
                 let mut is_visible = false;
                 if pos >= self.scroll_top {
-                    let cols = if self.config.view_mode == crate::config::HomeViewMode::Tile {
+                    let cols = if self.effective_view_mode() == crate::config::HomeViewMode::Tile {
                         self.get_tile_cols()
                     } else {
                         1
@@ -4473,7 +4502,7 @@ impl App {
                                     accumulated += 4;
                                     current_col = 0;
                                 }
-                                let h = if self.config.view_mode
+                                let h = if self.effective_view_mode()
                                     == crate::config::HomeViewMode::Compact
                                 {
                                     1
@@ -4483,7 +4512,7 @@ impl App {
                                 accumulated += h;
                             }
                             HomeRow::Repo { .. } => {
-                                if self.config.view_mode == crate::config::HomeViewMode::Tile {
+                                if self.effective_view_mode() == crate::config::HomeViewMode::Tile {
                                     if current_col == 0 {
                                         accumulated += 4;
                                     }
@@ -4492,7 +4521,7 @@ impl App {
                                         current_col = 0;
                                     }
                                 } else {
-                                    let h = if self.config.view_mode
+                                    let h = if self.effective_view_mode()
                                         == crate::config::HomeViewMode::Compact
                                     {
                                         1
@@ -4514,11 +4543,12 @@ impl App {
                         self.scroll_top = pos;
                     } else {
                         // Scroll down to make it visible at the bottom of the viewport
-                        let cols = if self.config.view_mode == crate::config::HomeViewMode::Tile {
-                            self.get_tile_cols()
-                        } else {
-                            1
-                        };
+                        let cols =
+                            if self.effective_view_mode() == crate::config::HomeViewMode::Tile {
+                                self.get_tile_cols()
+                            } else {
+                                1
+                            };
 
                         // When scrolling up from the bottom, it's a bit tricky with tiles because tiles are grouped from top to bottom.
                         // To be perfectly accurate, we should find the exact layout from `0..=pos`.
@@ -4532,7 +4562,7 @@ impl App {
                                         layout_heights.push(4);
                                         current_col = 0;
                                     }
-                                    let h = if self.config.view_mode
+                                    let h = if self.effective_view_mode()
                                         == crate::config::HomeViewMode::Compact
                                     {
                                         1
@@ -4542,7 +4572,9 @@ impl App {
                                     layout_heights.push(h);
                                 }
                                 HomeRow::Repo { .. } => {
-                                    if self.config.view_mode == crate::config::HomeViewMode::Tile {
+                                    if self.effective_view_mode()
+                                        == crate::config::HomeViewMode::Tile
+                                    {
                                         if current_col == 0 {
                                             layout_heights.push(4);
                                         } else {
@@ -4553,7 +4585,7 @@ impl App {
                                             current_col = 0;
                                         }
                                     } else {
-                                        let h = if self.config.view_mode
+                                        let h = if self.effective_view_mode()
                                             == crate::config::HomeViewMode::Compact
                                         {
                                             1

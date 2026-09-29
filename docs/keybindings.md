@@ -42,7 +42,7 @@
 | `s`                  | Normal          | Open options/settings page        |
 | `d`                  | Normal          | Open debug logs panel             |
 | `V`                  | Normal          | Show about popup / creator profile |
-| `v`                  | Normal          | Cycle between standard cards, compact 1-row view, and tile grid view |
+| `v`                  | Normal          | Cycle between standard cards, compact 1-row view, and tile grid view. While a label filter whose Label Settings set **View Mode** is active, cycles that label's layout instead of the global |
 | `h`                  | Normal          | Show signs & symbols legend popup |
 | `U`            | Normal          | Open App Usage Stats Dashboard    |
 | `u`                  | Normal          | Check for application updates manually |
@@ -196,8 +196,8 @@ When viewing the Label Settings popup (entered via `→` on a highlighted label 
 - `↑` / `↓` / `j` / `k` — Navigate settings rows.
 - `Enter` / `Space` — Toggle/Edit the selected setting:
   * For editable fields (Page Size, Max Commits, Auto Fetch interval, Editor Command): starts/enters editing mode (type and press `Enter` to confirm, `Esc` to cancel).
-  * For option fields (Theme, Resync on Tab Change, Sort By, Sort Reverse): steps to the next option.
-- `←` / `→` / `h` / `l` — Cycle options (Theme, Resync on Tab Change, Sort By, Sort Reverse). Sort By walks default → Custom → Alphabetical → Recent Visit → Latest Changes → default; Sort Reverse walks default → yes → no → default. Both apply only while that label's filter is active, and re-sort the list at once if it is.
+  * For option fields (Theme, Resync on Tab Change, Sort By, Sort Reverse, View Mode): steps to the next option.
+- `←` / `→` / `h` / `l` — Cycle options (Theme, Resync on Tab Change, Sort By, Sort Reverse, View Mode). Sort By walks default → Custom → Alphabetical → Recent Visit → Latest Changes → default; Sort Reverse walks default → yes → no → default; View Mode walks default → Normal → Compact → Tile → default. All three apply only while that label's filter is active; the sort rows re-sort the list at once if it is, and the View Mode row redraws it in the new layout.
 - `Esc` — Return to the label picker.
 
 

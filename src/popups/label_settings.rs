@@ -3,7 +3,7 @@
 //! default in the resolution order (repo → label → global).
 
 use crate::app::{App, Mode};
-use crate::config::SortOrder;
+use crate::config::{HomeViewMode, SortOrder};
 use crate::ui::style::{CARD_BORDER, accent_style, muted_style, primary_style};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
@@ -13,7 +13,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Padding, Paragraph};
 
 /// Number of rows in the popup (0..ROW_COUNT).
-const ROW_COUNT: usize = 8;
+const ROW_COUNT: usize = 9;
 
 /// Steps a tri-state row: going right is default → yes → no → default, going
 /// left walks the same ring backwards.
@@ -149,7 +149,7 @@ impl LabelSettingsPopup {
             }
             KeyCode::Enter | KeyCode::Char(' ') => {
                 match app.label_settings_selected_index {
-                    0 | 3 | 6 | 7 => {
+                    0 | 3 | 6 | 7 | 8 => {
                         Self::change_setting(app, &label, true);
                     }
                     1 => {
@@ -274,13 +274,28 @@ impl LabelSettingsPopup {
                 app.resort_if_sort_changed(before);
                 app.persist(&msg);
             }
+            8 => {
+                // default → Normal → Compact → Tile → default (and the
+                // reverse going left). The list redraws in the new layout at
+                // once when this label's filter is active.
+                lc.view_mode = match lc.view_mode {
+                    None => Some(if right { HomeViewMode::Normal } else { HomeViewMode::Tile }),
+                    Some(HomeViewMode::Tile) if right => None,
+                    Some(HomeViewMode::Normal) if !right => None,
+                    Some(mode) => Some(if right { mode.next() } else { mode.prev() }),
+                };
+                let desc = lc.view_mode.map(HomeViewMode::display_name).unwrap_or("Default");
+                let msg = format!("Label view mode set to {}", desc);
+                app.config.label_configs.insert(label.to_string(), lc);
+                app.persist(&msg);
+            }
             _ => {}
         }
     }
 
     pub fn draw(f: &mut Frame, app: &App, area: Rect) {
         let popup_width = 54;
-        let popup_height = 19;
+        let popup_height = 20;
         let popup_area = crate::ui::layout::centered_rect_fixed(popup_width, popup_height, area);
 
         let block = Block::default()
@@ -454,6 +469,10 @@ impl LabelSettingsPopup {
         };
         let sort_reverse_line = build_line(7, "Sort Reverse (in view):", sort_reverse_val, false);
 
+        // Row 8: View Mode (applies while this label's filter is active)
+        let view_mode_val = lc.view_mode.map(HomeViewMode::display_name).unwrap_or("default");
+        let view_mode_line = build_line(8, "View Mode (in view):", view_mode_val, false);
+
         let settings_lines = vec![
             theme_line,
             page_size_line,
@@ -463,6 +482,7 @@ impl LabelSettingsPopup {
             editor_line,
             sort_by_line,
             sort_reverse_line,
+            view_mode_line,
         ];
         f.render_widget(Paragraph::new(settings_lines), chunks[3]);
 

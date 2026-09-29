@@ -14172,7 +14172,10 @@ fn test_label_settings_popup_cycles_sort_rows() {
     let sort_by = |app: &App| app.config.label_configs["work"].sort_by;
     let sort_rev = |app: &App| app.config.label_configs["work"].sort_reverse;
 
-    // Up from the top wraps to the last row (Sort Reverse); up again is Sort By.
+    // Up from the top wraps to the last row (View Mode); up again is Sort
+    // Reverse, then Sort By.
+    LabelSettingsPopup::handle_event(&mut app, KeyEvent::new(KeyCode::Up, KeyModifiers::empty()));
+    assert_eq!(app.label_settings_selected_index, 8);
     LabelSettingsPopup::handle_event(&mut app, KeyEvent::new(KeyCode::Up, KeyModifiers::empty()));
     assert_eq!(app.label_settings_selected_index, 7);
     LabelSettingsPopup::handle_event(&mut app, KeyEvent::new(KeyCode::Up, KeyModifiers::empty()));
@@ -14305,4 +14308,78 @@ fn test_home_pin_separators_close_the_pinned_block() {
     .map(|(row, sep)| (row.to_string(), *sep))
     .collect();
     assert_eq!(described, expected);
+}
+
+/// A label's `view_mode` replaces the global layout only while that label's
+/// filter is active, `v` then cycles the label's value instead of the global,
+/// and the Label Settings row walks default → Normal → Compact → Tile → default.
+#[test]
+fn test_label_view_mode_applies_in_project_view() {
+    use crate::config::HomeViewMode;
+    use crate::popups::label_settings::LabelSettingsPopup;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    let (mut app, path) = label_test_app(
+        "lbl_view_mode",
+        vec!["web"],
+        None,
+        vec![(
+            "web",
+            crate::config::LabelConfig {
+                view_mode: Some(HomeViewMode::Tile),
+                ..Default::default()
+            },
+        )],
+    );
+    let _guard = TestFileGuard { path };
+    app.config.tile_columns = 3;
+    assert_eq!(app.config.view_mode, HomeViewMode::Normal);
+    assert_eq!(app.effective_view_mode(), HomeViewMode::Normal, "no filter: the global layout");
+    assert_eq!(app.get_tile_cols(), 1);
+
+    app.select_label_filter(Some("web".to_string()));
+    assert_eq!(app.effective_view_mode(), HomeViewMode::Tile, "in the label's view: its layout");
+    assert_eq!(app.get_tile_cols(), 3, "the grid follows the label's layout");
+
+    // `v` cycles the label's layout, leaving the global one alone.
+    app.mode = Mode::Normal;
+    let _ = crate::tabs::HomeTab::handle_event(&mut app, key(KeyCode::Char('v')), 10);
+    assert_eq!(app.config.label_configs["web"].view_mode, Some(HomeViewMode::Normal));
+    assert_eq!(app.effective_view_mode(), HomeViewMode::Normal);
+    assert_eq!(app.config.view_mode, HomeViewMode::Normal);
+
+    // Leaving the view restores the global layout, and `v` edits that again.
+    app.select_label_filter(None);
+    let _ = crate::tabs::HomeTab::handle_event(&mut app, key(KeyCode::Char('v')), 10);
+    assert_eq!(app.config.view_mode, HomeViewMode::Compact);
+    assert_eq!(app.config.label_configs["web"].view_mode, Some(HomeViewMode::Normal));
+
+    // The Label Settings row (8) cycles through every layout and back to default.
+    app.mode = Mode::LabelSettings;
+    app.label_settings_target = Some("web".to_string());
+    app.label_settings_selected_index = 8;
+    let mut seen = Vec::new();
+    for _ in 0..4 {
+        LabelSettingsPopup::handle_event(&mut app, key(KeyCode::Right));
+        seen.push(app.config.label_configs["web"].view_mode);
+    }
+    assert_eq!(
+        seen,
+        [Some(HomeViewMode::Compact), Some(HomeViewMode::Tile), None, Some(HomeViewMode::Normal)]
+    );
+    LabelSettingsPopup::handle_event(&mut app, key(KeyCode::Left));
+    assert_eq!(app.config.label_configs["web"].view_mode, None);
+    LabelSettingsPopup::handle_event(&mut app, key(KeyCode::Left));
+    assert_eq!(app.config.label_configs["web"].view_mode, Some(HomeViewMode::Tile));
+
+    // Down from the last row wraps to the first.
+    LabelSettingsPopup::handle_event(&mut app, key(KeyCode::Down));
+    assert_eq!(app.label_settings_selected_index, 0);
+
+    // And it survives a config round trip.
+    let serialized = toml::to_string_pretty(&app.config).unwrap();
+    assert!(serialized.contains("view_mode = \"tile\""), "{serialized}");
+    let parsed: Config = toml::from_str(&serialized).unwrap();
+    assert_eq!(parsed.label_configs["web"].view_mode, Some(HomeViewMode::Tile));
 }

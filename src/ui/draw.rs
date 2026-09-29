@@ -322,7 +322,7 @@ pub fn draw(
         let list_area_parent = header.body;
 
         let (header_area, list_area) =
-            if app.config.view_mode == crate::config::HomeViewMode::Compact {
+            if app.effective_view_mode() == crate::config::HomeViewMode::Compact {
                 let parts = Layout::default()
                     .direction(Direction::Vertical)
                     .constraints([Constraint::Length(1), Constraint::Min(0)])
@@ -507,15 +507,19 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> (Vec<Rect
     let visible_rows = &rows[app.scroll_top..upper];
     let visible_separators = &separators[app.scroll_top..upper];
 
-    if app.config.view_mode != crate::config::HomeViewMode::Tile {
+    if app.effective_view_mode() != crate::config::HomeViewMode::Tile {
         let mut constraints = Vec::new();
         for (row, &separator) in visible_rows.iter().zip(visible_separators) {
             let h = match row {
                 crate::app::HomeRow::GroupHeader { .. } => {
-                    if app.config.view_mode == crate::config::HomeViewMode::Compact { 1 } else { 2 }
+                    if app.effective_view_mode() == crate::config::HomeViewMode::Compact {
+                        1
+                    } else {
+                        2
+                    }
                 }
                 crate::app::HomeRow::Repo { path, .. } => {
-                    if app.config.view_mode == crate::config::HomeViewMode::Compact {
+                    if app.effective_view_mode() == crate::config::HomeViewMode::Compact {
                         1
                     } else {
                         let has_note = app
@@ -1031,7 +1035,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     muted_style().add_modifier(Modifier::BOLD)
                 };
                 let mut block = Block::default();
-                if app.config.view_mode != crate::config::HomeViewMode::Compact {
+                if app.effective_view_mode() != crate::config::HomeViewMode::Compact {
                     let border_style =
                         if is_selected { Style::default().fg(ACCENT()) } else { muted_style() };
                     block = block.borders(Borders::BOTTOM).border_style(border_style);
@@ -1091,7 +1095,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                     .and_then(|s| s.to_str())
                     .unwrap_or(item.as_str());
 
-                if app.config.view_mode == crate::config::HomeViewMode::Compact {
+                if app.effective_view_mode() == crate::config::HomeViewMode::Compact {
                     let cols = Layout::default()
                         .direction(Direction::Horizontal)
                         .constraints([

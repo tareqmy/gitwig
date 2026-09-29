@@ -59,7 +59,7 @@ impl HomeTab {
                 } else if app.is_bound(Action::HomeMoveUp, key) {
                     app.move_up();
                 } else if code == KeyCode::Left
-                    && app.config.view_mode == crate::config::HomeViewMode::Tile
+                    && app.effective_view_mode() == crate::config::HomeViewMode::Tile
                 {
                     if app.selected_index > 0 {
                         app.selected_index -= 1;
@@ -68,7 +68,7 @@ impl HomeTab {
                         }
                     }
                 } else if code == KeyCode::Right
-                    && app.config.view_mode == crate::config::HomeViewMode::Tile
+                    && app.effective_view_mode() == crate::config::HomeViewMode::Tile
                 {
                     let len = app.get_items_len();
                     if app.selected_index + 1 < len {
@@ -107,12 +107,7 @@ impl HomeTab {
                 } else if app.is_bound(Action::HomeSymbolsHelp, key) {
                     app.mode = Mode::Legend;
                 } else if app.is_bound(Action::HomeCycleViewMode, key) {
-                    app.config.view_mode = match app.config.view_mode {
-                        crate::config::HomeViewMode::Normal => crate::config::HomeViewMode::Compact,
-                        crate::config::HomeViewMode::Compact => crate::config::HomeViewMode::Tile,
-                        crate::config::HomeViewMode::Tile => crate::config::HomeViewMode::Normal,
-                    };
-                    app.persist("View mode cycled");
+                    app.cycle_view_mode();
                 } else if app.is_bound(Action::HomeRefresh, key) {
                     app.refresh_selected_status();
                 } else if app.is_bound(Action::HomeCycleSort, key) {
