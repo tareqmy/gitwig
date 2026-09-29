@@ -831,9 +831,10 @@ impl App {
             };
 
         for item in &self.config.items {
-            let canon = match std::fs::canonicalize(item) {
+            let expanded = repo::expand_tilde(item);
+            let canon = match std::fs::canonicalize(&expanded) {
                 Ok(c) => c,
-                Err(_) => PathBuf::from(item),
+                Err(_) => expanded,
             };
             let git_dir = canon.join(".git");
             if git_dir.exists() && git_dir.is_dir() {
@@ -1937,8 +1938,8 @@ where
                     let canon_target = std::fs::canonicalize(repo_path)
                         .unwrap_or_else(|_| PathBuf::from(repo_path));
                     let already_tracked = app.config.items.iter().position(|item| {
-                        let canon_item =
-                            std::fs::canonicalize(item).unwrap_or_else(|_| PathBuf::from(item));
+                        let expanded = repo::expand_tilde(item);
+                        let canon_item = std::fs::canonicalize(&expanded).unwrap_or(expanded);
                         canon_item == canon_target
                     });
                     if let Some(idx) = already_tracked {

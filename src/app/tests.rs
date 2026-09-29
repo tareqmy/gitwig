@@ -5951,6 +5951,43 @@ fn test_open_repo_opens_the_given_item_not_the_cursor_row() {
     assert_eq!(app.get_selected_item(), Some(&items[1]));
 }
 
+/// The `.git` guard in `open_repo` must see the expanded path: an item
+/// written as `~/repo` used to fall into `NotGitRepo` every time, even
+/// though the home list loaded its status fine.
+#[test]
+fn test_open_repo_expands_tilde_before_the_git_guard() {
+    let Some(home) = dirs::home_dir() else {
+        return;
+    };
+    let name = "gitwig_test_open_repo_tilde";
+    let dir = home.join(name);
+    let _ = std::fs::remove_dir_all(&dir);
+    // `~` can only be exercised with a fixture under the real home directory;
+    // skip where the home directory is not writable (sandboxed runs).
+    if std::fs::create_dir_all(dir.join(".git")).is_err() {
+        return;
+    }
+    let _guard = TestDirGuard { path: dir.clone() };
+
+    let tilde_item = format!("~/{}", name);
+    let config = Config { items: vec![tilde_item.clone()], ..Default::default() };
+    let mut app = App::new(config, dir.join("config.toml"));
+
+    app.open_repo(tilde_item.clone());
+    assert_ne!(app.mode, Mode::NotGitRepo, "a `~` item with a .git directory is a repository");
+    assert_eq!(app.loading_repo_path.as_ref(), Some(&tilde_item));
+    assert!(app.state.visits.contains_key(&tilde_item));
+
+    // The guard still rejects a directory without `.git`, tilde or not.
+    let plain = home.join("gitwig_test_open_repo_tilde_plain");
+    let _ = std::fs::remove_dir_all(&plain);
+    std::fs::create_dir_all(&plain).unwrap();
+    let _plain_guard = TestDirGuard { path: plain };
+    app.mode = Mode::Normal;
+    app.open_repo("~/gitwig_test_open_repo_tilde_plain".to_string());
+    assert_eq!(app.mode, Mode::NotGitRepo);
+}
+
 /// Once a repository is open, "which repository" comes from the open
 /// snapshot, whatever the home cursor points at. Items stored with `~` match
 /// the expanded path the snapshot carries.
