@@ -35,7 +35,7 @@ The primary dashboard shown when Gitwig starts up.
         *   `E` : Show why the selected repository's last fetch failed
         *   `o` : Cycle sorting criteria (Custom → Alphabetical → Recent → Changes); acts on the active label's own sort when its Label Settings set one
         *   `O` : Toggle reverse sorting; acts on the active label's own direction when its Label Settings set one
-        *   `v` : Cycle repository list layout (Normal/Compact/Tile)
+        *   `v` : Cycle repository list layout (Normal/Compact/Tile); acts on the active label's own layout when its Label Settings set one
         *   `a` : Add a repository via the directory-scanner picker; the new repository is selected, and its label group is expanded if it was collapsed
         *   `A` : Bulk add subdirectories of a directory; the first new repository is selected
         *   `i` : Import / clone a remote repository

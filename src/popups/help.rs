@@ -239,9 +239,12 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ),
                 (
                     compact_key,
-                    "Cycle between standard cards, compact 1-row view, and tile grid view",
+                    "Cycle between standard cards, compact 1-row view, and tile grid view (the active label's own layout when its Label Settings set one)",
                 ),
-                (pin_key, "Toggle pin status of selected item"),
+                (
+                    pin_key,
+                    "Toggle pin status of selected item (pinned repos stay at the top, above a thin rule)",
+                ),
                 (star_key, "Toggle Favorite / Star status of selected item"),
                 (select_key, "Toggle selection of item for batch operations"),
                 (yank_key, "Yank absolute path of selected item to clipboard"),

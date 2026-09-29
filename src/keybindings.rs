@@ -1027,7 +1027,7 @@ impl KeybindingsConfig {
                 check_update: Some(Keybind::new(&["u"], "Check for application updates")),
                 cycle_view_mode: Some(Keybind::new(
                     &["v"],
-                    "Cycle repository list layout (Normal/Compact/Tile)",
+                    "Cycle repository list layout (Normal/Compact/Tile; the active label's own when set)",
                 )),
                 open_terminal: Some(Keybind::new(&["t"], "Open terminal panel at repository path")),
                 open_external_shell: Some(Keybind::new(
