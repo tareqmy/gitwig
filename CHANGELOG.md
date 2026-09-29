@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Fixed
+- **home**: a repository written in `config.toml` with a leading `~` (`~/development/api-server`) could not be opened: its card loaded fine, but `Enter` always answered "not a git repository". The `.git` check in `open_repo` looked at the literal `~/...` path instead of the expanded one. The same unexpanded path also kept the file watcher off such repositories, so outside changes to them were not picked up until the next poll, and made the global code search (`Ctrl+F`) skip them. Every place that reaches the filesystem from a `config.items` entry now expands `~` first.
 
 ## [v2.6.4] - 2026-09-25
 ### Fixed

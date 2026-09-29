@@ -1231,8 +1231,9 @@ impl App {
     /// snapshot is held in `current_detail` for as long as the view is open;
     /// closing clears it.
     pub fn open_repo(&mut self, item: String) {
-        // Guard: only allow opening a git repository
-        if !std::path::Path::new(&item).join(".git").exists() {
+        // Guard: only allow opening a git repository. `item` is a raw
+        // `config.items` entry and may start with `~`, so expand it first.
+        if !repo::expand_tilde(&item).join(".git").exists() {
             self.mode = Mode::NotGitRepo;
             return;
         }
@@ -1383,7 +1384,7 @@ impl App {
 
         if let Some(item) = path_opt {
             crate::debug_log::info("Resyncing repository details");
-            let path = std::path::PathBuf::from(&item);
+            let path = repo::expand_tilde(&item);
             repo::invalidate_ref_map_cache(&path);
 
             if let Some(repo::ItemDetail::Repo { info, .. }) = &mut self.current_detail {

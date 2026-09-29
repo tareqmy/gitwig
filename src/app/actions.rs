@@ -601,7 +601,9 @@ impl App {
             let query_lower = query.to_lowercase();
 
             for path_str in repo_paths {
-                let path = std::path::PathBuf::from(&path_str);
+                // Walk the expanded path; `path_str` stays the raw config
+                // entry so results can be opened with `open_repo`.
+                let path = repo::expand_tilde(&path_str);
                 let query_lower = query_lower.clone();
                 let path_str_clone = path_str.clone();
 
