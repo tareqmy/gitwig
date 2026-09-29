@@ -336,9 +336,10 @@ pub fn draw(
             draw_compact_headers(f, hdr, app);
         }
 
-        let list_chunks = item_chunks(list_area, visible_count, app);
+        let (list_chunks, pin_rules) = item_chunks(list_area, visible_count, app);
         *main_areas = list_chunks.clone();
         draw_items(f, app, &list_chunks);
+        draw_pin_rules(f, app, &pin_rules);
     }
 
     if let Some(term_area) = terminal_area {
@@ -495,15 +496,20 @@ fn content_and_status_chunks(inner_area: Rect, status_height: u16) -> (Rect, Rec
 }
 
 /// Within the content area, split into N item rows + a flex spacer so the
-/// list is top-aligned and never pushes against the status bar.
-fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect> {
+/// list is top-aligned and never pushes against the status bar. Returns one
+/// rect per visible row, and the one-line rects of the rules that close a
+/// pinned block ([`App::home_pin_separators`]); the visible-row count in the
+/// main loop reserves the same lines.
+fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> (Vec<Rect>, Vec<Rect>) {
     let rows = app.get_home_rows();
+    let separators = app.home_pin_separators(&rows);
     let upper = (app.scroll_top + visible_count).min(rows.len());
     let visible_rows = &rows[app.scroll_top..upper];
+    let visible_separators = &separators[app.scroll_top..upper];
 
     if app.config.view_mode != crate::config::HomeViewMode::Tile {
         let mut constraints = Vec::new();
-        for row in visible_rows {
+        for (row, &separator) in visible_rows.iter().zip(visible_separators) {
             let h = match row {
                 crate::app::HomeRow::GroupHeader { .. } => {
                     if app.config.view_mode == crate::config::HomeViewMode::Compact { 1 } else { 2 }
@@ -523,24 +529,38 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
                 }
             };
             constraints.push(Constraint::Length(h));
+            if separator {
+                constraints.push(Constraint::Length(1));
+            }
         }
         constraints.push(Constraint::Min(0));
 
-        let chunks: Vec<Rect> = Layout::default()
+        let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints(constraints)
-            .split(content_area)
-            .to_vec();
-        return chunks[..visible_count].to_vec();
+            .split(content_area);
+        let mut rects = Vec::with_capacity(visible_rows.len());
+        let mut rules = Vec::new();
+        let mut next = 0;
+        for &separator in visible_separators {
+            rects.push(chunks[next]);
+            next += 1;
+            if separator {
+                rules.push(chunks[next]);
+                next += 1;
+            }
+        }
+        return (rects, rules);
     }
 
     let cols = app.get_tile_cols();
     let mut final_rects = Vec::with_capacity(visible_rows.len());
+    let mut rules = Vec::new();
 
     let mut row_heights = Vec::new();
     let mut current_row_items = 0;
 
-    for row in visible_rows {
+    for (row, &separator) in visible_rows.iter().zip(visible_separators) {
         match row {
             crate::app::HomeRow::GroupHeader { .. } => {
                 if current_row_items > 0 {
@@ -551,7 +571,13 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
             }
             crate::app::HomeRow::Repo { .. } => {
                 current_row_items += 1;
-                if current_row_items == cols {
+                if separator {
+                    // The rule spans the grid: the pinned block's last tile
+                    // ends its grid row, and the rule takes the line below.
+                    row_heights.push(4);
+                    row_heights.push(1);
+                    current_row_items = 0;
+                } else if current_row_items == cols {
                     row_heights.push(4);
                     current_row_items = 0;
                 }
@@ -579,7 +605,7 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
     let tile_constraints: Vec<Constraint> =
         (0..cols).map(|_| Constraint::Ratio(1, cols as u32)).collect();
 
-    for row in visible_rows {
+    for (row, &separator) in visible_rows.iter().zip(visible_separators) {
         match row {
             crate::app::HomeRow::GroupHeader { .. } => {
                 if current_col > 0 {
@@ -599,7 +625,12 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
                 final_rects.push(horizontal_chunks[current_col]);
 
                 current_col += 1;
-                if current_col == cols {
+                if separator {
+                    current_col = 0;
+                    row_idx += 1;
+                    rules.push(vertical_chunks[row_idx]);
+                    row_idx += 1;
+                } else if current_col == cols {
                     current_col = 0;
                     row_idx += 1;
                 }
@@ -607,7 +638,15 @@ fn item_chunks(content_area: Rect, visible_count: usize, app: &App) -> Vec<Rect>
         }
     }
 
-    final_rects
+    (final_rects, rules)
+}
+
+/// Thin muted rules under the rows that close a pinned block, so the pinned
+/// repositories the sort keeps at the top read as their own group.
+fn draw_pin_rules(f: &mut Frame, app: &App, rules: &[Rect]) {
+    for rect in rules {
+        draw_header_rule(f, *rect, app);
+    }
 }
 
 /// Aggregate counts backing the home summary tab bar.

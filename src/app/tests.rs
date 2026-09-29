@@ -14235,3 +14235,74 @@ fn test_label_config_sort_round_trips_through_toml() {
     assert_eq!(legacy.label_configs["work"].sort_by, None);
     assert_eq!(legacy.label_configs["work"].sort_reverse, None);
 }
+
+/// A thin rule closes the pinned block the sort keeps at the top of the list
+/// and of each label group. Only a block opening its group gets one; the
+/// Recent and Starred groups, which interleave pinned and unpinned rows, and a
+/// group without pinned rows do not.
+#[test]
+fn test_home_pin_separators_close_the_pinned_block() {
+    let items: Vec<String> =
+        ["/p/a", "/p/b", "/p/c", "/p/d", "/p/e"].iter().map(|s| s.to_string()).collect();
+    let mut config = Config {
+        items: items.clone(),
+        sort_by: SortOrder::Custom,
+        show_grouping: false,
+        ..Default::default()
+    };
+    config.pinned.insert(items[0].clone());
+    config.pinned.insert(items[1].clone());
+    config.starred.insert(items[0].clone());
+    config.starred.insert(items[2].clone());
+    let temp_path = std::env::temp_dir().join("gitwig_test_home_pin_separators.toml");
+    let _guard = TestFileGuard { path: temp_path.clone() };
+    let mut app = App::new(config, temp_path);
+
+    // Flat list: a, b pinned, then c, d, e.
+    let rows = app.get_home_rows();
+    assert_eq!(rows.len(), 5);
+    assert_eq!(app.home_pin_separators(&rows), [false, true, false, false, false]);
+
+    // Grouped: Starred (a, c: pinned then unpinned, no rule), then the label
+    // groups: `pet` (a, b pinned | c), `solo` (d, e: no pinned rows) and
+    // `all` (a, b: everything pinned, so nothing to set apart).
+    app.config.show_grouping = true;
+    for (item, labels) in [
+        (&items[0], vec!["pet", "all"]),
+        (&items[1], vec!["pet", "all"]),
+        (&items[2], vec!["pet"]),
+        (&items[3], vec!["solo"]),
+        (&items[4], vec!["solo"]),
+    ] {
+        app.config.labels.insert(item.clone(), labels.into_iter().map(String::from).collect());
+    }
+    let rows = app.get_home_rows();
+    let separators = app.home_pin_separators(&rows);
+    let described: Vec<(String, bool)> = rows
+        .iter()
+        .zip(&separators)
+        .map(|(row, &sep)| match row {
+            HomeRow::GroupHeader { name, .. } => (format!("[{name}]"), sep),
+            HomeRow::Repo { path, primary_label, .. } => (format!("{primary_label}:{path}"), sep),
+        })
+        .collect();
+    let expected: Vec<(String, bool)> = [
+        ("[Starred]", false),
+        ("Starred:/p/a", false),
+        ("Starred:/p/c", false),
+        ("[all]", false),
+        ("all:/p/a", false),
+        ("all:/p/b", false),
+        ("[pet]", false),
+        ("pet:/p/a", false),
+        ("pet:/p/b", true),
+        ("pet:/p/c", false),
+        ("[solo]", false),
+        ("solo:/p/d", false),
+        ("solo:/p/e", false),
+    ]
+    .iter()
+    .map(|(row, sep)| (row.to_string(), *sep))
+    .collect();
+    assert_eq!(described, expected);
+}

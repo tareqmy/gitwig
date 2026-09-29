@@ -215,6 +215,37 @@ impl App {
         rows
     }
 
+    /// For each home row, whether a thin rule is drawn under it to set the
+    /// pinned repositories apart from the rest: the sort keeps pinned rows at
+    /// the top of the list (and of each label group), so the rule marks where
+    /// the pinned block ends. Only a block that opens its group gets one; the
+    /// Recent and Starred groups, ordered by visit time and by name, can
+    /// interleave pinned and unpinned rows and are left alone.
+    pub fn home_pin_separators(&self, rows: &[HomeRow]) -> Vec<bool> {
+        let mut separators = vec![false; rows.len()];
+        // Whether every repository row since the current group started is pinned.
+        let mut pinned_block = true;
+        for (i, row) in rows.iter().enumerate() {
+            match row {
+                HomeRow::GroupHeader { .. } => pinned_block = true,
+                HomeRow::Repo { path, primary_label, .. } => {
+                    if primary_label == "Recent" || primary_label == "Starred" {
+                        pinned_block = false;
+                        continue;
+                    }
+                    if self.config.pinned.contains(path) {
+                        continue;
+                    }
+                    if pinned_block && i > 0 && matches!(rows[i - 1], HomeRow::Repo { .. }) {
+                        separators[i - 1] = true;
+                    }
+                    pinned_block = false;
+                }
+            }
+        }
+        separators
+    }
+
     pub fn get_active_items(&self) -> Vec<(usize, &String)> {
         let label_ok = |path: &String| match &self.state.active_label_filter {
             Some(label) => self.config.labels.get(path).is_some_and(|lbls| lbls.contains(label)),

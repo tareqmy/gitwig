@@ -2568,6 +2568,7 @@ where
             list_height = list_height.saturating_sub(2);
         }
         let rows = app.get_home_rows();
+        let separators = app.home_pin_separators(&rows);
         let mut accumulated_height = 0;
         let mut visible_count = 0;
         let cols = if app.config.view_mode == crate::config::HomeViewMode::Tile {
@@ -2577,7 +2578,9 @@ where
         };
         let mut current_col = 0;
 
-        for row in rows.iter().skip(app.scroll_top) {
+        for (row_idx, row) in rows.iter().enumerate().skip(app.scroll_top) {
+            // A row closing the pinned block carries a one-line rule under it.
+            let separator = u16::from(separators[row_idx]);
             match row {
                 crate::app::HomeRow::GroupHeader { .. } => {
                     if current_col > 0 {
@@ -2605,6 +2608,17 @@ where
                                 break;
                             }
                         }
+                        if separator > 0 {
+                            // The rule spans the grid, so the pinned block's
+                            // last tile ends its grid row.
+                            if accumulated_height + separator > list_height {
+                                break;
+                            }
+                            accumulated_height += separator;
+                            visible_count += 1;
+                            current_col = 0;
+                            continue;
+                        }
                         visible_count += 1;
                         current_col += 1;
                         if current_col == cols {
@@ -2615,7 +2629,7 @@ where
                             1
                         } else {
                             4
-                        };
+                        } + separator;
                         if accumulated_height + h <= list_height {
                             accumulated_height += h;
                             visible_count += 1;

@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Added
+- **home**: a thin dashed rule under the last pinned repository sets the pinned block apart from the rest of the list. Pinned repositories always stay at the top, whatever the sort order, which read as a broken sort when a pinned repository with an old commit sat above an unpinned one with a new commit under Latest Changes. The rule is drawn in all three layouts (in the Tile grid it spans the full width, so the last pinned tile ends its row) and in each label group; the Recent and Starred groups, which order rows by visit time and by name, have none.
+
 ### Fixed
 - **home**: a repository written in `config.toml` with a leading `~` (`~/development/api-server`) could not be opened: its card loaded fine, but `Enter` always answered "not a git repository". The `.git` check in `open_repo` looked at the literal `~/...` path instead of the expanded one. The same unexpanded path also kept the file watcher off such repositories, so outside changes to them were not picked up until the next poll, and made the global code search (`Ctrl+F`) skip them. Every place that reaches the filesystem from a `config.items` entry now expands `~` first.
 

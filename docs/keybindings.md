@@ -23,7 +23,7 @@
 | `→`                  | LabelPicker     | Open Label Settings for the highlighted label (on the "All repositories" row it only shows a "Select a label to edit its settings" status hint) |
 | `Home` / `End` / `PgUp` / `PgDn` | Fuzzy pickers | Jump to top / bottom or page through the match list. Works in all fuzzy picker overlays: label picker, Jump-to-Repo, add/bulk-add repo scanners, and branch/file/commit/tag searches |
 | `ctrl+f`             | Normal          | Open global code search popup overlay |
-| `p`                  | Normal          | Toggle pin status of selected item |
+| `p`                  | Normal          | Toggle pin status of selected item (pinned repositories stay at the top of the list in every sort order, above a thin rule) |
 | `*`                  | Normal          | Toggle Favorite / Star status of selected item |
 | `Space`              | Normal          | Toggle selection of item for batch operations (fetch, delete, external shell) |
 | `y`                  | Normal          | Yank absolute path of selected item to clipboard |
