@@ -839,8 +839,9 @@ pub fn quick_label_parts(app: &App) -> Vec<(String, String)> {
 }
 
 /// Home header rows: the summary bar, the quick-label chip strip (only once
-/// a label has been viewed, set off from the summary bar by a thin rule),
-/// the closing rule that carries the sort caption, and the body below it.
+/// a label has been viewed, set off from the summary bar by a thin rule
+/// unless `show_separators` is off), the closing rule that carries the sort
+/// caption, and the body below it.
 struct HomeHeaderLayout {
     summary: Rect,
     chips: Option<Rect>,
@@ -859,6 +860,22 @@ fn home_header_layout(area: Rect, app: &App) -> HomeHeaderLayout {
             ])
             .split(area);
         HomeHeaderLayout { summary: parts[0], chips: None, sort_rule: parts[1], body: parts[2] }
+    } else if !app.config.show_separators {
+        let parts = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // Global summary bar
+                Constraint::Length(1), // Quick-label chips
+                Constraint::Length(1), // Sort caption
+                Constraint::Min(0),    // Body
+            ])
+            .split(area);
+        HomeHeaderLayout {
+            summary: parts[0],
+            chips: Some(parts[1]),
+            sort_rule: parts[2],
+            body: parts[3],
+        }
     } else {
         let parts = Layout::default()
             .direction(Direction::Vertical)
@@ -904,7 +921,9 @@ fn draw_home_header(
     draw_global_summary_bar(f, header.summary, app);
     *global_summary_area = Some(header.summary);
     if let Some(chips) = header.chips {
-        draw_header_rule(f, Rect::new(chips.x, chips.y.saturating_sub(1), chips.width, 1), app);
+        if app.config.show_separators {
+            draw_header_rule(f, Rect::new(chips.x, chips.y.saturating_sub(1), chips.width, 1), app);
+        }
         draw_quick_label_bar(f, chips, app);
         *quick_label_area = Some(chips);
     }
@@ -924,10 +943,11 @@ fn draw_header_rule(f: &mut Frame, area: Rect, app: &App) {
 }
 
 /// Closing rule under the header with the sort caption set into it, the way
-/// the outer frame carries its titles.
+/// the outer frame carries its titles. With `show_separators` off only the
+/// caption is drawn.
 fn draw_sort_rule(f: &mut Frame, area: Rect, app: &App) {
     let border_set = ratatui::symbols::border::Set {
-        horizontal_top: app.sym("rule"),
+        horizontal_top: if app.config.show_separators { app.sym("rule") } else { " " },
         ..ratatui::symbols::border::PLAIN
     };
     let block = Block::default()
@@ -3557,6 +3577,20 @@ mod tests {
         let dash = app.sym("rule");
         assert!(rule.starts_with(&format!("{dash}{dash}")), "rule: {}", rule);
         assert!(buffer[(0, 0)].style().add_modifier.contains(Modifier::DIM));
+
+        // With the separators setting off the sort row keeps its caption but
+        // loses the dashes, and the rule row between summary and chips goes.
+        app.config.show_separators = false;
+        terminal.draw(|f| draw_sort_rule(f, Rect::new(0, 0, 80, 1), &app)).unwrap();
+        let buffer = terminal.backend().buffer();
+        let rule: String = (0..80).map(|x| buffer[(x, 0)].symbol()).collect();
+        assert!(rule.contains("Sort: Alphabetical (Rev)"), "rule: {}", rule);
+        assert!(!rule.contains(dash), "rule: {}", rule);
+        app.state.label_slots.push("api".to_string());
+        let header = home_header_layout(area, &app);
+        assert_eq!(header.chips, Some(Rect::new(0, 1, 80, 1)));
+        assert_eq!(header.sort_rule, Rect::new(0, 2, 80, 1));
+        assert_eq!(header.body.y, 3);
     }
 
     #[test]

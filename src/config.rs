@@ -242,6 +242,7 @@ impl Default for Config {
             show_grouping: true,
             auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
             show_system_stats: default_show_system_stats(),
+            show_separators: default_show_separators(),
             stale_threshold_months: default_stale_threshold_months(),
             show_stale_projects: default_show_stale_projects(),
             enable_watch_dirs: default_enable_watch_dirs(),
@@ -333,6 +334,9 @@ fn default_auto_fetch_interval_mins() -> u64 {
 }
 fn default_show_system_stats() -> bool {
     false
+}
+fn default_show_separators() -> bool {
+    true
 }
 fn default_stale_threshold_months() -> u32 {
     1
@@ -496,6 +500,11 @@ pub struct Config {
     /// Whether to show current CPU & Memory stats in the status bar at the bottom.
     #[serde(default = "default_show_system_stats")]
     pub show_system_stats: bool,
+    /// Whether to draw the home page's separator rules: the one between the
+    /// summary bar and the quick-label chips, the dashes of the sort rule
+    /// (its caption stays), and the one under the last pinned repository.
+    #[serde(default = "default_show_separators")]
+    pub show_separators: bool,
     /// Number of months inactive to be considered stale.
     #[serde(default = "default_stale_threshold_months")]
     pub stale_threshold_months: u32,
@@ -630,6 +639,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         show_grouping: true,
         auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
         show_system_stats: default_show_system_stats(),
+        show_separators: default_show_separators(),
         stale_threshold_months: default_stale_threshold_months(),
         show_stale_projects: default_show_stale_projects(),
         prompt_cwd_repo: default_prompt_cwd_repo(),
@@ -833,6 +843,7 @@ fn load_config_file(cli_path: Option<PathBuf>) -> Result<LoadedConfigFile, Box<d
                 show_grouping: true,
                 auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
                 show_system_stats: default_show_system_stats(),
+                show_separators: default_show_separators(),
                 stale_threshold_months: default_stale_threshold_months(),
                 show_stale_projects: default_show_stale_projects(),
                 prompt_cwd_repo: default_prompt_cwd_repo(),
@@ -967,6 +978,7 @@ fn load_config_file(cli_path: Option<PathBuf>) -> Result<LoadedConfigFile, Box<d
         show_grouping: true,
         auto_fetch_interval_mins: default_auto_fetch_interval_mins(),
         show_system_stats: default_show_system_stats(),
+        show_separators: default_show_separators(),
         stale_threshold_months: default_stale_threshold_months(),
         show_stale_projects: default_show_stale_projects(),
         prompt_cwd_repo: default_prompt_cwd_repo(),

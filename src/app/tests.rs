@@ -14308,6 +14308,10 @@ fn test_home_pin_separators_close_the_pinned_block() {
     .map(|(row, sep)| (row.to_string(), *sep))
     .collect();
     assert_eq!(described, expected);
+
+    // With the separators setting off, no row closes a pinned block with a rule.
+    app.config.show_separators = false;
+    assert!(app.home_pin_separators(&rows).iter().all(|&sep| !sep));
 }
 
 /// A label's `view_mode` replaces the global layout only while that label's

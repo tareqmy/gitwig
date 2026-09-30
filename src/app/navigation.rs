@@ -220,9 +220,13 @@ impl App {
     /// the top of the list (and of each label group), so the rule marks where
     /// the pinned block ends. Only a block that opens its group gets one; the
     /// Recent and Starred groups, ordered by visit time and by name, can
-    /// interleave pinned and unpinned rows and are left alone.
+    /// interleave pinned and unpinned rows and are left alone. None at all
+    /// when `show_separators` is off.
     pub fn home_pin_separators(&self, rows: &[HomeRow]) -> Vec<bool> {
         let mut separators = vec![false; rows.len()];
+        if !self.config.show_separators {
+            return separators;
+        }
         // Whether every repository row since the current group started is pinned.
         let mut pinned_block = true;
         for (i, row) in rows.iter().enumerate() {
@@ -3178,6 +3182,10 @@ impl App {
             81 => {
                 self.config.show_stale_projects = !self.config.show_stale_projects;
                 self.persist("Show Stale Projects updated");
+            }
+            89 => {
+                self.config.show_separators = !self.config.show_separators;
+                self.persist("Show Separators updated");
             }
             11 => {
                 self.config.prompt_cwd_repo = !self.config.prompt_cwd_repo;

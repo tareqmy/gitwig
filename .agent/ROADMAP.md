@@ -137,7 +137,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Usage state split out of `config.toml`: last-visit times, per-repo commit-message history, quick-label slots and the sticky label filter live in `~/.gitwig/state.toml`, migrated out of an older `config.toml` on first launch, so opening a repository or committing never rewrites hand-edited settings.
 
 ### At-a-Glance Stats
-- [x] Global Summary Header Bar: header showing aggregate counts as a tab strip (`N repos │ M dirty │ P ahead │ Q stale`). Tabs act as filters — clickable, and cycled with `Tab`/`Shift+Tab`. The header is framed by dim dashed rules: one between the tabs and the quick-label strip, and a closing one above the list that carries the sort caption (`Sort: …`), which moved there from the top frame border.
+- [x] Global Summary Header Bar: header showing aggregate counts as a tab strip (`N repos │ M dirty │ P ahead │ Q stale`). Tabs act as filters — clickable, and cycled with `Tab`/`Shift+Tab`. The header is framed by dim dashed rules: one between the tabs and the quick-label strip, and a closing one above the list that carries the sort caption (`Sort: …`), which moved there from the top frame border. `show_separators = false` (Settings → Theme & Style) hides these rules and the pinned-block rule, keeping the sort caption.
 - [x] Uncommitted Work Warning Badge: Visually highlight cards with *both* staged and unstaged changes simultaneously.
 - [x] Background Auto-Refresh (Live Dashboard): Extend `poll_interval` to auto-refresh all repo statuses in the background.
 

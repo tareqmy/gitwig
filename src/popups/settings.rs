@@ -19,7 +19,7 @@ const GENERAL_SETTING_INDICES: &[usize] =
     &[9, 56, 55, 0, 60, 84, 13, 65, 66, 12, 58, 62, 63, 7, 80, 81];
 const SORTING_SETTING_INDICES: &[usize] = &[1, 2, 6, 64];
 const SCAN_SETTING_INDICES: &[usize] = &[5, 4, 8, 83, 11, 61];
-const THEME_SETTING_INDICES: &[usize] = &[3, 67, 82];
+const THEME_SETTING_INDICES: &[usize] = &[3, 67, 82, 89];
 pub(crate) const GLOBAL_NAV_SETTING_INDICES: &[usize] = &[
     16,  // Quit / Close Dialog (Close)
     15,  // Help (Help)
@@ -238,6 +238,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         66 => "Tab Cache TTL (secs)",
         67 => "View Mode",
         82 => "Tile Layout Columns (0=Auto)",
+        89 => "Show Separators",
         80 => "Stale Threshold (months)",
         81 => "Show Stale Projects",
         83 => "Enable Watch Directories",
@@ -472,6 +473,9 @@ fn get_desc(global_idx: usize) -> &'static str {
         82 => {
             "Number of columns in Tile layout. Set to 0 to auto-calculate based on terminal width."
         }
+        89 => {
+            "Show or hide the home page separators: the rule under the summary bar, the dashes of the sort rule (the sort caption stays), and the rule under the last pinned repository."
+        }
         80 => "Number of months inactive to be considered stale. Cannot be less than 1.",
         81 => "Show or hide stale repositories in the list on the main page.",
         83 => {
@@ -697,6 +701,7 @@ pub(crate) fn get_val_str(app: &App, global_idx: usize) -> String {
                 }
             }
             81 => app.config.show_stale_projects.to_string(),
+            89 => app.config.show_separators.to_string(),
             83 => app.config.enable_watch_dirs.to_string(),
             11 => app.config.prompt_cwd_repo.to_string(),
             84 => {

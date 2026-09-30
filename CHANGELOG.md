@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Added
+- **settings**: a **Show Separators** toggle under Theme & Style (`show_separators`, default `true`) hides the home page's separator rules: the rule between the summary bar and the quick-label chips (the chips then sit directly under the summary bar), the dashes of the sort rule (the `Sort: …` caption stays) and the rule under the last pinned repository.
 
 ## [v2.6.5] - 2026-09-29
 ### Added

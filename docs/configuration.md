@@ -87,6 +87,7 @@ show_stale_projects = true
 | `label_configs` | `Map<String, Table>` | `{}` | Per-label settings shared by every repository carrying that label (see [Per-label settings](#per-label-settings)). Managed by the Label Settings popup (`→` on a label in the `L` picker). Auto-pruned when no repository carries the label. |
 | `view_mode` | `String` | `"normal"` | Home page repository list layout mode (`"normal"`, `"compact"`, `"tile"`). Managed by `v`. A label can override it for its own view via Label Settings (see [Per-label settings](#per-label-settings)). |
 | `tile_columns` | `Integer` | `0` | Number of columns in tile layout mode (`0` = auto-calculate based on terminal width). |
+| `show_separators` | `Boolean` | `true` | Draw the home page separators: the rule between the summary bar and the quick-label chips, the sort rule above the list, and the rule under the last pinned repository. Set to `false` to hide all three; the chips then sit directly under the summary bar and the `Sort: …` caption stays on its own row without dashes. Toggled in Settings (Theme & Style → Show Separators). |
 | `resync_on_tab_change` | `Boolean` | `false` | Automatically reload repository details from disk when switching tabs. |
 | `prompt_cwd_repo` | `Boolean` | `true` | On startup, offer to track the repository you launched Gitwig from when it is not on the list yet. Set to `false` to never prompt. |
 
