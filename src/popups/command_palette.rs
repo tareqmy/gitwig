@@ -510,7 +510,9 @@ mod tests {
             items: vec!["/path/to/repo".to_string()],
             ..Default::default()
         };
-        let mut app = App::new(config, std::path::PathBuf::from("dummy_palette.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("draw_renders_query_entries_keys_and_highlight");
+        let mut app = App::new(config, config_path);
         app.open_command_palette();
         let palette = app.command_palette.as_mut().unwrap();
         palette.query = "sett".to_string();

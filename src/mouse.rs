@@ -1653,7 +1653,9 @@ mod tests {
     #[test]
     fn test_mouse_early_returns_and_basic_flows() {
         let config = crate::config::Config::default();
-        let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("mouse_early_returns_and_basic_flows");
+        let mut app = App::new(config, config_path);
 
         let click = |col: u16, row: u16| MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
@@ -1810,7 +1812,8 @@ mod tests {
             items: vec!["/path/to/repo_a".to_string()],
             ..Default::default()
         };
-        let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
+        let (config_path, _guard) = crate::test_support::temp_config_path("summary_bar_tab_clicks");
+        let mut app = App::new(config, config_path);
         app.statuses = vec![crate::repo::ItemStatus::GitRepo(Some(crate::repo::RepoSummary {
             branch: Some("main".to_string()),
             staged: 1,

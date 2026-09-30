@@ -1159,7 +1159,9 @@ mod tests {
     #[test]
     fn test_input_dispatch_coverage() {
         let config = crate::config::Config::default();
-        let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("input_dispatch_coverage");
+        let mut app = App::new(config, config_path);
 
         let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
 
@@ -1187,7 +1189,9 @@ mod tests {
     #[test]
     fn test_input_dispatch_all_modes_exhaustive() {
         let config = crate::config::Config::default();
-        let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("input_dispatch_all_modes_exhaustive");
+        let mut app = App::new(config, config_path);
         let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
 
         // 1. Mode::NotGitRepo

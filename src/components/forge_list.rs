@@ -282,7 +282,8 @@ mod tests {
     #[test]
     fn test_draw_forge_view() {
         let config = crate::config::Config::default();
-        let app = App::new(config, std::path::PathBuf::from("test.toml"));
+        let (config_path, _guard) = crate::test_support::temp_config_path("draw_forge_view");
+        let app = App::new(config, config_path);
 
         let info = RepoInfo {
             forge_issues: repo::TabData::Loaded(vec![repo::ForgeIssue {

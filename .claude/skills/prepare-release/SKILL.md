@@ -34,8 +34,5 @@ Follow this exact process so every release artifact stays in sync. Mirrors
 4. **Script checksums** — if any installer script under `scripts/` changed, recalculate
    its SHA-256 (`shasum -a 256 <script>`) and update the matching `.sha256` file.
 
-5. **Clean test artifacts** — delete temporary config files (e.g. `dummy.toml`) created by
-   manual testing before staging the release commit.
-
 ## Before committing
 Run the `rust-quality` skill's checks — a release commit is still a commit.

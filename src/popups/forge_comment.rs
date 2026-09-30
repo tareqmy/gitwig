@@ -117,7 +117,9 @@ mod tests {
     #[test]
     fn test_draw_forge_comment_popup() {
         let config = crate::config::Config::default();
-        let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("draw_forge_comment_popup");
+        let mut app = App::new(config, config_path);
 
         app.mode = Mode::ForgeCommentPathInput;
         let backend = ratatui::backend::TestBackend::new(80, 24);

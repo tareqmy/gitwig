@@ -32,8 +32,5 @@ When you are asked to prepare a release, follow this exact process so every rele
 4. **Update Script Checksums:**
    If any installer scripts in `scripts/` were modified, recalculate their SHA-256 hashes (`shasum -a 256 <script>`) and update the corresponding `.sha256` files.
 
-5. **Clean Test Artifacts:**
-   Delete temporary configuration files like `dummy.toml` created by manual testing before staging any commits.
-
 ## Before Committing
 Run the `rust-quality` skill's checks — a release commit is still a commit.
