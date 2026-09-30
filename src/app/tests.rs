@@ -26,6 +26,28 @@ impl Drop for TestDirGuard {
     }
 }
 
+/// A repository path that does not exist, for a detail view whose actions
+/// must not reach git. Never use `PathBuf::from(".")`: that is the process
+/// cwd — the developer's own checkout — so a stage all, discard, checkout,
+/// fetch or push the test triggers would run there.
+fn missing_repo_path(tag: &str) -> PathBuf {
+    PathBuf::from(format!("/nonexistent/gitwig_test_{}", tag))
+}
+
+/// A fresh repository under the temp dir with `file` committed, removed when
+/// the guard drops.
+fn temp_repo_with_file(tag: &str, file: &str) -> (PathBuf, TestDirGuard) {
+    let dir = std::env::temp_dir().join(format!("gitwig_test_{}", tag));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let guard = TestDirGuard { path: dir.clone() };
+    run_git_in(&dir, &["init", "-q"]);
+    std::fs::write(dir.join(file), "content\n").unwrap();
+    run_git_in(&dir, &["add", file]);
+    run_git_in(&dir, &["commit", "-q", "-m", "init"]);
+    (dir, guard)
+}
+
 #[test]
 fn test_stash_creation_flow() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -180,8 +202,9 @@ fn test_network_action_progress_and_error_handling() {
 
 #[test]
 fn test_remote_tags_progress_and_error_handling() {
+    let repo_path = missing_repo_path("remote_tags_progress");
     let config = Config {
-        items: vec![".".to_string()],
+        items: vec![repo_path.to_string_lossy().to_string()],
         poll_interval_ms: 100,
         max_commits: 0,
         page_size: 10,
@@ -215,15 +238,16 @@ fn test_remote_tags_progress_and_error_handling() {
         }]),
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
-        info: Box::new(mock_info),
-    });
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Repo { resolved: repo_path, info: Box::new(mock_info) });
 
     // Trigger fetch with show_progress = true
     app.fetch_remote_tags(true);
     assert!(app.fetching);
     assert_eq!(app.status_message.as_deref(), Some("Fetching tags from 'origin'..."));
+    // The spawned ls-remote fails at once on the missing path; drain its reply
+    // so it cannot race the simulated one below.
+    app.rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
 
     // Simulate background thread sending REMOTE_TAGS_ERR
     app.tx.send("REMOTE_TAGS_ERR:Failed to get remote tags: custom error".to_string()).unwrap();
@@ -242,8 +266,9 @@ fn test_remote_tags_progress_and_error_handling() {
 
 #[test]
 fn test_remote_fetch_progress_and_error_handling() {
+    let repo_path = missing_repo_path("remote_fetch_progress");
     let config = Config {
-        items: vec![".".to_string()],
+        items: vec![repo_path.to_string_lossy().to_string()],
         poll_interval_ms: 100,
         max_commits: 0,
         page_size: 10,
@@ -277,15 +302,16 @@ fn test_remote_fetch_progress_and_error_handling() {
         }]),
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
-        info: Box::new(mock_info),
-    });
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Repo { resolved: repo_path, info: Box::new(mock_info) });
 
     // Trigger fetch from remote tab (fetch_remote)
     app.fetch_remote("origin");
     assert!(app.fetching);
     assert_eq!(app.status_message.as_deref(), Some("Fetching remote 'origin'..."));
+    // The spawned fetch fails at once on the missing path; drain its reply so
+    // it cannot race the simulated one below.
+    app.rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
 
     // Simulate background thread sending Fetch failed message
     app.tx.send("Fetch failed: custom fetch error".to_string()).unwrap();
@@ -1992,7 +2018,7 @@ fn test_remote_add_delete_flow() {
     app.detail_tab = 5;
     app.detail_focus = DetailSection::Remotes;
     app.current_detail = Some(repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
+        resolved: missing_repo_path("remote_add_delete_flow"),
         info: Box::new(repo::RepoInfo {
             remotes: repo::TabData::Loaded(vec![repo::RemoteInfo {
                 name: "origin".to_string(),
@@ -2046,7 +2072,7 @@ fn test_remote_add_paste_flow() {
 
     app.mode = Mode::Detail;
     app.current_detail = Some(repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
+        resolved: missing_repo_path("remote_add_paste_flow"),
         info: Box::new(repo::RepoInfo::default()),
     });
 
@@ -2154,8 +2180,10 @@ fn test_workspace_tab_right_arrow_inspect() {
         changes,
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail =
-        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: missing_repo_path("workspace_tab_right_arrow_inspect"),
+        info: Box::new(info),
+    });
     app.commit_list.selection = 0;
 
     // Verify we are not in Inspect mode
@@ -2231,8 +2259,10 @@ fn test_commit_enter_key_inspect() {
         changes,
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail =
-        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: missing_repo_path("commit_enter_key_inspect"),
+        info: Box::new(info),
+    });
     app.commit_list.selection = 0;
 
     // Verify we are not in Inspect mode
@@ -2289,8 +2319,10 @@ fn test_inspect_commit_shortcut() {
         changes,
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail =
-        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: missing_repo_path("inspect_commit_shortcut"),
+        info: Box::new(info),
+    });
     app.commit_list.selection = 0;
 
     assert_eq!(app.mode, Mode::Inspect);
@@ -2348,8 +2380,10 @@ fn test_workspace_all_changes_shortcuts() {
         changes,
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail =
-        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: missing_repo_path("workspace_all_changes_shortcuts"),
+        info: Box::new(info),
+    });
     app.commit_list.selection = 0;
 
     assert!(app.is_uncommitted_selected());
@@ -2409,8 +2443,10 @@ fn test_inspect_workspace_all_changes_shortcuts() {
         changes,
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail =
-        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: missing_repo_path("inspect_workspace_all_changes_shortcuts"),
+        info: Box::new(info),
+    });
     app.commit_list.selection = 0;
 
     assert!(app.is_uncommitted_selected());
@@ -2535,8 +2571,10 @@ fn test_workspace_tab_focus_cycle_skips_empty_panels() {
         changes,
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail =
-        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: missing_repo_path("workspace_tab_focus_cycle_skips_empty_panels"),
+        info: Box::new(info),
+    });
     app.commit_list.selection = 0; // index 0 is "<uncommitted>"
 
     // We cycle from Commits -> Staged (since Staged is not empty)
@@ -2572,7 +2610,7 @@ fn test_workspace_tab_focus_cycle_skips_empty_panels() {
         ..crate::repo::RepoInfo::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: PathBuf::from("."),
+        resolved: missing_repo_path("workspace_tab_focus_cycle_skips_empty_panels"),
         info: Box::new(empty_info),
     });
 
@@ -2787,7 +2825,7 @@ fn test_logs_search_picker_flow() {
         ..crate::repo::RepoInfo::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
+        resolved: missing_repo_path("logs_search_picker_flow"),
         info: Box::new(mock_info),
     });
 
@@ -2881,8 +2919,10 @@ fn test_logs_search_picker_flow() {
 fn test_detail_view_sync_on_tab_change_and_refresh() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    // The resyncs below reload a real repository, so give them a throwaway one.
+    let (repo_path, _repo_guard) = temp_repo_with_file("detail_view_sync_repo", "file.txt");
     let config = Config {
-        items: vec![".".to_string()],
+        items: vec![repo_path.to_string_lossy().to_string()],
         poll_interval_ms: 100,
         max_commits: 0,
         page_size: 10,
@@ -2913,7 +2953,7 @@ fn test_detail_view_sync_on_tab_change_and_refresh() {
         ..crate::repo::RepoInfo::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
+        resolved: repo_path.clone(),
         info: Box::new(mock_info),
     });
 
@@ -2952,10 +2992,8 @@ fn test_detail_view_sync_on_tab_change_and_refresh() {
         branch: Some("mock_branch_name_test_xyz".to_string()),
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
-        info: Box::new(mock_info_2),
-    });
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Repo { resolved: repo_path, info: Box::new(mock_info_2) });
 
     // 3. Press 'R' to refresh/resync manually (should resync even if resync_on_tab_change is false)
     app.config.resync_on_tab_change = false;
@@ -3039,7 +3077,7 @@ fn test_branch_and_tag_checkout_confirmation() {
         ..crate::repo::RepoInfo::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
+        resolved: missing_repo_path("branch_and_tag_checkout_confirmation"),
         info: Box::new(mock_info),
     });
 
@@ -3578,7 +3616,7 @@ fn test_tag_fetch_attempt_and_dismiss_flow() {
         ..crate::repo::RepoInfo::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
+        resolved: missing_repo_path("tag_fetch_attempt_and_dismiss_flow"),
         info: Box::new(mock_info),
     });
 
@@ -3600,6 +3638,9 @@ fn test_tag_fetch_attempt_and_dismiss_flow() {
     if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
         assert!(info.remote_tags_attempted);
     }
+    // The spawned ls-remote fails at once on the missing path; drain its reply
+    // so it cannot race the simulated one below.
+    app.rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
 
     // 2. Receive error from the background thread
     app.tx.send("REMOTE_TAGS_ERR:Failed to get remote tags: network timeout".to_string()).unwrap();
@@ -3672,7 +3713,7 @@ fn test_tag_push_all_confirmation_flow() {
         ..crate::repo::RepoInfo::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
+        resolved: missing_repo_path("tag_push_all_confirmation_flow"),
         info: Box::new(mock_info_single),
     });
 
@@ -3706,7 +3747,7 @@ fn test_tag_push_all_confirmation_flow() {
         ..crate::repo::RepoInfo::default()
     };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
+        resolved: missing_repo_path("tag_push_all_confirmation_flow"),
         info: Box::new(mock_info_multi),
     });
 
@@ -4832,9 +4873,11 @@ fn test_max_commits_limit_setting() {
 fn test_file_history_view_flow() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+    // Opening the history reads it from a real repository.
+    let (repo_path, _repo_guard) = temp_repo_with_file("file_history_repo", "Cargo.toml");
 
     let config = Config {
-        items: vec![".".to_string()],
+        items: vec![repo_path.to_string_lossy().to_string()],
         poll_interval_ms: 100,
         max_commits: 10,
         page_size: 10,
@@ -4871,10 +4914,8 @@ fn test_file_history_view_flow() {
     app.file_tree.file_list_selection = 0;
 
     let mock_info = crate::repo::RepoInfo { ..crate::repo::RepoInfo::default() };
-    app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
-        info: Box::new(mock_info),
-    });
+    app.current_detail =
+        Some(crate::repo::ItemDetail::Repo { resolved: repo_path, info: Box::new(mock_info) });
 
     // Open file history
     app.open_file_history();
@@ -4922,7 +4963,7 @@ fn test_files_tab_editor_shortcut() {
 
     let mock_info = crate::repo::RepoInfo { ..crate::repo::RepoInfo::default() };
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: std::path::PathBuf::from("."),
+        resolved: missing_repo_path("files_tab_editor_shortcut"),
         info: Box::new(mock_info),
     });
 
@@ -5513,8 +5554,10 @@ fn test_workspace_conflicts_shortcuts() {
         changes,
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail =
-        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: missing_repo_path("workspace_conflicts_shortcuts"),
+        info: Box::new(info),
+    });
     app.commit_list.selection = 0; // Selected uncommitted commit
 
     assert!(app.is_uncommitted_selected());
@@ -5550,8 +5593,10 @@ fn test_conflict_diff_mergetool_and_continue_shortcuts() {
         changes,
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail =
-        Some(crate::repo::ItemDetail::Repo { resolved: PathBuf::from("."), info: Box::new(info) });
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: missing_repo_path("conflict_diff_mergetool_and_continue_shortcuts"),
+        info: Box::new(info),
+    });
     app.commit_list.selection = 0; // Selected uncommitted commit
     assert!(app.is_uncommitted_selected());
 
@@ -11476,7 +11521,7 @@ fn advanced_tab_app(tag: &str, info: crate::repo::RepoInfo, tab: usize) -> (App,
     let mut app = App::new(Config::default(), config_path);
     // A path that does not exist, so a confirmed checkout cannot reach git or gh.
     app.current_detail = Some(crate::repo::ItemDetail::Repo {
-        resolved: PathBuf::from(format!("/nonexistent/gitwig_test_{}", tag)),
+        resolved: missing_repo_path(tag),
         info: Box::new(info),
     });
     app.mode = Mode::Detail;
