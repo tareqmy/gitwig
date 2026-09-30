@@ -369,7 +369,7 @@ Full-screen configuration editor split into Categories and Fields.
 *   *Shortcuts*:
     *   `Esc` / `q` : Return to category sidebar (if in fields panel) or return to Home Screen (if in sidebar)
     *   `Q` : Return to Home Screen directly
-    *   `1` - `5` : Jump directly to Category 1-5 (General, Sorting, Scan, Theme, Keybindings)
+    *   `1` - `5` : Jump directly to Category 1-5 (General, Sorting, Scan, Theme, Keybindings); Theme & Style holds Theme Name, View Mode, Tile Layout Columns and Show Separators
     *   `←` / `h` : Focus category sidebar
     *   `→` / `l` / `w` / `W` : Focus fields panel on the right
     *   `↑` / `k` / `K` / `↓` / `j` / `J` : Navigate categories (if focused on sidebar) or fields (if focused on fields)

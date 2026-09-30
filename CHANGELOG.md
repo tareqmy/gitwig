@@ -7,7 +7,10 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 ### Added
-- **settings**: a **Show Separators** toggle under Theme & Style (`show_separators`, default `true`) hides the home page's separator rules: the rule between the summary bar and the quick-label chips (the chips then sit directly under the summary bar), the dashes of the sort rule (the `Sort: …` caption stays) and the rule under the last pinned repository.
+- **settings**: a **Show Separators** toggle under Theme & Style (`show_separators`, default `true`) hides the home page's separator rules: the rule between the summary bar and the quick-label chips (the chips then sit directly under the summary bar), the dashes of the sort rule (the `Sort: …` caption stays) and the rule under the last pinned repository. ([b79cdca](https://github.com/tareqmy/gitwig/commit/b79cdca))
+
+### Documentation
+- `docs/features.md` gained a Show / Hide Separators bullet; the `docs/configuration.md` example sets `show_separators`; `docs/detail_view.md` and `docs/status_indicators.md` note which rules the setting hides; the Settings View section of `docs/panels.md` lists the Theme & Style rows.
 
 ## [v2.6.5] - 2026-09-29
 ### Added

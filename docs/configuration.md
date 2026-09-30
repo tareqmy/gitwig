@@ -49,6 +49,9 @@ stale_threshold_months = 1
 
 # Hide/show stale projects on the main page list
 show_stale_projects = true
+
+# Draw the home page separator rules (header rules and the pinned-block rule)
+show_separators = true
 ```
 
 ### Config keys

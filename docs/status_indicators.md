@@ -3,7 +3,7 @@
 Each repository card shows icons and badges reflecting its state:
 
 ### General Icons
-- `📌` (or `[P]`) — Pinned repository. Pinned repositories are kept at the top of the list (and of each label group) in every sort order, and a faint dashed rule under the last one sets the pinned block apart from the rest.
+- `📌` (or `[P]`) — Pinned repository. Pinned repositories are kept at the top of the list (and of each label group) in every sort order, and a faint dashed rule under the last one sets the pinned block apart from the rest (unless `show_separators = false`).
 - `★` (or `*`) — Starred / favorite repository.
 - `● clean` (or `* clean`) — Clean Git repository (in sync, no changes).
 - `○ dir` (or `o dir`) — Directory exists but is not a git repository.
@@ -51,7 +51,7 @@ The high-level dashboard stats at the top of the homepage show:
 - **ahead**: Repositories with local commits ahead of their remote tracking branch.
 - **stale**: Repositories where the last commit is older than the configured threshold (default is 1 month; configurable via `stale_threshold_months` in settings).
 
-The four sections render as tabs and double as filters: click one, or cycle with `Tab` / `Shift+Tab`, to show only the matching repositories. The active tab is drawn as a highlighted block, and `Esc` returns to the unfiltered list. When a sticky label filter is active (`L`), the applied label is pinned as a highlighted `● label` badge centered in the frame's top border — click it to reopen the label picker — and all tab counts scope to that label. When any quick-label slots are filled, a second row beneath, set off by a thin rule, lists them as `1 web │ 2 api │ …` segments in the same style, with the active label highlighted.
+The four sections render as tabs and double as filters: click one, or cycle with `Tab` / `Shift+Tab`, to show only the matching repositories. The active tab is drawn as a highlighted block, and `Esc` returns to the unfiltered list. When a sticky label filter is active (`L`), the applied label is pinned as a highlighted `● label` badge centered in the frame's top border — click it to reopen the label picker — and all tab counts scope to that label. When any quick-label slots are filled, a second row beneath, set off by a thin rule (dropped with `show_separators = false`), lists them as `1 web │ 2 api │ …` segments in the same style, with the active label highlighted.
 
 ### Auto-Refresh & Manual Refresh
 Items support `~` and `~/...` expansion, so `~/code/gitwig` resolves to your home directory. 
