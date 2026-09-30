@@ -782,7 +782,9 @@ mod tests {
                 ];
                 let mut areas = DetailAreas::default();
                 let config = crate::config::Config::default();
-                let app = App::new(config, std::path::PathBuf::from("test.toml"));
+                let (config_path, _guard) =
+                    crate::test_support::temp_config_path("file_tree_component");
+                let app = App::new(config, config_path);
 
                 draw_files_view(
                     f,

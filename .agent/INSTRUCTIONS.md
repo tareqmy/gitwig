@@ -58,6 +58,7 @@ The crate is organized so each file has a single clear responsibility.
     - `src/git_cmd.rs`: Hardened `git` subprocess builder (`git_command`) and bounded runner (`run_git_with_timeout`).
     - `src/debug_log.rs`: Debug/crash log writer behind the `DebugLogs` view.
     - `src/fetch_error.rs`: Classifies raw fetch/ssh stderr into a compact card label plus explanation.
+    - `src/test_support.rs` (`#[cfg(test)]`): Scratch-file fixtures shared by every module's tests (`temp_config_path`, `TestDirGuard`, `TestFileGuard`).
     - `src/ui/`: Main rendering logic (`draw.rs`, `ui_detail.rs`), theme (`style.rs`), layout helpers, scrollbar, and syntax highlighting.
     - `src/tabs/`: Event handling and layout drawing per specific view tab.
     - `src/popups/`: Centered modal overlays. Exception: the fuzzy/scan pickers and the not-git-repo popup are still drawn by functions in `src/ui/draw.rs` (`draw_repo_jump_popup`, `draw_label_picker_popup`, `draw_global_search_popup`, `draw_repo_scan_popup`, `draw_bulk_add_scan_popup`, `draw_branch_search_popup`, `draw_file_search_popup`, `draw_commit_fuzzy_popup`, `draw_tag_search_popup`, `draw_not_git_repo_popup`). New popups go in `src/popups/`.
@@ -68,6 +69,7 @@ The crate is organized so each file has a single clear responsibility.
 - **Method-Level Testing:** Whenever working on or creating a new method, you must add test cases for it.
 - **Test-Driven Additions:** Any new feature, action, or popup configuration must be accompanied by comprehensive tests in `src/app/tests.rs` or `src/ui/draw.rs` using headless rendering or temporary Git repositories.
 - **Coverage:** Maintain high code coverage. Never submit code that drops the overall test coverage.
+- **No Writes Into the Checkout:** `App::new` writes `keybindings.toml` (and on a first run `state.toml`, `.version` and the config) beside the config path it is given, and a bare file name such as `PathBuf::from("dummy.toml")` puts them in the process working directory — the checkout. Build a test `App` with `crate::test_support::temp_config_path(tag)` (a unique tag per test, and keep the returned `TestDirGuard` bound to `_guard`), or under another `std::env::temp_dir()` scratch directory removed by a `TestDirGuard` / `TestFileGuard` from `src/test_support.rs`. Under `cfg(test)`, `App::with_state` panics on a relative config path.
 
 ## 5. Keeping Docs In Sync
 If you modify codebase conventions, UI panels, or user workflows, you **MUST** update the affected documentation in the same commit:
@@ -84,7 +86,6 @@ When asked to prepare a release:
 2. **Rebuild Lockfile:** Run `cargo test --workspace` (`make test`) to regenerate `Cargo.lock` and run both crates' tests.
 3. **Changelog:** Run `python3 scripts/generate_changelog.py` or update `CHANGELOG.md` following "Keep a Changelog" formatting.
 4. **Update Script Checksums:** Recalculate `.sha256` files for any modified installer scripts.
-5. **Clean Test Artifacts:** Delete temporary config files (`dummy.toml`) before staging commits.
 
 ## 7. Communication
 - Be concise. Provide technical rationale for your decisions.

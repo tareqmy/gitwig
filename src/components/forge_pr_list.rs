@@ -390,7 +390,8 @@ mod tests {
     #[test]
     fn test_draw_forge_prs_view() {
         let config = crate::config::Config::default();
-        let mut app = App::new(config, std::path::PathBuf::from("test.toml"));
+        let (config_path, _guard) = crate::test_support::temp_config_path("draw_forge_prs_view");
+        let mut app = App::new(config, config_path);
         // A failed line-comment load is shown, not left as "Loading...".
         app.forge_pr_comments = Some(Err("Failed to load PR comments: HTTP 403".to_string()));
         app.forge_pr_comments_pr = Some(456);

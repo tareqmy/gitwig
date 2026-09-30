@@ -2975,7 +2975,9 @@ mod tests {
             graph_max_commits: 1000,
             ..Default::default()
         };
-        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("inspect_status_bar_shortcuts");
+        let mut app = App::new(config, config_path);
 
         // 1. Setup dirty working tree detail
         let mut info = RepoInfo::default();
@@ -3135,10 +3137,9 @@ mod tests {
             graph_max_commits: 1000,
             ..Default::default()
         };
-        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
-        // The captions below assert on the shipped defaults, so do not let a
-        // keybindings.toml left behind by an earlier run leak into them.
-        app.keybindings = crate::keybindings::KeybindingsConfig::default_config();
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("detail_dismiss_entries_shortcuts");
+        let mut app = App::new(config, config_path);
 
         // Tab 0: Workspace, Commits focus (default)
         app.detail_tab = 0;
@@ -3423,7 +3424,8 @@ mod tests {
             ssh_strict_host_checking: true,
             ..Default::default()
         };
-        let mut app = App::new(config, PathBuf::from("dummy.toml"));
+        let (config_path, _guard) = crate::test_support::temp_config_path("settings_val_str");
+        let mut app = App::new(config, config_path);
 
         // Setting index 55: SSH Strict Host Checking
         let val_ssh = crate::popups::settings::get_val_str(&app, 55);
@@ -3445,7 +3447,9 @@ mod tests {
     #[test]
     fn test_repo_indicator_line_divergence() {
         let config = Config::default();
-        let app = App::new(config, PathBuf::from("dummy.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("repo_indicator_line_divergence");
+        let app = App::new(config, config_path);
 
         // Case 1: Ahead <= 3 (Green)
         let summary1 = RepoSummary {
@@ -3523,7 +3527,9 @@ mod tests {
         config
             .labels
             .insert("/path/to/repo_b".to_string(), vec!["web".to_string(), "api".to_string()]);
-        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("draw_quick_label_bar_marks_active_chip");
+        let mut app = App::new(config, config_path);
         // Viewed api first, then web → slot 1 = api, slot 2 = web.
         app.state.label_slots = vec!["api".to_string(), "web".to_string()];
         app.state.active_label_filter = Some("api".to_string());
@@ -3601,7 +3607,9 @@ mod tests {
             items: vec!["/path/to/repo_a".to_string(), "/path/to/repo_b".to_string()],
             ..Default::default()
         };
-        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("draw_global_summary_bar");
+        let mut app = App::new(config, config_path);
 
         let summary_clean = RepoSummary {
             branch: Some("main".to_string()),
@@ -3686,7 +3694,9 @@ mod tests {
     #[test]
     fn test_filtered_empty_view_keeps_summary_bar() {
         let config = Config { items: vec!["/path/to/repo_a".to_string()], ..Default::default() };
-        let mut app = App::new(config, PathBuf::from("dummy_filter_empty.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("filtered_empty_view_keeps_summary_bar");
+        let mut app = App::new(config, config_path);
 
         let clean = RepoSummary {
             branch: Some("main".to_string()),
@@ -3812,7 +3822,9 @@ mod tests {
             items: vec!["/path/to/repo_a".to_string(), "/path/to/repo_b".to_string()],
             ..Default::default()
         };
-        let mut app = App::new(config, PathBuf::from("dummy_branch_col.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("compact_branch_col_width_adapts");
+        let mut app = App::new(config, config_path);
 
         let now =
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
@@ -3856,7 +3868,10 @@ mod tests {
     #[test]
     fn test_forge_comment_wizard_draws_its_popup_over_the_detail_view() {
         let config = Config { items: vec!["/path/to/repo_a".to_string()], ..Default::default() };
-        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+        let (config_path, _guard) = crate::test_support::temp_config_path(
+            "forge_comment_wizard_draws_its_popup_over_the_detail_view",
+        );
+        let mut app = App::new(config, config_path);
         app.current_detail = Some(ItemDetail::Repo {
             resolved: PathBuf::from("/path/to/repo_a"),
             info: Box::new(RepoInfo::default()),
@@ -3901,7 +3916,9 @@ mod tests {
     #[test]
     fn test_draw_partial_uncommitted_badge() {
         let config = Config { items: vec!["/path/to/repo_a".to_string()], ..Default::default() };
-        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("draw_partial_uncommitted_badge");
+        let mut app = App::new(config, config_path);
 
         // Has both staged and unstaged (modified) changes -> should show PARTIAL badge
         let summary_partial = RepoSummary {
@@ -4453,7 +4470,10 @@ mod tests {
     #[test]
     fn test_command_palette_draws_over_home_and_detail_frames() {
         let config = Config { items: vec!["/path/to/repo".to_string()], ..Default::default() };
-        let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+        let (config_path, _guard) = crate::test_support::temp_config_path(
+            "command_palette_draws_over_home_and_detail_frames",
+        );
+        let mut app = App::new(config, config_path);
         let backend = ratatui::backend::TestBackend::new(120, 40);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         let mut detail_areas = crate::ui_detail::DetailAreas::default();

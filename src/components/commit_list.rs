@@ -724,7 +724,9 @@ mod tests {
                 draw_commit_details_widget(f, &info.commits[0], true, 0, Rect::new(0, 0, 80, 24));
 
                 let config = crate::config::Config::default();
-                let app = App::new(config, std::path::PathBuf::from("test.toml"));
+                let (config_path, _guard) =
+                    crate::test_support::temp_config_path("commit_list_component");
+                let app = App::new(config, config_path);
                 draw_logs_view(f, &info, 0, &None, &app, Rect::new(0, 0, 80, 24));
             })
             .expect("draw should succeed");

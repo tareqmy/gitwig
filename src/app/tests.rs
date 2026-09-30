@@ -4,26 +4,15 @@
 use super::*;
 
 use crate::config::{RepoConfig, ScanConfig, SortOrder, ThemeConfig};
+use crate::test_support::{TestDirGuard, TestFileGuard, temp_config_path};
 use std::collections::HashMap;
 
-struct TestFileGuard {
-    path: PathBuf,
-}
-
-impl Drop for TestFileGuard {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
-    }
-}
-
-struct TestDirGuard {
-    path: PathBuf,
-}
-
-impl Drop for TestDirGuard {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
+/// A relative config path would put the files `App::new` writes into the
+/// checkout, so building a test `App` with one fails before anything is written.
+#[test]
+#[should_panic(expected = "relative config path")]
+fn test_app_refuses_relative_config_path_in_tests() {
+    let _ = App::new(Config::default(), PathBuf::from("config.toml"));
 }
 
 /// A repository path that does not exist, for a detail view whose actions
@@ -3804,7 +3793,8 @@ fn test_detail_cache_ttl_behavior() {
         ..Default::default()
     };
 
-    let mut app = App::new(config, PathBuf::from(""));
+    let (config_path, _guard) = temp_config_path("detail_cache_ttl_behavior");
+    let mut app = App::new(config, config_path);
 
     // Create a mock detail snapshot
     let mock_detail = crate::repo::ItemDetail::Repo {
@@ -3868,7 +3858,8 @@ fn test_tab_ttl_behavior() {
         ..Default::default()
     };
 
-    let mut app = App::new(config, PathBuf::from(""));
+    let (config_path, _guard) = temp_config_path("tab_ttl_behavior");
+    let mut app = App::new(config, config_path);
 
     // Set up mock current detail
     let mock_info = crate::repo::RepoInfo {
@@ -4010,7 +4001,8 @@ fn test_yank_selected_commit_hash() {
         graph_max_commits: 1000,
         ..Default::default()
     };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("yank_selected_commit_hash");
+    let mut app = App::new(config, config_path);
 
     // Setup mock repo commits
     let mut info = repo::RepoInfo::default();
@@ -4064,7 +4056,8 @@ fn test_yank_selected_repo_path() {
         graph_max_commits: 1000,
         ..Default::default()
     };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("yank_selected_repo_path");
+    let mut app = App::new(config, config_path);
     app.selected_index = 0;
 
     app.yank_selected_repo_path();
@@ -4096,7 +4089,8 @@ fn test_pending_terminal_trigger() {
         graph_max_commits: 1000,
         ..Default::default()
     };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("pending_terminal_trigger");
+    let mut app = App::new(config, config_path);
     app.selected_index = 0;
 
     // `T` (external shell) keeps the pre-panel suspend-and-spawn behavior.
@@ -4112,7 +4106,8 @@ fn test_pending_terminal_trigger() {
 #[test]
 fn test_terminal_panel_open_without_repo() {
     let config = Config { items: vec![], ..Default::default() };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("terminal_panel_open_without_repo");
+    let mut app = App::new(config, config_path);
 
     let key = crossterm::event::KeyEvent::new(
         crossterm::event::KeyCode::Char('t'),
@@ -4128,7 +4123,8 @@ fn test_terminal_panel_open_without_repo() {
 #[test]
 fn test_terminal_panel_focused_swallows_keys() {
     let config = Config { items: vec!["/dummy/repo".to_string()], ..Default::default() };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("terminal_panel_focused_swallows_keys");
+    let mut app = App::new(config, config_path);
     app.terminal_panel.visible = true;
     app.terminal_focused = true;
 
@@ -4147,7 +4143,8 @@ fn test_terminal_panel_focused_swallows_keys() {
 #[test]
 fn test_terminal_panel_toggle_key_hides_while_focused() {
     let config = Config { items: vec!["/dummy/repo".to_string()], ..Default::default() };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("terminal_panel_toggle_key_hides_while_focused");
+    let mut app = App::new(config, config_path);
     app.terminal_panel.visible = true;
     app.terminal_focused = true;
 
@@ -4163,7 +4160,8 @@ fn test_terminal_panel_toggle_key_hides_while_focused() {
 #[test]
 fn test_terminal_panel_global_quit_wins_while_focused() {
     let config = Config { items: vec!["/dummy/repo".to_string()], ..Default::default() };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("terminal_panel_global_quit_wins_while_focused");
+    let mut app = App::new(config, config_path);
     app.terminal_panel.visible = true;
     app.terminal_focused = true;
 
@@ -4177,7 +4175,8 @@ fn test_terminal_panel_global_quit_wins_while_focused() {
 #[test]
 fn test_terminal_panel_error_popup_wins_while_focused() {
     let config = Config { items: vec!["/dummy/repo".to_string()], ..Default::default() };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("terminal_panel_error_popup_wins_while_focused");
+    let mut app = App::new(config, config_path);
     app.terminal_panel.visible = true;
     app.terminal_focused = true;
     app.error_message = Some("boom".to_string());
@@ -4196,7 +4195,8 @@ fn test_terminal_panel_error_popup_wins_while_focused() {
 #[test]
 fn test_terminal_panel_geometry() {
     let config = Config { items: vec![], ..Default::default() };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("terminal_panel_geometry");
+    let mut app = App::new(config, config_path);
 
     // Hidden panel takes no height and yields no grid.
     assert_eq!(app.terminal_panel_outer_height(40), 0);
@@ -4239,7 +4239,8 @@ fn test_bulk_fetch_all_trigger() {
         graph_max_commits: 1000,
         ..Default::default()
     };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("bulk_fetch_all_trigger");
+    let mut app = App::new(config, config_path);
     app.statuses = vec![repo::ItemStatus::GitRepo(None)];
 
     let key = crossterm::event::KeyEvent::new(
@@ -4276,7 +4277,8 @@ fn test_multi_select_toggle() {
         graph_max_commits: 1000,
         ..Default::default()
     };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("multi_select_toggle");
+    let mut app = App::new(config, config_path);
     app.selected_index = 0;
 
     let key = crossterm::event::KeyEvent::new(
@@ -4295,7 +4297,8 @@ fn test_multi_select_toggle() {
 #[test]
 fn test_dynamic_status_height() {
     let config = Config::default();
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("dynamic_status_height");
+    let mut app = App::new(config, config_path);
 
     assert_eq!(app.status_height(), 1);
 
@@ -4311,7 +4314,8 @@ fn test_dynamic_status_height() {
 #[test]
 fn test_help_overlay_wrapping() {
     let config = Config::default();
-    let app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("help_overlay_wrapping");
+    let app = App::new(config, config_path);
 
     let lines_narrow = crate::popups::help::get_help_lines(&app, 40);
     let lines_wide = crate::popups::help::get_help_lines(&app, 150);
@@ -4325,7 +4329,8 @@ fn test_cancel_selections() {
         items: vec!["/path/to/repo1".to_string(), "/path/to/repo2".to_string()],
         ..Config::default()
     };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("cancel_selections");
+    let mut app = App::new(config, config_path);
     app.multi_selected.insert("/path/to/repo1".to_string());
     app.multi_selected.insert("/path/to/repo2".to_string());
 
@@ -4363,7 +4368,8 @@ fn test_cherry_pick_destination_branches() {
         graph_max_commits: 1000,
         ..Default::default()
     };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("cherry_pick_destination_branches");
+    let mut app = App::new(config, config_path);
 
     // Setup mock repo details
     let mut info = repo::RepoInfo { branch: Some("main".to_string()), ..Default::default() };
@@ -4946,7 +4952,8 @@ fn test_files_tab_editor_shortcut() {
     let key_event = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
 
     let config = Config { items: vec![], ..Default::default() };
-    let mut app = App::new(config, std::path::PathBuf::from("config.toml"));
+    let (config_path, _guard) = temp_config_path("files_tab_editor_shortcut");
+    let mut app = App::new(config, config_path);
 
     app.detail_focus = DetailSection::Files;
     app.detail_tab = 1;
@@ -5260,7 +5267,8 @@ fn test_is_newer_version() {
 #[test]
 fn test_cargo_install_detection() {
     let config = Config::default();
-    let app = App::new(config, std::path::PathBuf::from("dummy.toml"));
+    let (config_path, _guard) = temp_config_path("cargo_install_detection");
+    let app = App::new(config, config_path);
     // Normal test execution runs within target/debug/deps, so it is not a Cargo, Homebrew, or Chocolatey installation folder
     assert!(!app.is_cargo_install());
     assert!(!app.is_msi_install());
@@ -5291,7 +5299,8 @@ fn test_repo_settings_fallbacks() {
         ..Default::default()
     };
 
-    let mut app = App::new(config, std::path::PathBuf::from("dummy.toml"));
+    let (config_path, _guard) = temp_config_path("repo_settings_fallbacks");
+    let mut app = App::new(config, config_path);
 
     // By default, first repo (repo_a) is selected
     app.selected_index = 0;
@@ -5632,7 +5641,8 @@ fn test_conflict_diff_mergetool_and_continue_shortcuts() {
 fn test_update_click_trigger() {
     use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
     let config = Config::default();
-    let mut app = App::new(config, std::path::PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("update_click_trigger");
+    let mut app = App::new(config, config_path);
     app.update_available = Some("2.2.6".to_string());
     app.fetching = false;
 
@@ -5664,7 +5674,8 @@ fn test_update_click_trigger() {
 #[test]
 fn test_manual_update_check_flow() {
     let config = Config::default();
-    let mut app = App::new(config, std::path::PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("manual_update_check_flow");
+    let mut app = App::new(config, config_path);
     assert!(!app.update_check_manual);
 
     app.trigger_update_check();
@@ -5675,7 +5686,8 @@ fn test_manual_update_check_flow() {
 #[test]
 fn test_implicit_network_count() {
     let config = Config::default();
-    let mut app = App::new(config, std::path::PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("implicit_network_count");
+    let mut app = App::new(config, config_path);
     assert_eq!(app.implicit_network_count, 0);
 
     app.increment_implicit_network();
@@ -7291,7 +7303,8 @@ fn test_branch_merge_into_flow() {
 
     let config =
         Config { items: vec![temp_repo_path.to_str().unwrap().to_string()], ..Default::default() };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("branch_merge_into_flow");
+    let mut app = App::new(config, config_path);
     app.mode = Mode::Detail;
     app.detail_tab = 3;
     app.detail_focus = DetailSection::LocalBranches;
@@ -7764,7 +7777,8 @@ fn test_all_git_actions_on_real_repo() {
     // Create a config and App pointing to this real repo
     let config =
         Config { items: vec![temp_repo_path.to_str().unwrap().to_string()], ..Default::default() };
-    let mut app = App::new(config, PathBuf::from("dummy_path.toml"));
+    let (config_path, _guard) = temp_config_path("all_git_actions_on_real_repo");
+    let mut app = App::new(config, config_path);
     app.mode = Mode::Detail;
 
     let mock_info =

@@ -550,7 +550,8 @@ mod tests {
                     signature_status: "G".to_string(),
                 };
                 let config = crate::config::Config::default();
-                let app = App::new(config, std::path::PathBuf::from("test.toml"));
+                let (config_path, _guard) = crate::test_support::temp_config_path("diff_component");
+                let app = App::new(config, config_path);
                 draw_inspect_window(
                     f,
                     &commit,

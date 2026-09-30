@@ -53,6 +53,7 @@ The codebase is organized into modular single-responsibility crates and files:
 | **Git Subprocesses** | `src/git_cmd.rs` | Hardened `git` subprocess construction: `git_command()` disables terminal prompts, askpass helpers, and host-key confirmation and nulls stdin; `run_git_with_timeout` kills a child that never answers. Every remote-touching `git` invocation in the `gitwig` crate is built here. |
 | **Debug Log** | `src/debug_log.rs` | Simple log writer for debugging messages and crash backtraces (backs the `DebugLogs` mode). |
 | **Fetch Errors** | `src/fetch_error.rs` | Classifies raw `git fetch` / ssh stderr into a small enum with a compact card label, a one-line explanation, and the sanitised full text for the details popup. |
+| **Test Fixtures** | `src/test_support.rs` | `#[cfg(test)]` only. `temp_config_path(tag)` gives a test a `config.toml` path in its own scratch directory, so the `keybindings.toml` / `state.toml` / `.version` that `App::new` writes beside it never land in the checkout (under `cfg(test)`, `App::with_state` panics on a relative config path); `TestDirGuard` / `TestFileGuard` remove scratch paths on drop. |
 
 ---
 

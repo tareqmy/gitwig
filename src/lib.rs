@@ -42,6 +42,8 @@ pub mod stats;
 pub mod tabs;
 mod terminal;
 pub mod terminal_session;
+#[cfg(test)]
+mod test_support;
 mod ui;
 pub use crate::ui::ui_detail;
 

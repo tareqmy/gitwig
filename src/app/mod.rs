@@ -1330,6 +1330,14 @@ impl App {
     }
 
     pub fn with_state(config: Config, state: AppState, config_path: PathBuf) -> Self {
+        // The files written beside the config below would otherwise land in the
+        // working directory — the checkout, under `cargo test`.
+        #[cfg(test)]
+        assert!(
+            config_path.is_absolute(),
+            "test App built with relative config path {:?}; use crate::test_support::temp_config_path",
+            config_path
+        );
         crate::debug_log::info("Initializing Gitwig application state");
         crate::ui::update_theme(&config.theme);
         let config_dir = config_path.parent().unwrap_or(&config_path);

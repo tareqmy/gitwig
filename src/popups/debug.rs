@@ -337,7 +337,9 @@ mod tests {
     #[test]
     fn test_debug_logs_popup_coverage_boost() {
         let config = crate::config::Config::default();
-        let mut app = crate::app::App::new(config, std::path::PathBuf::from("test.toml"));
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("debug_logs_popup_coverage_boost");
+        let mut app = crate::app::App::new(config, config_path);
 
         let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
 
