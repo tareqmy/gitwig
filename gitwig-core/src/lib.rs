@@ -4480,10 +4480,18 @@ mod tests {
         assert!(out.status.success(), "git {:?}: {}", args, String::from_utf8_lossy(&out.stderr));
     }
 
+    /// A fresh directory per call. `SystemTime` is only microsecond-precise on
+    /// macOS, so parallel tests can read the same clock value; the process id and
+    /// a per-process counter keep concurrent callers (and concurrent test runs)
+    /// apart.
     fn unique_temp_dir(tag: &str) -> PathBuf {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "twig_test_{}_{}",
+            "twig_test_{}_{}_{}_{}",
             tag,
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed),
             SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
@@ -4835,12 +4843,8 @@ mod tests {
     fn make_repo_with_unverifiable_signature() -> PathBuf {
         use std::io::Write;
         use std::process::Stdio;
-        let mut temp_path = std::env::temp_dir();
-        temp_path.push(format!(
-            "twig_test_nogpg_{}",
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
-        ));
-        std::fs::create_dir_all(&temp_path).unwrap();
+        // Two tests build this fixture and libtest runs them in parallel.
+        let temp_path = unique_temp_dir("nogpg");
         let repo = Repository::init(&temp_path).unwrap();
         let mut config = repo.config().unwrap();
         config.set_str("user.name", "Test User").unwrap();
