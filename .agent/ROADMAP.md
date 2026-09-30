@@ -106,7 +106,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] Keybindings
 - [x] Git Worktrees: Tab/view to list, create (on an existing branch, tag or commit, or a new branch), open, lock/unlock, prune, and remove Git worktrees (remove only if clean, or force).
 - [x] Git Submodules: Detect and list submodules (clean, modified, uninitialized, removal staged), add them (cloned and initialized), and delete them.
-- [ ] Git Submodules: initialize / update an existing submodule from the Submodules tab (only adding one initializes it today).
+- [x] Git Submodules: initialize / update an existing submodule from the Submodules tab (`u` selected, `U` all; `git submodule update --init --recursive`, asking first when it would move a Modified submodule's checked-out commit). Adding one now initializes only its own nested submodules, within `fetch_timeout_secs`.
 - [x] If network action is done from schedule without a user explicitly triggering it, need to show that network action is happening somewhere, definitely not a popup for implicit network call.
 - [x] Self-Update: Shortcut to trigger update check, check on start, show the badge beside the version when the update is available
 - [x] Editor Support: Option to open a file from the file tab with a custom terminal editor from settings

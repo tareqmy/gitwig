@@ -1,7 +1,8 @@
 //! Submodule initialization and registration paths dialog wizard.
 
+use crate::app::SubmoduleUpdateTarget;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};
-use crate::ui::style::{ACCENT, CARD_BORDER, DANGER, muted_style, primary_style};
+use crate::ui::style::{ACCENT, CARD_BORDER, DANGER, WARNING, muted_style, primary_style};
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
@@ -146,6 +147,67 @@ pub fn draw_submodule_delete_popup(f: &mut Frame, sub: &crate::repo::SubmoduleIn
 
     // Sized to the content (plus borders) so the optional name line never
     // pushes the confirm keys out of view.
+    let popup_area = centered_rect_fixed(area.width * 55 / 100, content.len() as u16 + 2, area);
+    f.render_widget(Clear, popup_area);
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+    f.render_widget(Paragraph::new(content), inner_area);
+}
+
+/// Asks before an update moves `Modified` submodules back to their recorded commits.
+pub fn draw_submodule_update_popup(f: &mut Frame, target: &SubmoduleUpdateTarget, area: Rect) {
+    const MAX_LISTED: usize = 6;
+    let title = if target.path.is_some() { "Update Submodule" } else { "Update Submodules" };
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(Style::default().fg(WARNING()))
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled(title, primary_style()),
+            Span::raw(" "),
+        ]))
+        .padding(Padding::horizontal(1));
+
+    let mut content = vec![
+        Line::from(vec![Span::styled(
+            "This checks out the commit the repository records in:",
+            primary_style(),
+        )]),
+        Line::from(""),
+    ];
+    for path in target.modified.iter().take(MAX_LISTED) {
+        content.push(Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                path.display().to_string(),
+                Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
+            ),
+        ]));
+    }
+    if target.modified.len() > MAX_LISTED {
+        let more = format!("  ...and {} more", target.modified.len() - MAX_LISTED);
+        content.push(Line::from(vec![Span::styled(more, muted_style())]));
+    }
+    content.extend([
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Commits made there that no branch holds are left behind.",
+            Style::default().fg(WARNING()),
+        )]),
+        Line::from(vec![Span::styled(
+            "Uncommitted changes are kept: the update fails instead.",
+            muted_style(),
+        )]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Confirm: ", muted_style()),
+            Span::styled("y", Style::default().fg(WARNING()).add_modifier(Modifier::BOLD)),
+            Span::styled(" / Cancel: ", muted_style()),
+            Span::styled("n", Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD)),
+        ]),
+    ]);
+
     let popup_area = centered_rect_fixed(area.width * 55 / 100, content.len() as u16 + 2, area);
     f.render_widget(Clear, popup_area);
     let inner_area = block.inner(popup_area);

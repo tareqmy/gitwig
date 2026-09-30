@@ -3,13 +3,13 @@
 use super::*;
 
 #[derive(Clone)]
-struct RepoSender {
-    tx: std::sync::mpsc::Sender<String>,
-    path: std::path::PathBuf,
+pub(super) struct RepoSender {
+    pub(super) tx: std::sync::mpsc::Sender<String>,
+    pub(super) path: std::path::PathBuf,
 }
 
 impl RepoSender {
-    fn send(&self, msg: String) -> Result<(), std::sync::mpsc::SendError<String>> {
+    pub(super) fn send(&self, msg: String) -> Result<(), std::sync::mpsc::SendError<String>> {
         self.tx.send(format!("{}|||{}", self.path.to_string_lossy(), msg))
     }
 }
@@ -2118,6 +2118,7 @@ impl App {
         self.mode = Mode::Detail;
 
         let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
+        let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
 
         std::thread::spawn(move || {
             let trimmed_url = url.trim().to_lowercase();
@@ -2128,17 +2129,19 @@ impl App {
             let mut cmd = git_command();
             cmd.arg("submodule").arg("add").arg("--").arg(&url).arg(&path).current_dir(&repo_path);
 
-            match cmd.output() {
+            match crate::git_cmd::run_git_with_timeout(cmd, timeout) {
                 Ok(out) if out.status.success() => {
-                    let _ = git_command()
-                        .arg("submodule")
-                        .arg("update")
-                        .arg("--init")
-                        .arg("--recursive")
-                        .current_dir(&repo_path)
-                        .output();
-
-                    let _ = tx.send(format!("Submodule '{}' added successfully", path));
+                    // `add` checks out the new submodule but not the ones nested
+                    // in it. Only this one: the rest are the user's to update.
+                    let nested = std::path::Path::new(&path);
+                    let msg = match repo::submodule_update(&repo_path, Some(nested), timeout) {
+                        Ok(()) => format!("Submodule '{}' added successfully", path),
+                        Err(e) => format!(
+                            "Submodule '{}' added, but its nested submodules failed to initialize: {}",
+                            path, e
+                        ),
+                    };
+                    let _ = tx.send(msg);
                 }
                 Ok(out) => {
                     let err = String::from_utf8_lossy(&out.stderr).to_string();

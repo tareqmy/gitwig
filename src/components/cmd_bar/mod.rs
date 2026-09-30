@@ -772,6 +772,16 @@ pub(crate) fn get_status_layout_components(
             let (msg_spans, entries) = confirm_submodule_delete_entries(&target);
             (msg_spans, entries)
         }
+        Mode::SubmoduleUpdateConfirm => {
+            let label = app.submodule_update_target.as_ref().map(|t| t.label()).unwrap_or_default();
+            let msg_spans = vec![
+                Span::styled("Update ", primary_style()),
+                Span::styled(label, accent_style()),
+                Span::styled("?", primary_style()),
+            ];
+            let entries_data = [("Confirm", "y"), ("Cancel", "n/Esc")];
+            (Some(msg_spans), build_status_entries(&entries_data))
+        }
         Mode::TagPushConfirm => {
             let target = app.tag_push_target.as_deref().unwrap_or("");
             let msg_spans = vec![
@@ -1588,6 +1598,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         | Mode::StashApplyConfirm
         | Mode::RemoteDeleteConfirm
         | Mode::SubmoduleDeleteConfirm
+        | Mode::SubmoduleUpdateConfirm
         | Mode::UpdateConfirm
         | Mode::WorktreeRemoveConfirm
         | Mode::AddCwdRepoConfirm

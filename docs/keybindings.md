@@ -87,7 +87,7 @@
 | `Home` / `End`       | Editing / Input Modals | Move the caret to the start / end of the field |
 | `Delete`             | Editing / Input Modals | Erase the character under the caret |
 | `Tab` / `↑` / `↓`    | Tag Creation    | Switch focus between Tag Name and Tag Message input fields |
-| `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag/stash/remote/submodule, push branch/tag/all tags, tag overwrite, abort/continue merge, checkout of a branch, tag, commit or issue/PR branch, track launch directory). `Enter` also confirms non-destructive dialogs (checkouts, pushes, merges); on destructive ones it cancels |
+| `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag/stash/remote/submodule, update a Modified submodule, push branch/tag/all tags, tag overwrite, abort/continue merge, checkout of a branch, tag, commit or issue/PR branch, track launch directory). `Enter` also confirms non-destructive dialogs (checkouts, pushes, merges); on destructive ones it cancels |
 | `f` / `F`            | Confirm Dialog  | Force push tag (`--force`) in Tag Push confirmation dialog |
 | `t` / `T`            | Confirm Dialog  | Push branch with tags (`--tags`) in Branch Push confirmation dialog |
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |
@@ -131,7 +131,7 @@
 | `l`                  | Detail          | Open Logs view (Workspace tab commits list focus), Toggle line-by-line staging mode (`l`/`L`, Workspace diff / Inspect StagingDetails focus), or Toggle lock status (Worktrees tab; asks reason/unlocks) |
 | `D`                  | Detail          | Delete selected branch (Branches tab; asks confirmation), tag (Tags tab; asks confirmation), stash (Stashes tab; asks confirmation), remote (Remotes tab; asks confirmation), submodule (Submodules tab; asks confirmation), or remove worktree and its folder (Worktrees tab; `1` only if it is clean, `2` force-remove discarding uncommitted changes) |
 | `s` / `S`            | Detail          | Stage selected hunk/line (Workspace tab StagingDetails focus), open Stashing UI overlay (Workspace tab files list focus), Prompt to save stash (Stashing UI / Stashes tab), or Open Repository Settings popup (Overview overlay) |
-| `u` / `U`            | Detail          | Unstage selected hunk/line (Workspace tab StagingDetails focus), or Toggle "Stash untracked files" option (Stashing UI) |
+| `u` / `U`            | Detail          | Unstage selected hunk/line (Workspace tab StagingDetails focus), Toggle "Stash untracked files" option (Stashing UI), or Initialize / update the selected submodule (`u`) or every submodule (`U`) (Submodules tab; asks confirmation when one shows Modified) |
 | `i`                  | Detail          | Toggle "Keep index" option (Stashing UI)                         |
 | `Ctrl+U`             | Input (Stash)   | Toggle "Stash untracked files" option (Stash Create popup)       |
 | `Ctrl+I`             | Input (Stash)   | Toggle "Keep index" option (Stash Create popup)                 |

@@ -503,6 +503,14 @@ fn handle_submodule_events(app: &mut App, key: KeyEvent) -> bool {
         }
         return true;
     }
+    if app.is_bound(Action::SubmodulesUpdate, key) {
+        app.request_submodule_update();
+        return true;
+    }
+    if app.is_bound(Action::SubmodulesUpdateAll, key) {
+        app.request_submodule_update_all();
+        return true;
+    }
     false
 }
 

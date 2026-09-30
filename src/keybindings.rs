@@ -167,6 +167,8 @@ pub enum Action {
     // Submodules
     SubmodulesAdd,
     SubmodulesDelete,
+    SubmodulesUpdate,
+    SubmodulesUpdateAll,
 
     // Reflog
     ReflogCheckout,
@@ -374,6 +376,8 @@ impl Action {
             // Submodules
             180 => Some(Action::SubmodulesAdd),
             181 => Some(Action::SubmodulesDelete),
+            182 => Some(Action::SubmodulesUpdate),
+            183 => Some(Action::SubmodulesUpdateAll),
 
             // Reflog
             190 => Some(Action::ReflogCheckout),
@@ -563,6 +567,8 @@ impl Action {
             // Submodules
             Action::SubmodulesAdd => 180,
             Action::SubmodulesDelete => 181,
+            Action::SubmodulesUpdate => 182,
+            Action::SubmodulesUpdateAll => 183,
 
             // Reflog
             Action::ReflogCheckout => 190,
@@ -800,6 +806,8 @@ pub struct WorktreesKeybindings {
 pub struct SubmodulesKeybindings {
     pub add: Option<Keybind>,
     pub delete: Option<Keybind>,
+    pub update: Option<Keybind>,
+    pub update_all: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -1206,6 +1214,8 @@ impl KeybindingsConfig {
             submodules: SubmodulesKeybindings {
                 add: Some(Keybind::new(&["a"], "Add new submodule")),
                 delete: Some(Keybind::new(&["D"], "Delete selected submodule")),
+                update: Some(Keybind::new(&["u"], "Initialize / update selected submodule")),
+                update_all: Some(Keybind::new(&["U"], "Initialize / update all submodules")),
             },
             reflog: ReflogKeybindings {
                 checkout: Some(Keybind::new(
@@ -1431,6 +1441,8 @@ impl KeybindingsConfig {
             // Submodules
             Action::SubmodulesAdd => self.submodules.add.as_ref(),
             Action::SubmodulesDelete => self.submodules.delete.as_ref(),
+            Action::SubmodulesUpdate => self.submodules.update.as_ref(),
+            Action::SubmodulesUpdateAll => self.submodules.update_all.as_ref(),
 
             // Reflog
             Action::ReflogCheckout => self.reflog.checkout.as_ref(),
@@ -1643,6 +1655,8 @@ impl KeybindingsConfig {
             // Submodules
             Action::SubmodulesAdd => self.submodules.add.as_ref(),
             Action::SubmodulesDelete => self.submodules.delete.as_ref(),
+            Action::SubmodulesUpdate => self.submodules.update.as_ref(),
+            Action::SubmodulesUpdateAll => self.submodules.update_all.as_ref(),
 
             // Reflog
             Action::ReflogCheckout => self.reflog.checkout.as_ref(),
@@ -2115,6 +2129,8 @@ impl KeybindingsConfig {
             // Submodules
             Action::SubmodulesAdd => self.submodules.add = keybind,
             Action::SubmodulesDelete => self.submodules.delete = keybind,
+            Action::SubmodulesUpdate => self.submodules.update = keybind,
+            Action::SubmodulesUpdateAll => self.submodules.update_all = keybind,
 
             // Reflog
             Action::ReflogCheckout => self.reflog.checkout = keybind,

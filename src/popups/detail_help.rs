@@ -307,6 +307,11 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
             (k(Action::WorktreesLock), "Toggle lock status (Worktrees tab only)"),
             (k(Action::WorktreesPrune), "Prune worktree metadata (Worktrees tab only)"),
             (k(Action::WorktreesOpen), "Open worktree in new context (Worktrees tab only)"),
+            (
+                k(Action::SubmodulesUpdate),
+                "Initialize / update selected submodule (Submodules tab)",
+            ),
+            (k(Action::SubmodulesUpdateAll), "Initialize / update all submodules (Submodules tab)"),
             (k(Action::RemotesFetch), "Fetch selected remote (Remotes tab)"),
         ],
     ));

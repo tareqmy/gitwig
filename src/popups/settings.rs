@@ -100,7 +100,7 @@ const FILES_BRANCHES_SETTING_INDICES: &[usize] =
 const TAGS_REMOTES_STASHES_SETTING_INDICES: &[usize] =
     &[140, 141, 142, 143, 144, 145, 150, 151, 152, 160, 161, 162];
 const ADVANCED_TABS_SETTING_INDICES: &[usize] =
-    &[170, 171, 172, 173, 174, 180, 181, 190, 200, 201, 202, 203];
+    &[170, 171, 172, 173, 174, 180, 181, 182, 183, 190, 200, 201, 202, 203];
 const DIFF_CONFLICT_SETTING_INDICES: &[usize] = &[210, 211, 212, 213, 220, 221, 222, 223, 224, 225];
 const SCROLL_NAV_SETTING_INDICES: &[usize] = &[230, 231, 232, 233, 234, 235];
 const ALL_KEYBINDINGS_SETTING_INDICES: &[usize] = &[
@@ -115,7 +115,8 @@ const ALL_KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     120, 121, 122, 123, 124, 125, 126, 127, 130, 131, 132, 133, 139, 134, 135, 136, 137, 138,
     // Tags, Remotes & Stashes
     140, 141, 142, 143, 144, 145, 150, 151, 152, 160, 161, 162, // Advanced Tabs Keys
-    170, 171, 172, 173, 174, 180, 181, 190, 200, 201, 202, 203, // Diff & Conflict Keys
+    170, 171, 172, 173, 174, 180, 181, 182, 183, 190, 200, 201, 202,
+    203, // Diff & Conflict Keys
     210, 211, 212, 213, 220, 221, 222, 223, 224, 225, // Scroll & Nav Keys
     230, 231, 232, 233, 234, 235,
 ];
@@ -384,6 +385,8 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         // Submodules
         180 => "Submodules: Add submodule",
         181 => "Submodules: Delete submodule",
+        182 => "Submodules: Initialize / update submodule",
+        183 => "Submodules: Initialize / update all",
 
         // Reflog
         190 => "Reflog: Checkout entry OID",

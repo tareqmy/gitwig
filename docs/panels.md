@@ -237,6 +237,8 @@ Triggered by opening a repository.
         *   `PgUp` / `PgDn` / `Home` / `End` : Navigate submodules list
         *   `a` : Add new submodule: enter its repository URL, then the path to check it out at; it is cloned and initialized
         *   `D` : Delete selected submodule (asks confirmation; the popup names its path, and its name when that differs). Deinitializes it, removes its folder, gitlink and `.gitmodules` entry, and deletes its module directory under the git dir; the removal is staged for you to commit, and the list shows the submodule as "Removal staged" until you do. Only a real submodule entry in the index is ever removed.
+        *   `u` : Initialize / update the selected submodule (`git submodule update --init --recursive`): an Uninitialized one is cloned and checked out, a Modified one goes back to the commit the repository records. Asks confirmation first when it shows Modified; never forced, so uncommitted changes a checkout would overwrite fail the update instead
+        *   `U` : Initialize / update every submodule the same way (asks confirmation first when any shows Modified, listing them)
 
 #### Tab 9: Reflog Tab (Advanced Tab Group)
 *   *Reflog List Panel*: Lists local reference logs.
@@ -537,6 +539,7 @@ To prevent accidental data loss due to muscle-memory `Enter` keypresses, Gitwig 
 *   **Rebase (`Mode::BranchRebaseConfirm` / `Mode::BranchInteractiveRebaseConfirm`)**: Rebasing the current branch.
 *   **Stash Apply (`Mode::StashApplyConfirm`)**: Applying a stash onto the working directory.
 *   **Cherry-Pick (`Mode::CherryPickConfirm`)**: Cherry-picking a commit.
+*   **Submodule Update (`Mode::SubmoduleUpdateConfirm`)**: Updating a submodule that shows Modified (or, with `U`, every submodule when any does), which moves its checked-out commit back to the one the repository records.
 *   **Revert (`Mode::RevertConfirm`)**: Creating a revert commit for a specific commit.
 *   **Continue Merge (`Mode::MergeContinueConfirm`)**: Continuing a merge after conflicts are resolved.
 *   **Self-Update (`Mode::UpdateConfirm`)**: Confirming a self-update.

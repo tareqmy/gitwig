@@ -95,10 +95,11 @@ The **Submodules** tab lists all git submodules defined in the repository:
 - **Name:** The submodule identifier.
 - **Status:** Shows `Clean`, `Modified` (local changes or commit mismatch), `Uninitialized`, or `Removal staged` (deleted with `D`, until you commit the removal).
 - **Commit (Index):** The target commit SHA the superproject expects.
-- **Commit (HEAD):** The actual checked-out commit SHA in the submodule directory.
+- **Commit (HEAD):** The commit SHA the superproject's HEAD records, highlighted when it differs from the index (a staged submodule change). Where the submodule itself is checked out shows in its status: `Modified` when that differs from the index.
 - **URL:** The remote source URL of the submodule.
 - Press `a` to add a submodule: enter its repository URL, then the path to check it out at. It is cloned and initialized.
 - Press `D` to delete the selected submodule (asks confirmation; the popup names its path, and its name when that differs). It is deinitialized and its folder, gitlink, `.gitmodules` entry and module directory are removed; the removal is staged for you to commit.
+- Press `u` to initialize / update the selected submodule, or `U` for every submodule (`git submodule update --init --recursive`, never forced). An `Uninitialized` submodule is cloned and checked out; a `Modified` one goes back to the commit the repository records, after a confirmation, since commits made there that no branch holds are left behind. Uncommitted changes the checkout would overwrite make the update fail instead.
 
 ### Reflog Tab
 

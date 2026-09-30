@@ -197,6 +197,19 @@ pub struct SubmoduleInfo {
     pub is_dirty: bool,
 }
 
+impl SubmoduleInfo {
+    /// Deleted from the index but still in HEAD, until the removal is committed.
+    pub fn is_removal_staged(&self) -> bool {
+        self.commit_id.is_none() && self.head_id.is_some()
+    }
+
+    /// Checked out, with a commit or files that differ from what the
+    /// superproject records: what the Submodules tab labels `Modified`.
+    pub fn is_modified(&self) -> bool {
+        !self.is_removal_staged() && self.is_initialized && self.is_dirty
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum TabPayload {
     Files(Result<Vec<String>, String>),
@@ -2133,6 +2146,31 @@ pub fn submodule_remove(repo_path: &Path, name: &str, path: &Path) -> Result<(),
                 e
             )
         })?;
+    }
+    Ok(())
+}
+
+/// Initialises and updates the submodule checked out at `path` (relative to
+/// the repository root), or every submodule when `path` is `None`, together
+/// with any submodules nested inside it: `git submodule update --init
+/// --recursive`. Each submodule's configured update mode applies and nothing
+/// is forced, so local changes a checkout would overwrite fail the update
+/// instead of being lost. It may clone or fetch, so it is bounded by `timeout`
+/// (zero means no limit).
+pub fn submodule_update(
+    repo_path: &Path,
+    path: Option<&Path>,
+    timeout: Duration,
+) -> Result<(), String> {
+    let mut cmd = git_command();
+    cmd.args(["--literal-pathspecs", "submodule", "update", "--init", "--recursive"])
+        .current_dir(repo_path);
+    if let Some(path) = path {
+        cmd.arg("--").arg(path);
+    }
+    let output = run_git_with_timeout(cmd, timeout).map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().replace('\n', " "));
     }
     Ok(())
 }
@@ -4653,6 +4691,59 @@ mod tests {
         let listed = load_tab_submodules(&main).unwrap();
         let removed = listed.iter().find(|s| s.path == Path::new("vendor/n")).unwrap();
         assert!(removed.commit_id.is_none() && removed.head_id.is_some(), "{:?}", removed);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// An uninitialised submodule is cloned and checked out (only the one asked
+    /// for, unless every one was), and one moved to another commit goes back to
+    /// the recorded one, but never over a local edit the checkout would overwrite.
+    #[test]
+    fn test_submodule_update_initialises_and_returns_to_the_recorded_commit() {
+        let root = unique_temp_dir("submodule_update");
+        let lib = root.join("lib");
+        std::fs::create_dir_all(&lib).unwrap();
+        run_git(&lib, &["init", "-q"]);
+        std::fs::write(lib.join("f"), "1\n").unwrap();
+        run_git(&lib, &["add", "f"]);
+        run_git(&lib, &["commit", "-q", "-m", "one"]);
+        let main = repo_with_branches(&root, &[]);
+        let lib_url = lib.to_string_lossy().to_string();
+        run_git(&main, &["submodule", "add", "-q", &lib_url, "vendor/a"]);
+        run_git(&main, &["submodule", "add", "-q", &lib_url, "vendor/b"]);
+        run_git(&main, &["commit", "-q", "-m", "add submodules"]);
+        run_git(&main, &["submodule", "deinit", "-q", "-f", "--all"]);
+        let listed = |p: &str| {
+            let subs = load_tab_submodules(&main).unwrap();
+            subs.into_iter().find(|s| s.path == Path::new(p)).unwrap()
+        };
+        assert!(!listed("vendor/a").is_initialized && !listed("vendor/b").is_initialized);
+
+        let timeout = Duration::from_secs(60);
+        submodule_update(&main, Some(Path::new("vendor/a")), timeout).unwrap();
+        assert!(listed("vendor/a").is_initialized);
+        assert!(!listed("vendor/b").is_initialized, "only the selected submodule");
+        let sub_a = main.join("vendor/a");
+        assert_eq!(std::fs::read_to_string(sub_a.join("f")).unwrap(), "1\n");
+        submodule_update(&main, None, timeout).unwrap();
+        assert!(listed("vendor/b").is_initialized, "no path updates every submodule");
+
+        // Check out a newer lib commit inside vendor/a: the tab shows Modified.
+        std::fs::write(lib.join("f"), "2\n").unwrap();
+        run_git(&lib, &["commit", "-q", "-am", "two"]);
+        run_git(&sub_a, &["fetch", "-q", "origin", "HEAD"]);
+        run_git(&sub_a, &["checkout", "-q", "FETCH_HEAD"]);
+        assert!(listed("vendor/a").is_dirty);
+        submodule_update(&main, Some(Path::new("vendor/a")), timeout).unwrap();
+        assert!(!listed("vendor/a").is_dirty, "back on the recorded commit");
+        assert_eq!(std::fs::read_to_string(sub_a.join("f")).unwrap(), "1\n");
+
+        // Moved again, with an uncommitted edit the checkout would overwrite.
+        run_git(&sub_a, &["checkout", "-q", "FETCH_HEAD"]);
+        std::fs::write(sub_a.join("f"), "local\n").unwrap();
+        assert!(submodule_update(&main, Some(Path::new("vendor/a")), timeout).is_err());
+        assert_eq!(std::fs::read_to_string(sub_a.join("f")).unwrap(), "local\n");
+
+        assert!(submodule_update(&main, Some(Path::new("nope")), timeout).is_err());
         let _ = std::fs::remove_dir_all(&root);
     }
 

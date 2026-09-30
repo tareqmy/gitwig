@@ -167,7 +167,15 @@ fn tab_actions(tab: usize) -> Option<(&'static str, &'static [Action])> {
                 Action::WorktreesPrune,
             ],
         ),
-        8 => ("Submodules", &[Action::SubmodulesAdd, Action::SubmodulesDelete]),
+        8 => (
+            "Submodules",
+            &[
+                Action::SubmodulesAdd,
+                Action::SubmodulesDelete,
+                Action::SubmodulesUpdate,
+                Action::SubmodulesUpdateAll,
+            ],
+        ),
         9 => ("Reflog", &[Action::ReflogCheckout]),
         10 | 11 => (
             "Forge",

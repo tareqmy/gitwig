@@ -59,6 +59,7 @@ fn is_detail_base_mode(mode: &Mode) -> bool {
             | Mode::SubmoduleAddUrlInput
             | Mode::SubmoduleAddPathInput
             | Mode::SubmoduleDeleteConfirm
+            | Mode::SubmoduleUpdateConfirm
             | Mode::TagCheckoutConfirm
             | Mode::CommitCheckoutConfirm
             | Mode::BranchPushConfirm
@@ -134,6 +135,7 @@ pub fn draw(
                 | Mode::SubmoduleAddUrlInput
                 | Mode::SubmoduleAddPathInput
                 | Mode::SubmoduleDeleteConfirm
+                | Mode::SubmoduleUpdateConfirm
                 | Mode::TagCheckoutConfirm
                 | Mode::CommitCheckoutConfirm
                 | Mode::BranchPushConfirm
@@ -4143,6 +4145,10 @@ mod tests {
             path: std::path::PathBuf::from("sub"),
             ..Default::default()
         });
+        app.submodule_update_target = Some(crate::app::SubmoduleUpdateTarget {
+            path: None,
+            modified: vec![std::path::PathBuf::from("sub")],
+        });
         app.forge_checkout_target = Some(crate::app::ForgeCheckoutTarget::PullRequest {
             number: 42,
             title: "Add retry".to_string(),
@@ -4309,6 +4315,7 @@ mod tests {
             Mode::SubmoduleAddUrlInput,
             Mode::SubmoduleAddPathInput,
             Mode::SubmoduleDeleteConfirm,
+            Mode::SubmoduleUpdateConfirm,
             Mode::ForgeCheckoutConfirm,
             Mode::NotGitRepo,
         ];

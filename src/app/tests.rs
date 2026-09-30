@@ -14387,3 +14387,180 @@ fn test_label_view_mode_applies_in_project_view() {
     let parsed: Config = toml::from_str(&serialized).unwrap();
     assert_eq!(parsed.label_configs["web"].view_mode, Some(HomeViewMode::Tile));
 }
+
+/// Waits for a background thread's report on `app.rx`, skipping messages from
+/// other subsystems (the fs watcher shares the channel).
+fn wait_for_repo_message(app: &App, expected: &str) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    let mut seen = Vec::new();
+    loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        let msg = app.rx.recv_timeout(remaining).unwrap_or_else(|_| {
+            panic!("no message containing {:?}; messages seen: {:?}", expected, seen)
+        });
+        if msg.contains(expected) {
+            return;
+        }
+        seen.push(msg);
+    }
+}
+
+/// `u` updates the selected submodule and `U` every one, asking first only
+/// when the update would move a `Modified` submodule's checked-out commit.
+#[test]
+fn test_submodule_update_keys_ask_only_before_moving_modified_submodules() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let sub = |path: &str, initialized: bool, dirty: bool, in_index: bool| repo::SubmoduleInfo {
+        name: path.to_string(),
+        path: PathBuf::from(path),
+        commit_id: in_index.then(|| "a".repeat(40)),
+        head_id: Some("a".repeat(40)),
+        is_initialized: initialized,
+        is_dirty: dirty,
+        ..Default::default()
+    };
+    let info = repo::RepoInfo {
+        submodules: repo::TabData::Loaded(vec![
+            sub("uninit", false, false, true),
+            sub("modified", true, true, true),
+            sub("removed", true, false, false),
+            sub("clean", true, false, true),
+        ]),
+        ..Default::default()
+    };
+    let (mut app, _guard) = advanced_tab_app("submodule_update_keys", info, 8);
+    app.keybindings = crate::keybindings::KeybindingsConfig::default_config();
+    let u = KeyEvent::new(KeyCode::Char('u'), KeyModifiers::empty());
+    let shift_u = KeyEvent::new(KeyCode::Char('U'), KeyModifiers::SHIFT);
+    let key = |c: char| KeyEvent::new(KeyCode::Char(c), KeyModifiers::empty());
+    let modified_only = vec![PathBuf::from("modified")];
+
+    // Modified: asks first, and `n` cancels without running anything.
+    app.submodule_selection = 1;
+    assert!(crate::input::handle_key(&mut app, u, 10));
+    assert_eq!(app.mode, Mode::SubmoduleUpdateConfirm);
+    assert_eq!(
+        app.submodule_update_target,
+        Some(SubmoduleUpdateTarget {
+            path: Some(PathBuf::from("modified")),
+            modified: modified_only.clone()
+        })
+    );
+    assert!(crate::input::handle_key(&mut app, key('n'), 10));
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(app.submodule_update_target, None);
+    assert!(!app.fetching);
+
+    // Staged for removal: nothing to update.
+    app.submodule_selection = 2;
+    assert!(crate::input::handle_key(&mut app, u, 10));
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(!app.fetching);
+    assert!(app.status_message.as_deref().unwrap_or("").contains("staged for removal"));
+
+    // `U` covers every submodule and names the Modified one; `y` starts it.
+    assert!(crate::input::handle_key(&mut app, shift_u, 10));
+    assert_eq!(app.mode, Mode::SubmoduleUpdateConfirm);
+    assert_eq!(
+        app.submodule_update_target,
+        Some(SubmoduleUpdateTarget { path: None, modified: modified_only })
+    );
+    assert!(crate::input::handle_key(&mut app, key('y'), 10));
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(app.submodule_update_target, None);
+    assert!(app.fetching);
+    assert_eq!(app.status_message.as_deref(), Some("Updating all submodules..."));
+    // The repository path does not exist, so the update reports a failure.
+    wait_for_repo_message(&app, "Failed to update all submodules");
+
+    // Uninitialized (and Clean) submodules update without asking.
+    app.fetching = false;
+    app.submodule_selection = 0;
+    assert!(crate::input::handle_key(&mut app, u, 10));
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.fetching);
+    assert_eq!(app.status_message.as_deref(), Some("Updating submodule 'uninit'..."));
+    wait_for_repo_message(&app, "Failed to update submodule 'uninit'");
+
+    // `U` with nothing Modified runs straight away; with nothing left in the
+    // index there is nothing to update.
+    let set_submodules = |app: &mut App, subs: Vec<repo::SubmoduleInfo>| {
+        if let Some(repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
+            info.submodules = repo::TabData::Loaded(subs);
+        }
+    };
+    app.fetching = false;
+    set_submodules(
+        &mut app,
+        vec![sub("uninit", false, false, true), sub("clean", true, false, true)],
+    );
+    assert!(crate::input::handle_key(&mut app, shift_u, 10));
+    assert_eq!(app.mode, Mode::Detail);
+    assert!(app.fetching);
+    wait_for_repo_message(&app, "Failed to update all submodules");
+    app.fetching = false;
+    set_submodules(&mut app, vec![sub("removed", true, false, false)]);
+    assert!(crate::input::handle_key(&mut app, shift_u, 10));
+    assert!(!app.fetching);
+    assert_eq!(app.status_message.as_deref(), Some("No submodules to update"));
+}
+
+/// `u` initialises only the selected submodule, and `a` no longer initialises
+/// every other submodule after adding one: it ran a bare
+/// `git submodule update --init --recursive` over the whole repository.
+#[test]
+fn test_submodule_update_and_add_leave_other_submodules_alone() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let root = std::env::temp_dir().join(format!(
+        "gitwig_test_submodule_update_{}",
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    let _dir = TestDirGuard { path: root.clone() };
+    let lib = root.join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    run_git_in(&lib, &["init", "-q"]);
+    std::fs::write(lib.join("f"), "lib\n").unwrap();
+    run_git_in(&lib, &["add", "f"]);
+    run_git_in(&lib, &["commit", "-q", "-m", "lib"]);
+    let main = root.join("main");
+    std::fs::create_dir_all(&main).unwrap();
+    run_git_in(&main, &["init", "-q"]);
+    run_git_in(&main, &["commit", "-q", "--allow-empty", "-m", "init"]);
+    let lib_url = lib.to_string_lossy().to_string();
+    run_git_in(&main, &["submodule", "add", "-q", &lib_url, "vendor/a"]);
+    run_git_in(&main, &["submodule", "add", "-q", &lib_url, "vendor/b"]);
+    run_git_in(&main, &["commit", "-q", "-m", "submodules"]);
+    run_git_in(&main, &["submodule", "deinit", "-q", "-f", "--all"]);
+
+    let submodules = repo::load_tab_submodules(&main).unwrap();
+    let a_idx = submodules.iter().position(|s| s.path == std::path::Path::new("vendor/a")).unwrap();
+    let info =
+        repo::RepoInfo { submodules: repo::TabData::Loaded(submodules), ..Default::default() };
+    let mut app = App::new(Config::default(), root.join("config.toml"));
+    app.keybindings = crate::keybindings::KeybindingsConfig::default_config();
+    app.current_detail =
+        Some(repo::ItemDetail::Repo { resolved: main.clone(), info: Box::new(info) });
+    app.mode = Mode::Detail;
+    app.advanced_tabs = true;
+    app.detail_tab = 8;
+    let initialized = |p: &str| {
+        let subs = repo::load_tab_submodules(&main).unwrap();
+        subs.iter().any(|s| s.path == std::path::Path::new(p) && s.is_initialized)
+    };
+
+    app.submodule_selection = a_idx;
+    let u = KeyEvent::new(KeyCode::Char('u'), KeyModifiers::empty());
+    assert!(crate::input::handle_key(&mut app, u, 10));
+    wait_for_repo_message(&app, "Updated submodule 'vendor/a'");
+    assert!(initialized("vendor/a"));
+    assert!(std::fs::read_to_string(main.join("vendor/a/f")).unwrap() == "lib\n");
+    assert!(!initialized("vendor/b"), "only the selected submodule");
+
+    app.fetching = false;
+    app.submodule_add_url = lib_url;
+    app.submodule_add_path = "vendor/c".to_string();
+    app.start_submodule_add();
+    wait_for_repo_message(&app, "Submodule 'vendor/c' added successfully");
+    assert!(initialized("vendor/c"));
+    assert!(!initialized("vendor/b"), "adding a submodule leaves the others alone");
+}

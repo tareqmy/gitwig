@@ -184,6 +184,8 @@ pub enum Mode {
     SubmoduleAddPathInput,
     /// Confirming deletion of a submodule.
     SubmoduleDeleteConfirm,
+    /// Confirming an update that moves a `Modified` submodule's checked-out commit.
+    SubmoduleUpdateConfirm,
     /// Showing the signs and symbols legend popup.
     Legend,
     /// Floating popup with ranked fuzzy matches for repository navigation.
@@ -680,6 +682,8 @@ pub struct App {
     pub submodule_add_url: String,
     pub submodule_add_path: String,
     pub submodule_delete_target: Option<repo::SubmoduleInfo>,
+    /// The update `u` / `U` is asking to confirm (see `SubmoduleUpdateConfirm`).
+    pub submodule_update_target: Option<SubmoduleUpdateTarget>,
     pub cpu_tracker: std::sync::Mutex<Option<(f64, std::time::Instant, f64, f64)>>,
     pub watcher: Option<notify::RecommendedWatcher>,
     pub status_refresh_tx: std::sync::mpsc::Sender<Vec<(usize, String, ItemStatus)>>,
@@ -736,8 +740,10 @@ enum LogsNavDirection {
 mod actions;
 mod git;
 mod navigation;
+mod submodules;
 mod term_panel;
 pub use navigation::HomeRow;
+pub use submodules::SubmoduleUpdateTarget;
 #[cfg(test)]
 mod tests;
 mod workspace;
@@ -938,6 +944,7 @@ impl App {
                     Mode::RemoteDeleteConfirm => self.confirm_remote_delete(),
                     Mode::UpdateConfirm => self.trigger_self_update(),
                     Mode::SubmoduleDeleteConfirm => self.confirm_submodule_delete(),
+                    Mode::SubmoduleUpdateConfirm => self.confirm_submodule_update(),
                     _ => {}
                 },
                 crate::queue::InternalEvent::ConfirmNo => match self.mode {
@@ -969,6 +976,7 @@ impl App {
                         self.mode = Mode::Detail;
                     }
                     Mode::SubmoduleDeleteConfirm => self.cancel_submodule_delete(),
+                    Mode::SubmoduleUpdateConfirm => self.cancel_submodule_update(),
                     Mode::UpdateConfirm => {
                         self.mode = self.previous_mode.take().unwrap_or(Mode::Normal);
                     }
@@ -1534,6 +1542,7 @@ impl App {
             submodule_add_url: String::new(),
             submodule_add_path: String::new(),
             submodule_delete_target: None,
+            submodule_update_target: None,
             cpu_tracker: std::sync::Mutex::new(None),
             watcher: None,
             status_refresh_tx,

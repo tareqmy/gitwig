@@ -143,11 +143,11 @@ pub fn draw_submodules_view(
 
             // 3. Status cell. A submodule deleted with `D` is gone from the
             // index but still in HEAD until the removal is committed.
-            let cell_status = if sub.commit_id.is_none() && sub.head_id.is_some() {
+            let cell_status = if sub.is_removal_staged() {
                 Cell::from(Span::styled("Removal staged", Style::default().fg(WARNING())))
             } else if !sub.is_initialized {
                 Cell::from(Span::styled("Uninitialized", Style::default().fg(WARNING())))
-            } else if sub.is_dirty {
+            } else if sub.is_modified() {
                 Cell::from(Span::styled("Modified", Style::default().fg(DANGER())))
             } else {
                 Cell::from(Span::styled("Clean", Style::default().fg(SUCCESS())))

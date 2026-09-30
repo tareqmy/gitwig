@@ -442,6 +442,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         | Mode::ForgeCheckoutConfirm
         | Mode::RemoteDeleteConfirm
         | Mode::SubmoduleDeleteConfirm
+        | Mode::SubmoduleUpdateConfirm
         | Mode::UpdateConfirm => {
             let is_destructive = matches!(
                 app.mode,

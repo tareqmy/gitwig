@@ -978,6 +978,11 @@ pub fn draw(
                     crate::popups::submodule::draw_submodule_delete_popup(f, sub, body_area);
                 }
             }
+            if matches!(mode, Mode::SubmoduleUpdateConfirm) {
+                if let Some(ref target) = app.submodule_update_target {
+                    crate::popups::submodule::draw_submodule_update_popup(f, target, body_area);
+                }
+            }
             // Draw branch push popup on top when requested.
             if matches!(mode, Mode::BranchPushConfirm) {
                 crate::popups::confirm::draw_branch_push_popup(f, branch_action_target, body_area);

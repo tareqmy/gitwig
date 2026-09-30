@@ -91,6 +91,8 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
     let worktrees_open = k(Action::WorktreesOpen);
     let submodules_add = k(Action::SubmodulesAdd);
     let submodules_delete = k(Action::SubmodulesDelete);
+    let submodules_update = k(Action::SubmodulesUpdate);
+    let submodules_update_all = k(Action::SubmodulesUpdateAll);
     let reflog_checkout = k(Action::ReflogCheckout);
     let forge_checkout = k(Action::ForgeCheckout);
     let forge_open_browser = k(Action::ForgeOpenBrowser);
@@ -342,6 +344,8 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Jump", "Home/End"),
             ("Add", submodules_add.as_str()),
             ("Delete", submodules_delete.as_str()),
+            ("Update", submodules_update.as_str()),
+            ("Update All", submodules_update_all.as_str()),
             ("Resync", ""),
             ("Help", ""),
         ],
