@@ -6,11 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+
+## [v2.6.6] - 2026-09-30
 ### Added
 - **settings**: a **Show Separators** toggle under Theme & Style (`show_separators`, default `true`) hides the home page's separator rules: the rule between the summary bar and the quick-label chips (the chips then sit directly under the summary bar), the dashes of the sort rule (the `Sort: …` caption stays) and the rule under the last pinned repository. ([b79cdca](https://github.com/tareqmy/gitwig/commit/b79cdca))
 
 ### Documentation
-- `docs/features.md` gained a Show / Hide Separators bullet; the `docs/configuration.md` example sets `show_separators`; `docs/detail_view.md` and `docs/status_indicators.md` note which rules the setting hides; the Settings View section of `docs/panels.md` lists the Theme & Style rows.
+- `docs/features.md` gained a Show / Hide Separators bullet; the `docs/configuration.md` example sets `show_separators`; `docs/detail_view.md` and `docs/status_indicators.md` note which rules the setting hides; the Settings View section of `docs/panels.md` lists the Theme & Style rows. ([4a7ec66](https://github.com/tareqmy/gitwig/commit/4a7ec66))
+- the README preview GIF and cast (`resources/preview.gif`, `resources/preview.cast`) were re-recorded against the v2.6.5 UI with the demo repositories under `/tmp/gitwig`, so the workspace header, overview and worktrees tab no longer show a scratch path; the recording picks up the pinned-block rule. ([a5123e2](https://github.com/tareqmy/gitwig/commit/a5123e2))
 
 ## [v2.6.5] - 2026-09-29
 ### Added
