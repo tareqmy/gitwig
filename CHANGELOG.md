@@ -7,6 +7,20 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [v2.6.7] - 2026-10-01
+### Added
+- **submodules**: the Submodules tab can now initialize and update existing submodules. `u` acts on the selected submodule and `U` on every submodule (`git submodule update --init --recursive`). An Uninitialized submodule is cloned and checked out; a Modified one goes back to the commit the repository records. That move asks first, in a popup listing the Modified submodules it affects, since commits made there that no branch holds are left behind. The update is never forced, so uncommitted changes a checkout would overwrite make it fail with an error instead of being lost; a submodule whose removal is staged is skipped. Both keys can be rebound in Settings and appear in the help overlay, the status bar and the command palette. ([c83b277](https://github.com/tareqmy/gitwig/commit/c83b277))
+
+### Fixed
+- **submodules**: adding a submodule (`a`) followed up with a repository-wide `git submodule update --init --recursive`, which silently initialized every other submodule in the repository, ignored any failure, and had no time limit. It now initializes only the new submodule's own nested submodules, reports a failure, and, like the add itself, stops after `fetch_timeout_secs`. ([c83b277](https://github.com/tareqmy/gitwig/commit/c83b277))
+
+### Documentation
+- `docs/keybindings.md`, `docs/panels.md` and `docs/detail_view.md` cover `u` / `U` in the Submodules tab and the new confirmation; `docs/detail_view.md` also corrects the Commit (HEAD) column, which shows the commit the superproject's HEAD records, not the one checked out in the submodule. ([c83b277](https://github.com/tareqmy/gitwig/commit/c83b277))
+
+### Testing
+- the test suite no longer touches the developer's checkout. Eighteen detail-view tests pointed the open repository at the working directory, so `cargo test` staged and unstaged every modified file, ran a real `git fetch origin`, and attempted a checkout of `feature-branch` and a `git push upstream --tags` there; and fifty tests wrote `keybindings.toml` and `state.toml` into it (and could rewrite the tracked `.version`). They now use nonexistent paths, throwaway repositories and per-test scratch directories, and a relative config path panics under test so the mistake cannot return. ([af53867](https://github.com/tareqmy/gitwig/commit/af53867), [622c54b](https://github.com/tareqmy/gitwig/commit/622c54b))
+- **core**: two signature tests that build fixtures in parallel could share a temp directory, because macOS timestamps are only microsecond-precise, and fail on `.git/config.lock`; fixtures now get distinct directories. ([5e91794](https://github.com/tareqmy/gitwig/commit/5e91794))
+
 ## [v2.6.6] - 2026-09-30
 ### Added
 - **settings**: a **Show Separators** toggle under Theme & Style (`show_separators`, default `true`) hides the home page's separator rules: the rule between the summary bar and the quick-label chips (the chips then sit directly under the summary bar), the dashes of the sort rule (the `Sort: …` caption stays) and the rule under the last pinned repository. ([b79cdca](https://github.com/tareqmy/gitwig/commit/b79cdca))

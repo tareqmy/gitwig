@@ -1,7 +1,7 @@
 class Gitwig < Formula
   desc "Gitwig: A rust based TUI, an alternative to sourcetree and gitui"
   homepage "https://github.com/tareqmy/gitwig"
-  version "2.6.6"
+  version "2.6.7"
 
   if OS.mac?
     if Hardware::CPU.intel?
