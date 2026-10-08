@@ -226,6 +226,10 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
             (k(Action::DiffStage), "Stage selected hunk/line"),
             (k(Action::DiffUnstage), "Unstage selected hunk/line"),
             (k(Action::DiffDiscard), "Discard selected hunk/line (immediate, no confirmation)"),
+            (
+                k(Action::DiffStash),
+                "Stash selected hunk/line of an unstaged file and remove it from the working tree",
+            ),
         ],
     ));
 

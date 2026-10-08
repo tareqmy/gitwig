@@ -22,11 +22,15 @@ pub fn draw_stash_create_popup(f: &mut Frame, input_buffer: &str, area: Rect, ap
     f.render_widget(Clear, popup_area);
 
     let border_style = Style::default().fg(ACCENT());
-    let title = Line::from(vec![
-        Span::raw(" "),
-        Span::styled("Stash Changes", primary_style()),
-        Span::raw(" "),
-    ]);
+    // Opened from the stashing panel with files picked, the stash takes only those.
+    let picked = if app.stash_from_panel { app.stash_panel_paths().len() } else { 0 };
+    let title_text = match picked {
+        0 => "Stash Changes".to_string(),
+        1 => "Stash 1 Picked File".to_string(),
+        n => format!("Stash {} Picked Files", n),
+    };
+    let title =
+        Line::from(vec![Span::raw(" "), Span::styled(title_text, primary_style()), Span::raw(" ")]);
 
     let block = Block::default()
         .borders(Borders::ALL)

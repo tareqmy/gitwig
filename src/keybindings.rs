@@ -184,6 +184,8 @@ pub enum Action {
     DiffStage,
     DiffUnstage,
     DiffDiscard,
+    /// Stash the selected hunk / line of an unstaged diff.
+    DiffStash,
 
     // Conflict
     ConflictOurs,
@@ -393,6 +395,7 @@ impl Action {
             211 => Some(Action::DiffStage),
             212 => Some(Action::DiffUnstage),
             213 => Some(Action::DiffDiscard),
+            214 => Some(Action::DiffStash),
 
             // Conflict
             220 => Some(Action::ConflictOurs),
@@ -584,6 +587,7 @@ impl Action {
             Action::DiffStage => 211,
             Action::DiffUnstage => 212,
             Action::DiffDiscard => 213,
+            Action::DiffStash => 214,
 
             // Conflict
             Action::ConflictOurs => 220,
@@ -829,6 +833,7 @@ pub struct DiffKeybindings {
     pub stage: Option<Keybind>,
     pub unstage: Option<Keybind>,
     pub discard: Option<Keybind>,
+    pub stash: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -1246,6 +1251,7 @@ impl KeybindingsConfig {
                 stage: Some(Keybind::new(&["s", "S"], "Stage selected hunk/line")),
                 unstage: Some(Keybind::new(&["u", "U"], "Unstage selected hunk/line")),
                 discard: Some(Keybind::new(&["x", "delete"], "Discard selected hunk/line")),
+                stash: Some(Keybind::new(&["z"], "Stash selected hunk/line")),
             },
             conflict: ConflictKeybindings {
                 ours: Some(Keybind::new(&["o"], "Accept OURS version of conflict")),
@@ -1458,6 +1464,7 @@ impl KeybindingsConfig {
             Action::DiffStage => self.diff.stage.as_ref(),
             Action::DiffUnstage => self.diff.unstage.as_ref(),
             Action::DiffDiscard => self.diff.discard.as_ref(),
+            Action::DiffStash => self.diff.stash.as_ref(),
 
             // Conflict
             Action::ConflictOurs => self.conflict.ours.as_ref(),
@@ -1672,6 +1679,7 @@ impl KeybindingsConfig {
             Action::DiffStage => self.diff.stage.as_ref(),
             Action::DiffUnstage => self.diff.unstage.as_ref(),
             Action::DiffDiscard => self.diff.discard.as_ref(),
+            Action::DiffStash => self.diff.stash.as_ref(),
 
             // Conflict
             Action::ConflictOurs => self.conflict.ours.as_ref(),
@@ -2146,6 +2154,7 @@ impl KeybindingsConfig {
             Action::DiffStage => self.diff.stage = keybind,
             Action::DiffUnstage => self.diff.unstage = keybind,
             Action::DiffDiscard => self.diff.discard = keybind,
+            Action::DiffStash => self.diff.stash = keybind,
 
             // Conflict
             Action::ConflictOurs => self.conflict.ours = keybind,

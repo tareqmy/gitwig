@@ -299,6 +299,7 @@ Workspace layout for inspecting commits and diffs in details.
     *   `Enter` / `s` : Stage selected line or hunk (when focused on Unstaged file diff)
     *   `Enter` / `u` : Unstage selected line or hunk (when focused on Staged file diff)
     *   `x` / `Delete` : Discard selected line or hunk (when focused on Unstaged file diff)
+    *   `z` : Stash selected line or hunk and remove it from the working tree (when focused on an Unstaged modified file's diff)
 
 ---
 
@@ -348,10 +349,12 @@ Full-screen overlay summarizing the current repository (opened with `O` from the
     *   `Home` / `End` : Jump to top / bottom of focused pane
 
 ### Stashing UI Panel (`Mode::StashingUI`)
-Overlay for reviewing what will be stashed before saving (opened with `s` / `S` from the Workspace tab's commits or files list).
+Overlay for reviewing what will be stashed before saving (opened with `s` / `S` from the Workspace tab's commits or files list). Each file is listed once; with nothing picked the stash takes them all, and once files are picked (`[x]`) it takes only those.
 *   *Shortcuts*:
-    *   `s` / `S` : Save stash (opens stash message input)
-    *   `u` / `U` : Toggle "Stash untracked files" option
+    *   `s` / `S` : Save stash (opens stash message input; `Esc` there returns to the panel)
+    *   `Space` : Pick / unpick the file under the cursor
+    *   `a` / `A` : Pick every file, or clear the picks when all are picked
+    *   `u` / `U` : Toggle "Stash untracked files" option (turning it off drops untracked picks)
     *   `i` / `I` : Toggle "Keep index" option
     *   `↑` / `k` / `K` / `↓` / `j` / `J` : Navigate the file list
     *   `Esc` / `q` / `Q` : Close and return to Detail view

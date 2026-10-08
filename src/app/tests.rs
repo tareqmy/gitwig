@@ -14623,3 +14623,338 @@ fn test_submodule_update_and_add_leave_other_submodules_alone() {
     assert!(initialized("vendor/c"));
     assert!(!initialized("vendor/b"), "adding a submodule leaves the others alone");
 }
+
+/// A fresh repository under the temp dir with `files` committed, removed when
+/// the guard drops.
+fn temp_repo_with_files(tag: &str, files: &[(&str, &str)]) -> (PathBuf, TestDirGuard) {
+    let dir = std::env::temp_dir().join(format!("gitwig_test_{}_{}", tag, std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let guard = TestDirGuard { path: dir.clone() };
+    run_git_in(&dir, &["init", "-q"]);
+    for (name, content) in files {
+        std::fs::write(dir.join(name), content).unwrap();
+        run_git_in(&dir, &["add", name]);
+    }
+    run_git_in(&dir, &["commit", "-q", "-m", "init"]);
+    (dir, guard)
+}
+
+/// `git <args>`'s stdout in `dir`.
+fn git_output_in(dir: &std::path::Path, args: &[&str]) -> String {
+    let out = crate::git_cmd::git_command().args(args).current_dir(dir).output().unwrap();
+    assert!(out.status.success(), "git {:?}: {}", args, String::from_utf8_lossy(&out.stderr));
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+/// Loads `dir` into the Workspace tab synchronously, as the background loader
+/// would, so keys are not held back while a resync is pending.
+fn load_workspace(app: &mut App, dir: &std::path::Path) {
+    app.current_detail = Some(repo::inspect_detail(&dir.to_string_lossy(), 50, 100, false));
+    app.loading_repo_path = None;
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+}
+
+/// The stashing panel lists each file once, `Space` / `a` pick files, `u`
+/// drops untracked picks, Esc from the name prompt returns to the panel, and
+/// saving stashes only the picked files.
+#[test]
+fn test_stashing_panel_stashes_only_the_picked_files() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let (dir, _repo) =
+        temp_repo_with_files("stash_panel_picks", &[("a.txt", "a\n"), ("b.txt", "b\n")]);
+    std::fs::write(dir.join("a.txt"), "a changed\n").unwrap();
+    std::fs::write(dir.join("b.txt"), "b staged\n").unwrap();
+    run_git_in(&dir, &["add", "b.txt"]);
+    std::fs::write(dir.join("b.txt"), "b staged then changed\n").unwrap();
+    std::fs::write(dir.join("n.txt"), "new\n").unwrap();
+
+    let (config_path, _cfg) = temp_config_path("stash_panel_picks");
+    let mut app = App::new(Config::default(), config_path);
+    app.keybindings = crate::keybindings::KeybindingsConfig::default_config();
+    load_workspace(&mut app, &dir);
+    let press = |app: &mut App, code: KeyCode| {
+        assert!(crate::input::handle_key(app, KeyEvent::new(code, KeyModifiers::empty()), 10));
+    };
+
+    app.detail_focus = DetailSection::Unstaged;
+    press(&mut app, KeyCode::Char('s'));
+    assert_eq!(app.mode, Mode::StashingUI);
+    let rows: Vec<(String, StashFileKind)> =
+        app.stash_panel_rows().into_iter().map(|r| (r.path, r.kind)).collect();
+    assert_eq!(
+        rows,
+        [
+            ("b.txt".to_string(), StashFileKind::StagedAndUnstaged),
+            ("a.txt".to_string(), StashFileKind::Unstaged),
+            ("n.txt".to_string(), StashFileKind::Untracked),
+        ]
+    );
+
+    // Space picks the file under the cursor; `u` drops untracked files and
+    // their picks, keeping the cursor on a row.
+    press(&mut app, KeyCode::Down);
+    press(&mut app, KeyCode::Char(' '));
+    press(&mut app, KeyCode::Down);
+    press(&mut app, KeyCode::Char(' '));
+    assert_eq!(app.stash_panel_paths(), ["a.txt", "n.txt"]);
+    press(&mut app, KeyCode::Char('u'));
+    assert!(!app.stash_untracked);
+    assert_eq!(app.stash_panel_paths(), ["a.txt"]);
+    assert_eq!(app.stashing_ui_selection, 1);
+
+    // `a` picks everything, then nothing; Space unpicks and re-picks.
+    press(&mut app, KeyCode::Char('a'));
+    assert_eq!(app.stash_panel_paths(), ["b.txt", "a.txt"]);
+    press(&mut app, KeyCode::Char('a'));
+    assert!(app.stash_panel_paths().is_empty());
+    press(&mut app, KeyCode::Char(' '));
+    assert_eq!(app.stash_panel_paths(), ["a.txt"]);
+
+    // Cancelling the name prompt goes back to the panel with the picks kept.
+    press(&mut app, KeyCode::Char('s'));
+    assert_eq!(app.mode, Mode::StashCreateInput);
+    assert!(app.stash_from_panel);
+    press(&mut app, KeyCode::Esc);
+    assert_eq!(app.mode, Mode::StashingUI);
+    assert_eq!(app.stash_panel_paths(), ["a.txt"]);
+
+    press(&mut app, KeyCode::Char('s'));
+    for c in "only a".chars() {
+        press(&mut app, KeyCode::Char(c));
+    }
+    press(&mut app, KeyCode::Enter);
+    assert_eq!(app.error_message, None);
+    assert_eq!(app.mode, Mode::Detail);
+    assert_eq!(app.status_message.as_deref(), Some("Created stash 'only a' of a.txt"));
+    assert_eq!(app.stats.stashes, 1);
+    assert!(!app.stash_from_panel);
+
+    assert_eq!(git_output_in(&dir, &["stash", "show", "--name-only", "stash@{0}"]), "a.txt\n");
+    assert_eq!(std::fs::read_to_string(dir.join("a.txt")).unwrap(), "a\n");
+    assert_eq!(std::fs::read_to_string(dir.join("b.txt")).unwrap(), "b staged then changed\n");
+    assert!(dir.join("n.txt").exists());
+}
+
+/// A stash prompt opened from the Stashes tab stashes everything, whatever was
+/// picked in the panel earlier, and Esc returns to the tab.
+#[test]
+fn test_stashes_tab_prompt_ignores_panel_picks() {
+    let (config_path, _cfg) = temp_config_path("stash_tab_prompt");
+    let mut app = App::new(Config::default(), config_path);
+    app.stash_marked.insert("a.txt".to_string());
+    app.start_panel_stash_create();
+    assert!(app.stash_from_panel);
+    app.start_stash_create();
+    assert!(!app.stash_from_panel);
+    app.queue.push(crate::queue::InternalEvent::InputEsc);
+    app.drain_queue();
+    assert_eq!(app.mode, Mode::Detail);
+}
+
+/// `z` in an Unstaged diff stashes the selected hunk (Workspace diff pane) or,
+/// in line mode, the selected line (full-screen diff), and takes it out of
+/// the working tree.
+#[test]
+fn test_z_stashes_the_selected_hunk_or_line() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let original: String = (1..=20).map(|i| format!("Line {}\n", i)).collect();
+    let (dir, _repo) = temp_repo_with_files("stash_hunk_key", &[("f.txt", &original)]);
+    let edited = original
+        .replace("Line 2\n", "Line 2 modified\n")
+        .replace("Line 18\n", "Line 18 modified\n");
+    std::fs::write(dir.join("f.txt"), &edited).unwrap();
+
+    let (config_path, _cfg) = temp_config_path("stash_hunk_key");
+    let mut app = App::new(Config::default(), config_path);
+    app.keybindings = crate::keybindings::KeybindingsConfig::default_config();
+    let open_diff = |app: &mut App| {
+        load_workspace(app, &dir);
+        app.detail_focus = DetailSection::StagingDetails;
+        app.last_staging_focus = DetailSection::Unstaged;
+        app.status_list.staging_file_selection = 0;
+        app.diff.file_diff = repo::get_worktree_file_diff(&dir, "f.txt", false);
+    };
+    let z = KeyEvent::new(KeyCode::Char('z'), KeyModifiers::empty());
+
+    open_diff(&mut app);
+    app.diff.diff_hunk_selection = 1;
+    assert!(crate::input::handle_key(&mut app, z, 10));
+    assert_eq!(app.error_message, None);
+    assert_eq!(app.status_message.as_deref(), Some("Stashed hunk at line 15 of f.txt"));
+    assert_eq!(app.stats.stashes, 1);
+    assert_eq!(
+        std::fs::read_to_string(dir.join("f.txt")).unwrap(),
+        original.replace("Line 2\n", "Line 2 modified\n")
+    );
+    let shown = git_output_in(&dir, &["stash", "show", "-p", "stash@{0}"]);
+    assert!(shown.contains("+Line 18 modified") && !shown.contains("Line 2 modified"));
+
+    // Line mode in the full-screen diff: only the added line is stashed, so
+    // the working tree keeps the removal of "Line 2".
+    open_diff(&mut app);
+    app.mode = Mode::Inspect;
+    app.diff.diff_line_mode = true;
+    app.diff.diff_hunk_selection = 0;
+    app.diff.diff_line_selection =
+        app.diff.file_diff.iter().position(|l| l.content == "Line 2 modified").unwrap();
+    assert!(crate::input::handle_key(&mut app, z, 10));
+    assert_eq!(app.error_message, None);
+    assert_eq!(app.status_message.as_deref(), Some("Stashed line 2 of f.txt"));
+    assert_eq!(app.stats.stashes, 2);
+    assert_eq!(
+        std::fs::read_to_string(dir.join("f.txt")).unwrap(),
+        original.replace("Line 2\n", "")
+    );
+    assert_eq!(git_output_in(&dir, &["stash", "list"]).lines().count(), 2);
+}
+
+/// Only a modified file can be stashed by hunk or line; a new file is refused
+/// before git runs.
+#[test]
+fn test_z_refuses_a_new_file() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let (config_path, _cfg) = temp_config_path("stash_hunk_new_file");
+    let mut app = App::new(Config::default(), config_path);
+    app.keybindings = crate::keybindings::KeybindingsConfig::default_config();
+    let mut info = repo::RepoInfo::default();
+    info.changes.unstaged = vec![repo::FileEntry { path: "n.txt".to_string(), label: "N" }];
+    info.changes.untracked = vec![repo::FileEntry { path: "n.txt".to_string(), label: "?" }];
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: missing_repo_path("stash_hunk_new_file"),
+        info: Box::new(info),
+    });
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+    app.detail_focus = DetailSection::StagingDetails;
+    app.last_staging_focus = DetailSection::Unstaged;
+    app.diff.file_diff = vec![repo::DiffLine {
+        kind: repo::DiffLineKind::Header,
+        content: "@@ -0,0 +1 @@".to_string(),
+        old_lineno: None,
+        new_lineno: None,
+        hunk_idx: Some(0),
+    }];
+
+    let z = KeyEvent::new(KeyCode::Char('z'), KeyModifiers::empty());
+    assert!(crate::input::handle_key(&mut app, z, 10));
+    let err = app.error_message.clone().unwrap_or_default();
+    assert!(err.contains("Only a modified file") && err.contains("'n.txt' is a new file"), "{err}");
+    assert_eq!(app.stats.stashes, 0);
+}
+
+/// The diff panes advertise `z` for an unstaged file, as a hunk or a line
+/// stash depending on the mode, and the stashing panel lists its pick keys.
+#[test]
+fn test_partial_stash_status_bar_hints() {
+    use crate::components::cmd_bar::{detail_dismiss_entries, inspect_dismiss_entries};
+    let (config_path, _cfg) = temp_config_path("stash_hints");
+    let mut app = App::new(Config::default(), config_path);
+    app.keybindings = crate::keybindings::KeybindingsConfig::default_config();
+    let mut info = repo::RepoInfo::default();
+    info.changes.unstaged = vec![repo::FileEntry { path: "f.txt".to_string(), label: "M" }];
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: missing_repo_path("stash_hints"),
+        info: Box::new(info),
+    });
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+    app.detail_focus = DetailSection::StagingDetails;
+    let labels = |entries: Vec<crate::components::cmd_bar::StatusEntry>| -> Vec<String> {
+        entries
+            .iter()
+            .map(|e| e.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
+            .collect()
+    };
+
+    app.last_staging_focus = DetailSection::Staged;
+    assert!(!labels(detail_dismiss_entries(&app).1).iter().any(|l| l.contains("Stash Hunk")));
+
+    app.last_staging_focus = DetailSection::Unstaged;
+    assert!(labels(detail_dismiss_entries(&app).1).iter().any(|l| l.contains("Stash Hunk [z]")));
+    assert!(labels(inspect_dismiss_entries(&app).1).iter().any(|l| l.contains("Stash Hunk [z]")));
+    app.diff.diff_line_mode = true;
+    assert!(labels(detail_dismiss_entries(&app).1).iter().any(|l| l.contains("Stash Line [z]")));
+    app.inspect_full_diff = true;
+    assert!(labels(inspect_dismiss_entries(&app).1).iter().any(|l| l.contains("Stash Line [z]")));
+
+    // A rebinding is what the hint shows.
+    app.keybindings
+        .update_action_keys(crate::keybindings::Action::DiffStash, vec!["ctrl-z".into()]);
+    assert!(!labels(detail_dismiss_entries(&app).1).iter().any(|l| l.contains("Stash Line [z]")));
+}
+
+/// Rows put a conflicted file first and never repeat a path.
+#[test]
+fn test_stash_file_rows_order_and_untracked_toggle() {
+    let entry = |path: &str, label: &'static str| repo::FileEntry { path: path.to_string(), label };
+    let changes = repo::WorktreeChanges {
+        conflicted: vec![entry("c.txt", "C")],
+        staged: vec![entry("s.txt", "N")],
+        unstaged: vec![entry("s.txt", "M"), entry("u.txt", "D"), entry("new.txt", "N")],
+        untracked: vec![entry("new.txt", "?")],
+    };
+    let rows = |include_untracked| -> Vec<(String, &'static str, StashFileKind)> {
+        stash_file_rows(&changes, include_untracked)
+            .into_iter()
+            .map(|r| (r.path, r.label, r.kind))
+            .collect()
+    };
+    assert_eq!(
+        rows(true),
+        [
+            ("c.txt".to_string(), "C", StashFileKind::Conflicted),
+            ("s.txt".to_string(), "N", StashFileKind::StagedAndUnstaged),
+            ("u.txt".to_string(), "D", StashFileKind::Unstaged),
+            ("new.txt".to_string(), "?", StashFileKind::Untracked),
+        ]
+    );
+    assert_eq!(rows(false).len(), 3);
+    assert_eq!(StashFileKind::StagedAndUnstaged.caption(), "staged + unstaged");
+}
+
+/// The stashing panel says when every file goes, and once files are picked it
+/// counts them and checks them off; the name prompt's title names the count.
+#[test]
+fn test_stashing_panel_draws_picks() {
+    let (config_path, _cfg) = temp_config_path("stash_panel_draw");
+    let mut app = App::new(Config::default(), config_path);
+    let mut info = repo::RepoInfo::default();
+    info.changes.unstaged = vec![
+        repo::FileEntry { path: "a.txt".to_string(), label: "M" },
+        repo::FileEntry { path: "b.txt".to_string(), label: "M" },
+    ];
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: missing_repo_path("stash_panel_draw"),
+        info: Box::new(info.clone()),
+    });
+    let render = |app: &App, prompt: bool| -> String {
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(140, 30)).unwrap();
+        terminal
+            .draw(|f| {
+                if prompt {
+                    crate::popups::stash_msg::draw_stash_create_popup(f, "", f.area(), app);
+                } else {
+                    crate::popups::stashing_ui::draw_stashing_ui(f, &info, app, f.area());
+                }
+            })
+            .unwrap();
+        let buffer = terminal.backend().buffer();
+        buffer.content.iter().map(|c| c.symbol()).collect()
+    };
+
+    app.open_stashing_ui();
+    let all = render(&app, false);
+    assert!(all.contains("Files to Stash (all 2)"), "{all}");
+    assert!(all.contains("Stashes every listed file") && !all.contains("[x]"));
+
+    app.stash_panel_toggle_file();
+    let picked = render(&app, false);
+    assert!(picked.contains("Files to Stash (1 of 2 picked)"), "{picked}");
+    assert!(picked.contains("[x] [M] a.txt") && picked.contains("[ ] [M] b.txt"));
+
+    app.start_panel_stash_create();
+    assert!(render(&app, true).contains("Stash 1 Picked File"));
+}

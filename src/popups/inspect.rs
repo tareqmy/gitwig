@@ -436,6 +436,15 @@ impl InspectPopup {
             }
         }
 
+        if app.is_bound(Action::DiffStash, key) && app.is_uncommitted_selected() {
+            if app.detail_focus == DetailSection::StagingDetails
+                && app.last_staging_focus == DetailSection::Unstaged
+            {
+                app.stash_selected_change();
+                return true;
+            }
+        }
+
         if app.is_bound(Action::WorkspaceDiscard, key) && app.is_uncommitted_selected() {
             if app.detail_focus == DetailSection::Staged
                 || app.detail_focus == DetailSection::Unstaged

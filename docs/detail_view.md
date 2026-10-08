@@ -72,13 +72,20 @@ The **Stashes** tab lists all available stashes in the repository with a horizon
 ### Stashing UI
 
 Pressing `s` / `S` inside the **Workspace** tab opens the dedicated **Stashing UI** overlay popup:
-- **Left Panel:** Displays the list of all modified, staged, unstaged, untracked, and conflicted files that will be stashed. You can navigate through this list using `↑`/`↓`/`k`/`j`.
+- **Left Panel:** Lists every file the stash can take (conflicted, staged, unstaged, and untracked while untracked files are being stashed), each once: a file with both staged and unstaged changes is one `staged + unstaged` row. Navigate it with `↑`/`↓`/`k`/`j`.
+- **Picking files:** With nothing picked, the stash takes every listed file. Press `Space` to pick the file under the cursor (or unpick it), and `a` to pick every file (or clear the picks when all are picked). Once a file is picked, rows show `[x]` / `[ ]` and the stash takes only the picked files (`git stash push -- <paths>`); the rest stay as they are. The stash records only the picked files' changes, even if other files have staged changes. Turning untracked files off with `u` also drops their picks.
 - **Right Panel:** Displays checkboxes for stashing options:
 - Toggle stashing untracked files with `u`.
 - Toggle keeping the index with `i`.
 - **Actions:**
-- Press `s` to save the stash. This opens a text prompt to input an optional stash message/name (where stashing options can also be toggled with `Ctrl+U` and `Ctrl+I`).
+- Press `s` to save the stash. This opens a text prompt to input an optional stash message/name (where stashing options can also be toggled with `Ctrl+U` and `Ctrl+I`); its title names how many files are picked. `Esc` in the prompt returns to the panel with the picks kept.
 - Press `Esc` / `q` / `Q` to cancel and return to the Workspace view.
+
+### Stashing a Hunk or Line
+
+In the diff of an unstaged modified file (the Workspace tab's `Staging Details` panel, or the full-screen diff), press `z` to stash the selected hunk, or the selected line in line mode (`l`). It applies immediately, like discarding a hunk: the change goes into a new stash named after it (for example `On main: hunk at line 12 of src/app.rs`) and is removed from the working tree, while the rest of the file and the index are left alone. The stash is based on HEAD and lists, shows, applies and pops like any other. As with any stash, applying it later needs that file to have no other uncommitted changes.
+
+New, deleted and renamed files cannot be stashed by hunk or line; stash the whole file from the Stashing UI instead. A hunk that overlaps changes already staged in the same file is refused until they are unstaged.
 
 ### Worktrees Tab
 

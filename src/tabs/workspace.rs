@@ -95,10 +95,7 @@ impl WorkspaceTab {
                     return true;
                 }
                 if app.is_bound(Action::WorkspaceStashUI, key) {
-                    app.stashing_ui_selection = 0;
-                    app.stash_untracked = true;
-                    app.stash_keep_index = false;
-                    app.mode = Mode::StashingUI;
+                    app.open_stashing_ui();
                     return true;
                 }
                 if app.is_bound(Action::HomeOpenDetail, key) {
@@ -277,10 +274,7 @@ impl WorkspaceTab {
                     }
                 }
                 if app.is_bound(Action::WorkspaceStashUI, key) {
-                    app.stashing_ui_selection = 0;
-                    app.stash_untracked = true;
-                    app.stash_keep_index = false;
-                    app.mode = Mode::StashingUI;
+                    app.open_stashing_ui();
                     return true;
                 }
                 if app.is_bound(Action::WorkspaceCommit, key) {
@@ -439,6 +433,15 @@ impl WorkspaceTab {
                         return true;
                     }
                 }
+                if app.is_bound(Action::DiffStash, key) {
+                    if app.is_uncommitted_selected()
+                        && detail_focus == DetailSection::StagingDetails
+                        && app.last_staging_focus == DetailSection::Unstaged
+                    {
+                        app.stash_selected_change();
+                        return true;
+                    }
+                }
                 if app.is_bound(Action::WorkspaceDiscardAll, key) {
                     if app.is_uncommitted_selected() {
                         app.request_discard_all_changes();
@@ -482,10 +485,7 @@ impl WorkspaceTab {
                     }
                 }
                 if app.is_bound(Action::WorkspaceStashUI, key) {
-                    app.stashing_ui_selection = 0;
-                    app.stash_untracked = true;
-                    app.stash_keep_index = false;
-                    app.mode = Mode::StashingUI;
+                    app.open_stashing_ui();
                     return true;
                 }
                 if app.is_bound(Action::WorkspaceCommit, key) {

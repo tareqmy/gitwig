@@ -404,25 +404,39 @@ impl App {
 
     pub fn start_stash_create(&mut self) {
         self.input_buffer.clear();
+        self.stash_from_panel = false;
         self.mode = Mode::StashCreateInput;
     }
 
     pub fn commit_stash_create(&mut self) {
         let stash_name = self.input_buffer.trim().to_string();
-        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
+        // Files picked in the stashing panel limit the stash to them.
+        let paths = if self.stash_from_panel { self.stash_panel_paths() } else { Vec::new() };
+        let picked_gone =
+            self.stash_from_panel && !self.stash_marked.is_empty() && paths.is_empty();
+        if picked_gone {
+            self.set_error("The picked files no longer have changes to stash".to_string());
+        } else if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
             match repo::save_stash(
                 resolved,
                 &stash_name,
                 self.stash_untracked,
                 self.stash_keep_index,
+                &paths,
             ) {
                 Ok(()) => {
-                    let msg = if stash_name.is_empty() {
+                    let mut msg = if stash_name.is_empty() {
                         "Created stash".to_string()
                     } else {
                         format!("Created stash '{}'", stash_name)
                     };
+                    match paths.len() {
+                        0 => {}
+                        1 => msg.push_str(&format!(" of {}", paths[0])),
+                        n => msg.push_str(&format!(" of {} files", n)),
+                    }
                     self.status_message = Some(msg);
+                    self.stats.stashes += 1;
                     self.stash_list.stash_selection = 0;
                     self.stash_list.stash_file_selection = 0;
                     self.resync_detail();
@@ -433,6 +447,7 @@ impl App {
             }
         }
         self.input_buffer.clear();
+        self.stash_from_panel = false;
         self.mode = Mode::Detail;
     }
 

@@ -492,7 +492,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
             KeyCode::Char('u') | KeyCode::Char('U') => {
-                app.stash_untracked = !app.stash_untracked;
+                app.stash_panel_toggle_untracked();
                 return true;
             }
             KeyCode::Char('i') | KeyCode::Char('I') => {
@@ -500,26 +500,23 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 return true;
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
-                app.start_stash_create();
+                app.start_panel_stash_create();
+                return true;
+            }
+            KeyCode::Char(' ') => {
+                app.stash_panel_toggle_file();
+                return true;
+            }
+            KeyCode::Char('a') | KeyCode::Char('A') => {
+                app.stash_panel_toggle_all();
                 return true;
             }
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                app.stashing_ui_selection = app.stashing_ui_selection.saturating_sub(1);
+                app.stash_panel_move(false);
                 return true;
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                if let Some(crate::repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
-                    let mut count = info.changes.conflicted.len()
-                        + info.changes.staged.len()
-                        + info.changes.unstaged.len();
-                    if app.stash_untracked {
-                        count += info.changes.untracked.len();
-                    }
-                    if count > 0 {
-                        app.stashing_ui_selection =
-                            (app.stashing_ui_selection + 1).min(count.saturating_sub(1));
-                    }
-                }
+                app.stash_panel_move(true);
                 return true;
             }
             _ => {}
@@ -528,7 +525,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
             if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
                 match key.code {
                     KeyCode::Char('u') | KeyCode::Char('U') => {
-                        app.stash_untracked = !app.stash_untracked;
+                        app.stash_panel_toggle_untracked();
                         return true;
                     }
                     KeyCode::Char('i') | KeyCode::Char('I') => {

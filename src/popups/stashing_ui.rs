@@ -1,7 +1,8 @@
-//! Progress overlay showing the active stash creation/pop processes.
+//! The stashing panel (`S` in the Workspace): the files a new stash takes,
+//! which of them are picked, and the stash options.
 
-use crate::app::App;
-use crate::repo::{FileEntry, RepoInfo};
+use crate::app::{App, StashFileKind, stash_file_rows};
+use crate::repo::RepoInfo;
 use crate::ui::layout::{centered_rect, centered_rect_fixed};
 use crate::ui::style::{
     ACCENT, CARD_BORDER, DANGER, SUCCESS, WARNING, accent_style, muted_style, parse_color,
@@ -44,52 +45,59 @@ pub fn draw_stashing_ui(f: &mut Frame, info: &RepoInfo, app: &App, area: Rect) {
         .constraints([Constraint::Percentage(68), Constraint::Percentage(32)])
         .split(outer_chunks[0]);
 
-    // Build the flat list of all changes
-    let mut files = Vec::new();
-    for entry in &info.changes.conflicted {
-        files.push((entry, "conflict", Style::default().fg(DANGER())));
-    }
-    for entry in &info.changes.staged {
-        files.push((entry, "staged", Style::default().fg(SUCCESS())));
-    }
-    for entry in &info.changes.unstaged {
-        files.push((entry, "unstaged", Style::default().fg(WARNING())));
-    }
-    if app.stash_untracked {
-        for entry in &info.changes.untracked {
-            files.push((entry, "untracked", Style::default().fg(ACCENT())));
-        }
-    }
+    let rows = stash_file_rows(&info.changes, app.stash_untracked);
+    let picked = rows.iter().filter(|row| app.stash_marked.contains(&row.path)).count();
 
-    // 1. Files List Panel (Left)
+    // 1. Files List Panel (Left). Nothing picked stashes every listed file;
+    // once something is picked, the checkboxes say which files go.
+    let list_title = if picked == 0 {
+        format!("Files to Stash (all {})", rows.len())
+    } else {
+        format!("Files to Stash ({} of {} picked)", picked, rows.len())
+    };
     let list_block = Block::default()
         .borders(Borders::ALL)
         .border_type(CARD_BORDER())
         .border_style(muted_style())
         .title(Line::from(vec![
             Span::raw(" "),
-            Span::styled(format!("Files to Stash ({})", files.len()), primary_style()),
+            Span::styled(list_title, primary_style()),
             Span::raw(" "),
         ]));
 
-    let list_items: Vec<ListItem> = files
+    let list_items: Vec<ListItem> = rows
         .iter()
         .enumerate()
-        .map(|(idx, (entry, category, style))| {
-            let prefix = format!("[{}] ", entry.label);
+        .map(|(idx, row)| {
+            let is_picked = app.stash_marked.contains(&row.path);
+            let goes = picked == 0 || is_picked;
             let select_marker = if idx == app.stashing_ui_selection { "▶ " } else { "  " };
-            let select_style = if idx == app.stashing_ui_selection {
-                Style::default().add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
+            let mut path_style = if goes { Style::default() } else { muted_style() };
+            if idx == app.stashing_ui_selection {
+                path_style = path_style.add_modifier(Modifier::BOLD);
+            }
+            let kind_style = match row.kind {
+                StashFileKind::Conflicted => Style::default().fg(DANGER()),
+                StashFileKind::Staged => Style::default().fg(SUCCESS()),
+                StashFileKind::Unstaged | StashFileKind::StagedAndUnstaged => {
+                    Style::default().fg(WARNING())
+                }
+                StashFileKind::Untracked => Style::default().fg(ACCENT()),
             };
 
-            ListItem::new(Line::from(vec![
-                Span::styled(select_marker, Style::default().fg(ACCENT())),
-                Span::styled(prefix, *style),
-                Span::styled(entry.path.clone(), select_style),
-                Span::styled(format!(" ({})", category), muted_style()),
-            ]))
+            let mut spans = vec![Span::styled(select_marker, Style::default().fg(ACCENT()))];
+            if picked > 0 {
+                let (check, check_style) = if is_picked {
+                    ("[x] ", Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD))
+                } else {
+                    ("[ ] ", muted_style())
+                };
+                spans.push(Span::styled(check, check_style));
+            }
+            spans.push(Span::styled(format!("[{}] ", row.label), kind_style));
+            spans.push(Span::styled(row.path.clone(), path_style));
+            spans.push(Span::styled(format!(" ({})", row.kind.caption()), muted_style()));
+            ListItem::new(Line::from(spans))
         })
         .collect();
 
@@ -99,8 +107,8 @@ pub fn draw_stashing_ui(f: &mut Frame, info: &RepoInfo, app: &App, area: Rect) {
 
     // Stateful scroll list
     let mut list_state = ratatui::widgets::ListState::default();
-    if !files.is_empty() {
-        list_state.select(Some(app.stashing_ui_selection));
+    if !rows.is_empty() {
+        list_state.select(Some(app.stashing_ui_selection.min(rows.len() - 1)));
     }
     f.render_stateful_widget(list, main_chunks[0], &mut list_state);
 
@@ -152,9 +160,24 @@ pub fn draw_stashing_ui(f: &mut Frame, info: &RepoInfo, app: &App, area: Rect) {
     f.render_widget(Paragraph::new(options_text).block(options_block), main_chunks[1]);
 
     // 3. Help bar (Bottom)
+    let scope_line = if picked == 0 {
+        Line::from(Span::styled(
+            "Stashes every listed file. Pick files to stash only those.",
+            muted_style(),
+        ))
+    } else {
+        Line::from(Span::styled(
+            format!("Stashes only the {} picked file(s); the rest stay as they are.", picked),
+            muted_style(),
+        ))
+    };
     let help_line = Line::from(vec![
         Span::styled(" [s]", accent_style()),
         Span::raw(" Save Stash  "),
+        Span::styled("[Space]", accent_style()),
+        Span::raw(" Pick File  "),
+        Span::styled("[a]", accent_style()),
+        Span::raw(" Pick All/None  "),
         Span::styled("[u]", accent_style()),
         Span::raw(" Toggle Untracked  "),
         Span::styled("[i]", accent_style()),
@@ -162,7 +185,10 @@ pub fn draw_stashing_ui(f: &mut Frame, info: &RepoInfo, app: &App, area: Rect) {
         Span::styled("[Esc/q]", accent_style()),
         Span::raw(" Cancel  "),
         Span::styled("[↑↓/k/j]", accent_style()),
-        Span::raw(" Navigate Files"),
+        Span::raw(" Navigate"),
     ]);
-    f.render_widget(Paragraph::new(help_line).alignment(Alignment::Center), outer_chunks[1]);
+    f.render_widget(
+        Paragraph::new(vec![scope_line, help_line]).alignment(Alignment::Center),
+        outer_chunks[1],
+    );
 }

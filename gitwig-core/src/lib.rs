@@ -19,11 +19,14 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use git2::{Repository, StatusOptions, StatusShow};
 
+mod patch;
 mod process;
+mod stash;
 pub use process::{
     detached_command, git_command, spawn_pipe_reader, ssh_command_val, summarize_stderr,
     tool_command,
 };
+pub use stash::{save_stash, stash_hunk, stash_line};
 
 // ── Card-level status ──────────────────────────────────────────────────────
 
@@ -676,17 +679,18 @@ pub fn discard_all_changes(repo_path: &Path) -> Result<(), String> {
 
 /// Stage a single hunk of unstaged changes (equivalent to `git apply --cached -`).
 pub fn stage_hunk(repo_path: &Path, file_path: &str, hunk: &[DiffLine]) -> Result<(), String> {
-    apply_hunk_patch(repo_path, file_path, hunk, false, true)
+    patch::git_apply(repo_path, &patch::hunk_patch(file_path, hunk)?, &["--cached"], None)
 }
 
 /// Unstage a single hunk of staged changes (equivalent to `git apply --cached --reverse -`).
 pub fn unstage_hunk(repo_path: &Path, file_path: &str, hunk: &[DiffLine]) -> Result<(), String> {
-    apply_hunk_patch(repo_path, file_path, hunk, true, true)
+    let patch = patch::hunk_patch(file_path, hunk)?;
+    patch::git_apply(repo_path, &patch, &["--cached", "--reverse"], None)
 }
 
 /// Discard a single hunk of unstaged changes in the working tree (equivalent to `git apply --reverse -`).
 pub fn discard_hunk(repo_path: &Path, file_path: &str, hunk: &[DiffLine]) -> Result<(), String> {
-    apply_hunk_patch(repo_path, file_path, hunk, true, false)
+    patch::git_apply(repo_path, &patch::hunk_patch(file_path, hunk)?, &["--reverse"], None)
 }
 
 /// Stage a single line from the Unstaged diff.
@@ -696,7 +700,8 @@ pub fn stage_line(
     hunk: &[DiffLine],
     selected_line_idx: usize,
 ) -> Result<(), String> {
-    apply_line_patch_inner(repo_path, file_path, hunk, selected_line_idx, false, false, true)
+    let patch = patch::line_patch(file_path, hunk, selected_line_idx, false, false)?;
+    patch::git_apply(repo_path, &patch, &["--cached"], None)
 }
 
 /// Unstage a single line from the Staged diff.
@@ -706,7 +711,8 @@ pub fn unstage_line(
     hunk: &[DiffLine],
     selected_line_idx: usize,
 ) -> Result<(), String> {
-    apply_line_patch_inner(repo_path, file_path, hunk, selected_line_idx, true, true, true)
+    let patch = patch::line_patch(file_path, hunk, selected_line_idx, true, true)?;
+    patch::git_apply(repo_path, &patch, &["--cached"], None)
 }
 
 /// Discard a single line from the Unstaged diff in the working tree.
@@ -716,299 +722,8 @@ pub fn discard_line(
     hunk: &[DiffLine],
     selected_line_idx: usize,
 ) -> Result<(), String> {
-    apply_line_patch_inner(repo_path, file_path, hunk, selected_line_idx, true, true, false)
-}
-
-fn parse_hunk_header(header: &str) -> Option<(usize, usize, usize, usize)> {
-    if !header.starts_with("@@") {
-        return None;
-    }
-    let parts: Vec<&str> = header.split("@@").collect();
-    if parts.len() < 3 {
-        return None;
-    }
-    let meta = parts[1].trim();
-    let subparts: Vec<&str> = meta.split_whitespace().collect();
-    if subparts.len() < 2 {
-        return None;
-    }
-
-    let parse_part = |p: &str| -> (usize, usize) {
-        let s = p.trim_start_matches(['-', '+']);
-        let comps: Vec<&str> = s.split(',').collect();
-        let start = comps[0].parse::<usize>().unwrap_or(0);
-        let count = if comps.len() > 1 { comps[1].parse::<usize>().unwrap_or(1) } else { 1 };
-        (start, count)
-    };
-
-    let (old_start, old_count) = parse_part(subparts[0]);
-    let (new_start, new_count) = parse_part(subparts[1]);
-    Some((old_start, old_count, new_start, new_count))
-}
-
-fn apply_line_patch_inner(
-    repo_path: &Path,
-    file_path: &str,
-    hunk: &[DiffLine],
-    selected_line_idx_in_hunk: usize,
-    revert: bool,
-    target_has_modification: bool,
-    cached: bool,
-) -> Result<(), String> {
-    use std::io::Write;
-    use std::process::Stdio;
-
-    let path_check = std::path::Path::new(file_path);
-    if path_check.is_absolute()
-        || path_check.components().any(|c| c == std::path::Component::ParentDir)
-    {
-        return Err("Path escapes repository root".to_string());
-    }
-
-    if hunk.is_empty() {
-        return Err("Empty hunk".to_string());
-    }
-
-    let selected_line = match hunk.get(selected_line_idx_in_hunk) {
-        Some(line) => line,
-        None => return Err("Invalid line index".to_string()),
-    };
-
-    if selected_line.kind != DiffLineKind::Added && selected_line.kind != DiffLineKind::Removed {
-        return Err("Selected line is not a modification (must be + or -)".to_string());
-    }
-
-    let header_line = &hunk[0];
-    let (old_start, _old_count, new_start, _new_count) =
-        match parse_hunk_header(&header_line.content) {
-            Some(coords) => coords,
-            None => return Err(format!("Invalid hunk header: {}", header_line.content)),
-        };
-
-    let mut patch_lines = Vec::new();
-    let mut new_old_count = 0;
-    let mut new_new_count = 0;
-
-    for (i, line) in hunk.iter().enumerate() {
-        if i == 0 {
-            continue;
-        }
-
-        if i == selected_line_idx_in_hunk {
-            if revert {
-                match line.kind {
-                    DiffLineKind::Added => {
-                        patch_lines.push(DiffLine {
-                            kind: DiffLineKind::Removed,
-                            content: line.content.clone(),
-                            old_lineno: None,
-                            new_lineno: None,
-                            hunk_idx: None,
-                        });
-                        new_old_count += 1;
-                    }
-                    DiffLineKind::Removed => {
-                        patch_lines.push(DiffLine {
-                            kind: DiffLineKind::Added,
-                            content: line.content.clone(),
-                            old_lineno: None,
-                            new_lineno: None,
-                            hunk_idx: None,
-                        });
-                        new_new_count += 1;
-                    }
-                    _ => {}
-                }
-            } else {
-                match line.kind {
-                    DiffLineKind::Added => {
-                        patch_lines.push(DiffLine {
-                            kind: DiffLineKind::Added,
-                            content: line.content.clone(),
-                            old_lineno: None,
-                            new_lineno: None,
-                            hunk_idx: None,
-                        });
-                        new_new_count += 1;
-                    }
-                    DiffLineKind::Removed => {
-                        patch_lines.push(DiffLine {
-                            kind: DiffLineKind::Removed,
-                            content: line.content.clone(),
-                            old_lineno: None,
-                            new_lineno: None,
-                            hunk_idx: None,
-                        });
-                        new_old_count += 1;
-                    }
-                    _ => {}
-                }
-            }
-        } else {
-            match line.kind {
-                DiffLineKind::Context => {
-                    patch_lines.push(line.clone());
-                    new_old_count += 1;
-                    new_new_count += 1;
-                }
-                DiffLineKind::Added => {
-                    if target_has_modification {
-                        patch_lines.push(DiffLine {
-                            kind: DiffLineKind::Context,
-                            content: line.content.clone(),
-                            old_lineno: None,
-                            new_lineno: None,
-                            hunk_idx: None,
-                        });
-                        new_old_count += 1;
-                        new_new_count += 1;
-                    } else {
-                        // Omit
-                    }
-                }
-                DiffLineKind::Removed => {
-                    if target_has_modification {
-                        // Omit
-                    } else {
-                        patch_lines.push(DiffLine {
-                            kind: DiffLineKind::Context,
-                            content: line.content.clone(),
-                            old_lineno: None,
-                            new_lineno: None,
-                            hunk_idx: None,
-                        });
-                        new_old_count += 1;
-                        new_new_count += 1;
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    let mut patch = String::new();
-    patch.push_str(&format!("diff --git a/{} b/{}\n", file_path, file_path));
-    patch.push_str(&format!("--- a/{}\n", file_path));
-    patch.push_str(&format!("+++ b/{}\n", file_path));
-    patch.push_str(&format!(
-        "@@ -{},{} +{},{} @@\n",
-        old_start, new_old_count, new_start, new_new_count
-    ));
-
-    for line in patch_lines {
-        let prefix = match line.kind {
-            DiffLineKind::Added => "+",
-            DiffLineKind::Removed => "-",
-            DiffLineKind::Context => " ",
-            DiffLineKind::Header => "",
-            _ => "",
-        };
-        patch.push_str(prefix);
-        patch.push_str(&line.content);
-        patch.push('\n');
-    }
-
-    let mut args = vec!["apply"];
-    if cached {
-        args.push("--cached");
-    }
-    args.push("-");
-
-    let mut cmd = git_command();
-    let mut child = cmd
-        .args(&args)
-        .current_dir(repo_path)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to spawn git apply: {}", e))?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(patch.as_bytes())
-            .map_err(|e| format!("Failed to write patch to stdin: {}", e))?;
-    }
-
-    let output =
-        child.wait_with_output().map_err(|e| format!("Failed to wait for git apply: {}", e))?;
-
-    if !output.status.success() {
-        let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
-        return Err(format!("git apply failed: {}", err_msg.trim()));
-    }
-
-    Ok(())
-}
-
-fn apply_hunk_patch(
-    repo_path: &Path,
-    file_path: &str,
-    hunk: &[DiffLine],
-    reverse: bool,
-    cached: bool,
-) -> Result<(), String> {
-    use std::io::Write;
-    use std::process::Stdio;
-
-    let path_check = std::path::Path::new(file_path);
-    if path_check.is_absolute()
-        || path_check.components().any(|c| c == std::path::Component::ParentDir)
-    {
-        return Err("Path escapes repository root".to_string());
-    }
-
-    let mut patch = String::new();
-    patch.push_str(&format!("diff --git a/{} b/{}\n", file_path, file_path));
-    patch.push_str(&format!("--- a/{}\n", file_path));
-    patch.push_str(&format!("+++ b/{}\n", file_path));
-    for line in hunk {
-        let prefix = match line.kind {
-            DiffLineKind::Added => "+",
-            DiffLineKind::Removed => "-",
-            DiffLineKind::Context => " ",
-            DiffLineKind::Header => "",
-            _ => "",
-        };
-        patch.push_str(prefix);
-        patch.push_str(&line.content);
-        patch.push('\n');
-    }
-
-    let mut args = vec!["apply"];
-    if cached {
-        args.push("--cached");
-    }
-    if reverse {
-        args.push("--reverse");
-    }
-    args.push("-");
-
-    let mut cmd = git_command();
-    let mut child = cmd
-        .args(&args)
-        .current_dir(repo_path)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to spawn git apply: {}", e))?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(patch.as_bytes())
-            .map_err(|e| format!("Failed to write patch to stdin: {}", e))?;
-    }
-
-    let output =
-        child.wait_with_output().map_err(|e| format!("Failed to wait for git apply: {}", e))?;
-
-    if !output.status.success() {
-        let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
-        return Err(format!("git apply failed: {}", err_msg.trim()));
-    }
-
-    Ok(())
+    let patch = patch::line_patch(file_path, hunk, selected_line_idx, true, true)?;
+    patch::git_apply(repo_path, &patch, &[], None)
 }
 
 /// Discards uncommitted changes in `file_path`.
@@ -2973,35 +2688,6 @@ pub fn apply_stash(repo_path: &Path, index: usize) -> Result<(), String> {
         .current_dir(repo_path)
         .output()
         .map_err(|e| e.to_string())?;
-
-    if !output.status.success() {
-        let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        return Err(err_msg);
-    }
-    Ok(())
-}
-
-pub fn save_stash(
-    repo_path: &Path,
-    message: &str,
-    include_untracked: bool,
-    keep_index: bool,
-) -> Result<(), String> {
-    let mut cmd = git_command();
-    cmd.arg("stash").arg("push");
-
-    if include_untracked {
-        cmd.arg("--include-untracked");
-    }
-    if keep_index {
-        cmd.arg("--keep-index");
-    }
-
-    if !message.is_empty() {
-        cmd.arg("-m").arg(message);
-    }
-
-    let output = cmd.current_dir(repo_path).output().map_err(|e| e.to_string())?;
 
     if !output.status.success() {
         let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -6111,7 +5797,7 @@ mod tests {
         let _ = get_remote_tags(nonexistent, "origin", Duration::from_secs(5));
         let _ = apply_stash(nonexistent, 0);
         let _ = delete_stash(nonexistent, 0);
-        let _ = save_stash(nonexistent, "msg", false, false);
+        let _ = save_stash(nonexistent, "msg", false, false, &[]);
         let _ = commit_amend(nonexistent, "msg");
         let _ = resolve_ours(nonexistent, "file");
         let _ = resolve_theirs(nonexistent, "file");

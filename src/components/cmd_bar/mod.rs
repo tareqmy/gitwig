@@ -635,6 +635,8 @@ pub(crate) fn get_status_layout_components(
             let entries_data = [
                 ("Cancel", "⎋/q/Q"),
                 ("Save Stash", "s/S"),
+                ("Pick File", "Space"),
+                ("Pick All/None", "a/A"),
                 ("Toggle Untracked", "u/U"),
                 ("Toggle Keep Index", "i/I"),
                 ("Navigate", "↑↓/j/k"),

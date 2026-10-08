@@ -599,6 +599,11 @@ pub struct App {
     pub stash_action_target: Option<(String, String)>,
     /// Selection index in the Stashing UI file list.
     pub stashing_ui_selection: usize,
+    /// Paths picked in the Stashing UI file list; none picked stashes everything.
+    pub stash_marked: std::collections::HashSet<String>,
+    /// The open stash-name prompt came from the Stashing UI: it stashes the
+    /// picked files, and cancelling returns to the panel.
+    pub stash_from_panel: bool,
     /// Preserved original order of repository items from the config.
     pub original_items: Vec<String>,
     /// Which action the remote picker was opened for.
@@ -740,9 +745,11 @@ enum LogsNavDirection {
 mod actions;
 mod git;
 mod navigation;
+mod stash_partial;
 mod submodules;
 mod term_panel;
 pub use navigation::HomeRow;
+pub use stash_partial::{StashFileKind, stash_file_rows};
 pub use submodules::SubmoduleUpdateTarget;
 #[cfg(test)]
 mod tests;
@@ -1013,6 +1020,9 @@ impl App {
                         Mode::WorktreeRemoveConfirm => {
                             self.worktree_remove_target = None;
                             self.mode = Mode::Detail;
+                        }
+                        Mode::StashCreateInput if self.stash_from_panel => {
+                            self.mode = Mode::StashingUI;
                         }
                         _ => {
                             self.mode = Mode::Detail;
@@ -1492,6 +1502,8 @@ impl App {
             stash_keep_index: false,
             stash_action_target: None,
             stashing_ui_selection: 0,
+            stash_marked: std::collections::HashSet::new(),
+            stash_from_panel: false,
             remote_picker_action: None,
             remote_picker_selection: 0,
             inspect_horizontal_split_pct: 38,

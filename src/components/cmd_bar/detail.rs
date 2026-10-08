@@ -49,6 +49,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
     let diff_line_mode = k(Action::DiffLineMode);
     let diff_stage = k(Action::DiffStage);
     let diff_unstage = k(Action::DiffUnstage);
+    let diff_stash = k(Action::DiffStash);
     let conflict_ours = k(Action::ConflictOurs);
     let conflict_theirs = k(Action::ConflictTheirs);
     let conflict_resolve = k(Action::ConflictResolve);
@@ -136,6 +137,11 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                     v.push(("Unstage", &diff_unstage));
                     v.push(("Discard", &ws_discard));
                     v.push(("Discard All", &ws_discard_all));
+                    if app.last_staging_focus == DetailSection::Unstaged {
+                        let label =
+                            if app.diff.diff_line_mode { "Stash Line" } else { "Stash Hunk" };
+                        v.push((label, &diff_stash));
+                    }
                 }
                 v.push(("Full Screen", &files_full_screen));
             } else if app.detail_focus == DetailSection::Conflicts {
@@ -454,6 +460,7 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
         "←/{}",
         app.keybindings.format_action_keys(crate::keybindings::Action::CloseDetail, compat)
     );
+    let stash_key = compact_action_keys(&app.keybindings, Action::DiffStash, compat);
 
     if app.detail_focus == DetailSection::ConflictDiff {
         let exit_label = if app.inspect_full_diff { "Exit Full Screen" } else { "Workspace" };
@@ -499,6 +506,7 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
                 } else if app.last_staging_focus == DetailSection::Unstaged {
                     entries_data.push(("Stage Line", "↵"));
                     entries_data.push(("Discard Line", "x/Del"));
+                    entries_data.push(("Stash Line", stash_key.as_str()));
                 }
             } else {
                 entries_data.push(("Line Mode", "l"));
@@ -507,6 +515,7 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
                 } else if app.last_staging_focus == DetailSection::Unstaged {
                     entries_data.push(("Stage Hunk", "↵"));
                     entries_data.push(("Discard Hunk", "x/Del"));
+                    entries_data.push(("Stash Hunk", stash_key.as_str()));
                 }
             }
             entries_data.push(("Commit/Amend", "c/C"));
@@ -540,6 +549,7 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
                         } else if app.last_staging_focus == DetailSection::Unstaged {
                             entries_data.push(("Stage Line", "↵/s"));
                             entries_data.push(("Discard Line", "x/Del"));
+                            entries_data.push(("Stash Line", stash_key.as_str()));
                         }
                     } else {
                         entries_data.push(("Line Mode", "l"));
@@ -548,6 +558,7 @@ pub(crate) fn inspect_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>,
                         } else if app.last_staging_focus == DetailSection::Unstaged {
                             entries_data.push(("Stage Hunk", "↵/s"));
                             entries_data.push(("Discard Hunk", "x/Del"));
+                            entries_data.push(("Stash Hunk", stash_key.as_str()));
                         }
                     }
                 }

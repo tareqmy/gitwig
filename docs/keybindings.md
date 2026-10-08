@@ -133,6 +133,9 @@
 | `s` / `S`            | Detail          | Stage selected hunk/line (Workspace tab StagingDetails focus), open Stashing UI overlay (Workspace tab files list focus), Prompt to save stash (Stashing UI / Stashes tab), or Open Repository Settings popup (Overview overlay) |
 | `u` / `U`            | Detail          | Unstage selected hunk/line (Workspace tab StagingDetails focus), Toggle "Stash untracked files" option (Stashing UI), or Initialize / update the selected submodule (`u`) or every submodule (`U`) (Submodules tab; asks confirmation when one shows Modified) |
 | `i`                  | Detail          | Toggle "Keep index" option (Stashing UI)                         |
+| `Space`              | Detail          | Pick / unpick the file under the cursor (Stashing UI). Once any file is picked, `s` stashes only the picked files |
+| `a` / `A`            | Detail          | Pick every listed file, or clear the picks when all are picked (Stashing UI) |
+| `z`                  | Detail          | Stash the selected hunk, or the selected line in line mode (`l`), of an unstaged modified file and remove it from the working tree (Workspace diff / Inspect StagingDetails focus; applies immediately) |
 | `Ctrl+U`             | Input (Stash)   | Toggle "Stash untracked files" option (Stash Create popup)       |
 | `Ctrl+I`             | Input (Stash)   | Toggle "Keep index" option (Stash Create popup)                 |
 | `m`                  | Detail          | Merge selected branch into current branch (Branches tab; asks confirmation) |
