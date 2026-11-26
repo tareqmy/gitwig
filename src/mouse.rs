@@ -505,6 +505,7 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                             Some(GlobalFilter::Dirty),
                             Some(GlobalFilter::Ahead),
                             Some(GlobalFilter::Stale),
+                            Some(GlobalFilter::Archived),
                         ];
                         let mut offset = (pos.x - start_x) as usize;
                         for (width, clicked) in widths.iter().zip(filters) {
@@ -1839,7 +1840,7 @@ mod tests {
             .map(|(count, label)| count.chars().count() + label.chars().count())
             .collect();
         let divider = crate::ui::draw::SUMMARY_TAB_DIVIDER.chars().count();
-        let total: usize = widths.iter().sum::<usize>() + divider * 3;
+        let total: usize = widths.iter().sum::<usize>() + divider * (widths.len() - 1);
         let start_x = (80 - total as u16) / 2;
 
         let click = |col: u16| MouseEvent {
@@ -1856,10 +1857,16 @@ mod tests {
         handle_mouse(&mut app, click(dirty_x));
         assert_eq!(app.global_filter, None);
 
-        // The last column of the bar belongs to the stale tab.
-        let stale_x = start_x + total as u16 - 1;
+        // Clicking the stale tab selects Stale.
+        let stale_x =
+            start_x + (widths[0] + divider + widths[1] + divider + widths[2] + divider) as u16;
         handle_mouse(&mut app, click(stale_x));
         assert_eq!(app.global_filter, Some(GlobalFilter::Stale));
+
+        // The last column of the bar belongs to the archived tab.
+        let archived_x = start_x + total as u16 - 1;
+        handle_mouse(&mut app, click(archived_x));
+        assert_eq!(app.global_filter, Some(GlobalFilter::Archived));
 
         // The repos tab always clears the filter.
         handle_mouse(&mut app, click(start_x));
@@ -1894,7 +1901,7 @@ mod tests {
             .iter()
             .map(|(count, label)| count.chars().count() + label.chars().count())
             .collect();
-        let labeled_total = tab_widths.iter().sum::<usize>() + divider * 3;
+        let labeled_total = tab_widths.iter().sum::<usize>() + divider * (tab_widths.len() - 1);
         let labeled_start_x = (80 - labeled_total as u16) / 2;
         let labeled_dirty_x = labeled_start_x + (tab_widths[0] + divider) as u16;
         handle_mouse(&mut app, click(labeled_dirty_x));

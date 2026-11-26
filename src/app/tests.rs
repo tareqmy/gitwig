@@ -6932,7 +6932,7 @@ fn test_cycle_global_filter() {
     let _guard = TestFileGuard { path: temp_path.clone() };
     let mut app = App::new(config, temp_path);
 
-    // Tab walks repos → dirty → ahead → stale → repos.
+    // Tab walks repos → dirty → ahead → stale → archived → repos.
     let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::empty());
     assert_eq!(app.global_filter, None);
     assert!(crate::input::handle_key(&mut app, tab, 1));
@@ -6942,10 +6942,14 @@ fn test_cycle_global_filter() {
     assert!(crate::input::handle_key(&mut app, tab, 1));
     assert_eq!(app.global_filter, Some(GlobalFilter::Stale));
     assert!(crate::input::handle_key(&mut app, tab, 1));
+    assert_eq!(app.global_filter, Some(GlobalFilter::Archived));
+    assert!(crate::input::handle_key(&mut app, tab, 1));
     assert_eq!(app.global_filter, None);
 
     // Shift+Tab (BackTab) walks the same ring in reverse.
     let back_tab = KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT);
+    assert!(crate::input::handle_key(&mut app, back_tab, 1));
+    assert_eq!(app.global_filter, Some(GlobalFilter::Archived));
     assert!(crate::input::handle_key(&mut app, back_tab, 1));
     assert_eq!(app.global_filter, Some(GlobalFilter::Stale));
     assert!(crate::input::handle_key(&mut app, back_tab, 1));
@@ -15186,4 +15190,96 @@ fn test_watcher_resolve_refresh_roots_worktree_and_filters() {
         ),
         vec!["/watched_root/brand_new".to_string()]
     );
+}
+
+#[test]
+fn test_archive_toggle_filter_counts_and_lifecycle() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let (cfg_path, _guard) = temp_config_path("archive_toggle_filter_counts");
+    let dir_a = std::env::temp_dir().join("gitwig_test_arch_a");
+    let dir_b = std::env::temp_dir().join("gitwig_test_arch_b");
+    let _ = std::fs::create_dir_all(&dir_a);
+    let _ = std::fs::create_dir_all(&dir_b);
+    let repo_a = dir_a.to_string_lossy().into_owned();
+    let repo_b = dir_b.to_string_lossy().into_owned();
+    let repo_b_new = format!("{}_renamed", repo_b);
+
+    let config = Config { items: vec![repo_a.clone(), repo_b.clone()], ..Default::default() };
+    let mut app = App::new(config, cfg_path);
+    app.config.show_stale_projects = true;
+
+    let now_secs =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+            as i64;
+    let dirty_summary = repo::RepoSummary {
+        branch: Some("main".to_string()),
+        modified: 1,
+        ahead: 1,
+        last_commit_time: Some(now_secs),
+        ..Default::default()
+    };
+    let clean_summary = repo::RepoSummary {
+        branch: Some("main".to_string()),
+        last_commit_time: Some(now_secs),
+        ..Default::default()
+    };
+    app.statuses = vec![
+        repo::ItemStatus::GitRepo(Some(dirty_summary)),
+        repo::ItemStatus::GitRepo(Some(clean_summary)),
+    ];
+
+    // Before archiving: repo_a counts toward repos/dirty/ahead, 0 archived.
+    let counts = crate::ui::draw::summary_counts(&app);
+    assert_eq!(counts.total_repos, 2);
+    assert_eq!(counts.dirty, 1);
+    assert_eq!(counts.ahead, 1);
+    assert_eq!(counts.archived, 0);
+
+    // Press `z` to archive the selected repo (repo_a).
+    let z_key = KeyEvent::new(KeyCode::Char('z'), KeyModifiers::empty());
+    assert!(crate::input::handle_key(&mut app, z_key, 10));
+    assert!(app.config.archived.contains(&repo_a));
+    assert_eq!(app.status_message.as_deref(), Some("Archived repository"));
+
+    // Archived repo drops out of `repos`/`dirty`/`ahead` and increments `archived`.
+    let counts = crate::ui::draw::summary_counts(&app);
+    assert_eq!(counts.total_repos, 1);
+    assert_eq!(counts.dirty, 0);
+    assert_eq!(counts.ahead, 0);
+    assert_eq!(counts.archived, 1);
+    assert_eq!(app.get_filtered_items().len(), 1);
+
+    app.global_filter = Some(GlobalFilter::Dirty);
+    assert!(app.get_filtered_items().is_empty());
+    app.global_filter = Some(GlobalFilter::Archived);
+    let archived_items = app.get_filtered_items();
+    assert_eq!(archived_items.len(), 1);
+    assert_eq!(archived_items[0].1, &repo_a);
+
+    // `bulk_fetch_all` skips archived repos.
+    app.bulk_fetch_all();
+    assert!(!app.bulk_fetching.contains(&repo_a));
+
+    // Pressing `z` in the Archived tab unarchives repo_a.
+    app.selected_index = 0;
+    assert!(crate::input::handle_key(&mut app, z_key, 10));
+    assert!(!app.config.archived.contains(&repo_a));
+    assert_eq!(app.status_message.as_deref(), Some("Unarchived repository"));
+    assert!(app.get_filtered_items().is_empty());
+
+    // Archive repo_b and test rename migration + delete cleanup.
+    app.global_filter = None;
+    app.config.archived.insert(repo_b.clone());
+    app.migrate_repo_path(&repo_b, &repo_b_new);
+    assert!(!app.config.archived.contains(&repo_b));
+    assert!(app.config.archived.contains(&repo_b_new));
+
+    app.config.items[1] = repo_b_new.clone();
+    app.multi_selected.insert(repo_b_new.clone());
+    app.confirm_delete();
+    assert!(!app.config.archived.contains(&repo_b_new));
+
+    let _ = std::fs::remove_dir_all(&dir_a);
+    let _ = std::fs::remove_dir_all(&dir_b);
 }

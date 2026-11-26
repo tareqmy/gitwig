@@ -61,6 +61,10 @@ fn get_legend_lines(app: &App) -> Vec<Line<'static>> {
         Span::raw("Starred / Favorite repository"),
     ]));
     lines.push(Line::from(vec![
+        Span::styled(format!("  {}", pad(app.sym("archived"))), muted_style()),
+        Span::raw("Archived repository"),
+    ]));
+    lines.push(Line::from(vec![
         Span::styled(
             format!("  {}", pad(&(app.sym("bullet_filled").to_string() + " clean"))),
             Style::default().fg(SUCCESS()),

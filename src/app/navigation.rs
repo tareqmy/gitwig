@@ -271,9 +271,13 @@ impl App {
                     if !label_ok(item) {
                         return false;
                     }
+                    let is_archived = self.config.archived.contains(item);
                     let status = self.statuses.get(idx);
                     match filter {
                         GlobalFilter::Dirty => {
+                            if is_archived {
+                                return false;
+                            }
                             if let Some(crate::repo::ItemStatus::GitRepo(Some(summary))) = status {
                                 if !summary.is_clean() {
                                     if !self.config.show_stale_projects {
@@ -290,6 +294,9 @@ impl App {
                             }
                         }
                         GlobalFilter::Ahead => {
+                            if is_archived {
+                                return false;
+                            }
                             if let Some(crate::repo::ItemStatus::GitRepo(Some(summary))) = status {
                                 if summary.ahead > 0 {
                                     if !self.config.show_stale_projects {
@@ -306,6 +313,9 @@ impl App {
                             }
                         }
                         GlobalFilter::Stale => {
+                            if is_archived {
+                                return false;
+                            }
                             if let Some(crate::repo::ItemStatus::GitRepo(Some(summary))) = status {
                                 if let Some(t) = summary.last_commit_time {
                                     now - t > stale_threshold
@@ -316,12 +326,13 @@ impl App {
                                 false
                             }
                         }
+                        GlobalFilter::Archived => is_archived,
                     }
                 })
                 .collect()
         } else {
             let mut items: Vec<(usize, &String)> = self.config.items.iter().enumerate().collect();
-            items.retain(|&(_, path)| label_ok(path));
+            items.retain(|&(_, path)| label_ok(path) && !self.config.archived.contains(path));
             if !self.config.show_stale_projects {
                 let now = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -348,11 +359,12 @@ impl App {
     }
 
     /// Steps the summary-bar filter through repos (no filter) → dirty → ahead →
-    /// stale, wrapping around; `backward` walks the same ring in reverse.
+    /// stale → archived, wrapping around; `backward` walks the same ring in reverse.
     pub fn cycle_global_filter(&mut self, backward: bool) {
         self.global_filter = if backward {
             match self.global_filter {
-                None => Some(GlobalFilter::Stale),
+                None => Some(GlobalFilter::Archived),
+                Some(GlobalFilter::Archived) => Some(GlobalFilter::Stale),
                 Some(GlobalFilter::Stale) => Some(GlobalFilter::Ahead),
                 Some(GlobalFilter::Ahead) => Some(GlobalFilter::Dirty),
                 Some(GlobalFilter::Dirty) => None,
@@ -362,7 +374,8 @@ impl App {
                 None => Some(GlobalFilter::Dirty),
                 Some(GlobalFilter::Dirty) => Some(GlobalFilter::Ahead),
                 Some(GlobalFilter::Ahead) => Some(GlobalFilter::Stale),
-                Some(GlobalFilter::Stale) => None,
+                Some(GlobalFilter::Stale) => Some(GlobalFilter::Archived),
+                Some(GlobalFilter::Archived) => None,
             }
         };
         self.selected_index = 0;
@@ -1281,6 +1294,24 @@ impl App {
         // Keep the selection on the starred repo, in the group it was starred
         // from (the Starred group it joins, or leaves, sits above it).
         self.select_home_row(&selected_item, Some(&group));
+
+        let msg = self.status_message.as_deref().unwrap_or("Saved").to_string();
+        self.persist(&msg);
+    }
+
+    pub fn toggle_archive_selected(&mut self) {
+        let Some((selected_item, _group)) = self.home_cursor() else {
+            return;
+        };
+        if self.config.archived.contains(&selected_item) {
+            self.config.archived.remove(&selected_item);
+            self.status_message = Some("Unarchived repository".to_string());
+        } else {
+            self.config.archived.insert(selected_item.clone());
+            self.status_message = Some("Archived repository".to_string());
+        }
+
+        self.clamp_selection();
 
         let msg = self.status_message.as_deref().unwrap_or("Saved").to_string();
         self.persist(&msg);

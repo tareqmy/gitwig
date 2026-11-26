@@ -1529,6 +1529,9 @@ impl App {
                     continue;
                 }
             }
+            if self.config.archived.contains(item) {
+                continue;
+            }
             if !matches!(self.statuses.get(idx), Some(repo::ItemStatus::GitRepo(_))) {
                 continue;
             }

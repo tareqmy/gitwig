@@ -612,10 +612,12 @@ pub struct SummaryCounts {
     pub dirty: usize,
     pub ahead: usize,
     pub stale: usize,
+    pub archived: usize,
 }
 
 pub fn summary_counts(app: &App) -> SummaryCounts {
-    let mut counts = SummaryCounts { total_repos: 0, visible: 0, dirty: 0, ahead: 0, stale: 0 };
+    let mut counts =
+        SummaryCounts { total_repos: 0, visible: 0, dirty: 0, ahead: 0, stale: 0, archived: 0 };
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -637,6 +639,10 @@ pub fn summary_counts(app: &App) -> SummaryCounts {
 
     for (idx, status) in app.statuses.iter().enumerate() {
         if !label_ok(idx) {
+            continue;
+        }
+        if app.config.items.get(idx).is_some_and(|p| app.config.archived.contains(p)) {
+            counts.archived += 1;
             continue;
         }
         match status {
@@ -702,9 +708,10 @@ fn draw_label_badge(f: &mut Frame, area: Rect, app: &App) {
 }
 
 /// Caption of each summary tab as (count, label) halves, in click order:
-/// repos, dirty, ahead, stale. Mouse hit-testing in `mouse.rs` measures these
-/// exact strings, so the rendered tabs and the click zones cannot drift apart.
-pub fn summary_tab_parts(app: &App, counts: &SummaryCounts) -> [(String, String); 4] {
+/// repos, dirty, ahead, stale, archived. Mouse hit-testing in `mouse.rs`
+/// measures these exact strings, so the rendered tabs and the click zones
+/// cannot drift apart.
+pub fn summary_tab_parts(app: &App, counts: &SummaryCounts) -> [(String, String); 5] {
     let repos_count = if counts.visible < counts.total_repos {
         format!(" {}/{} ", counts.visible, counts.total_repos)
     } else {
@@ -720,6 +727,7 @@ pub fn summary_tab_parts(app: &App, counts: &SummaryCounts) -> [(String, String)
         (format!(" {} ", counts.dirty), "dirty ".to_string()),
         (format!(" {} ", counts.ahead), "ahead ".to_string()),
         (format!(" {} ", counts.stale), format!("{} ", stale_label)),
+        (format!(" {} ", counts.archived), "archived ".to_string()),
     ]
 }
 
@@ -732,12 +740,14 @@ fn draw_global_summary_bar(f: &mut Frame, area: Rect, app: &App) {
         if counts.dirty > 0 { WARNING() } else { SUCCESS() },
         if counts.ahead > 0 { ACCENT() } else { SUCCESS() },
         if counts.stale > 0 { DANGER() } else { SUCCESS() },
+        if counts.archived > 0 { ACCENT() } else { SUCCESS() },
     ];
     let active = [
         app.global_filter.is_none(),
         app.global_filter == Some(crate::app::GlobalFilter::Dirty),
         app.global_filter == Some(crate::app::GlobalFilter::Ahead),
         app.global_filter == Some(crate::app::GlobalFilter::Stale),
+        app.global_filter == Some(crate::app::GlobalFilter::Archived),
     ];
 
     let mut spans = Vec::new();
@@ -1040,6 +1050,7 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                 let pending_edit = is_selected && matches!(app.mode, Mode::Editing);
                 let is_pinned = app.config.pinned.contains(item);
                 let is_starred = app.config.starred.contains(item);
+                let is_archived = app.config.archived.contains(item);
 
                 // Selected/pending cards use an accent color; unselected cards use
                 // the terminal's default foreground (dimmed) so they stay legible
@@ -1189,6 +1200,10 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                                 Style::default().fg(WARNING())
                             },
                         ));
+                    }
+                    if is_archived {
+                        left_spans.push(Span::raw(" "));
+                        left_spans.push(Span::styled(app.sym("archived").trim(), muted_style()));
                     }
                     f.render_widget(Paragraph::new(Line::from(left_spans)), cols[0]);
 
@@ -1346,6 +1361,12 @@ fn draw_items(f: &mut Frame, app: &App, chunks: &[Rect]) {
                             app.sym("pinned").trim(),
                             Style::default().fg(WARNING()),
                         ));
+                    }
+                    if is_archived {
+                        if !right_spans.is_empty() {
+                            right_spans.push(Span::raw(" "));
+                        }
+                        right_spans.push(Span::styled(app.sym("archived").trim(), muted_style()));
                     }
                     if !right_spans.is_empty() {
                         let icon_line = Line::from(right_spans).alignment(Alignment::Right);
@@ -1526,15 +1547,19 @@ fn draw_filter_empty_state(f: &mut Frame, area: Rect, app: &App) {
         Some(crate::app::GlobalFilter::Dirty) => Some("dirty"),
         Some(crate::app::GlobalFilter::Ahead) => Some("ahead"),
         Some(crate::app::GlobalFilter::Stale) => Some("stale"),
+        Some(crate::app::GlobalFilter::Archived) => Some("archived"),
         None => None,
     };
 
+    let all_archived = !app.config.items.is_empty()
+        && app.config.items.iter().all(|p| app.config.archived.contains(p));
     let headline = match (tab_name, &app.state.active_label_filter) {
         (Some(tab), Some(label)) => {
             format!("No {} repositories with label '{}'.", tab, label)
         }
         (Some(tab), None) => format!("No repositories in the {} tab right now.", tab),
         (None, Some(label)) => format!("No repositories with label '{}'.", label),
+        (None, None) if all_archived => "All repositories are currently archived.".to_string(),
         (None, None) => "All repositories are currently hidden as stale.".to_string(),
     };
 
@@ -1543,7 +1568,7 @@ fn draw_filter_empty_state(f: &mut Frame, area: Rect, app: &App) {
         Line::from(""),
     ];
 
-    if tab_name.is_some() {
+    if tab_name.is_some() || all_archived {
         lines.push(Line::from(vec![
             Span::raw("Press  "),
             Span::styled("Tab", accent_style()),
@@ -3601,6 +3626,7 @@ mod tests {
         assert!(trimmed.contains("1 dirty"), "Buffer contents: {}", trimmed);
         assert!(trimmed.contains("1 ahead"), "Buffer contents: {}", trimmed);
         assert!(trimmed.contains("1 stale"), "Buffer contents: {}", trimmed);
+        assert!(trimmed.contains("0 archived"), "Buffer contents: {}", trimmed);
         assert!(trimmed.contains(SUMMARY_TAB_DIVIDER), "Buffer contents: {}", trimmed);
 
         // With no filter, the repos tab is the active (reversed) one.

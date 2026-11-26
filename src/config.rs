@@ -214,6 +214,7 @@ impl Default for Config {
             sort_reverse: false,
             pinned: std::collections::HashSet::new(),
             starred: std::collections::HashSet::new(),
+            archived: std::collections::HashSet::new(),
             watch_dirs: Vec::new(),
             theme: ThemeConfig::default(),
             theme_name: default_theme_name(),
@@ -437,6 +438,9 @@ pub struct Config {
     /// List of starred repository paths.
     #[serde(default)]
     pub starred: std::collections::HashSet<String>,
+    /// List of archived repository paths.
+    #[serde(default)]
+    pub archived: std::collections::HashSet<String>,
     /// Directories to watch for automatic workspace syncing.
     #[serde(default)]
     pub watch_dirs: Vec<String>,
@@ -519,6 +523,7 @@ impl Config {
                 "folder" => "[D]",
                 "file" => "[F]",
                 "pinned" => "[P]",
+                "archived" => "[A]",
                 "action" => "[!]",
                 "warning" => "! ",
                 "close" => "x",
@@ -554,6 +559,7 @@ impl Config {
                 "folder" => "📁 ",
                 "file" => "📄 ",
                 "pinned" => "📌 ",
+                "archived" => "📦 ",
                 "action" => "⚡ ",
                 "warning" => "⚠ ",
                 "close" => "✕",
@@ -612,6 +618,7 @@ fn handle_parse_error(path: &Path, _error: Box<dyn Error>) -> (Config, Option<St
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         starred: std::collections::HashSet::new(),
+        archived: std::collections::HashSet::new(),
         watch_dirs: vec![],
         theme_name: default_theme_name(),
         theme: default_theme(),
@@ -816,6 +823,7 @@ fn load_config_file(cli_path: Option<PathBuf>) -> Result<LoadedConfigFile, Box<d
                 sort_reverse: false,
                 pinned: std::collections::HashSet::new(),
                 starred: std::collections::HashSet::new(),
+                archived: std::collections::HashSet::new(),
                 watch_dirs: vec![],
                 theme_name: fallback_theme_name,
                 theme: fallback_theme,
@@ -951,6 +959,7 @@ fn load_config_file(cli_path: Option<PathBuf>) -> Result<LoadedConfigFile, Box<d
         sort_reverse: false,
         pinned: std::collections::HashSet::new(),
         starred: std::collections::HashSet::new(),
+        archived: std::collections::HashSet::new(),
         watch_dirs: vec![],
         theme_name: default_theme_name(),
         theme: default_theme(),

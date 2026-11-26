@@ -149,6 +149,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     let terminal_toggle_key = kb.format_action_keys(Action::ToggleTerminalPanel, is_compat);
     let palette_key = kb.format_action_keys(Action::CommandPalette, is_compat);
     let star_key = kb.format_action_keys(Action::HomeToggleStar, is_compat);
+    let archive_key = kb.format_action_keys(Action::HomeToggleArchive, is_compat);
     let yank_key = kb.format_action_keys(Action::HomeYankPath, is_compat);
     let jump_picker_key = kb.format_action_keys(Action::HomeJumpPicker, is_compat);
     let fetch_all_key = kb.format_action_keys(Action::HomeFetchAll, is_compat);
@@ -219,7 +220,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 (edit_key, "Edit selected item"),
                 (delete_key, "Delete selected item"),
                 (search_key, "Enter repository search mode"),
-                (cycle_filter_key, "Cycle summary filter (repos/dirty/ahead/stale)"),
+                (cycle_filter_key, "Cycle summary filter (repos/dirty/ahead/stale/archived)"),
                 (label_picker_key, "Pick a label to filter the list (sticky until deselected)"),
                 (
                     label_slot_keys,
@@ -246,6 +247,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                     "Toggle pin status of selected item (pinned repos stay at the top, above a thin rule)",
                 ),
                 (star_key, "Toggle Favorite / Star status of selected item"),
+                (archive_key, "Toggle archive status of selected item"),
                 (select_key, "Toggle selection of item for batch operations"),
                 (yank_key, "Yank absolute path of selected item to clipboard"),
                 (jump_picker_key, "Open fuzzy Jump-to-Repo picker overlay"),

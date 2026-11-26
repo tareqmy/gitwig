@@ -7,7 +7,7 @@ This document lists and describes all the user interface panels, tabs, views, ov
 ## 1. Home Screen (Repository List View)
 The primary dashboard shown when Gitwig starts up.
 
-*   **Global Summary Header Bar**: Top row of four tabs showing aggregate counts: `repos │ dirty │ ahead │ stale`. Click a tab, or press `Tab` / `Shift+Tab`, to filter the repository list to that section; the active tab is drawn as a highlighted block and `Esc` clears the filter. When a label filter is active, a highlighted `● label` badge is set into the frame's top border, centered above the header (click it to reopen the label picker), and the tab counts scope to that label. If the active filters leave nothing to show, the tab strip stays visible above a message explaining which filter is empty and how to leave it.
+*   **Global Summary Header Bar**: Top row of five tabs showing aggregate counts: `repos │ dirty │ ahead │ stale │ archived`. Click a tab, or press `Tab` / `Shift+Tab`, to filter the repository list to that section; the active tab is drawn as a highlighted block and `Esc` clears the filter. When a label filter is active, a highlighted `● label` badge is set into the frame's top border, centered above the header (click it to reopen the label picker), and the tab counts scope to that label. If the active filters leave nothing to show, the tab strip stays visible above a message explaining which filter is empty and how to leave it.
 *   **Quick Label Chips**: Once a label has been viewed through the label filter, a second row under the summary bar, set off by a thin dashed rule, lists up to nine labels as `1 web │ 2 api │ …` chips styled like the summary tabs (with `show_separators = false` the rule is dropped and the chips sit directly under the summary bar). Slots fill FIFO: a label takes the next free slot the first time it is viewed and keeps that number (re-viewing never reorders), and once all nine are taken the oldest is evicted so the new label lands in slot 9. The list starts empty, is stored as `label_slots` in `state.toml` (the usage-state file beside `config.toml`), and drops labels no repository carries any more. Press the digit, or click the chip, to apply that label as the sticky filter; the active label's chip is drawn as a highlighted block, and pressing its digit again clears the filter.
 *   **Sort Rule**: A thin dashed rule (`┄`, or `-` in compatibility mode) closes the header directly above the repository list and carries the active sort caption (`Sort: Custom`, `Sort: Alphabetical (Rev)`, …), which used to sit in the top frame border. When the active label filter sets its own sort in Label Settings, the caption ends with the label's name (`Sort: Alphabetical · work`) to show that the label's sort, not the global one, is in effect. With `show_separators = false` the dashes are hidden and only the caption is drawn.
 *   **Repository List Panel**: Displays cards for all configured/scanned repositories. Supports Standard, Compact, and Tile grid layouts. Pinned repositories (`p`) stay at the top of the list, and of each label group, whatever the sort order, sorted among themselves; a faint, sparse dashed rule (`┄ ┄ ┄`, or `- - -` in compatibility mode; dimmed, indented to the card text and lighter than the header rules) is drawn under the last pinned row to set the pinned block apart. The Recent and Starred groups, ordered by visit time and by name, have no rule, and `show_separators = false` hides it everywhere.
@@ -22,10 +22,11 @@ The primary dashboard shown when Gitwig starts up.
         *   `Space` : Toggle selection for batch actions
         *   `p` : Toggle pin status of selected item
         *   `*` : Toggle Starred / Favorite status of selected item
+        *   `z` : Toggle archive status of selected item (moves to/from the Archived tab)
         *   `y` : Yank absolute path to clipboard
         *   `/` : Open fuzzy Jump-to-Repo picker
         *   `f` : Enter repository list search query input mode
-        *   `Tab` / `Shift+Tab` : Cycle summary-bar filter (repos → dirty → ahead → stale) forward / backward
+        *   `Tab` / `Shift+Tab` : Cycle summary-bar filter (repos → dirty → ahead → stale → archived) forward / backward
         *   `L` : Open label picker to filter the list to one label ("project view"; sticky until deselected)
         *   `1` … `9` : Apply the label in quick slot N (the numbered chips under the summary bar) as the filter; press again to clear
         *   `ctrl-f` : Open global code search across all repositories
@@ -39,7 +40,7 @@ The primary dashboard shown when Gitwig starts up.
         *   `a` : Add a repository via the directory-scanner picker; the new repository is selected, and its label group is expanded if it was collapsed
         *   `A` : Bulk add subdirectories of a directory; the first new repository is selected
         *   `i` : Import / clone a remote repository
-        *   `e` : Edit the selected repository's path; its labels, star, pin, settings and history move with it, and a path already tracked by another entry is refused
+        *   `e` : Edit the selected repository's path; its labels, star, pin, archive status, settings and history move with it, and a path already tracked by another entry is refused
         *   `D` : Delete selected repository entry
         *   `l` : Edit custom labels of selected item
         *   `t` : Open the embedded terminal panel in repository path

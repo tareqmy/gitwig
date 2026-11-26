@@ -136,6 +136,8 @@ impl HomeTab {
                     app.pending_git_app = true;
                 } else if app.is_bound(Action::HomeToggleStar, key) {
                     app.toggle_star_selected();
+                } else if app.is_bound(Action::HomeToggleArchive, key) {
+                    app.toggle_archive_selected();
                 } else if app.is_bound(Action::HomeJumpPicker, key) {
                     app.input_buffer.clear();
                     app.repo_jump_selection = 0;

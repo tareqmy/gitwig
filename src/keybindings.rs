@@ -53,6 +53,7 @@ pub enum Action {
     /// Suspend the TUI and open a full-screen shell (the pre-panel behavior).
     HomeOpenExternalShell,
     HomeToggleStar,
+    HomeToggleArchive,
     HomeYankPath,
     HomeJumpPicker,
     HomeFetchAll,
@@ -297,6 +298,7 @@ impl Action {
             69 => Some(Action::ToggleAdvancedTabs),
             70 => Some(Action::HomeOpenTerminal),
             71 => Some(Action::HomeToggleStar),
+            262 => Some(Action::HomeToggleArchive),
             72 => Some(Action::HomeYankPath),
             73 => Some(Action::HomeJumpPicker),
             74 => Some(Action::HomeFetchAll),
@@ -489,6 +491,7 @@ impl Action {
             Action::ToggleAdvancedTabs => 69,
             Action::HomeOpenTerminal => 70,
             Action::HomeToggleStar => 71,
+            Action::HomeToggleArchive => 262,
             Action::HomeYankPath => 72,
             Action::HomeJumpPicker => 73,
             Action::HomeFetchAll => 74,
@@ -672,6 +675,7 @@ pub struct HomeKeybindings {
     pub open_terminal: Option<Keybind>,
     pub open_external_shell: Option<Keybind>,
     pub toggle_star: Option<Keybind>,
+    pub toggle_archive: Option<Keybind>,
     pub yank_path: Option<Keybind>,
     pub jump_picker: Option<Keybind>,
     pub fetch_all: Option<Keybind>,
@@ -1051,6 +1055,10 @@ impl KeybindingsConfig {
                     &["*"],
                     "Toggle Starred/Favorite status of repository",
                 )),
+                toggle_archive: Some(Keybind::new(
+                    &["z"],
+                    "Toggle archive status of selected repository",
+                )),
                 yank_path: Some(Keybind::new(&["y"], "Yank repository absolute path to clipboard")),
                 jump_picker: Some(Keybind::new(&["/"], "Open fuzzy Jump-to-Repo picker overlay")),
                 fetch_all: Some(Keybind::new(
@@ -1066,7 +1074,7 @@ impl KeybindingsConfig {
                 open_stats_dashboard: Some(Keybind::new(&["U"], "Open App Usage Dashboard")),
                 cycle_filter: Some(Keybind::new(
                     &["tab"],
-                    "Cycle summary filter (repos/dirty/ahead/stale)",
+                    "Cycle summary filter (repos/dirty/ahead/stale/archived)",
                 )),
                 cycle_filter_back: Some(Keybind::new(
                     &["backtab", "shift-tab"],
@@ -1327,6 +1335,7 @@ impl KeybindingsConfig {
             Action::HomeOpenTerminal => self.home.open_terminal.as_ref(),
             Action::HomeOpenExternalShell => self.home.open_external_shell.as_ref(),
             Action::HomeToggleStar => self.home.toggle_star.as_ref(),
+            Action::HomeToggleArchive => self.home.toggle_archive.as_ref(),
             Action::HomeYankPath => self.home.yank_path.as_ref(),
             Action::HomeJumpPicker => self.home.jump_picker.as_ref(),
             Action::HomeFetchAll => self.home.fetch_all.as_ref(),
@@ -1542,6 +1551,7 @@ impl KeybindingsConfig {
             Action::HomeOpenTerminal => self.home.open_terminal.as_ref(),
             Action::HomeOpenExternalShell => self.home.open_external_shell.as_ref(),
             Action::HomeToggleStar => self.home.toggle_star.as_ref(),
+            Action::HomeToggleArchive => self.home.toggle_archive.as_ref(),
             Action::HomeYankPath => self.home.yank_path.as_ref(),
             Action::HomeJumpPicker => self.home.jump_picker.as_ref(),
             Action::HomeFetchAll => self.home.fetch_all.as_ref(),
@@ -1817,6 +1827,7 @@ impl KeybindingsConfig {
             Action::HomeOpenTerminal,
             Action::HomeOpenExternalShell,
             Action::HomeToggleStar,
+            Action::HomeToggleArchive,
             Action::HomeYankPath,
             Action::HomeJumpPicker,
             Action::HomeFetchAll,
@@ -1927,6 +1938,7 @@ impl KeybindingsConfig {
                 | Action::HomeOpenTerminal
                 | Action::HomeOpenExternalShell
                 | Action::HomeToggleStar
+                | Action::HomeToggleArchive
                 | Action::HomeYankPath
                 | Action::HomeJumpPicker
                 | Action::HomeFetchAll
@@ -2017,6 +2029,7 @@ impl KeybindingsConfig {
             Action::HomeOpenTerminal => self.home.open_terminal = keybind,
             Action::HomeOpenExternalShell => self.home.open_external_shell = keybind,
             Action::HomeToggleStar => self.home.toggle_star = keybind,
+            Action::HomeToggleArchive => self.home.toggle_archive = keybind,
             Action::HomeYankPath => self.home.yank_path = keybind,
             Action::HomeJumpPicker => self.home.jump_picker = keybind,
             Action::HomeFetchAll => self.home.fetch_all = keybind,

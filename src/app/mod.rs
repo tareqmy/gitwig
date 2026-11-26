@@ -41,6 +41,7 @@ pub enum GlobalFilter {
     Dirty,
     Ahead,
     Stale,
+    Archived,
 }
 
 /// Interaction modes for the item list.

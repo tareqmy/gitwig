@@ -45,6 +45,7 @@ const HOME_ACTIONS: &[Action] = &[
     Action::HomeCycleViewMode,
     Action::HomeTogglePin,
     Action::HomeToggleStar,
+    Action::HomeToggleArchive,
     Action::HomeSelect,
     Action::HomeYankPath,
     Action::HomeOpenGitApp,

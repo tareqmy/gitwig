@@ -203,11 +203,12 @@ impl App {
     /// `new` when its entry is renamed — labels, star, pin, per-repo
     /// settings, last visit, commit-message history and batch selection — so
     /// none of it is lost or left orphaned under the old path.
-    fn migrate_repo_path(&mut self, old: &str, new: &str) {
+    pub(super) fn migrate_repo_path(&mut self, old: &str, new: &str) {
         rekey_map(&mut self.config.labels, old, new);
         rekey_map(&mut self.config.repo_configs, old, new);
         rekey_set(&mut self.config.pinned, old, new);
         rekey_set(&mut self.config.starred, old, new);
+        rekey_set(&mut self.config.archived, old, new);
         rekey_map(&mut self.state.visits, old, new);
         rekey_set(&mut self.multi_selected, old, new);
         // Commit history is keyed by the resolved path, so `~/x` and its
@@ -234,6 +235,8 @@ impl App {
                 }
                 self.state.visits.remove(&item);
                 self.config.pinned.remove(&item);
+                self.config.starred.remove(&item);
+                self.config.archived.remove(&item);
             }
             self.clear_label_filter_if_orphaned();
             self.persist("Deleted selected repositories");
@@ -248,6 +251,8 @@ impl App {
                 }
                 self.state.visits.remove(&item);
                 self.config.pinned.remove(&item);
+                self.config.starred.remove(&item);
+                self.config.archived.remove(&item);
                 self.clear_label_filter_if_orphaned();
                 self.persist("Deleted");
             }

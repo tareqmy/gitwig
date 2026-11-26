@@ -7,14 +7,14 @@
 | `a`                  | Normal          | Add a new repository (via directory scanner) |
 | `A`                  | Normal          | Bulk add folders in a directory   |
 | `i`                  | Normal          | Import remote repository          |
-| `e`                  | Normal          | Edit the selected repository's path. Its labels, star, pin, per-repository settings, last visit and commit-message history move to the new path; a path another entry already tracks (as written, via `~`, or through a symlink) is refused with "Repository already added" |
+| `e`                  | Normal          | Edit the selected repository's path. Its labels, star, pin, archive status, per-repository settings, last visit and commit-message history move to the new path; a path another entry already tracks (as written, via `~`, or through a symlink) is refused with "Repository already added" |
 | `D`                  | Normal          | Delete the selected item (asks)   |
 | `l`                  | Normal          | Edit labels of the selected item  |
 | `R`                  | Normal          | Refresh status of selected item   |
 | `F`                  | Normal          | Bulk fetch all tracked repositories concurrently |
 | `E`                  | Normal          | Show why the selected repository's last fetch failed |
 | `f`                  | Normal          | Enter repository search mode      |
-| `Tab` / `Shift+Tab`  | Normal          | Cycle summary-bar filter (repos → dirty → ahead → stale) forward / backward |
+| `Tab` / `Shift+Tab`  | Normal          | Cycle summary-bar filter (repos → dirty → ahead → stale → archived) forward / backward |
 | `L`                  | Normal          | Open label picker: filter the list to one label (sticky until deselected; persists across restarts) |
 | `1` … `9`            | Normal          | Quick label: apply the label in slot N as the sticky filter, matching the numbered chips under the summary bar. Slots are assigned in the order labels are first viewed (FIFO) and never reorder; press the active slot again to clear it |
 | `Esc`                | LabelPicker     | Close label picker without changing the filter |
@@ -25,6 +25,7 @@
 | `ctrl+f`             | Normal          | Open global code search popup overlay |
 | `p`                  | Normal          | Toggle pin status of selected item (pinned repositories stay at the top of the list in every sort order, above a thin rule) |
 | `*`                  | Normal          | Toggle Favorite / Star status of selected item |
+| `z`                  | Normal          | Toggle archive status of selected repository (archived repositories move to the Archived summary tab and are skipped during bulk fetch) |
 | `Space`              | Normal          | Toggle selection of item for batch operations (fetch, delete, external shell) |
 | `y`                  | Normal          | Yank absolute path of selected item to clipboard |
 | `/`                  | Normal          | Open fuzzy Jump-to-Repo picker overlay |
