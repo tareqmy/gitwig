@@ -472,9 +472,9 @@ pub struct App {
     /// Whether the settings panel focus is on the sidebar categories.
     pub settings_focus_sidebar: bool,
     /// Sender for background task events.
-    pub tx: std::sync::mpsc::Sender<String>,
+    pub tx: std::sync::mpsc::Sender<BgEvent>,
     /// Receiver for background task events.
-    pub rx: std::sync::mpsc::Receiver<String>,
+    pub rx: std::sync::mpsc::Receiver<BgEvent>,
     pub global_search_rx: std::sync::mpsc::Receiver<Vec<SearchResult>>,
     pub global_search_tx: std::sync::mpsc::Sender<Vec<SearchResult>>,
     pub global_search_query: String,
@@ -743,11 +743,13 @@ enum LogsNavDirection {
 }
 
 mod actions;
+mod bg_events;
 mod git;
 mod navigation;
 mod stash_partial;
 mod submodules;
 mod term_panel;
+pub use bg_events::{BgEvent, RepoOpKind};
 pub use navigation::HomeRow;
 pub use stash_partial::{StashFileKind, stash_file_rows};
 pub use submodules::SubmoduleUpdateTarget;
@@ -830,7 +832,9 @@ impl App {
                                     || path_str.ends_with("/.git/index")
                                     || path_str.ends_with("/.git/HEAD"))
                             {
-                                let _ = tx.send(format!("REFRESH_REPO:{}", repo_root));
+                                let _ = tx.send(BgEvent::RefreshRepo {
+                                    repo_root: repo_root.to_string(),
+                                });
                             }
                         }
                     }
@@ -1808,6 +1812,32 @@ impl App {
     }
 }
 
+fn suspend_terminal<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>) -> bool {
+    let raw_res = crossterm::terminal::disable_raw_mode();
+    let exec_res = crossterm::execute!(
+        std::io::stdout(),
+        crossterm::terminal::LeaveAlternateScreen,
+        crossterm::event::DisableMouseCapture,
+        crossterm::event::DisableBracketedPaste
+    );
+    let cursor_res = terminal.show_cursor();
+    raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok()
+}
+
+fn resume_terminal<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, hide_cursor: bool) {
+    let _ = crossterm::terminal::enable_raw_mode();
+    let _ = crossterm::execute!(
+        std::io::stdout(),
+        crossterm::terminal::EnterAlternateScreen,
+        crossterm::event::EnableMouseCapture,
+        crossterm::event::EnableBracketedPaste
+    );
+    if hide_cursor {
+        let _ = terminal.hide_cursor();
+    }
+    let _ = terminal.clear();
+}
+
 /// Main event loop: compute layout, draw, poll input, repeat.
 pub fn run<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
@@ -1880,269 +1910,8 @@ where
                 }
             }
         }
-        while let Ok(raw_msg) = app.rx.try_recv() {
+        if app.drain_bg_events() {
             needs_redraw = true;
-            if let Some(repo_info) = raw_msg.strip_prefix("REPO_SCAN_FOUND:") {
-                if let Some(pos) = repo_info.find("|||") {
-                    let name = repo_info[..pos].to_string();
-                    let path = repo_info[pos + 3..].to_string();
-                    if !app.scanned_repos.iter().any(|(_, p)| p == &path) {
-                        app.scanned_repos.push((name, path));
-                    }
-                }
-                continue;
-            }
-            if raw_msg.starts_with("REPO_SCAN_COMPLETE:") {
-                app.repo_scan_active = false;
-                continue;
-            }
-            if let Some(count_str) = raw_msg.strip_prefix("REPO_SCAN_COUNT:") {
-                if let Ok(count) = count_str.parse::<usize>() {
-                    app.repo_scan_count = count;
-                }
-                continue;
-            }
-
-            if let Some(success_path) = raw_msg.strip_prefix("BULK_FETCH_SUCCESS:") {
-                app.bulk_fetching.remove(success_path);
-                if let Some(idx) = app.config.items.iter().position(|item| item == success_path) {
-                    let moved =
-                        app.store_status(idx, success_path, repo::inspect_summary(success_path));
-                    app.resort_after_status_refresh(moved);
-                }
-                app.bulk_fetch_results
-                    .insert(success_path.to_string(), Ok("Fetched successfully".to_string()));
-                app.bulk_fetch_failures.remove(success_path);
-                if app.bulk_fetching.is_empty() {
-                    app.status_message = Some(app.bulk_fetch_summary());
-                    app.bulk_fetch_completed_at = Some(std::time::Instant::now());
-                }
-                app.decrement_implicit_network();
-                continue;
-            }
-            if let Some(error_data) = raw_msg.strip_prefix("BULK_FETCH_ERROR:") {
-                if let Some(pos) = error_data.find("|||") {
-                    let err_path = &error_data[..pos];
-                    let err_msg = &error_data[pos + 3..];
-                    app.bulk_fetching.remove(err_path);
-
-                    // Classify once, here, rather than on every render pass.
-                    let failure = crate::fetch_error::classify(err_msg);
-                    app.bulk_fetch_failures.insert(err_path.to_string(), failure);
-                    app.bulk_fetch_results.insert(err_path.to_string(), Err(err_msg.to_string()));
-
-                    crate::debug_log::warn(format!(
-                        "Network Action: Fetch failed for '{}' ({}): {}",
-                        err_path,
-                        failure.label(),
-                        err_msg.replace('\n', " / ")
-                    ));
-                }
-                if app.bulk_fetching.is_empty() {
-                    app.status_message = Some(app.bulk_fetch_summary());
-                    app.bulk_fetch_completed_at = Some(std::time::Instant::now());
-                }
-                app.decrement_implicit_network();
-                continue;
-            }
-
-            let (repo_path, msg) = if let Some(pos) = raw_msg.find("|||") {
-                (Some(raw_msg[..pos].to_string()), raw_msg[pos + 3..].to_string())
-            } else {
-                (None, raw_msg)
-            };
-
-            let is_relevant = if let Some(ref path_str) = repo_path {
-                if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
-                    resolved.to_string_lossy() == *path_str
-                } else {
-                    false
-                }
-            } else {
-                true
-            };
-
-            if is_relevant {
-                if let Some(repo_path) = msg.strip_prefix("REFRESH_REPO:") {
-                    let canon_target = std::fs::canonicalize(repo_path)
-                        .unwrap_or_else(|_| PathBuf::from(repo_path));
-                    let already_tracked = app.config.items.iter().position(|item| {
-                        let expanded = repo::expand_tilde(item);
-                        let canon_item = std::fs::canonicalize(&expanded).unwrap_or(expanded);
-                        canon_item == canon_target
-                    });
-                    if let Some(idx) = already_tracked {
-                        let item = app.config.items[idx].clone();
-                        let moved = app.store_status(idx, &item, repo::inspect_summary(&item));
-                        app.resort_after_status_refresh(moved);
-                        if let Some(repo::ItemDetail::Repo { resolved, .. }) = &app.current_detail {
-                            if resolved == &canon_target {
-                                app.resync_detail();
-                            }
-                        }
-                    } else {
-                        // Check if it is inside one of the watched directories
-                        let mut inside_watch_dir = false;
-                        if app.config.enable_watch_dirs {
-                            for watch_dir in &app.config.watch_dirs {
-                                let expanded = repo::expand_tilde(watch_dir);
-                                if let Ok(canon_watch) = std::fs::canonicalize(&expanded) {
-                                    if canon_target.starts_with(&canon_watch) {
-                                        inside_watch_dir = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        if inside_watch_dir {
-                            let mut is_excluded = false;
-                            for ex in &app.config.scan.excludes {
-                                if canon_target.components().any(|c| c.as_os_str() == ex.as_str()) {
-                                    is_excluded = true;
-                                    break;
-                                }
-                            }
-                            if !is_excluded {
-                                let git_dir = canon_target.join(".git");
-                                if git_dir.exists() && git_dir.is_dir() {
-                                    let path_str = repo_path.to_string();
-                                    app.auto_discover_add(path_str);
-                                    app.status_message =
-                                        Some("Auto-discovered new repository".to_string());
-                                }
-                            }
-                        }
-                    }
-                } else if let Some(latest_version) = msg.strip_prefix("UPDATE_CHECK:") {
-                    let current_version = env!("CARGO_PKG_VERSION");
-                    if is_newer_version(current_version, latest_version) {
-                        app.update_available = Some(latest_version.to_string());
-                        if app.update_check_manual {
-                            app.status_message =
-                                Some(format!("Update available: v{}", latest_version));
-                        }
-                    } else if app.update_check_manual {
-                        app.status_message = Some("Gitwig is up to date".to_string());
-                    }
-                    if !app.update_check_manual {
-                        app.decrement_implicit_network();
-                    }
-                    app.update_check_manual = false;
-                } else if msg.starts_with("UPDATE_CHECK_FAILED:") {
-                    if app.update_check_manual {
-                        app.status_message = Some("Failed to check for updates".to_string());
-                    }
-                    if !app.update_check_manual {
-                        app.decrement_implicit_network();
-                    }
-                    app.update_check_manual = false;
-                } else if let Some(success_msg) = msg.strip_prefix("CHECKOUT_SUCCESS:") {
-                    app.fetching = false;
-                    app.status_message = Some(success_msg.to_string());
-                    app.resync_detail();
-                } else if let Some(err_msg) = msg.strip_prefix("CHECKOUT_ERROR:") {
-                    app.fetching = false;
-                    app.set_error(err_msg.to_string());
-                } else if msg == "COMMENT_SUCCESS" {
-                    app.fetching = false;
-                    app.status_message = Some("Comment posted successfully".to_string());
-                    app.stats.forge_comments_made += 1;
-                    app.stats.forge_prs_reviewed += 1;
-                    app.load_comments_for_selected_pr();
-                } else if let Some(err_msg) = msg.strip_prefix("COMMENT_ERROR:") {
-                    app.fetching = false;
-                    app.set_error(err_msg.to_string());
-                } else if let Some(success_msg) = msg.strip_prefix("UPDATE_SUCCESS:") {
-                    app.fetching = false;
-                    app.status_message = Some(success_msg.to_string());
-                } else if let Some(err_msg) = msg.strip_prefix("UPDATE_ERROR:") {
-                    app.fetching = false;
-                    app.set_error(err_msg.to_string());
-                } else if let Some(dest_path) = msg.strip_prefix("CLONE_SUCCESS:") {
-                    crate::debug_log::info(format!(
-                        "Network Action: Cloning succeeded to {}",
-                        dest_path
-                    ));
-                    app.fetching = false;
-                    app.status_message = Some("Cloning completed successfully".to_string());
-                    app.pending_add_repo = Some(dest_path.to_string());
-                    app.input_buffer.clear();
-                    app.mode = Mode::CloneRepoLabelInput;
-                } else if let Some(tags_data) = msg.strip_prefix("REMOTE_TAGS:") {
-                    crate::debug_log::info("Network Action: Fetching remote tags succeeded");
-                    let tags = repo::deserialize_tags(tags_data);
-                    if let Some(repo::ItemDetail::Repo { info, .. }) = &mut app.current_detail {
-                        info.remote_tags = repo::TabData::Loaded(tags);
-                        info.remote_tags_loaded = true;
-                    }
-                    if app.fetching {
-                        app.fetching = false;
-                    } else {
-                        app.decrement_implicit_network();
-                    }
-                } else if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
-                    crate::debug_log::warn(format!(
-                        "Network Action: Fetching remote tags failed: {}",
-                        err_msg
-                    ));
-                    if app.fetching {
-                        app.set_error(err_msg.to_string());
-                        app.fetching = false;
-                    } else {
-                        app.decrement_implicit_network();
-                    }
-                } else {
-                    let is_err = msg.starts_with("Fetch failed:")
-                        || msg.starts_with("Pull failed:")
-                        || msg.starts_with("Push failed:")
-                        || msg.starts_with("Failed to")
-                        || msg.contains("failed");
-
-                    if is_err {
-                        let has_conflict = msg.contains("conflict") || msg.contains("CONFLICT");
-                        crate::debug_log::error(format!(
-                            "Network Action: Operation failed: {}",
-                            msg
-                        ));
-                        app.set_error(msg);
-                        if has_conflict {
-                            app.detail_focus = DetailSection::Conflicts;
-                        }
-                    } else {
-                        crate::debug_log::info(format!(
-                            "Network Action: Operation succeeded: {}",
-                            msg
-                        ));
-                        if msg.starts_with("Pushed ") {
-                            app.stats.pushes += 1;
-                        } else if msg.starts_with("Fetched ") {
-                            app.stats.fetches += 1;
-                        } else if msg.starts_with("Pulled ") {
-                            app.stats.pulls += 1;
-                        }
-                        app.status_message = Some(msg);
-                    }
-                    app.fetching = false;
-                    app.resync_detail();
-                }
-            } else {
-                // The operation's repo is no longer the open detail view, but a
-                // failure must still surface — silently dropping it would leave
-                // the user believing the operation succeeded.
-                let looks_like_error = msg.contains("failed") || msg.contains("Failed");
-                if looks_like_error {
-                    if let Some(path_str) = repo_path {
-                        let repo_name = std::path::Path::new(&path_str)
-                            .file_name()
-                            .map(|n| n.to_string_lossy().into_owned())
-                            .unwrap_or(path_str);
-                        app.set_error(format!("[{}] {}", repo_name, msg));
-                    } else {
-                        app.set_error(msg);
-                    }
-                }
-                app.fetching = false;
-            }
         }
 
         while let Ok((path, detail)) = app.detail_rx.try_recv() {
@@ -2194,32 +1963,23 @@ where
             app.pending_git_app = false;
             needs_redraw = true;
             if let Some(path) = app.git_app_dir() {
-                let raw_res = crossterm::terminal::disable_raw_mode();
-                let exec_res = crossterm::execute!(
-                    std::io::stdout(),
-                    crossterm::terminal::LeaveAlternateScreen,
-                    crossterm::event::DisableMouseCapture
-                );
-                let cursor_res = terminal.show_cursor();
-
-                if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
-                    let git_app_name = &app.config.git_app;
+                let git_app_name = app.config.git_app.clone();
+                let parts = split_command_words(&git_app_name);
+                if parts.is_empty() {
+                    app.set_error("No external Git client configured".to_string());
+                } else if suspend_terminal(terminal) {
                     let mut cmd = if cfg!(target_os = "windows") {
                         let mut c = crate::git_cmd::interactive_command("cmd");
-                        c.arg("/c").arg(git_app_name);
+                        c.arg("/c").args(&parts);
                         c
                     } else {
-                        crate::git_cmd::interactive_command(git_app_name)
+                        let mut c = crate::git_cmd::interactive_command(&parts[0]);
+                        c.args(&parts[1..]);
+                        c
                     };
                     let status = cmd.current_dir(&path).status();
 
-                    let _ = crossterm::terminal::enable_raw_mode();
-                    let _ = crossterm::execute!(
-                        std::io::stdout(),
-                        crossterm::terminal::EnterAlternateScreen,
-                        crossterm::event::EnableMouseCapture
-                    );
-                    let _ = terminal.clear();
+                    resume_terminal(terminal, false);
 
                     match status {
                         Ok(s) if s.success() => {
@@ -2248,193 +2008,166 @@ where
 
             let paths_to_open = app.take_shell_targets();
 
-            if !paths_to_open.is_empty() {
-                let raw_res = crossterm::terminal::disable_raw_mode();
-                let exec_res = crossterm::execute!(
-                    std::io::stdout(),
-                    crossterm::terminal::LeaveAlternateScreen,
-                    crossterm::event::DisableMouseCapture
-                );
-                let cursor_res = terminal.show_cursor();
+            if !paths_to_open.is_empty() && suspend_terminal(terminal) {
+                let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
 
-                if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
-                    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+                // Helpers to translate active ACCENT color to ANSI codes
+                let accent_color = crate::ui::style::ACCENT();
+                let ansi_normal = match accent_color {
+                    ratatui::style::Color::Black => "\x1b[30m",
+                    ratatui::style::Color::Red => "\x1b[31m",
+                    ratatui::style::Color::Green => "\x1b[32m",
+                    ratatui::style::Color::Yellow => "\x1b[33m",
+                    ratatui::style::Color::Blue => "\x1b[34m",
+                    ratatui::style::Color::Magenta => "\x1b[35m",
+                    ratatui::style::Color::Cyan => "\x1b[36m",
+                    ratatui::style::Color::Gray => "\x1b[37m",
+                    ratatui::style::Color::DarkGray => "\x1b[90m",
+                    ratatui::style::Color::LightRed => "\x1b[91m",
+                    ratatui::style::Color::LightGreen => "\x1b[92m",
+                    ratatui::style::Color::LightYellow => "\x1b[93m",
+                    ratatui::style::Color::LightBlue => "\x1b[94m",
+                    ratatui::style::Color::LightMagenta => "\x1b[95m",
+                    ratatui::style::Color::LightCyan => "\x1b[96m",
+                    ratatui::style::Color::White => "\x1b[97m",
+                    _ => "\x1b[36m",
+                };
+                let ansi_bold = match accent_color {
+                    ratatui::style::Color::Black => "\x1b[1;30m",
+                    ratatui::style::Color::Red => "\x1b[1;31m",
+                    ratatui::style::Color::Green => "\x1b[1;32m",
+                    ratatui::style::Color::Yellow => "\x1b[1;33m",
+                    ratatui::style::Color::Blue => "\x1b[1;34m",
+                    ratatui::style::Color::Magenta => "\x1b[1;35m",
+                    ratatui::style::Color::Cyan => "\x1b[1;36m",
+                    ratatui::style::Color::Gray => "\x1b[1;37m",
+                    ratatui::style::Color::DarkGray => "\x1b[1;90m",
+                    ratatui::style::Color::LightRed => "\x1b[1;91m",
+                    ratatui::style::Color::LightGreen => "\x1b[1;92m",
+                    ratatui::style::Color::LightYellow => "\x1b[1;93m",
+                    ratatui::style::Color::LightBlue => "\x1b[1;94m",
+                    ratatui::style::Color::LightMagenta => "\x1b[1;95m",
+                    ratatui::style::Color::LightCyan => "\x1b[1;96m",
+                    ratatui::style::Color::White => "\x1b[1;97m",
+                    _ => "\x1b[1;36m",
+                };
 
-                    // Helpers to translate active ACCENT color to ANSI codes
-                    let accent_color = crate::ui::style::ACCENT();
-                    let ansi_normal = match accent_color {
-                        ratatui::style::Color::Black => "\x1b[30m",
-                        ratatui::style::Color::Red => "\x1b[31m",
-                        ratatui::style::Color::Green => "\x1b[32m",
-                        ratatui::style::Color::Yellow => "\x1b[33m",
-                        ratatui::style::Color::Blue => "\x1b[34m",
-                        ratatui::style::Color::Magenta => "\x1b[35m",
-                        ratatui::style::Color::Cyan => "\x1b[36m",
-                        ratatui::style::Color::Gray => "\x1b[37m",
-                        ratatui::style::Color::DarkGray => "\x1b[90m",
-                        ratatui::style::Color::LightRed => "\x1b[91m",
-                        ratatui::style::Color::LightGreen => "\x1b[92m",
-                        ratatui::style::Color::LightYellow => "\x1b[93m",
-                        ratatui::style::Color::LightBlue => "\x1b[94m",
-                        ratatui::style::Color::LightMagenta => "\x1b[95m",
-                        ratatui::style::Color::LightCyan => "\x1b[96m",
-                        ratatui::style::Color::White => "\x1b[97m",
-                        _ => "\x1b[36m",
-                    };
-                    let ansi_bold = match accent_color {
-                        ratatui::style::Color::Black => "\x1b[1;30m",
-                        ratatui::style::Color::Red => "\x1b[1;31m",
-                        ratatui::style::Color::Green => "\x1b[1;32m",
-                        ratatui::style::Color::Yellow => "\x1b[1;33m",
-                        ratatui::style::Color::Blue => "\x1b[1;34m",
-                        ratatui::style::Color::Magenta => "\x1b[1;35m",
-                        ratatui::style::Color::Cyan => "\x1b[1;36m",
-                        ratatui::style::Color::Gray => "\x1b[1;37m",
-                        ratatui::style::Color::DarkGray => "\x1b[1;90m",
-                        ratatui::style::Color::LightRed => "\x1b[1;91m",
-                        ratatui::style::Color::LightGreen => "\x1b[1;92m",
-                        ratatui::style::Color::LightYellow => "\x1b[1;93m",
-                        ratatui::style::Color::LightBlue => "\x1b[1;94m",
-                        ratatui::style::Color::LightMagenta => "\x1b[1;95m",
-                        ratatui::style::Color::LightCyan => "\x1b[1;96m",
-                        ratatui::style::Color::White => "\x1b[1;97m",
-                        _ => "\x1b[1;36m",
-                    };
+                for item in &paths_to_open {
+                    let path = repo::expand_tilde(item);
+                    let repo_name =
+                        path.file_name().and_then(|n| n.to_str()).unwrap_or("repository");
 
-                    for item in &paths_to_open {
-                        let path = repo::expand_tilde(item);
-                        let repo_name =
-                            path.file_name().and_then(|n| n.to_str()).unwrap_or("repository");
-
-                        // Update terminal title for the subshell
-                        if app.config.compatibility_mode {
-                            let _ = crossterm::execute!(
-                                std::io::stdout(),
-                                crossterm::terminal::SetTitle(format!(
-                                    "[Gitwig] Shell ({})",
-                                    repo_name
-                                ))
-                            );
-                        } else {
-                            let _ = crossterm::execute!(
-                                std::io::stdout(),
-                                crossterm::terminal::SetTitle(format!(
-                                    "Gitwig Shell ({})",
-                                    repo_name
-                                ))
-                            );
-                        }
-
-                        // Determine borders and branding based on compatibility mode
-                        let banner_width = 80;
-                        let inner_width = banner_width - 6; // 74 chars
-                        let (top_border, left_border, right_border, bottom_border, gitwig_prefix) =
-                            if app.config.compatibility_mode {
-                                (
-                                    "-".repeat(banner_width),
-                                    "|",
-                                    "|",
-                                    "-".repeat(banner_width),
-                                    "[Gitwig]",
-                                )
-                            } else {
-                                (
-                                    "┌".to_string() + &"─".repeat(banner_width - 2) + "┐",
-                                    "│",
-                                    "│",
-                                    "└".to_string() + &"─".repeat(banner_width - 2) + "┘",
-                                    "Gitwig",
-                                )
-                            };
-
-                        println!();
-                        println!("{}{}\x1b[0m", ansi_normal, top_border);
-
-                        let line1_text = format!(
-                            "{} Subshell — Type 'exit' or press Ctrl+D to return to Gitwig",
-                            gitwig_prefix
-                        );
-                        let padding1 = inner_width.saturating_sub(line1_text.chars().count());
-                        println!(
-                            "{}{}\x1b[0m  {}{}\x1b[0m{}  {}{}\x1b[0m",
-                            ansi_normal,
-                            left_border,
-                            ansi_bold,
-                            line1_text,
-                            " ".repeat(padding1),
-                            ansi_normal,
-                            right_border
-                        );
-
-                        let line2_text = format!("Workspace: {}", path.display());
-                        let line2_chars: Vec<char> = line2_text.chars().collect();
-                        let display_path = if line2_chars.len() > inner_width {
-                            let keep_len = inner_width - 15;
-                            let truncated: String =
-                                line2_chars[line2_chars.len() - keep_len..].iter().collect();
-                            format!("Workspace: ...{}", truncated)
-                        } else {
-                            line2_text
-                        };
-                        let padding2 = inner_width.saturating_sub(display_path.chars().count());
-                        println!(
-                            "{}{}\x1b[0m  \x1b[2m{}\x1b[0m{}  {}{}\x1b[0m",
-                            ansi_normal,
-                            left_border,
-                            display_path,
-                            " ".repeat(padding2),
-                            ansi_normal,
-                            right_border
-                        );
-
-                        println!("{}{}\x1b[0m", ansi_normal, bottom_border);
-                        println!();
-
-                        let _ = crate::git_cmd::interactive_command(&shell)
-                            .current_dir(&path)
-                            .env("GITWIG", "1")
-                            .env("GITWIG_SHELL", "1")
-                            .status();
-                    }
-
-                    // Restore Gitwig terminal title
+                    // Update terminal title for the subshell
                     if app.config.compatibility_mode {
                         let _ = crossterm::execute!(
                             std::io::stdout(),
-                            crossterm::terminal::SetTitle("[Gitwig]")
+                            crossterm::terminal::SetTitle(format!(
+                                "[Gitwig] Shell ({})",
+                                repo_name
+                            ))
                         );
                     } else {
                         let _ = crossterm::execute!(
                             std::io::stdout(),
-                            crossterm::terminal::SetTitle("Gitwig")
+                            crossterm::terminal::SetTitle(format!("Gitwig Shell ({})", repo_name))
                         );
                     }
 
-                    let _ = crossterm::terminal::enable_raw_mode();
+                    // Determine borders and branding based on compatibility mode
+                    let banner_width = 80;
+                    let inner_width = banner_width - 6; // 74 chars
+                    let (top_border, left_border, right_border, bottom_border, gitwig_prefix) =
+                        if app.config.compatibility_mode {
+                            (
+                                "-".repeat(banner_width),
+                                "|",
+                                "|",
+                                "-".repeat(banner_width),
+                                "[Gitwig]",
+                            )
+                        } else {
+                            (
+                                "┌".to_string() + &"─".repeat(banner_width - 2) + "┐",
+                                "│",
+                                "│",
+                                "└".to_string() + &"─".repeat(banner_width - 2) + "┘",
+                                "Gitwig",
+                            )
+                        };
+
+                    println!();
+                    println!("{}{}\x1b[0m", ansi_normal, top_border);
+
+                    let line1_text = format!(
+                        "{} Subshell — Type 'exit' or press Ctrl+D to return to Gitwig",
+                        gitwig_prefix
+                    );
+                    let padding1 = inner_width.saturating_sub(line1_text.chars().count());
+                    println!(
+                        "{}{}\x1b[0m  {}{}\x1b[0m{}  {}{}\x1b[0m",
+                        ansi_normal,
+                        left_border,
+                        ansi_bold,
+                        line1_text,
+                        " ".repeat(padding1),
+                        ansi_normal,
+                        right_border
+                    );
+
+                    let line2_text = format!("Workspace: {}", path.display());
+                    let line2_chars: Vec<char> = line2_text.chars().collect();
+                    let display_path = if line2_chars.len() > inner_width {
+                        let keep_len = inner_width - 15;
+                        let truncated: String =
+                            line2_chars[line2_chars.len() - keep_len..].iter().collect();
+                        format!("Workspace: ...{}", truncated)
+                    } else {
+                        line2_text
+                    };
+                    let padding2 = inner_width.saturating_sub(display_path.chars().count());
+                    println!(
+                        "{}{}\x1b[0m  \x1b[2m{}\x1b[0m{}  {}{}\x1b[0m",
+                        ansi_normal,
+                        left_border,
+                        display_path,
+                        " ".repeat(padding2),
+                        ansi_normal,
+                        right_border
+                    );
+
+                    println!("{}{}\x1b[0m", ansi_normal, bottom_border);
+                    println!();
+
+                    let _ = crate::git_cmd::interactive_command(&shell)
+                        .current_dir(&path)
+                        .env("GITWIG", "1")
+                        .env("GITWIG_SHELL", "1")
+                        .status();
+                }
+
+                // Restore Gitwig terminal title
+                if app.config.compatibility_mode {
                     let _ = crossterm::execute!(
                         std::io::stdout(),
-                        crossterm::terminal::EnterAlternateScreen,
-                        crossterm::event::EnableMouseCapture
+                        crossterm::terminal::SetTitle("[Gitwig]")
                     );
-                    let _ = terminal.clear();
-
-                    app.status_message = Some("Returned from terminal".to_string());
-                    app.refresh_selected_status();
+                } else {
+                    let _ = crossterm::execute!(
+                        std::io::stdout(),
+                        crossterm::terminal::SetTitle("Gitwig")
+                    );
                 }
+
+                resume_terminal(terminal, false);
+
+                app.status_message = Some("Returned from terminal".to_string());
+                app.refresh_selected_status();
             }
         }
 
         if let Some((repo_path, target)) = app.pending_interactive_rebase.take() {
             needs_redraw = true;
-            let raw_res = crossterm::terminal::disable_raw_mode();
-            let exec_res = crossterm::execute!(
-                std::io::stdout(),
-                crossterm::terminal::LeaveAlternateScreen,
-                crossterm::event::DisableMouseCapture
-            );
-            let cursor_res = terminal.show_cursor();
-
-            if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+            if suspend_terminal(terminal) {
                 let status = crate::git_cmd::interactive_command("git")
                     .env("GIT_TERMINAL_PROMPT", "0")
                     .env("GIT_SSH_COMMAND", crate::config::ssh_command_val())
@@ -2444,13 +2177,7 @@ where
                     .current_dir(&repo_path)
                     .status();
 
-                let _ = crossterm::terminal::enable_raw_mode();
-                let _ = crossterm::execute!(
-                    std::io::stdout(),
-                    crossterm::terminal::EnterAlternateScreen,
-                    crossterm::event::EnableMouseCapture
-                );
-                let _ = terminal.clear();
+                resume_terminal(terminal, false);
 
                 match status {
                     Ok(s) if s.success() => {
@@ -2478,15 +2205,7 @@ where
                 let repo_path = resolved.clone();
                 let file_path = repo_path.join(&file_rel_path);
 
-                let raw_res = crossterm::terminal::disable_raw_mode();
-                let exec_res = crossterm::execute!(
-                    std::io::stdout(),
-                    crossterm::terminal::LeaveAlternateScreen,
-                    crossterm::event::DisableMouseCapture
-                );
-                let cursor_res = terminal.show_cursor();
-
-                if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+                if suspend_terminal(terminal) {
                     let mut cmd = if cfg!(target_os = "windows") {
                         let mut c = crate::git_cmd::interactive_command("cmd");
                         c.arg("/c").arg("git").arg("mergetool").arg(file_path);
@@ -2500,14 +2219,7 @@ where
                     let _ = cmd.status();
                 }
 
-                let _ = crossterm::terminal::enable_raw_mode();
-                let _ = crossterm::execute!(
-                    std::io::stdout(),
-                    crossterm::terminal::EnterAlternateScreen,
-                    crossterm::event::EnableMouseCapture
-                );
-                let _ = terminal.hide_cursor();
-                let _ = terminal.clear();
+                resume_terminal(terminal, true);
 
                 app.refresh_active_repo_status();
                 app.refresh_detail();
@@ -2521,41 +2233,34 @@ where
                 let file_path = repo_path.join(&file_rel_path);
                 let repo_path_str = repo_path.to_string_lossy().to_string();
                 let editor = app.effective_editor(&repo_path_str);
+                let parts = split_command_words(&editor);
 
-                let raw_res = crossterm::terminal::disable_raw_mode();
-                let exec_res = crossterm::execute!(
-                    std::io::stdout(),
-                    crossterm::terminal::LeaveAlternateScreen,
-                    crossterm::event::DisableMouseCapture
-                );
-                let cursor_res = terminal.show_cursor();
-
-                if raw_res.is_ok() && exec_res.is_ok() && cursor_res.is_ok() {
+                if parts.is_empty() {
+                    app.set_error("No editor configured".to_string());
+                } else if suspend_terminal(terminal) {
                     let mut cmd = if cfg!(target_os = "windows") {
                         let mut c = crate::git_cmd::interactive_command("cmd");
-                        c.arg("/c").arg(&editor);
+                        c.arg("/c").args(&parts);
                         c
                     } else {
-                        crate::git_cmd::interactive_command(&editor)
+                        let mut c = crate::git_cmd::interactive_command(&parts[0]);
+                        c.args(&parts[1..]);
+                        c
                     };
                     let status = cmd.arg(&file_path).current_dir(&repo_path).status();
 
-                    let _ = crossterm::terminal::enable_raw_mode();
-                    let _ = crossterm::execute!(
-                        std::io::stdout(),
-                        crossterm::terminal::EnterAlternateScreen,
-                        crossterm::event::EnableMouseCapture
-                    );
-                    let _ = terminal.clear();
+                    resume_terminal(terminal, false);
 
                     match status {
                         Ok(s) if s.success() => {
                             app.status_message = Some(format!("Returned from {}", editor));
-                            app.refresh_selected_status();
+                            app.refresh_active_repo_status();
+                            app.refresh_detail();
                         }
                         Ok(_) => {
                             app.set_error(format!("{} exited with error", editor));
-                            app.refresh_selected_status();
+                            app.refresh_active_repo_status();
+                            app.refresh_detail();
                         }
                         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                             app.set_error(format!("{} is not found in the system", editor));
@@ -2854,63 +2559,104 @@ pub(crate) fn get_from_clipboard() -> Option<String> {
     None
 }
 
+/// Splits a configured command string (e.g. `"code --wait"`, `"'/path/with spaces/nvim' -u NONE"`)
+/// into program and arguments while preserving quoted spans.
+pub(crate) fn split_command_words(cmd: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut current = String::new();
+    let mut has_token = false;
+    let mut in_single = false;
+    let mut in_double = false;
+    let mut escaped = false;
+
+    for ch in cmd.chars() {
+        if escaped {
+            current.push(ch);
+            escaped = false;
+            has_token = true;
+            continue;
+        }
+        #[cfg(not(windows))]
+        if ch == '\\' && !in_single {
+            escaped = true;
+            has_token = true;
+            continue;
+        }
+        if ch == '\'' && !in_double {
+            in_single = !in_single;
+            has_token = true;
+            continue;
+        }
+        if ch == '"' && !in_single {
+            in_double = !in_double;
+            has_token = true;
+            continue;
+        }
+        if ch.is_ascii_whitespace() && !in_single && !in_double {
+            if has_token {
+                words.push(std::mem::take(&mut current));
+                has_token = false;
+            }
+            continue;
+        }
+        current.push(ch);
+        has_token = true;
+    }
+    if escaped {
+        current.push('\\');
+    }
+    if has_token {
+        words.push(current);
+    }
+    words
+}
+
+fn pipe_to_clipboard_tool(program: &str, args: &[&str], text: &str) -> Result<(), String> {
+    use std::io::Write;
+    let mut child = crate::git_cmd::detached_command(program)
+        .args(args)
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    let write_res = if let Some(mut stdin) = child.stdin.take() {
+        // Drop stdin before waiting so clipboard tools awaiting EOF cannot hang.
+        stdin.write_all(text.as_bytes()).map_err(|e| e.to_string())
+    } else {
+        Ok(())
+    };
+    let status = child.wait().map_err(|e| e.to_string())?;
+    write_res?;
+    if status.success() { Ok(()) } else { Err(format!("{} exited with {}", program, status)) }
+}
+
 pub(crate) fn copy_to_clipboard(text: &str) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        use std::io::Write;
-        let mut child = crate::git_cmd::detached_command("pbcopy")
-            .stdin(std::process::Stdio::piped())
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
-        }
-        child.wait().map_err(|e| e.to_string())?;
-        Ok(())
+        pipe_to_clipboard_tool("pbcopy", &[], text)
     }
     #[cfg(target_os = "windows")]
     {
-        use std::io::Write;
-        let mut child = crate::git_cmd::detached_command("clip")
-            .stdin(std::process::Stdio::piped())
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
-        }
-        child.wait().map_err(|e| e.to_string())?;
-        Ok(())
+        pipe_to_clipboard_tool("clip", &[], text)
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        use std::io::Write;
-        if let Ok(mut child) = crate::git_cmd::detached_command("xclip")
-            .arg("-selection")
-            .arg("clipboard")
-            .stdin(std::process::Stdio::piped())
-            .spawn()
-        {
-            if let Some(mut stdin) = child.stdin.take() {
-                if stdin.write_all(text.as_bytes()).is_ok() {
-                    let _ = child.wait();
-                    return Ok(());
-                }
+        let candidates: &[(&str, &[&str])] = if std::env::var_os("WAYLAND_DISPLAY").is_some() {
+            &[("wl-copy", &[]), ("xclip", &["-selection", "clipboard"]), ("xsel", &["-ib"])]
+        } else {
+            &[("xclip", &["-selection", "clipboard"]), ("xsel", &["-ib"]), ("wl-copy", &[])]
+        };
+        for (program, args) in candidates {
+            if pipe_to_clipboard_tool(program, args, text).is_ok() {
+                return Ok(());
             }
         }
-        if let Ok(mut child) = crate::git_cmd::detached_command("xsel")
-            .arg("-ib")
-            .stdin(std::process::Stdio::piped())
-            .spawn()
-        {
-            if let Some(mut stdin) = child.stdin.take() {
-                if stdin.write_all(text.as_bytes()).is_ok() {
-                    let _ = child.wait();
-                    return Ok(());
-                }
-            }
-        }
-        Err("Could not find xclip or xsel on Linux system".to_string())
+        Err("Could not find wl-copy, xclip, or xsel on Linux system".to_string())
     }
+}
+
+pub(crate) fn is_nix_store_path(path: &std::path::Path) -> bool {
+    let path_str = path.to_string_lossy();
+    path_str.starts_with("/nix/store/") || path_str.contains("/nix/store/")
 }
 
 impl App {
@@ -2962,11 +2708,16 @@ impl App {
         false
     }
 
+    pub fn is_nix_install(&self) -> bool {
+        std::env::current_exe().map(|exe_path| is_nix_store_path(&exe_path)).unwrap_or(false)
+    }
+
     pub fn can_self_update(&self) -> bool {
         !self.is_msi_install()
             && !self.is_cargo_install()
             && !self.is_homebrew_install()
             && !self.is_chocolatey_install()
+            && !self.is_nix_install()
     }
 
     pub fn refresh_blame_if_shown(&mut self) {
@@ -3065,10 +2816,10 @@ impl App {
                     "Network Action: Update check succeeded. Latest version: v{}",
                     latest_version
                 ));
-                let _ = tx_clone.send(format!("UPDATE_CHECK:{}", latest_version));
+                let _ = tx_clone.send(BgEvent::UpdateCheckSuccess { latest_version });
             } else {
                 crate::debug_log::warn("Network Action: Update check failed");
-                let _ = tx_clone.send("UPDATE_CHECK_FAILED:".to_string());
+                let _ = tx_clone.send(BgEvent::UpdateCheckFailed);
             }
         });
     }
@@ -3112,6 +2863,17 @@ impl App {
                 "Self-update is disabled for Chocolatey installations.\n\n\
                  Please update by running:\n\
                  choco upgrade gitwig"
+                    .to_string(),
+            );
+            self.mode = self.previous_mode.take().unwrap_or(self.mode);
+            return;
+        }
+
+        if self.is_nix_install() {
+            self.error_message = Some(
+                "Self-update is disabled for Nix installations.\n\n\
+                 Please update by running:\n\
+                 nix profile upgrade gitwig"
                     .to_string(),
             );
             self.mode = self.previous_mode.take().unwrap_or(self.mode);
@@ -3255,14 +3017,7 @@ impl App {
                 }
             })();
 
-            match res {
-                Ok(success_msg) => {
-                    let _ = tx.send(format!("UPDATE_SUCCESS:{}", success_msg));
-                }
-                Err(err) => {
-                    let _ = tx.send(format!("UPDATE_ERROR:{}", err));
-                }
-            }
+            let _ = tx.send(BgEvent::SelfUpdateResult(res.map_err(|e| e.to_string())));
         });
     }
 }
@@ -3287,7 +3042,7 @@ fn run_directory_scan(
     start_dir: std::path::PathBuf,
     max_depth: usize,
     excludes: Vec<String>,
-    tx: std::sync::mpsc::Sender<String>,
+    tx: std::sync::mpsc::Sender<BgEvent>,
     bulk: bool,
 ) {
     std::thread::spawn(move || {
@@ -3328,13 +3083,13 @@ fn run_directory_scan(
             depth: usize,
             max_depth: usize,
             excludes: &[String],
-            tx: &std::sync::mpsc::Sender<String>,
+            tx: &std::sync::mpsc::Sender<BgEvent>,
             count: &mut usize,
             bulk: bool,
         ) {
             *count += 1;
             if (*count).is_multiple_of(50) {
-                let _ = tx.send(format!("REPO_SCAN_COUNT:{}", *count));
+                let _ = tx.send(BgEvent::RepoScanCount(*count));
             }
 
             let git_dir = dir.join(".git");
@@ -3345,7 +3100,7 @@ fn run_directory_scan(
                         .map(|n| n.to_string_lossy().into_owned())
                         .unwrap_or_else(|| dir.to_string_lossy().into_owned());
                     let path = dir.to_string_lossy().into_owned();
-                    let _ = tx.send(format!("REPO_SCAN_FOUND:{}|||{}", name, path));
+                    let _ = tx.send(BgEvent::RepoScanFound { name, path });
                 }
                 return;
             } else if bulk && has_git_subdirs(dir, excludes) {
@@ -3354,7 +3109,7 @@ fn run_directory_scan(
                     .map(|n| n.to_string_lossy().into_owned())
                     .unwrap_or_else(|| dir.to_string_lossy().into_owned());
                 let path = dir.to_string_lossy().into_owned();
-                let _ = tx.send(format!("REPO_SCAN_FOUND:{}|||{}", name, path));
+                let _ = tx.send(BgEvent::RepoScanFound { name, path });
             }
 
             if depth >= max_depth {
@@ -3387,7 +3142,7 @@ fn run_directory_scan(
         }
 
         scan(&root, 0, max_depth, &excludes, &tx, &mut count, bulk);
-        let _ = tx.send(format!("REPO_SCAN_COUNT:{}", count));
-        let _ = tx.send("REPO_SCAN_COMPLETE:".to_string());
+        let _ = tx.send(BgEvent::RepoScanCount(count));
+        let _ = tx.send(BgEvent::RepoScanComplete);
     });
 }

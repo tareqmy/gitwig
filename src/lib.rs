@@ -5,7 +5,7 @@
 //! wrappers. Keeping the real logic here — rather than in `main.rs` twice —
 //! means Cargo compiles and tests it once instead of once per binary.
 
-#![allow(unsafe_code)]
+#![deny(unsafe_code)]
 #![deny(unused_imports, unused_must_use, dead_code, unused_assignments)]
 #![deny(clippy::all, clippy::perf)]
 #![allow(
@@ -74,13 +74,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         let _ = execute!(io::stdout(), SetTitle("Gitwig"));
     }
 
-    unsafe {
-        if config.ssh_strict_host_checking {
-            env::set_var("GITWIG_SSH_STRICT", "1");
-        } else {
-            env::set_var("GITWIG_SSH_STRICT", "0");
-        }
-    }
+    gitwig_core::set_ssh_strict_host_checking(config.ssh_strict_host_checking);
 
     let mut app = App::with_state(config, state, config_path);
     if let Some(warn) = warning {

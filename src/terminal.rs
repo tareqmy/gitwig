@@ -3,9 +3,9 @@
 use std::{env, error::Error, io, path::PathBuf};
 
 use crossterm::{
-    event::DisableMouseCapture,
+    event::{DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture},
     execute,
-    terminal::{LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 
 /// Represents the action determined from command line arguments.
@@ -57,7 +57,7 @@ pub fn setup_panic_hook() {
     std::panic::set_hook(Box::new(move |info| {
         let _ = disable_raw_mode();
         let mut stdout = io::stdout();
-        let _ = execute!(stdout, LeaveAlternateScreen, DisableMouseCapture);
+        let _ = execute!(stdout, LeaveAlternateScreen, DisableMouseCapture, DisableBracketedPaste);
         let _ = execute!(std::io::stdout(), crossterm::cursor::Show);
 
         // Also log the panic!
@@ -90,7 +90,7 @@ impl Drop for TerminalGuard {
     fn drop(&mut self) {
         let _ = disable_raw_mode();
         let mut stdout = io::stdout();
-        let _ = execute!(stdout, LeaveAlternateScreen, DisableMouseCapture);
+        let _ = execute!(stdout, LeaveAlternateScreen, DisableMouseCapture, DisableBracketedPaste);
         let _ = execute!(stdout, crossterm::cursor::Show);
         print!("\x1b[23;0t");
         let _ = io::Write::flush(&mut stdout);
@@ -107,12 +107,8 @@ pub fn init_terminal() -> Result<TerminalGuard, Box<dyn Error>> {
     print!("\x1b[22;0t");
     let _ = io::Write::flush(&mut stdout);
 
-    // Switch to alternate screen buffer and enable mouse support
-    execute!(
-        stdout,
-        crossterm::terminal::EnterAlternateScreen,
-        crossterm::event::EnableMouseCapture
-    )?;
+    // Switch to alternate screen buffer and enable mouse + bracketed paste support
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture, EnableBracketedPaste)?;
 
     Ok(guard)
 }

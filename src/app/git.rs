@@ -4,13 +4,29 @@ use super::*;
 
 #[derive(Clone)]
 pub(super) struct RepoSender {
-    pub(super) tx: std::sync::mpsc::Sender<String>,
+    pub(super) tx: std::sync::mpsc::Sender<BgEvent>,
     pub(super) path: std::path::PathBuf,
 }
 
 impl RepoSender {
-    pub(super) fn send(&self, msg: String) -> Result<(), std::sync::mpsc::SendError<String>> {
-        self.tx.send(format!("{}|||{}", self.path.to_string_lossy(), msg))
+    pub(super) fn ok(&self, kind: RepoOpKind, msg: String) {
+        let _ = self.tx.send(BgEvent::RepoOpResult {
+            repo_path: self.path.clone(),
+            kind,
+            result: Ok(msg),
+        });
+    }
+
+    pub(super) fn err(&self, kind: RepoOpKind, msg: String) {
+        let _ = self.tx.send(BgEvent::RepoOpResult {
+            repo_path: self.path.clone(),
+            kind,
+            result: Err(msg),
+        });
+    }
+
+    pub(super) fn send_remote_tags(&self, result: Result<Vec<repo::BranchInfo>, String>) {
+        let _ = self.tx.send(BgEvent::RemoteTagsResult { repo_path: self.path.clone(), result });
     }
 }
 
@@ -49,12 +65,14 @@ impl App {
                 let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
                 std::thread::spawn(move || {
+                    if !repo::has_upstream_remote(&repo_path, &branch_name) {
+                        tx.ok(
+                            RepoOpKind::Other,
+                            "No upstream tracking branch configured for this branch".to_string(),
+                        );
+                        return;
+                    }
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
-                        if !repo::has_upstream_remote(&repo_path, &branch_name) {
-                            return Ok("No upstream tracking branch configured for this branch"
-                                .to_string());
-                        }
-
                         let _safe_branch = safe_ref(&branch_name)?;
                         let mut cmd = git_command();
                         cmd.arg("pull").current_dir(&repo_path);
@@ -69,11 +87,10 @@ impl App {
                         }
                     })();
 
-                    let msg = match res {
-                        Ok(success) => success,
-                        Err(e) => format!("Pull failed: {}", e),
-                    };
-                    let _ = tx.send(msg);
+                    match res {
+                        Ok(success) => tx.ok(RepoOpKind::Pull, success),
+                        Err(e) => tx.err(RepoOpKind::Pull, format!("Pull failed: {}", e)),
+                    }
                 });
             }
         }
@@ -118,11 +135,10 @@ impl App {
                     }
                 })();
 
-                let msg = match res {
-                    Ok(success) => success,
-                    Err(e) => format!("LFS pull failed: {}", e),
-                };
-                let _ = tx.send(msg);
+                match res {
+                    Ok(success) => tx.ok(RepoOpKind::Other, success),
+                    Err(e) => tx.err(RepoOpKind::Other, format!("LFS pull failed: {}", e)),
+                }
             });
         }
     }
@@ -248,11 +264,10 @@ impl App {
                     }
                 })();
 
-                let msg = match res {
-                    Ok(success) => success,
-                    Err(e) => format!("Push failed: {}", e),
-                };
-                let _ = tx.send(msg);
+                match res {
+                    Ok(success) => tx.ok(RepoOpKind::Push, success),
+                    Err(e) => tx.err(RepoOpKind::Push, format!("Push failed: {}", e)),
+                }
             });
         }
     }
@@ -778,13 +793,14 @@ impl App {
                             })();
 
                             match res {
-                                Ok(()) => {
-                                    let _ = tx.send(format!("Deleted remote branch '{}'", b_name));
-                                }
-                                Err(e) => {
-                                    let _ =
-                                        tx.send(format!("Failed to delete remote branch: {}", e));
-                                }
+                                Ok(()) => tx.ok(
+                                    RepoOpKind::Other,
+                                    format!("Deleted remote branch '{}'", b_name),
+                                ),
+                                Err(e) => tx.err(
+                                    RepoOpKind::Other,
+                                    format!("Failed to delete remote branch: {}", e),
+                                ),
                             }
                         });
                     } else {
@@ -896,11 +912,10 @@ impl App {
                         }
                     })();
 
-                    let msg = match res {
-                        Ok(success) => success,
-                        Err(e) => format!("Merge failed: {}", e),
-                    };
-                    let _ = tx.send(msg);
+                    match res {
+                        Ok(success) => tx.ok(RepoOpKind::Other, success),
+                        Err(e) => tx.err(RepoOpKind::Other, format!("Merge failed: {}", e)),
+                    }
                 });
             }
         }
@@ -1006,11 +1021,10 @@ impl App {
                         }
                     })();
 
-                    let msg = match res {
-                        Ok(success) => success,
-                        Err(e) => format!("Merge into failed: {}", e),
-                    };
-                    let _ = tx.send(msg);
+                    match res {
+                        Ok(success) => tx.ok(RepoOpKind::Other, success),
+                        Err(e) => tx.err(RepoOpKind::Other, format!("Merge into failed: {}", e)),
+                    }
                 });
             }
         }
@@ -1099,11 +1113,10 @@ impl App {
                         }
                     })();
 
-                    let msg = match res {
-                        Ok(success) => success,
-                        Err(e) => format!("Rebase failed: {}", e),
-                    };
-                    let _ = tx.send(msg);
+                    match res {
+                        Ok(success) => tx.ok(RepoOpKind::Other, success),
+                        Err(e) => tx.err(RepoOpKind::Other, format!("Rebase failed: {}", e)),
+                    }
                 });
             }
         }
@@ -1267,16 +1280,9 @@ impl App {
                     self.increment_implicit_network();
                 }
                 std::thread::spawn(move || {
-                    match repo::get_remote_tags(&repo_path, &remote_name, timeout) {
-                        Ok(tags) => {
-                            let serialized = repo::serialize_tags(&tags);
-                            let _ = tx.send(format!("REMOTE_TAGS:{}", serialized));
-                        }
-                        Err(e) => {
-                            let _ = tx
-                                .send(format!("REMOTE_TAGS_ERR:Failed to get remote tags: {}", e));
-                        }
-                    }
+                    let result = repo::get_remote_tags(&repo_path, &remote_name, timeout)
+                        .map_err(|e| format!("Failed to get remote tags: {}", e));
+                    tx.send_remote_tags(result);
                 });
             }
         }
@@ -1320,11 +1326,10 @@ impl App {
                     }
                 })();
 
-                let msg = match res {
-                    Ok(success) => success,
-                    Err(e) => format!("Fetch failed: {}", e),
-                };
-                let _ = tx.send(msg);
+                match res {
+                    Ok(success) => tx.ok(RepoOpKind::Fetch, success),
+                    Err(e) => tx.err(RepoOpKind::Fetch, format!("Fetch failed: {}", e)),
+                }
             });
         }
     }
@@ -1550,20 +1555,18 @@ impl App {
                 let mut cmd = crate::git_cmd::git_command();
                 cmd.arg("fetch").current_dir(&path_buf);
 
-                let msg = match crate::git_cmd::run_git_with_timeout(cmd, timeout) {
-                    Ok(out) if out.status.success() => {
-                        format!("BULK_FETCH_SUCCESS:{}", path_str)
-                    }
+                let event = match crate::git_cmd::run_git_with_timeout(cmd, timeout) {
+                    Ok(out) if out.status.success() => BgEvent::BulkFetchSuccess { path: path_str },
                     Ok(out) => {
-                        let err_msg =
+                        let error =
                             crate::fetch_error::sanitize(&String::from_utf8_lossy(&out.stderr));
-                        format!("BULK_FETCH_ERROR:{}|||{}", path_str, err_msg)
+                        BgEvent::BulkFetchError { path: path_str, error }
                     }
                     // `GitRunError::Timeout`'s Display carries the wording that
                     // `fetch_error::classify` recognises as a timeout.
-                    Err(e) => format!("BULK_FETCH_ERROR:{}|||{}", path_str, e),
+                    Err(e) => BgEvent::BulkFetchError { path: path_str, error: e.to_string() },
                 };
-                let _ = tx.send(msg);
+                let _ = tx.send(event);
             });
         }
     }
@@ -1595,14 +1598,14 @@ impl App {
                 let safe_remote = match safe_ref(&remote_name) {
                     Ok(r) => r,
                     Err(e) => {
-                        let _ = tx.send(format!("Invalid remote: {}", e));
+                        tx.err(RepoOpKind::Push, format!("Invalid remote: {}", e));
                         return;
                     }
                 };
                 let safe_branch = match safe_ref(&branch_name) {
                     Ok(b) => b,
                     Err(e) => {
-                        let _ = tx.send(format!("Invalid branch: {}", e));
+                        tx.err(RepoOpKind::Push, format!("Invalid branch: {}", e));
                         return;
                     }
                 };
@@ -1615,21 +1618,27 @@ impl App {
                 let output = match cmd.output() {
                     Ok(o) => o,
                     Err(e) => {
-                        let _ = tx.send(format!("Failed to run git push: {}", e));
+                        tx.err(RepoOpKind::Push, format!("Failed to run git push: {}", e));
                         return;
                     }
                 };
                 if output.status.success() {
                     let tag_suffix = if push_tags { " (with tags)" } else { "" };
-                    let _ = tx.send(format!(
-                        "Pushed '{}'{} to '{}' successfully",
-                        branch_name, tag_suffix, remote_name
-                    ));
+                    tx.ok(
+                        RepoOpKind::Push,
+                        format!(
+                            "Pushed '{}'{} to '{}' successfully",
+                            branch_name, tag_suffix, remote_name
+                        ),
+                    );
                 } else {
-                    let _ = tx.send(format!(
-                        "Failed to push: {}",
-                        String::from_utf8_lossy(&output.stderr).trim()
-                    ));
+                    tx.err(
+                        RepoOpKind::Push,
+                        format!(
+                            "Failed to push: {}",
+                            String::from_utf8_lossy(&output.stderr).trim()
+                        ),
+                    );
                 }
             });
         }
@@ -1660,14 +1669,14 @@ impl App {
                 let safe_remote = match safe_ref(&remote_name) {
                     Ok(r) => r,
                     Err(e) => {
-                        let _ = tx.send(format!("Invalid remote: {}", e));
+                        tx.err(RepoOpKind::Push, format!("Invalid remote: {}", e));
                         return;
                     }
                 };
                 let safe_tag = match safe_ref(&tag_name) {
                     Ok(t) => t,
                     Err(e) => {
-                        let _ = tx.send(format!("Invalid tag: {}", e));
+                        tx.err(RepoOpKind::Push, format!("Invalid tag: {}", e));
                         return;
                     }
                 };
@@ -1680,21 +1689,24 @@ impl App {
                 let output = match crate::git_cmd::run_git_with_timeout(cmd, timeout) {
                     Ok(o) => o,
                     Err(e) => {
-                        let _ = tx.send(format!("Failed to run git push: {}", e));
+                        tx.err(RepoOpKind::Push, format!("Failed to run git push: {}", e));
                         return;
                     }
                 };
                 if output.status.success() {
                     let verb = if force { "Force pushed" } else { "Pushed" };
-                    let _ = tx.send(format!(
-                        "{} tag '{}' to '{}' successfully",
-                        verb, tag_name, remote_name
-                    ));
+                    tx.ok(
+                        RepoOpKind::Push,
+                        format!("{} tag '{}' to '{}' successfully", verb, tag_name, remote_name),
+                    );
                 } else {
-                    let _ = tx.send(format!(
-                        "Failed to push tag: {}",
-                        String::from_utf8_lossy(&output.stderr).trim()
-                    ));
+                    tx.err(
+                        RepoOpKind::Push,
+                        format!(
+                            "Failed to push tag: {}",
+                            String::from_utf8_lossy(&output.stderr).trim()
+                        ),
+                    );
                 }
             });
         }
@@ -1720,7 +1732,7 @@ impl App {
                 let safe_remote = match safe_ref(&remote_name) {
                     Ok(r) => r,
                     Err(e) => {
-                        let _ = tx.send(format!("Invalid remote: {}", e));
+                        tx.err(RepoOpKind::Push, format!("Invalid remote: {}", e));
                         return;
                     }
                 };
@@ -1729,17 +1741,23 @@ impl App {
                 let output = match crate::git_cmd::run_git_with_timeout(cmd, timeout) {
                     Ok(o) => o,
                     Err(e) => {
-                        let _ = tx.send(format!("Failed to run git push: {}", e));
+                        tx.err(RepoOpKind::Push, format!("Failed to run git push: {}", e));
                         return;
                     }
                 };
                 if output.status.success() {
-                    let _ = tx.send(format!("Pushed all tags to '{}' successfully", remote_name));
+                    tx.ok(
+                        RepoOpKind::Push,
+                        format!("Pushed all tags to '{}' successfully", remote_name),
+                    );
                 } else {
-                    let _ = tx.send(format!(
-                        "Failed to push tags: {}",
-                        String::from_utf8_lossy(&output.stderr).trim()
-                    ));
+                    tx.err(
+                        RepoOpKind::Push,
+                        format!(
+                            "Failed to push tags: {}",
+                            String::from_utf8_lossy(&output.stderr).trim()
+                        ),
+                    );
                 }
             });
         }
@@ -1761,12 +1779,8 @@ impl App {
         self.status_message = Some(format!("Deleting remote tag '{}'...", tag_name));
         std::thread::spawn(move || {
             match repo::delete_remote_tag(&repo_path, &remote_name, &tag_name, timeout) {
-                Ok(()) => {
-                    let _ = tx.send(format!("Deleted remote tag '{}'", tag_name));
-                }
-                Err(e) => {
-                    let _ = tx.send(format!("Failed to delete remote tag: {}", e));
-                }
+                Ok(()) => tx.ok(RepoOpKind::Other, format!("Deleted remote tag '{}'", tag_name)),
+                Err(e) => tx.err(RepoOpKind::Other, format!("Failed to delete remote tag: {}", e)),
             }
         });
     }
@@ -1958,21 +1972,17 @@ impl App {
                 self.status_message =
                     Some(format!("Resolving and switching branch for issue #{}...", number));
                 std::thread::spawn(move || {
-                    let msg = match repo::resolve_and_checkout_issue_branch(&path, number) {
-                        Ok(msg) => format!("CHECKOUT_SUCCESS:{}", msg),
-                        Err(e) => format!("CHECKOUT_ERROR:Failed to switch branch: {}", e),
-                    };
-                    let _ = tx.send(msg);
+                    let result = repo::resolve_and_checkout_issue_branch(&path, number)
+                        .map_err(|e| format!("Failed to switch branch: {}", e));
+                    let _ = tx.send(BgEvent::ForgeCheckoutResult { repo_path: path, result });
                 });
             }
             crate::app::ForgeCheckoutTarget::PullRequest { number, .. } => {
                 self.status_message = Some(format!("Checking out branch for PR #{}...", number));
                 std::thread::spawn(move || {
-                    let msg = match repo::checkout_pr_branch(&path, number) {
-                        Ok(msg) => format!("CHECKOUT_SUCCESS:{}", msg),
-                        Err(e) => format!("CHECKOUT_ERROR:Failed to switch branch: {}", e),
-                    };
-                    let _ = tx.send(msg);
+                    let result = repo::checkout_pr_branch(&path, number)
+                        .map_err(|e| format!("Failed to switch branch: {}", e));
+                    let _ = tx.send(BgEvent::ForgeCheckoutResult { repo_path: path, result });
                 });
             }
         }
@@ -2138,7 +2148,7 @@ impl App {
         std::thread::spawn(move || {
             let trimmed_url = url.trim().to_lowercase();
             if trimmed_url.contains("ext:") || trimmed_url.contains("fd:") {
-                let _ = tx.send("Error: Malicious URL protocol rejected".to_string());
+                tx.err(RepoOpKind::Other, "Error: Malicious URL protocol rejected".to_string());
                 return;
             }
             let mut cmd = git_command();
@@ -2149,22 +2159,27 @@ impl App {
                     // `add` checks out the new submodule but not the ones nested
                     // in it. Only this one: the rest are the user's to update.
                     let nested = std::path::Path::new(&path);
-                    let msg = match repo::submodule_update(&repo_path, Some(nested), timeout) {
-                        Ok(()) => format!("Submodule '{}' added successfully", path),
-                        Err(e) => format!(
-                            "Submodule '{}' added, but its nested submodules failed to initialize: {}",
-                            path, e
+                    match repo::submodule_update(&repo_path, Some(nested), timeout) {
+                        Ok(()) => tx.ok(
+                            RepoOpKind::Other,
+                            format!("Submodule '{}' added successfully", path),
                         ),
-                    };
-                    let _ = tx.send(msg);
+                        Err(e) => tx.err(
+                            RepoOpKind::Other,
+                            format!(
+                                "Submodule '{}' added, but its nested submodules failed to initialize: {}",
+                                path, e
+                            ),
+                        ),
+                    }
                 }
                 Ok(out) => {
                     let err = String::from_utf8_lossy(&out.stderr).to_string();
                     let clean_err = err.trim().replace('\n', " ");
-                    let _ = tx.send(format!("Failed to add submodule: {}", clean_err));
+                    tx.err(RepoOpKind::Other, format!("Failed to add submodule: {}", clean_err));
                 }
                 Err(e) => {
-                    let _ = tx.send(format!("Failed to run git submodule add: {}", e));
+                    tx.err(RepoOpKind::Other, format!("Failed to run git submodule add: {}", e));
                 }
             }
         });
@@ -2191,11 +2206,12 @@ impl App {
         std::thread::spawn(move || {
             match repo::submodule_remove(&repo_path, &sub.name, &sub.path) {
                 Ok(()) => {
-                    let _ = tx.send(format!("Submodule '{}' removed successfully", label));
+                    tx.ok(RepoOpKind::Other, format!("Submodule '{}' removed successfully", label))
                 }
-                Err(e) => {
-                    let _ = tx.send(format!("Failed to remove submodule '{}': {}", label, e));
-                }
+                Err(e) => tx.err(
+                    RepoOpKind::Other,
+                    format!("Failed to remove submodule '{}': {}", label, e),
+                ),
             }
         });
     }

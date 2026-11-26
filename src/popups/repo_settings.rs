@@ -2,7 +2,7 @@
 
 use crate::app::{App, Mode};
 use crate::ui::style::{CARD_BORDER, accent_style, muted_style, primary_style};
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -113,14 +113,18 @@ impl RepoSettingsPopup {
                     return true;
                 }
                 KeyCode::Char(c)
-                    if app.repo_settings_selected_index == 5
-                        || app.repo_settings_selected_index == 6
-                        || app.repo_settings_selected_index == 7 =>
+                    if !key.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+                        && (app.repo_settings_selected_index == 5
+                            || app.repo_settings_selected_index == 6
+                            || app.repo_settings_selected_index == 7) =>
                 {
                     app.repo_settings_input.push(c);
                     return true;
                 }
-                KeyCode::Char(c) if c.is_ascii_digit() => {
+                KeyCode::Char(c)
+                    if !key.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+                        && c.is_ascii_digit() =>
+                {
                     app.repo_settings_input.push(c);
                     return true;
                 }

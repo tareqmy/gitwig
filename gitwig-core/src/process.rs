@@ -15,14 +15,25 @@
 
 use std::io::Read;
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
+
+/// Whether SSH must strictly verify host keys instead of `accept-new`.
+/// Stored atomically so toggling it in Settings never mutates process env vars
+/// across active background threads.
+static SSH_STRICT_HOST_CHECKING: AtomicBool = AtomicBool::new(false);
+
+/// Updates the host-key policy read by [`ssh_command_val`] and [`git_command`].
+pub fn set_ssh_strict_host_checking(strict: bool) {
+    SSH_STRICT_HOST_CHECKING.store(strict, Ordering::Relaxed);
+}
 
 /// `BatchMode=yes` is load-bearing: without it, ssh bypasses the captured
 /// stdio pipes and prompts for passphrases or confirmations directly on
 /// `/dev/tty`, painting raw text over the TUI's alternate screen. With it,
 /// ssh fails immediately and the error is captured and reported normally.
 pub fn ssh_command_val() -> &'static str {
-    if std::env::var("GITWIG_SSH_STRICT").map(|v| v == "1").unwrap_or(false) {
+    if SSH_STRICT_HOST_CHECKING.load(Ordering::Relaxed) {
         "ssh -o BatchMode=yes -o StrictHostKeyChecking=yes"
     } else {
         "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
@@ -157,5 +168,23 @@ mod tests {
         );
         assert_eq!(summarize_stderr(b"  \n"), None);
         assert_eq!(summarize_stderr(b"error: just one\n").as_deref(), Some("just one"));
+    }
+
+    #[test]
+    fn set_ssh_strict_host_checking_switches_policy_atomically() {
+        struct ResetGuard(bool);
+        impl Drop for ResetGuard {
+            fn drop(&mut self) {
+                set_ssh_strict_host_checking(self.0);
+            }
+        }
+        let prev = SSH_STRICT_HOST_CHECKING.load(Ordering::Relaxed);
+        let _guard = ResetGuard(prev);
+
+        set_ssh_strict_host_checking(true);
+        assert_eq!(ssh_command_val(), "ssh -o BatchMode=yes -o StrictHostKeyChecking=yes");
+
+        set_ssh_strict_host_checking(false);
+        assert_eq!(ssh_command_val(), "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new");
     }
 }

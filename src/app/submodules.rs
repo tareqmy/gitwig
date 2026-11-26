@@ -104,11 +104,12 @@ impl App {
         let tx = RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
         let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
         std::thread::spawn(move || {
-            let msg = match repo::submodule_update(&repo_path, target.path.as_deref(), timeout) {
-                Ok(()) => format!("Updated {}", label),
-                Err(e) => format!("Failed to update {}: {}", label, e),
-            };
-            let _ = tx.send(msg);
+            match repo::submodule_update(&repo_path, target.path.as_deref(), timeout) {
+                Ok(()) => tx.ok(super::RepoOpKind::Other, format!("Updated {}", label)),
+                Err(e) => {
+                    tx.err(super::RepoOpKind::Other, format!("Failed to update {}: {}", label, e))
+                }
+            }
         });
     }
 }

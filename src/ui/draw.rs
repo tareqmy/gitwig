@@ -102,6 +102,27 @@ fn is_detail_base_mode(mode: &Mode) -> bool {
     )
 }
 
+struct ThemeGuard(Option<crate::config::ThemeConfig>);
+
+impl Drop for ThemeGuard {
+    fn drop(&mut self) {
+        if let Some(ref original) = self.0 {
+            crate::ui::update_theme(original);
+        }
+    }
+}
+
+fn snapshot_current_theme() -> crate::config::ThemeConfig {
+    let lock = crate::ui::style::THEME.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+    crate::config::ThemeConfig {
+        accent: crate::ui::style::format_color(lock.accent),
+        warning: crate::ui::style::format_color(lock.warning),
+        danger: crate::ui::style::format_color(lock.danger),
+        success: crate::ui::style::format_color(lock.success),
+        border_type: crate::ui::style::format_border_type(lock.border_type),
+    }
+}
+
 /// Top-level draw entry point invoked from inside `terminal.draw`.
 pub fn draw(
     f: &mut Frame,
@@ -116,78 +137,12 @@ pub fn draw(
 ) {
     *global_summary_area = None;
     *quick_label_area = None;
-    let mut swapped_theme = None;
-    if let Some(repo_path) = app.active_repo_item() {
-        if matches!(
-            app.mode,
-            Mode::Detail
-                | Mode::DetailHelp
-                | Mode::CommitInput
-                | Mode::BranchCreateInput
-                | Mode::TagCreateInput
-                | Mode::StashingUI
-                | Mode::WorktreeAddBranchInput
-                | Mode::WorktreeAddPathInput
-                | Mode::WorktreeLockReasonInput
-                | Mode::WorktreeRemoveConfirm
-                | Mode::BranchDeleteConfirm
-                | Mode::BranchCheckoutConfirm
-                | Mode::SubmoduleAddUrlInput
-                | Mode::SubmoduleAddPathInput
-                | Mode::SubmoduleDeleteConfirm
-                | Mode::SubmoduleUpdateConfirm
-                | Mode::TagCheckoutConfirm
-                | Mode::CommitCheckoutConfirm
-                | Mode::BranchPushConfirm
-                | Mode::BranchMergeConfirm
-                | Mode::BranchMergeIntoConfirm
-                | Mode::BranchRebaseConfirm
-                | Mode::BranchInteractiveRebaseConfirm
-                | Mode::TagDeleteConfirm
-                | Mode::TagOverwriteConfirm
-                | Mode::TagPushConfirm
-                | Mode::TagPushAllConfirm
-                | Mode::StashDeleteConfirm
-                | Mode::StashApplyConfirm
-                | Mode::CherryPickConfirm
-                | Mode::RevertConfirm
-                | Mode::MergeAbortConfirm
-                | Mode::MergeContinueConfirm
-                | Mode::StashCreateInput
-                | Mode::RemotePicker
-                | Mode::CommitSearchInput
-                | Mode::DiscardChangesConfirm
-                | Mode::Inspect
-                | Mode::SearchColumnPicker
-                | Mode::Logs
-                | Mode::LogsSearchInput
-                | Mode::RemoteAddNameInput
-                | Mode::RemoteAddUrlInput
-                | Mode::RemoteDeleteConfirm
-                | Mode::RepoSettings
-                | Mode::Overview
-                | Mode::ForgeCommentPathInput
-                | Mode::ForgeCommentLineInput
-                | Mode::ForgeCommentBodyInput
-                | Mode::ForgeCheckoutConfirm
-        ) {
+    let mut theme_guard = ThemeGuard(None);
+    if is_detail_base_mode(&app.mode) {
+        if let Some(repo_path) = app.active_repo_item() {
             if let Some(repo_theme) = app.repo_theme_cache.get(repo_path) {
-                // Save current theme state
-                let current_theme_config = {
-                    let lock =
-                        crate::ui::style::THEME.read().expect("theme lock should be acquired");
-                    crate::config::ThemeConfig {
-                        accent: crate::ui::style::format_color(lock.accent),
-                        warning: crate::ui::style::format_color(lock.warning),
-                        danger: crate::ui::style::format_color(lock.danger),
-                        success: crate::ui::style::format_color(lock.success),
-                        border_type: crate::ui::style::format_border_type(lock.border_type),
-                    }
-                };
-
-                // Swap with repo-specific theme
+                theme_guard.0 = Some(snapshot_current_theme());
                 crate::ui::update_theme(repo_theme);
-                swapped_theme = Some(current_theme_config);
             }
         }
     }
@@ -196,7 +151,7 @@ pub fn draw(
     // view with that label's theme when one is set. Skipped when a repo detail
     // view (which applies the repo's own resolved theme) or a non-home base
     // like Settings is showing, so the tint stays a home-list concept.
-    if swapped_theme.is_none()
+    if theme_guard.0.is_none()
         && app.loading_repo_path.is_none()
         && !is_detail_base_mode(&app.mode)
         && !matches!(app.mode, Mode::FileHistory | Mode::Settings | Mode::DebugLogs)
@@ -204,19 +159,8 @@ pub fn draw(
     {
         if let Some(label) = &app.state.active_label_filter {
             if let Some(label_theme) = app.label_theme_cache.get(label) {
-                let current_theme_config = {
-                    let lock =
-                        crate::ui::style::THEME.read().expect("theme lock should be acquired");
-                    crate::config::ThemeConfig {
-                        accent: crate::ui::style::format_color(lock.accent),
-                        warning: crate::ui::style::format_color(lock.warning),
-                        danger: crate::ui::style::format_color(lock.danger),
-                        success: crate::ui::style::format_color(lock.success),
-                        border_type: crate::ui::style::format_border_type(lock.border_type),
-                    }
-                };
+                theme_guard.0 = Some(snapshot_current_theme());
                 crate::ui::update_theme(label_theme);
-                swapped_theme = Some(current_theme_config);
             }
         }
     }
@@ -438,10 +382,6 @@ pub fn draw(
         draw_label_badge(f, area, app);
     } else {
         app.label_badge_area.set(None);
-    }
-
-    if let Some(original_theme) = swapped_theme {
-        crate::ui::update_theme(&original_theme);
     }
 }
 
@@ -4524,5 +4464,63 @@ mod tests {
         app.error_message = Some("Palette test error".to_string());
         let frame = render(&app);
         assert!(frame.contains("Palette test error"));
+    }
+
+    #[test]
+    fn test_repo_theme_persists_in_detail_search_popups() {
+        let (config_path, _guard) =
+            crate::test_support::temp_config_path("repo_theme_detail_search_popups");
+        let repo_path =
+            config_path.parent().unwrap().join("themed_repo").to_string_lossy().into_owned();
+        let config = Config { items: vec![repo_path.clone()], ..Default::default() };
+        let mut app = App::new(config, config_path);
+        app.repo_theme_cache.insert(
+            repo_path.clone(),
+            crate::config::ThemeConfig { accent: "#ab12cd".to_string(), ..Default::default() },
+        );
+        app.current_detail = Some(crate::repo::ItemDetail::Repo {
+            resolved: std::path::PathBuf::from(&repo_path),
+            info: Box::new(crate::repo::RepoInfo::default()),
+        });
+
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(120, 40)).unwrap();
+        let mut detail_areas = crate::ui_detail::DetailAreas::default();
+        let mut main_areas = Vec::new();
+        let mut global_summary_area = None;
+
+        for mode in [Mode::BranchSearchInput, Mode::CommitHistoryPicker] {
+            app.mode = mode;
+            terminal
+                .draw(|f| {
+                    let size = f.area();
+                    super::draw(
+                        f,
+                        &app,
+                        size,
+                        size,
+                        1,
+                        &mut detail_areas,
+                        &mut main_areas,
+                        &mut global_summary_area,
+                        &mut None,
+                    );
+                })
+                .unwrap();
+
+            let has_repo_accent = terminal
+                .backend()
+                .buffer()
+                .content()
+                .iter()
+                .any(|cell| cell.fg == ratatui::style::Color::Rgb(0xab, 0x12, 0xcd));
+            assert!(has_repo_accent, "repo accent missing during {:?}", mode);
+            assert_ne!(
+                crate::ui::style::ACCENT(),
+                ratatui::style::Color::Rgb(0xab, 0x12, 0xcd),
+                "ThemeGuard should restore theme after draw in {:?}",
+                mode
+            );
+        }
     }
 }

@@ -62,7 +62,7 @@ impl App {
                 ));
 
                 let repo_path = resolved.clone();
-                let tx = self.tx.clone();
+                let tx = super::git::RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
@@ -101,11 +101,10 @@ impl App {
                         }
                     })();
 
-                    let msg = match res {
-                        Ok(success) => success,
-                        Err(e) => format!("Cherry-pick failed: {}", e),
-                    };
-                    let _ = tx.send(msg);
+                    match res {
+                        Ok(success) => tx.ok(RepoOpKind::Other, success),
+                        Err(e) => tx.err(RepoOpKind::Other, format!("Cherry-pick failed: {}", e)),
+                    }
                 });
             }
         }
@@ -141,7 +140,7 @@ impl App {
                 self.status_message = Some(format!("Reverting commit {:.7}...", commit_oid));
 
                 let repo_path = resolved.clone();
-                let tx = self.tx.clone();
+                let tx = super::git::RepoSender { tx: self.tx.clone(), path: repo_path.clone() };
 
                 std::thread::spawn(move || {
                     let res = (|| -> Result<String, Box<dyn std::error::Error>> {
@@ -165,11 +164,10 @@ impl App {
                         }
                     })();
 
-                    let msg = match res {
-                        Ok(success) => success,
-                        Err(e) => format!("Revert failed: {}", e),
-                    };
-                    let _ = tx.send(msg);
+                    match res {
+                        Ok(success) => tx.ok(RepoOpKind::Other, success),
+                        Err(e) => tx.err(RepoOpKind::Other, format!("Revert failed: {}", e)),
+                    }
                 });
             }
         }
@@ -922,7 +920,7 @@ impl App {
                     };
                     self.status_message = Some(success_msg.to_string());
                     self.refresh_detail();
-                    self.refresh_selected_status();
+                    self.refresh_active_repo_status();
 
                     self.stats.commits_made += 1;
                     self.stats.track_active_repo(&path.to_string_lossy());

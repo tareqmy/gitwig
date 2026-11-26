@@ -47,6 +47,9 @@ pub fn handle_paste(app: &mut App, text: &str) {
     }
     let ev = crossterm::event::Event::Paste(text.to_string());
     match &app.mode {
+        Mode::TagCreateInput if app.tag_create_focus_message => {
+            app.input_str(text);
+        }
         Mode::BranchCreateInput
         | Mode::TagCreateInput
         | Mode::RemoteAddNameInput
@@ -63,11 +66,67 @@ pub fn handle_paste(app: &mut App, text: &str) {
         Mode::CommitInput => {
             let _ = app.commit_popup.event(&ev, &app.keybindings);
         }
-        _ => {
+        _ if is_text_input_mode(app) => {
             app.input_str(text);
         }
+        _ => {}
     }
     app.drain_queue();
+}
+
+fn is_text_input_mode(app: &App) -> bool {
+    matches!(
+        app.mode,
+        Mode::Adding
+            | Mode::Editing
+            | Mode::LabelInput
+            | Mode::AddRepoLabelInput
+            | Mode::BulkAddRepoLabelInput
+            | Mode::CloneRepoLabelInput
+            | Mode::BranchCreateInput
+            | Mode::TagCreateInput
+            | Mode::StashCreateInput
+            | Mode::RepoSearchInput
+            | Mode::RepoJump
+            | Mode::LabelPicker
+            | Mode::RepoScanPicker
+            | Mode::BulkAddScanPicker
+            | Mode::BranchSearchInput
+            | Mode::FileSearchInput
+            | Mode::ForgeCommentPathInput
+            | Mode::ForgeCommentLineInput
+            | Mode::ForgeCommentBodyInput
+            | Mode::CommitFuzzySearch
+            | Mode::TagSearchInput
+            | Mode::LogsSearchInput
+            | Mode::CommitSearchInput
+            | Mode::ImportUrlInput
+            | Mode::ImportDestInput
+            | Mode::ImportNameInput
+            | Mode::BulkAddInput
+            | Mode::RemoteAddNameInput
+            | Mode::RemoteAddUrlInput
+            | Mode::WorktreeAddBranchInput
+            | Mode::WorktreeAddPathInput
+            | Mode::WorktreeLockReasonInput
+            | Mode::WorktreeRemoveConfirm
+            | Mode::SubmoduleAddUrlInput
+            | Mode::SubmoduleAddPathInput
+            | Mode::GlobalSearch
+    ) || (matches!(app.mode, Mode::CommitInput) && app.commit_popup.editing)
+        || (matches!(app.mode, Mode::Settings) && app.settings_editing)
+        || (matches!(app.mode, Mode::RepoSettings) && app.repo_settings_editing)
+        || (matches!(app.mode, Mode::LabelSettings) && app.label_settings_editing)
+        || (matches!(app.mode, Mode::DebugLogs) && app.debug_log_search_editing)
+}
+
+/// Text-input modes that maintain their own input buffer / cursor rather than
+/// using `App::input_buffer`.
+fn uses_own_text_buffer(app: &App) -> bool {
+    matches!(
+        app.mode,
+        Mode::CommitInput | Mode::RepoSettings | Mode::LabelSettings | Mode::DebugLogs
+    ) || (app.mode == Mode::TagCreateInput && app.tag_create_focus_message)
 }
 
 fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
@@ -145,45 +204,7 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         );
     }
 
-    let is_text_input = matches!(
-        app.mode,
-        Mode::Adding
-            | Mode::Editing
-            | Mode::LabelInput
-            | Mode::AddRepoLabelInput
-            | Mode::BulkAddRepoLabelInput
-            | Mode::CloneRepoLabelInput
-            | Mode::BranchCreateInput
-            | Mode::TagCreateInput
-            | Mode::StashCreateInput
-            | Mode::RepoSearchInput
-            | Mode::RepoJump
-            | Mode::LabelPicker
-            | Mode::RepoScanPicker
-            | Mode::BulkAddScanPicker
-            | Mode::BranchSearchInput
-            | Mode::FileSearchInput
-            | Mode::ForgeCommentPathInput
-            | Mode::ForgeCommentLineInput
-            | Mode::ForgeCommentBodyInput
-            | Mode::CommitFuzzySearch
-            | Mode::TagSearchInput
-            | Mode::ImportUrlInput
-            | Mode::ImportDestInput
-            | Mode::ImportNameInput
-            | Mode::BulkAddInput
-            | Mode::RemoteAddNameInput
-            | Mode::RemoteAddUrlInput
-            | Mode::WorktreeAddBranchInput
-            | Mode::WorktreeAddPathInput
-            | Mode::WorktreeLockReasonInput
-            | Mode::WorktreeRemoveConfirm
-            | Mode::SubmoduleAddUrlInput
-            | Mode::SubmoduleAddPathInput
-            | Mode::GlobalSearch
-    ) || (matches!(app.mode, Mode::CommitInput) && app.commit_popup.editing)
-        || (matches!(app.mode, Mode::Settings) && app.settings_editing)
-        || (matches!(app.mode, Mode::DebugLogs) && app.debug_log_search_editing);
+    let is_text_input = is_text_input_mode(app);
     if !is_text_input && app.is_bound(crate::keybindings::Action::ToggleStatusBar, key) {
         app.toggle_status_expanded();
         return true;
@@ -209,8 +230,8 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     // Caret movement for the shared input buffer. Without this every field was
     // append-only: you could not step back into a comma-separated label list to
     // remove one entry. Popups that drive their own editor (the commit popup,
-    // and the pickers whose arrows move a selection) are excluded below.
-    if is_text_input && !uses_arrows_for_selection(&app.mode) {
+    // settings editors, and pickers whose arrows move a selection) are excluded below.
+    if is_text_input && !uses_arrows_for_selection(&app.mode) && !uses_own_text_buffer(app) {
         match key.code {
             KeyCode::Left => {
                 app.input_left();
@@ -959,16 +980,13 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         app.status_message = Some("Posting review comment...".to_string());
                         let tx = app.tx.clone();
                         std::thread::spawn(move || {
-                            match crate::repo::add_pr_line_comment(
+                            let result = crate::repo::add_pr_line_comment(
                                 &path, pr_number, &commit_id, &file_path, line_num, &body,
-                            ) {
-                                Ok(()) => {
-                                    let _ = tx.send("COMMENT_SUCCESS".to_string());
-                                }
-                                Err(e) => {
-                                    let _ = tx.send(format!("COMMENT_ERROR:{}", e));
-                                }
-                            }
+                            );
+                            let _ = tx.send(crate::app::BgEvent::ForgeCommentResult {
+                                repo_path: path,
+                                result,
+                            });
                         });
                     }
                 }
@@ -1335,5 +1353,106 @@ mod tests {
         assert!(handle_key(&mut app, key(KeyCode::Char('t')), 0));
         assert_eq!(app.input_buffer, "test");
         assert!(handle_key(&mut app, key(KeyCode::Enter), 0));
+    }
+
+    #[test]
+    fn test_p0_text_input_and_paste_routing() {
+        let config =
+            crate::config::Config { items: vec!["/tmp/repo_p0".to_string()], ..Default::default() };
+        let (config_path, _guard) = crate::test_support::temp_config_path("p0_input_routing");
+        let mut app = App::new(config, config_path);
+        let key = |code: KeyCode| KeyEvent::new(code, KeyModifiers::empty());
+        let ctrl = |c: char| KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL);
+
+        // 1. RepoSettings editing: '.' must type into repo_settings_input, not toggle status bar,
+        //    and Ctrl+P / Ctrl+T must not open palette or terminal panel.
+        app.mode = Mode::RepoSettings;
+        app.repo_settings_editing = true;
+        app.repo_settings_selected_index = 7; // LFS pattern
+        app.repo_settings_input.clear();
+        for ch in "*.png".chars() {
+            assert!(handle_key(&mut app, key(KeyCode::Char(ch)), 0));
+        }
+        assert_eq!(app.repo_settings_input, "*.png");
+        assert!(!app.status_expanded);
+        assert!(handle_key(&mut app, ctrl('p'), 0));
+        assert!(app.command_palette.is_none());
+        assert!(handle_key(&mut app, ctrl('t'), 0));
+        assert!(!app.terminal_panel.visible);
+        handle_paste(&mut app, ",*.jpg\n");
+        assert_eq!(app.repo_settings_input, "*.png,*.jpg");
+
+        // Numeric RepoSettings row filters non-digits on paste.
+        app.repo_settings_selected_index = 1; // page_size
+        app.repo_settings_input.clear();
+        handle_paste(&mut app, "25px");
+        assert_eq!(app.repo_settings_input, "25");
+        app.repo_settings_editing = false;
+
+        // 2. LabelSettings editing: '.' and paste route into label_settings_input.
+        app.mode = Mode::LabelSettings;
+        app.label_settings_target = Some("work".to_string());
+        app.label_settings_editing = true;
+        app.label_settings_selected_index = 5; // editor
+        app.label_settings_input.clear();
+        for ch in "code.sh".chars() {
+            assert!(handle_key(&mut app, key(KeyCode::Char(ch)), 0));
+        }
+        assert_eq!(app.label_settings_input, "code.sh");
+        assert!(!app.status_expanded);
+        handle_paste(&mut app, " --wait\r\n");
+        assert_eq!(app.label_settings_input, "code.sh --wait");
+
+        app.label_settings_selected_index = 1; // page_size
+        app.label_settings_input.clear();
+        handle_paste(&mut app, "42abc");
+        assert_eq!(app.label_settings_input, "42");
+        app.label_settings_editing = false;
+
+        // 3. CommitInput editing: cursor keys and paste target commit_popup, not app.input_buffer.
+        app.input_buffer.clear();
+        app.mode = Mode::CommitInput;
+        app.commit_popup.editing = true;
+        app.commit_popup.input_buffer.clear();
+        app.commit_popup.cursor_idx = 0;
+        app.commit_popup.insert_str("hello");
+        assert_eq!(app.commit_popup.cursor_idx, 5);
+        assert!(handle_key(&mut app, key(KeyCode::Left), 0));
+        assert_eq!(app.commit_popup.cursor_idx, 4);
+        assert!(handle_key(&mut app, key(KeyCode::Home), 0));
+        assert_eq!(app.commit_popup.cursor_idx, 0);
+        assert!(handle_key(&mut app, key(KeyCode::Right), 0));
+        assert_eq!(app.commit_popup.cursor_idx, 1);
+        assert!(handle_key(&mut app, key(KeyCode::End), 0));
+        assert_eq!(app.commit_popup.cursor_idx, 5);
+        assert!(handle_key(&mut app, key(KeyCode::Left), 0));
+        assert!(handle_key(&mut app, key(KeyCode::Delete), 0));
+        assert_eq!(app.commit_popup.input_buffer, "hell");
+        assert_eq!(app.commit_popup.cursor_idx, 4);
+        handle_paste(&mut app, "o!");
+        assert_eq!(app.commit_popup.input_buffer, "hello!");
+        assert!(app.input_buffer.is_empty());
+
+        // 4. LogsSearchInput: '.' stays in search query rather than toggling status bar.
+        app.mode = Mode::LogsSearchInput;
+        app.set_input_buffer(String::new());
+        assert!(handle_key(&mut app, key(KeyCode::Char('.')), 0));
+        assert_eq!(app.input_buffer, ".");
+        assert!(!app.status_expanded);
+
+        // 5. DebugLogs search editing: paste appends to debug_log_search_query and resets scroll.
+        app.mode = Mode::DebugLogs;
+        app.debug_log_search_query = Some("err".to_string());
+        app.debug_log_search_editing = true;
+        app.debug_log_scroll = 5;
+        handle_paste(&mut app, "or\n");
+        assert_eq!(app.debug_log_search_query.as_deref(), Some("error"));
+        assert_eq!(app.debug_log_scroll, 0);
+
+        // 6. Mode::Normal ignores unsolicited paste events.
+        app.mode = Mode::Normal;
+        app.input_buffer.clear();
+        handle_paste(&mut app, "ignored");
+        assert!(app.input_buffer.is_empty());
     }
 }

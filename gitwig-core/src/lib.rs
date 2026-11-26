@@ -23,8 +23,8 @@ mod patch;
 mod process;
 mod stash;
 pub use process::{
-    detached_command, git_command, spawn_pipe_reader, ssh_command_val, summarize_stderr,
-    tool_command,
+    detached_command, git_command, set_ssh_strict_host_checking, spawn_pipe_reader,
+    ssh_command_val, summarize_stderr, tool_command,
 };
 pub use stash::{save_stash, stash_hunk, stash_line};
 

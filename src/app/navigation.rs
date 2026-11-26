@@ -3122,13 +3122,7 @@ impl App {
             }
             55 => {
                 self.config.ssh_strict_host_checking = !self.config.ssh_strict_host_checking;
-                unsafe {
-                    if self.config.ssh_strict_host_checking {
-                        std::env::set_var("GITWIG_SSH_STRICT", "1");
-                    } else {
-                        std::env::set_var("GITWIG_SSH_STRICT", "0");
-                    }
-                }
+                gitwig_core::set_ssh_strict_host_checking(self.config.ssh_strict_host_checking);
                 self.persist("SSH Strict Host Checking updated");
             }
             56 => {
@@ -3587,12 +3581,37 @@ impl App {
             self.commit_popup.insert_str(s);
             return;
         }
+        let clean: String = s.chars().filter(|c| *c != '\r' && *c != '\n').collect();
         if matches!(self.mode, Mode::RepoSettings) && self.repo_settings_editing {
-            let clean: String = s.chars().filter(|c| *c != '\r' && *c != '\n').collect();
-            self.repo_settings_input.push_str(&clean);
+            if matches!(self.repo_settings_selected_index, 5..=7) {
+                self.repo_settings_input.push_str(&clean);
+            } else {
+                self.repo_settings_input.extend(clean.chars().filter(char::is_ascii_digit));
+            }
             return;
         }
-        let clean: String = s.chars().filter(|c| *c != '\r' && *c != '\n').collect();
+        if matches!(self.mode, Mode::LabelSettings) && self.label_settings_editing {
+            if self.label_settings_selected_index == 5 {
+                self.label_settings_input.push_str(&clean);
+            } else {
+                self.label_settings_input.extend(clean.chars().filter(char::is_ascii_digit));
+            }
+            return;
+        }
+        if matches!(self.mode, Mode::DebugLogs) && self.debug_log_search_editing {
+            if let Some(ref mut query) = self.debug_log_search_query {
+                query.push_str(&clean);
+                self.debug_log_scroll = 0;
+            }
+            return;
+        }
+        if matches!(self.mode, Mode::TagCreateInput) && self.tag_create_focus_message {
+            self.tag_create_message.push_str(&clean);
+            return;
+        }
+        if matches!(self.mode, Mode::GlobalSearch) && !self.global_search_focus_input {
+            return;
+        }
         let byte = self.input_cursor_byte();
         let at = self.input_cursor_clamped() + clean.chars().count();
         self.input_buffer.insert_str(byte, &clean);
@@ -3782,21 +3801,15 @@ impl App {
 
                 let output = cmd.output().map_err(|e| e.to_string())?;
                 if output.status.success() {
-                    Ok(format!("CLONE_SUCCESS:{}", dest_str))
+                    Ok(dest_str)
                 } else {
                     let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
                     Err(format!("Clone failed: {}", err))
                 }
             })();
 
-            match res {
-                Ok(msg) => {
-                    let _ = tx.send(msg);
-                }
-                Err(e) => {
-                    let _ = tx.send(format!("Failed to clone: {}", e));
-                }
-            }
+            let result = res.map_err(|e| format!("Failed to clone: {}", e));
+            let _ = tx.send(BgEvent::CloneResult(result));
         });
     }
 

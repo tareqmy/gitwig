@@ -5,7 +5,7 @@
 use crate::app::{App, Mode};
 use crate::config::{HomeViewMode, SortOrder};
 use crate::ui::style::{CARD_BORDER, accent_style, muted_style, primary_style};
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -107,11 +107,17 @@ impl LabelSettingsPopup {
                     app.label_settings_input.pop();
                     return true;
                 }
-                KeyCode::Char(c) if app.label_settings_selected_index == 5 => {
+                KeyCode::Char(c)
+                    if !key.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+                        && app.label_settings_selected_index == 5 =>
+                {
                     app.label_settings_input.push(c);
                     return true;
                 }
-                KeyCode::Char(c) if c.is_ascii_digit() => {
+                KeyCode::Char(c)
+                    if !key.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+                        && c.is_ascii_digit() =>
+                {
                     app.label_settings_input.push(c);
                     return true;
                 }

@@ -160,27 +160,20 @@ fn test_network_action_progress_and_error_handling() {
     assert_eq!(app.status_message.as_deref(), Some("Pushing..."));
 
     // Simulate background thread sending a failure message
-    app.tx.send("Push failed: git push rejected".to_string()).unwrap();
+    app.tx
+        .send(BgEvent::RepoOpResult {
+            repo_path: PathBuf::from("/tmp/mock_repo"),
+            kind: RepoOpKind::Push,
+            result: Err("Push failed: git push rejected".to_string()),
+        })
+        .unwrap();
 
-    // Run receiver check
-    while let Ok(msg) = app.rx.try_recv() {
-        let is_err = msg.starts_with("Fetch failed:")
-            || msg.starts_with("Pull failed:")
-            || msg.starts_with("Push failed:")
-            || msg.starts_with("Failed to")
-            || msg.contains("failed");
-
-        if is_err {
-            app.error_message = Some(msg);
-        } else {
-            app.status_message = Some(msg);
-        }
-        app.fetching = false;
-    }
+    // Drain receiver
+    assert!(app.drain_bg_events());
 
     // Verify that fetching is cleared and error_message popup is active
     assert!(!app.fetching);
-    assert_eq!(app.error_message.as_deref(), Some("Push failed: git push rejected"));
+    assert_eq!(app.error_message.as_deref(), Some("[mock_repo] Push failed: git push rejected"));
 
     // Verify keypress dismisses the error popup
     let esc_key = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
@@ -227,8 +220,10 @@ fn test_remote_tags_progress_and_error_handling() {
         }]),
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail =
-        Some(crate::repo::ItemDetail::Repo { resolved: repo_path, info: Box::new(mock_info) });
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: repo_path.clone(),
+        info: Box::new(mock_info),
+    });
 
     // Trigger fetch with show_progress = true
     app.fetch_remote_tags(true);
@@ -238,16 +233,15 @@ fn test_remote_tags_progress_and_error_handling() {
     // so it cannot race the simulated one below.
     app.rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
 
-    // Simulate background thread sending REMOTE_TAGS_ERR
-    app.tx.send("REMOTE_TAGS_ERR:Failed to get remote tags: custom error".to_string()).unwrap();
+    // Simulate background thread sending RemoteTagsResult error
+    app.tx
+        .send(BgEvent::RemoteTagsResult {
+            repo_path,
+            result: Err("Failed to get remote tags: custom error".to_string()),
+        })
+        .unwrap();
 
-    // Run rx loop (same as inside app::run)
-    if let Ok(msg) = app.rx.try_recv() {
-        if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
-            app.set_error(err_msg.to_string());
-            app.fetching = false;
-        }
-    }
+    assert!(app.drain_bg_events());
 
     assert!(!app.fetching);
     assert_eq!(app.error_message.as_deref(), Some("Failed to get remote tags: custom error"));
@@ -291,8 +285,10 @@ fn test_remote_fetch_progress_and_error_handling() {
         }]),
         ..crate::repo::RepoInfo::default()
     };
-    app.current_detail =
-        Some(crate::repo::ItemDetail::Repo { resolved: repo_path, info: Box::new(mock_info) });
+    app.current_detail = Some(crate::repo::ItemDetail::Repo {
+        resolved: repo_path.clone(),
+        info: Box::new(mock_info),
+    });
 
     // Trigger fetch from remote tab (fetch_remote)
     app.fetch_remote("origin");
@@ -303,21 +299,15 @@ fn test_remote_fetch_progress_and_error_handling() {
     app.rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
 
     // Simulate background thread sending Fetch failed message
-    app.tx.send("Fetch failed: custom fetch error".to_string()).unwrap();
+    app.tx
+        .send(BgEvent::RepoOpResult {
+            repo_path,
+            kind: RepoOpKind::Fetch,
+            result: Err("Fetch failed: custom fetch error".to_string()),
+        })
+        .unwrap();
 
-    // Run rx loop (same as inside app::run)
-    if let Ok(msg) = app.rx.try_recv() {
-        let is_err = msg.starts_with("Fetch failed:")
-            || msg.starts_with("Pull failed:")
-            || msg.starts_with("Push failed:")
-            || msg.starts_with("Failed to")
-            || msg.contains("failed");
-
-        if is_err {
-            app.set_error(msg);
-        }
-        app.fetching = false;
-    }
+    assert!(app.drain_bg_events());
 
     assert!(!app.fetching);
     assert_eq!(app.error_message.as_deref(), Some("Fetch failed: custom fetch error"));
@@ -3632,15 +3622,18 @@ fn test_tag_fetch_attempt_and_dismiss_flow() {
     app.rx.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
 
     // 2. Receive error from the background thread
-    app.tx.send("REMOTE_TAGS_ERR:Failed to get remote tags: network timeout".to_string()).unwrap();
+    let open_repo_path = match &app.current_detail {
+        Some(crate::repo::ItemDetail::Repo { resolved, .. }) => resolved.clone(),
+        _ => PathBuf::new(),
+    };
+    app.tx
+        .send(BgEvent::RemoteTagsResult {
+            repo_path: open_repo_path,
+            result: Err("Failed to get remote tags: network timeout".to_string()),
+        })
+        .unwrap();
 
-    // Process message in receiver
-    if let Ok(msg) = app.rx.try_recv() {
-        if let Some(err_msg) = msg.strip_prefix("REMOTE_TAGS_ERR:") {
-            app.set_error(err_msg.to_string());
-            app.fetching = false;
-        }
-    }
+    assert!(app.drain_bg_events());
 
     // Verify fetching is false and error popup is shown
     assert!(!app.fetching);
@@ -5274,6 +5267,7 @@ fn test_cargo_install_detection() {
     assert!(!app.is_msi_install());
     assert!(!app.is_homebrew_install());
     assert!(!app.is_chocolatey_install());
+    assert!(!app.is_nix_install());
     assert!(app.can_self_update());
 }
 
@@ -7361,8 +7355,10 @@ fn test_branch_merge_into_flow() {
         let msg = app.rx.recv_timeout(remaining).unwrap_or_else(|_| {
             panic!("merge-into thread did not report; messages seen: {:?}", seen)
         });
-        if msg.contains(&expected) {
-            break;
+        if let BgEvent::RepoOpResult { result: Ok(text), .. } = &msg {
+            if text.contains(&expected) {
+                break;
+            }
         }
         seen.push(msg);
     }
@@ -10622,14 +10618,10 @@ fn test_directory_scan_hidden_repos() {
 
     let mut found = Vec::new();
     while let Ok(msg) = rx.recv() {
-        if let Some(repo_info) = msg.strip_prefix("REPO_SCAN_FOUND:") {
-            let parts: Vec<&str> = repo_info.split("|||").collect();
-            if parts.len() == 2 {
-                found.push(parts[0].to_string());
-            }
-        }
-        if msg.starts_with("REPO_SCAN_COMPLETE:") {
-            break;
+        match msg {
+            BgEvent::RepoScanFound { name, .. } => found.push(name),
+            BgEvent::RepoScanComplete => break,
+            _ => {}
         }
     }
 
@@ -10661,14 +10653,10 @@ fn test_bulk_scan_flow() {
 
     let mut found = Vec::new();
     while let Ok(msg) = rx.recv() {
-        if let Some(repo_info) = msg.strip_prefix("REPO_SCAN_FOUND:") {
-            let parts: Vec<&str> = repo_info.split("|||").collect();
-            if parts.len() == 2 {
-                found.push(parts[0].to_string());
-            }
-        }
-        if msg.starts_with("REPO_SCAN_COMPLETE:") {
-            break;
+        match msg {
+            BgEvent::RepoScanFound { name, .. } => found.push(name),
+            BgEvent::RepoScanComplete => break,
+            _ => {}
         }
     }
 
@@ -10849,50 +10837,20 @@ fn test_automatic_workspace_sync() {
     app.setup_watcher();
     assert!(app.watcher.is_some());
 
-    // Send a REFRESH_REPO event to simulate notify trigger
-    let msg = format!("REFRESH_REPO:{}", new_repo.to_string_lossy());
-    app.tx.send(msg).unwrap();
+    // Send a RefreshRepo event to simulate notify trigger
+    app.tx
+        .send(BgEvent::RefreshRepo { repo_root: new_repo.to_string_lossy().into_owned() })
+        .unwrap();
 
     // Wait a brief moment and process events
     let start = std::time::Instant::now();
-    let mut found = false;
     while start.elapsed().as_millis() < 500 {
-        if let Ok(raw_msg) = app.rx.try_recv() {
-            if let Some(repo_path) = raw_msg.strip_prefix("REFRESH_REPO:") {
-                let canon_target =
-                    std::fs::canonicalize(repo_path).unwrap_or_else(|_| PathBuf::from(repo_path));
-                let already_tracked = app.config.items.iter().position(|item| {
-                    let canon_item =
-                        std::fs::canonicalize(item).unwrap_or_else(|_| PathBuf::from(item));
-                    canon_item == canon_target
-                });
-                if already_tracked.is_none() {
-                    let mut inside_watch_dir = false;
-                    for watch_dir in &app.config.watch_dirs {
-                        let expanded = repo::expand_tilde(watch_dir);
-                        if let Ok(canon_watch) = std::fs::canonicalize(&expanded) {
-                            if canon_target.starts_with(&canon_watch) {
-                                inside_watch_dir = true;
-                                break;
-                            }
-                        }
-                    }
-                    if inside_watch_dir {
-                        let git_dir = canon_target.join(".git");
-                        if git_dir.exists() && git_dir.is_dir() {
-                            let path_str = repo_path.to_string();
-                            app.auto_discover_add(path_str);
-                            found = true;
-                        }
-                    }
-                }
-            }
+        if app.drain_bg_events() {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 
-    assert!(found, "The repository should be auto-discovered");
     assert!(
         app.config.items.contains(&new_repo.to_string_lossy().to_string()),
         "The repository should be automatically added to config"
@@ -10938,18 +10896,9 @@ fn test_bulk_fetch_completion_and_30s_clear() {
     app.bulk_fetching.insert("/path/to/repo".to_string());
     app.bulk_fetch_results.insert("/path/to/repo".to_string(), Ok("Fetched".to_string()));
 
-    app.tx.send("BULK_FETCH_SUCCESS:/path/to/repo".to_string()).unwrap();
+    app.tx.send(BgEvent::BulkFetchSuccess { path: "/path/to/repo".to_string() }).unwrap();
 
-    if let Ok(raw_msg) = app.rx.try_recv() {
-        if let Some(success_path) = raw_msg.strip_prefix("BULK_FETCH_SUCCESS:") {
-            app.bulk_fetching.remove(success_path);
-            app.bulk_fetch_results
-                .insert(success_path.to_string(), Ok("Fetched successfully".to_string()));
-            if app.bulk_fetching.is_empty() {
-                app.bulk_fetch_completed_at = Some(std::time::Instant::now());
-            }
-        }
-    }
+    assert!(app.drain_bg_events());
 
     assert!(app.bulk_fetching.is_empty());
     assert!(app.bulk_fetch_completed_at.is_some());
@@ -14457,7 +14406,12 @@ fn wait_for_repo_message(app: &App, expected: &str) {
         let msg = app.rx.recv_timeout(remaining).unwrap_or_else(|_| {
             panic!("no message containing {:?}; messages seen: {:?}", expected, seen)
         });
-        if msg.contains(expected) {
+        let text = match &msg {
+            BgEvent::RepoOpResult { result: Ok(s) | Err(s), .. } => Some(s.as_str()),
+            BgEvent::ForgeCheckoutResult { result: Ok(s) | Err(s), .. } => Some(s.as_str()),
+            _ => None,
+        };
+        if text.is_some_and(|s| s.contains(expected)) {
             return;
         }
         seen.push(msg);
@@ -14957,4 +14911,111 @@ fn test_stashing_panel_draws_picks() {
 
     app.start_panel_stash_create();
     assert!(render(&app, true).contains("Stash 1 Picked File"));
+}
+
+#[test]
+fn test_is_nix_store_path() {
+    assert!(super::is_nix_store_path(std::path::Path::new(
+        "/nix/store/abc123-gitwig-2.6.7/bin/gitwig"
+    )));
+    assert!(!super::is_nix_store_path(std::path::Path::new("/usr/local/bin/gitwig")));
+}
+
+#[test]
+fn test_split_command_words() {
+    assert_eq!(super::split_command_words("vim"), vec!["vim"]);
+    assert_eq!(super::split_command_words("code --wait"), vec!["code", "--wait"]);
+    assert_eq!(super::split_command_words("nvim -u NONE"), vec!["nvim", "-u", "NONE"]);
+    assert_eq!(
+        super::split_command_words("\"/Applications/Visual Studio Code.app/bin/code\" --wait"),
+        vec!["/Applications/Visual Studio Code.app/bin/code", "--wait"]
+    );
+    assert_eq!(super::split_command_words("'/my editor/bin' -f"), vec!["/my editor/bin", "-f"]);
+    assert!(super::split_command_words("   ").is_empty());
+}
+
+#[test]
+fn test_bg_events_typed_classification_and_cross_repo_isolation() {
+    let (config_path, _guard) = temp_config_path("bg_events_typed");
+    let mut app = App::new(Config::default(), config_path);
+    let open_repo = missing_repo_path("bg_events_open");
+    let other_repo = missing_repo_path("bg_events_other");
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: open_repo.clone(),
+        info: Box::new(repo::RepoInfo::default()),
+    });
+
+    // 1. A branch named "fix-failed-login" succeeds without tripping error classification.
+    app.fetching = true;
+    let pushes_before = app.stats.pushes;
+    app.tx
+        .send(BgEvent::RepoOpResult {
+            repo_path: open_repo.clone(),
+            kind: RepoOpKind::Push,
+            result: Ok("Pushed 'fix-failed-login' to 'origin' successfully".to_string()),
+        })
+        .unwrap();
+    assert!(app.drain_bg_events());
+    assert!(!app.fetching);
+    assert!(app.error_message.is_none());
+    assert_eq!(
+        app.status_message.as_deref(),
+        Some("Pushed 'fix-failed-login' to 'origin' successfully")
+    );
+    assert_eq!(app.stats.pushes, pushes_before + 1);
+
+    // 2. An error from a different repo prefixes its folder name and sets error_message.
+    app.fetching = true;
+    app.tx
+        .send(BgEvent::RepoOpResult {
+            repo_path: other_repo.clone(),
+            kind: RepoOpKind::Push,
+            result: Err("Push failed: rejected".to_string()),
+        })
+        .unwrap();
+    assert!(app.drain_bg_events());
+    assert!(!app.fetching);
+    let expected_name = other_repo.file_name().unwrap().to_string_lossy().into_owned();
+    assert_eq!(
+        app.error_message.as_deref(),
+        Some(format!("[{}] Push failed: rejected", expected_name).as_str())
+    );
+    app.error_message = None;
+
+    // 3. RemoteTagsResult populates remote_tags directly when open, and settles
+    //    implicit_network_count even when the reply belongs to another repo.
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: open_repo.clone(),
+        info: Box::new(repo::RepoInfo::default()),
+    });
+    app.fetching = true;
+    let tag = repo::BranchInfo {
+        name: "v1.0.0".to_string(),
+        is_head: false,
+        short_sha: "abc1234".to_string(),
+        short_message: String::new(),
+    };
+    app.tx
+        .send(BgEvent::RemoteTagsResult { repo_path: open_repo, result: Ok(vec![tag.clone()]) })
+        .unwrap();
+    assert!(app.drain_bg_events());
+    assert!(!app.fetching);
+    if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert_eq!(info.remote_tags.as_slice().len(), 1);
+        assert_eq!(info.remote_tags.as_slice()[0].name, "v1.0.0");
+        assert!(info.remote_tags_loaded);
+    } else {
+        panic!("expected open repo detail");
+    }
+
+    app.implicit_network_count = 1;
+    app.tx
+        .send(BgEvent::RemoteTagsResult {
+            repo_path: other_repo,
+            result: Err("network down".to_string()),
+        })
+        .unwrap();
+    assert!(app.drain_bg_events());
+    assert_eq!(app.implicit_network_count, 0);
+    assert!(app.error_message.is_none());
 }
