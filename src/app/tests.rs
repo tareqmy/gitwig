@@ -4916,12 +4916,21 @@ fn test_file_history_view_flow() {
     app.current_detail =
         Some(crate::repo::ItemDetail::Repo { resolved: repo_path, info: Box::new(mock_info) });
 
-    // Open file history
+    // Open file history (loads asynchronously via BgEvent::FileHistoryLoaded)
     app.open_file_history();
     assert_eq!(app.mode, Mode::FileHistory);
     assert_eq!(app.file_history_path, "Cargo.toml");
     assert_eq!(app.file_history_selection, 0);
     assert_eq!(app.file_history_focus, 0); // Focus on revisions list
+    assert!(app.file_history_loading);
+
+    let start = std::time::Instant::now();
+    while app.file_history_loading && start.elapsed().as_secs() < 5 {
+        app.drain_bg_events();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(!app.file_history_loading, "file history should finish loading");
+    assert!(!app.file_history_revisions.is_empty(), "Cargo.toml should have git history");
 
     // Simulate Key Press - Tab to focus Diff Panel
     let consumed = crate::tabs::FileHistoryTab::handle_event(&mut app, key_event(KeyCode::Tab));
@@ -8363,6 +8372,7 @@ fn test_other_detail_tabs_event_handlers() {
         when: "10 mins ago".to_string(),
         date: "2026-07-02".to_string(),
         summary: "feat: summary".to_string(),
+        path: None,
     }];
     let hist_keys = vec![
         crossterm::event::KeyCode::Esc,
@@ -9977,6 +9987,7 @@ fn test_file_history_comprehensive() {
             when: "now".to_string(),
             date: "2026-07-02".to_string(),
             summary: "feat: summary".to_string(),
+            path: None,
         },
         crate::repo::FileRevision {
             commit_oid: "def5678def5678def5678def5678def5678def5678".to_string(),
@@ -9984,6 +9995,7 @@ fn test_file_history_comprehensive() {
             when: "yesterday".to_string(),
             date: "2026-07-01".to_string(),
             summary: "fix: bug".to_string(),
+            path: None,
         },
     ];
     app.file_history_selection = 0;
@@ -10036,6 +10048,7 @@ fn test_file_history_comprehensive() {
             when: "now".to_string(),
             date: "2026-07-02".to_string(),
             summary: "feat: summary".to_string(),
+            path: None,
         },
         crate::repo::FileRevision {
             commit_oid: "def5678def5678def5678def5678def5678def5678".to_string(),
@@ -10043,6 +10056,7 @@ fn test_file_history_comprehensive() {
             when: "yesterday".to_string(),
             date: "2026-07-01".to_string(),
             summary: "fix: bug".to_string(),
+            path: None,
         },
     ];
     for &kc in &keycodes {
@@ -15018,4 +15032,158 @@ fn test_bg_events_typed_classification_and_cross_repo_isolation() {
     assert!(app.drain_bg_events());
     assert_eq!(app.implicit_network_count, 0);
     assert!(app.error_message.is_none());
+}
+
+#[test]
+fn test_file_history_and_blame_bg_events_apply_and_drop_stale() {
+    let (cfg_path, _guard) = temp_config_path("p1_history_blame_bg");
+    let mut app = App::new(Config::default(), cfg_path);
+    let open_repo = PathBuf::from("/tmp/repo-open");
+    let other_repo = PathBuf::from("/tmp/repo-other");
+
+    app.current_detail = Some(repo::ItemDetail::Repo {
+        resolved: open_repo.clone(),
+        info: Box::new(repo::RepoInfo::default()),
+    });
+
+    // Stale FileHistoryLoaded when mode or path does not match is ignored
+    app.mode = Mode::FileHistory;
+    app.file_history_path = "src/main.rs".to_string();
+    app.file_history_loading = true;
+    app.tx
+        .send(BgEvent::FileHistoryLoaded {
+            repo_path: open_repo.clone(),
+            file_path: "src/other.rs".to_string(),
+            result: Ok(vec![repo::FileRevision {
+                commit_oid: "1111111".to_string(),
+                ..Default::default()
+            }]),
+        })
+        .unwrap();
+    assert!(app.drain_bg_events());
+    assert!(app.file_history_loading);
+    assert!(app.file_history_revisions.is_empty());
+
+    // Matching FileHistoryLoaded populates revisions and clears loading
+    app.tx
+        .send(BgEvent::FileHistoryLoaded {
+            repo_path: open_repo.clone(),
+            file_path: "src/main.rs".to_string(),
+            result: Ok(vec![repo::FileRevision {
+                commit_oid: "2222222".to_string(),
+                summary: "feat: async history".to_string(),
+                ..Default::default()
+            }]),
+        })
+        .unwrap();
+    assert!(app.drain_bg_events());
+    assert!(!app.file_history_loading);
+    assert_eq!(app.file_history_revisions.len(), 1);
+    assert_eq!(app.file_history_revisions[0].commit_oid, "2222222");
+
+    // Stale FileBlameLoaded for another repo or file is ignored
+    app.file_tree.show_blame = true;
+    app.file_tree.blamed_file_path = Some("src/main.rs".to_string());
+    app.file_tree.blame_loading = true;
+    app.tx
+        .send(BgEvent::FileBlameLoaded {
+            repo_path: other_repo,
+            file_path: "src/main.rs".to_string(),
+            result: Ok(vec![repo::BlameEntry {
+                line_no: 1,
+                commit_id: "aaaaaaa".to_string(),
+                author: "Other".to_string(),
+                date: "2026-01-01".to_string(),
+            }]),
+        })
+        .unwrap();
+    assert!(app.drain_bg_events());
+    assert!(app.file_tree.blame_loading);
+    assert!(app.file_tree.file_blame.is_none());
+
+    // Matching FileBlameLoaded stores entries and clears blame_loading
+    app.tx
+        .send(BgEvent::FileBlameLoaded {
+            repo_path: open_repo,
+            file_path: "src/main.rs".to_string(),
+            result: Ok(vec![repo::BlameEntry {
+                line_no: 1,
+                commit_id: "bbbbbbb".to_string(),
+                author: "Álvaro".to_string(),
+                date: "2026-01-02".to_string(),
+            }]),
+        })
+        .unwrap();
+    assert!(app.drain_bg_events());
+    assert!(!app.file_tree.blame_loading);
+    let blame = app.file_tree.file_blame.as_ref().expect("blame should be populated");
+    assert_eq!(blame.len(), 1);
+    assert_eq!(blame[0].commit_id, "bbbbbbb");
+}
+
+#[test]
+fn test_watcher_resolve_refresh_roots_worktree_and_filters() {
+    use super::{WatchedRepo, resolve_refresh_roots};
+
+    let targets = vec![
+        WatchedRepo {
+            repo_root: "/ws/main".to_string(),
+            git_dir: PathBuf::from("/ws/main/.git"),
+            common_dir: PathBuf::from("/ws/main/.git"),
+        },
+        WatchedRepo {
+            repo_root: "/ws/wt1".to_string(),
+            git_dir: PathBuf::from("/ws/main/.git/worktrees/wt1"),
+            common_dir: PathBuf::from("/ws/main/.git"),
+        },
+    ];
+    let excludes = vec!["node_modules".to_string()];
+
+    // `.git/objects` and `.lock` files are ignored.
+    assert!(
+        resolve_refresh_roots(
+            std::path::Path::new("/ws/main/.git/objects/ab/cdef"),
+            &targets,
+            &excludes
+        )
+        .is_empty()
+    );
+    assert!(
+        resolve_refresh_roots(
+            std::path::Path::new("/ws/main/.git/index.lock"),
+            &targets,
+            &excludes
+        )
+        .is_empty()
+    );
+
+    // Worktree HEAD/index events map only to that worktree's repo_root.
+    assert_eq!(
+        resolve_refresh_roots(
+            std::path::Path::new("/ws/main/.git/worktrees/wt1/HEAD"),
+            &targets,
+            &excludes
+        ),
+        vec!["/ws/wt1".to_string()]
+    );
+
+    // Shared `refs/` events notify both the main checkout and linked worktree.
+    assert_eq!(
+        resolve_refresh_roots(
+            std::path::Path::new("/ws/main/.git/refs/heads/feature"),
+            &targets,
+            &excludes
+        ),
+        vec!["/ws/main".to_string(), "/ws/wt1".to_string()]
+    );
+
+    // Untracked repos discovered inside watch_dirs still fall back via `/.git`.
+    assert_eq!(
+        resolve_refresh_roots(
+            std::path::Path::new("/watched_root/brand_new/.git/HEAD"),
+            &targets,
+            &excludes
+        ),
+        vec!["/watched_root/brand_new".to_string()]
+    );
 }

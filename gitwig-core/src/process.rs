@@ -14,9 +14,100 @@
 //! - [`spawn_pipe_reader`]: drains a pipe on a thread so a chatty child never deadlocks.
 
 use std::io::Read;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
+
+/// How often the supervising thread checks whether a bounded child has exited.
+const POLL_INTERVAL: Duration = Duration::from_millis(50);
+
+/// Why a bounded subprocess run did not produce a normal exit status.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GitRunError {
+    /// The child outlived its budget and was killed.
+    Timeout(Duration),
+    /// The child could not be spawned or supervised.
+    Spawn(String),
+}
+
+impl std::fmt::Display for GitRunError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GitRunError::Timeout(d) => {
+                write!(f, "git did not respond within {}s and was cancelled", d.as_secs())
+            }
+            GitRunError::Spawn(e) => write!(f, "could not run git: {}", e),
+        }
+    }
+}
+
+impl std::error::Error for GitRunError {}
+
+/// Runs `cmd` to completion, killing it if it exceeds `timeout`.
+///
+/// `Command::output()` blocks forever on a remote that accepts the connection but
+/// never replies, which is exactly what a firewalled or blackholed host does. This
+/// drains stdout and stderr on dedicated threads (a bare `try_wait` poll loop
+/// deadlocks once a pipe buffer fills) while a timer supervises the child.
+///
+/// A zero timeout means "no limit" and simply defers to `output()`.
+pub fn run_git_with_timeout(mut cmd: Command, timeout: Duration) -> Result<Output, GitRunError> {
+    if timeout.is_zero() {
+        return cmd.output().map_err(|e| GitRunError::Spawn(e.to_string()));
+    }
+
+    cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+
+    let mut child = cmd.spawn().map_err(|e| GitRunError::Spawn(e.to_string()))?;
+
+    // Drain both pipes concurrently; otherwise a chatty child fills a pipe
+    // buffer, blocks, and the timeout fires on a process only waiting on us.
+    let mut out_pipe = child.stdout.take();
+    let mut err_pipe = child.stderr.take();
+    let out_reader = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        if let Some(p) = out_pipe.as_mut() {
+            let _ = p.read_to_end(&mut buf);
+        }
+        buf
+    });
+    let err_reader = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        if let Some(p) = err_pipe.as_mut() {
+            let _ = p.read_to_end(&mut buf);
+        }
+        buf
+    });
+
+    let started = Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Some(status),
+            Ok(None) => {
+                if started.elapsed() >= timeout {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break None;
+                }
+                std::thread::sleep(POLL_INTERVAL);
+            }
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(GitRunError::Spawn(e.to_string()));
+            }
+        }
+    };
+
+    let stdout = out_reader.join().unwrap_or_default();
+    let stderr = err_reader.join().unwrap_or_default();
+
+    match status {
+        Some(status) => Ok(Output { status, stdout, stderr }),
+        None => Err(GitRunError::Timeout(timeout)),
+    }
+}
 
 /// Whether SSH must strictly verify host keys instead of `accept-new`.
 /// Stored atomically so toggling it in Settings never mutates process env vars
@@ -186,5 +277,24 @@ mod tests {
 
         set_ssh_strict_host_checking(false);
         assert_eq!(ssh_command_val(), "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new");
+    }
+
+    #[test]
+    fn run_git_with_timeout_returns_timeout_on_hung_child() {
+        let cmd = if cfg!(target_os = "windows") {
+            let mut c = tool_command("cmd");
+            c.args(["/c", "timeout", "/t", "10", "/nobreak"]);
+            c
+        } else {
+            let mut c = tool_command("sleep");
+            c.arg("10");
+            c
+        };
+        let res = run_git_with_timeout(cmd, Duration::from_millis(120));
+        assert!(
+            matches!(res, Err(GitRunError::Timeout(_))),
+            "expected timeout error, got {:?}",
+            res
+        );
     }
 }

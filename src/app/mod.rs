@@ -661,6 +661,7 @@ pub struct App {
     pub file_history_diff_scroll: usize,
     pub file_history_path: String,
     pub file_history_focus: usize,
+    pub file_history_loading: bool,
     pub worktree_selection: usize,
     pub submodule_selection: usize,
     pub reflog_selection: usize,
@@ -757,6 +758,72 @@ pub use submodules::SubmoduleUpdateTarget;
 mod tests;
 mod workspace;
 
+#[derive(Debug, Clone)]
+pub(crate) struct WatchedRepo {
+    pub repo_root: String,
+    pub git_dir: PathBuf,
+    pub common_dir: PathBuf,
+}
+
+pub(crate) fn resolve_refresh_roots(
+    event_path: &std::path::Path,
+    targets: &[WatchedRepo],
+    excludes: &[String],
+) -> Vec<String> {
+    if excludes.iter().any(|ex| event_path.components().any(|c| c.as_os_str() == ex.as_str())) {
+        return Vec::new();
+    }
+    if event_path.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.ends_with(".lock")) {
+        return Vec::new();
+    }
+
+    let mut roots = Vec::new();
+    let is_git_dir_state = |dir: &std::path::Path| -> bool {
+        event_path.parent() == Some(dir)
+            && matches!(
+                event_path.file_name().and_then(|n| n.to_str()),
+                Some(
+                    "HEAD"
+                        | "index"
+                        | "MERGE_HEAD"
+                        | "REBASE_HEAD"
+                        | "CHERRY_PICK_HEAD"
+                        | "FETCH_HEAD"
+                        | "packed-refs"
+                )
+            )
+    };
+
+    for target in targets {
+        let refs_dir = target.common_dir.join("refs");
+        let matches_target = is_git_dir_state(&target.git_dir)
+            || event_path.starts_with(&refs_dir)
+            || event_path == target.common_dir.join("packed-refs");
+        if matches_target && !roots.contains(&target.repo_root) {
+            roots.push(target.repo_root.clone());
+        }
+    }
+
+    if !roots.is_empty() {
+        return roots;
+    }
+
+    // Fallback for untracked repos under enabled watch_dirs.
+    let path_str = event_path.to_string_lossy();
+    let clean_path = path_str.replace("\\.git\\", "/.git/").replace("\\.git", "/.git");
+    if let Some(pos) = clean_path.find("/.git") {
+        if clean_path.contains("/.git/refs/")
+            || clean_path.ends_with("/.git/index")
+            || clean_path.ends_with("/.git/HEAD")
+            || clean_path.ends_with("/.git/packed-refs")
+            || clean_path.ends_with("/.git/MERGE_HEAD")
+        {
+            roots.push(clean_path[..pos].to_string());
+        }
+    }
+    roots
+}
+
 impl App {
     pub fn resolve_repo_themes(&mut self) {
         self.repo_theme_cache.clear();
@@ -810,32 +877,28 @@ impl App {
 
         self.watcher = None;
 
+        let mut targets = Vec::new();
+        for item in &self.config.items {
+            let expanded = repo::expand_tilde(item);
+            let canon = std::fs::canonicalize(&expanded).unwrap_or(expanded);
+            if let Some(dirs) = repo::resolve_git_dirs(&canon) {
+                targets.push(WatchedRepo {
+                    repo_root: canon.to_string_lossy().into_owned(),
+                    git_dir: dirs.git_dir,
+                    common_dir: dirs.common_dir,
+                });
+            }
+        }
+
         let tx = self.tx.clone();
         let excludes = self.config.scan.excludes.clone();
+        let targets_for_cb = targets.clone();
         let mut watcher =
             match notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
                 if let Ok(event) = res {
                     for path in event.paths {
-                        let path_str = path.to_string_lossy();
-                        if excludes
-                            .iter()
-                            .any(|ex| path.components().any(|c| c.as_os_str() == ex.as_str()))
-                        {
-                            continue;
-                        }
-                        let clean_path =
-                            path_str.replace("\\.git\\", "/.git/").replace("\\.git", "/.git");
-                        if let Some(pos) = clean_path.find("/.git") {
-                            let repo_root = &clean_path[..pos];
-                            if !path_str.ends_with(".lock")
-                                && (path_str.contains("/.git/refs/")
-                                    || path_str.ends_with("/.git/index")
-                                    || path_str.ends_with("/.git/HEAD"))
-                            {
-                                let _ = tx.send(BgEvent::RefreshRepo {
-                                    repo_root: repo_root.to_string(),
-                                });
-                            }
+                        for repo_root in resolve_refresh_roots(&path, &targets_for_cb, &excludes) {
+                            let _ = tx.send(BgEvent::RefreshRepo { repo_root });
                         }
                     }
                 }
@@ -847,20 +910,31 @@ impl App {
                 }
             };
 
-        for item in &self.config.items {
-            let expanded = repo::expand_tilde(item);
-            let canon = match std::fs::canonicalize(&expanded) {
-                Ok(c) => c,
-                Err(_) => expanded,
-            };
-            let git_dir = canon.join(".git");
-            if git_dir.exists() && git_dir.is_dir() {
-                if let Err(e) = watcher.watch(&git_dir, RecursiveMode::Recursive) {
+        // Watch each git_dir non-recursively so we never allocate OS watches
+        // for `.git/objects/00..ff`, plus `refs/` recursively for ref changes.
+        let mut registered: std::collections::HashSet<(PathBuf, bool)> =
+            std::collections::HashSet::new();
+        let mut watch_path = |path: &PathBuf, recursive: bool| {
+            let mode =
+                if recursive { RecursiveMode::Recursive } else { RecursiveMode::NonRecursive };
+            if registered.insert((path.clone(), recursive)) {
+                if let Err(e) = watcher.watch(path, mode) {
                     crate::debug_log::warn(format!(
-                        "Failed to watch repository {:?}: {}",
-                        git_dir, e
+                        "Failed to watch repository path {:?}: {}",
+                        path, e
                     ));
                 }
+            }
+        };
+
+        for target in &targets {
+            watch_path(&target.git_dir, false);
+            let refs_dir = target.common_dir.join("refs");
+            if refs_dir.is_dir() {
+                watch_path(&refs_dir, true);
+            }
+            if target.common_dir != target.git_dir && target.common_dir.is_dir() {
+                watch_path(&target.common_dir, false);
             }
         }
 
@@ -1548,6 +1622,7 @@ impl App {
             file_history_diff_scroll: 0,
             file_history_path: String::new(),
             file_history_focus: 0,
+            file_history_loading: false,
             worktree_selection: 0,
             submodule_selection: 0,
             reflog_selection: 0,
@@ -2726,6 +2801,7 @@ impl App {
         } else {
             self.file_tree.file_blame = None;
             self.file_tree.blamed_file_path = None;
+            self.file_tree.blame_loading = false;
         }
     }
 
@@ -2739,16 +2815,31 @@ impl App {
                     _ => None,
                 };
                 if let Some(resolved) = repo_path {
-                    if let Ok(blame) = crate::repo::get_file_blame(&resolved, &item.full_path) {
-                        self.file_tree.file_blame = Some(blame);
-                        self.file_tree.blamed_file_path = Some(item.full_path);
+                    if self.file_tree.blamed_file_path.as_deref() == Some(item.full_path.as_str())
+                        && (self.file_tree.file_blame.is_some() || self.file_tree.blame_loading)
+                    {
                         return;
                     }
+                    self.file_tree.file_blame = None;
+                    self.file_tree.blamed_file_path = Some(item.full_path.clone());
+                    self.file_tree.blame_loading = true;
+                    let tx = self.tx.clone();
+                    let file_path = item.full_path;
+                    std::thread::spawn(move || {
+                        let result = crate::repo::get_file_blame(&resolved, &file_path);
+                        let _ = tx.send(BgEvent::FileBlameLoaded {
+                            repo_path: resolved,
+                            file_path,
+                            result,
+                        });
+                    });
+                    return;
                 }
             }
         }
         self.file_tree.file_blame = None;
         self.file_tree.blamed_file_path = None;
+        self.file_tree.blame_loading = false;
     }
 
     pub fn item_height(&self) -> u16 {

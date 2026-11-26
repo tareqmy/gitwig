@@ -15,7 +15,7 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::panic))]
 
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use git2::{Repository, StatusOptions, StatusShow};
 
@@ -23,8 +23,8 @@ mod patch;
 mod process;
 mod stash;
 pub use process::{
-    detached_command, git_command, set_ssh_strict_host_checking, spawn_pipe_reader,
-    ssh_command_val, summarize_stderr, tool_command,
+    GitRunError, detached_command, git_command, run_git_with_timeout, set_ssh_strict_host_checking,
+    spawn_pipe_reader, ssh_command_val, summarize_stderr, tool_command,
 };
 pub use stash::{save_stash, stash_hunk, stash_line};
 
@@ -108,6 +108,8 @@ pub struct FileRevision {
     pub date: String,
     pub when: String,
     pub summary: String,
+    /// Path of the file in that revision (differs from current path before renames).
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -533,78 +535,6 @@ pub fn safe_sha_slice(sha: &str, len: usize) -> &str {
     &sha[..end]
 }
 
-/// How often the supervising thread checks whether the child has exited.
-const GIT_TIMEOUT_POLL_INTERVAL: Duration = Duration::from_millis(50);
-
-/// Runs `cmd` to completion, killing it if it exceeds `timeout`.
-///
-/// A remote that accepts the TCP connection but never replies would otherwise
-/// leave the caller blocked forever inside `Command::output()`. Mirrors
-/// `crate::git_cmd::run_git_with_timeout` in the `gitwig` binary crate, which
-/// this crate cannot depend on. A zero timeout means "no limit".
-fn run_git_with_timeout(
-    mut cmd: std::process::Command,
-    timeout: Duration,
-) -> Result<std::process::Output, Box<dyn std::error::Error>> {
-    if timeout.is_zero() {
-        return Ok(cmd.output()?);
-    }
-
-    cmd.stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-
-    let mut child = cmd.spawn()?;
-
-    let mut out_pipe = child.stdout.take();
-    let mut err_pipe = child.stderr.take();
-    let out_reader = std::thread::spawn(move || {
-        let mut buf = Vec::new();
-        if let Some(p) = out_pipe.as_mut() {
-            let _ = std::io::Read::read_to_end(p, &mut buf);
-        }
-        buf
-    });
-    let err_reader = std::thread::spawn(move || {
-        let mut buf = Vec::new();
-        if let Some(p) = err_pipe.as_mut() {
-            let _ = std::io::Read::read_to_end(p, &mut buf);
-        }
-        buf
-    });
-
-    let started = Instant::now();
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break Some(status),
-            Ok(None) => {
-                if started.elapsed() >= timeout {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    break None;
-                }
-                std::thread::sleep(GIT_TIMEOUT_POLL_INTERVAL);
-            }
-            Err(e) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(e.into());
-            }
-        }
-    };
-
-    let stdout = out_reader.join().unwrap_or_default();
-    let stderr = err_reader.join().unwrap_or_default();
-
-    match status {
-        Some(status) => Ok(std::process::Output { status, stdout, stderr }),
-        None => {
-            Err(format!("git did not respond within {}s and was cancelled", timeout.as_secs())
-                .into())
-        }
-    }
-}
-
 pub fn safe_ref(r: &str) -> Result<&str, String> {
     let trimmed = r.trim();
     if trimmed.starts_with('-') {
@@ -765,46 +695,107 @@ pub fn discard_file_changes(repo_path: &Path, file_path: &str, staged: bool) -> 
     Ok(())
 }
 
-/// Create a commit in the repository with the given message.
-/// Returns a human-readable error string on failure.
-pub fn commit_changes(repo_path: &Path, message: &str) -> Result<(), String> {
-    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
-    let mut index = repo.index().map_err(|e| e.to_string())?;
-    let tree_id = index.write_tree().map_err(|e| e.to_string())?;
-    let tree = repo.find_tree(tree_id).map_err(|e| e.to_string())?;
+fn run_git_commit(repo_path: &Path, message: &str, amend: bool) -> Result<(), String> {
+    use std::io::Write;
+    use std::process::Stdio;
 
-    let signature = repo
-        .signature()
-        .map_err(|e| format!("Failed to get signature. Check user.name/email config: {}", e))?;
+    let mut cmd = git_command();
+    cmd.arg("commit");
+    if amend {
+        cmd.arg("--amend");
+    }
+    cmd.args(["--cleanup=verbatim", "-F", "-"]).current_dir(repo_path).stdin(Stdio::piped());
 
-    // Find parent commits
-    let mut parents = Vec::new();
-    let mut has_head = false;
-    if let Ok(head) = repo.head() {
-        if let Ok(parent_commit) = head.peel_to_commit() {
-            has_head = true;
-            // Check if there are changes staged compared to HEAD
-            let parent_tree = parent_commit.tree().map_err(|e| e.to_string())?;
-            if parent_tree.id() == tree_id {
-                return Err("No staged changes to commit".to_string());
+    let mut child = cmd.spawn().map_err(|e| format!("Failed to run git commit: {}", e))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        if let Err(e) = stdin.write_all(message.as_bytes()) {
+            // A pre-commit hook can fail before `git commit` reads `-F -`,
+            // closing the pipe; wait_with_output still captures the hook error.
+            if e.kind() != std::io::ErrorKind::BrokenPipe {
+                return Err(format!("Failed to write commit message: {}", e));
             }
-            parents.push(parent_commit);
         }
     }
 
-    if !has_head && index.is_empty() {
-        return Err("No staged changes to commit (index is empty)".to_string());
+    let output =
+        child.wait_with_output().map_err(|e| format!("Failed to wait for git commit: {}", e))?;
+    if output.status.success() {
+        return Ok(());
     }
 
-    let parent_refs: Vec<&git2::Commit> = parents.iter().collect();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let msg = match (stderr.is_empty(), stdout.is_empty()) {
+        (false, false) => format!("{}\n{}", stderr, stdout),
+        (false, true) => stderr,
+        (true, false) => stdout,
+        (true, true) => "git commit failed".to_string(),
+    };
+    Err(msg)
+}
 
-    repo.commit(Some("HEAD"), &signature, &signature, message, &tree, &parent_refs)
-        .map_err(|e| e.to_string())?;
-
-    Ok(())
+/// Create a commit in the repository with the given message.
+/// Shells out to `git commit` so repository hooks and signing configs run.
+/// Returns a human-readable error string on failure.
+pub fn commit_changes(repo_path: &Path, message: &str) -> Result<(), String> {
+    run_git_commit(repo_path, message, false)
 }
 
 // ── Public entry points ────────────────────────────────────────────────────
+
+/// Resolved `.git` admin directory and shared common directory for a checkout.
+/// For a standard repository both point to `<repo>/.git`; for a linked worktree
+/// `git_dir` is `<main>/.git/worktrees/<name>` and `common_dir` is `<main>/.git`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GitDirPaths {
+    pub git_dir: PathBuf,
+    pub common_dir: PathBuf,
+}
+
+/// Resolves the `git_dir` and `common_dir` of `repo_path` without opening
+/// libgit2, handling both `.git/` directories and linked-worktree `.git` files.
+pub fn resolve_git_dirs(repo_path: &Path) -> Option<GitDirPaths> {
+    let dot_git = repo_path.join(".git");
+    if dot_git.is_dir() {
+        let git_dir = std::fs::canonicalize(&dot_git).unwrap_or(dot_git);
+        return Some(GitDirPaths { common_dir: git_dir.clone(), git_dir });
+    }
+    if !dot_git.is_file() {
+        return None;
+    }
+
+    let content = std::fs::read_to_string(&dot_git).ok()?;
+    let spec = content.lines().find_map(|line| line.trim().strip_prefix("gitdir:"))?.trim();
+    if spec.is_empty() {
+        return None;
+    }
+
+    let raw_git_dir = PathBuf::from(spec);
+    let joined_git_dir =
+        if raw_git_dir.is_absolute() { raw_git_dir } else { repo_path.join(raw_git_dir) };
+    let git_dir = std::fs::canonicalize(&joined_git_dir).unwrap_or(joined_git_dir);
+    if !git_dir.is_dir() {
+        return None;
+    }
+
+    let common_file = git_dir.join("commondir");
+    let common_dir = if common_file.is_file() {
+        std::fs::read_to_string(&common_file)
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .map(|rel| {
+                let p = PathBuf::from(rel);
+                let joined = if p.is_absolute() { p } else { git_dir.join(p) };
+                std::fs::canonicalize(&joined).unwrap_or(joined)
+            })
+            .unwrap_or_else(|| git_dir.clone())
+    } else {
+        git_dir.clone()
+    };
+
+    Some(GitDirPaths { git_dir, common_dir })
+}
 
 /// Expand a leading `~` or `~/` in a user-supplied path to the user's home
 /// directory. Returns the input unchanged if there is no home dir or no
@@ -1041,75 +1032,75 @@ fn collect_commits(
     Ok(commits)
 }
 
-pub fn get_file_history(repo_path: &Path, file_path: &str) -> Result<Vec<FileRevision>, String> {
-    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
-    let mut walk = repo.revwalk().map_err(|e| e.to_string())?;
-    if walk.push_head().is_err() {
-        return Ok(Vec::new());
-    }
-    walk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME).map_err(|e| e.to_string())?;
-
+fn parse_file_history_output(raw: &str) -> Vec<FileRevision> {
     let mut revisions = Vec::new();
+    for record in raw.split('\x1e') {
+        let record = record.trim_start_matches(['\r', '\n']);
+        if record.is_empty() {
+            continue;
+        }
+        let mut lines = record.lines();
+        let Some(header) = lines.next() else {
+            continue;
+        };
+        let mut fields = header.splitn(4, '\x1f');
+        let Some(oid) = fields.next().map(str::trim).filter(|s| !s.is_empty()) else {
+            continue;
+        };
+        let author_raw = fields.next().unwrap_or("? <?>");
+        let ts_secs = fields.next().and_then(|s| s.trim().parse::<i64>().ok()).unwrap_or(0);
+        let summary_raw = fields.next().unwrap_or("").trim();
 
-    for oid_res in walk {
-        let oid = oid_res.map_err(|e| e.to_string())?;
-        let commit = repo.find_commit(oid).map_err(|e| e.to_string())?;
-
-        let commit_tree = commit.tree().map_err(|e| e.to_string())?;
-        let mut modified = false;
-
-        if commit.parent_count() > 0 {
-            for i in 0..commit.parent_count() {
-                if let Ok(parent) = commit.parent(i) {
-                    if let Ok(parent_tree) = parent.tree() {
-                        let mut diff_opts = git2::DiffOptions::new();
-                        diff_opts.pathspec(file_path);
-                        if let Ok(diff) = repo.diff_tree_to_tree(
-                            Some(&parent_tree),
-                            Some(&commit_tree),
-                            Some(&mut diff_opts),
-                        ) {
-                            if diff.deltas().len() > 0 {
-                                modified = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
+        let path = lines.map(str::trim).find(|l| !l.is_empty()).map(str::to_string);
+        let author = sanitize_text(author_raw);
+        let when = format_relative_time(ts_secs);
+        let date = format_utc_date(ts_secs);
+        let summary = if summary_raw.is_empty() {
+            "(no commit message)".to_string()
         } else {
-            let mut diff_opts = git2::DiffOptions::new();
-            diff_opts.pathspec(file_path);
-            if let Ok(diff) = repo.diff_tree_to_tree(None, Some(&commit_tree), Some(&mut diff_opts))
-            {
-                if diff.deltas().len() > 0 {
-                    modified = true;
-                }
-            }
-        }
+            sanitize_text(summary_raw)
+        };
 
-        if modified {
-            let author = commit.author();
-            let author_name = author.name().unwrap_or("?");
-            let author_email = author.email().unwrap_or("?");
-            let author_str = sanitize_text(&format!("{} <{}>", author_name, author_email));
-            let time_secs = commit.time().seconds();
-            let when = format_relative_time(time_secs);
-            let date = format_utc_date(time_secs);
-            let summary =
-                sanitize_text(commit.summary().ok().flatten().unwrap_or("(no commit message)"));
+        revisions.push(FileRevision {
+            commit_oid: oid.to_string(),
+            author,
+            date,
+            when,
+            summary,
+            path,
+        });
+    }
+    revisions
+}
 
-            revisions.push(FileRevision {
-                commit_oid: oid.to_string(),
-                author: author_str,
-                date,
-                when,
-                summary,
-            });
+pub fn get_file_history(repo_path: &Path, file_path: &str) -> Result<Vec<FileRevision>, String> {
+    let mut cmd = git_command();
+    cmd.args([
+        "-c",
+        "core.quotepath=false",
+        "log",
+        "--follow",
+        "--name-only",
+        "--format=%x1e%H%x1f%an <%ae>%x1f%at%x1f%s",
+        "--",
+        file_path,
+    ])
+    .env("GIT_LITERAL_PATHSPECS", "1")
+    .current_dir(repo_path);
+
+    let output = cmd.output().map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.contains("does not have any commits yet")
+            || stderr.contains("bad default revision 'HEAD'")
+        {
+            return Ok(Vec::new());
         }
+        return Err(stderr.trim().to_string());
     }
 
-    Ok(revisions)
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Ok(parse_file_history_output(&stdout))
 }
 
 #[derive(Debug, Clone)]
@@ -2736,23 +2727,7 @@ pub fn get_last_commit_message(repo_path: &Path) -> Option<String> {
 }
 
 pub fn commit_amend(repo_path: &Path, message: &str) -> Result<(), String> {
-    let repo = Repository::open(repo_path).map_err(|e| e.to_string())?;
-    let head = repo.head().map_err(|e| format!("No HEAD commit to amend: {}", e))?;
-    let head_commit = head.peel_to_commit().map_err(|e| e.to_string())?;
-
-    let mut index = repo.index().map_err(|e| e.to_string())?;
-    let tree_id = index.write_tree().map_err(|e| e.to_string())?;
-    let tree = repo.find_tree(tree_id).map_err(|e| e.to_string())?;
-
-    let signature = repo
-        .signature()
-        .map_err(|e| format!("Failed to get signature. Check user.name/email config: {}", e))?;
-
-    head_commit
-        .amend(Some("HEAD"), None, Some(&signature), None, Some(message), Some(&tree))
-        .map_err(|e| e.to_string())?;
-
-    Ok(())
+    run_git_commit(repo_path, message, true)
 }
 
 // ── Merge Conflict Helpers ──────────────────────────────────────────────────
@@ -3182,9 +3157,25 @@ pub fn worktree_prune(repo_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn run_gh_with_timeout(
+    cmd: std::process::Command,
+    timeout: Duration,
+) -> Result<std::process::Output, String> {
+    run_git_with_timeout(cmd, timeout).map_err(|e| match e {
+        GitRunError::Timeout(d) => {
+            format!("GitHub CLI ('gh') did not respond within {}s and was cancelled", d.as_secs())
+        }
+        GitRunError::Spawn(msg) => format!(
+            "GitHub CLI ('gh') not found or failed to execute: {}. Ensure 'gh' is installed and in your PATH.",
+            msg
+        ),
+    })
+}
+
 pub fn load_tab_forge_issues(
     repo_path: &Path,
     assigned_only: bool,
+    timeout: Duration,
 ) -> Result<Vec<ForgeIssue>, String> {
     let mut cmd = tool_command("gh");
     cmd.arg("issue").arg("list");
@@ -3197,15 +3188,7 @@ pub fn load_tab_forge_issues(
         .arg("number,title,state,author,assignees,url")
         .current_dir(repo_path);
 
-    let output = match cmd.output() {
-        Ok(out) => out,
-        Err(e) => {
-            return Err(format!(
-                "GitHub CLI ('gh') not found or failed to execute: {}. Ensure 'gh' is installed and in your PATH.",
-                e
-            ));
-        }
-    };
+    let output = run_gh_with_timeout(cmd, timeout)?;
 
     if !output.status.success() {
         let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -3297,7 +3280,7 @@ pub struct PRReview {
     pub state: String,
 }
 
-pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
+pub fn load_tab_forge_prs(repo_path: &Path, timeout: Duration) -> Result<Vec<ForgePR>, String> {
     let mut cmd = tool_command("gh");
     cmd.arg("pr")
         .arg("list")
@@ -3307,15 +3290,7 @@ pub fn load_tab_forge_prs(repo_path: &Path) -> Result<Vec<ForgePR>, String> {
         .arg("number,title,state,author,assignees,url,headRefName,headRefOid,statusCheckRollup,body,reviews")
         .current_dir(repo_path);
 
-    let output = match cmd.output() {
-        Ok(out) => out,
-        Err(e) => {
-            return Err(format!(
-                "GitHub CLI ('gh') not found or failed to execute: {}. Ensure 'gh' is installed and in your PATH.",
-                e
-            ));
-        }
-    };
+    let output = run_gh_with_timeout(cmd, timeout)?;
 
     if !output.status.success() {
         let err_msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -3432,7 +3407,11 @@ fn parse_forge_prs(json: &[u8]) -> Result<Vec<ForgePR>, String> {
     Ok(prs)
 }
 
-pub fn load_pr_comments(repo_path: &Path, pr_number: u32) -> Result<Vec<ForgePRComment>, String> {
+pub fn load_pr_comments(
+    repo_path: &Path,
+    pr_number: u32,
+    timeout: Duration,
+) -> Result<Vec<ForgePRComment>, String> {
     // GitHub pages review comments 30 at a time; ask for the largest page and
     // let gh follow the rest.
     let mut cmd = tool_command("gh");
@@ -3441,10 +3420,7 @@ pub fn load_pr_comments(repo_path: &Path, pr_number: u32) -> Result<Vec<ForgePRC
         .arg("--paginate")
         .current_dir(repo_path);
 
-    let output = match cmd.output() {
-        Ok(out) => out,
-        Err(e) => return Err(format!("Failed to execute gh: {}", e)),
-    };
+    let output = run_gh_with_timeout(cmd, timeout)?;
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -3523,14 +3499,12 @@ pub fn add_pr_line_comment(
     path: &str,
     line: u32,
     body: &str,
+    timeout: Duration,
 ) -> Result<(), String> {
     let mut cmd = tool_command("gh");
     cmd.args(pr_line_comment_args(pr_number, commit_id, path, line, body)).current_dir(repo_path);
 
-    let output = match cmd.output() {
-        Ok(out) => out,
-        Err(e) => return Err(format!("Failed to execute gh: {}", e)),
-    };
+    let output = run_gh_with_timeout(cmd, timeout)?;
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -3539,11 +3513,15 @@ pub fn add_pr_line_comment(
     Ok(())
 }
 
-pub fn checkout_pr_branch(repo_path: &Path, pr_number: u32) -> Result<String, String> {
+pub fn checkout_pr_branch(
+    repo_path: &Path,
+    pr_number: u32,
+    timeout: Duration,
+) -> Result<String, String> {
     let mut cmd = tool_command("gh");
     cmd.arg("pr").arg("checkout").arg(pr_number.to_string()).current_dir(repo_path);
 
-    let output = cmd.output().map_err(|e| e.to_string())?;
+    let output = run_gh_with_timeout(cmd, timeout)?;
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
         return Err(format!("Failed to checkout PR branch: {}", err));
@@ -3566,10 +3544,11 @@ pub fn checkout_pr_branch(repo_path: &Path, pr_number: u32) -> Result<String, St
 pub fn resolve_and_checkout_issue_branch(
     repo_path: &Path,
     issue_number: u32,
+    timeout: Duration,
 ) -> Result<String, String> {
     // No GitHub remote, gh missing or signed out, or a server without linked
     // branches: fall back to matching branch names.
-    let linked = linked_issue_branches(repo_path, issue_number).unwrap_or_default();
+    let linked = linked_issue_branches(repo_path, issue_number, timeout).unwrap_or_default();
     match linked.as_slice() {
         [] => checkout_issue_branch_by_name(repo_path, issue_number),
         [name] => checkout_linked_issue_branch(repo_path, issue_number, name),
@@ -3583,20 +3562,23 @@ pub fn resolve_and_checkout_issue_branch(
 }
 
 /// Names of the branches linked to the issue on GitHub.
-fn linked_issue_branches(repo_path: &Path, issue_number: u32) -> Result<Vec<String>, String> {
+fn linked_issue_branches(
+    repo_path: &Path,
+    issue_number: u32,
+    timeout: Duration,
+) -> Result<Vec<String>, String> {
     const QUERY: &str = "query($owner: String!, $repo: String!, $number: Int!) { \
         repository(owner: $owner, name: $repo) { issue(number: $number) { \
         linkedBranches(first: 10) { nodes { ref { name } } } } } }";
     // `-F` fills gh's `{owner}` / `{repo}` placeholders from the current
     // repository and sends `number` as an integer.
-    let output = tool_command("gh")
-        .args(["api", "graphql", "-f"])
+    let mut cmd = tool_command("gh");
+    cmd.args(["api", "graphql", "-f"])
         .arg(format!("query={}", QUERY))
         .args(["-F", "owner={owner}", "-F", "repo={repo}", "-F"])
         .arg(format!("number={}", issue_number))
-        .current_dir(repo_path)
-        .output()
-        .map_err(|e| e.to_string())?;
+        .current_dir(repo_path);
+    let output = run_gh_with_timeout(cmd, timeout)?;
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
     }
@@ -3840,7 +3822,7 @@ mod tests {
         };
         cmd.stdin(std::process::Stdio::null());
 
-        let started = Instant::now();
+        let started = std::time::Instant::now();
         let res = run_git_with_timeout(cmd, Duration::from_millis(300));
         let elapsed = started.elapsed();
 
@@ -4043,11 +4025,19 @@ mod tests {
         invalidate_ref_map_cache(&temp_path);
 
         // 11. Test Forge API/command execution fallbacks/errors
-        let _ = load_tab_forge_issues(&temp_path, false);
-        let _ = load_tab_forge_issues(&temp_path, true);
-        let _ = load_tab_forge_prs(&temp_path);
-        let _ = load_pr_comments(&temp_path, 1);
-        let _ = add_pr_line_comment(&temp_path, 1, "sha", "file.txt", 10, "comment");
+        let _ = load_tab_forge_issues(&temp_path, false, Duration::from_secs(5));
+        let _ = load_tab_forge_issues(&temp_path, true, Duration::from_secs(5));
+        let _ = load_tab_forge_prs(&temp_path, Duration::from_secs(5));
+        let _ = load_pr_comments(&temp_path, 1, Duration::from_secs(5));
+        let _ = add_pr_line_comment(
+            &temp_path,
+            1,
+            "sha",
+            "file.txt",
+            10,
+            "comment",
+            Duration::from_secs(5),
+        );
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);
@@ -4136,6 +4126,147 @@ mod tests {
 
         // Clean up
         let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_commit_changes_rejects_nothing_staged() {
+        let temp_path = unique_temp_dir("commit_empty");
+        let repo = Repository::init(&temp_path).unwrap();
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+        config.set_bool("commit.gpgsign", false).unwrap();
+
+        let err = commit_changes(&temp_path, "nothing staged").unwrap_err();
+        assert!(!err.trim().is_empty());
+
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_commit_changes_runs_pre_commit_hook() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_path = unique_temp_dir("commit_hook");
+        let repo = Repository::init(&temp_path).unwrap();
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+        config.set_bool("commit.gpgsign", false).unwrap();
+
+        std::fs::write(temp_path.join("file.txt"), "hello\n").unwrap();
+        stage_file(&temp_path, "file.txt").unwrap();
+
+        let hooks_dir = temp_path.join(".git").join("hooks");
+        std::fs::create_dir_all(&hooks_dir).unwrap();
+        let hook_path = hooks_dir.join("pre-commit");
+        std::fs::write(&hook_path, "#!/bin/sh\necho 'hook blocked commit' >&2\nexit 1\n").unwrap();
+        std::fs::set_permissions(&hook_path, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let err = commit_changes(&temp_path, "blocked").unwrap_err();
+        assert!(err.contains("hook blocked commit"), "unexpected hook error: {}", err);
+        assert!(get_last_commit_message(&temp_path).is_none());
+
+        let marker = temp_path.join("hook_ran");
+        let script = format!("#!/bin/sh\ntouch '{}'\nexit 0\n", marker.display());
+        std::fs::write(&hook_path, script).unwrap();
+        std::fs::set_permissions(&hook_path, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        commit_changes(&temp_path, "allowed").unwrap();
+        assert!(marker.exists());
+        assert_eq!(get_last_commit_message(&temp_path).as_deref(), Some("allowed"));
+
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_commit_changes_preserves_multiline_and_hash_message() {
+        let temp_path = unique_temp_dir("commit_multiline");
+        let repo = Repository::init(&temp_path).unwrap();
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+        config.set_bool("commit.gpgsign", false).unwrap();
+
+        std::fs::write(temp_path.join("file.txt"), "hello\n").unwrap();
+        stage_file(&temp_path, "file.txt").unwrap();
+
+        let msg = "feat: support #123\n\n# kept comment line\nsecond line";
+        commit_changes(&temp_path, msg).unwrap();
+        assert_eq!(get_last_commit_message(&temp_path).as_deref(), Some(msg));
+
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_get_file_history_follows_renames() {
+        let temp_path = unique_temp_dir("file_history_follow");
+        let repo = Repository::init(&temp_path).unwrap();
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+        config.set_bool("commit.gpgsign", false).unwrap();
+
+        std::fs::write(temp_path.join("old.txt"), "line 1\n").unwrap();
+        stage_file(&temp_path, "old.txt").unwrap();
+        commit_changes(&temp_path, "add old.txt").unwrap();
+
+        std::fs::rename(temp_path.join("old.txt"), temp_path.join("new.txt")).unwrap();
+        stage_file(&temp_path, "old.txt").unwrap();
+        stage_file(&temp_path, "new.txt").unwrap();
+        commit_changes(&temp_path, "rename to new.txt").unwrap();
+
+        std::fs::write(temp_path.join("new.txt"), "line 1\nline 2\n").unwrap();
+        stage_file(&temp_path, "new.txt").unwrap();
+        commit_changes(&temp_path, "edit new.txt").unwrap();
+
+        let history = get_file_history(&temp_path, "new.txt").unwrap();
+        assert_eq!(history.len(), 3, "expected 3 revisions, got {:?}", history);
+        assert_eq!(history[0].summary, "edit new.txt");
+        assert_eq!(history[0].path.as_deref(), Some("new.txt"));
+        assert_eq!(history[1].summary, "rename to new.txt");
+        assert_eq!(history[2].summary, "add old.txt");
+        assert_eq!(history[2].path.as_deref(), Some("old.txt"));
+
+        let diff = get_commit_file_diff(
+            &temp_path,
+            &history[2].commit_oid,
+            history[2].path.as_deref().unwrap(),
+        );
+        assert!(!diff.is_empty());
+
+        let _ = std::fs::remove_dir_all(&temp_path);
+    }
+
+    #[test]
+    fn test_resolve_git_dirs_standard_and_linked_worktree() {
+        let root = unique_temp_dir("resolve_git_dirs");
+        let main_path = root.join("main");
+        let wt_path = root.join("wt1");
+        std::fs::create_dir_all(&main_path).unwrap();
+
+        let repo = Repository::init(&main_path).unwrap();
+        let mut config = repo.config().unwrap();
+        config.set_str("user.name", "Test User").unwrap();
+        config.set_str("user.email", "test@example.com").unwrap();
+        config.set_bool("commit.gpgsign", false).unwrap();
+
+        std::fs::write(main_path.join("a.txt"), "hello\n").unwrap();
+        stage_file(&main_path, "a.txt").unwrap();
+        commit_changes(&main_path, "initial").unwrap();
+
+        let main_dirs = resolve_git_dirs(&main_path).expect("standard repo should resolve");
+        let canon_main_git = std::fs::canonicalize(main_path.join(".git")).unwrap();
+        assert_eq!(main_dirs.git_dir, canon_main_git);
+        assert_eq!(main_dirs.common_dir, canon_main_git);
+
+        worktree_add(&main_path, "feature-wt", &wt_path).unwrap();
+        let wt_dirs = resolve_git_dirs(&wt_path).expect("linked worktree should resolve");
+        assert_eq!(wt_dirs.common_dir, canon_main_git);
+        assert_eq!(wt_dirs.git_dir, canon_main_git.join("worktrees").join("wt1"));
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
@@ -5812,11 +5943,11 @@ mod tests {
         let _ = worktree_remove(nonexistent, Path::new("path"), true);
         let _ = submodule_remove(nonexistent, "name", Path::new("path"));
         let _ = worktree_prune(nonexistent);
-        let _ = load_tab_forge_issues(nonexistent, true);
-        let _ = load_tab_forge_prs(nonexistent);
-        let _ = load_pr_comments(nonexistent, 1);
-        let _ = checkout_pr_branch(nonexistent, 1);
-        let _ = resolve_and_checkout_issue_branch(nonexistent, 1);
+        let _ = load_tab_forge_issues(nonexistent, true, Duration::from_secs(5));
+        let _ = load_tab_forge_prs(nonexistent, Duration::from_secs(5));
+        let _ = load_pr_comments(nonexistent, 1, Duration::from_secs(5));
+        let _ = checkout_pr_branch(nonexistent, 1, Duration::from_secs(5));
+        let _ = resolve_and_checkout_issue_branch(nonexistent, 1, Duration::from_secs(5));
         let _ = get_remote_url(nonexistent, "origin");
         let _ = get_default_remote_url(nonexistent);
         let _ = get_latest_change_time("/nonexistent");

@@ -242,9 +242,10 @@ fn handle_forge_events(app: &mut App, key: KeyEvent) -> bool {
             app.forge_issue_selection = 0;
             let path = resolved.clone();
             let assigned_only = app.forge_issues_assigned_only;
+            let timeout = std::time::Duration::from_secs(app.config.fetch_timeout_secs);
             let tx = app.tab_tx.clone();
             std::thread::spawn(move || {
-                let res = repo::load_tab_forge_issues(&path, assigned_only);
+                let res = repo::load_tab_forge_issues(&path, assigned_only, timeout);
                 let _ = tx.send((
                     path.to_string_lossy().to_string(),
                     10, // tab_idx

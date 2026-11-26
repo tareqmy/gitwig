@@ -11,6 +11,7 @@ pub struct FileTreeComponent {
     pub show_blame: bool,
     pub file_blame: Option<Vec<crate::repo::BlameEntry>>,
     pub blamed_file_path: Option<String>,
+    pub blame_loading: bool,
     pub show_line_numbers: bool,
 }
 use crate::app::{App, DetailSection, Mode};
@@ -326,11 +327,15 @@ pub fn draw_files_view(
                     for i in 1..=lines.len() {
                         let mut spans = Vec::new();
                         if let Some(ref blames) = app.file_tree.file_blame {
-                            if let Some(entry) = blames.iter().find(|e| e.line_no == i) {
+                            if let Some(entry) = blames
+                                .binary_search_by_key(&i, |e| e.line_no)
+                                .ok()
+                                .map(|idx| &blames[idx])
+                            {
                                 let first_name =
                                     entry.author.split_whitespace().next().unwrap_or("");
-                                let author = if first_name.len() > 8 {
-                                    format!("{}...", &first_name[..5])
+                                let author = if first_name.chars().count() > 8 {
+                                    format!("{}...", first_name.chars().take(5).collect::<String>())
                                 } else {
                                     format!("{:>8}", first_name)
                                 };
@@ -345,6 +350,11 @@ pub fn draw_files_view(
                                 spans.push(Span::styled("         ".to_string(), muted_style()));
                                 spans.push(Span::styled("           ".to_string(), muted_style()));
                             }
+                        } else if app.file_tree.blame_loading && i == 1 {
+                            spans.push(Span::styled(
+                                " Loading blame...           ".to_string(),
+                                muted_style(),
+                            ));
                         } else {
                             spans.push(Span::styled("        ".to_string(), muted_style()));
                             spans.push(Span::styled("         ".to_string(), muted_style()));

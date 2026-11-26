@@ -978,10 +978,11 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                         let path = resolved.clone();
                         app.fetching = true;
                         app.status_message = Some("Posting review comment...".to_string());
+                        let timeout = std::time::Duration::from_secs(app.config.fetch_timeout_secs);
                         let tx = app.tx.clone();
                         std::thread::spawn(move || {
                             let result = crate::repo::add_pr_line_comment(
-                                &path, pr_number, &commit_id, &file_path, line_num, &body,
+                                &path, pr_number, &commit_id, &file_path, line_num, &body, timeout,
                             );
                             let _ = tx.send(crate::app::BgEvent::ForgeCommentResult {
                                 repo_path: path,

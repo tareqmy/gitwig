@@ -1498,7 +1498,9 @@ impl App {
     /// Spawns one bounded background fetch per tracked git repository.
     ///
     /// Shared by the user-triggered (`F`) and scheduled auto-refresh paths, which
-    /// differ only in how the round is described in the debug log. Each thread uses
+    /// differ only in how the round is described in the debug log. Dispatches work
+    /// across a bounded worker pool (`MAX_BULK_FETCH_WORKERS`) so large workspaces
+    /// do not spawn an unbounded thread storm. Each worker uses
     /// [`crate::git_cmd::git_command`] so an unreachable or permission-denied remote
     /// can never open a prompt on the controlling terminal, and is bounded by
     /// `config.fetch_timeout_secs` so a silent remote cannot pin the card spinner.
@@ -1510,6 +1512,8 @@ impl App {
         scheduled: bool,
         only: Option<&std::collections::HashSet<String>>,
     ) {
+        const MAX_BULK_FETCH_WORKERS: usize = 6;
+
         let origin = if scheduled { "scheduled" } else { "user triggered" };
         let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
         self.bulk_fetch_round.clear();
@@ -1518,6 +1522,7 @@ impl App {
         self.bulk_fetch_completed_at = None;
 
         let items = self.config.items.clone();
+        let mut jobs: Vec<(String, std::path::PathBuf)> = Vec::new();
         for (idx, item) in items.iter().enumerate() {
             if let Some(only) = only {
                 if !only.contains(item) {
@@ -1533,14 +1538,6 @@ impl App {
             }
 
             let path_str = item.clone();
-            let r_name = path_buf.file_name().and_then(|s| s.to_str()).unwrap_or(&path_str);
-            let remote_url =
-                repo::get_default_remote_url(&path_buf).unwrap_or_else(|| "(no url)".to_string());
-            crate::debug_log::info(format!(
-                "Network Action: Fetching repository '{}' [url: '{}'] during bulk fetch ({})",
-                r_name, remote_url, origin
-            ));
-
             self.bulk_fetching.insert(path_str.clone());
             self.bulk_fetch_round.insert(path_str.clone());
             self.bulk_fetch_results.remove(&path_str);
@@ -1549,24 +1546,57 @@ impl App {
             // so both origins must increment or the counter underflows and the
             // network-activity indicator goes dark while work is still running.
             self.increment_implicit_network();
+            jobs.push((path_str, path_buf));
+        }
 
+        if jobs.is_empty() {
+            return;
+        }
+
+        let worker_count = jobs.len().min(MAX_BULK_FETCH_WORKERS);
+        let queue =
+            std::sync::Arc::new(std::sync::Mutex::new(std::collections::VecDeque::from(jobs)));
+        for _ in 0..worker_count {
+            let queue = std::sync::Arc::clone(&queue);
             let tx = self.tx.clone();
             std::thread::spawn(move || {
-                let mut cmd = crate::git_cmd::git_command();
-                cmd.arg("fetch").current_dir(&path_buf);
+                loop {
+                    let next = {
+                        let Ok(mut guard) = queue.lock() else {
+                            break;
+                        };
+                        guard.pop_front()
+                    };
+                    let Some((path_str, path_buf)) = next else {
+                        break;
+                    };
 
-                let event = match crate::git_cmd::run_git_with_timeout(cmd, timeout) {
-                    Ok(out) if out.status.success() => BgEvent::BulkFetchSuccess { path: path_str },
-                    Ok(out) => {
-                        let error =
-                            crate::fetch_error::sanitize(&String::from_utf8_lossy(&out.stderr));
-                        BgEvent::BulkFetchError { path: path_str, error }
-                    }
-                    // `GitRunError::Timeout`'s Display carries the wording that
-                    // `fetch_error::classify` recognises as a timeout.
-                    Err(e) => BgEvent::BulkFetchError { path: path_str, error: e.to_string() },
-                };
-                let _ = tx.send(event);
+                    let r_name = path_buf.file_name().and_then(|s| s.to_str()).unwrap_or(&path_str);
+                    let remote_url = repo::get_default_remote_url(&path_buf)
+                        .unwrap_or_else(|| "(no url)".to_string());
+                    crate::debug_log::info(format!(
+                        "Network Action: Fetching repository '{}' [url: '{}'] during bulk fetch ({})",
+                        r_name, remote_url, origin
+                    ));
+
+                    let mut cmd = crate::git_cmd::git_command();
+                    cmd.arg("fetch").current_dir(&path_buf);
+
+                    let event = match crate::git_cmd::run_git_with_timeout(cmd, timeout) {
+                        Ok(out) if out.status.success() => {
+                            BgEvent::BulkFetchSuccess { path: path_str }
+                        }
+                        Ok(out) => {
+                            let error =
+                                crate::fetch_error::sanitize(&String::from_utf8_lossy(&out.stderr));
+                            BgEvent::BulkFetchError { path: path_str, error }
+                        }
+                        // `GitRunError::Timeout`'s Display carries the wording that
+                        // `fetch_error::classify` recognises as a timeout.
+                        Err(e) => BgEvent::BulkFetchError { path: path_str, error: e.to_string() },
+                    };
+                    let _ = tx.send(event);
+                }
             });
         }
     }
@@ -1965,6 +1995,7 @@ impl App {
             return;
         };
         let path = resolved.clone();
+        let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
         let tx = self.tx.clone();
         self.fetching = true;
         match target {
@@ -1972,7 +2003,7 @@ impl App {
                 self.status_message =
                     Some(format!("Resolving and switching branch for issue #{}...", number));
                 std::thread::spawn(move || {
-                    let result = repo::resolve_and_checkout_issue_branch(&path, number)
+                    let result = repo::resolve_and_checkout_issue_branch(&path, number, timeout)
                         .map_err(|e| format!("Failed to switch branch: {}", e));
                     let _ = tx.send(BgEvent::ForgeCheckoutResult { repo_path: path, result });
                 });
@@ -1980,7 +2011,7 @@ impl App {
             crate::app::ForgeCheckoutTarget::PullRequest { number, .. } => {
                 self.status_message = Some(format!("Checking out branch for PR #{}...", number));
                 std::thread::spawn(move || {
-                    let result = repo::checkout_pr_branch(&path, number)
+                    let result = repo::checkout_pr_branch(&path, number, timeout)
                         .map_err(|e| format!("Failed to switch branch: {}", e));
                     let _ = tx.send(BgEvent::ForgeCheckoutResult { repo_path: path, result });
                 });

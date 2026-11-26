@@ -40,9 +40,10 @@ impl App {
         if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail {
             self.forge_pr_comments_loading = true;
             let path = resolved.clone();
+            let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
             let tx = self.tab_tx.clone();
             std::thread::spawn(move || {
-                let result = repo::load_pr_comments(&path, pr_number);
+                let result = repo::load_pr_comments(&path, pr_number, timeout);
                 let _ = tx.send((
                     path.to_string_lossy().to_string(),
                     11, // tab_idx (PRs tab)
@@ -1408,6 +1409,9 @@ impl App {
         self.file_tree.file_list_selection = 0;
         self.file_tree.file_content_scroll = 0;
         self.file_tree.expanded_folders.clear();
+        self.file_tree.file_blame = None;
+        self.file_tree.blamed_file_path = None;
+        self.file_tree.blame_loading = false;
         self.commit_list.selection = 0;
         self.detail_tab = 0;
         // Tab 0 is in the Primary group. Opening a worktree from the Worktrees
@@ -1936,8 +1940,9 @@ impl App {
                         info.forge_issues = repo::TabData::Loading;
                     }
                     let assigned_only = self.forge_issues_assigned_only;
+                    let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
                     std::thread::spawn(move || {
-                        let res = repo::load_tab_forge_issues(&path, assigned_only);
+                        let res = repo::load_tab_forge_issues(&path, assigned_only, timeout);
                         let _ = tx.send((
                             path.to_string_lossy().to_string(),
                             tab_idx,
@@ -1953,8 +1958,9 @@ impl App {
                     if is_not_loaded {
                         info.forge_prs = repo::TabData::Loading;
                     }
+                    let timeout = std::time::Duration::from_secs(self.config.fetch_timeout_secs);
                     std::thread::spawn(move || {
-                        let res = repo::load_tab_forge_prs(&path);
+                        let res = repo::load_tab_forge_prs(&path, timeout);
                         let _ = tx.send((
                             path.to_string_lossy().to_string(),
                             tab_idx,
@@ -3983,21 +3989,23 @@ impl App {
                     None
                 };
             if let Some(repo_path) = repo_path {
-                match repo::get_file_history(&repo_path, &file_path) {
-                    Ok(revisions) => {
-                        self.file_history_revisions = revisions;
-                        self.file_history_selection = 0;
-                        self.file_history_path = file_path;
-                        self.file_history_diff = Vec::new();
-                        self.file_history_diff_scroll = 0;
-                        self.file_history_focus = 0;
-                        self.mode = Mode::FileHistory;
-                        self.refresh_file_history_diff();
-                    }
-                    Err(e) => {
-                        self.set_error(format!("Failed to load file history: {}", e));
-                    }
-                }
+                self.file_history_revisions.clear();
+                self.file_history_selection = 0;
+                self.file_history_path = file_path.clone();
+                self.file_history_diff.clear();
+                self.file_history_diff_scroll = 0;
+                self.file_history_focus = 0;
+                self.file_history_loading = true;
+                self.mode = Mode::FileHistory;
+                let tx = self.tx.clone();
+                std::thread::spawn(move || {
+                    let result = repo::get_file_history(&repo_path, &file_path);
+                    let _ = tx.send(crate::app::BgEvent::FileHistoryLoaded {
+                        repo_path,
+                        file_path,
+                        result,
+                    });
+                });
             }
         }
     }
@@ -4007,7 +4015,7 @@ impl App {
             self.file_history_diff = Vec::new();
             return;
         }
-        let revision = &self.file_history_revisions[self.file_history_selection].clone();
+        let revision = self.file_history_revisions[self.file_history_selection].clone();
         let repo_path = if let Some(repo::ItemDetail::Repo { resolved, .. }) = &self.current_detail
         {
             Some(resolved.clone())
@@ -4015,11 +4023,9 @@ impl App {
             None
         };
         if let Some(repo_path) = repo_path {
-            self.file_history_diff = repo::get_commit_file_diff(
-                &repo_path,
-                &revision.commit_oid,
-                &self.file_history_path,
-            );
+            let diff_path = revision.path.as_deref().unwrap_or(&self.file_history_path);
+            self.file_history_diff =
+                repo::get_commit_file_diff(&repo_path, &revision.commit_oid, diff_path);
             self.file_history_diff_scroll = 0;
         }
     }

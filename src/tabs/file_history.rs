@@ -16,6 +16,7 @@ impl FileHistoryTab {
 
         match code {
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                app.file_history_loading = false;
                 app.mode = Mode::Detail;
                 return true;
             }
@@ -147,9 +148,13 @@ impl FileHistoryTab {
                     Constraint::Min(0),
                 ])
                 .split(left_inner);
+            let msg = if app.file_history_loading {
+                "Loading file history..."
+            } else {
+                "No history found"
+            };
             f.render_widget(
-                Paragraph::new(Span::styled("No history found", muted_style()))
-                    .alignment(Alignment::Center),
+                Paragraph::new(Span::styled(msg, muted_style())).alignment(Alignment::Center),
                 v_center[1],
             );
         } else {
@@ -242,9 +247,10 @@ impl FileHistoryTab {
                     Constraint::Min(0),
                 ])
                 .split(right_inner);
+            let msg =
+                if app.file_history_loading { "Loading..." } else { "No changes or binary file" };
             f.render_widget(
-                Paragraph::new(Span::styled("No changes or binary file", muted_style()))
-                    .alignment(Alignment::Center),
+                Paragraph::new(Span::styled(msg, muted_style())).alignment(Alignment::Center),
                 v_center[1],
             );
         } else {

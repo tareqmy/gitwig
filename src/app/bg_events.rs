@@ -23,20 +23,55 @@ pub enum RepoOpKind {
 /// Typed events emitted by background threads onto `App::tx`.
 #[derive(Debug, Clone)]
 pub enum BgEvent {
-    RepoScanFound { name: String, path: String },
+    RepoScanFound {
+        name: String,
+        path: String,
+    },
     RepoScanCount(usize),
     RepoScanComplete,
-    BulkFetchSuccess { path: String },
-    BulkFetchError { path: String, error: String },
-    RefreshRepo { repo_root: String },
-    UpdateCheckSuccess { latest_version: String },
+    BulkFetchSuccess {
+        path: String,
+    },
+    BulkFetchError {
+        path: String,
+        error: String,
+    },
+    RefreshRepo {
+        repo_root: String,
+    },
+    UpdateCheckSuccess {
+        latest_version: String,
+    },
     UpdateCheckFailed,
     SelfUpdateResult(Result<String, String>),
     CloneResult(Result<String, String>),
-    ForgeCheckoutResult { repo_path: PathBuf, result: Result<String, String> },
-    ForgeCommentResult { repo_path: PathBuf, result: Result<(), String> },
-    RemoteTagsResult { repo_path: PathBuf, result: Result<Vec<repo::BranchInfo>, String> },
-    RepoOpResult { repo_path: PathBuf, kind: RepoOpKind, result: Result<String, String> },
+    ForgeCheckoutResult {
+        repo_path: PathBuf,
+        result: Result<String, String>,
+    },
+    ForgeCommentResult {
+        repo_path: PathBuf,
+        result: Result<(), String>,
+    },
+    RemoteTagsResult {
+        repo_path: PathBuf,
+        result: Result<Vec<repo::BranchInfo>, String>,
+    },
+    RepoOpResult {
+        repo_path: PathBuf,
+        kind: RepoOpKind,
+        result: Result<String, String>,
+    },
+    FileHistoryLoaded {
+        repo_path: PathBuf,
+        file_path: String,
+        result: Result<Vec<repo::FileRevision>, String>,
+    },
+    FileBlameLoaded {
+        repo_path: PathBuf,
+        file_path: String,
+        result: Result<Vec<repo::BlameEntry>, String>,
+    },
 }
 
 fn repo_display_name(path: &Path) -> String {
@@ -275,6 +310,36 @@ impl App {
                 } else if let Err(err) = result {
                     // Surface failures from a repository the user already navigated away from.
                     self.set_error(format!("[{}] {}", repo_display_name(&repo_path), err));
+                }
+            }
+            BgEvent::FileHistoryLoaded { repo_path, file_path, result } => {
+                if self.mode == Mode::FileHistory
+                    && self.is_open_repo(&repo_path)
+                    && self.file_history_path == file_path
+                {
+                    self.file_history_loading = false;
+                    match result {
+                        Ok(revisions) => {
+                            self.file_history_revisions = revisions;
+                            self.file_history_selection = 0;
+                            self.refresh_file_history_diff();
+                        }
+                        Err(e) => {
+                            self.set_error(format!("Failed to load file history: {}", e));
+                        }
+                    }
+                }
+            }
+            BgEvent::FileBlameLoaded { repo_path, file_path, result } => {
+                if self.is_open_repo(&repo_path)
+                    && self.file_tree.show_blame
+                    && self.file_tree.blamed_file_path.as_deref() == Some(file_path.as_str())
+                {
+                    self.file_tree.blame_loading = false;
+                    match result {
+                        Ok(blame) => self.file_tree.file_blame = Some(blame),
+                        Err(_) => self.file_tree.file_blame = None,
+                    }
                 }
             }
         }
