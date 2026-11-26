@@ -7,6 +7,25 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [v2.7.0] - 2026-11-26
+### Added
+- **stash**: partial and patch stashing — pressing `z` in an unstaged diff (Workspace `Staging Details` or the full-screen diff) stashes just the selected hunk, or the selected line in line mode, and takes it out of the working tree. The Stashing UI's file list is now pickable (`Space` toggles a file, `a` toggles all/none), and `s` stashes only the picked files' changes without pulling in unpicked staged changes; each file is listed once and `Esc` in the name prompt returns to the panel. ([fc51b83](https://github.com/tareqmy/gitwig/commit/fc51b83))
+- **clipboard**: Linux clipboard copy (`y`) now supports Wayland via `wl-copy` (preferred when `WAYLAND_DISPLAY` is set) alongside `xclip` and `xsel`, and drops stdin before waiting so clipboard tools cannot hang waiting on EOF. ([7f49db1](https://github.com/tareqmy/gitwig/commit/7f49db1))
+- **self-update**: Nix store installations (`/nix/store/...`) are now detected and self-update is disabled with guidance to upgrade via `nix profile upgrade gitwig`. ([7f49db1](https://github.com/tareqmy/gitwig/commit/7f49db1))
+
+### Changed
+- **background workers**: replaced string-encoded `App.tx`/`App.rx` messages with typed `BgEvent` / `RepoOpKind` events drained by `App::drain_bg_events` (`src/app/bg_events.rs`), preventing false error classification on branch names containing `"failed"` and surfacing failures from repositories the user has already navigated away from. ([7f49db1](https://github.com/tareqmy/gitwig/commit/7f49db1))
+- **security**: moved `ssh_strict_host_checking` into an `AtomicBool` in `gitwig-core` (`set_ssh_strict_host_checking`), removing `unsafe` `std::env::set_var` mutations across threads and enabling `#![deny(unsafe_code)]` in `src/lib.rs`. ([7f49db1](https://github.com/tareqmy/gitwig/commit/7f49db1))
+
+### Fixed
+- **stash**: incremented the usage dashboard's stash counter on stash creation, and stopped reporting "Created stash" when there is nothing to save. ([fc51b83](https://github.com/tareqmy/gitwig/commit/fc51b83))
+- **input & paste**: enabled/disabled terminal bracketed paste (`EnableBracketedPaste` / `DisableBracketedPaste`) across startup, panic hook, `TerminalGuard`, and interactive command suspend/resume; fixed text-input, modifier, and paste routing across `RepoSettings`, `LabelSettings`, `CommitInput`, `TagCreateInput` message input, `LogsSearchInput`, `CommitSearchInput`, `DebugLogs`, and ignored unsolicited pastes in non-input modes. ([7f49db1](https://github.com/tareqmy/gitwig/commit/7f49db1))
+- **themes**: replaced manual theme save/restore with an RAII `ThemeGuard` and aligned repo-theme lookup with `is_detail_base_mode`, keeping the active repository theme in detail search popups (`BranchSearchInput`, `CommitHistoryPicker`, etc.) and restoring it safely on drop. ([7f49db1](https://github.com/tareqmy/gitwig/commit/7f49db1))
+- **external commands**: split configured `editor` and `git_app` strings with shell-style quote handling (`split_command_words`) so multi-word or quoted commands (e.g., `code --wait`) launch cleanly, and refreshed active repository status and detail after returning from the editor or completing a commit. ([7f49db1](https://github.com/tareqmy/gitwig/commit/7f49db1))
+
+### Documentation
+- `docs/features.md`, `docs/detail_view.md`, `docs/panels.md`, `docs/keybindings.md`, `.agent/ROADMAP.md`, and `.agent/CODEMAP.md` cover partial/patch stashing, Stashing UI file picks, and `src/app/bg_events.rs`. ([fc51b83](https://github.com/tareqmy/gitwig/commit/fc51b83), [7f49db1](https://github.com/tareqmy/gitwig/commit/7f49db1))
+
 ## [v2.6.7] - 2026-10-01
 ### Added
 - **submodules**: the Submodules tab can now initialize and update existing submodules. `u` acts on the selected submodule and `U` on every submodule (`git submodule update --init --recursive`). An Uninitialized submodule is cloned and checked out; a Modified one goes back to the commit the repository records. That move asks first, in a popup listing the Modified submodules it affects, since commits made there that no branch holds are left behind. The update is never forced, so uncommitted changes a checkout would overwrite make it fail with an error instead of being lost; a submodule whose removal is staged is skipped. Both keys can be rebound in Settings and appear in the help overlay, the status bar and the command palette. ([c83b277](https://github.com/tareqmy/gitwig/commit/c83b277))
