@@ -84,6 +84,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
     let pin_key = k(crate::keybindings::Action::HomeTogglePin);
     let star_key = k(crate::keybindings::Action::HomeToggleStar);
     let archive_key = k(crate::keybindings::Action::HomeToggleArchive);
+    let archive_label_key = k(crate::keybindings::Action::HomeArchiveLabelRepos);
     let yank_key = k(crate::keybindings::Action::HomeYankPath);
     let update_key = k(crate::keybindings::Action::HomeCheckUpdate);
     let debug_key = k(crate::keybindings::Action::HomeOpenDebugLogs);
@@ -125,6 +126,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
         ("Pin", &pin_key),
         ("Star", &star_key),
         ("Archive", &archive_key),
+        ("Archive Label", &archive_label_key),
         ("Yank Path", &yank_key),
         ("Check Update", &update_key),
         ("Settings", &settings_key),

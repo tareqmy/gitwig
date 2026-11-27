@@ -1270,6 +1270,7 @@ fn test_actual_rendering_all_modes_and_tabs() {
         Mode::About,
         Mode::Legend,
         Mode::ConfirmDelete,
+        Mode::ConfirmArchiveLabel,
         Mode::DetailHelp,
         Mode::CommitInput,
         Mode::BranchCreateInput,
@@ -1664,4 +1665,95 @@ fn test_bisect_banner_and_popup_rendering() {
     assert!(popup_out.contains("Git Bisect"));
     assert!(popup_out.contains("[BAD]"));
     assert!(popup_out.contains("broken commit"));
+}
+
+#[test]
+fn test_draw_archive_label_popup_and_empty_state() {
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    let (cfg_path, _guard) = crate::test_support::temp_config_path("draw_archive_label");
+    let items: Vec<String> = (1..=7).map(|i| format!("/tmp/gitwig_lbl_repo_{}", i)).collect();
+    let mut labels = std::collections::HashMap::new();
+    for p in &items {
+        labels.insert(p.clone(), vec!["work".to_string()]);
+    }
+    let config = Config { items: items.clone(), labels, ..Default::default() };
+    let mut app = App::new(config, cfg_path);
+    app.label_archive_target = Some(crate::app::LabelArchiveTarget {
+        label: "work".to_string(),
+        repos: items.clone(),
+        unarchive: false,
+    });
+    app.mode = Mode::ConfirmArchiveLabel;
+
+    let backend = TestBackend::new(90, 28);
+    let mut terminal = Terminal::new(backend).unwrap();
+    let mut detail_areas = crate::ui_detail::DetailAreas::default();
+    let mut main_areas = Vec::new();
+    let mut global_summary_area = None;
+
+    let render_text = |terminal: &Terminal<TestBackend>| -> String {
+        let buf = terminal.backend().buffer();
+        (0..buf.area.height)
+            .map(|y| {
+                (0..buf.area.width).map(|x| buf.cell((x, y)).unwrap().symbol()).collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+
+    terminal
+        .draw(|f| {
+            let size = f.area();
+            super::draw(
+                f,
+                &app,
+                size,
+                size,
+                1,
+                &mut detail_areas,
+                &mut main_areas,
+                &mut global_summary_area,
+                &mut None,
+            );
+        })
+        .unwrap();
+    let popup_out = render_text(&terminal);
+    assert!(popup_out.contains("Archive Label Repositories"), "Buffer:\n{}", popup_out);
+    assert!(popup_out.contains("7 shown repositories"), "Buffer:\n{}", popup_out);
+    assert!(popup_out.contains("work"), "Buffer:\n{}", popup_out);
+    assert!(popup_out.contains("gitwig_lbl_repo_1"), "Buffer:\n{}", popup_out);
+    assert!(popup_out.contains("gitwig_lbl_repo_5"), "Buffer:\n{}", popup_out);
+    assert!(popup_out.contains("... and 2 more"), "Buffer:\n{}", popup_out);
+
+    // When all repos for the active label are archived, empty state reports it cleanly.
+    app.mode = Mode::Normal;
+    app.label_archive_target = None;
+    app.state.active_label_filter = Some("work".to_string());
+    for p in items {
+        app.config.archived.insert(p);
+    }
+    terminal
+        .draw(|f| {
+            let size = f.area();
+            super::draw(
+                f,
+                &app,
+                size,
+                size,
+                1,
+                &mut detail_areas,
+                &mut main_areas,
+                &mut global_summary_area,
+                &mut None,
+            );
+        })
+        .unwrap();
+    let empty_out = render_text(&terminal);
+    assert!(
+        empty_out.contains("All repositories with label 'work' are currently archived."),
+        "Buffer:\n{}",
+        empty_out
+    );
 }

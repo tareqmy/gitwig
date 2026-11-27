@@ -28,6 +28,7 @@
 | `p`                  | Normal          | Toggle pin status of selected item (pinned repositories stay at the top of the list in every sort order, above a thin rule) |
 | `*`                  | Normal          | Toggle Favorite / Star status of selected item |
 | `z`                  | Normal          | Toggle archive status of selected repository (archived repositories move to the Archived summary tab and are skipped during bulk fetch) |
+| `Z`                  | Normal          | Archive (or unarchive in the Archived tab) all currently shown repositories for the active label filter or highlighted label group (asks) |
 | `Space`              | Normal          | Toggle selection of item for batch operations (fetch, delete, external shell) |
 | `y`                  | Normal          | Yank absolute path of selected item to clipboard |
 | `/`                  | Normal          | Open fuzzy Jump-to-Repo picker overlay |
@@ -90,7 +91,7 @@
 | `Home` / `End`       | Editing / Input Modals | Move the caret to the start / end of the field |
 | `Delete`             | Editing / Input Modals | Erase the character under the caret |
 | `Tab` / `↑` / `↓`    | Tag Creation    | Switch focus between Tag Name and Tag Message input fields |
-| `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag/stash/remote/submodule, update a Modified submodule, push branch/tag/all tags, tag overwrite, abort/continue merge, checkout of a branch, tag, commit or issue/PR branch, track launch directory). `Enter` also confirms non-destructive dialogs (checkouts, pushes, merges); on destructive ones it cancels |
+| `y` / `Y`            | Confirm Dialog  | Confirm action (delete item/branch/tag/stash/remote/submodule, archive/unarchive shown repositories for a label, update a Modified submodule, push branch/tag/all tags, tag overwrite, abort/continue merge, checkout of a branch, tag, commit or issue/PR branch, track launch directory). `Enter` also confirms non-destructive dialogs (checkouts, pushes, merges); on destructive ones it cancels |
 | `f` / `F`            | Confirm Dialog  | Force push tag (`--force`) in Tag Push confirmation dialog |
 | `t` / `T`            | Confirm Dialog  | Push branch with tags (`--tags`) in Branch Push confirmation dialog |
 | `n` / `N` / `Esc`    | Confirm Dialog  | Cancel action                     |

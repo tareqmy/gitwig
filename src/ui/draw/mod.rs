@@ -322,6 +322,10 @@ pub fn draw(
         crate::popups::confirm::draw_add_cwd_repo_popup(f, area, app);
     }
 
+    if matches!(app.mode, Mode::ConfirmArchiveLabel) {
+        crate::popups::confirm::draw_archive_label_popup(f, area, app);
+    }
+
     if matches!(app.mode, Mode::Legend) {
         crate::popups::legend::draw_legend_popup(f, area, app);
     }

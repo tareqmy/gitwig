@@ -1295,6 +1295,93 @@ impl App {
         self.persist(&msg);
     }
 
+    /// Resolves the target label and all currently shown repositories for that
+    /// label: either the active sticky label filter (using all currently
+    /// filtered items) or, when no label filter is active, the currently
+    /// highlighted real label group header.
+    pub fn resolve_archive_label_target(&self) -> Option<LabelArchiveTarget> {
+        let unarchive = self.global_filter == Some(GlobalFilter::Archived);
+        if let Some(label) = self.state.active_label_filter.clone() {
+            let repos =
+                self.get_filtered_items().into_iter().map(|(_, path)| path.clone()).collect();
+            return Some(LabelArchiveTarget { label, repos, unarchive });
+        }
+
+        match self.get_home_rows().get(self.selected_index) {
+            Some(HomeRow::GroupHeader { name, .. })
+                if name != "Recent" && name != "Starred" && name != "Unlabeled" =>
+            {
+                let repos = self
+                    .get_filtered_items()
+                    .into_iter()
+                    .filter(|&(_, path)| {
+                        self.config
+                            .labels
+                            .get(path)
+                            .is_some_and(|lbls| lbls.iter().any(|l| l == name))
+                    })
+                    .map(|(_, path)| path.clone())
+                    .collect();
+                Some(LabelArchiveTarget { label: name.clone(), repos, unarchive })
+            }
+            _ => None,
+        }
+    }
+
+    /// Prompts the user to confirm archiving (or unarchiving on the Archived
+    /// tab) all currently shown repositories for the active label filter or
+    /// selected label group header.
+    pub fn request_archive_label_repos(&mut self) {
+        let Some(target) = self.resolve_archive_label_target() else {
+            self.status_message =
+                Some("Filter by a label (L) or select a label group first".to_string());
+            return;
+        };
+        if target.repos.is_empty() {
+            let verb = if target.unarchive { "unarchive" } else { "archive" };
+            self.status_message =
+                Some(format!("No shown repositories to {} for label '{}'", verb, target.label));
+            return;
+        }
+        self.label_archive_target = Some(target);
+        self.mode = Mode::ConfirmArchiveLabel;
+    }
+
+    /// Confirms [`Mode::ConfirmArchiveLabel`], updating `config.archived` for
+    /// all target repositories and persisting the change.
+    pub fn confirm_archive_label_repos(&mut self) {
+        let Some(target) = self.label_archive_target.take() else {
+            self.mode = Mode::Normal;
+            return;
+        };
+        let count = target.repos.len();
+        if target.unarchive {
+            for repo in &target.repos {
+                self.config.archived.remove(repo);
+            }
+        } else {
+            for repo in &target.repos {
+                self.config.archived.insert(repo.clone());
+                self.multi_selected.remove(repo);
+            }
+        }
+        self.mode = Mode::Normal;
+        self.clamp_selection();
+        if self.get_items_len() == 0 {
+            self.scroll_top = 0;
+        }
+        let verb = if target.unarchive { "Unarchived" } else { "Archived" };
+        let noun = if count == 1 { "repository" } else { "repositories" };
+        let msg = format!("{} {} {} for label '{}'", verb, count, noun, target.label);
+        self.persist(&msg);
+    }
+
+    /// Cancels [`Mode::ConfirmArchiveLabel`] without modifying archive state.
+    pub fn cancel_archive_label_repos(&mut self) {
+        self.label_archive_target = None;
+        self.mode = Mode::Normal;
+    }
+
     /// Open the repository under the home cursor in the Detail view.
 
     pub fn get_jump_matches(&self) -> Vec<(usize, String, String)> {

@@ -54,6 +54,7 @@ pub enum Action {
     HomeOpenExternalShell,
     HomeToggleStar,
     HomeToggleArchive,
+    HomeArchiveLabelRepos,
     HomeYankPath,
     HomeJumpPicker,
     HomeFetchAll,
@@ -305,6 +306,7 @@ impl Action {
             70 => Some(Action::HomeOpenTerminal),
             71 => Some(Action::HomeToggleStar),
             262 => Some(Action::HomeToggleArchive),
+            266 => Some(Action::HomeArchiveLabelRepos),
             72 => Some(Action::HomeYankPath),
             73 => Some(Action::HomeJumpPicker),
             74 => Some(Action::HomeFetchAll),
@@ -501,6 +503,7 @@ impl Action {
             Action::HomeOpenTerminal => 70,
             Action::HomeToggleStar => 71,
             Action::HomeToggleArchive => 262,
+            Action::HomeArchiveLabelRepos => 266,
             Action::HomeYankPath => 72,
             Action::HomeJumpPicker => 73,
             Action::HomeFetchAll => 74,
@@ -685,6 +688,7 @@ pub struct HomeKeybindings {
     pub open_external_shell: Option<Keybind>,
     pub toggle_star: Option<Keybind>,
     pub toggle_archive: Option<Keybind>,
+    pub archive_label_repos: Option<Keybind>,
     pub yank_path: Option<Keybind>,
     pub jump_picker: Option<Keybind>,
     pub fetch_all: Option<Keybind>,
@@ -1071,6 +1075,10 @@ impl KeybindingsConfig {
                     &["z"],
                     "Toggle archive status of selected repository",
                 )),
+                archive_label_repos: Some(Keybind::new(
+                    &["Z"],
+                    "Archive (or unarchive) all currently shown repositories for a label",
+                )),
                 yank_path: Some(Keybind::new(&["y"], "Yank repository absolute path to clipboard")),
                 jump_picker: Some(Keybind::new(&["/"], "Open fuzzy Jump-to-Repo picker overlay")),
                 fetch_all: Some(Keybind::new(
@@ -1354,6 +1362,7 @@ impl KeybindingsConfig {
             Action::HomeOpenExternalShell => self.home.open_external_shell.as_ref(),
             Action::HomeToggleStar => self.home.toggle_star.as_ref(),
             Action::HomeToggleArchive => self.home.toggle_archive.as_ref(),
+            Action::HomeArchiveLabelRepos => self.home.archive_label_repos.as_ref(),
             Action::HomeYankPath => self.home.yank_path.as_ref(),
             Action::HomeJumpPicker => self.home.jump_picker.as_ref(),
             Action::HomeFetchAll => self.home.fetch_all.as_ref(),
@@ -1573,6 +1582,7 @@ impl KeybindingsConfig {
             Action::HomeOpenExternalShell => self.home.open_external_shell.as_ref(),
             Action::HomeToggleStar => self.home.toggle_star.as_ref(),
             Action::HomeToggleArchive => self.home.toggle_archive.as_ref(),
+            Action::HomeArchiveLabelRepos => self.home.archive_label_repos.as_ref(),
             Action::HomeYankPath => self.home.yank_path.as_ref(),
             Action::HomeJumpPicker => self.home.jump_picker.as_ref(),
             Action::HomeFetchAll => self.home.fetch_all.as_ref(),
@@ -1852,6 +1862,7 @@ impl KeybindingsConfig {
             Action::HomeOpenExternalShell,
             Action::HomeToggleStar,
             Action::HomeToggleArchive,
+            Action::HomeArchiveLabelRepos,
             Action::HomeYankPath,
             Action::HomeJumpPicker,
             Action::HomeFetchAll,
@@ -1966,6 +1977,7 @@ impl KeybindingsConfig {
                 | Action::HomeOpenExternalShell
                 | Action::HomeToggleStar
                 | Action::HomeToggleArchive
+                | Action::HomeArchiveLabelRepos
                 | Action::HomeYankPath
                 | Action::HomeJumpPicker
                 | Action::HomeFetchAll
@@ -2060,6 +2072,7 @@ impl KeybindingsConfig {
             Action::HomeOpenExternalShell => self.home.open_external_shell = keybind,
             Action::HomeToggleStar => self.home.toggle_star = keybind,
             Action::HomeToggleArchive => self.home.toggle_archive = keybind,
+            Action::HomeArchiveLabelRepos => self.home.archive_label_repos = keybind,
             Action::HomeYankPath => self.home.yank_path = keybind,
             Action::HomeJumpPicker => self.home.jump_picker = keybind,
             Action::HomeFetchAll => self.home.fetch_all = keybind,

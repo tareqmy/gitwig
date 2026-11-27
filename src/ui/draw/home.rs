@@ -1138,11 +1138,29 @@ pub(super) fn draw_filter_empty_state(f: &mut Frame, area: Rect, app: &App) {
 
     let all_archived = !app.config.items.is_empty()
         && app.config.items.iter().all(|p| app.config.archived.contains(p));
+    let all_label_archived = app.state.active_label_filter.as_ref().is_some_and(|label| {
+        let mut has_any = false;
+        let all = app
+            .config
+            .items
+            .iter()
+            .filter(|p| {
+                app.config.labels.get(*p).is_some_and(|lbls| lbls.iter().any(|l| l == label))
+            })
+            .all(|p| {
+                has_any = true;
+                app.config.archived.contains(p)
+            });
+        has_any && all
+    });
     let headline = match (tab_name, &app.state.active_label_filter) {
         (Some(tab), Some(label)) => {
             format!("No {} repositories with label '{}'.", tab, label)
         }
         (Some(tab), None) => format!("No repositories in the {} tab right now.", tab),
+        (None, Some(label)) if all_label_archived => {
+            format!("All repositories with label '{}' are currently archived.", label)
+        }
         (None, Some(label)) => format!("No repositories with label '{}'.", label),
         (None, None) if all_archived => "All repositories are currently archived.".to_string(),
         (None, None) => "All repositories are currently hidden as stale.".to_string(),
@@ -1153,7 +1171,7 @@ pub(super) fn draw_filter_empty_state(f: &mut Frame, area: Rect, app: &App) {
         Line::from(""),
     ];
 
-    if tab_name.is_some() || all_archived {
+    if tab_name.is_some() || all_archived || all_label_archived {
         lines.push(Line::from(vec![
             Span::raw("Press  "),
             Span::styled("Tab", accent_style()),

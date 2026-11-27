@@ -150,6 +150,7 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     let palette_key = kb.format_action_keys(Action::CommandPalette, is_compat);
     let star_key = kb.format_action_keys(Action::HomeToggleStar, is_compat);
     let archive_key = kb.format_action_keys(Action::HomeToggleArchive, is_compat);
+    let archive_label_key = kb.format_action_keys(Action::HomeArchiveLabelRepos, is_compat);
     let yank_key = kb.format_action_keys(Action::HomeYankPath, is_compat);
     let jump_picker_key = kb.format_action_keys(Action::HomeJumpPicker, is_compat);
     let fetch_all_key = kb.format_action_keys(Action::HomeFetchAll, is_compat);
@@ -258,6 +259,10 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 ),
                 (star_key, "Toggle Favorite / Star status of selected item"),
                 (archive_key, "Toggle archive status of selected item"),
+                (
+                    archive_label_key,
+                    "Archive / unarchive all shown repositories for active label (or selected label group)",
+                ),
                 (select_key, "Toggle selection of item for batch operations"),
                 (yank_key, "Yank absolute path of selected item to clipboard"),
                 (jump_picker_key, "Open fuzzy Jump-to-Repo picker overlay"),

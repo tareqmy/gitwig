@@ -495,6 +495,44 @@ pub(crate) fn get_status_layout_components(
             let (msg_spans, entries) = confirm_delete_entries(target);
             (msg_spans, entries)
         }
+        Mode::ConfirmArchiveLabel => {
+            let msg_spans = if let Some(ref target) = app.label_archive_target {
+                let verb = if target.unarchive { "Unarchive" } else { "Archive" };
+                let noun = if target.repos.len() == 1 { "repository" } else { "repositories" };
+                vec![Span::styled(
+                    format!(
+                        "{} {} {} for label '{}'? ",
+                        verb,
+                        target.repos.len(),
+                        noun,
+                        target.label
+                    ),
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+                )]
+            } else {
+                vec![Span::styled(
+                    "Archive label repositories? ",
+                    Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD),
+                )]
+            };
+            let entries = vec![
+                StatusEntry::new(vec![
+                    Span::raw("Confirm"),
+                    Span::raw(" "),
+                    Span::styled("[", muted_style()),
+                    Span::styled("y", accent_style()),
+                    Span::styled("]", muted_style()),
+                ]),
+                StatusEntry::new(vec![
+                    Span::raw("Cancel"),
+                    Span::raw(" "),
+                    Span::styled("[", muted_style()),
+                    Span::styled("n/Esc", accent_style()),
+                    Span::styled("]", muted_style()),
+                ]),
+            ];
+            (Some(msg_spans), entries)
+        }
         Mode::Help => {
             let (msg_spans, entries) = help_dismiss_entries(app);
             (msg_spans, entries)
@@ -1615,6 +1653,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         | Mode::CommitSearchInput
         | Mode::LogsSearchInput => ("INPUT", Color::Red),
         Mode::ConfirmDelete
+        | Mode::ConfirmArchiveLabel
         | Mode::BranchDeleteConfirm
         | Mode::BranchCheckoutConfirm
         | Mode::TagCheckoutConfirm

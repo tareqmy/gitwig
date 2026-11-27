@@ -23,6 +23,7 @@ The primary dashboard shown when Gitwig starts up.
         *   `p` : Toggle pin status of selected item
         *   `*` : Toggle Starred / Favorite status of selected item
         *   `z` : Toggle archive status of selected item (moves to/from the Archived tab)
+        *   `Z` : Archive (or unarchive in the Archived tab) all currently shown repositories for the active label or highlighted label group (asks)
         *   `y` : Yank absolute path to clipboard
         *   `/` : Open fuzzy Jump-to-Repo picker
         *   `f` : Enter repository list search query input mode

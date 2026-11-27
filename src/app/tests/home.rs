@@ -2653,3 +2653,146 @@ fn test_archive_toggle_filter_counts_and_lifecycle() {
     let _ = std::fs::remove_dir_all(&dir_a);
     let _ = std::fs::remove_dir_all(&dir_b);
 }
+
+#[test]
+fn test_archive_label_repos_workflow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let (cfg_path, _guard) = temp_config_path("archive_label_repos");
+    let repo_w1 = "/tmp/gitwig_arch_lbl_w1".to_string();
+    let repo_w2 = "/tmp/gitwig_arch_lbl_w2".to_string();
+    let repo_p1 = "/tmp/gitwig_arch_lbl_p1".to_string();
+    let repo_u1 = "/tmp/gitwig_arch_lbl_u1".to_string();
+
+    let mut labels = std::collections::HashMap::new();
+    labels.insert(repo_w1.clone(), vec!["work".to_string()]);
+    labels.insert(repo_w2.clone(), vec!["work".to_string()]);
+    labels.insert(repo_p1.clone(), vec!["personal".to_string()]);
+
+    let config = Config {
+        items: vec![repo_w1.clone(), repo_w2.clone(), repo_p1.clone(), repo_u1.clone()],
+        labels,
+        ..Default::default()
+    };
+    let mut app = App::new(config, cfg_path.clone());
+    app.config.show_stale_projects = true;
+
+    let shift_z = KeyEvent::new(KeyCode::Char('Z'), KeyModifiers::SHIFT);
+    let key_n = KeyEvent::new(KeyCode::Char('n'), KeyModifiers::empty());
+    let key_y = KeyEvent::new(KeyCode::Char('y'), KeyModifiers::empty());
+    let esc = KeyEvent::new(KeyCode::Esc, KeyModifiers::empty());
+
+    // 1. Active label filter + search query scopes which repos are targeted; cancel keeps state untouched.
+    app.state.active_label_filter = Some("work".to_string());
+    app.repo_search_query = Some("w1".to_string());
+    app.multi_selected.insert(repo_w1.clone());
+    assert!(crate::input::handle_key(&mut app, shift_z, 10));
+    assert_eq!(app.mode, Mode::ConfirmArchiveLabel);
+    let target = app.label_archive_target.as_ref().expect("target should be set");
+    assert_eq!(target.label, "work");
+    assert_eq!(target.repos, vec![repo_w1.clone()]);
+    assert!(!target.unarchive);
+
+    // Cancel with 'n' leaves archived untouched.
+    assert!(crate::input::handle_key(&mut app, key_n, 10));
+    assert_eq!(app.mode, Mode::Normal);
+    assert!(app.label_archive_target.is_none());
+    assert!(!app.config.archived.contains(&repo_w1));
+
+    // Confirm with 'y' archives only the shown repo (repo_w1), clears multi_selected, and persists.
+    assert!(crate::input::handle_key(&mut app, shift_z, 10));
+    assert!(crate::input::handle_key(&mut app, key_y, 10));
+    assert_eq!(app.mode, Mode::Normal);
+    assert!(app.config.archived.contains(&repo_w1));
+    assert!(!app.config.archived.contains(&repo_w2));
+    assert!(!app.config.archived.contains(&repo_p1));
+    assert!(!app.multi_selected.contains(&repo_w1));
+    assert_eq!(app.status_message.as_deref(), Some("Archived 1 repository for label 'work'"));
+
+    let reloaded = crate::config::load_config(Some(cfg_path)).expect("reload config").0;
+    assert!(reloaded.archived.contains(&repo_w1));
+
+    // Clear search so remaining shown repo for 'work' (repo_w2) can also be archived.
+    app.repo_search_query = None;
+    assert!(crate::input::handle_key(&mut app, shift_z, 10));
+    assert_eq!(app.mode, Mode::ConfirmArchiveLabel);
+    assert_eq!(app.label_archive_target.as_ref().expect("target").repos, vec![repo_w2.clone()]);
+    assert!(crate::input::handle_key(&mut app, esc, 10));
+    assert_eq!(app.mode, Mode::Normal);
+
+    // Archive repo_w2 as well so 'work' has 0 shown repos on normal tab.
+    assert!(crate::input::handle_key(&mut app, shift_z, 10));
+    assert!(crate::input::handle_key(&mut app, key_y, 10));
+    assert!(app.config.archived.contains(&repo_w2));
+    assert_eq!(app.get_items_len(), 0);
+
+    // Pressing Z when 0 repos are shown for active label reports status and stays in Normal.
+    assert!(crate::input::handle_key(&mut app, shift_z, 10));
+    assert_eq!(app.mode, Mode::Normal);
+    assert_eq!(
+        app.status_message.as_deref(),
+        Some("No shown repositories to archive for label 'work'")
+    );
+
+    // 2. Switching to GlobalFilter::Archived + Z -> y unarchives all shown repos for that label.
+    app.global_filter = Some(GlobalFilter::Archived);
+    assert!(crate::input::handle_key(&mut app, shift_z, 10));
+    assert_eq!(app.mode, Mode::ConfirmArchiveLabel);
+    let target = app.label_archive_target.as_ref().expect("unarchive target");
+    assert!(target.unarchive);
+    assert_eq!(target.repos.len(), 2);
+    assert!(crate::input::handle_key(&mut app, key_y, 10));
+    assert_eq!(app.mode, Mode::Normal);
+    assert!(!app.config.archived.contains(&repo_w1));
+    assert!(!app.config.archived.contains(&repo_w2));
+    assert_eq!(app.status_message.as_deref(), Some("Unarchived 2 repositories for label 'work'"));
+
+    // 3. No active label filter: group headers vs non-label headers & repo rows.
+    app.global_filter = None;
+    app.state.active_label_filter = None;
+    app.config.show_grouping = true;
+    app.state.visits.insert(repo_p1.clone(), 100);
+    app.config.starred.insert(repo_p1.clone());
+
+    let rows = app.get_home_rows();
+    let find_header = |name: &str| {
+        rows.iter()
+            .position(|r| matches!(r, HomeRow::GroupHeader { name: n, .. } if n == name))
+            .unwrap_or_else(|| panic!("missing group header {name}"))
+    };
+
+    // On "Recent", "Starred", "Unlabeled", or a Repo row -> status hint, stays Normal.
+    for idx in [
+        find_header("Recent"),
+        find_header("Starred"),
+        find_header("Unlabeled"),
+        rows.iter().position(|r| matches!(r, HomeRow::Repo { .. })).expect("repo row"),
+    ] {
+        app.selected_index = idx;
+        assert!(crate::input::handle_key(&mut app, shift_z, 10));
+        assert_eq!(app.mode, Mode::Normal);
+        assert_eq!(
+            app.status_message.as_deref(),
+            Some("Filter by a label (L) or select a label group first")
+        );
+    }
+
+    // On real label GroupHeader ("work") -> targets and archives both 'work' repos.
+    app.selected_index = find_header("work");
+    assert!(crate::input::handle_key(&mut app, shift_z, 10));
+    assert_eq!(app.mode, Mode::ConfirmArchiveLabel);
+    assert_eq!(app.label_archive_target.as_ref().expect("group target").label, "work");
+    assert!(crate::input::handle_key(&mut app, key_y, 10));
+    assert!(app.config.archived.contains(&repo_w1));
+    assert!(app.config.archived.contains(&repo_w2));
+    assert!(!app.config.archived.contains(&repo_p1));
+
+    // Command Palette includes HomeArchiveLabelRepos.
+    let palette = crate::popups::command_palette::CommandPalette::for_context(&app);
+    assert!(
+        palette
+            .entries
+            .iter()
+            .any(|e| e.action == crate::keybindings::Action::HomeArchiveLabelRepos)
+    );
+}

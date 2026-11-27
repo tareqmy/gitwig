@@ -138,6 +138,8 @@ impl HomeTab {
                     app.toggle_star_selected();
                 } else if app.is_bound(Action::HomeToggleArchive, key) {
                     app.toggle_archive_selected();
+                } else if app.is_bound(Action::HomeArchiveLabelRepos, key) {
+                    app.request_archive_label_repos();
                 } else if app.is_bound(Action::HomeJumpPicker, key) {
                     app.input_buffer.clear();
                     app.repo_jump_selection = 0;
@@ -284,6 +286,13 @@ impl HomeTab {
                 KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_delete(),
                 KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc | KeyCode::Enter => {
                     app.close_dialog()
+                }
+                _ => {}
+            },
+            Mode::ConfirmArchiveLabel => match code {
+                KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_archive_label_repos(),
+                KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc | KeyCode::Enter => {
+                    app.cancel_archive_label_repos()
                 }
                 _ => {}
             },

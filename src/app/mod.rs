@@ -52,6 +52,15 @@ pub enum ForgeCheckoutTarget {
     PullRequest { number: u32, title: String },
 }
 
+/// Target for [`Mode::ConfirmArchiveLabel`]: all currently shown repositories
+/// for a label to archive (or unarchive when viewing the Archived tab).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LabelArchiveTarget {
+    pub label: String,
+    pub repos: Vec<String>,
+    pub unarchive: bool,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Mode {
     /// Browsing the list.
@@ -60,6 +69,8 @@ pub enum Mode {
     Editing,
     /// Asking the user to confirm deletion of the selected item.
     ConfirmDelete,
+    /// Asking the user to confirm archiving/unarchiving all shown repositories for a label.
+    ConfirmArchiveLabel,
     /// Showing the full shortcut reference as a centered overlay.
     Help,
     /// Showing the full-screen detail view for the selected item.
@@ -515,6 +526,8 @@ pub struct App {
     pub label_settings_input: String,
     /// The label whose settings the label settings popup is editing.
     pub label_settings_target: Option<String>,
+    /// Target label and shown repositories pending confirmation in [`Mode::ConfirmArchiveLabel`].
+    pub label_archive_target: Option<LabelArchiveTarget>,
     /// Loaded user/default keybindings configuration.
     pub keybindings: crate::keybindings::KeybindingsConfig,
     /// Whether external Git application launch is pending.
@@ -1538,6 +1551,7 @@ impl App {
             label_settings_editing: false,
             label_settings_input: String::new(),
             label_settings_target: None,
+            label_archive_target: None,
             keybindings,
             pending_git_app: false,
             pending_terminal: false,

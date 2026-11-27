@@ -1378,6 +1378,93 @@ pub fn draw_add_cwd_repo_popup(f: &mut Frame, area: Rect, app: &App) {
     );
 }
 
+/// Confirmation dialog for archiving (or unarchiving) all currently shown
+/// repositories for a specific label.
+pub fn draw_archive_label_popup(f: &mut Frame, area: Rect, app: &App) {
+    let Some(ref target) = app.label_archive_target else {
+        return;
+    };
+
+    let border_style = Style::default().fg(if target.unarchive { ACCENT() } else { WARNING() });
+    let title_text = if target.unarchive {
+        "Unarchive Label Repositories"
+    } else {
+        "Archive Label Repositories"
+    };
+    let verb = if target.unarchive { "Unarchive" } else { "Archive" };
+    let action_hint = if target.unarchive { "unarchive" } else { "archive" };
+    let count = target.repos.len();
+    let noun = if count == 1 { "shown repository" } else { "shown repositories" };
+
+    let mut body_lines: Vec<Line> = vec![
+        Line::from(""),
+        Line::from(vec![
+            Span::styled(format!("{} ", verb), primary_style()),
+            Span::styled(
+                format!("{} {}", count, noun),
+                accent_style().add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" for label ", primary_style()),
+            Span::styled(target.label.clone(), accent_style().add_modifier(Modifier::BOLD)),
+            Span::styled("?", primary_style()),
+        ]),
+        Line::from(""),
+    ];
+
+    const MAX_PREVIEW: usize = 5;
+    for path in target.repos.iter().take(MAX_PREVIEW) {
+        let name = std::path::Path::new(path)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or(path.as_str());
+        body_lines.push(Line::from(Span::styled(name.to_string(), primary_style())));
+    }
+    if count > MAX_PREVIEW {
+        body_lines.push(Line::from(Span::styled(
+            format!("... and {} more", count - MAX_PREVIEW),
+            muted_style(),
+        )));
+    }
+
+    body_lines.push(Line::from(""));
+    body_lines.push(Line::from(vec![
+        Span::styled("[", muted_style()),
+        Span::styled("y", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(format!("] {}     ", action_hint), muted_style()),
+        Span::styled("[", muted_style()),
+        Span::styled("n / Esc", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled("] cancel", muted_style()),
+    ]));
+
+    let height = (body_lines.len() as u16 + 3).min(area.height.saturating_sub(2)).max(7);
+    let popup_area = centered_rect_fixed(64, height, area);
+    f.render_widget(Clear, popup_area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(CARD_BORDER())
+        .border_style(border_style)
+        .title(
+            Line::from(vec![
+                Span::raw(" "),
+                Span::styled(title_text, border_style.add_modifier(Modifier::BOLD)),
+                Span::raw(" "),
+            ])
+            .alignment(Alignment::Center),
+        )
+        .padding(Padding::horizontal(1));
+
+    f.render_widget(block.clone(), popup_area);
+    let inner = block.inner(popup_area);
+    f.render_widget(
+        Paragraph::new(Text::from(body_lines))
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: true }),
+        inner,
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

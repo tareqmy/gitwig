@@ -264,7 +264,8 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
         | Mode::AddRepoLabelInput
         | Mode::BulkAddRepoLabelInput
         | Mode::CloneRepoLabelInput
-        | Mode::ConfirmDelete => {
+        | Mode::ConfirmDelete
+        | Mode::ConfirmArchiveLabel => {
             if !crate::tabs::HomeTab::handle_event(app, key, visible_count) {
                 return false;
             }

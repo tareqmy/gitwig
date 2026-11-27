@@ -58,6 +58,7 @@ const HOME_SETTING_INDICES: &[usize] = &[
     33,  // Home: Toggle Pin
     71,  // Home: Toggle Star
     262, // Home: Toggle Archive
+    266, // Home: Archive Label Repos
     72,  // Home: Yank Path
     73,  // Home: Jump Picker
     76,  // Home: Global Code Search
@@ -112,9 +113,9 @@ const ALL_KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     // Global & Nav Keys
     16, 15, 14, 250, 39, 40, 41, 42, 43, 53, 54, 44, 45, 46, 47, 48, 49, 50, 51, 52, 68, 265, 69,
     // Home Screen Keys
-    17, 18, 19, 20, 21, 22, 38, 75, 33, 71, 262, 72, 73, 76, 37, 30, 31, 32, 77, 23, 24, 35, 25, 26,
-    28, 70, 251, 36, 27, 29, 78, 79, 57, 74, 85, 86, 87, 88, 252, 253, 254, 255, 256, 257, 258,
-    259, 260, 263, 264, // Workspace Tab Keys
+    17, 18, 19, 20, 21, 22, 38, 75, 33, 71, 262, 266, 72, 73, 76, 37, 30, 31, 32, 77, 23, 24, 35,
+    25, 26, 28, 70, 251, 36, 27, 29, 78, 79, 57, 74, 85, 86, 87, 88, 252, 253, 254, 255, 256, 257,
+    258, 259, 260, 263, 264, // Workspace Tab Keys
     100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117,
     // Files & Branch Keys
     120, 121, 122, 123, 124, 125, 126, 127, 130, 131, 132, 133, 139, 134, 135, 136, 137, 138,
@@ -310,6 +311,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         265 => "Detail: Interactive Bisect",
         71 => "Home: Toggle Star",
         262 => "Home: Toggle Archive",
+        266 => "Home: Archive Label Repos",
         72 => "Home: Yank Path",
         73 => "Home: Jump Picker",
         74 => "Home: Fetch All",
@@ -556,6 +558,9 @@ fn get_desc(global_idx: usize) -> &'static str {
         251 => "Suspend the TUI and spawn a full-screen shell in the selected repository.",
         71 => "Toggle Star / Favorite status of selected repository.",
         262 => "Toggle Archive status of selected repository.",
+        266 => {
+            "Archive (or unarchive) all currently shown repositories for the active label or selected label group."
+        }
         72 => "Yank absolute path of selected repository to clipboard.",
         73 => "Open fuzzy Jump-to-Repo picker overlay.",
         74 => "Bulk fetch all tracked repositories concurrently.",
