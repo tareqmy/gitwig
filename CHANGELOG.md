@@ -7,6 +7,21 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [v2.8.0] - 2026-11-27
+### Added
+- **home**: added an `archived` summary tab alongside `repos`, `dirty`, `ahead`, and `stale`, and a `HomeToggleArchive` keybinding (default `z`) to archive/unarchive repositories; archived entries remain searchable/reachable via their tab and skip bulk fetch refreshes. ([be2b815](https://github.com/tareqmy/gitwig/commit/be2b815))
+
+### Changed
+- **commits & git backend**: routed `commit_changes` and `commit_amend` through the `git` CLI (`git commit --cleanup=verbatim -F -`) so user hooks and GPG/SSH signing run cleanly; moved file history (`git log --follow --name-only`) and blame loading off the UI thread (`BgEvent::FileHistoryLoaded` / `BgEvent::FileBlameLoaded`), deduplicated `run_git_with_timeout` / `GitRunError` into `gitwig-core::process`, enforced timeouts on all Forge `gh` calls, bounded bulk fetch concurrency to 6 workers with non-blocking remote resolution, and switched the filesystem watcher to non-recursive `git_dir` plus recursive `common_dir/refs` roots to support linked worktrees and skip `.git/objects/`. ([2a31bff](https://github.com/tareqmy/gitwig/commit/2a31bff))
+- **performance & architecture**: added a stat-keyed `FilePreviewCache` and viewport-only line slicing in the Files tab; removed dead `src/keys/` tables and unreachable `Mode::Adding`; modularized `gitwig-core`, `src/ui/draw/`, `src/app/navigation/`, and `src/app/tests/` into focused submodules. ([f27b861](https://github.com/tareqmy/gitwig/commit/f27b861), [a9010b9](https://github.com/tareqmy/gitwig/commit/a9010b9))
+- **dependencies & CI**: replaced `chrono` with `jiff` (`1.0`) for usage dashboard dates/heatmaps (resolving `RUSTSEC-2026-0543`), upgraded `libz-sys` to `1.1.33` (resolving `RUSTSEC-2026-0418` and `RUSTSEC-2026-0544`), and updated GitHub Actions macOS runners from `macos-14` to `macos-15`. ([b1ca619](https://github.com/tareqmy/gitwig/commit/b1ca619))
+
+### Fixed
+- **lints & packaging**: fixed `clippy::needless_bool` lints under Clippy 1.100 and removed redundant `package.homepage` keys in `Cargo.toml` / `gitwig-core/Cargo.toml`. ([b1ca619](https://github.com/tareqmy/gitwig/commit/b1ca619))
+
+### Documentation
+- Updated `docs/keybindings.md`, `docs/panels.md`, `GEMINI.md`, `.agent/INSTRUCTIONS.md`, `.agent/CODEMAP.md`, and `.agent/STYLE_GUIDE.md` for repository archiving, keybindings, and the modularized crate/app/UI layout. ([be2b815](https://github.com/tareqmy/gitwig/commit/be2b815), [f27b861](https://github.com/tareqmy/gitwig/commit/f27b861), [a9010b9](https://github.com/tareqmy/gitwig/commit/a9010b9))
+
 ## [v2.7.0] - 2026-11-26
 ### Added
 - **stash**: partial and patch stashing — pressing `z` in an unstaged diff (Workspace `Staging Details` or the full-screen diff) stashes just the selected hunk, or the selected line in line mode, and takes it out of the working tree. The Stashing UI's file list is now pickable (`Space` toggles a file, `a` toggles all/none), and `s` stashes only the picked files' changes without pulling in unpicked staged changes; each file is listed once and `Esc` in the name prompt returns to the panel. ([fc51b83](https://github.com/tareqmy/gitwig/commit/fc51b83))
