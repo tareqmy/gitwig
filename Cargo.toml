@@ -7,7 +7,6 @@ authors = ["tareqmy <tareq.y@gmail.com>"]
 description = "a rust based tui, an alternative to sourcetree and gitui"
 rust-version = "1.88.0"
 exclude = [".github/*", ".vscode/*", "assets/*"]
-homepage = "https://github.com/tareqmy/gitwig"
 repository = "https://github.com/tareqmy/gitwig"
 readme = "README.md"
 license = "MIT"
@@ -40,7 +39,7 @@ git2 = { version = "0.21", default-features = false }
 libc = "0.2"
 notify = "6.1.1"
 sha2 = "0.10"
-chrono = "0.4"
+jiff = "1.0"
 portable-pty = "0.9"
 vt100 = "0.16"
 tui-term = { version = "0.3.4", default-features = false, features = ["vt100"] }

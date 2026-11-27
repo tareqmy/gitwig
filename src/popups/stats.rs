@@ -1,7 +1,6 @@
 use crate::app::{App, Mode};
 use crate::ui::layout::centered_rect_fixed;
 use crate::ui::style::{CARD_BORDER, accent_style, muted_style, primary_style};
-use chrono::{Datelike, Duration, Local};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -113,19 +112,20 @@ impl StatsPopup {
         f.render_widget(heatmap_title, chunks[4]);
 
         // Heatmap Grid Generator
-        let today = Local::now().date_naive();
-        // A week starts on Sunday (num_days_from_sunday = 0..=6)
-        let days_in_last_week = today.weekday().num_days_from_sunday() + 1;
+        let today = jiff::ZonedDateTime::now().date();
+        // A week starts on Sunday (to_sunday_zero_offset = 0..=6)
+        let days_in_last_week = i64::from(today.weekday().to_sunday_zero_offset()) + 1;
         let total_days = (51 * 7) + days_in_last_week;
-        let start_date = today - Duration::days((total_days - 1) as i64);
+        let start_date = today.checked_sub(jiff::Span::new().days(total_days - 1)).unwrap_or(today);
 
         let mut grid: Vec<Vec<Span>> = vec![vec![]; 7];
 
         for i in 0..total_days {
-            let current_date = start_date + Duration::days(i as i64);
-            let row = current_date.weekday().num_days_from_sunday() as usize;
+            let current_date =
+                start_date.checked_add(jiff::Span::new().days(i)).unwrap_or(start_date);
+            let row = current_date.weekday().to_sunday_zero_offset() as usize;
 
-            let date_str = current_date.format("%Y-%m-%d").to_string();
+            let date_str = current_date.to_string();
             let count = app.stats.daily_activity.get(&date_str).copied().unwrap_or(0);
 
             let span = if count == 0 {

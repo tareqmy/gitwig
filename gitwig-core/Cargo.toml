@@ -6,7 +6,6 @@ authors = ["tareqmy <tareq.y@gmail.com>"]
 description = "Repository inspection and core Git backend for Gitwig TUI client"
 license = "MIT"
 repository = "https://github.com/tareqmy/gitwig"
-homepage = "https://github.com/tareqmy/gitwig"
 readme = "../README.md"
 
 [dependencies]

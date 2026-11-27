@@ -39,7 +39,7 @@ pub struct AppStats {
 
 impl AppStats {
     pub fn track_daily_activity(&mut self) {
-        let date = chrono::Local::now().format("%Y-%m-%d").to_string();
+        let date = jiff::ZonedDateTime::now().date().to_string();
         *self.daily_activity.entry(date).or_insert(0) += 1;
     }
 

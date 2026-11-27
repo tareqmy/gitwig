@@ -30,14 +30,9 @@ impl TagsTab {
             }
         }
         let ev = crossterm::event::Event::Key(key);
-        if app
-            .tag_list
+        app.tag_list
             .event(&ev, &app.keybindings)
             .unwrap_or(crate::components::EventState::NotConsumed)
             .is_consumed()
-        {
-            return true;
-        }
-        false
     }
 }
