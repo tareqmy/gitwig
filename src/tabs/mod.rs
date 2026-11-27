@@ -32,6 +32,11 @@ pub fn route_detail_event(app: &mut App, key: KeyEvent) -> bool {
         return true;
     }
 
+    if app.is_bound(Action::Bisect, key) {
+        app.open_bisect_popup();
+        return true;
+    }
+
     if app.is_bound(Action::CloseDetail, key) {
         if app.inspect_full_diff {
             app.inspect_full_diff = false;

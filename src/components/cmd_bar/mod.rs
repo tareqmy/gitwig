@@ -574,6 +574,49 @@ pub(crate) fn get_status_layout_components(
             let (msg_spans, entries) = detail_dismiss_entries(app);
             (msg_spans, entries)
         }
+        Mode::Bisect => {
+            let mut entries = Vec::new();
+            let bisect_key = app.keybindings.format_action_keys(
+                crate::keybindings::Action::Bisect,
+                app.config.compatibility_mode,
+            );
+            let close_key = format!("Esc/q/{}", bisect_key);
+            let active = matches!(
+                &app.current_detail,
+                Some(crate::repo::ItemDetail::Repo { info, .. }) if info.bisect.active
+            );
+            let entries_data: Vec<(&str, &str)> = if active {
+                vec![
+                    ("Good", "g"),
+                    ("Bad", "b"),
+                    ("Skip", "k"),
+                    ("Mark Selected", "G/B"),
+                    ("Reset", "r"),
+                    ("Scroll Log", "↑↓"),
+                    ("Close", close_key.as_str()),
+                ]
+            } else {
+                vec![
+                    ("Start", "s"),
+                    ("Start+Bad", "b"),
+                    ("Start HEAD+Selected", "g"),
+                    ("Close", close_key.as_str()),
+                ]
+            };
+            for (i, (label, key)) in entries_data.iter().enumerate() {
+                let mut spans = Vec::new();
+                if i > 0 {
+                    spans.push(Span::styled(" ", muted_style()));
+                }
+                spans.push(Span::raw((*label).to_string()));
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("[", muted_style()));
+                spans.push(Span::styled((*key).to_string(), accent_style()));
+                spans.push(Span::styled("]", muted_style()));
+                entries.push(StatusEntry::new(spans));
+            }
+            (None, entries)
+        }
         Mode::Overview => {
             let mut entries = Vec::new();
             // The Overview handler (src/input.rs) matches Esc / q / Q, s / S
@@ -1530,6 +1573,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         Mode::Normal => ("NORMAL", Color::Blue),
         Mode::Detail => ("DETAIL", Color::Magenta),
         Mode::Overview => ("OVERVIEW", Color::Magenta),
+        Mode::Bisect => ("BISECT", Color::Yellow),
         Mode::Inspect => ("INSPECT", Color::Rgb(175, 95, 0)),
         Mode::FileHistory => ("HISTORY", Color::Rgb(0, 135, 175)),
         Mode::StashingUI => ("STASH", ACCENT()),

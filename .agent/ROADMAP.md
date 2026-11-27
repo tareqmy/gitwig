@@ -188,7 +188,7 @@ This roadmap outlines the progression of Gitwig from a basic list viewer to a fu
 - [x] **Forge Insights:** Track the number of pull requests reviewed and comments made through the Forge integration tab.
 
 ## Phase 17: Future Explorations & Quality of Life
-- [ ] **Interactive Git Bisect:** A guided, visual interface for `git bisect` to easily mark commits as good/bad and automatically navigate the commit history to find bugs (state detection via `RepoState::Bisect` and the `BISECTING` card badge already exist).
+- [x] **Interactive Git Bisect:** Guided visual controller (`Ctrl+G` in the Detail view / Command Palette, `Mode::Bisect`, `gitwig-core/src/bisect.rs`) supporting `start`, `good`, `bad`, `skip`, quick-marking the selected commit (`G`/`B`), `reset`, remaining revision/step estimates, a live `🔍 BISECT` Detail banner, a scrollable bisect log, and `[BAD]`/`[GOOD]`/`[SKIP]` badges across the full bisect range in Workspace Commits.
 - [x] **Inline Git Blame View:** `b`/`B` in the Files tab (`Action::FilesBlame`, `src/tabs/files.rs`, `App::load_blame_for_selected_file`) toggles a blame gutter beside the file preview showing the author, date, and commit hash for every line.
 - [x] **Command Palette:** `Ctrl+P` on the home screen or in the repository view opens a fuzzy picker over every action available in the current context (home, or repository plus the active tab, plus the globals), showing each action's current key; `Enter` runs it through the same handler as the key — with `App.forced_action` set for that one dispatch — so custom bindings work too.
 - [ ] **Custom Scripts & Macros:** Allow users to define custom shell commands/scripts in `config.toml` that can be triggered via shortcuts (e.g., linters, IDE launchers, `git clean`).

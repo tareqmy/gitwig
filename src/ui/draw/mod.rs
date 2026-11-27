@@ -98,6 +98,7 @@ fn is_detail_base_mode(mode: &Mode) -> bool {
             | Mode::RemoteDeleteConfirm
             | Mode::RepoSettings
             | Mode::Overview
+            | Mode::Bisect
             | Mode::BranchSearchInput
             | Mode::FileSearchInput
             | Mode::CommitFuzzySearch

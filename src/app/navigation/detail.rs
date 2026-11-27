@@ -114,6 +114,8 @@ impl App {
         self.diff.file_diff.clear();
         self.diff.diff_scroll = 0;
         self.commit_list.details_scroll = 0;
+        self.bisect_last_message = None;
+        self.bisect_log_scroll = 0;
         self.commit_input_scroll = 0;
         self.branch_list.local_branch_selection = 0;
         self.branch_list.remote_branch_selection = 0;
@@ -997,6 +999,8 @@ impl App {
         self.current_detail = None;
         self.commit_list.search_query = None;
         self.loading_repo_path = None;
+        self.bisect_last_message = None;
+        self.bisect_log_scroll = 0;
         self.mode = Mode::Normal;
     }
 

@@ -1252,6 +1252,7 @@ fn test_actual_rendering_all_modes_and_tabs() {
         Mode::Normal,
         Mode::Editing,
         Mode::Overview,
+        Mode::Bisect,
         Mode::RepoSettings,
         Mode::RepoJump,
         Mode::LabelPicker,
@@ -1564,4 +1565,103 @@ fn test_repo_theme_persists_in_detail_search_popups() {
             mode
         );
     }
+}
+
+#[test]
+fn test_bisect_banner_and_popup_rendering() {
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    let (config_path, _guard) = crate::test_support::temp_config_path("bisect_banner_popup_draw");
+    let repo_path = PathBuf::from("/nonexistent/gitwig_bisect_draw");
+    let mut app = App::new(
+        Config { items: vec![repo_path.to_string_lossy().into_owned()], ..Default::default() },
+        config_path,
+    );
+
+    let info = RepoInfo {
+        branch: Some("HEAD".to_string()),
+        bisect: crate::repo::BisectStatus {
+            active: true,
+            start_ref: Some("main".to_string()),
+            current_oid: Some("1111111111111111111111111111111111111111".to_string()),
+            current_short_oid: Some("1111111".to_string()),
+            current_summary: Some("midpoint commit".to_string()),
+            bad_oid: Some("2222222222222222222222222222222222222222".to_string()),
+            good_oids: vec!["3333333333333333333333333333333333333333".to_string()],
+            skip_oids: Vec::new(),
+            remaining_revisions: Some(2),
+            remaining_steps: Some(1),
+            culprit: None,
+            log: vec![crate::repo::BisectLogEntry {
+                oid: "2222222222222222222222222222222222222222".to_string(),
+                short_oid: "2222222".to_string(),
+                verdict: "bad".to_string(),
+                summary: "broken commit".to_string(),
+            }],
+        },
+        ..Default::default()
+    };
+    app.current_detail = Some(ItemDetail::Repo { resolved: repo_path, info: Box::new(info) });
+
+    let backend = TestBackend::new(100, 30);
+    let mut terminal = Terminal::new(backend).unwrap();
+    let mut detail_areas = crate::ui_detail::DetailAreas::default();
+    let mut main_areas = Vec::new();
+    let mut global_summary_area = None;
+
+    let render_text = |terminal: &Terminal<TestBackend>| -> String {
+        let buf = terminal.backend().buffer();
+        (0..buf.area.height)
+            .map(|y| {
+                (0..buf.area.width).map(|x| buf.cell((x, y)).unwrap().symbol()).collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+
+    // Active Detail view renders the 1-line bisect banner.
+    app.mode = Mode::Detail;
+    terminal
+        .draw(|f| {
+            let size = f.area();
+            super::draw(
+                f,
+                &app,
+                size,
+                size,
+                1,
+                &mut detail_areas,
+                &mut main_areas,
+                &mut global_summary_area,
+                &mut None,
+            );
+        })
+        .unwrap();
+    let detail_out = render_text(&terminal);
+    assert!(detail_out.contains("BISECT"));
+    assert!(detail_out.contains("~2 revs (~1 steps)"));
+
+    // Active Mode::Bisect renders the interactive popup with log entry.
+    app.mode = Mode::Bisect;
+    terminal
+        .draw(|f| {
+            let size = f.area();
+            super::draw(
+                f,
+                &app,
+                size,
+                size,
+                1,
+                &mut detail_areas,
+                &mut main_areas,
+                &mut global_summary_area,
+                &mut None,
+            );
+        })
+        .unwrap();
+    let popup_out = render_text(&terminal);
+    assert!(popup_out.contains("Git Bisect"));
+    assert!(popup_out.contains("[BAD]"));
+    assert!(popup_out.contains("broken commit"));
 }

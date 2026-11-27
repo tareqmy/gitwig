@@ -68,6 +68,7 @@ const HOME_GLOBAL_ACTIONS: &[Action] =
 /// Actions offered in every tab of the repository view.
 const DETAIL_ACTIONS: &[Action] = &[
     Action::Overview,
+    Action::Bisect,
     Action::RefreshDetail,
     Action::CycleTabForward,
     Action::CycleTabBackward,

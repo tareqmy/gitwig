@@ -28,6 +28,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
     let ws_fuzzy = k(Action::WorkspaceFuzzySearch);
     let ws_columns = k(Action::WorkspaceColumnPicker);
     let ws_logs = k(Action::WorkspaceLogsView);
+    let bisect_key = k(Action::Bisect);
     let tags_checkout = k(Action::TagsCheckout);
     let tags_search = k(Action::TagsSearch);
     let tags_fetch = k(Action::TagsFetch);
@@ -184,6 +185,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
                 v.push(("Logs UI", &ws_logs));
                 v.push(("Load More", &ws_load_more));
                 v.push(("Yank Hash", &ws_yank));
+                v.push(("Bisect", &bisect_key));
                 if app.has_uncommitted_changes() {
                     v.push(("Stash", &ws_stash));
                 }
@@ -247,6 +249,7 @@ pub(crate) fn detail_dismiss_entries(app: &App) -> (Option<Vec<Span<'static>>>, 
             ("Jump", "Home/End"),
             ("Inspect", "↵"),
             ("Yank Hash", "y"),
+            ("Bisect", &bisect_key),
             ("Resync", ""),
             ("Help", ""),
         ],

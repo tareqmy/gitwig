@@ -96,6 +96,7 @@ pub enum Action {
     GoToTab6,
     GoToTab7,
     Overview,
+    Bisect,
     ToggleAdvancedTabs,
     GrowPanel,
     ShrinkPanel,
@@ -299,6 +300,7 @@ impl Action {
             77 => Some(Action::HomeCycleViewMode),
             78 => Some(Action::HomeSymbolsHelp),
             68 => Some(Action::Overview),
+            265 => Some(Action::Bisect),
             69 => Some(Action::ToggleAdvancedTabs),
             70 => Some(Action::HomeOpenTerminal),
             71 => Some(Action::HomeToggleStar),
@@ -494,6 +496,7 @@ impl Action {
             Action::HomeSymbolsHelp => 78,
             Action::HomeCheckUpdate => 57,
             Action::Overview => 68,
+            Action::Bisect => 265,
             Action::ToggleAdvancedTabs => 69,
             Action::HomeOpenTerminal => 70,
             Action::HomeToggleStar => 71,
@@ -732,6 +735,7 @@ pub struct NavigationKeybindings {
     pub go_to_tab_6: Option<Keybind>,
     pub go_to_tab_7: Option<Keybind>,
     pub overview: Option<Keybind>,
+    pub bisect: Option<Keybind>,
     pub toggle_advanced_tabs: Option<Keybind>,
     pub grow_panel: Option<Keybind>,
     pub shrink_panel: Option<Keybind>,
@@ -1145,6 +1149,7 @@ impl KeybindingsConfig {
                 go_to_tab_6: Some(Keybind::new(&["6"], "Go to Tab 6")),
                 go_to_tab_7: Some(Keybind::new(&["7"], "Go to Tab 7")),
                 overview: Some(Keybind::new(&["O"], "Show repository Overview screen")),
+                bisect: Some(Keybind::new(&["ctrl-g"], "Open interactive Git Bisect panel")),
                 toggle_advanced_tabs: Some(Keybind::new(
                     &["Z"],
                     "Toggle between Primary and Advanced tab groups",
@@ -1397,6 +1402,7 @@ impl KeybindingsConfig {
             Action::GoToTab6 => self.navigation.go_to_tab_6.as_ref(),
             Action::GoToTab7 => self.navigation.go_to_tab_7.as_ref(),
             Action::Overview => self.navigation.overview.as_ref(),
+            Action::Bisect => self.navigation.bisect.as_ref(),
             Action::ToggleAdvancedTabs => self.navigation.toggle_advanced_tabs.as_ref(),
             Action::GrowPanel => self.navigation.grow_panel.as_ref(),
             Action::ShrinkPanel => self.navigation.shrink_panel.as_ref(),
@@ -1615,6 +1621,7 @@ impl KeybindingsConfig {
             Action::GoToTab6 => self.navigation.go_to_tab_6.as_ref(),
             Action::GoToTab7 => self.navigation.go_to_tab_7.as_ref(),
             Action::Overview => self.navigation.overview.as_ref(),
+            Action::Bisect => self.navigation.bisect.as_ref(),
             Action::ToggleAdvancedTabs => self.navigation.toggle_advanced_tabs.as_ref(),
             Action::GrowPanel => self.navigation.grow_panel.as_ref(),
             Action::ShrinkPanel => self.navigation.shrink_panel.as_ref(),
@@ -1881,6 +1888,7 @@ impl KeybindingsConfig {
             Action::GoToTab6,
             Action::GoToTab7,
             Action::Overview,
+            Action::Bisect,
             Action::ToggleAdvancedTabs,
             Action::GrowPanel,
             Action::ShrinkPanel,
@@ -2000,6 +2008,7 @@ impl KeybindingsConfig {
                 | Action::GoToTab6
                 | Action::GoToTab7
                 | Action::Overview
+                | Action::Bisect
                 | Action::ToggleAdvancedTabs
                 | Action::GrowPanel
                 | Action::ShrinkPanel
@@ -2099,6 +2108,7 @@ impl KeybindingsConfig {
             Action::GoToTab6 => self.navigation.go_to_tab_6 = keybind,
             Action::GoToTab7 => self.navigation.go_to_tab_7 = keybind,
             Action::Overview => self.navigation.overview = keybind,
+            Action::Bisect => self.navigation.bisect = keybind,
             Action::ToggleAdvancedTabs => self.navigation.toggle_advanced_tabs = keybind,
             Action::GrowPanel => self.navigation.grow_panel = keybind,
             Action::ShrinkPanel => self.navigation.shrink_panel = keybind,

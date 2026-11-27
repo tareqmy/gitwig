@@ -429,6 +429,88 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                 _ => {}
             }
         }
+        Mode::Bisect => {
+            if app.is_bound(crate::keybindings::Action::Bisect, key)
+                || matches!(code, KeyCode::Esc | KeyCode::Char('q' | 'Q'))
+            {
+                app.mode = Mode::Detail;
+                return true;
+            }
+            let bisect_active = matches!(
+                &app.current_detail,
+                Some(crate::repo::ItemDetail::Repo { info, .. }) if info.bisect.active
+            );
+            if bisect_active {
+                match code {
+                    KeyCode::Char('g') => {
+                        app.run_bisect_mark(crate::app::BisectMark::Good, None);
+                        return true;
+                    }
+                    KeyCode::Char('b') => {
+                        app.run_bisect_mark(crate::app::BisectMark::Bad, None);
+                        return true;
+                    }
+                    KeyCode::Char('k') => {
+                        app.run_bisect_mark(crate::app::BisectMark::Skip, None);
+                        return true;
+                    }
+                    KeyCode::Char('G') => {
+                        if let Some(oid) = app.get_selected_commit().map(|c| c.oid.clone()) {
+                            app.run_bisect_mark(crate::app::BisectMark::Good, Some(&oid));
+                        } else {
+                            app.status_message =
+                                Some("Select a commit first to mark good".to_string());
+                        }
+                        return true;
+                    }
+                    KeyCode::Char('B') => {
+                        if let Some(oid) = app.get_selected_commit().map(|c| c.oid.clone()) {
+                            app.run_bisect_mark(crate::app::BisectMark::Bad, Some(&oid));
+                        } else {
+                            app.status_message =
+                                Some("Select a commit first to mark bad".to_string());
+                        }
+                        return true;
+                    }
+                    KeyCode::Char('r' | 'R') => {
+                        app.run_bisect_reset();
+                        return true;
+                    }
+                    KeyCode::Up => {
+                        app.bisect_log_scroll = app.bisect_log_scroll.saturating_sub(1);
+                        return true;
+                    }
+                    KeyCode::Down => {
+                        app.bisect_log_scroll = app.bisect_log_scroll.saturating_add(1);
+                        return true;
+                    }
+                    _ => {}
+                }
+            } else {
+                match code {
+                    KeyCode::Char('s' | 'S') => {
+                        app.run_bisect_start(None, None);
+                        return true;
+                    }
+                    KeyCode::Char('b' | 'B') => {
+                        app.run_bisect_start(Some("HEAD"), None);
+                        return true;
+                    }
+                    KeyCode::Char('g' | 'G') => {
+                        if let Some(oid) = app.get_selected_commit().map(|c| c.oid.clone()) {
+                            app.run_bisect_start(Some("HEAD"), Some(&oid));
+                        } else {
+                            app.status_message = Some(
+                                "Select a good commit first, or press 's' to start".to_string(),
+                            );
+                        }
+                        return true;
+                    }
+                    _ => {}
+                }
+            }
+            return true;
+        }
         Mode::RemotePicker => {
             if crate::popups::remote_picker::RemotePickerPopup::handle_event(app, key) {
                 return true;

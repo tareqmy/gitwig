@@ -172,6 +172,12 @@ pub fn draw_detail_commits(
             } else if let Some(head) = r.strip_prefix("head:") {
                 // HEAD — red
                 (format!("[{}]", head), Style::default().fg(DANGER()).add_modifier(Modifier::BOLD))
+            } else if r == "bisect:bad" {
+                ("[BAD]".to_string(), Style::default().fg(DANGER()).add_modifier(Modifier::BOLD))
+            } else if r == "bisect:good" {
+                ("[GOOD]".to_string(), Style::default().fg(SUCCESS()).add_modifier(Modifier::BOLD))
+            } else if r == "bisect:skip" {
+                ("[SKIP]".to_string(), Style::default().fg(WARNING()).add_modifier(Modifier::BOLD))
             } else {
                 // Local branch — cyan
                 (format!("[{}]", r), Style::default().fg(ACCENT()).add_modifier(Modifier::BOLD))

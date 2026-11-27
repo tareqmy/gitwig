@@ -476,6 +476,7 @@ Full-screen dashboard to search for keywords/code across all tracked repositorie
 Floating modal components with search-as-you-type inputs. Matches are ranked and updated in real time.
 
 *   *Available overlays*:
+    *   **Interactive Git Bisect (`Mode::Bisect`)**: Visual `git bisect` controller (`Ctrl+G` from any detail tab, or via Command Palette). When inactive, start with `s`, start & mark `HEAD` bad (`b`), or start with `HEAD` bad and the selected commit good (`g`). While active, shows a 1-line `🔍 BISECT` banner across detail tabs, tags commits in Workspace Commits with `[BAD]` / `[GOOD]` / `[SKIP]` badges, estimates remaining revisions/steps, and renders a scrollable bisect log with `g` (good), `b` (bad), `k` (skip), `G`/`B` (mark selected commit), `r` (reset), and `Esc`/`q` (close).
     *   **Command Palette**: Fuzzy action runner (`Ctrl+P` on the Home Screen or in the Repository Detail view). Lists every action available in the current view — the home actions, or the repository actions plus the active tab's own — grouped by context, each with its current key. `Enter` runs the highlighted action through the same handler its key would use, so custom bindings work too; `Esc` or `Ctrl+P` closes it. Unlike the other overlays it is not a `Mode`: it floats over the view underneath, which keeps its state and gets the keyboard back on close.
     *   **RepoJump**: Fuzzy repository navigator (`/` on Home Screen)
     *   **RepoScanPicker**: Select repository path from scanned directories (`a` on Home Screen)

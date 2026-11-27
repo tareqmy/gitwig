@@ -2157,3 +2157,113 @@ fn test_comprehensive_gitwig_core_coverage_booster() {
     // Clean up
     let _ = std::fs::remove_dir_all(&temp_path);
 }
+
+#[test]
+fn test_bisect_full_lifecycle_and_ref_badges() {
+    use std::process::Command;
+
+    let temp_dir = std::env::temp_dir().join(format!(
+        "gitwig_test_bisect_core_{}_{}",
+        std::process::id(),
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let run_git = |args: &[&str]| {
+        let out = Command::new("git").args(args).current_dir(&temp_dir).output().unwrap();
+        assert!(
+            out.status.success(),
+            "git {:?} failed: {}",
+            args,
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    };
+
+    run_git(&["init", "-b", "main"]);
+    run_git(&["config", "user.name", "Tester"]);
+    run_git(&["config", "user.email", "tester@example.com"]);
+
+    let mut oids = Vec::new();
+    for i in 1..=5 {
+        let body = if i >= 3 { format!("step {}\nBUG\n", i) } else { format!("step {}\n", i) };
+        std::fs::write(temp_dir.join("app.txt"), body).unwrap();
+        run_git(&["add", "app.txt"]);
+        run_git(&["commit", "-m", &format!("commit {}", i)]);
+        oids.push(run_git(&["rev-parse", "HEAD"]));
+    }
+    let bad_tip = &oids[4];
+    let culprit = &oids[2]; // commit 3 introduced BUG
+    let good_base = &oids[0];
+
+    assert!(!get_bisect_status(&temp_dir).active);
+
+    let start_out = bisect_start(&temp_dir, None, None).unwrap();
+    assert!(
+        start_out.summary.contains("waiting for") || start_out.summary.contains("Bisect"),
+        "unexpected bisect start summary: {}",
+        start_out.summary
+    );
+
+    let bad_out = bisect_bad(&temp_dir, Some(bad_tip)).unwrap();
+    assert!(!bad_out.summary.is_empty());
+
+    let good_out = bisect_good(&temp_dir, Some(good_base)).unwrap();
+    assert!(good_out.summary.contains("Bisecting:"));
+
+    let status = get_bisect_status(&temp_dir);
+    assert!(status.active);
+    assert_eq!(status.bad_oid.as_deref(), Some(bad_tip.as_str()));
+    assert_eq!(status.good_oids, vec![good_base.clone()]);
+    assert!(status.remaining_revisions.is_some());
+    assert_eq!(status.log.len(), 2);
+
+    // Detail inspection reflects bisect state, includes the bad tip commit even
+    // while HEAD is detached at the midpoint, and annotates bisect ref badges.
+    let temp_str = temp_dir.to_string_lossy().to_string();
+    if let ItemDetail::Repo { info, .. } = inspect_detail(&temp_str, 50, 50, false) {
+        assert!(info.bisect.active);
+        assert_eq!(info.summary.state, RepoState::Bisect);
+        let tip_entry = info.commits.iter().find(|c| c.oid == *bad_tip).expect("bad tip visible");
+        assert!(tip_entry.refs.iter().any(|r| r == "bisect:bad"));
+        let good_entry =
+            info.commits.iter().find(|c| c.oid == *good_base).expect("good base visible");
+        assert!(good_entry.refs.iter().any(|r| r == "bisect:good"));
+    } else {
+        panic!("expected Repo detail");
+    }
+
+    // Exercise skip cleanly before stepping to the culprit.
+    let _ = bisect_skip(&temp_dir, None).unwrap();
+    assert!(get_bisect_status(&temp_dir).skip_oids.len() == 1);
+
+    // Restart cleanly and narrow down strictly using good/bad until culprit found.
+    let reset_msg = bisect_reset(&temp_dir).unwrap();
+    assert!(!reset_msg.is_empty());
+    assert!(!get_bisect_status(&temp_dir).active);
+
+    bisect_start(&temp_dir, Some("HEAD"), Some(good_base)).unwrap();
+    let mut found_culprit = None;
+    for _ in 0..8 {
+        let content = std::fs::read_to_string(temp_dir.join("app.txt")).unwrap();
+        let outcome = if content.contains("BUG") {
+            bisect_bad(&temp_dir, None).unwrap()
+        } else {
+            bisect_good(&temp_dir, None).unwrap()
+        };
+        if let Some(oid) = outcome.culprit_oid {
+            found_culprit = Some(oid);
+            break;
+        }
+    }
+    assert_eq!(found_culprit.as_deref(), Some(culprit.as_str()));
+    let finished_status = get_bisect_status(&temp_dir);
+    assert!(finished_status.culprit.as_deref().unwrap_or_default().starts_with(&culprit[..7]));
+
+    bisect_reset(&temp_dir).unwrap();
+    assert!(!get_bisect_status(&temp_dir).active);
+    assert_eq!(run_git(&["rev-parse", "--abbrev-ref", "HEAD"]), "main");
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}

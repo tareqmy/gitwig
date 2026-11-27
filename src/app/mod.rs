@@ -177,6 +177,8 @@ pub enum Mode {
     WorktreeRemoveConfirm,
     /// Showing the repository overview in a full window popup.
     Overview,
+    /// Interactive Git Bisect guided popup overlay.
+    Bisect,
     /// Typing a URL for a new submodule.
     SubmoduleAddUrlInput,
     /// Typing a path for a new submodule.
@@ -707,6 +709,10 @@ pub struct App {
     pub stats: crate::stats::AppStats,
     pub session_start: std::time::Instant,
     pub last_stats_save: std::time::Instant,
+    /// Most recent outcome message shown inside the interactive Bisect popup.
+    pub bisect_last_message: Option<String>,
+    /// Scroll offset for the Bisect Log list inside the Bisect popup.
+    pub bisect_log_scroll: usize,
     /// Embedded terminal panel: session, visibility, and preferred height.
     pub terminal_panel: crate::terminal_session::TerminalPanelState,
     /// While true, keystrokes are forwarded to the embedded terminal.
@@ -744,12 +750,14 @@ enum LogsNavDirection {
 
 mod actions;
 mod bg_events;
+mod bisect;
 mod git;
 mod navigation;
 mod stash_partial;
 mod submodules;
 mod term_panel;
 pub use bg_events::{BgEvent, RepoOpKind};
+pub use bisect::BisectMark;
 pub use navigation::HomeRow;
 pub use stash_partial::{StashFileKind, stash_file_rows};
 pub use submodules::SubmoduleUpdateTarget;
@@ -1655,6 +1663,8 @@ impl App {
             stats: crate::stats::load_stats(),
             session_start: std::time::Instant::now(),
             last_stats_save: std::time::Instant::now(),
+            bisect_last_message: None,
+            bisect_log_scroll: 0,
         };
 
         if app.effective_sort_by() != SortOrder::Custom {

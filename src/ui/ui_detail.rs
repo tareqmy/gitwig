@@ -517,6 +517,48 @@ pub fn draw(
 
     match detail {
         ItemDetail::Repo { resolved, info } => {
+            let popup_area = body_area;
+            let body_area = if info.bisect.active && body_area.height > 4 {
+                let split = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([Constraint::Length(1), Constraint::Min(0)])
+                    .split(body_area);
+                let head_short = info.bisect.current_short_oid.as_deref().unwrap_or("-");
+                let progress = if let Some(ref culprit) = info.bisect.culprit {
+                    format!("culprit: {}", culprit)
+                } else if let (Some(revs), Some(steps)) =
+                    (info.bisect.remaining_revisions, info.bisect.remaining_steps)
+                {
+                    format!("~{} revs (~{} steps)", revs, steps)
+                } else {
+                    "mark good/bad bounds".to_string()
+                };
+                let bisect_key = app.keybindings.format_action_keys(
+                    crate::keybindings::Action::Bisect,
+                    app.config.compatibility_mode,
+                );
+                let banner = Line::from(vec![
+                    Span::raw(FIELD_INDENT),
+                    Span::styled(
+                        "🔍 BISECT ",
+                        Style::default().fg(WARNING()).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled("│ ", muted_style()),
+                    Span::styled("HEAD ", muted_style()),
+                    Span::styled(head_short.to_string(), Style::default().fg(WARNING())),
+                    Span::styled(" │ ", muted_style()),
+                    Span::styled(progress, primary_style()),
+                    Span::styled(" │ ", muted_style()),
+                    Span::styled(
+                        format!("{}: Controls", bisect_key),
+                        accent_style().add_modifier(Modifier::BOLD),
+                    ),
+                ]);
+                f.render_widget(Paragraph::new(banner), split[0]);
+                split[1]
+            } else {
+                body_area
+            };
             if detail_tab == 0 {
                 // Split body: top = recent commits, bottom = staging panels
                 let detail_chunks = Layout::default()
@@ -1011,7 +1053,10 @@ pub fn draw(
             }
             // Draw merge continue popup on top when requested.
             if matches!(mode, Mode::MergeContinueConfirm) {
-                crate::popups::confirm::draw_merge_continue_confirm_popup(f, body_area);
+                crate::popups::confirm::draw_merge_continue_confirm_popup(f, popup_area);
+            }
+            if matches!(mode, Mode::Bisect) {
+                crate::popups::bisect::draw_bisect_popup(f, info, app, popup_area);
             }
             // Draw branch rebase popup on top when requested.
             if matches!(mode, Mode::BranchRebaseConfirm) {

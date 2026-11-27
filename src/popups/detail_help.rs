@@ -206,6 +206,10 @@ pub fn get_detail_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
             ),
             (k(Action::WorkspaceRevert), "Revert selected commit (Workspace commits list)"),
             (k(Action::Overview), "Show repository Overview (from any tab)"),
+            (
+                k(Action::Bisect),
+                "Open interactive Git Bisect panel (inside: s start, g good, b bad, k skip, G/B selected, r reset)",
+            ),
             (k(Action::WorkspaceFuzzySearch), "Fuzzy search commits (History panel)"),
             (
                 k(Action::WorkspaceColumnPicker),

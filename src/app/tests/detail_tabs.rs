@@ -2819,3 +2819,104 @@ fn test_file_history_and_blame_bg_events_apply_and_drop_stale() {
     assert_eq!(blame.len(), 1);
     assert_eq!(blame[0].commit_id, "bbbbbbb");
 }
+
+#[test]
+fn test_bisect_popup_tui_flow() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let dir = std::env::temp_dir().join(format!(
+        "gitwig_test_bisect_ui_{}_{}",
+        std::process::id(),
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let _dir_guard = TestDirGuard { path: dir.clone() };
+
+    run_git_in(&dir, &["init", "-b", "main"]);
+    for i in 1..=4 {
+        std::fs::write(dir.join("file.txt"), format!("rev {}\n", i)).unwrap();
+        run_git_in(&dir, &["add", "file.txt"]);
+        run_git_in(&dir, &["commit", "-q", "-m", &format!("c{}", i)]);
+    }
+
+    let path_str = dir.to_string_lossy().to_string();
+    let config = Config { items: vec![path_str.clone()], ..Default::default() };
+    let (config_path, _cfg_guard) = temp_config_path("bisect_tui_flow");
+    let mut app = App::new(config, config_path);
+
+    let detail = repo::inspect_detail(&path_str, 50, 50, false);
+    app.current_detail = Some(detail);
+    app.mode = Mode::Detail;
+    app.detail_tab = 0;
+
+    let ctrl_g = KeyEvent::new(KeyCode::Char('g'), KeyModifiers::CONTROL);
+    let ch = |c: char| KeyEvent::new(KeyCode::Char(c), KeyModifiers::empty());
+    let drain_detail = |app: &mut App| {
+        let (_path, detail) = app.detail_rx.recv().unwrap();
+        app.loading_repo_path = None;
+        app.apply_detail_snapshot(detail);
+    };
+
+    // Ctrl+G opens Mode::Bisect from Detail view.
+    assert!(crate::input::handle_key(&mut app, ctrl_g, 10));
+    assert_eq!(app.mode, Mode::Bisect);
+
+    // `b` starts bisect and marks HEAD bad.
+    assert!(crate::input::handle_key(&mut app, ch('b'), 10));
+    drain_detail(&mut app);
+    assert_eq!(app.mode, Mode::Bisect);
+    if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert!(info.bisect.active);
+        assert!(info.bisect.bad_oid.is_some());
+    } else {
+        panic!("expected Repo detail");
+    }
+
+    // Select the oldest commit and mark it good via `G`.
+    if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        app.commit_list.selection = info.commits.len() - 1;
+    }
+    assert!(crate::input::handle_key(&mut app, ch('G'), 10));
+    assert_eq!(app.error_message, None);
+    drain_detail(&mut app);
+    if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert!(!info.bisect.good_oids.is_empty());
+        assert!(info.bisect.remaining_revisions.is_some());
+    } else {
+        panic!("expected Repo detail");
+    }
+
+    // `k` skips current midpoint without leaving Mode::Bisect.
+    assert!(crate::input::handle_key(&mut app, ch('k'), 10));
+    drain_detail(&mut app);
+    assert_eq!(app.mode, Mode::Bisect);
+    if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert_eq!(info.bisect.skip_oids.len(), 1);
+    } else {
+        panic!("expected Repo detail");
+    }
+
+    // `Esc` closes the overlay while keeping the active bisect session.
+    assert!(crate::input::handle_key(
+        &mut app,
+        KeyEvent::new(KeyCode::Esc, KeyModifiers::empty()),
+        10
+    ));
+    assert_eq!(app.mode, Mode::Detail);
+    if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert!(info.bisect.active);
+    }
+
+    // Reopen via Ctrl+G and reset with `r`.
+    assert!(crate::input::handle_key(&mut app, ctrl_g, 10));
+    assert_eq!(app.mode, Mode::Bisect);
+    assert!(crate::input::handle_key(&mut app, ch('r'), 10));
+    drain_detail(&mut app);
+    assert_eq!(app.mode, Mode::Detail);
+    if let Some(repo::ItemDetail::Repo { info, .. }) = &app.current_detail {
+        assert!(!info.bisect.active);
+    } else {
+        panic!("expected Repo detail");
+    }
+}

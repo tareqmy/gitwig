@@ -43,6 +43,7 @@ pub(crate) const GLOBAL_NAV_SETTING_INDICES: &[usize] = &[
     51,  // Detail: Tab 6
     52,  // Detail: Tab 7
     68,  // Detail: Show Overview (Overview)
+    265, // Detail: Interactive Bisect (Bisect)
     69,  // Detail: Toggle Advanced Tabs (ToggleAdvancedTabs)
 ];
 const HOME_SETTING_INDICES: &[usize] = &[
@@ -109,7 +110,7 @@ const DIFF_CONFLICT_SETTING_INDICES: &[usize] =
 const SCROLL_NAV_SETTING_INDICES: &[usize] = &[230, 231, 232, 233, 234, 235];
 const ALL_KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     // Global & Nav Keys
-    16, 15, 14, 250, 39, 40, 41, 42, 43, 53, 54, 44, 45, 46, 47, 48, 49, 50, 51, 52, 68, 69,
+    16, 15, 14, 250, 39, 40, 41, 42, 43, 53, 54, 44, 45, 46, 47, 48, 49, 50, 51, 52, 68, 265, 69,
     // Home Screen Keys
     17, 18, 19, 20, 21, 22, 38, 75, 33, 71, 262, 72, 73, 76, 37, 30, 31, 32, 77, 23, 24, 35, 25, 26,
     28, 70, 251, 36, 27, 29, 78, 79, 57, 74, 85, 86, 87, 88, 252, 253, 254, 255, 256, 257, 258,
@@ -306,6 +307,7 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         260 => "Home: Quick Label 9",
         263 => "Home: Forget Active Quick Label",
         264 => "Home: Clear All Quick Labels",
+        265 => "Detail: Interactive Bisect",
         71 => "Home: Toggle Star",
         262 => "Home: Toggle Archive",
         72 => "Home: Yank Path",
@@ -564,6 +566,7 @@ fn get_desc(global_idx: usize) -> &'static str {
         78 => "Opens the signs and symbols legend overlay panel.",
         263 => "Remove the active label filter from the quick-label bar.",
         264 => "Clear every label from the quick-label bar.",
+        265 => "Opens the interactive Git Bisect panel from any detail tab.",
         _ => "",
     }
 }

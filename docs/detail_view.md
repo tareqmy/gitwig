@@ -14,6 +14,7 @@ Press `Enter` on a selected item to open a full-screen Detail view. Its header n
   - In **Primary** group: Workspace (`1`), Files (`2`), Graph (`3`), Branches (`4`), Tags (`5`), Remotes (`6`), Stashes (`7`).
   - In **Advanced** group: Worktrees (`1`), Submodules (`2`), Reflog (`3`), Forge Issues (`4`), Forge PRs (`5`).
 - Press `O` from any tab to toggle the repository **Overview** full-screen overlay.
+- Press `Ctrl+G` from any tab to open the **Interactive Git Bisect** overlay (`s` start, `g` good, `b` bad, `k` skip, `G`/`B` mark selected commit, `r` reset). When a bisect session is active, a `🔍 BISECT` status banner appears beneath the tab bar and Workspace Commits displays `[BAD]`, `[GOOD]`, and `[SKIP]` badges across the full bisect range.
 - Alternatively, you can click on the visible tab headers directly with the mouse to switch tabs.
 Press `Esc` or `q` (from the Primary group) to return to the repository list, with the cursor still on the repository you opened.
 

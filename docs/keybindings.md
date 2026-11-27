@@ -103,6 +103,9 @@
 | `1` - `5`            | Detail          | Jump directly to Advanced tab: Worktrees (1), Submodules (2), Reflog (3), Issues (4), PRs (5) (when Advanced group is active) |
 | `Z`                  | Detail          | Toggle between Primary and Advanced tab groups |
 | `O`                  | Detail          | Toggle full-screen repository Overview overlay |
+| `ctrl+g`             | Detail          | Open Interactive Git Bisect panel |
+| `s` / `b` / `g`      | Bisect (inactive) | Start bisect (`s`), start with HEAD bad (`b`), or start with HEAD bad & selected commit good (`g`) |
+| `g` / `b` / `k` / `G` / `B` / `r` / `↑` / `↓` / `Esc` | Bisect (active) | Mark HEAD `good` (`g`), `bad` (`b`), `skip` (`k`), mark selected commit `G`/`B`, `reset` (`r`), scroll log (`↑↓`), or close panel (`Esc`/`q`) |
 | `↑` / `k` / `K`      | Detail          | Move selection or scroll list/diff/tree up |
 | `↓` / `j` / `J`      | Detail          | Move selection or scroll list/diff/tree down |
 | `PgUp` / `PgDn`      | Detail / Normal / Settings | Scroll list/diff/tree/settings by configured `page_size` |

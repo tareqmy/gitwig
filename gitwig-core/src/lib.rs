@@ -19,6 +19,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use git2::{Repository, StatusOptions, StatusShow};
 
+mod bisect;
 mod branch_tag;
 mod conflicts;
 mod forge;
@@ -30,6 +31,10 @@ mod submodule;
 #[cfg(test)]
 mod tests;
 mod worktree;
+pub use bisect::{
+    BisectLogEntry, BisectStatus, BisectStepOutcome, bisect_bad, bisect_good, bisect_reset,
+    bisect_skip, bisect_start, get_bisect_status,
+};
 pub use branch_tag::{
     checkout_local_branch, checkout_remote_branch, checkout_tag, create_branch, create_tag,
     delete_local_branch, delete_remote_branch, delete_remote_tag, delete_tag, deserialize_tags,
@@ -292,6 +297,8 @@ pub struct RepoInfo {
     pub lfs_installed: bool,
     /// Storage size of the local LFS directory if LFS is used.
     pub lfs_storage_size: Option<u64>,
+    /// Active git bisect session metadata, if any.
+    pub bisect: BisectStatus,
 }
 
 impl RepoInfo {
@@ -927,6 +934,25 @@ fn collect_commits(
     if walk.push_head().is_err() {
         return Ok(Vec::new());
     }
+    if repo.state() == git2::RepositoryState::Bisect {
+        if let Ok(bad_ref) = repo.find_reference("refs/bisect/bad") {
+            if let Ok(commit) = bad_ref.peel_to_commit() {
+                let _ = walk.push(commit.id());
+            }
+        }
+        if let Some(dirs) = resolve_git_dirs(repo_path) {
+            if let Ok(start_raw) = std::fs::read_to_string(dirs.git_dir.join("BISECT_START")) {
+                let start_ref = start_raw.trim();
+                if !start_ref.is_empty() {
+                    if let Ok(obj) = repo.revparse_single(start_ref) {
+                        if let Ok(commit) = obj.peel_to_commit() {
+                            let _ = walk.push(commit.id());
+                        }
+                    }
+                }
+            }
+        }
+    }
     walk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::TIME)?;
 
     let mut commits = Vec::new();
@@ -1307,6 +1333,8 @@ fn collect_info(
     }
 
     populate_summary_and_file_changes(&repo, &mut info);
+    info.summary.state = collect_repo_state(&repo);
+    info.bisect = get_bisect_status(path);
 
     if let Ok(remotes) = load_tab_remotes(path) {
         info.remotes = TabData::Loaded(remotes);
@@ -1618,6 +1646,12 @@ fn build_ref_map(repo: &Repository) -> std::collections::HashMap<git2::Oid, Vec<
                     continue;
                 }
                 format!("remote:{}", remote)
+            } else if full_name == "refs/bisect/bad" {
+                "bisect:bad".to_string()
+            } else if full_name.starts_with("refs/bisect/good-") {
+                "bisect:good".to_string()
+            } else if full_name.starts_with("refs/bisect/skip-") {
+                "bisect:skip".to_string()
             } else {
                 continue;
             };
@@ -1791,6 +1825,24 @@ fn populate_summary_and_file_changes(repo: &Repository, info: &mut RepoInfo) {
     }
 }
 
+fn collect_repo_state(repo: &Repository) -> RepoState {
+    match repo.state() {
+        git2::RepositoryState::Clean => RepoState::Clean,
+        git2::RepositoryState::Merge => RepoState::Merge,
+        git2::RepositoryState::Revert | git2::RepositoryState::RevertSequence => RepoState::Revert,
+        git2::RepositoryState::CherryPick | git2::RepositoryState::CherryPickSequence => {
+            RepoState::CherryPick
+        }
+        git2::RepositoryState::Bisect => RepoState::Bisect,
+        git2::RepositoryState::Rebase
+        | git2::RepositoryState::RebaseInteractive
+        | git2::RepositoryState::RebaseMerge => RepoState::Rebase,
+        git2::RepositoryState::ApplyMailbox | git2::RepositoryState::ApplyMailboxOrRebase => {
+            RepoState::ApplyMailbox
+        }
+    }
+}
+
 /// Collect the branch name, worktree counts, and ahead/behind for an opened
 /// repo. Used by both `inspect_summary` (card) and `collect_info` (detail)
 /// so the values shown in both places always agree.
@@ -1812,21 +1864,7 @@ fn collect_summary(repo: &Repository) -> RepoSummary {
     }
     populate_worktree(repo, &mut s);
     populate_ahead_behind(repo, &mut s);
-    s.state = match repo.state() {
-        git2::RepositoryState::Clean => RepoState::Clean,
-        git2::RepositoryState::Merge => RepoState::Merge,
-        git2::RepositoryState::Revert | git2::RepositoryState::RevertSequence => RepoState::Revert,
-        git2::RepositoryState::CherryPick | git2::RepositoryState::CherryPickSequence => {
-            RepoState::CherryPick
-        }
-        git2::RepositoryState::Bisect => RepoState::Bisect,
-        git2::RepositoryState::Rebase
-        | git2::RepositoryState::RebaseInteractive
-        | git2::RepositoryState::RebaseMerge => RepoState::Rebase,
-        git2::RepositoryState::ApplyMailbox | git2::RepositoryState::ApplyMailboxOrRebase => {
-            RepoState::ApplyMailbox
-        }
-    };
+    s.state = collect_repo_state(repo);
     s
 }
 
