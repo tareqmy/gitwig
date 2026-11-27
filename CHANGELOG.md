@@ -7,6 +7,17 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [v2.8.1] - 2026-11-27
+### Added
+- **bisect**: Interactive Git Bisect controller (`Ctrl+G` from any Detail tab or Command Palette, `Mode::Bisect`, `gitwig-core/src/bisect.rs`) with `start`, `good`, `bad`, `skip`, quick-marking the selected commit (`G`/`B`), `reset`, remaining revision/step estimates, a live `🔍 BISECT` banner beneath the Detail tab bar, a scrollable bisect log, and `[BAD]`/`[GOOD]`/`[SKIP]` badges across the full bisect commit range in Workspace Commits. ([5b37a86](https://github.com/tareqmy/gitwig/commit/5b37a86))
+- **home**: quick-label chips can now be forgotten individually or cleared via `Del`/`Ctrl+d` in the Label Picker (on *"All repositories"* to clear all), right-click or middle-click on a chip in the home header, or `x` / `X` (`Action::HomeForgetQuickLabel` / `Action::HomeClearQuickLabels`) on Home and in the Command Palette. ([8c12bef](https://github.com/tareqmy/gitwig/commit/8c12bef))
+
+### Fixed
+- **core**: populated `RepoInfo.summary.state` in `collect_info` via a shared `collect_repo_state` helper so detail snapshots match `inspect_summary` for in-progress repository states (bisect, merge, rebase, etc.). ([5b37a86](https://github.com/tareqmy/gitwig/commit/5b37a86))
+
+### Documentation
+- Updated `docs/keybindings.md`, `docs/panels.md`, `docs/detail_view.md`, `GEMINI.md`, `.agent/CODEMAP.md`, and `.agent/ROADMAP.md`. ([8c12bef](https://github.com/tareqmy/gitwig/commit/8c12bef), [5b37a86](https://github.com/tareqmy/gitwig/commit/5b37a86))
+
 ## [v2.8.0] - 2026-11-27
 ### Added
 - **home**: added an `archived` summary tab alongside `repos`, `dirty`, `ahead`, and `stale`, and a `HomeToggleArchive` keybinding (default `z`) to archive/unarchive repositories; archived entries remain searchable/reachable via their tab and skip bulk fetch refreshes. ([be2b815](https://github.com/tareqmy/gitwig/commit/be2b815))
