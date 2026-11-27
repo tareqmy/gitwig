@@ -77,8 +77,7 @@ pub fn handle_paste(app: &mut App, text: &str) {
 fn is_text_input_mode(app: &App) -> bool {
     matches!(
         app.mode,
-        Mode::Adding
-            | Mode::Editing
+        Mode::Editing
             | Mode::LabelInput
             | Mode::AddRepoLabelInput
             | Mode::BulkAddRepoLabelInput
@@ -259,7 +258,6 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
     match &app.mode {
         Mode::Normal
         | Mode::RepoSearchInput
-        | Mode::Adding
         | Mode::BulkAddInput
         | Mode::Editing
         | Mode::LabelInput

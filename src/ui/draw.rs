@@ -4227,7 +4227,6 @@ mod tests {
         // 2. Render all modes
         let other_modes = vec![
             Mode::Normal,
-            Mode::Adding,
             Mode::Editing,
             Mode::Overview,
             Mode::RepoSettings,

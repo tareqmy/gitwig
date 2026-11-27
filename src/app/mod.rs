@@ -56,8 +56,6 @@ pub enum ForgeCheckoutTarget {
 pub enum Mode {
     /// Browsing the list.
     Normal,
-    #[allow(dead_code)]
-    Adding,
     /// Typing replacement text for the selected item.
     Editing,
     /// Asking the user to confirm deletion of the selected item.

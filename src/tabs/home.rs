@@ -222,13 +222,6 @@ impl HomeTab {
                 }
                 _ => {}
             },
-            Mode::Adding => match code {
-                KeyCode::Esc => app.cancel_input(),
-                KeyCode::Enter => app.commit_add(),
-                KeyCode::Backspace => app.input_backspace(),
-                KeyCode::Char(c) => app.input_char(c),
-                _ => {}
-            },
             Mode::BulkAddInput => match code {
                 KeyCode::Esc => app.cancel_input(),
                 KeyCode::Enter => app.commit_bulk_add(),

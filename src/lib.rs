@@ -35,7 +35,6 @@ pub mod mouse;
 mod state;
 pub use gitwig_core as repo;
 pub mod components;
-mod keys;
 pub mod popups;
 mod queue;
 pub mod stats;

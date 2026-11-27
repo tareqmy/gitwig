@@ -53,7 +53,6 @@ The crate is organized so each file has a single clear responsibility.
     - `src/config.rs`: TOML settings load / migrate / save (`~/.gitwig/config.toml`) and the symbols table.
     - `src/state.rs`: `AppState` usage state persisted to `state.toml` (visits, commit-message history, quick-label slots, sticky label filter).
     - `src/keybindings.rs`: Data-driven `Action` / `KeybindingsConfig` registry with defaults, user overrides, lookup, and conflict detection.
-    - `src/keys/`: Legacy key tables (`KeyConfig`, `KeyList`, `KeySymbols`) kept under `#![allow(dead_code)]`; not used by live routing.
     - `src/stats.rs`: `AppStats` usage counters and heatmap data behind the stats dashboard.
     - `src/git_cmd.rs`: Hardened `git` subprocess builder (`git_command`) and bounded runner (`run_git_with_timeout`).
     - `src/debug_log.rs`: Debug/crash log writer behind the `DebugLogs` view.

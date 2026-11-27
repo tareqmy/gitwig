@@ -22,6 +22,7 @@ impl App {
         }
     }
 
+    #[cfg(test)]
     pub fn commit_add(&mut self) {
         let trimmed = self.input_buffer.trim().to_string();
         self.commit_add_with_labels(trimmed, vec![]);

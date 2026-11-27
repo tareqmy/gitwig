@@ -173,16 +173,6 @@ pub fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
         draw_status_layout(f, area, msg_spans, entries, app);
     } else {
         match &app.mode {
-            Mode::Adding => {
-                draw_input_status(
-                    f,
-                    area,
-                    "Add",
-                    &app.input_buffer,
-                    app.config.compatibility_mode,
-                    app.input_cursor_clamped(),
-                );
-            }
             Mode::BulkAddInput => {
                 draw_input_status(
                     f,
@@ -1553,8 +1543,7 @@ fn get_mode_badge(mode: &Mode) -> Span<'static> {
         Mode::Logs => ("LOGS", Color::Magenta),
         Mode::CommitHistoryPicker => ("HISTORY", Color::Rgb(175, 95, 0)),
         Mode::StatsDashboard => ("STATS", Color::Green),
-        Mode::Adding
-        | Mode::BulkAddInput
+        Mode::BulkAddInput
         | Mode::Editing
         | Mode::LabelInput
         | Mode::AddRepoLabelInput

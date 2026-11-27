@@ -1443,6 +1443,7 @@ impl App {
         self.file_tree.file_blame = None;
         self.file_tree.blamed_file_path = None;
         self.file_tree.blame_loading = false;
+        *self.file_tree.preview_cache.borrow_mut() = None;
         self.commit_list.selection = 0;
         self.detail_tab = 0;
         // Tab 0 is in the Primary group. Opening a worktree from the Worktrees

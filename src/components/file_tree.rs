@@ -1,5 +1,12 @@
 //! Interactive directories tree viewer with file blame, line numbers, and content preview panels.
 
+pub struct FilePreviewCache {
+    pub path: std::path::PathBuf,
+    pub modified: Option<std::time::SystemTime>,
+    pub len: u64,
+    pub lines: Vec<ratatui::text::Line<'static>>,
+}
+
 #[derive(Default)]
 pub struct FileTreeComponent {
     pub queue: crate::queue::Queue,
@@ -13,6 +20,33 @@ pub struct FileTreeComponent {
     pub blamed_file_path: Option<String>,
     pub blame_loading: bool,
     pub show_line_numbers: bool,
+    pub preview_cache: std::cell::RefCell<Option<FilePreviewCache>>,
+}
+
+impl FileTreeComponent {
+    /// Ensures `preview_cache` holds highlighted lines for `file_path`,
+    /// reloading from disk only when the path, mtime, or byte length changed.
+    pub fn ensure_preview_cached(&self, file_path: &std::path::Path) {
+        let meta = std::fs::metadata(file_path).ok();
+        let modified = meta.as_ref().and_then(|m| m.modified().ok());
+        let len = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+        {
+            let cached = self.preview_cache.borrow();
+            if let Some(entry) = cached.as_ref() {
+                if entry.path == file_path && entry.modified == modified && entry.len == len {
+                    return;
+                }
+            }
+        }
+        let content_text = match read_file_content(file_path) {
+            Ok(content) => content,
+            Err(e) => format!("Could not read file: {}", e),
+        };
+        let lines: Vec<Line<'static>> =
+            content_text.lines().map(crate::ui::syntax::highlight_code_line).collect();
+        *self.preview_cache.borrow_mut() =
+            Some(FilePreviewCache { path: file_path.to_path_buf(), modified, len, lines });
+    }
 }
 use crate::app::{App, DetailSection, Mode};
 use crate::components::commit_list::draw_commit_details_widget;
@@ -271,14 +305,12 @@ pub fn draw_files_view(
                 if right_focused { Style::default().fg(ACCENT()) } else { muted_style() };
 
             let file_path = resolved.join(&selected_item.full_path);
-            let content_text = match read_file_content(&file_path) {
-                Ok(content) => content,
-                Err(e) => format!("Could not read file: {}", e),
-            };
-            let lines: Vec<Line> =
-                content_text.lines().map(crate::ui::syntax::highlight_code_line).collect();
-
-            let file_content_scroll = file_content_scroll.min(lines.len().saturating_sub(1));
+            app.file_tree.ensure_preview_cached(&file_path);
+            let cache_ref = app.file_tree.preview_cache.borrow();
+            let all_lines: &[Line<'static>] =
+                cache_ref.as_ref().map(|c| c.lines.as_slice()).unwrap_or(&[]);
+            let total_lines = all_lines.len();
+            let file_content_scroll = file_content_scroll.min(total_lines.saturating_sub(1));
 
             let mut title_spans = vec![
                 Span::raw(" "),
@@ -299,11 +331,17 @@ pub fn draw_files_view(
                 .title(Line::from(title_spans))
                 .padding(Padding::uniform(1));
 
+            let viewport_rows = right_block.inner(chunks[1]).height as usize;
+            let start = file_content_scroll;
+            let end = (start + viewport_rows.max(1)).min(total_lines);
+            let visible_lines: Vec<Line<'static>> =
+                if start < end { all_lines[start..end].to_vec() } else { Vec::new() };
+
             if files_full_screen && (app.file_tree.show_line_numbers || app.file_tree.show_blame) {
                 let inner_area = right_block.inner(chunks[1]);
                 f.render_widget(right_block, chunks[1]);
 
-                let max_line_digits = lines.len().to_string().len().max(3);
+                let max_line_digits = total_lines.to_string().len().max(3);
                 let line_no_col_width = (max_line_digits + 2) as u16;
 
                 let mut constraints = Vec::new();
@@ -324,7 +362,7 @@ pub fn draw_files_view(
 
                 if app.file_tree.show_blame {
                     let mut blame_lines = Vec::new();
-                    for i in 1..=lines.len() {
+                    for i in (start + 1)..=end {
                         let mut spans = Vec::new();
                         if let Some(ref blames) = app.file_tree.file_blame {
                             if let Some(entry) = blames
@@ -350,7 +388,7 @@ pub fn draw_files_view(
                                 spans.push(Span::styled("         ".to_string(), muted_style()));
                                 spans.push(Span::styled("           ".to_string(), muted_style()));
                             }
-                        } else if app.file_tree.blame_loading && i == 1 {
+                        } else if app.file_tree.blame_loading && i == start + 1 {
                             spans.push(Span::styled(
                                 " Loading blame...           ".to_string(),
                                 muted_style(),
@@ -362,32 +400,28 @@ pub fn draw_files_view(
                         }
                         blame_lines.push(Line::from(spans));
                     }
-                    let blame_body =
-                        Paragraph::new(blame_lines).scroll((file_content_scroll as u16, 0));
+                    let blame_body = Paragraph::new(blame_lines);
                     f.render_widget(blame_body, sub_chunks[chunk_idx]);
                     chunk_idx += 1;
                 }
 
                 if app.file_tree.show_line_numbers {
                     let mut line_no_lines = Vec::new();
-                    for i in 1..=lines.len() {
+                    for i in (start + 1)..=end {
                         line_no_lines.push(Line::from(vec![Span::styled(
                             format!("{:>width$} │", i, width = max_line_digits),
                             muted_style(),
                         )]));
                     }
-                    let line_no_body =
-                        Paragraph::new(line_no_lines).scroll((file_content_scroll as u16, 0));
+                    let line_no_body = Paragraph::new(line_no_lines);
                     f.render_widget(line_no_body, sub_chunks[chunk_idx]);
                     chunk_idx += 1;
                 }
 
-                let body = Paragraph::new(lines).scroll((file_content_scroll as u16, 0));
+                let body = Paragraph::new(visible_lines);
                 f.render_widget(body, sub_chunks[chunk_idx]);
             } else {
-                let body = Paragraph::new(lines)
-                    .block(right_block)
-                    .scroll((file_content_scroll as u16, 0));
+                let body = Paragraph::new(visible_lines).block(right_block);
                 f.render_widget(body, chunks[1]);
             }
         }
@@ -838,5 +872,34 @@ mod tests {
                 );
             })
             .expect("draw should succeed");
+    }
+
+    #[test]
+    fn test_file_preview_cache_hits_and_invalidates_on_change() {
+        let dir = std::env::temp_dir().join(format!("gitwig_preview_cache_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp test dir");
+        let file = dir.join("sample.rs");
+        std::fs::write(&file, "line 1\nline 2\n").expect("write initial sample");
+
+        let tree = FileTreeComponent::default();
+        tree.ensure_preview_cached(&file);
+        assert_eq!(tree.preview_cache.borrow().as_ref().expect("cache populated").lines.len(), 2);
+
+        // Replace cached lines with a sentinel while leaving file untouched: cache hit keeps sentinel.
+        tree.preview_cache.borrow_mut().as_mut().expect("cache populated").lines =
+            vec![ratatui::text::Line::from("cached sentinel")];
+        tree.ensure_preview_cached(&file);
+        assert_eq!(
+            tree.preview_cache.borrow().as_ref().expect("cache hit preserved").lines,
+            vec![ratatui::text::Line::from("cached sentinel")]
+        );
+
+        // Modifying the file invalidates the cache on next ensure call.
+        std::fs::write(&file, "line 1\nline 2\nline 3 (longer)\n").expect("update sample");
+        tree.ensure_preview_cached(&file);
+        assert_eq!(tree.preview_cache.borrow().as_ref().expect("cache reloaded").lines.len(), 3);
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
