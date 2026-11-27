@@ -926,6 +926,7 @@ pub(crate) fn get_status_layout_components(
                 ("Jump", "Home/End"),
                 ("Apply Filter", "Enter"),
                 ("Label Settings", "→"),
+                ("Forget Quick Slot", "Del/Ctrl+d"),
                 ("Cancel", "Esc"),
             ];
             (Some(msg_spans), build_status_entries(&entries_data))

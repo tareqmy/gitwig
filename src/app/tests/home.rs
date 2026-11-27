@@ -1933,6 +1933,77 @@ fn test_home_quick_label_keys_apply_toggle_and_ignore_empty_slots() {
 }
 
 #[test]
+fn test_quick_label_forget_via_keys_picker_and_methods() {
+    let mut config = Config {
+        items: vec!["/path/to/frontend".to_string(), "/path/to/backend".to_string()],
+        ..Default::default()
+    };
+    config.labels.insert("/path/to/frontend".to_string(), vec!["web".to_string()]);
+    config
+        .labels
+        .insert("/path/to/backend".to_string(), vec!["web".to_string(), "api".to_string()]);
+    let (config_path, _guard) = temp_config_path("quick_label_forget");
+    let state_path = crate::state::AppState::path_for(&config_path);
+    let mut app = App::new(config, config_path);
+
+    let key = |c: char| KeyEvent::new(KeyCode::Char(c), KeyModifiers::empty());
+    let ctrl_d = KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL);
+    let del_key = KeyEvent::new(KeyCode::Delete, KeyModifiers::empty());
+
+    // Nothing in quick labels or active filter: edge cases report helpful hints.
+    assert!(!app.forget_active_quick_label());
+    assert_eq!(app.status_message.as_deref(), Some("No active label filter to forget"));
+    assert!(!app.clear_quick_labels());
+    assert_eq!(app.status_message.as_deref(), Some("No quick labels to clear"));
+    assert!(!app.forget_label_slot("web"));
+    assert_eq!(app.status_message.as_deref(), Some("'web' is not in quick labels"));
+    assert!(!app.forget_label_slot_at(0));
+
+    // Seed two quick labels ("web", "api") with "api" active.
+    app.select_label_filter(Some("web".to_string()));
+    app.select_label_filter(Some("api".to_string()));
+    assert_eq!(app.state.label_slots, vec!["web".to_string(), "api".to_string()]);
+    assert_eq!(app.state.active_label_filter.as_deref(), Some("api"));
+
+    // Pressing `x` forgets only the active filter from quick labels while keeping it active.
+    assert!(crate::input::handle_key(&mut app, key('x'), 1));
+    assert_eq!(app.state.label_slots, vec!["web".to_string()]);
+    assert_eq!(app.state.active_label_filter.as_deref(), Some("api"));
+    let (reloaded, _) = crate::state::load_state(&state_path);
+    assert_eq!(reloaded.label_slots, vec!["web".to_string()]);
+
+    // In LabelPicker, `Delete` removes the highlighted label ("web") and stays open.
+    app.mode = Mode::LabelPicker;
+    app.input_buffer.clear();
+    let matches = app.get_label_matches(); // [None ("All"), Some("api"), Some("web")]
+    let web_idx = matches.iter().position(|(l, _)| l.as_deref() == Some("web")).unwrap();
+    app.label_picker_selection = web_idx;
+    assert!(crate::input::handle_key(&mut app, del_key, 1));
+    assert_eq!(app.mode, Mode::LabelPicker);
+    assert!(app.state.label_slots.is_empty());
+
+    // Re-add both and test `Ctrl+d` on "All repositories" (index 0) clears all slots.
+    app.mode = Mode::Normal;
+    app.select_label_filter(Some("web".to_string()));
+    app.select_label_filter(Some("api".to_string()));
+    assert_eq!(app.state.label_slots, vec!["web".to_string(), "api".to_string()]);
+    app.mode = Mode::LabelPicker;
+    app.label_picker_selection = 0;
+    assert!(crate::input::handle_key(&mut app, ctrl_d, 1));
+    assert!(app.state.label_slots.is_empty());
+    assert_eq!(app.mode, Mode::LabelPicker);
+
+    // On Home, `X` clears all quick labels too, and persists empty `label_slots`.
+    app.mode = Mode::Normal;
+    app.select_label_filter(Some("web".to_string()));
+    app.select_label_filter(Some("api".to_string()));
+    assert!(crate::input::handle_key(&mut app, key('X'), 1));
+    assert!(app.state.label_slots.is_empty());
+    let (reloaded, _) = crate::state::load_state(&state_path);
+    assert!(reloaded.label_slots.is_empty());
+}
+
+#[test]
 fn test_directory_scan_hidden_repos() {
     let temp_scan_root = std::env::temp_dir().join("gitwig_test_hidden_scan");
     let _ = std::fs::remove_dir_all(&temp_scan_root);

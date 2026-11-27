@@ -177,6 +177,10 @@ impl HomeTab {
                     Action::home_label_slot(slot).is_some_and(|a| app.is_bound(a, key))
                 }) {
                     app.select_label_slot(slot);
+                } else if app.is_bound(Action::HomeForgetQuickLabel, key) {
+                    app.forget_active_quick_label();
+                } else if app.is_bound(Action::HomeClearQuickLabels, key) {
+                    app.clear_quick_labels();
                 } else if app.is_bound(Action::HomeCycleFilter, key) {
                     app.cycle_global_filter(false);
                 } else if app.is_bound(Action::HomeCycleFilterBack, key) {

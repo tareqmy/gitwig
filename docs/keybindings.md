@@ -17,9 +17,11 @@
 | `Tab` / `Shift+Tab`  | Normal          | Cycle summary-bar filter (repos → dirty → ahead → stale → archived) forward / backward |
 | `L`                  | Normal          | Open label picker: filter the list to one label (sticky until deselected; persists across restarts) |
 | `1` … `9`            | Normal          | Quick label: apply the label in slot N as the sticky filter, matching the numbered chips under the summary bar. Slots are assigned in the order labels are first viewed (FIFO) and never reorder; press the active slot again to clear it |
+| `x` / `X`            | Normal          | Forget the active label filter from quick-label slots (`x`), or clear all quick-label slots (`X`); right-click or middle-click a chip on the header to forget just that chip |
 | `Esc`                | LabelPicker     | Close label picker without changing the filter |
 | `↑` / `↓`            | LabelPicker     | Navigate label list |
 | `Enter`              | LabelPicker     | Apply selected label (re-selecting the active label, or "All repositories", clears it) |
+| `Del` / `ctrl+d`     | LabelPicker     | Remove highlighted label from quick-label slots (or clear all slots when on "All repositories") |
 | `→`                  | LabelPicker     | Open Label Settings for the highlighted label (on the "All repositories" row it only shows a "Select a label to edit its settings" status hint) |
 | `Home` / `End` / `PgUp` / `PgDn` | Fuzzy pickers | Jump to top / bottom or page through the match list. Works in all fuzzy picker overlays: label picker, Jump-to-Repo, add/bulk-add repo scanners, and branch/file/commit/tag searches |
 | `ctrl+f`             | Normal          | Open global code search popup overlay |

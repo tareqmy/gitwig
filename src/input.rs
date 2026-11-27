@@ -767,6 +767,34 @@ fn dispatch_key(app: &mut App, key: KeyEvent, visible_count: usize) -> bool {
                     app.input_buffer.clear();
                     app.mode = Mode::Normal;
                 }
+                KeyCode::Delete => {
+                    if let Some((label, _)) = matches.get(app.label_picker_selection) {
+                        match label {
+                            Some(name) => {
+                                let name = name.clone();
+                                app.forget_label_slot(&name);
+                            }
+                            None => {
+                                app.clear_quick_labels();
+                            }
+                        }
+                    }
+                }
+                KeyCode::Char('d' | 'D')
+                    if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+                {
+                    if let Some((label, _)) = matches.get(app.label_picker_selection) {
+                        match label {
+                            Some(name) => {
+                                let name = name.clone();
+                                app.forget_label_slot(&name);
+                            }
+                            None => {
+                                app.clear_quick_labels();
+                            }
+                        }
+                    }
+                }
                 KeyCode::Backspace => {
                     app.input_buffer.pop();
                     app.label_picker_selection = 0;

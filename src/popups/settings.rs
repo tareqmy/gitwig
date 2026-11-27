@@ -93,6 +93,8 @@ const HOME_SETTING_INDICES: &[usize] = &[
     258, // Home: Quick Label 7
     259, // Home: Quick Label 8
     260, // Home: Quick Label 9
+    263, // Home: Forget Active Quick Label
+    264, // Home: Clear All Quick Labels
 ];
 const WORKSPACE_SETTING_INDICES: &[usize] =
     &[100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117];
@@ -111,7 +113,7 @@ const ALL_KEYBINDINGS_SETTING_INDICES: &[usize] = &[
     // Home Screen Keys
     17, 18, 19, 20, 21, 22, 38, 75, 33, 71, 262, 72, 73, 76, 37, 30, 31, 32, 77, 23, 24, 35, 25, 26,
     28, 70, 251, 36, 27, 29, 78, 79, 57, 74, 85, 86, 87, 88, 252, 253, 254, 255, 256, 257, 258,
-    259, 260, // Workspace Tab Keys
+    259, 260, 263, 264, // Workspace Tab Keys
     100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117,
     // Files & Branch Keys
     120, 121, 122, 123, 124, 125, 126, 127, 130, 131, 132, 133, 139, 134, 135, 136, 137, 138,
@@ -302,6 +304,8 @@ pub(crate) fn get_label(global_idx: usize) -> &'static str {
         258 => "Home: Quick Label 7",
         259 => "Home: Quick Label 8",
         260 => "Home: Quick Label 9",
+        263 => "Home: Forget Active Quick Label",
+        264 => "Home: Clear All Quick Labels",
         71 => "Home: Toggle Star",
         262 => "Home: Toggle Archive",
         72 => "Home: Yank Path",
@@ -558,6 +562,8 @@ fn get_desc(global_idx: usize) -> &'static str {
         76 => "Open global code search popup overlay.",
         77 => "Cycles the repository list layout between Normal, Compact, and Tile views.",
         78 => "Opens the signs and symbols legend overlay panel.",
+        263 => "Remove the active label filter from the quick-label bar.",
+        264 => "Clear every label from the quick-label bar.",
         _ => "",
     }
 }

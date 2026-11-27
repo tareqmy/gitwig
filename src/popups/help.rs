@@ -164,6 +164,8 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
     );
     let label_picker_key = kb.format_action_keys(Action::HomeLabelPicker, is_compat);
     let label_slot_keys = kb.format_label_slot_keys(is_compat);
+    let forget_quick_label_key = kb.format_action_keys(Action::HomeForgetQuickLabel, is_compat);
+    let clear_quick_labels_key = kb.format_action_keys(Action::HomeClearQuickLabels, is_compat);
 
     // The home list navigation keys are configurable (home.move_up etc.), so
     // the rows are built from the live bindings with the arrow glyphs the
@@ -225,6 +227,14 @@ pub fn get_help_lines(app: &App, usable_width: usize) -> Vec<Line<'_>> {
                 (
                     label_slot_keys,
                     "Filter by quick-label slot (numbered chips under the summary bar, filled in the order labels are first viewed; press again to clear)",
+                ),
+                (
+                    format!("{}/{}", forget_quick_label_key, clear_quick_labels_key),
+                    "Forget active quick label / clear all quick labels (or right/middle-click chip)",
+                ),
+                (
+                    "Del / Ctrl+d [in label picker]".to_string(),
+                    "Forget highlighted quick label (or clear all on 'All repositories')",
                 ),
                 (
                     "→ [in label picker]".to_string(),

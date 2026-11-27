@@ -177,11 +177,13 @@ pub fn draw_label_picker_popup(f: &mut Frame, app: &App, area: Rect) {
 
     let hint = Line::from(vec![
         Span::styled("Type to filter  ", muted_style()),
-        Span::styled("↑↓ navigate  ", muted_style()),
+        Span::styled("↑↓ ", muted_style()),
         Span::styled("Enter", accent_style().add_modifier(Modifier::BOLD)),
-        Span::styled(" select/toggle  ", muted_style()),
+        Span::styled(" select  ", muted_style()),
         Span::styled("→", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(" settings  ", muted_style()),
+        Span::styled("Del", accent_style().add_modifier(Modifier::BOLD)),
+        Span::styled(" forget  ", muted_style()),
         Span::styled("Esc", accent_style().add_modifier(Modifier::BOLD)),
         Span::styled(" cancel", muted_style()),
     ]);

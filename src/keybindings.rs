@@ -77,6 +77,8 @@ pub enum Action {
     HomeLabelSlot7,
     HomeLabelSlot8,
     HomeLabelSlot9,
+    HomeForgetQuickLabel,
+    HomeClearQuickLabels,
 
     // Detail / Workspace Tab Navigation
     CloseDetail,
@@ -251,6 +253,8 @@ impl Action {
             258 => Some(Action::HomeLabelSlot7),
             259 => Some(Action::HomeLabelSlot8),
             260 => Some(Action::HomeLabelSlot9),
+            263 => Some(Action::HomeForgetQuickLabel),
+            264 => Some(Action::HomeClearQuickLabels),
             15 => Some(Action::Help),
             16 => Some(Action::Close),
             17 => Some(Action::HomeMoveDown),
@@ -446,6 +450,8 @@ impl Action {
             Action::HomeLabelSlot7 => 258,
             Action::HomeLabelSlot8 => 259,
             Action::HomeLabelSlot9 => 260,
+            Action::HomeForgetQuickLabel => 263,
+            Action::HomeClearQuickLabels => 264,
             Action::HomeMoveDown => 17,
             Action::HomeMoveUp => 18,
             Action::HomePageDown => 19,
@@ -695,6 +701,8 @@ pub struct HomeKeybindings {
     pub label_slot_7: Option<Keybind>,
     pub label_slot_8: Option<Keybind>,
     pub label_slot_9: Option<Keybind>,
+    pub forget_quick_label: Option<Keybind>,
+    pub clear_quick_labels: Option<Keybind>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
@@ -1093,6 +1101,11 @@ impl KeybindingsConfig {
                 label_slot_7: Some(Keybind::new(&["7"], "Filter by quick label 7")),
                 label_slot_8: Some(Keybind::new(&["8"], "Filter by quick label 8")),
                 label_slot_9: Some(Keybind::new(&["9"], "Filter by quick label 9")),
+                forget_quick_label: Some(Keybind::new(
+                    &["x"],
+                    "Remove active label filter from quick labels",
+                )),
+                clear_quick_labels: Some(Keybind::new(&["X"], "Clear all quick labels")),
             },
             navigation: NavigationKeybindings {
                 nav_up: Some(Keybind::new(&["up", "k"], "Generic move up in lists/menus")),
@@ -1355,6 +1368,8 @@ impl KeybindingsConfig {
             Action::HomeLabelSlot7 => self.home.label_slot_7.as_ref(),
             Action::HomeLabelSlot8 => self.home.label_slot_8.as_ref(),
             Action::HomeLabelSlot9 => self.home.label_slot_9.as_ref(),
+            Action::HomeForgetQuickLabel => self.home.forget_quick_label.as_ref(),
+            Action::HomeClearQuickLabels => self.home.clear_quick_labels.as_ref(),
 
             // Navigation
             Action::NavUp => self.navigation.nav_up.as_ref(),
@@ -1571,6 +1586,8 @@ impl KeybindingsConfig {
             Action::HomeLabelSlot7 => self.home.label_slot_7.as_ref(),
             Action::HomeLabelSlot8 => self.home.label_slot_8.as_ref(),
             Action::HomeLabelSlot9 => self.home.label_slot_9.as_ref(),
+            Action::HomeForgetQuickLabel => self.home.forget_quick_label.as_ref(),
+            Action::HomeClearQuickLabels => self.home.clear_quick_labels.as_ref(),
 
             // Navigation
             Action::NavUp => self.navigation.nav_up.as_ref(),
@@ -1847,6 +1864,8 @@ impl KeybindingsConfig {
             Action::HomeLabelSlot7,
             Action::HomeLabelSlot8,
             Action::HomeLabelSlot9,
+            Action::HomeForgetQuickLabel,
+            Action::HomeClearQuickLabels,
             Action::CloseDetail,
             Action::DetailHelp,
             Action::CycleFocusForward,
@@ -1958,6 +1977,8 @@ impl KeybindingsConfig {
                 | Action::HomeLabelSlot7
                 | Action::HomeLabelSlot8
                 | Action::HomeLabelSlot9
+                | Action::HomeForgetQuickLabel
+                | Action::HomeClearQuickLabels
         )
     }
 
@@ -2049,6 +2070,8 @@ impl KeybindingsConfig {
             Action::HomeLabelSlot7 => self.home.label_slot_7 = keybind,
             Action::HomeLabelSlot8 => self.home.label_slot_8 = keybind,
             Action::HomeLabelSlot9 => self.home.label_slot_9 = keybind,
+            Action::HomeForgetQuickLabel => self.home.forget_quick_label = keybind,
+            Action::HomeClearQuickLabels => self.home.clear_quick_labels = keybind,
 
             // Navigation
             Action::NavUp => self.navigation.nav_up = keybind,

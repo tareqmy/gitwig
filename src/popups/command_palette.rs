@@ -32,6 +32,8 @@ const HOME_ACTIONS: &[Action] = &[
     Action::HomeDeleteRepo,
     Action::HomeEditLabels,
     Action::HomeLabelPicker,
+    Action::HomeForgetQuickLabel,
+    Action::HomeClearQuickLabels,
     Action::HomeSearchRepo,
     Action::HomeJumpPicker,
     Action::HomeGlobalSearch,

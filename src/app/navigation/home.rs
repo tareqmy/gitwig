@@ -476,6 +476,47 @@ impl App {
         }
     }
 
+    /// Removes `label` from the quick-label strip and persists `state.toml`.
+    /// Leaves `active_label_filter` untouched so forgetting a chip never alters
+    /// the current repository list view.
+    pub fn forget_label_slot(&mut self, label: &str) -> bool {
+        if !self.state.label_slots.iter().any(|l| l == label) {
+            self.status_message = Some(format!("'{}' is not in quick labels", label));
+            return false;
+        }
+        self.state.label_slots.retain(|l| l != label);
+        self.persist_state(&format!("Removed '{}' from quick labels", label));
+        true
+    }
+
+    /// Removes the quick-label chip at zero-based rendered `slot`.
+    pub fn forget_label_slot_at(&mut self, slot: usize) -> bool {
+        let Some((label, _)) = self.quick_labels().into_iter().nth(slot) else {
+            return false;
+        };
+        self.forget_label_slot(&label)
+    }
+
+    /// Removes the currently active label filter from the quick-label strip.
+    pub fn forget_active_quick_label(&mut self) -> bool {
+        let Some(active) = self.state.active_label_filter.clone() else {
+            self.status_message = Some("No active label filter to forget".to_string());
+            return false;
+        };
+        self.forget_label_slot(&active)
+    }
+
+    /// Clears every quick-label chip from the strip and persists `state.toml`.
+    pub fn clear_quick_labels(&mut self) -> bool {
+        if self.state.label_slots.is_empty() {
+            self.status_message = Some("No quick labels to clear".to_string());
+            return false;
+        }
+        self.state.label_slots.clear();
+        self.persist_state("Cleared all quick labels");
+        true
+    }
+
     /// Drops the sticky label filter when its label no longer exists on any
     /// tracked repository, so the home list cannot get stuck permanently empty.
     /// Returns whether the filter was cleared.

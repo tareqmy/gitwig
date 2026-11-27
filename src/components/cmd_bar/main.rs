@@ -65,6 +65,11 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
     );
     let label_picker_key = k(crate::keybindings::Action::HomeLabelPicker);
     let label_slot_keys = kb.format_label_slot_keys(compat);
+    let forget_quick_label_key = format!(
+        "{}/{}",
+        k(crate::keybindings::Action::HomeForgetQuickLabel),
+        k(crate::keybindings::Action::HomeClearQuickLabels)
+    );
     let jump_key = k(crate::keybindings::Action::HomeJumpPicker);
     let add_key = k(crate::keybindings::Action::HomeAddRepo);
     let bulk_add_key = k(crate::keybindings::Action::HomeBulkAdd);
@@ -105,6 +110,7 @@ pub(crate) fn normal_status_entries(app: &App) -> (Option<Vec<Span<'static>>>, V
         ("Filter", &cycle_filter_key),
         ("Label Filter", &label_picker_key),
         ("Quick Label", &label_slot_keys),
+        ("Forget Label", &forget_quick_label_key),
         ("Jump Picker", &jump_key),
         ("Add", &add_key),
         ("Bulk Add", &bulk_add_key),

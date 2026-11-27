@@ -4,14 +4,46 @@ use crate::app::{App, DetailSection, GlobalFilter, Mode, Splitter};
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Position;
 
+/// Maps a mouse position inside the centered quick-label chip strip to its
+/// zero-based rendered slot index, returning `None` on dividers or margins.
+fn quick_label_slot_at(
+    app: &App,
+    chip_rect: ratatui::layout::Rect,
+    pos: Position,
+) -> Option<usize> {
+    if !chip_rect.contains(pos) {
+        return None;
+    }
+    let parts = crate::ui::draw::quick_label_parts(app);
+    let widths: Vec<usize> =
+        parts.iter().map(|(key, name)| key.chars().count() + name.chars().count()).collect();
+    let gap_width = crate::ui::draw::QUICK_LABEL_DIVIDER.chars().count();
+    let total_width = widths.iter().sum::<usize>() + gap_width * widths.len().saturating_sub(1);
+    let start_x = chip_rect.x + (chip_rect.width.saturating_sub(total_width as u16) / 2);
+    if pos.x < start_x || pos.x >= start_x + total_width as u16 {
+        return None;
+    }
+    let mut offset = (pos.x - start_x) as usize;
+    for (slot, width) in widths.iter().enumerate() {
+        if offset < *width {
+            return Some(slot);
+        }
+        offset = offset.checked_sub(width + gap_width)?;
+    }
+    None
+}
+
 pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
     let is_click = mouse.kind == MouseEventKind::Down(MouseButton::Left);
+    let is_forget_click =
+        matches!(mouse.kind, MouseEventKind::Down(MouseButton::Right | MouseButton::Middle));
     let is_drag = mouse.kind == MouseEventKind::Drag(MouseButton::Left);
     let is_release = mouse.kind == MouseEventKind::Up(MouseButton::Left);
     let is_scroll_up = mouse.kind == MouseEventKind::ScrollUp;
     let is_scroll_down = mouse.kind == MouseEventKind::ScrollDown;
 
-    if !is_click && !is_drag && !is_release && !is_scroll_up && !is_scroll_down {
+    if !is_click && !is_forget_click && !is_drag && !is_release && !is_scroll_up && !is_scroll_down
+    {
         return;
     }
 
@@ -531,30 +563,8 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
 
             if let Some(chip_rect) = app.quick_label_area {
                 if chip_rect.contains(pos) {
-                    // Same centered-strip math as the summary tabs, measured
-                    // from the exact chip captions the bar renders.
-                    let parts = crate::ui::draw::quick_label_parts(app);
-                    let widths: Vec<usize> = parts
-                        .iter()
-                        .map(|(key, name)| key.chars().count() + name.chars().count())
-                        .collect();
-                    let gap_width = crate::ui::draw::QUICK_LABEL_DIVIDER.chars().count();
-                    let total_width =
-                        widths.iter().sum::<usize>() + gap_width * widths.len().saturating_sub(1);
-                    let start_x =
-                        chip_rect.x + (chip_rect.width.saturating_sub(total_width as u16) / 2);
-                    if pos.x >= start_x && pos.x < start_x + total_width as u16 {
-                        let mut offset = (pos.x - start_x) as usize;
-                        for (slot, width) in widths.iter().enumerate() {
-                            if offset < *width {
-                                app.select_label_slot(slot);
-                                return;
-                            }
-                            match offset.checked_sub(width + gap_width) {
-                                Some(next) => offset = next,
-                                None => return, // Divider click
-                            }
-                        }
+                    if let Some(slot) = quick_label_slot_at(app, chip_rect, pos) {
+                        app.select_label_slot(slot);
                     }
                     return;
                 }
@@ -707,6 +717,12 @@ pub fn handle_mouse(app: &mut App, mouse: MouseEvent) {
                         }
                     }
                     return;
+                }
+            }
+        } else if is_forget_click {
+            if let Some(chip_rect) = app.quick_label_area {
+                if let Some(slot) = quick_label_slot_at(app, chip_rect, pos) {
+                    app.forget_label_slot_at(slot);
                 }
             }
         } else {
@@ -1804,6 +1820,69 @@ mod tests {
         handle_mouse(&mut app, click(start_x.saturating_sub(1)));
         assert_eq!(app.state.active_label_filter, None);
         assert_eq!(app.mode, Mode::Normal);
+        let _ = std::fs::remove_file(temp_path);
+    }
+
+    #[test]
+    fn test_quick_label_chip_right_and_middle_click_forgets_slot() {
+        let mut config = crate::config::Config {
+            items: vec!["/path/to/repo_a".to_string(), "/path/to/repo_b".to_string()],
+            ..Default::default()
+        };
+        config.labels.insert("/path/to/repo_a".to_string(), vec!["web".to_string()]);
+        config
+            .labels
+            .insert("/path/to/repo_b".to_string(), vec!["web".to_string(), "api".to_string()]);
+        let temp_path = std::env::temp_dir().join("gitwig_test_quick_label_chip_forget.toml");
+        let mut app = App::new(config, temp_path.clone());
+        app.state.label_slots = vec!["web".to_string(), "api".to_string()];
+        app.quick_label_area = Some(Rect::new(0, 1, 80, 1));
+
+        let parts = crate::ui::draw::quick_label_parts(&app);
+        let widths: Vec<usize> =
+            parts.iter().map(|(key, name)| key.chars().count() + name.chars().count()).collect();
+        let gap = crate::ui::draw::QUICK_LABEL_DIVIDER.chars().count();
+        let total = widths.iter().sum::<usize>() + gap;
+        let start_x = (80 - total as u16) / 2;
+
+        // Right-clicking outside the strip does nothing.
+        handle_mouse(
+            &mut app,
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Right),
+                column: start_x.saturating_sub(1),
+                row: 1,
+                modifiers: KeyModifiers::empty(),
+            },
+        );
+        assert_eq!(app.state.label_slots, vec!["web".to_string(), "api".to_string()]);
+
+        // Right-clicking chip 1 removes "web", shifting "api" to slot 1.
+        handle_mouse(
+            &mut app,
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Right),
+                column: start_x,
+                row: 1,
+                modifiers: KeyModifiers::empty(),
+            },
+        );
+        assert_eq!(app.state.label_slots, vec!["api".to_string()]);
+
+        // Middle-clicking the now-sole centered chip removes "api".
+        let parts = crate::ui::draw::quick_label_parts(&app);
+        let width_api: usize = parts[0].0.chars().count() + parts[0].1.chars().count();
+        let api_x = (80 - width_api as u16) / 2;
+        handle_mouse(
+            &mut app,
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Middle),
+                column: api_x,
+                row: 1,
+                modifiers: KeyModifiers::empty(),
+            },
+        );
+        assert!(app.state.label_slots.is_empty());
         let _ = std::fs::remove_file(temp_path);
     }
 
