@@ -4,14 +4,16 @@ default-run = "gitwig"
 version = "2.8.2"
 edition = "2024"
 authors = ["tareqmy <tareq.y@gmail.com>"]
-description = "a rust based tui, an alternative to sourcetree and gitui"
+description = "Fast, keyboard-driven multi-repo Terminal Git UI (TUI) built in Rust — a SourceTree and lazygit alternative"
 rust-version = "1.88.0"
 exclude = [".github/*", ".vscode/*", "assets/*"]
+homepage = "https://gitwig.dev"
+documentation = "https://docs.gitwig.dev"
 repository = "https://github.com/tareqmy/gitwig"
 readme = "README.md"
 license = "MIT"
-categories = ["command-line-utilities"]
-keywords = ["git", "cli", "terminal", "tui", "rust"]
+categories = ["command-line-utilities", "development-tools"]
+keywords = ["git", "tui", "terminal", "cli", "git-client"]
 
 [workspace]
 members = [".", "gitwig-core"]

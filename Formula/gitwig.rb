@@ -1,6 +1,6 @@
 class Gitwig < Formula
-  desc "Gitwig: A rust based TUI, an alternative to sourcetree and gitui"
-  homepage "https://github.com/tareqmy/gitwig"
+  desc "Fast, keyboard-driven multi-repo Terminal Git UI (TUI) built in Rust"
+  homepage "https://gitwig.dev"
   version "2.8.2"
 
   if OS.mac?

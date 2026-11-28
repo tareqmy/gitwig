@@ -1,5 +1,5 @@
 {
-  description = "Gitwig — a keyboard-driven terminal Git UI, an alternative to SourceTree and gitui";
+  description = "Gitwig — fast, keyboard-driven multi-repo Terminal Git UI (TUI) built in Rust, a SourceTree and lazygit alternative";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -58,8 +58,8 @@
           ];
 
           meta = {
-            description = "Keyboard-driven terminal Git UI, an alternative to SourceTree and gitui";
-            homepage = "https://github.com/tareqmy/gitwig";
+            description = "Fast, keyboard-driven multi-repo Terminal Git UI (TUI) built in Rust, a SourceTree and lazygit alternative";
+            homepage = "https://gitwig.dev";
             changelog = "https://github.com/tareqmy/gitwig/blob/master/CHANGELOG.md";
             license = pkgs.lib.licenses.mit;
             mainProgram = "gitwig";

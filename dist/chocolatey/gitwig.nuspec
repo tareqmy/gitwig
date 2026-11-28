@@ -5,17 +5,17 @@
     <version>2.8.2</version>
     <title>Gitwig</title>
     <authors>tareqmy</authors>
-    <projectUrl>https://github.com/tareqmy/gitwig</projectUrl>
+    <projectUrl>https://gitwig.dev</projectUrl>
     <licenseUrl>https://github.com/tareqmy/gitwig/blob/master/LICENSE</licenseUrl>
     <iconUrl>https://cdn.jsdelivr.net/gh/tareqmy/gitwig@master/resources/icon.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <projectSourceUrl>https://github.com/tareqmy/gitwig</projectSourceUrl>
-    <docsUrl>https://github.com/tareqmy/gitwig/blob/master/README.md</docsUrl>
+    <docsUrl>https://docs.gitwig.dev</docsUrl>
     <bugTrackerUrl>https://github.com/tareqmy/gitwig/issues</bugTrackerUrl>
-    <tags>git tui terminal rust CLI console</tags>
-    <summary>Rust-based Terminal User Interface (TUI) for Git</summary>
+    <tags>git tui terminal rust cli console git-client sourcetree lazygit</tags>
+    <summary>Fast, keyboard-driven multi-repo Terminal Git UI (TUI) built in Rust</summary>
     <description>
-Gitwig is a terminal user interface for git that aims to bring a Git GUI experience (like SourceTree or Gitkraken) directly into your command line.
+Gitwig is a fast, keyboard-driven multi-repository Terminal Git UI (TUI) built in Rust — an alternative to desktop Git GUIs like SourceTree and terminal clients like lazygit. It supports branches, worktrees, partial stashing, GitHub PRs and issues, global code search, and an embedded terminal.
     </description>
     <releaseNotes>https://github.com/tareqmy/gitwig/releases</releaseNotes>
   </metadata>
