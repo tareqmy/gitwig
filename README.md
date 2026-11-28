@@ -13,6 +13,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <a href="https://gitwig.dev"><img src="https://img.shields.io/badge/website-gitwig.dev-bd6b3d.svg" alt="Website" /></a>
   <a href="https://docs.gitwig.dev"><img src="https://img.shields.io/badge/docs-docs.gitwig.dev-blue.svg" alt="Documentation" /></a>
+  <a href="https://cli.masoko.net/tools/gitwig/"><img src="https://cli.masoko.net/badge/gitwig.svg" alt="gitwig on The Terminal Index" /></a>
 </p>
 
 **Gitwig** (derived from **Git** + **Twig**, representing repository branches) is a lightweight, keyboard-driven **Terminal Git UI** (TUI) designed as a fast, minimal alternative to desktop Git GUI clients like **SourceTree** and terminal clients like **lazygit** and **gitui**. Built with Rust and `ratatui`, Gitwig presents all your Git repositories, worktrees, stashes, and branches in a clean, interactive bordered layout directly inside your terminal window.
