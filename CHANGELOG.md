@@ -7,6 +7,13 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [v2.8.2] - 2026-11-28
+### Added
+- **home**: batch archive/unarchive for all currently shown repositories of a label via `Z` (`Action::HomeArchiveLabelRepos`, also available in the Command Palette and Settings) with a `Mode::ConfirmArchiveLabel` confirmation modal showing a repo preview; targets the active sticky label filter (respecting summary tab, search query, and stale filters) or a highlighted label group header, unarchives symmetrically on the `archived` tab, and shows a dedicated empty-state hint when all repositories for the active label are archived. ([12112eb](https://github.com/tareqmy/gitwig/commit/12112eb))
+
+### Documentation
+- Updated `docs/keybindings.md`, `docs/panels.md`, and `GEMINI.md` for `Z` (`Action::HomeArchiveLabelRepos`) and `Mode::ConfirmArchiveLabel`. ([12112eb](https://github.com/tareqmy/gitwig/commit/12112eb))
+
 ## [v2.8.1] - 2026-11-27
 ### Added
 - **bisect**: Interactive Git Bisect controller (`Ctrl+G` from any Detail tab or Command Palette, `Mode::Bisect`, `gitwig-core/src/bisect.rs`) with `start`, `good`, `bad`, `skip`, quick-marking the selected commit (`G`/`B`), `reset`, remaining revision/step estimates, a live `🔍 BISECT` banner beneath the Detail tab bar, a scrollable bisect log, and `[BAD]`/`[GOOD]`/`[SKIP]` badges across the full bisect commit range in Workspace Commits. ([5b37a86](https://github.com/tareqmy/gitwig/commit/5b37a86))
