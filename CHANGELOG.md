@@ -7,6 +7,11 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [v2.8.3] - 2026-11-28
+### Documentation
+- **seo & packaging**: updated `README.md`, `Cargo.toml`, `gitwig-core/Cargo.toml`, `Formula/gitwig.rb`, `dist/chocolatey/gitwig.nuspec`, and `flake.nix` with `gitwig.dev` and `docs.gitwig.dev` links and updated descriptions/keywords. ([2fbb352](https://github.com/tareqmy/gitwig/commit/2fbb352))
+- **readme**: added The Terminal Index badge to `README.md`. ([ff5fd3f](https://github.com/tareqmy/gitwig/commit/ff5fd3f))
+
 ## [v2.8.2] - 2026-11-28
 ### Added
 - **home**: batch archive/unarchive for all currently shown repositories of a label via `Z` (`Action::HomeArchiveLabelRepos`, also available in the Command Palette and Settings) with a `Mode::ConfirmArchiveLabel` confirmation modal showing a repo preview; targets the active sticky label filter (respecting summary tab, search query, and stale filters) or a highlighted label group header, unarchives symmetrically on the `archived` tab, and shows a dedicated empty-state hint when all repositories for the active label are archived. ([12112eb](https://github.com/tareqmy/gitwig/commit/12112eb))

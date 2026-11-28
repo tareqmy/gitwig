@@ -1,7 +1,7 @@
 class Gitwig < Formula
   desc "Fast, keyboard-driven multi-repo Terminal Git UI (TUI) built in Rust"
   homepage "https://gitwig.dev"
-  version "2.8.2"
+  version "2.8.3"
 
   if OS.mac?
     if Hardware::CPU.intel?
